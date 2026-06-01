@@ -1,0 +1,12 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "wsl.exe",
+            "args": [
+                "/home/trip/.config/herd-lite/bin/php",
+                "/home/trip/repos/eyecare-backend-v2/artisan",
+                "boost:mcp"
+            ]
+        }
+    }
+}
