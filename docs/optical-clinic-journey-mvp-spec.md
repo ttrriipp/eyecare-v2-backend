@@ -409,13 +409,13 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add the fixed role catalog and connect users to one role so later API and Filament access checks have a stable foundation.
 
 **Acceptance criteria:**
-- [ ] Roles `admin`, `staff`, and `customer` are seeded idempotently.
-- [ ] Users belong to one role through a typed Eloquent relationship.
-- [ ] User factories can create admin, staff, and customer users.
+- [x] Roles `admin`, `staff`, and `customer` are seeded idempotently.
+- [x] Users belong to one role through a typed Eloquent relationship.
+- [x] User factories can create admin, staff, and customer users.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Role`
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Role`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
 
 **Dependencies:** None
 
@@ -433,22 +433,37 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Define reusable fixed statuses for appointments, SMS notifications, orders, billings, payments, and inventory movements without business workflows yet.
 
 **Acceptance criteria:**
-- [ ] Appointment and SMS statuses match the approved names.
-- [ ] Order, billing, payment, and inventory status values are seeded for upcoming modules.
-- [ ] Seeders can run repeatedly without duplicate rows.
+- [x] Appointment and SMS statuses match the approved names.
+- [x] Order, billing, payment, and inventory status values are seeded for upcoming modules.
+- [x] Seeders can run repeatedly without duplicate rows.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=StatusCatalog`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=StatusCatalog`
 
 **Dependencies:** Task 1
 
 **Files likely touched:**
+- `database/migrations/2026_06_06_020850_create_appointment_statuses_table.php`
+- `database/migrations/2026_06_06_021011_create_notification_statuses_table.php`
+- `database/migrations/2026_06_07_090015_create_order_statuses_table.php`
+- `database/migrations/2026_06_07_090016_create_billing_statuses_table.php`
+- `database/migrations/2026_06_07_090018_create_payment_statuses_table.php`
+- `database/migrations/2026_06_07_090019_create_inventory_movement_statuses_table.php`
 - `database/seeders/AppointmentStatusSeeder.php`
 - `database/seeders/NotificationStatusSeeder.php`
+- `database/seeders/OrderStatusSeeder.php`
+- `database/seeders/BillingStatusSeeder.php`
+- `database/seeders/PaymentStatusSeeder.php`
+- `database/seeders/InventoryMovementStatusSeeder.php`
 - `database/seeders/DatabaseSeeder.php`
 - `app/Models/AppointmentStatus.php`
 - `app/Models/NotificationStatus.php`
+- `app/Models/OrderStatus.php`
+- `app/Models/BillingStatus.php`
+- `app/Models/PaymentStatus.php`
+- `app/Models/InventoryMovementStatus.php`
+- `tests/Feature/StatusCatalogTest.php`
 
 **Estimated scope:** M
 
@@ -457,18 +472,17 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Restrict the admin panel to staff and admin users while keeping customers API-only.
 
 **Acceptance criteria:**
-- [ ] Staff and admin users can access Filament.
-- [ ] Customer users are denied Filament access.
-- [ ] Access behavior is covered by a feature test.
+- [x] Staff and admin users can access Filament.
+- [x] Customer users are denied Filament access.
+- [x] Access behavior is covered by a feature test.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=FilamentAccess`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=FilamentAccess`
 
 **Dependencies:** Task 1
 
 **Files likely touched:**
 - `app/Models/User.php`
-- `app/Providers/Filament/AdminPanelProvider.php`
 - `tests/Feature/Filament/FilamentAccessTest.php`
 
 **Estimated scope:** S
@@ -478,12 +492,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Implement mobile API authentication for customer registration, login, logout, and current-user lookup using Sanctum bearer tokens.
 
 **Acceptance criteria:**
-- [ ] Customers can register and receive an API token.
-- [ ] Customers can log in, log out, and fetch their profile.
-- [ ] Invalid credentials and duplicate registration data return validation errors.
+- [x] Customers can register and receive an API token.
+- [x] Customers can log in, log out, and fetch their profile.
+- [x] Invalid credentials and duplicate registration data return validation errors.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Auth`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Auth`
 
 **Dependencies:** Tasks 1, 2
 
@@ -492,6 +506,8 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 - `app/Http/Controllers/Api/AuthController.php`
 - `app/Http/Requests/Api/RegisterCustomerRequest.php`
 - `app/Http/Requests/Api/LoginRequest.php`
+- `app/Http/Resources/UserResource.php`
+- `app/Models/User.php`
 - `tests/Feature/Api/AuthTest.php`
 
 **Estimated scope:** M
