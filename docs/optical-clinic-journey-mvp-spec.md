@@ -526,13 +526,13 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Complete visit reason and appointment data structures so customers can book appointments and staff can manage status.
 
 **Acceptance criteria:**
-- [ ] Appointments store customer, visit reason, status, scheduled date/time, contact notes, and staff notes.
-- [ ] Appointment, visit reason, and status relationships are typed.
-- [ ] Appointment factory creates valid records.
+- [x] Appointments store customer, visit reason, status, scheduled date/time, contact notes, and staff notes.
+- [x] Appointment, visit reason, and status relationships are typed.
+- [x] Appointment factory creates valid records.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentModel`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentModel`
 
 **Dependencies:** Tasks 1, 2
 
@@ -540,8 +540,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 - `database/migrations/2026_06_06_020841_create_visit_reasons_table.php`
 - `database/migrations/2026_06_06_020917_create_appointments_table.php`
 - `app/Models/Appointment.php`
+- `app/Models/VisitReason.php`
 - `database/factories/AppointmentFactory.php`
+- `database/factories/VisitReasonFactory.php`
 - `database/seeders/VisitReasonSeeder.php`
+- `database/seeders/DatabaseSeeder.php`
+- `tests/Feature/AppointmentModelTest.php`
 
 **Estimated scope:** M
 
