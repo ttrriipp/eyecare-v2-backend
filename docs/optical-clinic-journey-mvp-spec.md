@@ -713,12 +713,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add staff-managed prescriptions and a customer API for prescription history.
 
 **Acceptance criteria:**
-- [ ] Staff can record prescriptions linked to customers and optionally appointments.
-- [ ] Customers can view only their own prescription history.
-- [ ] Prescription dates and OD/OS/PD fields are validated.
+- [x] Staff can record prescriptions linked to customers and optionally appointments.
+- [x] Customers can view only their own prescription history.
+- [x] Prescription dates and OD/OS/PD fields are validated.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Prescription`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Prescription`
 
 **Dependencies:** Tasks 5, 6
 
@@ -734,9 +734,9 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 ### Checkpoint: Catalog And Prescriptions
 
 - [x] `vendor/bin/sail artisan test --compact --filter=ProductCatalog`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Prescription`
+- [x] `vendor/bin/sail artisan test --compact --filter=Prescription`
 - [x] Active products and AR metadata are available through API.
-- [ ] Prescription history is customer-scoped.
+- [x] Prescription history is customer-scoped.
 
 ### Phase 4: Orders, Inventory, And Billing
 
