@@ -690,12 +690,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add staff/admin catalog management for products, variants, lens types, stock basics, images, and AR asset references.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can create and edit catalog records.
-- [ ] Low stock state is visible in the product table.
-- [ ] Upload fields use explicit safe visibility and validation.
+- [x] Staff/admin can create and edit catalog records.
+- [x] Low stock state is visible in the product table.
+- [x] Upload fields use explicit safe visibility and validation.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=CatalogResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=CatalogResource`
 
 **Dependencies:** Tasks 3, 9
 
