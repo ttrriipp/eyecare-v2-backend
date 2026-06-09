@@ -667,12 +667,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Expose customer product browsing and AR-eligible variant metadata to the mobile app.
 
 **Acceptance criteria:**
-- [ ] Customers can list active products and view product details.
-- [ ] AR-eligible variants expose asset references.
-- [ ] API responses contain no biometric fields or face data.
+- [x] Customers can list active products and view product details.
+- [x] AR-eligible variants expose asset references.
+- [x] API responses contain no biometric fields or face data.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=ProductCatalog`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=ProductCatalog`
 
 **Dependencies:** Tasks 4, 9
 
@@ -733,9 +733,9 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Catalog And Prescriptions
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=ProductCatalog`
+- [x] `vendor/bin/sail artisan test --compact --filter=ProductCatalog`
 - [ ] `vendor/bin/sail artisan test --compact --filter=Prescription`
-- [ ] Active products and AR metadata are available through API.
+- [x] Active products and AR metadata are available through API.
 - [ ] Prescription history is customer-scoped.
 
 ### Phase 4: Orders, Inventory, And Billing
