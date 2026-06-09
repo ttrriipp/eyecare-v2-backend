@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StaffAppointmentController;
+use App\Http\Controllers\Api\StaffOrderController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -22,5 +23,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::prefix('staff')->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
+        Route::patch('orders/{order}/status', [StaffOrderController::class, 'updateStatus']);
     });
 });

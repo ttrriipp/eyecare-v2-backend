@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: Specification and implementation plan approved; task breakdown drafted for human review
-Phase: Tasks
+Status: In progress — Phase 4, Task 14 next
+Phase: Tasks 1–13 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -402,6 +402,8 @@ This order keeps the app demoable after each vertical slice and avoids building 
 
 This plan is backend-only: Laravel API, database, seeders, tests, services/actions, and Filament admin workflows. Android screens and native AR implementation are outside this task list.
 
+`.context/database schema.md` is exploratory reference only — not authoritative. Implement schema from task acceptance criteria and existing migrations in this repository.
+
 ### Phase 1: Foundation
 
 #### Task 1: Role Catalog And User Role Column
@@ -514,10 +516,10 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Foundation
 
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Role`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Auth`
-- [ ] Admin/staff/customer demo accounts can be created from factories or seeders.
+- [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] `vendor/bin/sail artisan test --compact --filter=Role`
+- [x] `vendor/bin/sail artisan test --compact --filter=Auth`
+- [x] Admin/staff/customer demo accounts can be created from factories or seeders.
 
 ### Phase 2: Appointments And SMS Records
 
@@ -723,11 +725,13 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 5, 6
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_040000_create_prescriptions_table.php`
+- `database/migrations/*_create_prescriptions_table.php`
 - `app/Models/Prescription.php`
 - `app/Http/Controllers/Api/PrescriptionController.php`
+- `app/Http/Resources/PrescriptionResource.php`
 - `app/Filament/Resources/Prescriptions/PrescriptionResource.php`
 - `tests/Feature/Api/PrescriptionTest.php`
+- `tests/Feature/Filament/PrescriptionResourceTest.php`
 
 **Estimated scope:** M
 
@@ -745,32 +749,42 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Let customers submit order requests with item snapshots, selected variants, fixed lens type selection, optional appointment context, and non-prescription flag.
 
 **Acceptance criteria:**
-- [ ] Order items snapshot product, variant, lens type, and price at request time.
-- [ ] Customers can create and list only their own orders.
-- [ ] Invalid variant, lens type, or appointment ownership is rejected.
+- [x] Order items snapshot product, variant, lens type, and price at request time.
+- [x] Customers can create and list only their own orders.
+- [x] Invalid variant, lens type, or appointment ownership is rejected.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderRequest`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderRequest`
 
-**Dependencies:** Tasks 9, 10, 12
+**Dependencies:** Tasks 9, 10
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_050000_create_orders_table.php`
+- `database/migrations/*_create_orders_table.php`
 - `app/Models/Order.php`
 - `app/Models/OrderItem.php`
 - `app/Http/Controllers/Api/OrderController.php`
+- `app/Http/Requests/Api/StoreOrderRequest.php`
+- `app/Http/Resources/OrderResource.php`
+- `app/Http/Resources/OrderItemResource.php`
 - `tests/Feature/Api/OrderRequestTest.php`
 
 **Estimated scope:** M
 
-#### Task 14: Staff Order Status Workflow
+### Checkpoint: Order Requests (Customer)
 
-**Description:** Add the staff order processing action with approved statuses and prescription/non-prescription confirmation gate.
+- [x] `vendor/bin/sail artisan test --compact --filter=OrderRequest`
+- [x] Customers can submit orders with frozen item snapshots.
+- [ ] Staff can process orders (Tasks 14–15).
+
+#### Task 14: Staff Order Status Action And API
+
+**Description:** Add the shared order status workflow action and staff API for moving orders through approved statuses, including the prescription/non-prescription confirmation gate.
 
 **Acceptance criteria:**
-- [ ] Staff can move orders through review, confirmed, preparing, ready, completed, and cancelled states.
-- [ ] Prescription orders cannot be confirmed without a completed prescription.
-- [ ] Explicit non-prescription orders can be confirmed without prescription data.
+- [ ] Staff can move orders through `under_review`, `confirmed`, `preparing`, `ready_for_pickup`, `completed`, and `cancelled` states.
+- [ ] Orders with `is_non_prescription = false` cannot be confirmed unless the customer has at least one prescription on record.
+- [ ] Orders with `is_non_prescription = true` can be confirmed without prescription data.
+- [ ] Status changes use a single `UpdateOrderStatus` action (no duplicated transition logic).
 
 **Verification:**
 - [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderProcessing`
@@ -778,15 +792,40 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 12, 13
 
 **Files likely touched:**
+- `routes/api.php`
 - `app/Actions/Orders/UpdateOrderStatus.php`
 - `app/Models/Order.php`
+- `app/Http/Controllers/Api/StaffOrderController.php`
 - `app/Http/Requests/Api/UpdateOrderStatusRequest.php`
-- `app/Filament/Resources/Orders/OrderResource.php`
-- `tests/Feature/Orders/OrderProcessingTest.php`
+- `tests/Feature/Api/OrderProcessingTest.php`
 
 **Estimated scope:** M
 
-#### Task 15: Inventory Movements On Order Confirmation
+#### Task 15: Filament Order Resource
+
+**Description:** Build the admin order review workflow for staff and admin users, reusing the same status action as the staff API.
+
+**Acceptance criteria:**
+- [ ] Staff/admin can list and edit order requests.
+- [ ] Table filters include order status and customer.
+- [ ] Status changes through Filament use the same `UpdateOrderStatus` action as the API.
+
+**Verification:**
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
+
+**Dependencies:** Tasks 3, 14
+
+**Files likely touched:**
+- `app/Filament/Resources/Orders/OrderResource.php`
+- `app/Filament/Resources/Orders/Pages/ListOrders.php`
+- `app/Filament/Resources/Orders/Pages/EditOrder.php`
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `app/Filament/Resources/Orders/Tables/OrdersTable.php`
+- `tests/Feature/Filament/OrderResourceTest.php`
+
+**Estimated scope:** M
+
+#### Task 16: Inventory Movements On Order Confirmation
 
 **Description:** Deduct variant stock when an order is confirmed and create reversal movements when a confirmed order is cancelled.
 
@@ -801,7 +840,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 9, 14
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_060000_create_inventory_movements_table.php`
+- `database/migrations/*_create_inventory_movements_table.php`
 - `app/Models/InventoryMovement.php`
 - `app/Actions/Inventory/RecordInventoryMovement.php`
 - `app/Actions/Orders/UpdateOrderStatus.php`
@@ -809,9 +848,9 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 **Estimated scope:** M
 
-#### Task 16: Billing Generation From Confirmed Orders
+#### Task 17: Billing Schema And Generation
 
-**Description:** Generate billings from confirmed orders using order item snapshots.
+**Description:** Add billing records and generate one billing per confirmed order from order item snapshots.
 
 **Acceptance criteria:**
 - [ ] Confirmed orders can generate one billing record.
@@ -824,15 +863,36 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 13, 14
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_070000_create_billings_table.php`
+- `database/migrations/*_create_billings_table.php`
 - `app/Models/Billing.php`
 - `app/Actions/Billing/GenerateBillingForOrder.php`
-- `app/Filament/Resources/Billings/BillingResource.php`
 - `tests/Feature/Billing/BillingGenerationTest.php`
 
 **Estimated scope:** M
 
-#### Task 17: Manual Payments And Billing Balance
+#### Task 18: Filament Billing Resource
+
+**Description:** Add staff/admin billing visibility and billing generation triggers in Filament.
+
+**Acceptance criteria:**
+- [ ] Staff/admin can list billings linked to orders.
+- [ ] Staff/admin can generate billing from a confirmed order when none exists.
+- [ ] Duplicate billing generation is blocked in the UI.
+
+**Verification:**
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingResource`
+
+**Dependencies:** Tasks 3, 17
+
+**Files likely touched:**
+- `app/Filament/Resources/Billings/BillingResource.php`
+- `app/Filament/Resources/Billings/Pages/ListBillings.php`
+- `app/Filament/Resources/Billings/Pages/ViewBilling.php`
+- `tests/Feature/Filament/BillingResourceTest.php`
+
+**Estimated scope:** M
+
+#### Task 19: Manual Payments And Billing Balance
 
 **Description:** Add manual payment records and balance recalculation for posted, voided, and reversed payments.
 
@@ -844,10 +904,10 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Verification:**
 - [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Payment`
 
-**Dependencies:** Task 16
+**Dependencies:** Task 17
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_080000_create_payments_table.php`
+- `database/migrations/*_create_payments_table.php`
 - `app/Models/Payment.php`
 - `app/Actions/Billing/RecalculateBillingBalance.php`
 - `app/Http/Controllers/Api/BillingController.php`
@@ -864,7 +924,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Phase 5: Messaging, Feedback, Audit, And Dashboard
 
-#### Task 18: Conversation And Message API
+#### Task 20: Conversation And Message API
 
 **Description:** Add anytime customer-staff conversations with optional appointment or order context.
 
@@ -879,7 +939,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 1, 4
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_090000_create_conversations_table.php`
+- `database/migrations/*_create_conversations_table.php`
 - `app/Models/Conversation.php`
 - `app/Models/Message.php`
 - `app/Http/Controllers/Api/ConversationController.php`
@@ -887,7 +947,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 **Estimated scope:** M
 
-#### Task 19: Message Attachments
+#### Task 21: Message Attachments
 
 **Description:** Support validated private attachments on messages.
 
@@ -899,10 +959,10 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Verification:**
 - [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=MessageAttachment`
 
-**Dependencies:** Task 18
+**Dependencies:** Task 20
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_100000_create_message_attachments_table.php`
+- `database/migrations/*_create_message_attachments_table.php`
 - `app/Models/MessageAttachment.php`
 - `app/Http/Requests/Api/StoreMessageRequest.php`
 - `app/Http/Resources/MessageResource.php`
@@ -910,7 +970,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 **Estimated scope:** M
 
-#### Task 20: Filament Conversation Management
+#### Task 22: Filament Conversation Management
 
 **Description:** Add staff/admin conversation management and replies in Filament.
 
@@ -922,7 +982,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Verification:**
 - [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=ConversationResource`
 
-**Dependencies:** Tasks 18, 19
+**Dependencies:** Tasks 20, 21
 
 **Files likely touched:**
 - `app/Filament/Resources/Conversations/ConversationResource.php`
@@ -932,7 +992,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 **Estimated scope:** M
 
-#### Task 21: Feedback Workflow
+#### Task 23: Feedback Workflow
 
 **Description:** Let customers submit feedback after completed appointments or completed orders, with staff replies in Filament.
 
@@ -947,7 +1007,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Dependencies:** Tasks 8, 14
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_110000_create_feedback_table.php`
+- `database/migrations/*_create_feedback_table.php`
 - `app/Models/Feedback.php`
 - `app/Http/Controllers/Api/FeedbackController.php`
 - `app/Filament/Resources/Feedback/FeedbackResource.php`
@@ -955,30 +1015,50 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 **Estimated scope:** M
 
-#### Task 22: Audit Log Foundation
+#### Task 24: Audit Log Recording
 
-**Description:** Record important staff/admin workflow actions for defense visibility and traceability.
+**Description:** Add audit log persistence and hook important workflow actions to record actor, subject, action, and metadata.
 
 **Acceptance criteria:**
 - [ ] Audit entries include actor, subject, action, and metadata.
-- [ ] Appointment, inventory, order, billing, payment, and feedback actions create audit logs.
-- [ ] Staff/admin can view audit logs in Filament.
+- [ ] Appointment, inventory, order, billing, payment, and feedback workflow actions create audit logs.
+- [ ] Audit recording uses a single `CreateAuditLog` action.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLog`
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogRecording`
 
-**Dependencies:** Tasks 7, 15, 17, 21
+**Dependencies:** Tasks 7, 16, 19, 23
 
 **Files likely touched:**
-- `database/migrations/2026_06_06_120000_create_audit_logs_table.php`
+- `database/migrations/*_create_audit_logs_table.php`
 - `app/Models/AuditLog.php`
 - `app/Actions/Audit/CreateAuditLog.php`
-- `app/Filament/Resources/AuditLogs/AuditLogResource.php`
-- `tests/Feature/AuditLogTest.php`
+- `tests/Feature/AuditLogRecordingTest.php`
 
 **Estimated scope:** M
 
-#### Task 23: Dashboard Widgets
+#### Task 25: Filament Audit Log Resource
+
+**Description:** Add read-only staff/admin audit log visibility in Filament.
+
+**Acceptance criteria:**
+- [ ] Staff/admin can list and view audit log entries.
+- [ ] Table filters include action and subject type.
+- [ ] Audit logs are not editable through Filament.
+
+**Verification:**
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogResource`
+
+**Dependencies:** Tasks 3, 24
+
+**Files likely touched:**
+- `app/Filament/Resources/AuditLogs/AuditLogResource.php`
+- `app/Filament/Resources/AuditLogs/Pages/ListAuditLogs.php`
+- `tests/Feature/Filament/AuditLogResourceTest.php`
+
+**Estimated scope:** S
+
+#### Task 26: Dashboard Widgets
 
 **Description:** Add the approved Filament dashboard cards using efficient aggregate queries.
 
@@ -990,7 +1070,7 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Verification:**
 - [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Dashboard`
 
-**Dependencies:** Tasks 8, 15, 17, 21
+**Dependencies:** Tasks 8, 16, 19, 23
 
 **Files likely touched:**
 - `app/Filament/Widgets/AppointmentOverview.php`
@@ -1011,31 +1091,52 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Phase 6: Demo Data And Hardening
 
-#### Task 24: Defense Demo Seed Data
+#### Task 27: Demo Accounts And Core Seed
 
-**Description:** Seed a complete backend demo dataset for the approved AR-to-order-to-appointment-to-SMS defense path.
+**Description:** Ensure fresh seed creates known admin, staff, and customer demo accounts plus catalog baseline for local and defense demos.
 
 **Acceptance criteria:**
-- [ ] Fresh seed creates admin, staff, and customer accounts.
-- [ ] Demo data includes products, variants, lens types, AR references, appointment, order, billing, messages, and feedback.
+- [ ] Fresh seed creates admin, staff, and customer accounts with documented credentials.
+- [ ] Catalog seed data includes products, variants, lens types, and AR references.
+- [ ] Seeders remain idempotent.
+
+**Verification:**
+- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoAccountsSeed`
+
+**Dependencies:** Tasks 1–11
+
+**Files likely touched:**
+- `database/seeders/DatabaseSeeder.php`
+- `database/seeders/DemoUserSeeder.php`
+- `database/seeders/CatalogSeeder.php`
+- `tests/Feature/DemoAccountsSeedTest.php`
+
+**Estimated scope:** S
+
+#### Task 28: Defense Workflow Demo Seed
+
+**Description:** Seed end-to-end clinic workflow records for the approved defense path (appointment, order, billing, messages, feedback).
+
+**Acceptance criteria:**
+- [ ] Demo data includes a representative appointment, order request, billing, messages, and feedback.
+- [ ] Seeded data supports both prescription and non-prescription order paths.
 - [ ] Demo flow can run without manual database edits.
 
 **Verification:**
 - [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoSeedData`
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoWorkflowSeed`
 
-**Dependencies:** Tasks 1-23
+**Dependencies:** Tasks 1–26
 
 **Files likely touched:**
 - `database/seeders/DatabaseSeeder.php`
-- `database/seeders/DemoSeeder.php`
-- `database/seeders/CatalogSeeder.php`
 - `database/seeders/ClinicWorkflowSeeder.php`
-- `tests/Feature/DemoSeedDataTest.php`
+- `tests/Feature/DemoWorkflowSeedTest.php`
 
 **Estimated scope:** M
 
-#### Task 25: Final Backend Hardening
+#### Task 29: Final Backend Hardening
 
 **Description:** Run the final backend quality pass across formatting, tests, route review, and build verification.
 
@@ -1051,12 +1152,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 - [ ] Build succeeds: `vendor/bin/sail npm run build`
 - [ ] Route review: `vendor/bin/sail artisan route:list --except-vendor`
 
-**Dependencies:** Task 24
+**Dependencies:** Task 28
 
 **Files likely touched:**
 - `routes/api.php`
 - `docs/optical-clinic-journey-mvp-spec.md`
-- `tests/Feature/DemoSeedDataTest.php`
+- `tests/Feature/DemoWorkflowSeedTest.php`
 
 **Estimated scope:** S
 
@@ -1070,6 +1171,6 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ## Review Gate
 
-Do not proceed to implementation until this task breakdown is reviewed and approved.
+Task breakdown approved. Implementation executes one task at a time with the listed tests and checkpoints.
 
-After approval, implementation executes tasks one at a time with the listed tests and checkpoints. Tasks should be split further before implementation if they grow beyond five files or one focused session.
+Split tasks further before implementation if they grow beyond five files or one focused session. The authoritative schema is defined by migrations and task acceptance criteria in this document — not `.context/database schema.md`.
