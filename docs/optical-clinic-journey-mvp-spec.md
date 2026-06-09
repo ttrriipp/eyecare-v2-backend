@@ -554,12 +554,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Let authenticated customers create appointments and list only their own appointment records.
 
 **Acceptance criteria:**
-- [ ] Authenticated customers can create pending appointments.
-- [ ] Customers can list and view only their own appointments.
-- [ ] Invalid schedule, visit reason, or contact data returns JSON validation errors.
+- [x] Authenticated customers can create pending appointments.
+- [x] Customers can list and view only their own appointments.
+- [x] Invalid schedule, visit reason, or contact data returns JSON validation errors.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentBooking`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentBooking`
 
 **Dependencies:** Tasks 4, 5
 
