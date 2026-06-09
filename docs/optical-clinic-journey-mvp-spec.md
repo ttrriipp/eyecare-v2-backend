@@ -603,12 +603,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Build the admin appointment workflow for staff and admin users.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can list and edit appointments.
-- [ ] Table filters include appointment status and scheduled date.
-- [ ] Status changes through Filament use the same workflow action as the API.
+- [x] Staff/admin can list and edit appointments.
+- [x] Table filters include appointment status and scheduled date.
+- [x] Status changes through Filament use the same workflow action as the API.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
 
 **Dependencies:** Tasks 3, 7
 
@@ -616,6 +616,8 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 - `app/Filament/Resources/Appointments/AppointmentResource.php`
 - `app/Filament/Resources/Appointments/Pages/ListAppointments.php`
 - `app/Filament/Resources/Appointments/Pages/EditAppointment.php`
+- `app/Filament/Resources/Appointments/Schemas/AppointmentForm.php`
+- `app/Filament/Resources/Appointments/Tables/AppointmentsTable.php`
 - `tests/Feature/Filament/AppointmentResourceTest.php`
 
 **Estimated scope:** M
