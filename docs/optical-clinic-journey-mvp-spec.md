@@ -577,20 +577,23 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add the backend workflow action for staff appointment status changes and record SMS notification rows for approved SMS events.
 
 **Acceptance criteria:**
-- [ ] Staff can confirm, reschedule, cancel, and complete appointments.
-- [ ] Confirm, reschedule, and cancel create SMS notification records.
-- [ ] Tests prove no real SMS is sent.
+- [x] Staff can confirm, reschedule, cancel, and complete appointments.
+- [x] Confirm, reschedule, and cancel create SMS notification records.
+- [x] Tests prove no real SMS is sent.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=StaffAppointment`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=StaffAppointment`
 
 **Dependencies:** Tasks 5, 6
 
 **Files likely touched:**
+- `routes/api.php`
+- `database/migrations/2026_06_06_021117_create_sms_notifications_table.php`
 - `app/Http/Controllers/Api/StaffAppointmentController.php`
 - `app/Http/Requests/Api/UpdateAppointmentStatusRequest.php`
 - `app/Actions/Appointments/UpdateAppointmentStatus.php`
 - `app/Models/SmsNotification.php`
+- `database/factories/SmsNotificationFactory.php`
 - `tests/Feature/Api/StaffAppointmentTest.php`
 
 **Estimated scope:** M
