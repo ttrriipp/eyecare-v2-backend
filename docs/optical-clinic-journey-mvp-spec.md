@@ -624,10 +624,10 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Appointments
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Appointment`
-- [ ] Customer booking produces `pending`.
-- [ ] Staff confirmation creates an SMS notification record.
-- [ ] Filament appointment filters work in tests.
+- [x] `vendor/bin/sail artisan test --compact --filter=Appointment`
+- [x] Customer booking produces `pending`.
+- [x] Staff confirmation creates an SMS notification record.
+- [x] Filament appointment filters work in tests.
 
 ### Phase 3: Catalog, AR Metadata, And Prescriptions
 
@@ -636,22 +636,29 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add backend catalog tables for brands, categories, lens types, products, variants, images, and AR asset references.
 
 **Acceptance criteria:**
-- [ ] Products and variants support active state, pricing, dimensions, stock quantity, and low stock threshold.
-- [ ] AR references are metadata only and contain no biometric fields.
-- [ ] Catalog seed data creates demo frame products and lens types.
+- [x] Products and variants support active state, pricing, dimensions, stock quantity, and low stock threshold.
+- [x] AR references are metadata only and contain no biometric fields.
+- [x] Catalog seed data creates demo frame products and lens types.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=CatalogSchema`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=CatalogSchema`
 
 **Dependencies:** Task 2
 
 **Files likely touched:**
 - `database/migrations/2026_06_06_030000_create_catalog_tables.php`
+- `app/Models/Brand.php`
+- `app/Models/Category.php`
+- `app/Models/LensType.php`
 - `app/Models/Product.php`
 - `app/Models/ProductVariant.php`
+- `app/Models/ProductImage.php`
 - `database/factories/ProductFactory.php`
+- `database/factories/ProductVariantFactory.php`
 - `database/seeders/CatalogSeeder.php`
+- `database/seeders/DatabaseSeeder.php`
+- `tests/Feature/CatalogSchemaTest.php`
 
 **Estimated scope:** M
 

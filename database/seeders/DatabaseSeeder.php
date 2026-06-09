@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             BillingStatusSeeder::class,
             PaymentStatusSeeder::class,
             InventoryMovementStatusSeeder::class,
+            CatalogSeeder::class,
         ]);
 
         // User::factory(10)->create();
