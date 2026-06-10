@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 4, Task 17 next
-Phase: Tasks 1–16 complete (29 tasks total after splits)
+Status: In progress — Phase 4, Task 18 next
+Phase: Tasks 1–17 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -854,12 +854,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add billing records and generate one billing per confirmed order from order item snapshots.
 
 **Acceptance criteria:**
-- [ ] Confirmed orders can generate one billing record.
-- [ ] Billing totals and initial balance match order snapshots.
-- [ ] Duplicate billing generation is prevented.
+- [x] Confirmed orders can generate one billing record.
+- [x] Billing totals and initial balance match order snapshots.
+- [x] Duplicate billing generation is prevented.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingGeneration`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingGeneration`
 
 **Dependencies:** Tasks 13, 14
 
