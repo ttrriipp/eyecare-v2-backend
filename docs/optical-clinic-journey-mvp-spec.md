@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 20 next
-Phase: Tasks 1–19 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 21 next
+Phase: Tasks 1–20 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -930,12 +930,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add anytime customer-staff conversations with optional appointment or order context.
 
 **Acceptance criteria:**
-- [ ] Customers and staff can create conversations without an order or appointment.
-- [ ] Conversations can optionally link to an appointment or order.
-- [ ] Participants can view only conversations they are authorized to access.
+- [x] Customers and staff can create conversations without an order or appointment.
+- [x] Conversations can optionally link to an appointment or order.
+- [x] Participants can view only conversations they are authorized to access.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Messaging`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Messaging`
 
 **Dependencies:** Tasks 1, 4
 
