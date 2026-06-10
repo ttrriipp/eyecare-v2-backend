@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 4, Task 18 next
-Phase: Tasks 1–17 complete (29 tasks total after splits)
+Status: In progress — Phase 4, Task 19 next
+Phase: Tasks 1–18 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -876,12 +876,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add staff/admin billing visibility and billing generation triggers in Filament.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can list billings linked to orders.
-- [ ] Staff/admin can generate billing from a confirmed order when none exists.
-- [ ] Duplicate billing generation is blocked in the UI.
+- [x] Staff/admin can list billings linked to orders.
+- [x] Staff/admin can generate billing from a confirmed order when none exists.
+- [x] Duplicate billing generation is blocked in the UI.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingResource`
 
 **Dependencies:** Tasks 3, 17
 
