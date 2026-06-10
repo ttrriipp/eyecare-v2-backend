@@ -19,7 +19,7 @@ class RecalculateBillingBalance
 
         $balanceDue = bcsub((string) $billing->total_amount, (string) $amountPaid, 2);
 
-        $newStatusName = $this->resolveStatusName($billing, (float) $balanceDue);
+        $newStatusName = $this->resolveStatusName($billing, (float) $balanceDue, (float) $amountPaid);
         $newStatus = BillingStatus::query()->where('name', $newStatusName)->firstOrFail();
 
         $billing->update([
@@ -32,20 +32,18 @@ class RecalculateBillingBalance
     }
 
     /**
-     * Resolve the correct billing status name based on the current balance.
+     * Resolve the correct billing status name based on the current balance and amount paid.
      */
-    private function resolveStatusName(Billing $billing, float $balanceDue): string
+    private function resolveStatusName(Billing $billing, float $balanceDue, float $amountPaid): string
     {
         if ($balanceDue <= 0) {
             return 'paid';
         }
 
-        $currentStatus = $billing->status->name;
-
-        if (in_array($currentStatus, ['issued', 'partially_paid', 'paid'], true)) {
-            return $balanceDue < (float) $billing->total_amount ? 'partially_paid' : 'issued';
+        if ($amountPaid > 0) {
+            return 'partially_paid';
         }
 
-        return $currentStatus;
+        return $billing->status->name;
     }
 }

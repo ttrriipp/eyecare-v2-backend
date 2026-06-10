@@ -7,9 +7,23 @@ use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentStatus
 {
+    /**
+     * Allowed status transitions: current → permitted next statuses.
+     *
+     * @var array<string, string[]>
+     */
+    private const ALLOWED_TRANSITIONS = [
+        'pending' => ['confirmed', 'rescheduled', 'cancelled'],
+        'confirmed' => ['rescheduled', 'cancelled', 'completed'],
+        'rescheduled' => ['confirmed', 'cancelled', 'completed'],
+        'cancelled' => [],
+        'completed' => [],
+    ];
+
     /**
      * @var array<string, string>
      */
@@ -25,6 +39,15 @@ class UpdateAppointmentStatus
         ?Carbon $scheduledAt = null,
         ?string $staffNotes = null,
     ): Appointment {
+        $currentStatus = $appointment->status->name;
+        $allowed = self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
+
+        if (! in_array($statusName, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'status' => ["Cannot transition appointment from '{$currentStatus}' to '{$statusName}'."],
+            ]);
+        }
+
         $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
 
         $attributes = [
@@ -68,7 +91,6 @@ class UpdateAppointmentStatus
             'appointment_confirmed' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been confirmed.",
             'appointment_rescheduled' => "Your appointment has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
             'appointment_cancelled' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been cancelled.",
-            default => 'Appointment update notification.',
         };
     }
 }

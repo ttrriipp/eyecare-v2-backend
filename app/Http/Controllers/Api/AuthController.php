@@ -15,9 +15,7 @@ class AuthController extends Controller
 {
     public function register(RegisterCustomerRequest $request): JsonResponse
     {
-        $customerRole = Role::query()->firstOrCreate([
-            'name' => 'customer',
-        ]);
+        $customerRole = Role::query()->where('name', 'customer')->firstOrFail();
 
         $user = User::query()->create([
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),

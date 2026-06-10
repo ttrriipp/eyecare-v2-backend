@@ -16,11 +16,7 @@ class BillingController extends Controller
      */
     public function show(Request $request, Billing $billing): BillingResource|JsonResponse
     {
-        $customerId = $billing->order->customer_id;
-
-        if ($request->user()->id !== $customerId) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
+        abort_unless($billing->order?->customer_id === $request->user()->id, 403);
 
         $billing->load(['status', 'order', 'payments.status']);
 

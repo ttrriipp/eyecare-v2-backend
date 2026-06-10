@@ -918,10 +918,10 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Orders And Billing
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Order`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Billing`
-- [ ] Confirming an order deducts stock.
-- [ ] Billing and payment balances are correct.
+- [x] `vendor/bin/sail artisan test --compact --filter=Order`
+- [x] `vendor/bin/sail artisan test --compact --filter=Billing`
+- [x] Confirming an order deducts stock.
+- [x] Billing and payment balances are correct.
 
 ### Phase 5: Messaging, Feedback, Audit, And Dashboard
 

@@ -7,7 +7,6 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\ProductVariant;
-use Database\Seeders\InventoryMovementStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +15,6 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
-    $this->seed(InventoryMovementStatusSeeder::class);
 });
 
 it('deducts stock and records an order_commitment movement when an order is confirmed', function () {
@@ -184,4 +182,20 @@ it('RecordInventoryMovement action records a movement and updates stock', functi
         'type' => 'order_commitment',
         'notes' => 'Deducted on confirmation.',
     ]);
+});
+
+it('RecordInventoryMovement throws when stock is insufficient and rolls back', function () {
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 2]);
+    $order = Order::factory()->create(['is_non_prescription' => true]);
+
+    expect(fn () => app(RecordInventoryMovement::class)->handle(
+        variant: $variant,
+        orderId: $order->id,
+        quantityChange: -5,
+        type: 'order_commitment',
+    ))->toThrow(RuntimeException::class);
+
+    // Stock must remain unchanged and no movement must be recorded
+    expect($variant->fresh()->stock_quantity)->toBe(2);
+    expect(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(0);
 });

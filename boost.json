@@ -3,7 +3,8 @@
         "claude_code",
         "codex",
         "cursor",
-        "gemini"
+        "gemini",
+        "kiro"
     ],
     "cloud": false,
     "guidelines": true,

@@ -6,7 +6,6 @@ use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
-use App\Models\ProductVariant;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrderStatus
@@ -82,16 +81,15 @@ class UpdateOrderStatus
     private function deductInventory(Order $order): void
     {
         $recorder = app(RecordInventoryMovement::class);
+        $order->loadMissing('items.productVariant');
 
         foreach ($order->items as $item) {
             if ($item->product_variant_id === null) {
                 continue;
             }
 
-            $variant = ProductVariant::query()->findOrFail($item->product_variant_id);
-
             $recorder->handle(
-                variant: $variant,
+                variant: $item->productVariant,
                 quantityChange: -$item->quantity,
                 type: 'order_commitment',
                 orderId: $order->id,
@@ -106,16 +104,15 @@ class UpdateOrderStatus
     private function restoreInventory(Order $order): void
     {
         $recorder = app(RecordInventoryMovement::class);
+        $order->loadMissing('items.productVariant');
 
         foreach ($order->items as $item) {
             if ($item->product_variant_id === null) {
                 continue;
             }
 
-            $variant = ProductVariant::query()->findOrFail($item->product_variant_id);
-
             $recorder->handle(
-                variant: $variant,
+                variant: $item->productVariant,
                 quantityChange: $item->quantity,
                 type: 'order_reversal',
                 orderId: $order->id,

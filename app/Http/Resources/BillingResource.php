@@ -23,14 +23,14 @@ class BillingResource extends JsonResource
             'balance_due' => $this->balance_due,
             'issued_at' => $this->issued_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
-            'payments' => $this->payments->map(fn ($payment) => [
+            'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn ($payment) => [
                 'id' => $payment->id,
                 'amount' => $payment->amount,
                 'status' => $payment->status->name,
                 'method' => $payment->method,
                 'reference_number' => $payment->reference_number,
                 'paid_at' => $payment->paid_at?->toISOString(),
-            ]),
+            ])),
         ];
     }
 }

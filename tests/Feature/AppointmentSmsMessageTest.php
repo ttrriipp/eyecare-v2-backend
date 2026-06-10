@@ -2,6 +2,7 @@
 
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Models\Appointment;
+use App\Models\AppointmentStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -58,7 +59,10 @@ it('builds a cancellation message containing the scheduled date', function () {
 });
 
 it('does not create an sms record for the completed status', function () {
-    $appointment = Appointment::factory()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmedStatus->id,
+    ]);
 
     $action = new UpdateAppointmentStatus;
     $action->handle($appointment, 'completed');

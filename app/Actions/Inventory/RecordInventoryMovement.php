@@ -4,11 +4,18 @@ namespace App\Actions\Inventory;
 
 use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
+use Illuminate\Support\Facades\DB;
 
 class RecordInventoryMovement
 {
     /**
      * Record an inventory movement for a variant and adjust the stock quantity.
+     *
+     * Wraps both writes in a single transaction to prevent race conditions.
+     * When quantityChange is negative (a deduction), an insufficient-stock guard
+     * blocks the operation if current stock would go below zero.
+     *
+     * @throws \RuntimeException when a deduction would result in negative stock.
      */
     public function handle(
         ProductVariant $variant,
@@ -17,16 +24,31 @@ class RecordInventoryMovement
         ?int $orderId = null,
         ?string $notes = null,
     ): InventoryMovement {
-        $movement = InventoryMovement::query()->create([
-            'product_variant_id' => $variant->id,
-            'order_id' => $orderId,
-            'quantity_change' => $quantityChange,
-            'type' => $type,
-            'notes' => $notes,
-        ]);
+        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes): InventoryMovement {
+            if ($quantityChange < 0) {
+                $deduction = abs($quantityChange);
 
-        $variant->increment('stock_quantity', $quantityChange);
+                $affected = ProductVariant::query()
+                    ->where('id', $variant->id)
+                    ->where('stock_quantity', '>=', $deduction)
+                    ->decrement('stock_quantity', $deduction);
 
-        return $movement;
+                if ($affected === 0) {
+                    throw new \RuntimeException(
+                        "Insufficient stock for variant #{$variant->id}: cannot deduct {$deduction} unit(s)."
+                    );
+                }
+            } else {
+                $variant->increment('stock_quantity', $quantityChange);
+            }
+
+            return InventoryMovement::query()->create([
+                'product_variant_id' => $variant->id,
+                'order_id' => $orderId,
+                'quantity_change' => $quantityChange,
+                'type' => $type,
+                'notes' => $notes,
+            ]);
+        });
     }
 }
