@@ -30,9 +30,7 @@ class OrderController extends Controller
 
     public function store(StoreOrderRequest $request): JsonResponse
     {
-        $requestedStatus = OrderStatus::query()->firstOrCreate([
-            'name' => 'requested',
-        ]);
+        $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
 
         $order = DB::transaction(function () use ($request, $requestedStatus): Order {
             $lineItems = [];

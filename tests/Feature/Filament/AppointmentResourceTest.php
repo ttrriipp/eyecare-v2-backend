@@ -7,6 +7,7 @@ use App\Models\AppointmentStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
@@ -15,6 +16,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 test('staff and admin users can list appointments', function (string $factoryState) {

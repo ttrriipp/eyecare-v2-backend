@@ -4,9 +4,14 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\User;
 use App\Models\VisitReason;
+use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(AppointmentStatusSeeder::class);
+});
 
 test('authenticated customers can create pending appointments', function () {
     $customer = User::factory()->customer()->create();

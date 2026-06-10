@@ -32,7 +32,7 @@ class StoreOrderRequest extends FormRequest
                 ),
             ],
             'is_non_prescription' => ['required', 'boolean'],
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'min:1', 'max:20'],
             'items.*.product_variant_id' => [
                 'required',
                 'integer',
@@ -45,7 +45,7 @@ class StoreOrderRequest extends FormRequest
                     }),
             ],
             'items.*.lens_type_id' => ['required', 'integer', Rule::exists('lens_types', 'id')],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         ];
     }
 }

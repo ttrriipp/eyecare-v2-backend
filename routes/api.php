@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StaffAppointmentController;
 use App\Http\Controllers\Api\StaffOrderController;
+use App\Http\Middleware\EnsureUserIsStaff;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -21,7 +22,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
 
-    Route::prefix('staff')->group(function (): void {
+    Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
         Route::patch('orders/{order}/status', [StaffOrderController::class, 'updateStatus']);
     });

@@ -13,39 +13,86 @@ beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
 });
 
-test('staff can move orders through workflow statuses', function (string $status) {
+test('staff can advance orders through the full workflow chain', function () {
     $staff = User::factory()->staff()->create();
+    $order = Order::factory()->create(['is_non_prescription' => true]);
+
+    $chain = [
+        'requested' => 'under_review',
+        'under_review' => 'confirmed',
+        'confirmed' => 'preparing',
+        'preparing' => 'ready_for_pickup',
+        'ready_for_pickup' => 'completed',
+    ];
+
+    foreach ($chain as $from => $to) {
+        $this->actingAs($staff, 'sanctum')
+            ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => $to])
+            ->assertSuccessful()
+            ->assertJsonPath('data.status', $to);
+
+        expect($order->fresh()->status->name)->toBe($to);
+    }
+});
+
+test('staff can cancel orders from any cancellable state', function (string $currentStatusName) {
+    $staff = User::factory()->staff()->create();
+    $currentStatus = OrderStatus::query()->where('name', $currentStatusName)->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
+        'order_status_id' => $currentStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => $status,
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'cancelled'])
         ->assertSuccessful()
-        ->assertJsonPath('data.status', $status);
-
-    expect($order->fresh()->status->name)->toBe($status);
+        ->assertJsonPath('data.status', 'cancelled');
 })->with([
-    'under_review' => ['under_review'],
-    'confirmed' => ['confirmed'],
-    'preparing' => ['preparing'],
-    'ready_for_pickup' => ['ready_for_pickup'],
+    'from requested' => ['requested'],
+    'from under_review' => ['under_review'],
+    'from confirmed' => ['confirmed'],
+    'from preparing' => ['preparing'],
+    'from ready_for_pickup' => ['ready_for_pickup'],
+]);
+
+test('invalid status transitions are rejected', function () {
+    $staff = User::factory()->staff()->create();
+    $order = Order::factory()->create(['is_non_prescription' => true]);
+
+    // requested → completed is not in the allowed transitions
+    $this->actingAs($staff, 'sanctum')
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'completed'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['status']);
+});
+
+test('completed and cancelled orders cannot be transitioned further', function (string $terminalStatus) {
+    $staff = User::factory()->staff()->create();
+    $terminalOrderStatus = OrderStatus::query()->where('name', $terminalStatus)->firstOrFail();
+    $order = Order::factory()->create([
+        'is_non_prescription' => true,
+        'order_status_id' => $terminalOrderStatus->id,
+    ]);
+
+    $this->actingAs($staff, 'sanctum')
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'under_review'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['status']);
+})->with([
     'completed' => ['completed'],
     'cancelled' => ['cancelled'],
 ]);
 
 test('confirming an order sets confirmed_at', function () {
     $staff = User::factory()->staff()->create();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
+        'order_status_id' => $underReviewStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'confirmed',
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
         ->assertSuccessful();
 
     expect($order->fresh()->confirmed_at)->not->toBeNull();
@@ -53,17 +100,15 @@ test('confirming an order sets confirmed_at', function () {
 
 test('completing an order sets completed_at', function () {
     $staff = User::factory()->staff()->create();
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $readyStatus = OrderStatus::query()->where('name', 'ready_for_pickup')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $confirmedStatus->id,
+        'order_status_id' => $readyStatus->id,
         'confirmed_at' => now(),
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'completed',
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'completed'])
         ->assertSuccessful();
 
     expect($order->fresh()->completed_at)->not->toBeNull();
@@ -71,22 +116,24 @@ test('completing an order sets completed_at', function () {
 
 test('prescription orders cannot be confirmed without a customer prescription', function () {
     $staff = User::factory()->staff()->create();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
+        'order_status_id' => $underReviewStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'confirmed',
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['status']);
 });
 
 test('prescription orders can be confirmed when the customer has a prescription', function () {
     $staff = User::factory()->staff()->create();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
+        'order_status_id' => $underReviewStatus->id,
     ]);
 
     Prescription::factory()->create([
@@ -94,23 +141,21 @@ test('prescription orders can be confirmed when the customer has a prescription'
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'confirmed',
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
         ->assertSuccessful()
         ->assertJsonPath('data.status', 'confirmed');
 });
 
 test('non prescription orders can be confirmed without prescription data', function () {
     $staff = User::factory()->staff()->create();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
+        'order_status_id' => $underReviewStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'confirmed',
-        ])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
         ->assertSuccessful()
         ->assertJsonPath('data.status', 'confirmed');
 
@@ -125,7 +170,7 @@ test('customers cannot update order status through the staff endpoint', function
 
     $this->actingAs($customer, 'sanctum')
         ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'confirmed',
+            'status' => 'under_review',
         ])
         ->assertForbidden();
 });

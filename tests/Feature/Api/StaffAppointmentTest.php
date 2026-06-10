@@ -5,6 +5,7 @@ use App\Models\AppointmentStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 
@@ -13,6 +14,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     Http::fake();
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 test('staff can confirm reschedule cancel and complete appointments', function (string $status, bool $expectsSms) {
