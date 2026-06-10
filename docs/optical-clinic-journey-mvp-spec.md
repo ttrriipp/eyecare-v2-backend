@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 4, Task 19 next
-Phase: Tasks 1–18 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 20 next
+Phase: Tasks 1–19 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -898,12 +898,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add manual payment records and balance recalculation for posted, voided, and reversed payments.
 
 **Acceptance criteria:**
-- [ ] Posted payments reduce billing balance.
-- [ ] Voided and reversed payments update balance and billing status correctly.
-- [ ] Customers can view only their own billing status and payment history.
+- [x] Posted payments reduce billing balance.
+- [x] Voided and reversed payments update balance and billing status correctly.
+- [x] Customers can view only their own billing status and payment history.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Payment`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Payment`
 
 **Dependencies:** Task 17
 

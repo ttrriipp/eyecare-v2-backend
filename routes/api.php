@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
@@ -21,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
+    Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
 
     Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
