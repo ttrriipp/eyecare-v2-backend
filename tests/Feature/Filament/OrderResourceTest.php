@@ -1,0 +1,170 @@
+<?php
+
+use App\Filament\Resources\Orders\Pages\EditOrder;
+use App\Filament\Resources\Orders\Pages\ListOrders;
+use App\Models\Order;
+use App\Models\OrderStatus;
+use App\Models\Prescription;
+use App\Models\User;
+use Database\Seeders\OrderStatusSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(OrderStatusSeeder::class);
+});
+
+test('staff and admin users can list orders', function (string $factoryState) {
+    $user = User::factory()->{$factoryState}()->create();
+    $orders = Order::factory()->count(2)->create();
+
+    $this->actingAs($user);
+
+    Livewire::test(ListOrders::class)
+        ->assertCanSeeTableRecords($orders);
+})->with([
+    'admin' => ['admin'],
+    'staff' => ['staff'],
+]);
+
+test('order table can filter by status', function () {
+    $staff = User::factory()->staff()->create();
+
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+
+    $requestedOrder = Order::factory()->create([
+        'order_status_id' => $requestedStatus->id,
+    ]);
+
+    $underReviewOrder = Order::factory()->create([
+        'order_status_id' => $underReviewStatus->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListOrders::class)
+        ->filterTable('status', $requestedStatus->id)
+        ->assertCanSeeTableRecords([$requestedOrder])
+        ->assertCanNotSeeTableRecords([$underReviewOrder]);
+});
+
+test('order table can filter by customer', function () {
+    $staff = User::factory()->staff()->create();
+    $customerA = User::factory()->customer()->create();
+    $customerB = User::factory()->customer()->create();
+
+    $orderA = Order::factory()->create(['customer_id' => $customerA->id]);
+    $orderB = Order::factory()->create(['customer_id' => $customerB->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListOrders::class)
+        ->filterTable('customer', $customerA->id)
+        ->assertCanSeeTableRecords([$orderA])
+        ->assertCanNotSeeTableRecords([$orderB]);
+});
+
+test('staff can update order status through Filament using the UpdateOrderStatus action', function () {
+    $staff = User::factory()->staff()->create();
+
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+
+    $order = Order::factory()->create([
+        'order_status_id' => $requestedStatus->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm([
+            'order_status_id' => $underReviewStatus->id,
+        ])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
+
+    expect($order->fresh()->status->name)->toBe('under_review');
+});
+
+test('staff cannot confirm a prescription order without a customer prescription on record', function () {
+    $staff = User::factory()->staff()->create();
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $customer = User::factory()->customer()->create();
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => false,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm([
+            'order_status_id' => $confirmedStatus->id,
+        ])
+        ->call('save')
+        ->assertNotNotified()
+        ->assertHasFormErrors(['order_status_id']);
+
+    expect($order->fresh()->status->name)->toBe('under_review');
+});
+
+test('staff can confirm a non-prescription order without a prescription on record', function () {
+    $staff = User::factory()->staff()->create();
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $order = Order::factory()->create([
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm([
+            'order_status_id' => $confirmedStatus->id,
+        ])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
+
+    expect($order->fresh()->status->name)->toBe('confirmed');
+});
+
+test('staff can confirm a prescription order when the customer has a prescription on record', function () {
+    $staff = User::factory()->staff()->create();
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $customer = User::factory()->customer()->create();
+    Prescription::factory()->create(['customer_id' => $customer->id]);
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => false,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm([
+            'order_status_id' => $confirmedStatus->id,
+        ])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
+
+    expect($order->fresh()->status->name)->toBe('confirmed');
+});

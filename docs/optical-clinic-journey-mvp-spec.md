@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 4, Task 14 next
-Phase: Tasks 1–13 complete (29 tasks total after splits)
+Status: In progress — Phase 4, Task 16 next
+Phase: Tasks 1–15 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -774,20 +774,21 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 - [x] `vendor/bin/sail artisan test --compact --filter=OrderRequest`
 - [x] Customers can submit orders with frozen item snapshots.
-- [ ] Staff can process orders (Tasks 14–15).
+- [x] Staff can process order status via API (Task 14).
+- [x] Filament order management (Task 15).
 
 #### Task 14: Staff Order Status Action And API
 
 **Description:** Add the shared order status workflow action and staff API for moving orders through approved statuses, including the prescription/non-prescription confirmation gate.
 
 **Acceptance criteria:**
-- [ ] Staff can move orders through `under_review`, `confirmed`, `preparing`, `ready_for_pickup`, `completed`, and `cancelled` states.
-- [ ] Orders with `is_non_prescription = false` cannot be confirmed unless the customer has at least one prescription on record.
-- [ ] Orders with `is_non_prescription = true` can be confirmed without prescription data.
-- [ ] Status changes use a single `UpdateOrderStatus` action (no duplicated transition logic).
+- [x] Staff can move orders through `under_review`, `confirmed`, `preparing`, `ready_for_pickup`, `completed`, and `cancelled` states.
+- [x] Orders with `is_non_prescription = false` cannot be confirmed unless the customer has at least one prescription on record.
+- [x] Orders with `is_non_prescription = true` can be confirmed without prescription data.
+- [x] Status changes use a single `UpdateOrderStatus` action (no duplicated transition logic).
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderProcessing`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderProcessing`
 
 **Dependencies:** Tasks 12, 13
 
@@ -806,12 +807,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Build the admin order review workflow for staff and admin users, reusing the same status action as the staff API.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can list and edit order requests.
-- [ ] Table filters include order status and customer.
-- [ ] Status changes through Filament use the same `UpdateOrderStatus` action as the API.
+- [x] Staff/admin can list and edit order requests.
+- [x] Table filters include order status and customer.
+- [x] Status changes through Filament use the same `UpdateOrderStatus` action as the API.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
 
 **Dependencies:** Tasks 3, 14
 

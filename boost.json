@@ -2,7 +2,8 @@
     "agents": [
         "claude_code",
         "codex",
-        "cursor"
+        "cursor",
+        "gemini"
     ],
     "cloud": false,
     "guidelines": true,
@@ -15,7 +16,6 @@
     "skills": [
         "laravel-best-practices",
         "pest-testing",
-        "tailwindcss-development",
-        "deploying-laravel-cloud"
+        "tailwindcss-development"
     ]
 }

@@ -26,9 +26,7 @@ class AppointmentController extends Controller
 
     public function store(StoreAppointmentRequest $request): JsonResponse
     {
-        $pendingStatus = AppointmentStatus::query()->firstOrCreate([
-            'name' => 'pending',
-        ]);
+        $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
 
         $appointment = Appointment::query()->create([
             ...$request->validated(),

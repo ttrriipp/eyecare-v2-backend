@@ -20,7 +20,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::query()->create([
-            ...$request->safe()->only(['name', 'email', 'password']),
+            ...$request->safe()->only(['name', 'email', 'phone', 'password']),
             'role_id' => $customerRole->id,
         ]);
 
