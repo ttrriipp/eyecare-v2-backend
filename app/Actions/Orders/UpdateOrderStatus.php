@@ -2,9 +2,11 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrderStatus
@@ -63,6 +65,62 @@ class UpdateOrderStatus
 
         $order->update($attributes);
 
+        if ($statusName === 'confirmed') {
+            $this->deductInventory($order);
+        }
+
+        if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
+            $this->restoreInventory($order);
+        }
+
         return $order->fresh(['status', 'items']);
+    }
+
+    /**
+     * Deduct stock for each order item when an order is confirmed.
+     */
+    private function deductInventory(Order $order): void
+    {
+        $recorder = app(RecordInventoryMovement::class);
+
+        foreach ($order->items as $item) {
+            if ($item->product_variant_id === null) {
+                continue;
+            }
+
+            $variant = ProductVariant::query()->findOrFail($item->product_variant_id);
+
+            $recorder->handle(
+                variant: $variant,
+                quantityChange: -$item->quantity,
+                type: 'order_commitment',
+                orderId: $order->id,
+                notes: "Deducted on order #{$order->order_number} confirmation.",
+            );
+        }
+    }
+
+    /**
+     * Restore stock for each order item when a confirmed order is cancelled.
+     */
+    private function restoreInventory(Order $order): void
+    {
+        $recorder = app(RecordInventoryMovement::class);
+
+        foreach ($order->items as $item) {
+            if ($item->product_variant_id === null) {
+                continue;
+            }
+
+            $variant = ProductVariant::query()->findOrFail($item->product_variant_id);
+
+            $recorder->handle(
+                variant: $variant,
+                quantityChange: $item->quantity,
+                type: 'order_reversal',
+                orderId: $order->id,
+                notes: "Restored on order #{$order->order_number} cancellation.",
+            );
+        }
     }
 }

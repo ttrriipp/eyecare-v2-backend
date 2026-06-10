@@ -43,6 +43,14 @@ class ProductVariant extends Model
     }
 
     /**
+     * @return HasMany<InventoryMovement, $this>
+     */
+    public function inventoryMovements(): HasMany
+    {
+        return $this->hasMany(InventoryMovement::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 4, Task 16 next
-Phase: Tasks 1–15 complete (29 tasks total after splits)
+Status: In progress — Phase 4, Task 17 next
+Phase: Tasks 1–16 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -831,12 +831,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Deduct variant stock when an order is confirmed and create reversal movements when a confirmed order is cancelled.
 
 **Acceptance criteria:**
-- [ ] Confirmation deducts inventory once.
-- [ ] Cancellation of confirmed orders restores stock through a reversal movement.
-- [ ] Low stock calculations remain correct after movements.
+- [x] Confirmation deducts inventory once.
+- [x] Cancellation of confirmed orders restores stock through a reversal movement.
+- [x] Low stock calculations remain correct after movements.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=InventoryMovement`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=InventoryMovement`
 
 **Dependencies:** Tasks 9, 14
 
