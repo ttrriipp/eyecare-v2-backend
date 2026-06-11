@@ -64,6 +64,20 @@ class ConversationController extends Controller
             'body' => $request->validated('body'),
         ]);
 
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $path = $file->store('attachments', 'local');
+
+            $message->attachments()->create([
+                'file_path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+            ]);
+        }
+
+        $message->load('attachments');
+
         return response()->json([
             'data' => MessageResource::make($message),
         ], 201);

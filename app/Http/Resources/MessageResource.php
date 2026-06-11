@@ -23,6 +23,12 @@ class MessageResource extends JsonResource
             'body' => $this->body,
             'read_at' => $this->read_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($a) => [
+                'id' => $a->id,
+                'original_name' => $a->original_name,
+                'mime_type' => $a->mime_type,
+                'file_size' => $a->file_size,
+            ])->all()),
         ];
     }
 }

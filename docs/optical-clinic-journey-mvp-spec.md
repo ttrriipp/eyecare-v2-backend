@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 21 next
-Phase: Tasks 1–20 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 22 next
+Phase: Tasks 1–21 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -953,12 +953,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Support validated private attachments on messages.
 
 **Acceptance criteria:**
-- [ ] Attachments are validated by MIME type, extension, and size.
-- [ ] Attachments are private by default.
-- [ ] Only authorized conversation participants can access attachment metadata.
+- [x] Attachments are validated by MIME type, extension, and size.
+- [x] Attachments are private by default.
+- [x] Only authorized conversation participants can access attachment metadata.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=MessageAttachment`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=MessageAttachment`
 
 **Dependencies:** Task 20
 

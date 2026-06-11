@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\File;
 
 class StoreMessageRequest extends FormRequest
 {
@@ -19,6 +20,11 @@ class StoreMessageRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:5000'],
+            'attachment' => [
+                'nullable',
+                File::types(['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx'])
+                    ->max('10mb'),
+            ],
         ];
     }
 }
