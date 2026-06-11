@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 23 next
-Phase: Tasks 1–22 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 24 next
+Phase: Tasks 1–23 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -998,12 +998,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Let customers submit feedback after completed appointments or completed orders, with staff replies in Filament.
 
 **Acceptance criteria:**
-- [ ] Feedback is accepted for completed appointments and completed orders.
-- [ ] Feedback is rejected for incomplete or unrelated records.
-- [ ] Staff/admin can view and reply to feedback.
+- [x] Feedback is accepted for completed appointments and completed orders.
+- [x] Feedback is rejected for incomplete or unrelated records.
+- [x] Staff/admin can view and reply to feedback.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Feedback`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Feedback`
 
 **Dependencies:** Tasks 8, 14
 
