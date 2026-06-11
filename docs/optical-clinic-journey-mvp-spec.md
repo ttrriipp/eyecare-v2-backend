@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 6, Task 29 next
-Phase: Tasks 1–28 complete (29 tasks total after splits)
+Status: Complete — all 29 tasks done
+Phase: Tasks 1–29 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1142,16 +1142,16 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Run the final backend quality pass across formatting, tests, route review, and build verification.
 
 **Acceptance criteria:**
-- [ ] Full Pest suite passes.
-- [ ] Laravel Pint formats dirty PHP files.
-- [ ] Frontend asset build succeeds for Filament/Vite assets.
-- [ ] Approved demo path is verified from seeded data.
+- [x] Full Pest suite passes.
+- [x] Laravel Pint formats dirty PHP files.
+- [x] Frontend asset build succeeds for Filament/Vite assets.
+- [x] Approved demo path is verified from seeded data.
 
 **Verification:**
-- [ ] Format: `vendor/bin/sail bin pint --dirty --format agent`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact`
-- [ ] Build succeeds: `vendor/bin/sail npm run build`
-- [ ] Route review: `vendor/bin/sail artisan route:list --except-vendor`
+- [x] Format: `vendor/bin/sail bin pint --dirty --format agent`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact`
+- [x] Build succeeds: `vendor/bin/sail npm run build`
+- [x] Route review: `vendor/bin/sail artisan route:list --except-vendor`
 
 **Dependencies:** Task 28
 
@@ -1164,11 +1164,11 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Complete
 
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] `vendor/bin/sail npm run build`
-- [ ] `vendor/bin/sail artisan route:list --except-vendor`
-- [ ] Full seeded defense flow works without manual database edits.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] `vendor/bin/sail npm run build`
+- [x] `vendor/bin/sail artisan route:list --except-vendor`
+- [x] Full seeded defense flow works without manual database edits.
 
 ## Review Gate
 
