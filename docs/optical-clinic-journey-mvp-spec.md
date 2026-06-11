@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 26 next
-Phase: Tasks 1–25 complete (29 tasks total after splits)
+Status: In progress — Phase 6, Task 27 next
+Phase: Tasks 1–26 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1064,12 +1064,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add the approved Filament dashboard cards using efficient aggregate queries.
 
 **Acceptance criteria:**
-- [ ] Dashboard shows appointment counts, pending orders, low stock, unpaid billings, and recent feedback.
-- [ ] Widgets avoid N+1 queries and unnecessary model loading.
-- [ ] Staff/admin can access the dashboard.
+- [x] Dashboard shows appointment counts, pending orders, low stock, unpaid billings, and recent feedback.
+- [x] Widgets avoid N+1 queries and unnecessary model loading.
+- [x] Staff/admin can access the dashboard.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Dashboard`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Dashboard`
 
 **Dependencies:** Tasks 8, 16, 19, 23
 
@@ -1084,11 +1084,11 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 
 ### Checkpoint: Operations
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Message`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Feedback`
-- [ ] `vendor/bin/sail artisan test --compact --filter=Dashboard`
-- [ ] Messaging works without an appointment or order.
-- [ ] Dashboard stays limited to approved cards.
+- [x] `vendor/bin/sail artisan test --compact --filter=Message`
+- [x] `vendor/bin/sail artisan test --compact --filter=Feedback`
+- [x] `vendor/bin/sail artisan test --compact --filter=Dashboard`
+- [x] Messaging works without an appointment or order.
+- [x] Dashboard stays limited to approved cards.
 
 ### Phase 6: Demo Data And Hardening
 
