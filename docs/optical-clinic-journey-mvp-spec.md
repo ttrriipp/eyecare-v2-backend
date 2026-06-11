@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 6, Task 27 next
-Phase: Tasks 1–26 complete (29 tasks total after splits)
+Status: In progress — Phase 6, Task 28 next
+Phase: Tasks 1–27 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1097,13 +1097,13 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Ensure fresh seed creates known admin, staff, and customer demo accounts plus catalog baseline for local and defense demos.
 
 **Acceptance criteria:**
-- [ ] Fresh seed creates admin, staff, and customer accounts with documented credentials.
-- [ ] Catalog seed data includes products, variants, lens types, and AR references.
-- [ ] Seeders remain idempotent.
+- [x] Fresh seed creates admin, staff, and customer accounts with documented credentials.
+- [x] Catalog seed data includes products, variants, lens types, and AR references.
+- [x] Seeders remain idempotent.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoAccountsSeed`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoAccountsSeed`
 
 **Dependencies:** Tasks 1–11
 
