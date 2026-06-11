@@ -43,4 +43,15 @@ class OrderFactory extends Factory
             'name' => 'requested',
         ])->id;
     }
+
+    public function completed(): static
+    {
+        return $this->state(fn () => [
+            'order_status_id' => OrderStatus::query()->firstOrCreate([
+                'name' => 'completed',
+            ])->id,
+            'confirmed_at' => now(),
+            'completed_at' => now(),
+        ]);
+    }
 }

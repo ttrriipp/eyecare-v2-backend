@@ -36,4 +36,13 @@ class AppointmentFactory extends Factory
             'name' => 'pending',
         ])->id;
     }
+
+    public function completed(): static
+    {
+        return $this->state(fn () => [
+            'appointment_status_id' => AppointmentStatus::query()->firstOrCreate([
+                'name' => 'completed',
+            ])->id,
+        ]);
+    }
 }
