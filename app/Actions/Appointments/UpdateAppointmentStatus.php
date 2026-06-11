@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
@@ -68,6 +69,12 @@ class UpdateAppointmentStatus
         if (array_key_exists($statusName, self::SMS_EVENTS)) {
             $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
         }
+
+        app(CreateAuditLog::class)->handle(
+            subject: $appointment,
+            action: 'appointment.status_changed',
+            metadata: ['from' => $currentStatus, 'to' => $statusName],
+        );
 
         return $appointment->fresh(['visitReason', 'status']);
     }

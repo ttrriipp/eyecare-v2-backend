@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\Order;
 use App\Models\OrderStatus;
@@ -71,6 +72,12 @@ class UpdateOrderStatus
         if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
             $this->restoreInventory($order);
         }
+
+        app(CreateAuditLog::class)->handle(
+            subject: $order,
+            action: 'order.status_changed',
+            metadata: ['from' => $currentStatus, 'to' => $statusName],
+        );
 
         return $order->fresh(['status', 'items']);
     }

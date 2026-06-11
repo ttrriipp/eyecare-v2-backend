@@ -2,6 +2,7 @@
 
 namespace App\Actions\Billing;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 
@@ -28,7 +29,15 @@ class RecalculateBillingBalance
             'billing_status_id' => $newStatus->id,
         ]);
 
-        return $billing->fresh(['status']);
+        $billing = $billing->fresh(['status']);
+
+        app(CreateAuditLog::class)->handle(
+            subject: $billing,
+            action: 'billing.balance_recalculated',
+            metadata: ['amount_paid' => (string) $amountPaid, 'balance_due' => $balanceDue, 'status' => $newStatusName],
+        );
+
+        return $billing;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Inventory;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
@@ -42,13 +43,21 @@ class RecordInventoryMovement
                 $variant->increment('stock_quantity', $quantityChange);
             }
 
-            return InventoryMovement::query()->create([
+            $movement = InventoryMovement::query()->create([
                 'product_variant_id' => $variant->id,
                 'order_id' => $orderId,
                 'quantity_change' => $quantityChange,
                 'type' => $type,
                 'notes' => $notes,
             ]);
+
+            app(CreateAuditLog::class)->handle(
+                subject: $movement,
+                action: 'inventory.movement_recorded',
+                metadata: ['type' => $type, 'quantity_change' => $quantityChange, 'variant_id' => $variant->id],
+            );
+
+            return $movement;
         });
     }
 }

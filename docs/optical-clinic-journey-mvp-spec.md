@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 24 next
-Phase: Tasks 1–23 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 25 next
+Phase: Tasks 1–24 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1021,12 +1021,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add audit log persistence and hook important workflow actions to record actor, subject, action, and metadata.
 
 **Acceptance criteria:**
-- [ ] Audit entries include actor, subject, action, and metadata.
-- [ ] Appointment, inventory, order, billing, payment, and feedback workflow actions create audit logs.
-- [ ] Audit recording uses a single `CreateAuditLog` action.
+- [x] Audit entries include actor, subject, action, and metadata.
+- [x] Appointment, inventory, order, billing, payment, and feedback workflow actions create audit logs.
+- [x] Audit recording uses a single `CreateAuditLog` action.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogRecording`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogRecording`
 
 **Dependencies:** Tasks 7, 16, 19, 23
 

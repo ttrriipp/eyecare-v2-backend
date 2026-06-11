@@ -2,6 +2,7 @@
 
 namespace App\Actions\Billing;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Order;
@@ -31,12 +32,20 @@ class GenerateBillingForOrder
 
         $draftStatus = BillingStatus::query()->where('name', 'draft')->firstOrFail();
 
-        return Billing::query()->create([
+        $billing = Billing::query()->create([
             'order_id' => $order->id,
             'billing_status_id' => $draftStatus->id,
             'total_amount' => $order->total_amount,
             'amount_paid' => '0.00',
             'balance_due' => $order->total_amount,
         ]);
+
+        app(CreateAuditLog::class)->handle(
+            subject: $billing,
+            action: 'billing.generated',
+            metadata: ['order_id' => $order->id, 'total_amount' => (string) $order->total_amount],
+        );
+
+        return $billing;
     }
 }

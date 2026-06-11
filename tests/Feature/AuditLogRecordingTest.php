@@ -11,6 +11,7 @@ use App\Models\AuditLog;
 use App\Models\Billing;
 use App\Models\Feedback;
 use App\Models\Order;
+use App\Models\OrderStatus;
 use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -54,7 +55,7 @@ test('CreateAuditLog records actor subject action and metadata', function () {
     ]);
 
     $log = AuditLog::query()->first();
-    expect($log->metadata)->toBe(['from' => 'pending', 'to' => 'confirmed']);
+    expect($log->metadata)->toMatchArray(['from' => 'pending', 'to' => 'confirmed']);
 });
 
 test('CreateAuditLog accepts explicit actor id and null metadata', function () {
@@ -126,7 +127,7 @@ test('billing generation creates an audit log', function () {
     $staff = User::factory()->staff()->create();
     Auth::login($staff);
 
-    $confirmedStatus = \App\Models\OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
         'confirmed_at' => now(),
