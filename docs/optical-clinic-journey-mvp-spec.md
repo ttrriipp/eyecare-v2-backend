@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 22 next
-Phase: Tasks 1–21 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 23 next
+Phase: Tasks 1–22 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -976,12 +976,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add staff/admin conversation management and replies in Filament.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can list conversations and filter by context.
-- [ ] Staff/admin can reply to customers.
-- [ ] Attachment metadata is visible without exposing unauthorized files.
+- [x] Staff/admin can list conversations and filter by context.
+- [x] Staff/admin can reply to customers.
+- [x] Attachment metadata is visible without exposing unauthorized files.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=ConversationResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=ConversationResource`
 
 **Dependencies:** Tasks 20, 21
 
