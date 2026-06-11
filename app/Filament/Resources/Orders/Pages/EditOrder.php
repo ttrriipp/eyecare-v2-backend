@@ -56,9 +56,10 @@ class EditOrder extends EditRecord
      */
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
-        if ($this->statusUpdateHandled) {
-            $this->statusUpdateHandled = false;
+        $handled = $this->statusUpdateHandled;
+        $this->statusUpdateHandled = false;
 
+        if ($handled) {
             if ($data !== []) {
                 $record->update($data);
             }

@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'subtotal',
     'total_amount',
     'discount_amount',
+    'notes',
     'confirmed_at',
     'completed_at',
 ])]
