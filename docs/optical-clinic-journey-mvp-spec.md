@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 5, Task 25 next
-Phase: Tasks 1–24 complete (29 tasks total after splits)
+Status: In progress — Phase 5, Task 26 next
+Phase: Tasks 1–25 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1043,12 +1043,12 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Add read-only staff/admin audit log visibility in Filament.
 
 **Acceptance criteria:**
-- [ ] Staff/admin can list and view audit log entries.
-- [ ] Table filters include action and subject type.
-- [ ] Audit logs are not editable through Filament.
+- [x] Staff/admin can list and view audit log entries.
+- [x] Table filters include action and subject type.
+- [x] Audit logs are not editable through Filament.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLogResource`
 
 **Dependencies:** Tasks 3, 24
 
