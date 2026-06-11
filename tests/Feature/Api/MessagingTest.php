@@ -160,6 +160,18 @@ test('unauthenticated users cannot access conversation endpoints', function () {
     $this->getJson('/api/conversations')->assertUnauthorized();
 });
 
+test('staff cannot create or list conversations via the customer api', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff, 'sanctum')
+        ->postJson('/api/conversations', ['body' => 'Hello.'])
+        ->assertForbidden();
+
+    $this->actingAs($staff, 'sanctum')
+        ->getJson('/api/conversations')
+        ->assertForbidden();
+});
+
 test('conversation body is required when creating', function () {
     $customer = User::factory()->customer()->create();
 

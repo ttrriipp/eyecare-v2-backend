@@ -9,7 +9,6 @@ use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,7 +19,12 @@ class ConversationController extends Controller
     {
         $user = $request->user();
 
-        $conversations = $this->visibleConversationsQuery($user)->latest()->get();
+        abort_unless($user->role->name === 'customer', 403);
+
+        $conversations = Conversation::query()
+            ->where('customer_id', $user->id)
+            ->latest()
+            ->get();
 
         return ConversationResource::collection($conversations);
     }
@@ -86,20 +90,9 @@ class ConversationController extends Controller
     private function canAccessConversation(User $user, Conversation $conversation): bool
     {
         if ($user->role->name === 'customer') {
-            return $conversation->customer_id === $user->id;
+            return $conversation->isParticipant($user);
         }
 
         return true;
-    }
-
-    private function visibleConversationsQuery(User $user): Builder
-    {
-        $query = Conversation::query();
-
-        if ($user->role->name === 'customer') {
-            $query->where('customer_id', $user->id);
-        }
-
-        return $query;
     }
 }

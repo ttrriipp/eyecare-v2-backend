@@ -7,6 +7,7 @@ use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Cache;
 
 class AuditLogsTable
 {
@@ -35,21 +36,21 @@ class AuditLogsTable
             ])
             ->filters([
                 SelectFilter::make('action')
-                    ->options(fn (): array => AuditLog::query()
+                    ->options(fn (): array => Cache::remember('audit_log_actions', 60, fn () => AuditLog::query()
                         ->distinct()
                         ->orderBy('action')
                         ->pluck('action', 'action')
                         ->all()
-                    )
+                    ))
                     ->label('Action'),
                 SelectFilter::make('subject_type')
-                    ->options(fn (): array => AuditLog::query()
+                    ->options(fn (): array => Cache::remember('audit_log_subject_types', 60, fn () => AuditLog::query()
                         ->distinct()
                         ->orderBy('subject_type')
                         ->pluck('subject_type', 'subject_type')
                         ->mapWithKeys(fn ($v) => [$v => class_basename($v)])
                         ->all()
-                    )
+                    ))
                     ->label('Subject Type'),
             ])
             ->recordActions([
