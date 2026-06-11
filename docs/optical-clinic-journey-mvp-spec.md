@@ -1,7 +1,7 @@
 # Spec: Optical Clinic Journey MVP
 
-Status: In progress — Phase 6, Task 28 next
-Phase: Tasks 1–27 complete (29 tasks total after splits)
+Status: In progress — Phase 6, Task 29 next
+Phase: Tasks 1–28 complete (29 tasks total after splits)
 
 ## Assumptions I'm Making
 
@@ -1120,13 +1120,13 @@ This plan is backend-only: Laravel API, database, seeders, tests, services/actio
 **Description:** Seed end-to-end clinic workflow records for the approved defense path (appointment, order, billing, messages, feedback).
 
 **Acceptance criteria:**
-- [ ] Demo data includes a representative appointment, order request, billing, messages, and feedback.
-- [ ] Seeded data supports both prescription and non-prescription order paths.
-- [ ] Demo flow can run without manual database edits.
+- [x] Demo data includes a representative appointment, order request, billing, messages, and feedback.
+- [x] Seeded data supports both prescription and non-prescription order paths.
+- [x] Demo flow can run without manual database edits.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoWorkflowSeed`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=DemoWorkflowSeed`
 
 **Dependencies:** Tasks 1–26
 

@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             InventoryMovementStatusSeeder::class,
             CatalogSeeder::class,
             DemoUserSeeder::class,
+            ClinicWorkflowSeeder::class,
         ]);
     }
 }
