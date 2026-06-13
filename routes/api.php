@@ -32,6 +32,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('attachments.download');
 
     Route::post('feedback', [FeedbackController::class, 'store']);
+    Route::get('feedback', [FeedbackController::class, 'index']);
+    Route::get('feedback/{feedback}', [FeedbackController::class, 'show']);
 
     Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);

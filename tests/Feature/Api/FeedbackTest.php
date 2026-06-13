@@ -114,3 +114,43 @@ test('feedback requires either an appointment or order', function () {
 test('unauthenticated users cannot submit feedback', function () {
     $this->postJson('/api/feedback', [])->assertUnauthorized();
 });
+
+test('customers can list only their own feedback', function () {
+    $customer = User::factory()->customer()->create();
+    $otherCustomer = User::factory()->customer()->create();
+
+    $ownFeedback = Feedback::factory()->count(2)->create(['customer_id' => $customer->id]);
+    Feedback::factory()->create(['customer_id' => $otherCustomer->id]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->getJson('/api/feedback');
+
+    $response->assertSuccessful();
+
+    $ids = collect($response->json('data'))->pluck('id')->all();
+    expect($ids)->toEqualCanonicalizing($ownFeedback->pluck('id')->all());
+});
+
+test('customers can view their own feedback', function () {
+    $customer = User::factory()->customer()->create();
+    $feedback = Feedback::factory()->create(['customer_id' => $customer->id]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/feedback/{$feedback->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.id', $feedback->id)
+        ->assertJsonPath('data.rating', $feedback->rating);
+});
+
+test('customers cannot view another customers feedback', function () {
+    $customer = User::factory()->customer()->create();
+    $otherFeedback = Feedback::factory()->create();
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/feedback/{$otherFeedback->id}")
+        ->assertNotFound();
+});
+
+test('unauthenticated users cannot list feedback', function () {
+    $this->getJson('/api/feedback')->assertUnauthorized();
+});
