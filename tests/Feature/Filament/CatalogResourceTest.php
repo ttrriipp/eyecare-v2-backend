@@ -151,3 +151,21 @@ test('product image uploads use public visibility and validation', function () {
     expect($image)->not->toBeNull();
     Storage::disk('public')->assertExists($image->path);
 });
+
+test('product edit page loads without error when product has an existing image', function () {
+    Storage::fake('public');
+
+    $staff = User::factory()->staff()->create();
+    $product = Product::factory()->create();
+    ProductImage::factory()->create([
+        'product_id' => $product->id,
+        'path' => 'products/existing-frame.jpg',
+        'is_primary' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
+        ->assertSuccessful()
+        ->assertHasNoFormErrors();
+});
