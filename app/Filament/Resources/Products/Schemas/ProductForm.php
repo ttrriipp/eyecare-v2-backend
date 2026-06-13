@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -11,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class ProductForm
 {
@@ -87,7 +89,7 @@ class ProductForm
                             ->directory('products')
                             ->visibility('public')
                             ->image()
-                            ->fetchFileInformation(false)
+                            ->previewable(false)
                             ->maxSize(5120)
                             ->acceptedFileTypes([
                                 'image/jpeg',
@@ -95,6 +97,14 @@ class ProductForm
                                 'image/webp',
                             ])
                             ->required(),
+                        Placeholder::make('preview')
+                            ->label('Current Image')
+                            ->content(fn ($record) => $record?->path
+                                ? new HtmlString(
+                                    '<img src="'.asset('storage/'.$record->path).'" style="max-height:120px;border-radius:6px;" />'
+                                )
+                                : '—'
+                            ),
                         Toggle::make('is_primary')
                             ->default(false),
                         TextInput::make('sort_order')
