@@ -87,6 +87,7 @@ class ProductForm
                             ->directory('products')
                             ->visibility('public')
                             ->image()
+                            ->previewable(false)
                             ->maxSize(5120)
                             ->acceptedFileTypes([
                                 'image/jpeg',
