@@ -104,7 +104,7 @@ class ProductForm
                             ->label('Current Image')
                             ->content(fn ($record) => $record?->path
                                 ? new HtmlString(
-                                    '<img src="'.asset('storage/'.$record->path).'" style="max-height:120px;border-radius:6px;" />'
+                                    '<img src="'.asset('storage/'.$record->path).'" style="max-width:100%;border-radius:6px;" />'
                                 )
                                 : '—'
                             ),
