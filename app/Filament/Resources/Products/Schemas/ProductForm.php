@@ -90,7 +90,7 @@ class ProductForm
                             ->visibility('public')
                             ->image()
                             ->imageEditor()
-                            ->imageEditorAspectRatios(['1:1', '4:3', '16:9'])
+                            ->imageAspectRatio('1:1')
                             ->automaticallyOpenImageEditorForAspectRatio('1:1')
                             ->previewable(false)
                             ->maxSize(5120)
