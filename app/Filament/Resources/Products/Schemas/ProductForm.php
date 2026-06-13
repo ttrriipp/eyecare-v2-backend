@@ -91,6 +91,7 @@ class ProductForm
                             ->image()
                             ->imageEditor()
                             ->imageEditorAspectRatios(['1:1', '4:3', '16:9'])
+                            ->automaticallyOpenImageEditorForAspectRatio('1:1')
                             ->previewable(false)
                             ->maxSize(5120)
                             ->acceptedFileTypes([
