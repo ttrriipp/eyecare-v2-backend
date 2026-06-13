@@ -111,3 +111,69 @@ test('only authorized participants can access attachment metadata', function () 
         ->getJson("/api/conversations/{$conversation->id}/messages")
         ->assertNotFound();
 });
+
+test('customers can download their own conversation attachment', function () {
+    Storage::fake('local');
+
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $message = Message::factory()->create(['conversation_id' => $conversation->id, 'sender_id' => $customer->id]);
+
+    Storage::disk('local')->put('attachments/test.pdf', 'pdf-content');
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'file_path' => 'attachments/test.pdf',
+        'original_name' => 'report.pdf',
+        'mime_type' => 'application/pdf',
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->get("/api/attachments/{$attachment->id}")
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/pdf');
+});
+
+test('customers cannot download attachments from another customers conversation', function () {
+    Storage::fake('local');
+
+    $customer = User::factory()->customer()->create();
+    $otherCustomer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $otherCustomer->id]);
+    $message = Message::factory()->create(['conversation_id' => $conversation->id, 'sender_id' => $otherCustomer->id]);
+
+    Storage::disk('local')->put('attachments/secret.pdf', 'secret');
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'file_path' => 'attachments/secret.pdf',
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->get("/api/attachments/{$attachment->id}")
+        ->assertNotFound();
+});
+
+test('staff can download any attachment', function () {
+    Storage::fake('local');
+
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    $message = Message::factory()->create(['conversation_id' => $conversation->id, 'sender_id' => $conversation->customer_id]);
+
+    Storage::disk('local')->put('attachments/doc.pdf', 'content');
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'file_path' => 'attachments/doc.pdf',
+        'mime_type' => 'application/pdf',
+    ]);
+
+    $this->actingAs($staff, 'sanctum')
+        ->get("/api/attachments/{$attachment->id}")
+        ->assertOk();
+});
+
+test('unauthenticated users cannot download attachments', function () {
+    $attachment = MessageAttachment::factory()->create();
+
+    $this->get("/api/attachments/{$attachment->id}")
+        ->assertUnauthorized();
+});
