@@ -29,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('conversations', ConversationController::class)->only(['index', 'store']);
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'indexMessages']);
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage']);
+    Route::get('attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('attachments.download');
 
     Route::post('feedback', [FeedbackController::class, 'store']);
 

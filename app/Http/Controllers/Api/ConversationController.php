@@ -8,10 +8,13 @@ use App\Http\Requests\Api\StoreMessageRequest;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Conversation;
+use App\Models\MessageAttachment;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConversationController extends Controller
 {
@@ -94,5 +97,20 @@ class ConversationController extends Controller
         }
 
         return true;
+    }
+
+    public function downloadAttachment(Request $request, MessageAttachment $attachment): StreamedResponse
+    {
+        $conversation = $attachment->message->conversation;
+
+        abort_unless($this->canAccessConversation($request->user(), $conversation), 404);
+
+        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
+
+        return Storage::disk('local')->download(
+            $attachment->file_path,
+            $attachment->original_name,
+            ['Content-Type' => $attachment->mime_type],
+        );
     }
 }
