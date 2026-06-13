@@ -57,7 +57,7 @@ class ConversationController extends Controller
     {
         abort_unless($this->canAccessConversation($request->user(), $conversation), 404);
 
-        $messages = $conversation->messages()->oldest()->get();
+        $messages = $conversation->messages()->with('attachments')->oldest()->get();
 
         return MessageResource::collection($messages);
     }
