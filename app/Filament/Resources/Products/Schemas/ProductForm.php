@@ -89,6 +89,8 @@ class ProductForm
                             ->directory('products')
                             ->visibility('public')
                             ->image()
+                            ->imageEditor()
+                            ->imageEditorAspectRatios(['1:1', '4:3', '16:9'])
                             ->previewable(false)
                             ->maxSize(5120)
                             ->acceptedFileTypes([
