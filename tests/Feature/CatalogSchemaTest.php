@@ -69,3 +69,38 @@ test('catalog seeder creates demo frame products and lens types idempotently', f
         ->and(ProductVariant::query()->where('ar_eligible', true)->count())->toBeGreaterThanOrEqual(1)
         ->and(ProductImage::query()->count())->toBeGreaterThanOrEqual(1);
 });
+
+test('product slug auto-generates from name if not provided', function () {
+    $brand = Brand::factory()->create();
+    $category = Category::factory()->create();
+
+    $product = Product::factory()->create([
+        'brand_id' => $brand->id,
+        'category_id' => $category->id,
+        'name' => 'Classic Aviator Frame',
+        'slug' => null,
+    ]);
+
+    expect($product->slug)->toBe('classic-aviator-frame');
+});
+
+test('product slug auto-generates with suffix on collision', function () {
+    $brand = Brand::factory()->create();
+    $category = Category::factory()->create();
+
+    Product::factory()->create([
+        'brand_id' => $brand->id,
+        'category_id' => $category->id,
+        'name' => 'Collision Frame',
+        'slug' => 'collision-frame',
+    ]);
+
+    $second = Product::factory()->create([
+        'brand_id' => $brand->id,
+        'category_id' => $category->id,
+        'name' => 'Collision Frame',
+        'slug' => null,
+    ]);
+
+    expect($second->slug)->toBe('collision-frame-1');
+});

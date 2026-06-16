@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'brand_id',
@@ -24,6 +25,29 @@ class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
     use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $product): void {
+            if (empty($product->slug)) {
+                $product->slug = self::generateUniqueSlug($product->name);
+            }
+        });
+    }
+
+    private static function generateUniqueSlug(string $name): string
+    {
+        $base = Str::slug($name);
+        $slug = $base;
+        $count = 1;
+
+        while (self::query()->where('slug', $slug)->withTrashed()->exists()) {
+            $slug = "{$base}-{$count}";
+            $count++;
+        }
+
+        return $slug;
+    }
 
     /**
      * @return BelongsTo<Brand, $this>
