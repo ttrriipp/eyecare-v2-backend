@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 13/17 tasks complete
+Status: Complete — 17/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -73,12 +73,12 @@ Route list:         vendor/bin/sail artisan route:list --except-vendor
 - [ ] Billing records have a `billing_number` (`BIL-YYYY-XXXXXX`) auto-generated and a `due_date` column.
 - [ ] Order records have an `order_number` (`ORD-YYYY-XXXXXX`) auto-generated.
 - [ ] Key business models have soft deletes.
-- [ ] Messaging is reworked: one persistent conversation per customer, context links (product/order/appointment) attachable per message.
-- [ ] Chat-style Filament page replaces the table-based conversation resource.
-- [ ] Feedback is private; customer submits, staff views and replies. No public visibility.
-- [ ] Audit logs cover product changes and user management actions.
-- [ ] All new/changed behavior has Pest tests.
-- [ ] Existing test suite remains green (adapted where needed).
+- [x] Messaging is reworked: one persistent conversation per customer, context links (product/order/appointment) attachable per message.
+- [x] Chat-style Filament page replaces the table-based conversation resource.
+- [x] Feedback is private; customer submits, staff views and replies. No public visibility.
+- [x] Audit logs cover product changes and user management actions.
+- [x] All new/changed behavior has Pest tests.
+- [x] Existing test suite remains green (adapted where needed).
 
 ## Implementation Plan
 
@@ -426,14 +426,14 @@ Seeder/test adaptation ← depends on all above
 **Description:** Replace current conversation model with persistent single-conversation-per-customer + per-message context links.
 
 **Acceptance criteria:**
-- [ ] Each customer has exactly one conversation (created on first message or registration).
-- [ ] `message_context_links` table: `message_id`, `contextable_type`, `contextable_id` (polymorphic).
-- [ ] Supported context types: `Appointment`, `Order`, `Product`.
-- [ ] Old `conversations.appointment_id` / `order_id` FKs removed.
-- [ ] Existing message and attachment structure preserved.
+- [x] Each customer has exactly one conversation (created on first message or registration).
+- [x] `message_context_links` table: `message_id`, `contextable_type`, `contextable_id` (polymorphic).
+- [x] Supported context types: `Appointment`, `Order`, `Product`.
+- [x] Old `conversations.appointment_id` / `order_id` FKs removed.
+- [x] Existing message and attachment structure preserved.
 
 **Verification:**
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
 
 **Dependencies:** Task A1 (soft deletes on conversations)
 
@@ -453,14 +453,14 @@ Seeder/test adaptation ← depends on all above
 **Description:** Rewrite customer messaging API for persistent conversation + context links.
 
 **Acceptance criteria:**
-- [ ] `GET /conversations` → returns the customer's single conversation (or creates it).
-- [ ] `POST /conversations/{conversation}/messages` accepts optional `contexts[]` array (each with `type` and `id`).
-- [ ] `GET /conversations/{conversation}/messages` returns messages with their context links.
-- [ ] Attachments still work as before.
-- [ ] Authorization: customer can only access their own conversation.
+- [x] `GET /conversations` → returns the customer's single conversation (or creates it).
+- [x] `POST /conversations/{conversation}/messages` accepts optional `contexts[]` array (each with `type` and `id`).
+- [x] `GET /conversations/{conversation}/messages` returns messages with their context links.
+- [x] Attachments still work as before.
+- [x] Authorization: customer can only access their own conversation.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Messaging`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Messaging`
 
 **Dependencies:** Task D1
 
@@ -480,14 +480,14 @@ Seeder/test adaptation ← depends on all above
 **Description:** Replace table-based conversation resource with a chat-style custom page.
 
 **Acceptance criteria:**
-- [ ] Staff sees a list of customer conversations (sidebar or panel).
-- [ ] Selecting a conversation shows messages as a chat thread (newest at bottom).
-- [ ] Staff can reply inline.
-- [ ] Context links displayed as badges/tags on messages.
-- [ ] Attachment metadata visible.
+- [x] Staff sees a list of customer conversations (sidebar or panel).
+- [x] Selecting a conversation shows messages as a chat thread (newest at bottom).
+- [x] Staff can reply inline.
+- [x] Context links displayed as badges/tags on messages.
+- [x] Attachment metadata visible.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=ConversationResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=ConversationResource`
 
 **Dependencies:** Task D2
 
@@ -502,11 +502,11 @@ Seeder/test adaptation ← depends on all above
 
 #### Checkpoint: Phase D
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Messaging`
-- [ ] `vendor/bin/sail artisan test --compact --filter=ConversationResource`
-- [ ] Customer has single persistent conversation
-- [ ] Context links attach to individual messages
-- [ ] Chat UI works in Filament
+- [x] `vendor/bin/sail artisan test --compact --filter=Messaging`
+- [x] `vendor/bin/sail artisan test --compact --filter=ConversationResource`
+- [x] Customer has single persistent conversation
+- [x] Context links attach to individual messages
+- [x] Chat UI works in Filament
 
 ---
 
@@ -517,12 +517,12 @@ Seeder/test adaptation ← depends on all above
 **Description:** Add audit hooks for product and user management.
 
 **Acceptance criteria:**
-- [ ] Product create/update/delete logs an audit entry.
-- [ ] User create/role-change logs an audit entry.
-- [ ] Uses existing `CreateAuditLog` action.
+- [x] Product create/update/delete logs an audit entry.
+- [x] User create/role-change logs an audit entry.
+- [x] Uses existing `CreateAuditLog` action.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLog`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AuditLog`
 
 **Dependencies:** None (existing audit infrastructure)
 
@@ -539,13 +539,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Confirm feedback is private-only and staff reply is visible only to the submitting customer.
 
 **Acceptance criteria:**
-- [ ] Feedback API `index` returns only the authenticated customer's own feedback.
-- [ ] Staff reply field exists and is settable from Filament.
-- [ ] No public listing of other customers' feedback.
-- [ ] Filament feedback view shows all feedback for staff review.
+- [x] Feedback API `index` returns only the authenticated customer's own feedback.
+- [x] Staff reply field exists and is settable from Filament.
+- [x] No public listing of other customers' feedback.
+- [x] Filament feedback view shows all feedback for staff review.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Feedback`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Feedback`
 
 **Dependencies:** None
 
@@ -563,15 +563,15 @@ Seeder/test adaptation ← depends on all above
 **Description:** Update seeders and fix any tests broken by schema changes across all phases.
 
 **Acceptance criteria:**
-- [ ] `migrate:fresh --seed` succeeds with all new columns, numbers, soft deletes.
-- [ ] Demo workflow seed includes order/billing numbers, due dates, messaging context links.
-- [ ] All tests pass.
-- [ ] Pint clean.
+- [x] `migrate:fresh --seed` succeeds with all new columns, numbers, soft deletes.
+- [x] Demo workflow seed includes order/billing numbers, due dates, messaging context links.
+- [x] All tests pass.
+- [x] Pint clean.
 
 **Verification:**
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** All previous tasks
 
@@ -588,12 +588,12 @@ Seeder/test adaptation ← depends on all above
 
 #### Checkpoint: Complete
 
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 - [ ] `vendor/bin/sail npm run build`
 - [ ] `vendor/bin/sail artisan route:list --except-vendor`
-- [ ] Full seeded defense flow works without manual database edits
+- [x] Full seeded defense flow works without manual database edits
 
 ---
 
