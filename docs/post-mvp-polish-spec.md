@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 5/17 tasks complete
+Status: In Progress — 7/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -262,12 +262,12 @@ Seeder/test adaptation ← depends on all above
 **Description:** Admin can CRUD visit reasons.
 
 **Acceptance criteria:**
-- [ ] Filament resource with list, create, edit pages for visit reasons.
-- [ ] Name field required, unique.
-- [ ] Only admin/staff can access.
+- [x] Filament resource with list, create, edit pages for visit reasons.
+- [x] Name field required, unique.
+- [x] Only admin/staff can access.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=VisitReason`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=VisitReason`
 
 **Dependencies:** None
 
@@ -284,12 +284,12 @@ Seeder/test adaptation ← depends on all above
 **Description:** Admin can CRUD categories.
 
 **Acceptance criteria:**
-- [ ] Filament resource with list, create, edit for categories.
-- [ ] Name required, unique.
-- [ ] Only admin/staff can access.
+- [x] Filament resource with list, create, edit for categories.
+- [x] Name required, unique.
+- [x] Only admin/staff can access.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=CategoryResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=CategoryResource`
 
 **Dependencies:** None
 
