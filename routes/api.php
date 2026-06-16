@@ -26,7 +26,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
     Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
 
-    Route::apiResource('conversations', ConversationController::class)->only(['index', 'store']);
+    Route::get('conversations', [ConversationController::class, 'show']);
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'indexMessages']);
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage']);
     Route::get('attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('attachments.download');

@@ -45,6 +45,14 @@ class Message extends Model
     }
 
     /**
+     * @return HasMany<MessageContextLink, $this>
+     */
+    public function contextLinks(): HasMany
+    {
+        return $this->hasMany(MessageContextLink::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

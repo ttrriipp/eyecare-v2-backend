@@ -18,10 +18,6 @@ class ConversationFactory extends Factory
     {
         return [
             'customer_id' => User::factory()->customer(),
-            'staff_id' => null,
-            'appointment_id' => null,
-            'order_id' => null,
-            'subject' => fake()->optional()->sentence(4),
         ];
     }
 }

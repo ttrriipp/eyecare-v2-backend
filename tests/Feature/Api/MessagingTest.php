@@ -9,93 +9,41 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('customers can create a conversation without context', function () {
+test('GET /conversations creates and returns single conversation for customer', function () {
     $customer = User::factory()->customer()->create();
-
-    $response = $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', [
-            'subject' => 'General inquiry',
-            'body' => 'I have a question about my eyes.',
-        ]);
-
-    $response->assertCreated()
-        ->assertJsonPath('data.subject', 'General inquiry')
-        ->assertJsonPath('data.messages.0.body', 'I have a question about my eyes.');
-
-    $this->assertDatabaseHas(Conversation::class, [
-        'customer_id' => $customer->id,
-        'subject' => 'General inquiry',
-    ]);
-});
-
-test('customers can create a conversation with appointment context', function () {
-    $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
-
-    $response = $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', [
-            'appointment_id' => $appointment->id,
-            'body' => 'About my upcoming appointment.',
-        ]);
-
-    $response->assertCreated()
-        ->assertJsonPath('data.appointment_id', $appointment->id);
-});
-
-test('customers can create a conversation with order context', function () {
-    $customer = User::factory()->customer()->create();
-    $order = Order::factory()->create(['customer_id' => $customer->id]);
-
-    $response = $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', [
-            'order_id' => $order->id,
-            'body' => 'About my order.',
-        ]);
-
-    $response->assertCreated()
-        ->assertJsonPath('data.order_id', $order->id);
-});
-
-test('customers cannot link a conversation to another customers appointment', function () {
-    $customer = User::factory()->customer()->create();
-    $otherAppointment = Appointment::factory()->create();
-
-    $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', [
-            'appointment_id' => $otherAppointment->id,
-            'body' => 'Hello.',
-        ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['appointment_id']);
-});
-
-test('customers cannot link a conversation to another customers order', function () {
-    $customer = User::factory()->customer()->create();
-    $otherOrder = Order::factory()->create();
-
-    $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', [
-            'order_id' => $otherOrder->id,
-            'body' => 'Hello.',
-        ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['order_id']);
-});
-
-test('customers can list only their own conversations', function () {
-    $customer = User::factory()->customer()->create();
-    $otherCustomer = User::factory()->customer()->create();
-
-    $ownConversations = Conversation::factory()->count(2)->create(['customer_id' => $customer->id]);
-    Conversation::factory()->create(['customer_id' => $otherCustomer->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->getJson('/api/conversations');
 
-    $response->assertSuccessful();
+    $response->assertSuccessful()
+        ->assertJsonPath('data.customer_id', $customer->id);
 
-    $ids = collect($response->json('data'))->pluck('id')->all();
-    expect($ids)->toEqualCanonicalizing($ownConversations->pluck('id')->all());
+    $this->assertDatabaseHas(Conversation::class, ['customer_id' => $customer->id]);
+    expect(Conversation::where('customer_id', $customer->id)->count())->toBe(1);
+});
+
+test('GET /conversations returns existing conversation without creating a new one', function () {
+    $customer = User::factory()->customer()->create();
+    $existing = Conversation::factory()->create(['customer_id' => $customer->id]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson('/api/conversations')
+        ->assertSuccessful()
+        ->assertJsonPath('data.id', $existing->id);
+
+    expect(Conversation::where('customer_id', $customer->id)->count())->toBe(1);
+});
+
+test('staff cannot access GET /conversations customer endpoint', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff, 'sanctum')
+        ->getJson('/api/conversations')
+        ->assertForbidden();
+});
+
+test('unauthenticated users cannot access conversation endpoints', function () {
+    $this->getJson('/api/conversations')->assertUnauthorized();
 });
 
 test('customers can send a message to their own conversation', function () {
@@ -155,28 +103,94 @@ test('staff can view and reply to any conversation', function () {
     ]);
 });
 
-test('unauthenticated users cannot access conversation endpoints', function () {
-    $this->postJson('/api/conversations', [])->assertUnauthorized();
-    $this->getJson('/api/conversations')->assertUnauthorized();
-});
-
-test('staff cannot create or list conversations via the customer api', function () {
-    $staff = User::factory()->staff()->create();
-
-    $this->actingAs($staff, 'sanctum')
-        ->postJson('/api/conversations', ['body' => 'Hello.'])
-        ->assertForbidden();
-
-    $this->actingAs($staff, 'sanctum')
-        ->getJson('/api/conversations')
-        ->assertForbidden();
-});
-
-test('conversation body is required when creating', function () {
+test('message body is required when sending a message', function () {
     $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
 
     $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/conversations', ['subject' => 'Test'])
+        ->postJson("/api/conversations/{$conversation->id}/messages", [])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['body']);
+});
+
+test('customer can send a message with appointment context link', function () {
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'About my appointment.',
+            'contexts' => [
+                ['type' => 'appointment', 'id' => $appointment->id],
+            ],
+        ])
+        ->assertCreated();
+
+    $messageId = $response->json('data.id');
+    $this->assertDatabaseHas('message_context_links', [
+        'message_id' => $messageId,
+        'contextable_type' => Appointment::class,
+        'contextable_id' => $appointment->id,
+    ]);
+});
+
+test('customer can send a message with order context link', function () {
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $order = Order::factory()->create(['customer_id' => $customer->id]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'About my order.',
+            'contexts' => [
+                ['type' => 'order', 'id' => $order->id],
+            ],
+        ])
+        ->assertCreated();
+
+    $messageId = $response->json('data.id');
+    $this->assertDatabaseHas('message_context_links', [
+        'message_id' => $messageId,
+        'contextable_type' => Order::class,
+        'contextable_id' => $order->id,
+    ]);
+});
+
+test('GET messages returns context links on each message', function () {
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $customer->id,
+    ]);
+    $message->contextLinks()->create([
+        'contextable_type' => Appointment::class,
+        'contextable_id' => $appointment->id,
+    ]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/conversations/{$conversation->id}/messages")
+        ->assertSuccessful()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonCount(1, 'data.0.contexts');
+
+    expect($response->json('data.0.contexts.0.id'))->toBe($appointment->id);
+});
+
+test('contexts type must be valid', function () {
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'Hello.',
+            'contexts' => [
+                ['type' => 'invalid_type', 'id' => 1],
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['contexts.0.type']);
 });

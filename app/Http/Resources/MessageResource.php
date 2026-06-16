@@ -29,6 +29,10 @@ class MessageResource extends JsonResource
                 'mime_type' => $a->mime_type,
                 'file_size' => $a->file_size,
             ])->all()),
+            'contexts' => $this->whenLoaded('contextLinks', fn () => $this->contextLinks->map(fn ($link) => [
+                'type' => $link->contextable_type,
+                'id' => $link->contextable_id,
+            ])->all()),
         ];
     }
 }

@@ -19,10 +19,6 @@ class ConversationResource extends JsonResource
         return [
             'id' => $this->id,
             'customer_id' => $this->customer_id,
-            'staff_id' => $this->staff_id,
-            'appointment_id' => $this->appointment_id,
-            'order_id' => $this->order_id,
-            'subject' => $this->subject,
             'messages' => MessageResource::collection($this->whenLoaded('messages')),
             'created_at' => $this->created_at->toISOString(),
         ];

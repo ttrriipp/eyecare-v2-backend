@@ -216,19 +216,20 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedConversation(User $customer, User $staff, Appointment $appointment): void
     {
         $conversation = Conversation::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'appointment_id' => $appointment->id],
-            [
-                'staff_id' => $staff->id,
-                'subject' => 'Question about my upcoming appointment',
-            ],
+            ['customer_id' => $customer->id],
         );
 
         if ($conversation->messages()->count() === 0) {
-            Message::query()->create([
+            $message = Message::query()->create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => $customer->id,
                 'body' => 'Hi, I wanted to ask — do I need to bring anything specific for the eye exam?',
                 'created_at' => now()->subDays(2),
+            ]);
+
+            $message->contextLinks()->create([
+                'contextable_type' => Appointment::class,
+                'contextable_id' => $appointment->id,
             ]);
 
             Message::query()->create([
