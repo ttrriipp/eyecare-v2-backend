@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Billings\Schemas;
 
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
 
 class BillingForm
@@ -10,7 +12,13 @@ class BillingForm
     {
         return $schema
             ->components([
-                //
+                DatePicker::make('due_date')
+                    ->label('Due Date')
+                    ->nullable(),
+                Textarea::make('notes')
+                    ->label('Notes')
+                    ->nullable()
+                    ->columnSpanFull(),
             ]);
     }
 }

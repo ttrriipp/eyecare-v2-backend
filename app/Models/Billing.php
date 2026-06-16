@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'balance_due',
     'notes',
     'issued_at',
+    'due_date',
 ])]
 class Billing extends Model
 {
@@ -79,6 +80,7 @@ class Billing extends Model
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',
             'issued_at' => 'datetime',
+            'due_date' => 'date',
         ];
     }
 }

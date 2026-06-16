@@ -29,6 +29,9 @@ class BillingInfolist
                 TextEntry::make('issued_at')
                     ->label('Issued At')
                     ->dateTime(),
+                TextEntry::make('due_date')
+                    ->label('Due Date')
+                    ->date(),
                 TextEntry::make('notes')
                     ->label('Notes')
                     ->columnSpanFull(),
