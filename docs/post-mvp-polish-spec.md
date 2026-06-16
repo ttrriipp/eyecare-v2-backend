@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 7/17 tasks complete
+Status: In Progress — 8/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -306,13 +306,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Staff/admin can create appointments on behalf of walk-in/phone customers.
 
 **Acceptance criteria:**
-- [ ] `CreateAppointment` page registered in `AppointmentResource`.
-- [ ] Staff selects customer, visit reason, date/time.
-- [ ] Created appointment starts as `pending` or `confirmed` (staff choice via status field).
-- [ ] Uses existing validation and workflow logic.
+- [x] `CreateAppointment` page registered in `AppointmentResource`.
+- [x] Staff selects customer, visit reason, date/time.
+- [x] Created appointment starts as `pending` or `confirmed` (staff choice via status field).
+- [x] Uses existing validation and workflow logic.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
 
 **Dependencies:** Task A1 (soft deletes on appointments)
 
