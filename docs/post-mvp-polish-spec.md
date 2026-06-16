@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: Approved — awaiting implementation
+Status: In Progress — 2/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -116,18 +116,18 @@ Seeder/test adaptation ← depends on all above
 
 #### Phase A: Schema & Auto-Generation
 
-##### Task A1: Soft Deletes Migration
+##### Task A1: Soft Deletes Migration ✅
 
 **Description:** Add `deleted_at` to business models.
 
 **Acceptance criteria:**
-- [ ] `products`, `product_variants`, `orders`, `billings`, `appointments`, `prescriptions`, `conversations`, `feedback` tables have `deleted_at`.
-- [ ] Models use `SoftDeletes` trait.
-- [ ] Existing queries still work (Eloquent excludes soft-deleted by default).
+- [x] `products`, `product_variants`, `orders`, `billings`, `appointments`, `prescriptions`, `conversations`, `feedback` tables have `deleted_at`.
+- [x] Models use `SoftDeletes` trait.
+- [x] Existing queries still work (Eloquent excludes soft-deleted by default).
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact`
-- [ ] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact`
+- [x] Fresh seed succeeds: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
 
 **Dependencies:** None
 
@@ -146,19 +146,19 @@ Seeder/test adaptation ← depends on all above
 
 ---
 
-##### Task A2: Order Number & Billing Number
+##### Task A2: Order Number & Billing Number ✅
 
 **Description:** Add auto-generated number columns with format `ORD-YYYY-XXXXXX` / `BIL-YYYY-XXXXXX`.
 
 **Acceptance criteria:**
-- [ ] `orders.order_number` and `billings.billing_number` columns exist, unique, not null.
-- [ ] Numbers auto-generate on model creation via `creating` boot hook.
-- [ ] Sequence is global auto-increment with year prefix.
-- [ ] Existing seeder records get valid numbers.
+- [x] `orders.order_number` and `billings.billing_number` columns exist, unique, not null.
+- [x] Numbers auto-generate on model creation via `creating` boot hook.
+- [x] Sequence is global auto-increment with year prefix.
+- [x] Existing seeder records get valid numbers.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Order`
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Billing`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Order`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Billing`
 
 **Dependencies:** None
 

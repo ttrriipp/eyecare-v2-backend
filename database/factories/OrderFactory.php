@@ -6,7 +6,6 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Order>
@@ -23,7 +22,6 @@ class OrderFactory extends Factory
         $subtotal = fake()->randomFloat(2, 50, 500);
 
         return [
-            'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
             'customer_id' => User::factory()->customer(),
             'appointment_id' => null,
             'prescription_id' => null,
