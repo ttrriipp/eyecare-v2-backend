@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 9/17 tasks complete
+Status: In Progress — 10/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -354,9 +354,9 @@ Seeder/test adaptation ← depends on all above
 
 #### Checkpoint: Phase B
 
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] Visit reasons and categories are manageable in Filament
-- [ ] Staff can create appointments and orders from admin panel
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] Visit reasons and categories are manageable in Filament
+- [x] Staff can create appointments and orders from admin panel
 
 ---
 
