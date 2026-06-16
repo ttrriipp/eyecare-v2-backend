@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 8/17 tasks complete
+Status: In Progress — 9/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -331,14 +331,14 @@ Seeder/test adaptation ← depends on all above
 **Description:** Staff/admin can create orders on behalf of walk-in customers.
 
 **Acceptance criteria:**
-- [ ] `CreateOrder` page registered in `OrderResource`.
-- [ ] Staff selects customer, adds order items (variant + lens type + quantity).
-- [ ] Price snapshots from current variant pricing.
-- [ ] Created order starts as `requested` or `under_review`.
-- [ ] Reuses existing order item snapshot logic.
+- [x] `CreateOrder` page registered in `OrderResource`.
+- [x] Staff selects customer, adds order items (variant + lens type + quantity).
+- [x] Price snapshots from current variant pricing.
+- [x] Created order starts as `requested` or `under_review`.
+- [x] Reuses existing order item snapshot logic.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
 
 **Dependencies:** Tasks A1, A2 (soft deletes, order numbers)
 
