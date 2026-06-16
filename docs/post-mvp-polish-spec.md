@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 2/17 tasks complete
+Status: In Progress — 5/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -177,12 +177,12 @@ Seeder/test adaptation ← depends on all above
 **Description:** Add `due_date` column to billings.
 
 **Acceptance criteria:**
-- [ ] `billings.due_date` nullable date column exists.
-- [ ] Staff can set due date when generating billing or editing.
-- [ ] Filament billing form includes due date field.
+- [x] `billings.due_date` nullable date column exists.
+- [x] Staff can set due date when generating billing or editing.
+- [x] Filament billing form includes due date field.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Billing`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Billing`
 
 **Dependencies:** None
 
@@ -200,13 +200,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Add `slug` to products, auto-generated from name.
 
 **Acceptance criteria:**
-- [ ] `products.slug` unique column exists.
-- [ ] Auto-generates from name on create via `Str::slug()`.
-- [ ] Editable on update.
-- [ ] Product API returns slug.
+- [x] `products.slug` unique column exists.
+- [x] Auto-generates from name on create via `Str::slug()`.
+- [x] Editable on update.
+- [x] Product API returns slug.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Product`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Product`
 
 **Dependencies:** None
 
@@ -225,13 +225,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Add auto-generated SKU to product variants.
 
 **Acceptance criteria:**
-- [ ] `product_variants.sku` unique column exists.
-- [ ] Auto-generates as `VAR-XXXXXX` (zero-padded global sequence) on create.
-- [ ] Editable by staff after creation.
-- [ ] Returned in API responses.
+- [x] `product_variants.sku` unique column exists.
+- [x] Auto-generates as `VAR-XXXXXX` (zero-padded global sequence) on create.
+- [x] Editable by staff after creation.
+- [x] Returned in API responses.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Product`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=Product`
 
 **Dependencies:** None
 
@@ -247,11 +247,11 @@ Seeder/test adaptation ← depends on all above
 
 #### Checkpoint: Phase A
 
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] All business models have soft deletes
-- [ ] Order/billing numbers generate correctly
-- [ ] Slugs and SKUs auto-generate
+- [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] All business models have soft deletes
+- [x] Order/billing numbers generate correctly
+- [x] Slugs and SKUs auto-generate
 
 ---
 
