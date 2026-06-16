@@ -1,10 +1,13 @@
 <?php
 
+use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
+use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,4 +170,39 @@ test('staff can confirm a prescription order when the customer has a prescriptio
         ->assertHasNoFormErrors();
 
     expect($order->fresh()->status->name)->toBe('confirmed');
+});
+
+test('staff can create an order with items and price snapshot', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $variant = ProductVariant::factory()->create(['price' => '150.00']);
+    $lensType = LensType::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateOrder::class)
+        ->fillForm([
+            'customer_id' => $customer->id,
+            'order_status_id' => $requestedStatus->id,
+            'is_non_prescription' => true,
+            'items' => [
+                [
+                    'product_variant_id' => $variant->id,
+                    'lens_type_id' => $lensType->id,
+                    'quantity' => 2,
+                ],
+            ],
+        ])
+        ->call('create')
+        ->assertNotified()
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $order = Order::query()->where('customer_id', $customer->id)->firstOrFail();
+
+    expect($order->total_amount)->toBe('300.00')
+        ->and($order->items)->toHaveCount(1)
+        ->and($order->items->first()->unit_price)->toBe('150.00')
+        ->and($order->items->first()->subtotal)->toBe('300.00');
 });
