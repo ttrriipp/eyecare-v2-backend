@@ -51,6 +51,7 @@ class OrderForm
                     ->columnSpanFull(),
                 Repeater::make('items')
                     ->hiddenOn('edit')
+                    ->minItems(1)
                     ->schema([
                         Select::make('product_variant_id')
                             ->label('Variant')
