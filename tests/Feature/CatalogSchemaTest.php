@@ -104,3 +104,15 @@ test('product slug auto-generates with suffix on collision', function () {
 
     expect($second->slug)->toBe('collision-frame-1');
 });
+
+test('product variant sku auto-generates as VAR-XXXXXX if not provided', function () {
+    $variant = ProductVariant::factory()->create(['sku' => null]);
+
+    expect($variant->sku)->toMatch('/^VAR-\d{6}$/');
+});
+
+test('product variant sku is preserved when explicitly provided', function () {
+    $variant = ProductVariant::factory()->create(['sku' => 'CUSTOM-SKU-001']);
+
+    expect($variant->sku)->toBe('CUSTOM-SKU-001');
+});

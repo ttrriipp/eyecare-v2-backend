@@ -60,8 +60,9 @@ class ProductForm
                         TextInput::make('name')
                             ->required(),
                         TextInput::make('sku')
-                            ->required()
-                            ->unique(ignoreRecord: true),
+                            ->maxLength(255)
+                            ->unique(ignoreRecord: true)
+                            ->placeholder('Auto-generated if blank'),
                         TextInput::make('price')
                             ->required()
                             ->numeric()

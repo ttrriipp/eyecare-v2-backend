@@ -27,6 +27,22 @@ class ProductVariant extends Model
     /** @use HasFactory<ProductVariantFactory> */
     use HasFactory, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::creating(function (self $variant): void {
+            if (empty($variant->sku)) {
+                $variant->sku = self::generateSku();
+            }
+        });
+    }
+
+    private static function generateSku(): string
+    {
+        $sequence = self::query()->withTrashed()->count() + 1;
+
+        return sprintf('VAR-%06d', $sequence);
+    }
+
     /**
      * @return BelongsTo<Product, $this>
      */
