@@ -1,6 +1,6 @@
 # Spec: Post-MVP Polish & Adjustments
 
-Status: In Progress — 10/17 tasks complete
+Status: In Progress — 13/17 tasks complete
 Phase: Planning complete, 17 tasks defined
 
 ## Assumptions
@@ -64,8 +64,8 @@ Route list:         vendor/bin/sail artisan route:list --except-vendor
 
 ## Success Criteria
 
-- [ ] Staff can confirm/reschedule/cancel/complete appointments via table row actions with confirmation modals.
-- [ ] Staff can transition order status via table row actions with confirmation modals.
+- [x] Staff can confirm/reschedule/cancel/complete appointments via table row actions with confirmation modals.
+- [x] Staff can transition order status via table row actions with confirmation modals.
 - [ ] Visit reasons are CRUD-manageable by admin in Filament.
 - [ ] Categories are CRUD-manageable by admin in Filament.
 - [ ] Product slugs auto-generate from name on create, editable on edit.
@@ -367,13 +367,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Replace edit-form status changes with table row actions and page header actions.
 
 **Acceptance criteria:**
-- [ ] Table row actions: Confirm, Reschedule, Cancel, Complete (with confirmation modals).
-- [ ] Actions only show for valid transitions (can't confirm already-completed).
-- [ ] Uses existing `UpdateAppointmentStatus` action.
-- [ ] SMS notification records still created for confirm/reschedule/cancel.
+- [x] Table row actions: Confirm, Reschedule, Cancel, Complete (with confirmation modals).
+- [x] Actions only show for valid transitions (can't confirm already-completed).
+- [x] Uses existing `UpdateAppointmentStatus` action.
+- [x] SMS notification records still created for confirm/reschedule/cancel.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=AppointmentResource`
 
 **Dependencies:** Task B3
 
@@ -391,13 +391,13 @@ Seeder/test adaptation ← depends on all above
 **Description:** Replace edit-form order status changes with table row actions.
 
 **Acceptance criteria:**
-- [ ] Table row actions for each valid transition: Review, Confirm, Preparing, Ready for Pickup, Complete, Cancel.
-- [ ] Actions show contextually based on current status.
-- [ ] Uses existing `UpdateOrderStatus` action.
-- [ ] Inventory and billing side-effects still trigger correctly.
+- [x] Table row actions for each valid transition: Review, Confirm, Preparing, Ready for Pickup, Complete, Cancel.
+- [x] Actions show contextually based on current status.
+- [x] Uses existing `UpdateOrderStatus` action.
+- [x] Inventory and billing side-effects still trigger correctly.
 
 **Verification:**
-- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
+- [x] Tests pass: `vendor/bin/sail artisan test --compact --filter=OrderResource`
 
 **Dependencies:** Task B4
 
@@ -412,10 +412,10 @@ Seeder/test adaptation ← depends on all above
 
 #### Checkpoint: Phase C
 
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] Appointment status transitions work via action buttons
-- [ ] Order status transitions work via action buttons
-- [ ] SMS and inventory side-effects still fire correctly
+- [x] `vendor/bin/sail artisan test --compact`
+- [x] Appointment status transitions work via action buttons
+- [x] Order status transitions work via action buttons
+- [x] SMS and inventory side-effects still fire correctly
 
 ---
 
