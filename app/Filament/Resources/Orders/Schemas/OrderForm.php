@@ -57,6 +57,7 @@ class OrderForm
                             ->label('Variant')
                             ->options(fn () => ProductVariant::query()
                                 ->with('product')
+                                ->where('is_active', true)
                                 ->get()
                                 ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
                             ->required()
