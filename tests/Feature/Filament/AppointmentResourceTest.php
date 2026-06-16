@@ -1,11 +1,13 @@
 <?php
 
+use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
+use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -100,4 +102,31 @@ test('staff can edit appointments and status changes use the workflow action', f
     ]);
 
     Http::assertNothingSent();
+});
+
+test('staff can create an appointment for a customer', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'customer_id' => $customer->id,
+            'visit_reason_id' => $visitReason->id,
+            'appointment_status_id' => $pendingStatus->id,
+            'scheduled_at' => now()->addDay()->toDateTimeString(),
+        ])
+        ->call('create')
+        ->assertNotified()
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $this->assertDatabaseHas(Appointment::class, [
+        'customer_id' => $customer->id,
+        'visit_reason_id' => $visitReason->id,
+        'appointment_status_id' => $pendingStatus->id,
+    ]);
 });

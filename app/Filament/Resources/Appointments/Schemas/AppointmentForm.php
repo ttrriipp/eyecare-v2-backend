@@ -15,11 +15,15 @@ class AppointmentForm
             ->components([
                 Select::make('customer_id')
                     ->relationship('customer', 'name')
-                    ->disabled()
+                    ->required()
+                    ->searchable()
+                    ->preload()
+                    ->disabledOn('edit')
                     ->dehydrated(),
                 Select::make('visit_reason_id')
                     ->relationship('visitReason', 'name')
-                    ->disabled()
+                    ->required()
+                    ->disabledOn('edit')
                     ->dehydrated(),
                 Select::make('appointment_status_id')
                     ->relationship('status', 'name')
@@ -28,7 +32,7 @@ class AppointmentForm
                 DateTimePicker::make('scheduled_at')
                     ->required(),
                 Textarea::make('contact_notes')
-                    ->disabled()
+                    ->disabledOn('edit')
                     ->dehydrated()
                     ->columnSpanFull(),
                 Textarea::make('staff_notes')
