@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Product;
+use App\Models\User;
+use App\Observers\ProductObserver;
+use App\Observers\UserObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -13,6 +17,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Product::observe(ProductObserver::class);
+        User::observe(UserObserver::class);
+
         RateLimiter::for('login', function (Request $request) {
             return [
                 Limit::perMinute(10)->by($request->ip()),

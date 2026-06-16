@@ -13,7 +13,9 @@ use App\Models\Feedback;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\BillingStatusSeeder;
@@ -54,7 +56,7 @@ test('CreateAuditLog records actor subject action and metadata', function () {
         'action' => 'appointment.status_changed',
     ]);
 
-    $log = AuditLog::query()->first();
+    $log = AuditLog::query()->where('action', 'appointment.status_changed')->first();
     expect($log->metadata)->toMatchArray(['from' => 'pending', 'to' => 'confirmed']);
 });
 
@@ -171,5 +173,72 @@ test('feedback submission creates an audit log', function () {
         'actor_id' => $customer->id,
         'subject_type' => $feedback->getMorphClass(),
         'action' => 'feedback.submitted',
+    ]);
+});
+
+test('product creation creates an audit log', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    $product = Product::factory()->create();
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'actor_id' => $staff->id,
+        'subject_type' => $product->getMorphClass(),
+        'subject_id' => $product->id,
+        'action' => 'product.created',
+    ]);
+});
+
+test('product update creates an audit log', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    $product = Product::factory()->create();
+    $product->update(['name' => 'Updated Name']);
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'subject_id' => $product->id,
+        'action' => 'product.updated',
+    ]);
+});
+
+test('product soft delete creates an audit log', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    $product = Product::factory()->create();
+    $product->delete();
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'subject_id' => $product->id,
+        'action' => 'product.deleted',
+    ]);
+});
+
+test('user creation creates an audit log', function () {
+    $admin = User::factory()->admin()->create();
+    Auth::login($admin);
+
+    $newUser = User::factory()->staff()->create();
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'subject_type' => $newUser->getMorphClass(),
+        'subject_id' => $newUser->id,
+        'action' => 'user.created',
+    ]);
+});
+
+test('user role change creates an audit log', function () {
+    $admin = User::factory()->admin()->create();
+    Auth::login($admin);
+
+    $user = User::factory()->staff()->create();
+    $customerRole = Role::query()->where('name', 'customer')->firstOrFail();
+    $user->update(['role_id' => $customerRole->id]);
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'subject_id' => $user->id,
+        'action' => 'user.role_changed',
     ]);
 });
