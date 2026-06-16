@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'order_id',
+    'billing_number',
     'billing_status_id',
     'total_amount',
     'amount_paid',
@@ -21,7 +23,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Billing extends Model
 {
     /** @use HasFactory<BillingFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $billing): void {
+            if (empty($billing->billing_number)) {
+                $billing->billing_number = self::generateBillingNumber();
+            }
+        });
+    }
+
+    private static function generateBillingNumber(): string
+    {
+        $year = now()->format('Y');
+        $sequence = self::query()
+            ->whereYear('created_at', $year)
+            ->withTrashed()
+            ->count() + 1;
+
+        return sprintf('BIL-%s-%06d', $year, $sequence);
+    }
 
     /**
      * @return BelongsTo<Order, $this>

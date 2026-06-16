@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'order_number',
@@ -27,7 +28,27 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $order): void {
+            if (empty($order->order_number)) {
+                $order->order_number = self::generateOrderNumber();
+            }
+        });
+    }
+
+    private static function generateOrderNumber(): string
+    {
+        $year = now()->format('Y');
+        $sequence = self::query()
+            ->whereYear('created_at', $year)
+            ->withTrashed()
+            ->count() + 1;
+
+        return sprintf('ORD-%s-%06d', $year, $sequence);
+    }
 
     /**
      * @return BelongsTo<User, $this>
