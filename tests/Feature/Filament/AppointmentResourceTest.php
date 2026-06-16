@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
@@ -102,6 +103,106 @@ test('staff can edit appointments and status changes use the workflow action', f
     ]);
 
     Http::assertNothingSent();
+});
+
+test('confirm action transitions pending appointment to confirmed and creates SMS notification', function () {
+    $staff = User::factory()->staff()->create();
+    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction(
+            TestAction::make('confirm')->table($appointment),
+        )
+        ->assertNotified();
+
+    expect($appointment->fresh()->status->name)->toBe('confirmed');
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'appointment_id' => $appointment->id,
+        'event' => 'appointment_confirmed',
+    ]);
+});
+
+test('cancel action transitions pending appointment to cancelled and creates SMS notification', function () {
+    $staff = User::factory()->staff()->create();
+    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction(
+            TestAction::make('cancel')->table($appointment),
+        )
+        ->assertNotified();
+
+    expect($appointment->fresh()->status->name)->toBe('cancelled');
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'appointment_id' => $appointment->id,
+        'event' => 'appointment_cancelled',
+    ]);
+});
+
+test('reschedule action transitions confirmed appointment to rescheduled with new time and SMS notification', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+
+    $newTime = now()->addDays(3)->toDateTimeString();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction(
+            TestAction::make('reschedule')->table($appointment),
+            ['scheduled_at' => $newTime, 'staff_notes' => 'Patient requested reschedule'],
+        )
+        ->assertNotified();
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('rescheduled')
+        ->and($appointment->staff_notes)->toBe('Patient requested reschedule');
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'appointment_id' => $appointment->id,
+        'event' => 'appointment_rescheduled',
+    ]);
+});
+
+test('complete action transitions confirmed appointment to completed', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction(
+            TestAction::make('complete')->table($appointment),
+        )
+        ->assertNotified();
+
+    expect($appointment->fresh()->status->name)->toBe('completed');
+});
+
+test('confirm action is hidden for completed appointments', function () {
+    $staff = User::factory()->staff()->create();
+    $completedStatus = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $completedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableActionHidden('confirm', $appointment);
 });
 
 test('staff can create an appointment for a customer', function () {

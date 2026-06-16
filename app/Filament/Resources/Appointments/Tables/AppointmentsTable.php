@@ -2,13 +2,19 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use App\Actions\Appointments\UpdateAppointmentStatus;
+use App\Models\Appointment;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 
 class AppointmentsTable
 {
@@ -46,6 +52,64 @@ class AppointmentsTable
                     }),
             ])
             ->recordActions([
+                Action::make('confirm')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalDescription('Confirm this appointment? An SMS notification will be sent.')
+                    ->successNotificationTitle('Appointment confirmed')
+                    ->visible(fn (Appointment $record): bool => in_array($record->status->name, ['pending', 'rescheduled'], true))
+                    ->action(fn (Appointment $record) => app(UpdateAppointmentStatus::class)->handle(
+                        appointment: $record,
+                        statusName: 'confirmed',
+                    )),
+
+                Action::make('reschedule')
+                    ->icon('heroicon-o-calendar')
+                    ->color('warning')
+                    ->fillForm(fn (Appointment $record): array => [
+                        'scheduled_at' => $record->scheduled_at,
+                    ])
+                    ->schema([
+                        DateTimePicker::make('scheduled_at')
+                            ->label('New date & time')
+                            ->required(),
+                        Textarea::make('staff_notes')
+                            ->label('Staff notes')
+                            ->rows(2),
+                    ])
+                    ->successNotificationTitle('Appointment rescheduled')
+                    ->visible(fn (Appointment $record): bool => in_array($record->status->name, ['pending', 'confirmed'], true))
+                    ->action(fn (array $data, Appointment $record) => app(UpdateAppointmentStatus::class)->handle(
+                        appointment: $record,
+                        statusName: 'rescheduled',
+                        scheduledAt: Carbon::parse($data['scheduled_at']),
+                        staffNotes: $data['staff_notes'] ?? null,
+                    )),
+
+                Action::make('cancel')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription('Cancel this appointment? An SMS notification will be sent.')
+                    ->successNotificationTitle('Appointment cancelled')
+                    ->visible(fn (Appointment $record): bool => in_array($record->status->name, ['pending', 'confirmed', 'rescheduled'], true))
+                    ->action(fn (Appointment $record) => app(UpdateAppointmentStatus::class)->handle(
+                        appointment: $record,
+                        statusName: 'cancelled',
+                    )),
+
+                Action::make('complete')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->successNotificationTitle('Appointment completed')
+                    ->visible(fn (Appointment $record): bool => in_array($record->status->name, ['confirmed', 'rescheduled'], true))
+                    ->action(fn (Appointment $record) => app(UpdateAppointmentStatus::class)->handle(
+                        appointment: $record,
+                        statusName: 'completed',
+                    )),
+
                 EditAction::make(),
             ])
             ->defaultSort('scheduled_at', 'desc');
