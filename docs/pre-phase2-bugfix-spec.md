@@ -1,7 +1,7 @@
 # Spec: Pre-Phase-2 Bugfixes & UX Corrections
 
-Status: Draft — awaiting review
-Phase: Specification
+Status: **Implemented** — all 8 tasks complete
+Phase: Done
 
 ## Assumptions
 
