@@ -22,6 +22,7 @@ class AppointmentFactory extends Factory
     {
         return [
             'customer_id' => User::factory()->customer(),
+            'staff_id' => null,
             'visit_reason_id' => VisitReason::factory(),
             'appointment_status_id' => $this->pendingStatusId(),
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),

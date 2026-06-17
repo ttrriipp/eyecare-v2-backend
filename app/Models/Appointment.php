@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'customer_id',
+    'staff_id',
     'visit_reason_id',
     'appointment_status_id',
     'scheduled_at',
@@ -28,6 +29,14 @@ class Appointment extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function staff(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'staff_id');
     }
 
     /**

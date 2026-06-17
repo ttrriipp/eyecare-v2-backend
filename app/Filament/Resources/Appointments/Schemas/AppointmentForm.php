@@ -56,6 +56,20 @@ class AppointmentForm
                     ->columnSpanFull(),
                 Textarea::make('staff_notes')
                     ->columnSpanFull(),
+                Select::make('staff_id')
+                    ->label('Assigned staff')
+                    ->relationship(
+                        'staff',
+                        'name',
+                        fn ($query) => $query->whereHas(
+                            'role',
+                            fn ($q) => $q->whereIn('name', ['staff', 'admin']),
+                        ),
+                    )
+                    ->searchable()
+                    ->preload()
+                    ->nullable()
+                    ->placeholder('Unassigned'),
             ]);
     }
 }

@@ -15,6 +15,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class AppointmentsTable
 {
@@ -29,6 +30,10 @@ class AppointmentsTable
                     ->label('Visit reason'),
                 TextColumn::make('status.name')
                     ->label('Status'),
+                TextColumn::make('staff.name')
+                    ->label('Assigned staff')
+                    ->placeholder('Unassigned')
+                    ->toggleable(),
                 TextColumn::make('scheduled_at')
                     ->dateTime()
                     ->sortable(),
@@ -39,6 +44,10 @@ class AppointmentsTable
             ->filters([
                 SelectFilter::make('status')
                     ->relationship('status', 'name'),
+                Filter::make('assigned_to_me')
+                    ->label('Assigned to me')
+                    ->query(fn (Builder $query): Builder => $query->where('staff_id', Auth::id()))
+                    ->toggle(),
                 Filter::make('scheduled_date')
                     ->schema([
                         DatePicker::make('scheduled_on')
