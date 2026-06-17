@@ -209,7 +209,6 @@ test('staff can create an appointment for a customer', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create();
-    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
 
     $this->actingAs($staff);
 
@@ -217,7 +216,6 @@ test('staff can create an appointment for a customer', function () {
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'appointment_status_id' => $pendingStatus->id,
             'scheduled_at' => now()->addDay()->toDateTimeString(),
         ])
         ->call('create')
@@ -228,7 +226,6 @@ test('staff can create an appointment for a customer', function () {
     $this->assertDatabaseHas(Appointment::class, [
         'customer_id' => $customer->id,
         'visit_reason_id' => $visitReason->id,
-        'appointment_status_id' => $pendingStatus->id,
     ]);
 });
 
@@ -236,7 +233,6 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
     $staff = User::factory()->staff()->create();
     $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);
     $visitReason = VisitReason::factory()->create();
-    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
 
     $this->actingAs($staff);
 
@@ -244,7 +240,6 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->fillForm([
             'customer_id' => $walkIn->id,
             'visit_reason_id' => $visitReason->id,
-            'appointment_status_id' => $pendingStatus->id,
             'scheduled_at' => now()->addDay()->toDateTimeString(),
         ])
         ->call('create')

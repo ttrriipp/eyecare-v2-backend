@@ -45,7 +45,8 @@ class AppointmentForm
                 Select::make('appointment_status_id')
                     ->relationship('status', 'name')
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->hiddenOn('create'),
                 DateTimePicker::make('scheduled_at')
                     ->required(),
                 Textarea::make('contact_notes')

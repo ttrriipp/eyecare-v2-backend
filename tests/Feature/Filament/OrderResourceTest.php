@@ -257,7 +257,6 @@ test('complete and cancel actions are hidden for completed orders', function () 
 test('staff can create an order with items and price snapshot', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $variant = ProductVariant::factory()->create(['price' => '150.00']);
     $lensType = LensType::factory()->create();
 
@@ -266,7 +265,6 @@ test('staff can create an order with items and price snapshot', function () {
     Livewire::test(CreateOrder::class)
         ->fillForm([
             'customer_id' => $customer->id,
-            'order_status_id' => $requestedStatus->id,
             'is_non_prescription' => true,
             'items' => [
                 [
@@ -292,7 +290,6 @@ test('staff can create an order with items and price snapshot', function () {
 test('staff can create an order for a walk-in customer (no email or password)', function () {
     $staff = User::factory()->staff()->create();
     $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $variant = ProductVariant::factory()->create(['price' => '100.00']);
     $lensType = LensType::factory()->create();
 
@@ -301,7 +298,6 @@ test('staff can create an order for a walk-in customer (no email or password)', 
     Livewire::test(CreateOrder::class)
         ->fillForm([
             'customer_id' => $walkIn->id,
-            'order_status_id' => $requestedStatus->id,
             'is_non_prescription' => true,
             'items' => [
                 [

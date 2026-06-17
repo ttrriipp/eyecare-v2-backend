@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Orders\Pages;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\LensType;
 use App\Models\Order;
+use App\Models\OrderStatus;
 use App\Models\ProductVariant;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +52,7 @@ class CreateOrder extends CreateRecord
             $data['subtotal'] = $subtotal;
             $data['total_amount'] = $subtotal;
             $data['discount_amount'] = '0.00';
+            $data['order_status_id'] = OrderStatus::query()->where('name', 'requested')->value('id');
 
             /** @var Order $order */
             $order = static::getModel()::create($data);

@@ -47,7 +47,8 @@ class OrderForm
                 Select::make('order_status_id')
                     ->relationship('status', 'name')
                     ->required()
-                    ->live(),
+                    ->live()
+                    ->hiddenOn('create'),
                 Toggle::make('is_non_prescription')
                     ->default(true)
                     ->disabledOn('edit')
