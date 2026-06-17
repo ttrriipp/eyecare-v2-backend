@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,8 +23,9 @@ class InventoryMovementFactory extends Factory
         return [
             'product_variant_id' => ProductVariant::factory(),
             'order_id' => null,
+            'inventory_movement_type_id' => InventoryMovementType::query()
+                ->firstOrCreate(['name' => 'manual_adjustment'])->id,
             'quantity_change' => fake()->numberBetween(-10, 10),
-            'type' => fake()->randomElement(['initial', 'manual_adjustment', 'order_commitment', 'order_reversal']),
             'notes' => fake()->optional()->sentence(),
         ];
     }
@@ -36,19 +38,18 @@ class InventoryMovementFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'order_id' => $order->id,
             'quantity_change' => -fake()->numberBetween(1, 5),
-            'type' => 'order_commitment',
+            'inventory_movement_type_id' => InventoryMovementType::query()
+                ->firstOrCreate(['name' => 'order_commitment'])->id,
         ]);
     }
 
-    /**
-     * Create a reversal movement (restoration) linked to an order.
-     */
     public function reversal(Order $order): static
     {
         return $this->state(fn (array $attributes): array => [
             'order_id' => $order->id,
             'quantity_change' => fake()->numberBetween(1, 5),
-            'type' => 'order_reversal',
+            'inventory_movement_type_id' => InventoryMovementType::query()
+                ->firstOrCreate(['name' => 'order_reversal'])->id,
         ]);
     }
 }

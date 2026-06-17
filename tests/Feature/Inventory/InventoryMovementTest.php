@@ -3,10 +3,12 @@
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\ProductVariant;
+use Database\Seeders\InventoryMovementTypeSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -15,6 +17,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(InventoryMovementTypeSeeder::class);
 });
 
 it('deducts stock and records an order_commitment movement when an order is confirmed', function () {
@@ -40,7 +43,7 @@ it('deducts stock and records an order_commitment movement when an order is conf
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
         'quantity_change' => -2,
-        'type' => 'order_commitment',
+        'inventory_movement_type_id' => InventoryMovementType::query()->where('name', 'order_commitment')->value('id'),
     ]);
 });
 
@@ -93,7 +96,7 @@ it('restores stock and records an order_reversal movement when a confirmed order
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
         'quantity_change' => 3,
-        'type' => 'order_reversal',
+        'inventory_movement_type_id' => InventoryMovementType::query()->where('name', 'order_reversal')->value('id'),
     ]);
 });
 
@@ -149,14 +152,14 @@ it('stock remains correct after movements from multiple items', function () {
         'order_id' => $order->id,
         'product_variant_id' => $variantA->id,
         'quantity_change' => -2,
-        'type' => 'order_commitment',
+        'inventory_movement_type_id' => InventoryMovementType::query()->where('name', 'order_commitment')->value('id'),
     ]);
 
     $this->assertDatabaseHas(InventoryMovement::class, [
         'order_id' => $order->id,
         'product_variant_id' => $variantB->id,
         'quantity_change' => -5,
-        'type' => 'order_commitment',
+        'inventory_movement_type_id' => InventoryMovementType::query()->where('name', 'order_commitment')->value('id'),
     ]);
 });
 
@@ -179,7 +182,7 @@ it('RecordInventoryMovement action records a movement and updates stock', functi
         'product_variant_id' => $variant->id,
         'order_id' => $order->id,
         'quantity_change' => -3,
-        'type' => 'order_commitment',
+        'inventory_movement_type_id' => InventoryMovementType::query()->where('name', 'order_commitment')->value('id'),
         'notes' => 'Deducted on confirmation.',
     ]);
 });

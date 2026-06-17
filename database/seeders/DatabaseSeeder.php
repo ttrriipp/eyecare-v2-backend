@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             PaymentStatusSeeder::class,
             PaymentMethodSeeder::class,
             InventoryMovementStatusSeeder::class,
+            InventoryMovementTypeSeeder::class,
             CatalogSeeder::class,
             DemoUserSeeder::class,
             ClinicWorkflowSeeder::class,

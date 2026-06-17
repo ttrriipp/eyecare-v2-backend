@@ -4,6 +4,7 @@ namespace App\Actions\Inventory;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
 
@@ -46,8 +47,9 @@ class RecordInventoryMovement
             $movement = InventoryMovement::query()->create([
                 'product_variant_id' => $variant->id,
                 'order_id' => $orderId,
+                'inventory_movement_type_id' => InventoryMovementType::query()
+                    ->firstOrCreate(['name' => $type])->id,
                 'quantity_change' => $quantityChange,
-                'type' => $type,
                 'notes' => $notes,
             ]);
 

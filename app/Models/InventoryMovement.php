@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'product_variant_id',
     'order_id',
+    'inventory_movement_type_id',
     'quantity_change',
-    'type',
     'notes',
 ])]
 class InventoryMovement extends Model
@@ -34,6 +34,14 @@ class InventoryMovement extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * @return BelongsTo<InventoryMovementType, $this>
+     */
+    public function movementType(): BelongsTo
+    {
+        return $this->belongsTo(InventoryMovementType::class, 'inventory_movement_type_id');
     }
 
     /**
