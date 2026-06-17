@@ -591,8 +591,8 @@ Seeder/test adaptation ← depends on all above
 - [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
 - [x] `vendor/bin/sail artisan test --compact`
 - [x] `vendor/bin/sail bin pint --dirty --format agent`
-- [ ] `vendor/bin/sail npm run build`
-- [ ] `vendor/bin/sail artisan route:list --except-vendor`
+- [x] `vendor/bin/sail npm run build`
+- [x] `vendor/bin/sail artisan route:list --except-vendor`
 - [x] Full seeded defense flow works without manual database edits
 
 ---
