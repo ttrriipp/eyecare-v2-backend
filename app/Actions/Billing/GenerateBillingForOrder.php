@@ -6,6 +6,7 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Order;
+use App\Notifications\BillingIssued;
 use Illuminate\Validation\ValidationException;
 
 class GenerateBillingForOrder
@@ -45,6 +46,8 @@ class GenerateBillingForOrder
             action: 'billing.generated',
             metadata: ['order_id' => $order->id, 'total_amount' => (string) $order->total_amount],
         );
+
+        $order->customer->notify(new BillingIssued($billing));
 
         return $billing;
     }

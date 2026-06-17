@@ -7,6 +7,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Notifications\AppointmentStatusChanged;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -68,6 +69,7 @@ class UpdateAppointmentStatus
 
         if (array_key_exists($statusName, self::SMS_EVENTS)) {
             $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
+            $appointment->customer->notify(new AppointmentStatusChanged($appointment));
         }
 
         app(CreateAuditLog::class)->handle(

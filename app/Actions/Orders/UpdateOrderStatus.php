@@ -7,6 +7,7 @@ use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Notifications\OrderStatusChanged;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrderStatus
@@ -85,7 +86,10 @@ class UpdateOrderStatus
             metadata: ['from' => $currentStatus, 'to' => $statusName],
         );
 
-        return $order->fresh(['status', 'items']);
+        $freshOrder = $order->fresh(['status', 'items']);
+        $freshOrder->customer->notify(new OrderStatusChanged($freshOrder));
+
+        return $freshOrder;
     }
 
     /**
