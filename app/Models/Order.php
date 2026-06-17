@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'subtotal',
     'total_amount',
     'discount_amount',
+    'discount_type_id',
     'notes',
     'confirmed_at',
     'completed_at',
@@ -80,6 +81,14 @@ class Order extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(OrderStatus::class, 'order_status_id');
+    }
+
+    /**
+     * @return BelongsTo<DiscountType, $this>
+     */
+    public function discountType(): BelongsTo
+    {
+        return $this->belongsTo(DiscountType::class);
     }
 
     /**
