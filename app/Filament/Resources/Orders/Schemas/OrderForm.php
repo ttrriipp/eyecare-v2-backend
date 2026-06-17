@@ -4,6 +4,8 @@ namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\LensType;
 use App\Models\ProductVariant;
+use App\Models\Role;
+use App\Models\User;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -27,7 +29,21 @@ class OrderForm
                     ->searchable()
                     ->preload()
                     ->disabledOn('edit')
-                    ->dehydrated(),
+                    ->dehydrated()
+                    ->createOptionForm([
+                        TextInput::make('name')->required(),
+                        TextInput::make('phone')->required()->tel(),
+                        TextInput::make('email')->email()->nullable(),
+                    ])
+                    ->createOptionUsing(function (array $data): int {
+                        return User::create([
+                            'name' => $data['name'],
+                            'phone' => $data['phone'],
+                            'email' => $data['email'] ?? null,
+                            'password' => null,
+                            'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                        ])->getKey();
+                    }),
                 Select::make('order_status_id')
                     ->relationship('status', 'name')
                     ->required()

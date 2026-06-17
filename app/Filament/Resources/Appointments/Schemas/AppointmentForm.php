@@ -2,9 +2,12 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
+use App\Models\Role;
+use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
 class AppointmentForm
@@ -19,7 +22,21 @@ class AppointmentForm
                     ->searchable()
                     ->preload()
                     ->disabledOn('edit')
-                    ->dehydrated(),
+                    ->dehydrated()
+                    ->createOptionForm([
+                        TextInput::make('name')->required(),
+                        TextInput::make('phone')->required()->tel(),
+                        TextInput::make('email')->email()->nullable(),
+                    ])
+                    ->createOptionUsing(function (array $data): int {
+                        return User::create([
+                            'name' => $data['name'],
+                            'phone' => $data['phone'],
+                            'email' => $data['email'] ?? null,
+                            'password' => null,
+                            'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                        ])->getKey();
+                    }),
                 Select::make('visit_reason_id')
                     ->relationship('visitReason', 'name')
                     ->required()

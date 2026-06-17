@@ -288,3 +288,38 @@ test('staff can create an order with items and price snapshot', function () {
         ->and($order->items->first()->unit_price)->toBe('150.00')
         ->and($order->items->first()->subtotal)->toBe('300.00');
 });
+
+test('staff can create an order for a walk-in customer (no email or password)', function () {
+    $staff = User::factory()->staff()->create();
+    $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $variant = ProductVariant::factory()->create(['price' => '100.00']);
+    $lensType = LensType::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateOrder::class)
+        ->fillForm([
+            'customer_id' => $walkIn->id,
+            'order_status_id' => $requestedStatus->id,
+            'is_non_prescription' => true,
+            'items' => [
+                [
+                    'product_variant_id' => $variant->id,
+                    'lens_type_id' => $lensType->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->call('create')
+        ->assertNotified()
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $this->assertDatabaseHas(Order::class, [
+        'customer_id' => $walkIn->id,
+    ]);
+
+    expect($walkIn->email)->toBeNull()
+        ->and($walkIn->password)->toBeNull();
+});
