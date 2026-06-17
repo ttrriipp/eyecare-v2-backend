@@ -73,7 +73,8 @@ class AppointmentsTable
                     ->schema([
                         DateTimePicker::make('scheduled_at')
                             ->label('New date & time')
-                            ->required(),
+                            ->required()
+                            ->rule('after:now'),
                         Textarea::make('staff_notes')
                             ->label('Staff notes')
                             ->rows(2),

@@ -238,3 +238,38 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
     expect($walkIn->email)->toBeNull()
         ->and($walkIn->password)->toBeNull();
 });
+
+test('appointment create form rejects past scheduled_at', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'customer_id' => $customer->id,
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->subDay()->toDateTimeString(),
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['scheduled_at']);
+});
+
+test('reschedule action rejects past scheduled_at', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction(
+            TestAction::make('reschedule')->table($appointment),
+            ['scheduled_at' => now()->subDay()->toDateTimeString()],
+        )
+        ->assertHasActionErrors(['scheduled_at']);
+
+    expect($appointment->fresh()->status->name)->toBe('confirmed');
+});

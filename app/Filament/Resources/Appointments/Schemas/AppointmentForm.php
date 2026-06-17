@@ -48,7 +48,12 @@ class AppointmentForm
                     ->dehydrated(false)
                     ->hiddenOn('create'),
                 DateTimePicker::make('scheduled_at')
-                    ->required(),
+                    ->required()
+                    ->rule('after:now')
+                    ->hiddenOn('edit'),
+                DateTimePicker::make('scheduled_at')
+                    ->required()
+                    ->hiddenOn('create'),
                 Textarea::make('contact_notes')
                     ->disabledOn('edit')
                     ->dehydrated()
