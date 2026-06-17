@@ -7,9 +7,12 @@ use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\Payment;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentStatusSeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -18,6 +21,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
 });
 
 test('staff and admin users can list billings', function (string $factoryState) {
@@ -129,4 +133,73 @@ test('staff can set due_date on a billing record', function () {
         'id' => $billing->id,
         'due_date' => $dueDate,
     ]);
+});
+
+test('staff can record a payment on a billing via the view page action', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->draft()->create(['total_amount' => '200.00', 'balance_due' => '200.00']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction('record_payment', data: [
+            'amount' => 150.00,
+            'method' => 'cash',
+            'paid_at' => now()->toDateTimeString(),
+        ])
+        ->assertNotified()
+        ->assertHasNoActionErrors();
+
+    $billing->refresh();
+    expect((float) $billing->amount_paid)->toBe(150.0)
+        ->and((float) $billing->balance_due)->toBe(50.0);
+
+    $this->assertDatabaseHas(Payment::class, [
+        'billing_id' => $billing->id,
+        'amount' => '150.00',
+        'method' => 'cash',
+    ]);
+});
+
+test('record payment action is hidden when billing is fully paid', function () {
+    $staff = User::factory()->staff()->create();
+    $paidStatus = BillingStatus::query()->where('name', 'paid')->firstOrFail();
+    $billing = Billing::factory()->create([
+        'billing_status_id' => $paidStatus->id,
+        'total_amount' => '100.00',
+        'amount_paid' => '100.00',
+        'balance_due' => '0.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionHidden('record_payment');
+});
+
+test('staff can void a posted payment and billing balance recalculates', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->draft()->create(['total_amount' => '200.00', 'balance_due' => '200.00']);
+    $payment = Payment::factory()->posted()->create([
+        'billing_id' => $billing->id,
+        'amount' => '200.00',
+    ]);
+
+    // Manually set billing to match posted payment
+    $paidStatus = BillingStatus::query()->where('name', 'paid')->firstOrFail();
+    $billing->update(['amount_paid' => '200.00', 'balance_due' => '0.00', 'billing_status_id' => $paidStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction(
+            TestAction::make('void_payment')->arguments(['payment_id' => $payment->id]),
+        )
+        ->assertNotified();
+
+    $payment->refresh();
+    $billing->refresh();
+
+    expect($payment->status->name)->toBe('voided')
+        ->and((float) $billing->balance_due)->toBe(200.0);
 });
