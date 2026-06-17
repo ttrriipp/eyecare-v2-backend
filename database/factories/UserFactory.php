@@ -66,6 +66,20 @@ class UserFactory extends Factory
         ]);
     }
 
+    /**
+     * Walk-in customer: name + phone only, no email, no password. Cannot log in to the API.
+     */
+    public function walkIn(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'email' => null,
+            'email_verified_at' => null,
+            'password' => null,
+            'remember_token' => null,
+            'role_id' => $this->fixedRoleId('customer'),
+        ]);
+    }
+
     private function fixedRoleId(string $name): int
     {
         return Role::query()->firstOrCreate([
