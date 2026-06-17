@@ -7,6 +7,9 @@ use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -34,7 +37,22 @@ class AppointmentController extends Controller
             'appointment_status_id' => $pendingStatus->id,
         ]);
 
-        $appointment->load(['visitReason', 'status']);
+        $appointment->load(['visitReason', 'status', 'customer']);
+
+        $staff = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('New Appointment Booked')
+            ->body("{$appointment->customer->name} booked an appointment on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->actions([
+                Action::make('view')
+                    ->label('View')
+                    ->url('/admin/appointments/'.$appointment->id.'/edit')
+                    ->markAsRead(),
+            ])
+            ->sendToDatabase($staff);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),

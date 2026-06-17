@@ -8,10 +8,13 @@ use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Appointment;
 use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -76,6 +79,11 @@ class ConversationController extends Controller
 
         $message->load(['attachments', 'contextLinks']);
 
+        // Only notify staff when the sender is a customer
+        if ($request->user()->role->name === 'customer') {
+            $this->notifyStaffOfMessage($conversation, $message);
+        }
+
         return response()->json([
             'data' => MessageResource::make($message),
         ], 201);
@@ -93,6 +101,32 @@ class ConversationController extends Controller
             $attachment->original_name,
             ['Content-Type' => $attachment->mime_type],
         );
+    }
+
+    private function notifyStaffOfMessage(Conversation $conversation, Message $message): void
+    {
+        // Notify the assigned staff on the customer's most recent appointment,
+        // falling back to all staff/admin if no assignment exists.
+        $assignedStaff = Appointment::query()
+            ->where('customer_id', $conversation->customer_id)
+            ->whereNotNull('staff_id')
+            ->latest()
+            ->value('staff_id');
+
+        $recipients = $assignedStaff
+            ? User::query()->where('id', $assignedStaff)->get()
+            : User::query()->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))->get();
+
+        Notification::make()
+            ->title('New Message')
+            ->body("{$message->sender->name} sent a message.")
+            ->actions([
+                Action::make('view')
+                    ->label('View')
+                    ->url('/admin/conversations/'.$conversation->id)
+                    ->markAsRead(),
+            ])
+            ->sendToDatabase($recipients);
     }
 
     private function canAccessConversation(User $user, Conversation $conversation): bool

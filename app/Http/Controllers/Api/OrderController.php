@@ -9,6 +9,9 @@ use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\ProductVariant;
+use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -76,7 +79,22 @@ class OrderController extends Controller
             return $order;
         });
 
-        $order->load(['status', 'items']);
+        $order->load(['status', 'items', 'customer']);
+
+        $staff = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('New Order Request')
+            ->body("{$order->customer->name} submitted order {$order->order_number}.")
+            ->actions([
+                Action::make('view')
+                    ->label('View')
+                    ->url('/admin/orders/'.$order->id.'/edit')
+                    ->markAsRead(),
+            ])
+            ->sendToDatabase($staff);
 
         return response()->json([
             'data' => OrderResource::make($order),
