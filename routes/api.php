@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
@@ -34,6 +35,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('feedback', [FeedbackController::class, 'store']);
     Route::get('feedback', [FeedbackController::class, 'index']);
     Route::get('feedback/{feedback}', [FeedbackController::class, 'show']);
+
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead']);
+    Route::post('notifications/{notification}/mark-read', [NotificationController::class, 'markRead']);
 
     Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
