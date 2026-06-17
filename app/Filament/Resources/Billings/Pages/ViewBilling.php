@@ -7,9 +7,11 @@ use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Billings\BillingResource;
 use App\Models\Billing;
 use App\Models\Payment;
+use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
@@ -34,9 +36,10 @@ class ViewBilling extends ViewRecord
                         ->minValue(0.01)
                         ->maxValue(fn () => (float) $this->getRecord()->balance_due)
                         ->prefix('₱'),
-                    TextInput::make('method')
+                    Select::make('payment_method_id')
+                        ->label('Method')
                         ->required()
-                        ->maxLength(50),
+                        ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
                     TextInput::make('reference_number')
                         ->maxLength(100),
                     DateTimePicker::make('paid_at')

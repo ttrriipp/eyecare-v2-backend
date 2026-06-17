@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'billing_id',
     'payment_status_id',
+    'payment_method_id',
     'amount',
-    'method',
     'reference_number',
     'notes',
     'paid_at',
@@ -36,6 +36,14 @@ class Payment extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(PaymentStatus::class, 'payment_status_id');
+    }
+
+    /**
+     * @return BelongsTo<PaymentMethod, $this>
+     */
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 
     /**

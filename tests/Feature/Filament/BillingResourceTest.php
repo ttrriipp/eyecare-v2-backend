@@ -8,6 +8,7 @@ use App\Models\BillingStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Payment;
+use App\Models\PaymentMethod;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
@@ -139,13 +140,14 @@ test('staff can set due_date on a billing record', function () {
 test('staff can record a payment on a billing via the view page action', function () {
     $staff = User::factory()->staff()->create();
     $billing = Billing::factory()->draft()->create(['total_amount' => '200.00', 'balance_due' => '200.00']);
+    $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
 
     $this->actingAs($staff);
 
     Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
         ->callAction('record_payment', data: [
             'amount' => 150.00,
-            'method' => 'cash',
+            'payment_method_id' => $cashMethod->id,
             'paid_at' => now()->toDateTimeString(),
         ])
         ->assertNotified()
@@ -158,7 +160,7 @@ test('staff can record a payment on a billing via the view page action', functio
     $this->assertDatabaseHas(Payment::class, [
         'billing_id' => $billing->id,
         'amount' => '150.00',
-        'method' => 'cash',
+        'payment_method_id' => $cashMethod->id,
     ]);
 });
 

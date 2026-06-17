@@ -22,8 +22,8 @@ class RecordPayment
 
         $payment = $billing->payments()->create([
             'payment_status_id' => $postedStatus->id,
+            'payment_method_id' => $data['payment_method_id'],
             'amount' => $data['amount'],
-            'method' => $data['method'],
             'reference_number' => $data['reference_number'] ?? null,
             'notes' => $data['notes'] ?? null,
             'paid_at' => $data['paid_at'] ?? now(),

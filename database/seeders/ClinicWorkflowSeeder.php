@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Payment;
+use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
@@ -143,8 +144,8 @@ class ClinicWorkflowSeeder extends Seeder
             ['billing_id' => $billing->id, 'reference_number' => 'GCX-DEMO-001'],
             [
                 'payment_status_id' => $postedStatus->id,
+                'payment_method_id' => PaymentMethod::query()->where('name', 'GCash')->value('id'),
                 'amount' => '80.00',
-                'method' => 'gcash',
                 'notes' => 'Down payment via GCash.',
                 'paid_at' => now()->subDays(4),
             ],
@@ -205,8 +206,8 @@ class ClinicWorkflowSeeder extends Seeder
             ['billing_id' => $billing->id, 'reference_number' => 'CASH-DEMO-001'],
             [
                 'payment_status_id' => $postedStatus->id,
+                'payment_method_id' => PaymentMethod::query()->where('name', 'Cash')->value('id'),
                 'amount' => $subtotal,
-                'method' => 'cash',
                 'notes' => 'Full cash payment.',
                 'paid_at' => now()->subDays(13),
             ],

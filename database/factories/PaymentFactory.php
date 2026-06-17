@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Billing;
 use App\Models\Payment;
+use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,8 +23,8 @@ class PaymentFactory extends Factory
         return [
             'billing_id' => Billing::factory(),
             'payment_status_id' => PaymentStatus::factory(),
+            'payment_method_id' => PaymentMethod::query()->firstOrCreate(['name' => 'Cash'])->id,
             'amount' => fake()->randomFloat(2, 10, 500),
-            'method' => fake()->randomElement(['cash', 'gcash', 'bank_transfer']),
             'reference_number' => fake()->optional()->numerify('REF-######'),
             'notes' => null,
             'paid_at' => now(),
