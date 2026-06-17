@@ -242,6 +242,35 @@ Format PHP:         vendor/bin/sail bin pint --dirty --format agent
 
 ---
 
+#### Task 8: Record Payment Action in Filament Billing
+
+**Description:** Add a Filament action on the billing view/list page that lets staff record a manual payment against a billing, triggering balance recalculation.
+
+**Acceptance criteria:**
+- [ ] Billing view page or table row has a "Record Payment" action.
+- [ ] Action form: amount (required, numeric, > 0, ≤ balance_due), method (text for now — Phase 2 replaces with lookup FK), reference number (optional), notes (optional), paid_at (defaults to now).
+- [ ] Payment is created with `posted` status.
+- [ ] `RecalculateBillingBalance` is called after creation — updates amount_paid, balance_due, and billing status.
+- [ ] Action is hidden when billing is fully paid (`balance_due` = 0) or voided.
+- [ ] Audit log records the payment.
+- [ ] A "Void Payment" action exists on the billing view page for individual payments — sets payment status to `voided` and recalculates.
+
+**Verification:**
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=Payment`
+- [ ] Tests pass: `vendor/bin/sail artisan test --compact --filter=BillingResource`
+
+**Dependencies:** None
+
+**Files likely touched:**
+- `app/Filament/Resources/Billings/Pages/ViewBilling.php` (add record payment action + payment list)
+- `app/Filament/Resources/Billings/Tables/BillingsTable.php` (add record payment table action)
+- `app/Actions/Billing/RecordPayment.php` (new action: create payment + recalculate)
+- `tests/Feature/Filament/BillingResourceTest.php` (add payment recording tests)
+
+**Estimated scope:** M
+
+---
+
 ### Checkpoint: Complete
 
 - [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
@@ -251,6 +280,7 @@ Format PHP:         vendor/bin/sail bin pint --dirty --format agent
 - [ ] Status fields locked on create/edit forms
 - [ ] Past-date appointments rejected in Filament
 - [ ] Audit trail complete for all status changes
+- [ ] Staff can record and void payments against billings
 
 ---
 
@@ -274,7 +304,8 @@ Format PHP:         vendor/bin/sail bin pint --dirty --format agent
 | 5 | Future date validation | S |
 | 6 | Verify prescriptions for walk-ins | S |
 | 7 | Verify audit logs complete | S |
-| **Total** | **7 tasks** | All S |
+| 8 | Record/void payment action in Filament | M |
+| **Total** | **8 tasks** | |
 
 ## Impact on Phase 2 Spec
 
