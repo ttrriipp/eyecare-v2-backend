@@ -7,6 +7,7 @@ use App\Models\AppointmentStatus;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Conversation;
+use App\Models\DiscountType;
 use App\Models\Feedback;
 use App\Models\LensType;
 use App\Models\Message;
@@ -20,6 +21,9 @@ use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Models\VisitReason;
+use App\Notifications\AppointmentStatusChanged;
+use App\Notifications\BillingIssued;
+use App\Notifications\OrderStatusChanged;
 use Illuminate\Database\Seeder;
 
 /**
@@ -42,10 +46,11 @@ class ClinicWorkflowSeeder extends Seeder
 
         $appointment = $this->seedAppointment($customer, $staff);
         $prescription = $this->seedPrescription($customer, $appointment, $staff);
-        $this->seedPrescriptionOrder($customer, $appointment, $prescription);
+        $this->seedPrescriptionOrder($customer, $appointment, $prescription, $staff);
         $this->seedNonPrescriptionOrder($customer);
         $this->seedConversation($customer, $staff, $appointment);
         $this->seedFeedback($customer, $appointment);
+        $this->seedSampleNotifications($customer);
     }
 
     private function demoCustomer(): User
@@ -61,6 +66,7 @@ class ClinicWorkflowSeeder extends Seeder
         return Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'visit_reason_id' => $visitReason->id],
             [
+                'staff_id' => $staff->id,
                 'appointment_status_id' => $confirmedStatus->id,
                 'scheduled_at' => now()->addDays(3)->setTime(10, 0),
                 'contact_notes' => 'Please call an hour before. Mobile: +63 912 000 0001',
@@ -89,14 +95,17 @@ class ClinicWorkflowSeeder extends Seeder
         );
     }
 
-    private function seedPrescriptionOrder(User $customer, Appointment $appointment, Prescription $prescription): void
+    private function seedPrescriptionOrder(User $customer, Appointment $appointment, Prescription $prescription, User $staff): void
     {
         $variant = ProductVariant::query()->where('sku', 'CRF-BLK-001')->firstOrFail();
         $lensType = LensType::query()->where('name', 'single_vision')->firstOrFail();
         $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+        $seniorDiscount = DiscountType::query()->where('name', 'Senior Citizen')->firstOrFail();
 
         $unitPrice = (string) $variant->price;
         $subtotal = bcmul($unitPrice, '1', 2);
+        $discountAmount = bcmul($subtotal, '0.20', 2); // 20% Senior Citizen
+        $totalAmount = bcsub($subtotal, $discountAmount, 2);
 
         $order = Order::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'appointment_id' => $appointment->id, 'is_non_prescription' => false],
@@ -105,8 +114,9 @@ class ClinicWorkflowSeeder extends Seeder
                 'prescription_id' => $prescription->id,
                 'order_status_id' => $confirmedStatus->id,
                 'subtotal' => $subtotal,
-                'total_amount' => $subtotal,
-                'discount_amount' => 0,
+                'discount_type_id' => $seniorDiscount->id,
+                'discount_amount' => $discountAmount,
+                'total_amount' => $totalAmount,
                 'confirmed_at' => now()->subDays(5),
             ],
         );
@@ -131,11 +141,11 @@ class ClinicWorkflowSeeder extends Seeder
             ['order_id' => $order->id],
             [
                 'billing_status_id' => $issuedStatus->id,
-                'total_amount' => $subtotal,
+                'total_amount' => $totalAmount,
                 'amount_paid' => '80.00',
-                'balance_due' => bcsub($subtotal, '80.00', 2),
+                'balance_due' => bcsub($totalAmount, '80.00', 2),
                 'issued_at' => now()->subDays(4),
-                'notes' => 'Partial payment received. Balance on pickup.',
+                'notes' => 'Partial payment received. Balance on pickup. Senior Citizen discount applied.',
             ],
         );
 
@@ -212,6 +222,43 @@ class ClinicWorkflowSeeder extends Seeder
                 'paid_at' => now()->subDays(13),
             ],
         );
+    }
+
+    private function seedSampleNotifications(User $customer): void
+    {
+        // Only seed if no notifications exist yet for this customer
+        if ($customer->notifications()->count() > 0) {
+            return;
+        }
+
+        $appointment = Appointment::query()
+            ->where('customer_id', $customer->id)
+            ->with('status')
+            ->latest()
+            ->first();
+
+        $order = Order::query()
+            ->where('customer_id', $customer->id)
+            ->with('status')
+            ->latest()
+            ->first();
+
+        $billing = Billing::query()
+            ->whereHas('order', fn ($q) => $q->where('customer_id', $customer->id))
+            ->latest()
+            ->first();
+
+        if ($appointment) {
+            $customer->notify(new AppointmentStatusChanged($appointment));
+        }
+
+        if ($order) {
+            $customer->notify(new OrderStatusChanged($order));
+        }
+
+        if ($billing) {
+            $customer->notify(new BillingIssued($billing));
+        }
     }
 
     private function seedConversation(User $customer, User $staff, Appointment $appointment): void

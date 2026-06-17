@@ -23,16 +23,19 @@ class DemoUserSeeder extends Seeder
             [
                 'name' => 'Demo Admin',
                 'email' => 'admin@eyecare.test',
+                'phone' => '09170000001',
                 'role' => 'admin',
             ],
             [
                 'name' => 'Demo Staff',
                 'email' => 'staff@eyecare.test',
+                'phone' => '09170000002',
                 'role' => 'staff',
             ],
             [
                 'name' => 'Demo Customer',
                 'email' => 'customer@eyecare.test',
+                'phone' => '09170000003',
                 'role' => 'customer',
             ],
         ];
@@ -44,6 +47,7 @@ class DemoUserSeeder extends Seeder
                 ['email' => $account['email']],
                 [
                     'name' => $account['name'],
+                    'phone' => $account['phone'],
                     'password' => Hash::make('password'),
                     'role_id' => $role->id,
                     'email_verified_at' => now(),
