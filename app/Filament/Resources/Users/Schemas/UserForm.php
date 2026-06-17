@@ -26,7 +26,6 @@ class UserForm
                     ->required(),
                 TextInput::make('password')
                     ->password()
-                    ->dehydrateStateUsing(fn (string $state): string => bcrypt($state))
                     ->dehydrated(fn (?string $state): bool => filled($state))
                     ->required(fn (string $operation): bool => $operation === 'create')
                     ->label(fn (string $operation): string => $operation === 'create' ? 'Password' : 'New password (leave blank to keep)')

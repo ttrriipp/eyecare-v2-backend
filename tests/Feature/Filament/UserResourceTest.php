@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -152,6 +153,26 @@ test('password is updated when provided on edit', function () {
         ->assertNotified();
 
     expect($user->fresh()->password)->not->toBe($originalHash);
+});
+
+test('created user password can authenticate', function () {
+    $staffRole = Role::where('name', 'staff')->first();
+
+    $this->actingAs($this->admin);
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'name' => 'Login Test User',
+            'email' => 'logintest@example.com',
+            'phone' => '09179999999',
+            'role_id' => $staffRole->id,
+            'password' => 'secret123',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::where('email', 'logintest@example.com')->firstOrFail();
+    expect(Hash::check('secret123', $user->password))->toBeTrue();
 });
 
 test('edit page has no delete action', function () {
