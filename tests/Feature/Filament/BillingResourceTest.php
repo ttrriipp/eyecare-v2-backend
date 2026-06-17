@@ -13,6 +13,7 @@ use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -202,4 +203,20 @@ test('staff can void a posted payment and billing balance recalculates', functio
 
     expect($payment->status->name)->toBe('voided')
         ->and((float) $billing->balance_due)->toBe(200.0);
+});
+
+test('void payment action cannot target a payment from a different billing', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->draft()->create(['total_amount' => '100.00', 'balance_due' => '100.00']);
+    $otherBilling = Billing::factory()->draft()->create(['total_amount' => '50.00', 'balance_due' => '50.00']);
+    $otherPayment = Payment::factory()->posted()->create(['billing_id' => $otherBilling->id, 'amount' => '50.00']);
+
+    $this->actingAs($staff);
+
+    $this->expectException(ModelNotFoundException::class);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction(
+            TestAction::make('void_payment')->arguments(['payment_id' => $otherPayment->id]),
+        );
 });

@@ -59,7 +59,9 @@ class ViewBilling extends ViewRecord
                     'payment_id' => null,
                 ])
                 ->action(function (array $arguments): void {
-                    $payment = Payment::query()->findOrFail($arguments['payment_id']);
+                    $payment = Payment::query()
+                        ->where('billing_id', $this->getRecord()->id)
+                        ->findOrFail($arguments['payment_id']);
 
                     if ($payment->status->name !== 'posted') {
                         return;

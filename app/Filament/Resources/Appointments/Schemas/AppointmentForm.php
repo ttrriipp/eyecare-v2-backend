@@ -49,11 +49,7 @@ class AppointmentForm
                     ->hiddenOn('create'),
                 DateTimePicker::make('scheduled_at')
                     ->required()
-                    ->rule('after:now')
-                    ->hiddenOn('edit'),
-                DateTimePicker::make('scheduled_at')
-                    ->required()
-                    ->hiddenOn('create'),
+                    ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : ''),
                 Textarea::make('contact_notes')
                     ->disabledOn('edit')
                     ->dehydrated()
