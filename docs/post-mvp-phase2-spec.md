@@ -1,7 +1,7 @@
 # Spec: Post-MVP Phase 2 — Operations & Notifications
 
-Status: Draft — awaiting review
-Phase: Specification
+Status: In Progress — Task A1 complete
+Phase: Implementation
 
 ## Assumptions
 
