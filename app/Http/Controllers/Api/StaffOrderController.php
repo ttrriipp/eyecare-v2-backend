@@ -19,6 +19,10 @@ class StaffOrderController extends Controller
         $order = $updateOrderStatus->handle(
             order: $order,
             statusName: $request->validated('status'),
+            discountTypeId: $request->validated('discount_type_id'),
+            customDiscountAmount: $request->validated('custom_discount_amount') !== null
+                ? (float) $request->validated('custom_discount_amount')
+                : null,
         );
 
         return response()->json([

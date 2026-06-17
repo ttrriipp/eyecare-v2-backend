@@ -26,7 +26,7 @@ class UpdateOrderStatus
         'cancelled' => [],
     ];
 
-    public function handle(Order $order, string $statusName): Order
+    public function handle(Order $order, string $statusName, ?int $discountTypeId = null, ?float $customDiscountAmount = null): Order
     {
         $currentStatus = $order->status->name;
         $allowed = self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
@@ -57,6 +57,12 @@ class UpdateOrderStatus
 
         if ($statusName === 'confirmed') {
             $attributes['confirmed_at'] = now();
+
+            // Validate and compute discount before committing the status change.
+            if ($discountTypeId !== null) {
+                $discountAttributes = app(ApplyDiscount::class)->computeAttributes($order, $discountTypeId, $customDiscountAmount);
+                $attributes = array_merge($attributes, $discountAttributes);
+            }
         }
 
         if ($statusName === 'completed') {

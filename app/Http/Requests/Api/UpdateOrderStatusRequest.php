@@ -25,6 +25,8 @@ class UpdateOrderStatusRequest extends FormRequest
     {
         return [
             'status' => ['required', 'string', Rule::exists('order_statuses', 'name')],
+            'discount_type_id' => ['nullable', 'integer', Rule::exists('discount_types', 'id')],
+            'custom_discount_amount' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }

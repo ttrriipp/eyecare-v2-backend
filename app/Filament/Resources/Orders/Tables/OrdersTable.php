@@ -3,10 +3,14 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use App\Actions\Orders\UpdateOrderStatus;
+use App\Models\DiscountType;
 use App\Models\Order;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -58,13 +62,31 @@ class OrdersTable
                     ->label('Confirm')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->requiresConfirmation()
                     ->modalDescription('Confirm this order? Inventory will be deducted.')
                     ->successNotificationTitle('Order confirmed')
                     ->visible(fn (Order $record): bool => $record->status->name === 'under_review')
-                    ->action(function (Order $record): void {
+                    ->schema([
+                        Select::make('discount_type_id')
+                            ->label('Discount (optional)')
+                            ->options(DiscountType::query()->where('is_active', true)->pluck('name', 'id'))
+                            ->nullable()
+                            ->live(),
+                        TextInput::make('custom_discount_amount')
+                            ->label('Custom discount amount')
+                            ->numeric()
+                            ->minValue(0)
+                            ->visible(fn (Get $get): bool => DiscountType::find($get('discount_type_id'))?->type === 'fixed'),
+                    ])
+                    ->action(function (array $data, Order $record): void {
                         try {
-                            app(UpdateOrderStatus::class)->handle($record, 'confirmed');
+                            app(UpdateOrderStatus::class)->handle(
+                                order: $record,
+                                statusName: 'confirmed',
+                                discountTypeId: $data['discount_type_id'] ?? null,
+                                customDiscountAmount: isset($data['custom_discount_amount'])
+                                    ? (float) $data['custom_discount_amount']
+                                    : null,
+                            );
                         } catch (ValidationException $e) {
                             $messages = collect($e->errors())->flatten()->first() ?? 'Cannot confirm order.';
                             Notification::make()
