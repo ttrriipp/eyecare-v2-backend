@@ -66,12 +66,11 @@ test('appointment table can filter by status and scheduled date', function () {
         ->assertCanNotSeeTableRecords([$confirmedAppointment]);
 });
 
-test('staff can edit appointments and status changes use the workflow action', function () {
+test('staff can edit appointment staff notes', function () {
     Http::fake();
 
     $staff = User::factory()->staff()->create();
     $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
-    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => $pendingStatus->id,
@@ -81,28 +80,13 @@ test('staff can edit appointments and status changes use the workflow action', f
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->fillForm([
-            'appointment_status_id' => $confirmedStatus->id,
-            'staff_notes' => 'Confirmed for exam.',
-        ])
-        ->assertSchemaStateSet([
-            'appointment_status_id' => $confirmedStatus->id,
-            'staff_notes' => 'Confirmed for exam.',
+            'staff_notes' => 'Updated notes.',
         ])
         ->call('save')
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    $appointment->refresh();
-
-    expect($appointment->status->name)->toBe('confirmed')
-        ->and($appointment->staff_notes)->toBe('Confirmed for exam.');
-
-    $this->assertDatabaseHas(SmsNotification::class, [
-        'appointment_id' => $appointment->id,
-        'event' => 'appointment_confirmed',
-    ]);
-
-    Http::assertNothingSent();
+    expect($appointment->fresh()->staff_notes)->toBe('Updated notes.');
 });
 
 test('confirm action transitions pending appointment to confirmed and creates SMS notification', function () {

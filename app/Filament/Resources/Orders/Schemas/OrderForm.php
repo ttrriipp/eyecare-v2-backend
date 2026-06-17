@@ -44,10 +44,10 @@ class OrderForm
                             'role_id' => Role::query()->where('name', 'customer')->value('id'),
                         ])->getKey();
                     }),
-                Select::make('order_status_id')
-                    ->relationship('status', 'name')
-                    ->required()
-                    ->live()
+                TextInput::make('status.name')
+                    ->label('Status')
+                    ->disabled()
+                    ->dehydrated(false)
                     ->hiddenOn('create'),
                 Toggle::make('is_non_prescription')
                     ->default(true)

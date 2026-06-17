@@ -42,10 +42,10 @@ class AppointmentForm
                     ->required()
                     ->disabledOn('edit')
                     ->dehydrated(),
-                Select::make('appointment_status_id')
-                    ->relationship('status', 'name')
-                    ->required()
-                    ->live()
+                TextInput::make('status.name')
+                    ->label('Status')
+                    ->disabled()
+                    ->dehydrated(false)
                     ->hiddenOn('create'),
                 DateTimePicker::make('scheduled_at')
                     ->required(),
