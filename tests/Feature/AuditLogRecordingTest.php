@@ -242,3 +242,49 @@ test('user role change creates an audit log', function () {
         'action' => 'user.role_changed',
     ]);
 });
+
+test('every appointment status transition creates an audit log entry', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    // pending → confirmed → rescheduled → cancelled (covers all non-completed transitions)
+    $appointment = Appointment::factory()->create();
+
+    app(UpdateAppointmentStatus::class)->handle($appointment, 'confirmed');
+    app(UpdateAppointmentStatus::class)->handle($appointment->fresh(), 'rescheduled', now()->addDay());
+    app(UpdateAppointmentStatus::class)->handle($appointment->fresh(), 'cancelled');
+
+    $logs = AuditLog::query()
+        ->where('subject_type', $appointment->getMorphClass())
+        ->where('subject_id', $appointment->id)
+        ->where('action', 'appointment.status_changed')
+        ->get();
+
+    expect($logs)->toHaveCount(3)
+        ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))->toContain('confirmed', 'rescheduled', 'cancelled');
+});
+
+test('every order status transition creates an audit log entry', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    $order = Order::factory()->create([
+        'order_status_id' => OrderStatus::query()->where('name', 'requested')->value('id'),
+        'is_non_prescription' => true,
+    ]);
+
+    // requested → under_review → confirmed → preparing → ready_for_pickup → completed
+    foreach (['under_review', 'confirmed', 'preparing', 'ready_for_pickup', 'completed'] as $status) {
+        app(UpdateOrderStatus::class)->handle($order->fresh(), $status);
+    }
+
+    $logs = AuditLog::query()
+        ->where('subject_type', $order->getMorphClass())
+        ->where('subject_id', $order->id)
+        ->where('action', 'order.status_changed')
+        ->get();
+
+    expect($logs)->toHaveCount(5)
+        ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))
+        ->toContain('under_review', 'confirmed', 'preparing', 'ready_for_pickup', 'completed');
+});
