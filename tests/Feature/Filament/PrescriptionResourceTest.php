@@ -109,3 +109,31 @@ test('prescription form validates od os pd and date fields', function () {
         ])
         ->assertNotNotified();
 });
+
+test('staff can create a prescription for a walk-in customer (no email or password)', function () {
+    $staff = User::factory()->staff()->create();
+    $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreatePrescription::class)
+        ->fillForm([
+            'customer_id' => $walkIn->id,
+            'od_sphere' => -1.50,
+            'os_sphere' => -1.25,
+            'pd' => 62.0,
+            'prescribed_at' => '2026-06-01',
+            'expires_at' => '2027-06-01',
+        ])
+        ->call('create')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
+
+    $this->assertDatabaseHas(Prescription::class, [
+        'customer_id' => $walkIn->id,
+        'created_by' => $staff->id,
+    ]);
+
+    expect($walkIn->email)->toBeNull()
+        ->and($walkIn->password)->toBeNull();
+});
