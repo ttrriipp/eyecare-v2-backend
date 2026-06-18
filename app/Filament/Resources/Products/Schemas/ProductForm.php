@@ -40,8 +40,7 @@ class ProductForm
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true)
-                            ->readOnly()
-                            ->helperText('Auto-generated from name. Edit directly if needed.')
+                            ->disabled()
                             ->dehydrated(),
                         RichEditor::make('description')
                             ->toolbarButtons([
