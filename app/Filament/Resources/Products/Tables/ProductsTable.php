@@ -6,6 +6,7 @@ use App\Models\Product;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class ProductsTable
@@ -43,6 +44,22 @@ class ProductsTable
             ])
             ->recordActions([
                 EditAction::make(),
+            ])
+            ->filters([
+                SelectFilter::make('product_type')
+                    ->label('Type')
+                    ->options([
+                        'frame' => 'Frame',
+                        'lens' => 'Lens',
+                        'contact_lens' => 'Contact Lens',
+                        'accessory' => 'Accessory',
+                    ]),
+                SelectFilter::make('is_active')
+                    ->label('Visibility')
+                    ->options([
+                        '1' => 'Visible',
+                        '0' => 'Hidden',
+                    ]),
             ])
             ->defaultSort('name');
     }
