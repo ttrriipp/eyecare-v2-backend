@@ -22,7 +22,7 @@ class ProductForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(1)->components([
             // ── Top row: main (2/3) + sidebar (1/3) ──────────────────
             Grid::make(3)->schema([
                 Section::make('Product Details')
@@ -84,7 +84,7 @@ class ProductForm
             ]),
 
             // ── Images (full width) ───────────────────────────────────
-            Section::make('Images')->schema([
+            Section::make('Images')->columnSpanFull()->schema([
                 Repeater::make('images')
                     ->relationship()
                     ->defaultItems(0)
@@ -121,6 +121,7 @@ class ProductForm
 
             // ── Inline variants (create only, full width) ─────────────
             Section::make('Variants')
+                ->columnSpanFull()
                 ->hiddenOn('edit')
                 ->description('Add at least one variant with price and stock.')
                 ->schema([
