@@ -24,7 +24,6 @@ class ProductResource extends JsonResource
             'slug' => $this->slug,
             'description' => $this->description,
             'product_type' => $this->product_type,
-            'specifications' => $this->specifications,
             'brand' => $this->brand->name,
             'category' => $this->category->name,
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),

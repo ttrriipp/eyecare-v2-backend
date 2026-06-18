@@ -119,10 +119,6 @@ test('product_variants table has attributes column not dimensions', function () 
         ->and($columns)->not->toContain('dimensions');
 });
 
-test('products table has specifications column', function () {
-    expect(Schema::hasColumn('products', 'specifications'))->toBeTrue();
-});
-
 test('product_type accepts contact_lens value', function () {
     $product = Product::factory()->create(['product_type' => 'contact_lens']);
 
@@ -137,19 +133,9 @@ test('variant attributes stores contact lens metadata', function () {
     expect($variant->attributes)->toBe(['power' => '-1.25', 'base_curve' => '8.4', 'diameter' => '14.0']);
 });
 
-test('product specifications stores product-level metadata', function () {
-    $product = Product::factory()->create([
-        'specifications' => ['material' => 'Acetate', 'shape' => 'Rectangle'],
-    ]);
-
-    expect($product->specifications)->toBe(['material' => 'Acetate', 'shape' => 'Rectangle']);
-});
-
-test('api returns attributes and specifications in product response', function () {
+test('api returns attributes in variant response', function () {
     $customer = User::factory()->customer()->create();
-    $product = Product::factory()->create([
-        'specifications' => ['material' => 'Titanium'],
-    ]);
+    $product = Product::factory()->create();
     ProductVariant::factory()->for($product)->create([
         'attributes' => ['eye_size' => 52, 'bridge' => 18],
         'is_active' => true,
@@ -158,6 +144,5 @@ test('api returns attributes and specifications in product response', function (
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/products/{$product->id}")
         ->assertSuccessful()
-        ->assertJsonPath('data.specifications.material', 'Titanium')
         ->assertJsonPath('data.variants.0.attributes.eye_size', 52);
 });

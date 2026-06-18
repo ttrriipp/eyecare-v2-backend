@@ -93,13 +93,6 @@ class ProductForm
                                 ->default(true),
                         ]),
 
-                        Section::make('Specifications')
-                            ->description('Product-level metadata (material, shape, wear type, etc.)')
-                            ->schema([
-                                KeyValue::make('specifications')
-                                    ->hiddenLabel(),
-                            ]),
-
                         Section::make('Associations')->schema([
                             Select::make('brand_id')
                                 ->relationship('brand', 'name')
