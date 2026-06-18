@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\RelationManagers;
 
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -87,33 +88,35 @@ class VariantsRelationManager extends RelationManager
                 CreateAction::make(),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                Action::make('adjustPrice')
-                    ->label('Adjust Price')
-                    ->icon('heroicon-o-currency-dollar')
-                    ->schema([
-                        TextInput::make('price')
-                            ->required()
-                            ->numeric()
-                            ->prefix('₱'),
-                    ])
-                    ->fillForm(fn ($record): array => ['price' => $record->price])
-                    ->action(fn (array $data, $record) => $record->update(['price' => $data['price']]))
-                    ->successNotificationTitle('Price updated'),
-                Action::make('adjustStock')
-                    ->label('Adjust Stock')
-                    ->icon('heroicon-o-archive-box')
-                    ->schema([
-                        TextInput::make('stock_quantity')
-                            ->label('Stock Quantity')
-                            ->required()
-                            ->numeric()
-                            ->minValue(0),
-                    ])
-                    ->fillForm(fn ($record): array => ['stock_quantity' => $record->stock_quantity])
-                    ->action(fn (array $data, $record) => $record->update(['stock_quantity' => $data['stock_quantity']]))
-                    ->successNotificationTitle('Stock updated'),
+                ActionGroup::make([
+                    ViewAction::make(),
+                    EditAction::make(),
+                    Action::make('adjustPrice')
+                        ->label('Adjust Price')
+                        ->icon('heroicon-o-currency-dollar')
+                        ->schema([
+                            TextInput::make('price')
+                                ->required()
+                                ->numeric()
+                                ->prefix('₱'),
+                        ])
+                        ->fillForm(fn ($record): array => ['price' => $record->price])
+                        ->action(fn (array $data, $record) => $record->update(['price' => $data['price']]))
+                        ->successNotificationTitle('Price updated'),
+                    Action::make('adjustStock')
+                        ->label('Adjust Stock')
+                        ->icon('heroicon-o-archive-box')
+                        ->schema([
+                            TextInput::make('stock_quantity')
+                                ->label('Stock Quantity')
+                                ->required()
+                                ->numeric()
+                                ->minValue(0),
+                        ])
+                        ->fillForm(fn ($record): array => ['stock_quantity' => $record->stock_quantity])
+                        ->action(fn (array $data, $record) => $record->update(['stock_quantity' => $data['stock_quantity']]))
+                        ->successNotificationTitle('Stock updated'),
+                ]),
             ]);
     }
 }
