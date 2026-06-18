@@ -47,6 +47,11 @@ class ProductForm
                 Textarea::make('description')
                     ->columnSpanFull(),
                 Toggle::make('is_active')
+                    ->label('Visibility')
+                    ->helperText(fn (bool $state): string => $state
+                        ? 'This product is visible to customers.'
+                        : 'This product will be hidden from all sales channels.'
+                    )
                     ->default(true),
                 Repeater::make('variants')
                     ->relationship()
@@ -73,6 +78,11 @@ class ProductForm
                             ->minValue(0)
                             ->default(0),
                         Toggle::make('is_active')
+                            ->label('Visibility')
+                            ->helperText(fn (bool $state): string => $state
+                                ? 'This variant is available to customers.'
+                                : 'This variant will be hidden from all sales channels.'
+                            )
                             ->default(true),
                         Toggle::make('ar_eligible')
                             ->live(),
