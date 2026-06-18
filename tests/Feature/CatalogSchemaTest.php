@@ -112,6 +112,41 @@ test('product variant sku is preserved when explicitly provided', function () {
     expect($variant->sku)->toBe('CUSTOM-SKU-001');
 });
 
+test('product_variants table has compare_at_price and cost_price columns', function () {
+    $columns = Schema::getColumnListing('product_variants');
+
+    expect($columns)->toContain('compare_at_price', 'cost_price');
+});
+
+test('variant compare_at_price and cost_price are nullable', function () {
+    $variant = ProductVariant::factory()->create([
+        'compare_at_price' => null,
+        'cost_price' => null,
+    ]);
+
+    expect($variant->compare_at_price)->toBeNull()
+        ->and($variant->cost_price)->toBeNull();
+});
+
+test('api returns compare_at_price but not cost_price', function () {
+    $customer = User::factory()->customer()->create();
+    $product = Product::factory()->create();
+    ProductVariant::factory()->for($product)->create([
+        'price' => '1999.00',
+        'compare_at_price' => '2500.00',
+        'cost_price' => '800.00',
+        'is_active' => true,
+    ]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$product->id}");
+
+    $response->assertSuccessful()
+        ->assertJsonPath('data.variants.0.compare_at_price', '2500.00');
+
+    expect(json_encode($response->json()))->not->toContain('cost_price');
+});
+
 test('product_variants table has attributes column not dimensions', function () {
     $columns = Schema::getColumnListing('product_variants');
 

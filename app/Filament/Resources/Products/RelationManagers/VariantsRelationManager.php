@@ -36,6 +36,16 @@ class VariantsRelationManager extends RelationManager
                 ->required()
                 ->numeric()
                 ->prefix('₱'),
+            TextInput::make('compare_at_price')
+                ->label('Compare at Price')
+                ->numeric()
+                ->prefix('₱')
+                ->helperText('Original price shown crossed out to indicate a sale. Leave blank if not on sale.'),
+            TextInput::make('cost_price')
+                ->label('Cost Price')
+                ->numeric()
+                ->prefix('₱')
+                ->helperText('Internal only — not shown to customers.'),
             TextInput::make('stock_quantity')
                 ->required()
                 ->numeric()

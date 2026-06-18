@@ -129,6 +129,14 @@ class ProductForm
                                 ->required()
                                 ->numeric()
                                 ->prefix('₱'),
+                            TextInput::make('compare_at_price')
+                                ->label('Compare at Price')
+                                ->numeric()
+                                ->prefix('₱'),
+                            TextInput::make('cost_price')
+                                ->label('Cost Price')
+                                ->numeric()
+                                ->prefix('₱'),
                             TextInput::make('stock_quantity')
                                 ->required()
                                 ->numeric()
