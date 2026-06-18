@@ -77,8 +77,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `users` | email + password nullable for walk-in customers |
 | `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
-| `products` | brand_id, category_id, name, slug, is_active, product_type (frame/accessory), images (nullable JSON array of file paths) — no price/dimensions (on variants) |
-| `product_variants` | price, dimensions (nullable JSON), stock_quantity, ar_eligible, ar_asset_reference, images (nullable JSON array of file paths) |
+| `products` | brand_id, category_id, name, slug, is_active, product_type (frame/contact_lens/accessory), specifications (nullable JSON), images (nullable JSON array of file paths) — no price/dimensions (on variants) |
+| `product_variants` | price, attributes (nullable JSON — replaces old `dimensions`; stores frame measurements or contact lens power/base_curve/diameter), stock_quantity, ar_eligible, ar_asset_reference, images (nullable JSON array of file paths) |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
 | `order_items` | price snapshot at order time — product_name, variant_name, unit_price, etc. |
 | `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), due_date |
@@ -109,7 +109,9 @@ These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`,
   - `products.images` — product-level hero/lifestyle shots (JSON array of paths)
   - `product_variants.images` — variant-specific images per colorway/size (JSON array of paths). Android app should prefer variant images when a variant is selected, fall back to product images if none.
   - No separate images table. API returns both. No `is_primary` or `sort_order` metadata.
-- **`product_type`** controls form behavior: `frame` shows dimensions + AR fields on variants; `accessory` hides them. Categories remain free-form for organizational grouping. Fixed values: `frame`, `accessory`.
+- **`product_type`** controls form behavior: `frame` shows attributes + AR fields on variants; `contact_lens` and `accessory` hide them. Fixed values: `frame`, `contact_lens`, `accessory`. Categories remain free-form.
+- **`specifications`** — nullable JSON on products for product-level metadata (e.g., `{"material":"Acetate","shape":"Rectangle"}` for frames; `{"wear_type":"Monthly","pack_size":6}` for contact lenses).
+- **`attributes`** — replaces the old `dimensions` JSON on variants. Generic key-value store for variant-specific data. Frame: `{"eye_size":52,"bridge":18,"temple":140}`. Contact lens: `{"power":"-1.25","base_curve":"8.4","diameter":"14.0"}`. Accessory: empty/null.
 
 See `docs/product-data-structure.md` for full rationale.
 
