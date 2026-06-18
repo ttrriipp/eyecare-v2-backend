@@ -24,7 +24,80 @@ class CatalogSeeder extends Seeder
 
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
         $category = Category::query()->firstOrCreate(['name' => 'frames']);
+        $lensCategory = Category::query()->firstOrCreate(['name' => 'lenses']);
 
+        $progressiveLensType = LensType::query()->where('name', 'progressive')->first();
+        $singleVisionLensType = LensType::query()->where('name', 'single_vision')->first();
+
+        // Lens products
+        $lensProducts = [
+            [
+                'name' => 'Essilor Varilux Progressive',
+                'slug' => 'essilor-varilux-progressive',
+                'description' => 'Premium progressive lenses.',
+                'product_type' => 'lens',
+                'lens_type_id' => $progressiveLensType?->id,
+                'category_id' => $lensCategory->id,
+                'variants' => [
+                    [
+                        'name' => '1.67 Anti-Reflective',
+                        'sku' => 'EVP-167-AR',
+                        'price' => 7500.00,
+                        'stock_quantity' => 20,
+                        'low_stock_threshold' => 5,
+                    ],
+                ],
+            ],
+            [
+                'name' => 'Zeiss Single Vision',
+                'slug' => 'zeiss-single-vision',
+                'description' => 'High clarity single vision lenses.',
+                'product_type' => 'lens',
+                'lens_type_id' => $singleVisionLensType?->id,
+                'category_id' => $lensCategory->id,
+                'variants' => [
+                    [
+                        'name' => '1.50 Standard',
+                        'sku' => 'ZSV-150-STD',
+                        'price' => 2800.00,
+                        'stock_quantity' => 30,
+                        'low_stock_threshold' => 5,
+                    ],
+                ],
+            ],
+        ];
+
+        foreach ($lensProducts as $productData) {
+            $product = Product::query()->firstOrCreate(
+                ['slug' => $productData['slug']],
+                [
+                    'brand_id' => $brand->id,
+                    'category_id' => $productData['category_id'],
+                    'lens_type_id' => $productData['lens_type_id'],
+                    'name' => $productData['name'],
+                    'description' => $productData['description'],
+                    'is_active' => true,
+                    'product_type' => $productData['product_type'],
+                ],
+            );
+
+            foreach ($productData['variants'] as $variantData) {
+                ProductVariant::query()->firstOrCreate(
+                    ['sku' => $variantData['sku']],
+                    [
+                        'product_id' => $product->id,
+                        'name' => $variantData['name'],
+                        'is_active' => true,
+                        'price' => $variantData['price'],
+                        'stock_quantity' => $variantData['stock_quantity'],
+                        'low_stock_threshold' => $variantData['low_stock_threshold'],
+                        'ar_eligible' => false,
+                    ],
+                );
+            }
+        }
+
+        // Frame products
         $products = [
             [
                 'name' => 'Classic Rectangle Frame',
@@ -71,6 +144,7 @@ class CatalogSeeder extends Seeder
                     'name' => $productData['name'],
                     'description' => $productData['description'],
                     'is_active' => true,
+                    'product_type' => 'frame',
                 ],
             );
 

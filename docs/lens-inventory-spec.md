@@ -1,6 +1,6 @@
 # Spec: Lens Inventory & Order Fulfillment
 
-Status: Draft — awaiting review
+Status: Complete — all 7 tasks done
 Phase: Specification
 
 ## Assumptions
