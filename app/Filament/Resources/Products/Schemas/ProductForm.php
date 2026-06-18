@@ -31,6 +31,7 @@ class ProductForm
                                 ->label('Product Type')
                                 ->options([
                                     'frame' => 'Frame',
+                                    'lens' => 'Lens',
                                     'contact_lens' => 'Contact Lens',
                                     'accessory' => 'Accessory',
                                 ])
