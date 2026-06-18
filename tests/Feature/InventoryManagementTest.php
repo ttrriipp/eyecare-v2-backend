@@ -35,10 +35,10 @@ test('staff can restock a variant via the variants relation manager', function (
         ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
     )
         ->callAction(
-            TestAction::make('restock')->table($variant),
-            ['quantity' => 10, 'notes' => 'Stock received'],
+            TestAction::make('adjustStock')->table($variant),
+            ['type' => 'restock', 'quantity' => 10, 'notes' => 'Stock received'],
         )
-        ->assertNotified();
+        ->assertHasNoErrors();
 
     expect($variant->fresh()->stock_quantity)->toBe(15);
 

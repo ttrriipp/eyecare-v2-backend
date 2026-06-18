@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\RelationManagers;
 
 use App\Actions\Inventory\RecordInventoryMovement;
+use App\Models\InventoryMovementType;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -10,10 +11,13 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Get as FormGet;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -118,56 +122,43 @@ class VariantsRelationManager extends RelationManager
                         ->color('gray'),
                     EditAction::make()
                         ->color('info'),
-                    Action::make('restock')
-                        ->label('Restock')
-                        ->icon('heroicon-o-plus-circle')
-                        ->color('success')
-                        ->schema([
-                            TextInput::make('quantity')
-                                ->label('Units to add')
-                                ->required()
-                                ->numeric()
-                                ->minValue(1),
-                            TextInput::make('notes')
-                                ->label('Notes')
-                                ->placeholder('e.g. Stock received from supplier'),
-                        ])
-                        ->action(function (array $data, $record): void {
-                            app(RecordInventoryMovement::class)->handle(
-                                variant: $record,
-                                quantityChange: (int) $data['quantity'],
-                                type: 'Restock',
-                                notes: $data['notes'] ?? null,
-                            );
-                        })
-                        ->successNotificationTitle('Stock updated'),
-                    Action::make('adjustPrice')
-                        ->label('Adjust Price')
-                        ->icon('heroicon-o-currency-dollar')
-                        ->color('warning')
-                        ->schema([
-                            TextInput::make('price')
-                                ->required()
-                                ->numeric()
-                                ->prefix('₱'),
-                        ])
-                        ->fillForm(fn ($record): array => ['price' => $record->price])
-                        ->action(fn (array $data, $record) => $record->update(['price' => $data['price']]))
-                        ->successNotificationTitle('Price updated'),
                     Action::make('adjustStock')
                         ->label('Adjust Stock')
                         ->icon('heroicon-o-archive-box')
                         ->color('success')
                         ->schema([
-                            TextInput::make('stock_quantity')
-                                ->label('Stock Quantity')
+                            Select::make('type')
+                                ->label('Movement Type')
+                                ->options(fn () => InventoryMovementType::query()->pluck('name', 'name'))
+                                ->required()
+                                ->live(),
+                            TextInput::make('quantity')
+                                ->label(fn (FormGet $get): string => in_array($get('type'), ['restock', 'return'])
+                                    ? 'Units to add'
+                                    : 'Units to remove'
+                                )
                                 ->required()
                                 ->numeric()
-                                ->minValue(0),
+                                ->minValue(1),
+                            TextInput::make('notes')
+                                ->placeholder('Optional notes'),
                         ])
-                        ->fillForm(fn ($record): array => ['stock_quantity' => $record->stock_quantity])
-                        ->action(fn (array $data, $record) => $record->update(['stock_quantity' => $data['stock_quantity']]))
-                        ->successNotificationTitle('Stock updated'),
+                        ->action(function (array $data, $record): void {
+                            $isAddition = in_array($data['type'], ['restock', 'return']);
+                            $quantityChange = $isAddition ? (int) $data['quantity'] : -(int) $data['quantity'];
+
+                            app(RecordInventoryMovement::class)->handle(
+                                variant: $record,
+                                quantityChange: $quantityChange,
+                                type: $data['type'],
+                                notes: $data['notes'] ?? null,
+                            );
+
+                            Notification::make()
+                                ->title('Stock updated')
+                                ->success()
+                                ->send();
+                        }),
                 ]),
             ]);
     }
