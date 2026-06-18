@@ -151,6 +151,17 @@ class ProductForm
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
                             KeyValue::make('dimensions')->columnSpanFull()
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
+                            FileUpload::make('images')
+                                ->disk('public')
+                                ->directory('variants')
+                                ->visibility('public')
+                                ->image()
+                                ->multiple()
+                                ->reorderable()
+                                ->appendFiles()
+                                ->maxSize(5120)
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                ->columnSpanFull(),
                         ])
                         ->columns(2),
                 ]),

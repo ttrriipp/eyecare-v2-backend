@@ -7,6 +7,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -61,6 +62,17 @@ class VariantsRelationManager extends RelationManager
             KeyValue::make('dimensions')
                 ->columnSpanFull()
                 ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
+            FileUpload::make('images')
+                ->disk('public')
+                ->directory('variants')
+                ->visibility('public')
+                ->image()
+                ->multiple()
+                ->reorderable()
+                ->appendFiles()
+                ->maxSize(5120)
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                ->columnSpanFull(),
         ]);
     }
 

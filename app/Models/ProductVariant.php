@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'low_stock_threshold',
     'ar_eligible',
     'ar_asset_reference',
+    'images',
 ])]
 class ProductVariant extends Model
 {
@@ -71,6 +72,7 @@ class ProductVariant extends Model
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'ar_eligible' => 'boolean',
+            'images' => 'array',
         ];
     }
 }
