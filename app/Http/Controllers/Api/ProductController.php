@@ -18,7 +18,6 @@ class ProductController extends Controller
                 'brand',
                 'category',
                 'variants' => fn ($query) => $query->where('is_active', true),
-                'images',
             ])
             ->orderBy('name')
             ->get();
@@ -34,7 +33,6 @@ class ProductController extends Controller
             'brand',
             'category',
             'variants' => fn ($query) => $query->where('is_active', true),
-            'images',
         ]);
 
         return response()->json([

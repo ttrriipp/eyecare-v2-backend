@@ -6,16 +6,11 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
-use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class CatalogSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
         collect([
@@ -80,7 +75,7 @@ class CatalogSeeder extends Seeder
             );
 
             foreach ($productData['variants'] as $variantData) {
-                $variant = ProductVariant::query()->firstOrCreate(
+                ProductVariant::query()->firstOrCreate(
                     ['sku' => $variantData['sku']],
                     [
                         'product_id' => $product->id,
@@ -92,18 +87,6 @@ class CatalogSeeder extends Seeder
                         'low_stock_threshold' => $variantData['low_stock_threshold'],
                         'ar_eligible' => $variantData['ar_eligible'],
                         'ar_asset_reference' => $variantData['ar_asset_reference'],
-                    ],
-                );
-
-                ProductImage::query()->firstOrCreate(
-                    [
-                        'product_id' => $product->id,
-                        'product_variant_id' => $variant->id,
-                        'path' => 'products/'.Str::slug($product->slug).'-'.Str::slug($variant->name).'.jpg',
-                    ],
-                    [
-                        'sort_order' => 0,
-                        'is_primary' => true,
                     ],
                 );
             }

@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'slug',
     'description',
     'is_active',
+    'images',
 ])]
 class Product extends Model
 {
@@ -72,20 +73,13 @@ class Product extends Model
     }
 
     /**
-     * @return HasMany<ProductImage, $this>
-     */
-    public function images(): HasMany
-    {
-        return $this->hasMany(ProductImage::class);
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'images' => 'array',
         ];
     }
 }

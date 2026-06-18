@@ -52,14 +52,6 @@ class ProductVariant extends Model
     }
 
     /**
-     * @return HasMany<ProductImage, $this>
-     */
-    public function images(): HasMany
-    {
-        return $this->hasMany(ProductImage::class);
-    }
-
-    /**
      * @return HasMany<InventoryMovement, $this>
      */
     public function inventoryMovements(): HasMany

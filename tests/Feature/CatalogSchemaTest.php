@@ -4,7 +4,6 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
-use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,9 +40,7 @@ test('catalog relationships are typed', function () {
     expect((new Product)->brand())->toBeInstanceOf(BelongsTo::class)
         ->and((new Product)->category())->toBeInstanceOf(BelongsTo::class)
         ->and((new Product)->variants())->toBeInstanceOf(HasMany::class)
-        ->and((new Product)->images())->toBeInstanceOf(HasMany::class)
-        ->and((new ProductVariant)->product())->toBeInstanceOf(BelongsTo::class)
-        ->and((new ProductVariant)->images())->toBeInstanceOf(HasMany::class);
+        ->and((new ProductVariant)->product())->toBeInstanceOf(BelongsTo::class);
 });
 
 test('variant ar metadata columns exclude biometric fields', function () {
@@ -64,8 +61,7 @@ test('catalog seeder creates demo frame products and lens types idempotently', f
             'bifocal',
         ])
         ->and(Product::query()->where('is_active', true)->count())->toBeGreaterThanOrEqual(2)
-        ->and(ProductVariant::query()->where('ar_eligible', true)->count())->toBeGreaterThanOrEqual(1)
-        ->and(ProductImage::query()->count())->toBeGreaterThanOrEqual(1);
+        ->and(ProductVariant::query()->where('ar_eligible', true)->count())->toBeGreaterThanOrEqual(1);
 });
 
 test('product slug auto-generates from name if not provided', function () {

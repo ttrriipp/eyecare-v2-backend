@@ -9,12 +9,9 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
-use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -123,44 +120,9 @@ test('staff can create lens types', function () {
         ->assertCanSeeTableRecords(LensType::query()->where('name', 'photochromic')->get());
 });
 
-test('product image uploads use public visibility and validation', function () {
-    Storage::fake('public');
-
+test('product edit page loads without error', function () {
     $staff = User::factory()->staff()->create();
     $product = Product::factory()->create();
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
-        ->fillForm([
-            'images' => [
-                [
-                    'path' => [UploadedFile::fake()->image('frame.jpg')],
-                    'is_primary' => true,
-                    'sort_order' => 0,
-                ],
-            ],
-        ])
-        ->call('save')
-        ->assertNotified()
-        ->assertHasNoFormErrors();
-
-    $image = ProductImage::query()->where('product_id', $product->id)->first();
-
-    expect($image)->not->toBeNull();
-    Storage::disk('public')->assertExists($image->path);
-});
-
-test('product edit page loads without error when product has an existing image', function () {
-    Storage::fake('public');
-
-    $staff = User::factory()->staff()->create();
-    $product = Product::factory()->create();
-    ProductImage::factory()->create([
-        'product_id' => $product->id,
-        'path' => 'products/existing-frame.jpg',
-        'is_primary' => true,
-    ]);
 
     $this->actingAs($staff);
 

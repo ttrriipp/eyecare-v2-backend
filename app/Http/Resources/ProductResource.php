@@ -26,12 +26,7 @@ class ProductResource extends JsonResource
             'brand' => $this->brand->name,
             'category' => $this->category->name,
             'variants' => ProductVariantResource::collection($this->whenLoaded('variants')),
-            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
-                'id' => $image->id,
-                'path' => $image->path,
-                'is_primary' => $image->is_primary,
-                'sort_order' => $image->sort_order,
-            ])),
+            'images' => $this->images ?? [],
         ];
     }
 }

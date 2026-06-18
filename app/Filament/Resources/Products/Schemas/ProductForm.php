@@ -54,29 +54,18 @@ class ProductForm
                         ->columns(2),
 
                     Section::make('Images')->schema([
-                        Repeater::make('images')
-                            ->relationship()
-                            ->defaultItems(0)
-                            ->hiddenLabel()
-                            ->schema([
-                                FileUpload::make('path')
-                                    ->disk('public')
-                                    ->directory('products')
-                                    ->visibility('public')
-                                    ->image()
-                                    ->imageEditor()
-                                    ->maxSize(5120)
-                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->required()
-                                    ->columnSpanFull(),
-                                Toggle::make('is_primary')
-                                    ->default(false),
-                                TextInput::make('sort_order')
-                                    ->numeric()
-                                    ->default(0)
-                                    ->minValue(0),
-                            ])
-                            ->columns(2),
+                        FileUpload::make('images')
+                            ->disk('public')
+                            ->directory('products')
+                            ->visibility('public')
+                            ->image()
+                            ->multiple()
+                            ->reorderable()
+                            ->appendFiles()
+                            ->imageEditor()
+                            ->maxSize(5120)
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                            ->hiddenLabel(),
                     ]),
                 ]),
 
