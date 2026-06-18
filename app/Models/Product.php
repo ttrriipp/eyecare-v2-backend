@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
     'description',
     'is_active',
     'product_type',
+    'specifications',
     'images',
 ])]
 class Product extends Model
@@ -81,6 +82,7 @@ class Product extends Model
         return [
             'is_active' => 'boolean',
             'images' => 'array',
+            'specifications' => 'array',
         ];
     }
 }

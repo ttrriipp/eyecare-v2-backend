@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'sku',
     'is_active',
     'price',
-    'dimensions',
+    'attributes',
     'stock_quantity',
     'low_stock_threshold',
     'ar_eligible',
@@ -68,7 +68,7 @@ class ProductVariant extends Model
         return [
             'is_active' => 'boolean',
             'price' => 'decimal:2',
-            'dimensions' => 'array',
+            'attributes' => 'array',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
             'ar_eligible' => 'boolean',

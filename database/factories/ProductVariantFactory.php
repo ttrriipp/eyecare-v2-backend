@@ -24,7 +24,7 @@ class ProductVariantFactory extends Factory
             'sku' => strtoupper(fake()->unique()->bothify('FRM-####-??')),
             'is_active' => true,
             'price' => fake()->randomFloat(2, 50, 500),
-            'dimensions' => [
+            'attributes' => [
                 'temple' => fake()->numberBetween(135, 150),
             ],
             'stock_quantity' => fake()->numberBetween(0, 25),

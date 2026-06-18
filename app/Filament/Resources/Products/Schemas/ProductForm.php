@@ -78,6 +78,7 @@ class ProductForm
                                 ->label('Product Type')
                                 ->options([
                                     'frame' => 'Frame',
+                                    'contact_lens' => 'Contact Lens',
                                     'accessory' => 'Accessory',
                                 ])
                                 ->default('frame')
@@ -91,6 +92,13 @@ class ProductForm
                                 )
                                 ->default(true),
                         ]),
+
+                        Section::make('Specifications')
+                            ->description('Product-level metadata (material, shape, wear type, etc.)')
+                            ->schema([
+                                KeyValue::make('specifications')
+                                    ->hiddenLabel(),
+                            ]),
 
                         Section::make('Associations')->schema([
                             Select::make('brand_id')
@@ -149,7 +157,7 @@ class ProductForm
                             TextInput::make('ar_asset_reference')
                                 ->maxLength(255)
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
-                            KeyValue::make('dimensions')->columnSpanFull()
+                            KeyValue::make('attributes')->columnSpanFull()
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
                             FileUpload::make('images')
                                 ->disk('public')

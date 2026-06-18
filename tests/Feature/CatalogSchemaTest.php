@@ -5,6 +5,7 @@ use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\User;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,7 +22,7 @@ test('product factory creates valid catalog records with required attributes', f
     $variant = ProductVariant::factory()->for($product)->create([
         'is_active' => true,
         'price' => 219.99,
-        'dimensions' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
+        'attributes' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
         'stock_quantity' => 12,
         'low_stock_threshold' => 3,
         'ar_eligible' => true,
@@ -109,4 +110,54 @@ test('product variant sku is preserved when explicitly provided', function () {
     $variant = ProductVariant::factory()->create(['sku' => 'CUSTOM-SKU-001']);
 
     expect($variant->sku)->toBe('CUSTOM-SKU-001');
+});
+
+test('product_variants table has attributes column not dimensions', function () {
+    $columns = Schema::getColumnListing('product_variants');
+
+    expect($columns)->toContain('attributes')
+        ->and($columns)->not->toContain('dimensions');
+});
+
+test('products table has specifications column', function () {
+    expect(Schema::hasColumn('products', 'specifications'))->toBeTrue();
+});
+
+test('product_type accepts contact_lens value', function () {
+    $product = Product::factory()->create(['product_type' => 'contact_lens']);
+
+    expect($product->product_type)->toBe('contact_lens');
+});
+
+test('variant attributes stores contact lens metadata', function () {
+    $variant = ProductVariant::factory()->create([
+        'attributes' => ['power' => '-1.25', 'base_curve' => '8.4', 'diameter' => '14.0'],
+    ]);
+
+    expect($variant->attributes)->toBe(['power' => '-1.25', 'base_curve' => '8.4', 'diameter' => '14.0']);
+});
+
+test('product specifications stores product-level metadata', function () {
+    $product = Product::factory()->create([
+        'specifications' => ['material' => 'Acetate', 'shape' => 'Rectangle'],
+    ]);
+
+    expect($product->specifications)->toBe(['material' => 'Acetate', 'shape' => 'Rectangle']);
+});
+
+test('api returns attributes and specifications in product response', function () {
+    $customer = User::factory()->customer()->create();
+    $product = Product::factory()->create([
+        'specifications' => ['material' => 'Titanium'],
+    ]);
+    ProductVariant::factory()->for($product)->create([
+        'attributes' => ['eye_size' => 52, 'bridge' => 18],
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$product->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.specifications.material', 'Titanium')
+        ->assertJsonPath('data.variants.0.attributes.eye_size', 52);
 });
