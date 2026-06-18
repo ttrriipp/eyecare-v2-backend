@@ -3,12 +3,15 @@
 use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
+use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
 use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\OrderStatusSeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -265,4 +268,42 @@ test('staff can create an order for a walk-in customer (no email or password)', 
 
     expect($walkIn->email)->toBeNull()
         ->and($walkIn->password)->toBeNull();
+});
+
+test('staff can assign a lens product variant to an order item', function () {
+    $staff = User::factory()->staff()->create();
+    $lensType = LensType::factory()->create(['name' => 'progressive', 'price' => null]);
+    $order = Order::factory()->create();
+    $item = $order->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create()->id,
+        'lens_type_id' => $lensType->id,
+        'product_id' => Product::factory()->create()->id,
+        'product_name' => 'Frame',
+        'variant_name' => 'Black',
+        'variant_sku' => 'SKU-001',
+        'lens_type_name' => 'progressive',
+        'unit_price' => '3000.00',
+        'quantity' => 1,
+        'subtotal' => '3000.00',
+    ]);
+
+    $lensProduct = Product::factory()->create([
+        'product_type' => 'lens',
+        'lens_type_id' => $lensType->id,
+    ]);
+    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ItemsRelationManager::class, [
+        'ownerRecord' => $order,
+        'pageClass' => EditOrder::class,
+    ])
+        ->callAction(
+            TestAction::make('assignLens')->table($item),
+            ['lens_product_variant_id' => $lensVariant->id],
+        )
+        ->assertNotified();
+
+    expect($item->fresh()->lens_product_variant_id)->toBe($lensVariant->id);
 });
