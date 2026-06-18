@@ -147,7 +147,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 **Resources (operational):**
 - Appointments — guarded status dropdown on edit form
 - Orders — guarded status dropdown on edit form
-- Products — inline variant management, min 1 variant required
+- Products — 3-col sidebar layout. Main area: Product Details (name, slug auto-generated read-only, RichEditor description), Images. Sidebar: Status (visibility toggle), Associations (brand, category). On create: inline Variants Repeater (min 1 required). On edit: Variants managed via VariantsRelationManager table below form with row actions (View, Edit, Adjust Price, Adjust Stock).
 - Prescriptions
 - Billings — generate billing from confirmed orders, record/void payments
 - Conversations — chat-style page
