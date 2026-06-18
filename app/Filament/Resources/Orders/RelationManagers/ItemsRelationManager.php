@@ -71,7 +71,28 @@ class ItemsRelationManager extends RelationManager
                         'lens_product_variant_id' => $record->lens_product_variant_id,
                     ])
                     ->action(function (array $data, $record): void {
-                        $record->update(['lens_product_variant_id' => $data['lens_product_variant_id']]);
+                        $lensVariantId = $data['lens_product_variant_id'];
+
+                        $updates = ['lens_product_variant_id' => $lensVariantId];
+
+                        if ($lensVariantId !== null) {
+                            $lensVariant = ProductVariant::query()->findOrFail($lensVariantId);
+                            $newLensPrice = (string) $lensVariant->price;
+                            $newSubtotal = bcmul(
+                                bcadd((string) $record->unit_price, $newLensPrice, 2),
+                                (string) $record->quantity,
+                                2
+                            );
+                            $updates['lens_type_price'] = $newLensPrice;
+                            $updates['subtotal'] = $newSubtotal;
+                        }
+
+                        $record->update($updates);
+
+                        // Recalculate order total from item subtotals
+                        $order = $record->order()->with('items')->first();
+                        $newTotal = $order->items->sum(fn ($i): float => (float) $i->fresh()->subtotal);
+                        $order->update(['total_amount' => number_format($newTotal, 2, '.', '')]);
 
                         Notification::make()
                             ->title('Lens product assigned')

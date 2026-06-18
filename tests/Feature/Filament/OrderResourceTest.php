@@ -307,3 +307,45 @@ test('staff can assign a lens product variant to an order item', function () {
 
     expect($item->fresh()->lens_product_variant_id)->toBe($lensVariant->id);
 });
+
+test('assigning a lens product variant updates item lens_type_price and order total', function () {
+    $staff = User::factory()->staff()->create();
+    $lensType = LensType::factory()->create(['name' => 'progressive', 'price' => 6500.00]);
+
+    $order = Order::factory()->create(['subtotal' => '3000.00', 'total_amount' => '9500.00', 'discount_amount' => '0.00']);
+    $item = $order->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create()->id,
+        'lens_type_id' => $lensType->id,
+        'product_id' => Product::factory()->create()->id,
+        'product_name' => 'Frame',
+        'variant_name' => 'Black',
+        'variant_sku' => 'SKU-001',
+        'lens_type_name' => 'progressive',
+        'unit_price' => '3000.00',
+        'lens_type_price' => '6500.00',
+        'quantity' => 1,
+        'subtotal' => '9500.00',
+    ]);
+
+    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_type_id' => $lensType->id]);
+    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true, 'price' => '7500.00']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ItemsRelationManager::class, [
+        'ownerRecord' => $order,
+        'pageClass' => EditOrder::class,
+    ])
+        ->callAction(
+            TestAction::make('assignLens')->table($item),
+            ['lens_product_variant_id' => $lensVariant->id],
+        )
+        ->assertNotified();
+
+    // Item lens_type_price updated to lens variant price
+    expect($item->fresh()->lens_type_price)->toBe('7500.00')
+        ->and($item->fresh()->subtotal)->toBe('10500.00');
+
+    // Order total recalculated
+    expect($order->fresh()->total_amount)->toBe('10500.00');
+});
