@@ -39,6 +39,13 @@ class ProductForm
                                 ->required()
                                 ->live()
                                 ->columnSpanFull(),
+                            Select::make('lens_type_id')
+                                ->label('Lens Type Category')
+                                ->relationship('lensType', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->visible(fn (Get $get): bool => $get('product_type') === 'lens')
+                                ->helperText('The category this lens product belongs to (e.g., Progressive).'),
                             TextInput::make('name')
                                 ->required()
                                 ->maxLength(255)

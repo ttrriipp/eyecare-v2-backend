@@ -160,6 +160,27 @@ test('product_type accepts contact_lens value', function () {
     expect($product->product_type)->toBe('contact_lens');
 });
 
+test('lens products can be linked to a lens type', function () {
+    $lensType = LensType::factory()->create(['name' => 'progressive']);
+    $product = Product::factory()->create([
+        'product_type' => 'lens',
+        'lens_type_id' => $lensType->id,
+    ]);
+
+    expect($product->lensType)->toBeInstanceOf(LensType::class)
+        ->and($product->lensType->name)->toBe('progressive');
+});
+
+test('lens type has many lens products', function () {
+    $lensType = LensType::factory()->create();
+    Product::factory()->count(2)->create([
+        'product_type' => 'lens',
+        'lens_type_id' => $lensType->id,
+    ]);
+
+    expect($lensType->products)->toHaveCount(2);
+});
+
 test('variant attributes stores contact lens metadata', function () {
     $variant = ProductVariant::factory()->create([
         'attributes' => ['power' => '-1.25', 'base_curve' => '8.4', 'diameter' => '14.0'],
