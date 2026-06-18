@@ -27,6 +27,17 @@ class ProductForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Product Details')
                         ->schema([
+                            Select::make('product_type')
+                                ->label('Product Type')
+                                ->options([
+                                    'frame' => 'Frame',
+                                    'contact_lens' => 'Contact Lens',
+                                    'accessory' => 'Accessory',
+                                ])
+                                ->default('frame')
+                                ->required()
+                                ->live()
+                                ->columnSpanFull(),
                             TextInput::make('name')
                                 ->required()
                                 ->maxLength(255)
@@ -74,16 +85,6 @@ class ProductForm
                     ->columnSpan(1)
                     ->schema([
                         Section::make('Status')->schema([
-                            Select::make('product_type')
-                                ->label('Product Type')
-                                ->options([
-                                    'frame' => 'Frame',
-                                    'contact_lens' => 'Contact Lens',
-                                    'accessory' => 'Accessory',
-                                ])
-                                ->default('frame')
-                                ->required()
-                                ->live(),
                             Toggle::make('is_active')
                                 ->label('Visibility')
                                 ->helperText(fn (bool $state): string => $state
