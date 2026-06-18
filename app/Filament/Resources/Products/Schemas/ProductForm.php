@@ -44,8 +44,7 @@ class ProductForm
                                 ->relationship('lensType', 'name')
                                 ->searchable()
                                 ->preload()
-                                ->visible(fn (Get $get): bool => $get('product_type') === 'lens')
-                                ->helperText('The category this lens product belongs to (e.g., Progressive).'),
+                                ->visible(fn (Get $get): bool => $get('product_type') === 'lens'),
                             TextInput::make('name')
                                 ->required()
                                 ->maxLength(255)
@@ -95,9 +94,10 @@ class ProductForm
                         Section::make('Status')->schema([
                             Toggle::make('is_active')
                                 ->label('Visibility')
-                                ->helperText(fn (bool $state): string => $state
-                                    ? 'This product is visible to customers.'
-                                    : 'This product will be hidden from all sales channels.'
+                                ->helperText(
+                                    fn (bool $state): string => $state
+                                        ? 'This product is visible to customers.'
+                                        : 'This product will be hidden from all sales channels.'
                                 )
                                 ->default(true),
                         ]),
@@ -157,9 +157,10 @@ class ProductForm
                                 ->default(0),
                             Toggle::make('is_active')
                                 ->label('Visibility')
-                                ->helperText(fn (bool $state): string => $state
-                                    ? 'This variant is available to customers.'
-                                    : 'This variant will be hidden from all sales channels.'
+                                ->helperText(
+                                    fn (bool $state): string => $state
+                                        ? 'This variant is available to customers.'
+                                        : 'This variant will be hidden from all sales channels.'
                                 )
                                 ->default(true),
                             Toggle::make('ar_eligible')->live()

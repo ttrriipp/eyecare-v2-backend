@@ -44,8 +44,7 @@ class VariantsRelationManager extends RelationManager
             TextInput::make('compare_at_price')
                 ->label('Compare at Price')
                 ->numeric()
-                ->prefix('₱')
-                ->helperText('Original price shown crossed out to indicate a sale. Leave blank if not on sale.'),
+                ->prefix('₱'),
             TextInput::make('cost_price')
                 ->label('Cost Price')
                 ->numeric()
@@ -63,9 +62,10 @@ class VariantsRelationManager extends RelationManager
                 ->default(0),
             Toggle::make('is_active')
                 ->label('Visibility')
-                ->helperText(fn (bool $state): string => $state
-                    ? 'This variant is available to customers.'
-                    : 'This variant will be hidden from all sales channels.'
+                ->helperText(
+                    fn (bool $state): string => $state
+                        ? 'This variant is available to customers.'
+                        : 'This variant will be hidden from all sales channels.'
                 )
                 ->default(true),
             Toggle::make('ar_eligible')
@@ -133,9 +133,10 @@ class VariantsRelationManager extends RelationManager
                                 ->required()
                                 ->live(),
                             TextInput::make('quantity')
-                                ->label(fn (FormGet $get): string => in_array($get('type'), ['restock', 'return'])
-                                    ? 'Units to add'
-                                    : 'Units to remove'
+                                ->label(
+                                    fn (FormGet $get): string => in_array($get('type'), ['restock', 'return'])
+                                        ? 'Units to add'
+                                        : 'Units to remove'
                                 )
                                 ->required()
                                 ->numeric()
