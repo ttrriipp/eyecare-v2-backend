@@ -77,7 +77,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `users` | email + password nullable for walk-in customers |
 | `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
-| `products` | brand_id, category_id, name, slug, is_active, images (nullable JSON array of file paths) — no price/dimensions (on variants) |
+| `products` | brand_id, category_id, name, slug, is_active, product_type (frame/accessory), images (nullable JSON array of file paths) — no price/dimensions (on variants) |
 | `product_variants` | price, dimensions (nullable JSON), stock_quantity, ar_eligible, ar_asset_reference |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
 | `order_items` | price snapshot at order time — product_name, variant_name, unit_price, etc. |
@@ -101,11 +101,12 @@ These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`,
 
 **Products have no price or dimensions** — those live exclusively on variants.
 
-- `products` = catalog entry (brand, category, name, slug, description, is_active, images)
+- `products` = catalog entry (brand, category, name, slug, description, is_active, product_type, images)
 - `product_variants` = purchasable SKU (price, dimensions, stock, AR data)
 - Every product must have at least one variant
 - Simple products (e.g., lens cleaning kit) get one variant named "Standard" — dimensions left null
 - **Images** are stored as a JSON array of file paths directly on the `products` table (`products.images`). No separate `product_images` table. The API returns `images` as a plain array of strings. No `is_primary` or `sort_order` metadata.
+- **`product_type`** controls form behavior: `frame` shows dimensions + AR fields on variants; `accessory` hides them. Categories remain free-form for organizational grouping. Fixed values: `frame`, `accessory`.
 
 See `docs/product-data-structure.md` for full rationale.
 
