@@ -34,6 +34,7 @@ test('customers can submit order requests with item snapshots and lens type sele
     ]);
     $lensType = LensType::factory()->create([
         'name' => 'single_vision',
+        'price' => null,
     ]);
 
     $response = $this->actingAs($customer, 'sanctum')

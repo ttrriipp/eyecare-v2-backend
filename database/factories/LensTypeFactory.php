@@ -20,7 +20,14 @@ class LensTypeFactory extends Factory
         return [
             'name' => fake()->unique()->word(),
             'description' => fake()->optional()->sentence(),
-            'price' => fake()->optional(0.8)->randomFloat(2, 500, 8000),
+            'price' => null,
         ];
+    }
+
+    public function withPrice(?float $price = null): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'price' => $price ?? fake()->randomFloat(2, 500, 8000),
+        ]);
     }
 }
