@@ -53,12 +53,14 @@ class VariantsRelationManager extends RelationManager
                 )
                 ->default(true),
             Toggle::make('ar_eligible')
-                ->live(),
+                ->live()
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
             TextInput::make('ar_asset_reference')
                 ->maxLength(255)
-                ->visible(fn (Get $get): bool => (bool) $get('ar_eligible')),
+                ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('dimensions')
-                ->columnSpanFull(),
+                ->columnSpanFull()
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
         ]);
     }
 

@@ -74,6 +74,15 @@ class ProductForm
                     ->columnSpan(1)
                     ->schema([
                         Section::make('Status')->schema([
+                            Select::make('product_type')
+                                ->label('Product Type')
+                                ->options([
+                                    'frame' => 'Frame',
+                                    'accessory' => 'Accessory',
+                                ])
+                                ->default('frame')
+                                ->required()
+                                ->live(),
                             Toggle::make('is_active')
                                 ->label('Visibility')
                                 ->helperText(fn (bool $state): string => $state
@@ -135,11 +144,13 @@ class ProductForm
                                     : 'This variant will be hidden from all sales channels.'
                                 )
                                 ->default(true),
-                            Toggle::make('ar_eligible')->live(),
+                            Toggle::make('ar_eligible')->live()
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
                             TextInput::make('ar_asset_reference')
                                 ->maxLength(255)
-                                ->visible(fn (Get $get): bool => (bool) $get('ar_eligible')),
-                            KeyValue::make('dimensions')->columnSpanFull(),
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
+                            KeyValue::make('dimensions')->columnSpanFull()
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
                         ])
                         ->columns(2),
                 ]),
