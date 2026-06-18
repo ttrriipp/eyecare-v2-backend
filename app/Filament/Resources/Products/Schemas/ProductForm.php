@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
@@ -15,7 +14,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class ProductForm
@@ -67,27 +65,18 @@ class ProductForm
                                     ->visibility('public')
                                     ->image()
                                     ->imageEditor()
-                                    ->imageAspectRatio('1:1')
-                                    ->automaticallyOpenImageEditorForAspectRatio('1:1')
-                                    ->previewable(false)
                                     ->maxSize(5120)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->required(),
-                                Placeholder::make('preview')
-                                    ->label('Current Image')
-                                    ->content(fn ($record) => $record?->path
-                                        ? new HtmlString(
-                                            '<img src="'.asset('storage/'.$record->path).'" style="max-width:100%;border-radius:6px;" />'
-                                        )
-                                        : '—'
-                                    ),
-                                Toggle::make('is_primary')->default(false),
+                                    ->required()
+                                    ->columnSpanFull(),
+                                Toggle::make('is_primary')
+                                    ->default(false),
                                 TextInput::make('sort_order')
                                     ->numeric()
                                     ->default(0)
                                     ->minValue(0),
                             ])
-                            ->columns(3),
+                            ->columns(2),
                     ]),
                 ]),
 
