@@ -202,3 +202,52 @@ it('RecordInventoryMovement throws when stock is insufficient and rolls back', f
     expect($variant->fresh()->stock_quantity)->toBe(2);
     expect(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(0);
 });
+
+it('deducts both frame and lens product variant stock on order confirmation', function () {
+    $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 5]);
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $order = Order::factory()->create([
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $frameVariant->id,
+        'lens_product_variant_id' => $lensVariant->id,
+        'quantity' => 1,
+    ]);
+
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    expect($frameVariant->fresh()->stock_quantity)->toBe(9)
+        ->and($lensVariant->fresh()->stock_quantity)->toBe(4);
+
+    $this->assertDatabaseHas(InventoryMovement::class, [
+        'product_variant_id' => $lensVariant->id,
+        'quantity_change' => -1,
+    ]);
+});
+
+it('only deducts frame stock when no lens product variant is assigned', function () {
+    $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $order = Order::factory()->create([
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $frameVariant->id,
+        'lens_product_variant_id' => null,
+        'quantity' => 1,
+    ]);
+
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    expect($frameVariant->fresh()->stock_quantity)->toBe(9);
+});
