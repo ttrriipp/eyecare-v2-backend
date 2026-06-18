@@ -25,34 +25,71 @@ class ProductForm
         return $schema->columns(1)->components([
             // ── Top row: main (2/3) + sidebar (1/3) ──────────────────
             Grid::make(3)->schema([
-                Section::make('Product Details')
-                    ->columnSpan(2)
-                    ->schema([
-                        TextInput::make('name')
-                            ->required()
-                            ->maxLength(255)
-                            ->live(onBlur: true)
-                            ->afterStateUpdated(fn (Set $set, ?string $state) => $set(
-                                'slug',
-                                Str::slug($state ?? ''),
-                            )),
-                        TextInput::make('slug')
-                            ->required()
-                            ->maxLength(255)
-                            ->unique(ignoreRecord: true)
-                            ->disabled()
-                            ->dehydrated(),
-                        RichEditor::make('description')
-                            ->toolbarButtons([
-                                ['bold', 'italic', 'underline', 'strike'],
-                                ['h2', 'h3'],
-                                ['bulletList', 'orderedList'],
-                                ['blockquote'],
-                                ['undo', 'redo'],
+                // ── Left: main content (2/3) ──────────────────────────
+                Grid::make(1)->columnSpan(2)->schema([
+                    Section::make('Product Details')
+                        ->schema([
+                            TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(fn (Set $set, ?string $state) => $set(
+                                    'slug',
+                                    Str::slug($state ?? ''),
+                                )),
+                            TextInput::make('slug')
+                                ->required()
+                                ->maxLength(255)
+                                ->unique(ignoreRecord: true)
+                                ->disabled()
+                                ->dehydrated(),
+                            RichEditor::make('description')
+                                ->toolbarButtons([
+                                    ['bold', 'italic', 'underline', 'strike'],
+                                    ['h2', 'h3'],
+                                    ['bulletList', 'orderedList'],
+                                    ['blockquote'],
+                                    ['undo', 'redo'],
+                                ])
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2),
+
+                    Section::make('Images')->schema([
+                        Repeater::make('images')
+                            ->relationship()
+                            ->defaultItems(0)
+                            ->hiddenLabel()
+                            ->schema([
+                                FileUpload::make('path')
+                                    ->disk('public')
+                                    ->directory('products')
+                                    ->visibility('public')
+                                    ->image()
+                                    ->imageEditor()
+                                    ->imageAspectRatio('1:1')
+                                    ->automaticallyOpenImageEditorForAspectRatio('1:1')
+                                    ->previewable(false)
+                                    ->maxSize(5120)
+                                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                                    ->required(),
+                                Placeholder::make('preview')
+                                    ->label('Current Image')
+                                    ->content(fn ($record) => $record?->path
+                                        ? new HtmlString(
+                                            '<img src="'.asset('storage/'.$record->path).'" style="max-width:100%;border-radius:6px;" />'
+                                        )
+                                        : '—'
+                                    ),
+                                Toggle::make('is_primary')->default(false),
+                                TextInput::make('sort_order')
+                                    ->numeric()
+                                    ->default(0)
+                                    ->minValue(0),
                             ])
-                            ->columnSpanFull(),
-                    ])
-                    ->columns(2),
+                            ->columns(3),
+                    ]),
+                ]),
 
                 // ── Sidebar ──────────────────────────────────────────
                 Grid::make(1)
@@ -81,42 +118,6 @@ class ProductForm
                                 ->preload(),
                         ]),
                     ]),
-            ]),
-
-            // ── Images (full width) ───────────────────────────────────
-            Section::make('Images')->columnSpanFull()->schema([
-                Repeater::make('images')
-                    ->relationship()
-                    ->defaultItems(0)
-                    ->hiddenLabel()
-                    ->schema([
-                        FileUpload::make('path')
-                            ->disk('public')
-                            ->directory('products')
-                            ->visibility('public')
-                            ->image()
-                            ->imageEditor()
-                            ->imageAspectRatio('1:1')
-                            ->automaticallyOpenImageEditorForAspectRatio('1:1')
-                            ->previewable(false)
-                            ->maxSize(5120)
-                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                            ->required(),
-                        Placeholder::make('preview')
-                            ->label('Current Image')
-                            ->content(fn ($record) => $record?->path
-                                ? new HtmlString(
-                                    '<img src="'.asset('storage/'.$record->path).'" style="max-width:100%;border-radius:6px;" />'
-                                )
-                                : '—'
-                            ),
-                        Toggle::make('is_primary')->default(false),
-                        TextInput::make('sort_order')
-                            ->numeric()
-                            ->default(0)
-                            ->minValue(0),
-                    ])
-                    ->columns(3),
             ]),
 
             // ── Inline variants (create only, full width) ─────────────
