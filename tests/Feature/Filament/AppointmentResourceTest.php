@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
-use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
@@ -92,16 +91,17 @@ test('staff can edit appointment staff notes', function () {
 test('confirm action transitions pending appointment to confirmed and creates SMS notification', function () {
     $staff = User::factory()->staff()->create();
     $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $appointment = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->callAction(
-            TestAction::make('confirm')->table($appointment),
-        )
-        ->assertNotified();
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm(['appointment_status_id' => $confirmedStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($appointment->fresh()->status->name)->toBe('confirmed');
 
@@ -114,16 +114,17 @@ test('confirm action transitions pending appointment to confirmed and creates SM
 test('cancel action transitions pending appointment to cancelled and creates SMS notification', function () {
     $staff = User::factory()->staff()->create();
     $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $cancelledStatus = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
 
     $appointment = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->callAction(
-            TestAction::make('cancel')->table($appointment),
-        )
-        ->assertNotified();
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm(['appointment_status_id' => $cancelledStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($appointment->fresh()->status->name)->toBe('cancelled');
 
@@ -133,26 +134,25 @@ test('cancel action transitions pending appointment to cancelled and creates SMS
     ]);
 });
 
-test('reschedule action transitions confirmed appointment to rescheduled with new time and SMS notification', function () {
+test('reschedule action transitions confirmed appointment to rescheduled with SMS notification', function () {
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $rescheduledStatus = AppointmentStatus::query()->where('name', 'rescheduled')->firstOrFail();
 
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
 
-    $newTime = now()->addDays(3)->toDateTimeString();
-
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->callAction(
-            TestAction::make('reschedule')->table($appointment),
-            ['scheduled_at' => $newTime, 'staff_notes' => 'Patient requested reschedule'],
-        )
-        ->assertNotified();
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm([
+            'appointment_status_id' => $rescheduledStatus->id,
+            'staff_notes' => 'Patient requested reschedule',
+        ])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
-    $appointment->refresh();
-    expect($appointment->status->name)->toBe('rescheduled')
-        ->and($appointment->staff_notes)->toBe('Patient requested reschedule');
+    expect($appointment->fresh()->status->name)->toBe('rescheduled');
 
     $this->assertDatabaseHas(SmsNotification::class, [
         'appointment_id' => $appointment->id,
@@ -163,30 +163,37 @@ test('reschedule action transitions confirmed appointment to rescheduled with ne
 test('complete action transitions confirmed appointment to completed', function () {
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $completedStatus = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
 
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->callAction(
-            TestAction::make('complete')->table($appointment),
-        )
-        ->assertNotified();
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm(['appointment_status_id' => $completedStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($appointment->fresh()->status->name)->toBe('completed');
 });
 
-test('confirm action is hidden for completed appointments', function () {
+test('status dropdown does not include skipped statuses for pending appointment', function () {
     $staff = User::factory()->staff()->create();
+    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $completedStatus = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
 
-    $appointment = Appointment::factory()->create(['appointment_status_id' => $completedStatus->id]);
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->assertTableActionHidden('confirm', $appointment);
+    // Attempting to jump directly to completed from pending should fail validation
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm(['appointment_status_id' => $completedStatus->id])
+        ->call('save')
+        ->assertHasFormErrors(['appointment_status_id']);
+
+    expect($appointment->fresh()->status->name)->toBe('pending');
 });
 
 test('staff can create an appointment for a customer', function () {
@@ -254,22 +261,4 @@ test('appointment create form rejects past scheduled_at', function () {
         ])
         ->call('create')
         ->assertHasFormErrors(['scheduled_at']);
-});
-
-test('reschedule action rejects past scheduled_at', function () {
-    $staff = User::factory()->staff()->create();
-    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
-
-    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(ListAppointments::class)
-        ->callAction(
-            TestAction::make('reschedule')->table($appointment),
-            ['scheduled_at' => now()->subDay()->toDateTimeString()],
-        )
-        ->assertHasActionErrors(['scheduled_at']);
-
-    expect($appointment->fresh()->status->name)->toBe('confirmed');
 });

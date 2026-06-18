@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
+use App\Models\Appointment;
+use App\Models\AppointmentStatus;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
@@ -46,6 +48,32 @@ class AppointmentForm
                     ->label('Status')
                     ->disabled()
                     ->dehydrated(false)
+                    ->hiddenOn('create'),
+                Select::make('appointment_status_id')
+                    ->label('Status')
+                    ->options(function (?Appointment $record): array {
+                        if (! $record) {
+                            return [];
+                        }
+
+                        $transitions = [
+                            'pending' => ['confirmed', 'rescheduled', 'cancelled'],
+                            'confirmed' => ['rescheduled', 'cancelled', 'completed'],
+                            'rescheduled' => ['confirmed', 'cancelled', 'completed'],
+                            'cancelled' => [],
+                            'completed' => [],
+                        ];
+
+                        $currentName = $record->status->name;
+                        $allowed = $transitions[$currentName] ?? [];
+
+                        return AppointmentStatus::query()
+                            ->whereIn('name', [$currentName, ...$allowed])
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->disabledOn('create')
+                    ->dehydrated()
                     ->hiddenOn('create'),
                 DateTimePicker::make('scheduled_at')
                     ->required()

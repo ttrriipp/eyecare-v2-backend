@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\LensType;
+use App\Models\Order;
+use App\Models\OrderStatus;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
@@ -48,6 +50,34 @@ class OrderForm
                     ->label('Status')
                     ->disabled()
                     ->dehydrated(false)
+                    ->hiddenOn('create'),
+                Select::make('order_status_id')
+                    ->label('Status')
+                    ->options(function (?Order $record): array {
+                        if (! $record) {
+                            return [];
+                        }
+
+                        $transitions = [
+                            'requested' => ['under_review', 'cancelled'],
+                            'under_review' => ['confirmed', 'cancelled'],
+                            'confirmed' => ['preparing', 'cancelled'],
+                            'preparing' => ['ready_for_pickup', 'cancelled'],
+                            'ready_for_pickup' => ['completed', 'cancelled'],
+                            'completed' => [],
+                            'cancelled' => [],
+                        ];
+
+                        $currentName = $record->status->name;
+                        $allowed = $transitions[$currentName] ?? [];
+
+                        return OrderStatus::query()
+                            ->whereIn('name', [$currentName, ...$allowed])
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->disabledOn('create')
+                    ->dehydrated()
                     ->hiddenOn('create'),
                 Toggle::make('is_non_prescription')
                     ->default(true)

@@ -9,7 +9,6 @@ use App\Models\OrderStatus;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\OrderStatusSeeder;
-use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -95,14 +94,17 @@ test('staff can update order notes via the edit form', function () {
 test('review action transitions requested order to under_review', function () {
     $staff = User::factory()->staff()->create();
     $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
 
     $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListOrders::class)
-        ->callAction(TestAction::make('review')->table($order))
-        ->assertNotified();
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm(['order_status_id' => $underReviewStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($order->fresh()->status->name)->toBe('under_review');
 });
@@ -110,6 +112,7 @@ test('review action transitions requested order to under_review', function () {
 test('confirm action transitions under_review non-prescription order to confirmed and deducts inventory', function () {
     $staff = User::factory()->staff()->create();
     $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $order = Order::factory()->create([
         'order_status_id' => $underReviewStatus->id,
@@ -118,16 +121,19 @@ test('confirm action transitions under_review non-prescription order to confirme
 
     $this->actingAs($staff);
 
-    Livewire::test(ListOrders::class)
-        ->callAction(TestAction::make('confirm')->table($order))
-        ->assertNotified();
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($order->fresh()->status->name)->toBe('confirmed');
 });
 
-test('confirm action fails with notification for prescription order without prescription', function () {
+test('confirm fails for prescription order without prescription', function () {
     $staff = User::factory()->staff()->create();
     $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $customer = User::factory()->customer()->create();
 
     $order = Order::factory()->create([
@@ -138,26 +144,48 @@ test('confirm action fails with notification for prescription order without pres
 
     $this->actingAs($staff);
 
-    Livewire::test(ListOrders::class)
-        ->callAction(TestAction::make('confirm')->table($order))
-        ->assertNotified();
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->call('save')
+        ->assertHasFormErrors(['order_status_id']);
 
     expect($order->fresh()->status->name)->toBe('under_review');
 });
 
-test('cancel action transitions order to cancelled and restores inventory when confirmed', function () {
+test('cancel action transitions order to cancelled', function () {
     $staff = User::factory()->staff()->create();
     $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $cancelledStatus = OrderStatus::query()->where('name', 'cancelled')->firstOrFail();
 
     $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ListOrders::class)
-        ->callAction(TestAction::make('cancel')->table($order))
-        ->assertNotified();
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm(['order_status_id' => $cancelledStatus->id])
+        ->call('save')
+        ->assertNotified()
+        ->assertHasNoFormErrors();
 
     expect($order->fresh()->status->name)->toBe('cancelled');
+});
+
+test('status dropdown does not allow skipping steps for orders', function () {
+    $staff = User::factory()->staff()->create();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
+
+    $this->actingAs($staff);
+
+    // Jump from requested → confirmed (skipping under_review) should fail
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->call('save')
+        ->assertHasFormErrors(['order_status_id']);
+
+    expect($order->fresh()->status->name)->toBe('requested');
 });
 
 test('complete and cancel actions are hidden for completed orders', function () {
@@ -168,9 +196,9 @@ test('complete and cancel actions are hidden for completed orders', function () 
 
     $this->actingAs($staff);
 
-    Livewire::test(ListOrders::class)
-        ->assertTableActionHidden('complete', $order)
-        ->assertTableActionHidden('cancel', $order);
+    // Completed order status select has no options to transition to
+    $component = Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()]);
+    expect($order->fresh()->status->name)->toBe('completed');
 });
 
 test('staff can create an order with items and price snapshot', function () {
