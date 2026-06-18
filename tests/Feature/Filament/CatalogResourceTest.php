@@ -45,7 +45,6 @@ test('staff can create and edit products with variants', function () {
             'category_id' => $category->id,
             'name' => 'Aviator Frame',
             'slug' => 'aviator-frame',
-            'price' => 179.99,
             'is_active' => true,
             'variants' => [
                 [

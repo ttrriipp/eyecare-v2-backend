@@ -29,11 +29,6 @@ class ProductFactory extends Factory
             'slug' => Str::slug($name).'-'.fake()->unique()->numerify('###'),
             'description' => fake()->optional()->paragraph(),
             'is_active' => true,
-            'price' => fake()->randomFloat(2, 50, 500),
-            'dimensions' => [
-                'lens_width' => fake()->numberBetween(48, 56),
-                'bridge' => fake()->numberBetween(16, 22),
-            ],
         ];
     }
 

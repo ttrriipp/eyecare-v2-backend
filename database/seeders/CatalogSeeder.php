@@ -35,13 +35,12 @@ class CatalogSeeder extends Seeder
                 'name' => 'Classic Rectangle Frame',
                 'slug' => 'classic-rectangle-frame',
                 'description' => 'Demo acetate frame for defense walkthrough.',
-                'price' => 149.99,
-                'dimensions' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
                 'variants' => [
                     [
                         'name' => 'Matte Black',
                         'sku' => 'CRF-BLK-001',
                         'price' => 159.99,
+                        'dimensions' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
                         'stock_quantity' => 10,
                         'low_stock_threshold' => 2,
                         'ar_eligible' => true,
@@ -53,13 +52,12 @@ class CatalogSeeder extends Seeder
                 'name' => 'Round Metal Frame',
                 'slug' => 'round-metal-frame',
                 'description' => 'Lightweight metal frame for demo catalog browsing.',
-                'price' => 129.99,
-                'dimensions' => ['lens_width' => 48, 'bridge' => 20, 'temple' => 145],
                 'variants' => [
                     [
                         'name' => 'Gold',
                         'sku' => 'RMF-GLD-001',
                         'price' => 139.99,
+                        'dimensions' => ['lens_width' => 48, 'bridge' => 20, 'temple' => 145],
                         'stock_quantity' => 6,
                         'low_stock_threshold' => 2,
                         'ar_eligible' => true,
@@ -78,8 +76,6 @@ class CatalogSeeder extends Seeder
                     'name' => $productData['name'],
                     'description' => $productData['description'],
                     'is_active' => true,
-                    'price' => $productData['price'],
-                    'dimensions' => $productData['dimensions'],
                 ],
             );
 
@@ -91,7 +87,7 @@ class CatalogSeeder extends Seeder
                         'name' => $variantData['name'],
                         'is_active' => true,
                         'price' => $variantData['price'],
-                        'dimensions' => $productData['dimensions'],
+                        'dimensions' => $variantData['dimensions'] ?? null,
                         'stock_quantity' => $variantData['stock_quantity'],
                         'low_stock_threshold' => $variantData['low_stock_threshold'],
                         'ar_eligible' => $variantData['ar_eligible'],

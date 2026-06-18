@@ -17,7 +17,7 @@ class ProductObserver
         app(CreateAuditLog::class)->handle(
             subject: $product,
             action: 'product.updated',
-            metadata: array_intersect_key($product->getChanges(), array_flip(['name', 'price', 'slug', 'category_id'])),
+            metadata: array_intersect_key($product->getChanges(), array_flip(['name', 'slug', 'category_id'])),
         );
     }
 

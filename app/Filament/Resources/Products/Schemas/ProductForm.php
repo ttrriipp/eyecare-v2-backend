@@ -48,14 +48,9 @@ class ProductForm
                     ->columnSpanFull(),
                 Toggle::make('is_active')
                     ->default(true),
-                TextInput::make('price')
-                    ->required()
-                    ->numeric()
-                    ->prefix('₱'),
-                KeyValue::make('dimensions')
-                    ->columnSpanFull(),
                 Repeater::make('variants')
                     ->relationship()
+                    ->minItems(1)
                     ->schema([
                         TextInput::make('name')
                             ->required(),

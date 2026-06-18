@@ -18,8 +18,6 @@ use Illuminate\Support\Str;
     'slug',
     'description',
     'is_active',
-    'price',
-    'dimensions',
 ])]
 class Product extends Model
 {
@@ -88,8 +86,6 @@ class Product extends Model
     {
         return [
             'is_active' => 'boolean',
-            'price' => 'decimal:2',
-            'dimensions' => 'array',
         ];
     }
 }

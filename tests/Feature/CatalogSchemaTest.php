@@ -17,14 +17,12 @@ uses(RefreshDatabase::class);
 test('product factory creates valid catalog records with required attributes', function () {
     $product = Product::factory()->create([
         'is_active' => true,
-        'price' => 199.99,
-        'dimensions' => ['lens_width' => 52, 'bridge' => 18],
     ]);
 
     $variant = ProductVariant::factory()->for($product)->create([
         'is_active' => true,
         'price' => 219.99,
-        'dimensions' => ['temple' => 140],
+        'dimensions' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
         'stock_quantity' => 12,
         'low_stock_threshold' => 3,
         'ar_eligible' => true,
