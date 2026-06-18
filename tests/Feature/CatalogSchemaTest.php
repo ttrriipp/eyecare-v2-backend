@@ -3,6 +3,7 @@
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\LensType;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -179,6 +180,32 @@ test('lens type has many lens products', function () {
     ]);
 
     expect($lensType->products)->toHaveCount(2);
+});
+
+test('order_items table has lens_product_variant_id column', function () {
+    expect(Schema::hasColumn('order_items', 'lens_product_variant_id'))->toBeTrue();
+});
+
+test('order item can be linked to a lens product variant', function () {
+    $lensVariant = ProductVariant::factory()->create();
+    $order = Order::factory()->create();
+
+    $item = $order->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create()->id,
+        'lens_type_id' => LensType::factory()->create()->id,
+        'lens_product_variant_id' => $lensVariant->id,
+        'product_id' => Product::factory()->create()->id,
+        'product_name' => 'Frame',
+        'variant_name' => 'Black',
+        'variant_sku' => 'SKU-001',
+        'lens_type_name' => 'progressive',
+        'unit_price' => '3000.00',
+        'quantity' => 1,
+        'subtotal' => '3000.00',
+    ]);
+
+    expect($item->lensProductVariant)->toBeInstanceOf(ProductVariant::class)
+        ->and($item->lensProductVariant->id)->toBe($lensVariant->id);
 });
 
 test('variant attributes stores contact lens metadata', function () {

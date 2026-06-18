@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'order_id',
     'product_variant_id',
     'lens_type_id',
+    'lens_product_variant_id',
     'product_id',
     'product_name',
     'variant_name',
@@ -51,6 +52,14 @@ class OrderItem extends Model
     public function lensType(): BelongsTo
     {
         return $this->belongsTo(LensType::class);
+    }
+
+    /**
+     * @return BelongsTo<ProductVariant, $this>
+     */
+    public function lensProductVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'lens_product_variant_id');
     }
 
     /**
