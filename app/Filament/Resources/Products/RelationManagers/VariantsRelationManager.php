@@ -89,11 +89,14 @@ class VariantsRelationManager extends RelationManager
             ])
             ->recordActions([
                 ActionGroup::make([
-                    ViewAction::make(),
-                    EditAction::make(),
+                    ViewAction::make()
+                        ->color('gray'),
+                    EditAction::make()
+                        ->color('info'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
+                        ->color('warning')
                         ->schema([
                             TextInput::make('price')
                                 ->required()
@@ -106,6 +109,7 @@ class VariantsRelationManager extends RelationManager
                     Action::make('adjustStock')
                         ->label('Adjust Stock')
                         ->icon('heroicon-o-archive-box')
+                        ->color('success')
                         ->schema([
                             TextInput::make('stock_quantity')
                                 ->label('Stock Quantity')
