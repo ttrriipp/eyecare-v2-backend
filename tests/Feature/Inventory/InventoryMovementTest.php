@@ -251,3 +251,31 @@ it('only deducts frame stock when no lens product variant is assigned', function
 
     expect($frameVariant->fresh()->stock_quantity)->toBe(9);
 });
+
+it('restores both frame and lens product variant stock when a confirmed order is cancelled', function () {
+    $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 9]);
+    $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 4]);
+
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $order = Order::factory()->create([
+        'order_status_id' => $confirmedStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $frameVariant->id,
+        'lens_product_variant_id' => $lensVariant->id,
+        'quantity' => 1,
+    ]);
+
+    app(UpdateOrderStatus::class)->handle($order, 'cancelled');
+
+    expect($frameVariant->fresh()->stock_quantity)->toBe(10)
+        ->and($lensVariant->fresh()->stock_quantity)->toBe(5);
+
+    $this->assertDatabaseHas(InventoryMovement::class, [
+        'product_variant_id' => $lensVariant->id,
+        'quantity_change' => 1,
+    ]);
+});

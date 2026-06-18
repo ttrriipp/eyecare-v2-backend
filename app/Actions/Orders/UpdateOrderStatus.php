@@ -126,24 +126,33 @@ class UpdateOrderStatus
 
     /**
      * Restore stock for each order item when a confirmed order is cancelled.
+     * Restores both frame variant and lens product variant (if assigned).
      */
     private function restoreInventory(Order $order): void
     {
         $recorder = app(RecordInventoryMovement::class);
-        $order->loadMissing('items.productVariant');
+        $order->loadMissing('items.productVariant', 'items.lensProductVariant');
 
         foreach ($order->items as $item) {
-            if ($item->product_variant_id === null) {
-                continue;
+            if ($item->product_variant_id !== null) {
+                $recorder->handle(
+                    variant: $item->productVariant,
+                    quantityChange: $item->quantity,
+                    type: 'order_reversal',
+                    orderId: $order->id,
+                    notes: "Frame restored on order #{$order->order_number} cancellation.",
+                );
             }
 
-            $recorder->handle(
-                variant: $item->productVariant,
-                quantityChange: $item->quantity,
-                type: 'order_reversal',
-                orderId: $order->id,
-                notes: "Restored on order #{$order->order_number} cancellation.",
-            );
+            if ($item->lens_product_variant_id !== null) {
+                $recorder->handle(
+                    variant: $item->lensProductVariant,
+                    quantityChange: $item->quantity,
+                    type: 'order_reversal',
+                    orderId: $order->id,
+                    notes: "Lens restored on order #{$order->order_number} cancellation.",
+                );
+            }
         }
     }
 }
