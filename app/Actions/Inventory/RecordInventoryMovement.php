@@ -6,6 +6,8 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
+use App\Models\User;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 
 class RecordInventoryMovement
@@ -59,7 +61,28 @@ class RecordInventoryMovement
                 metadata: ['type' => $type, 'quantity_change' => $quantityChange, 'variant_id' => $variant->id],
             );
 
+            // Fire low stock alert if stock dropped to or below threshold after deduction
+            if ($quantityChange < 0) {
+                $fresh = $variant->fresh(['product']);
+                if ($fresh->low_stock_threshold > 0 && $fresh->stock_quantity <= $fresh->low_stock_threshold) {
+                    $this->notifyLowStock($fresh);
+                }
+            }
+
             return $movement;
         });
+    }
+
+    private function notifyLowStock(ProductVariant $variant): void
+    {
+        $recipients = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('Low Stock Alert')
+            ->body("{$variant->product->name} — {$variant->name} is low on stock ({$variant->stock_quantity} remaining).")
+            ->warning()
+            ->sendToDatabase($recipients);
     }
 }

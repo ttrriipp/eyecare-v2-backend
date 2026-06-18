@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
+use App\Actions\Inventory\RecordInventoryMovement;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -117,6 +118,29 @@ class VariantsRelationManager extends RelationManager
                         ->color('gray'),
                     EditAction::make()
                         ->color('info'),
+                    Action::make('restock')
+                        ->label('Restock')
+                        ->icon('heroicon-o-plus-circle')
+                        ->color('success')
+                        ->schema([
+                            TextInput::make('quantity')
+                                ->label('Units to add')
+                                ->required()
+                                ->numeric()
+                                ->minValue(1),
+                            TextInput::make('notes')
+                                ->label('Notes')
+                                ->placeholder('e.g. Stock received from supplier'),
+                        ])
+                        ->action(function (array $data, $record): void {
+                            app(RecordInventoryMovement::class)->handle(
+                                variant: $record,
+                                quantityChange: (int) $data['quantity'],
+                                type: 'Restock',
+                                notes: $data['notes'] ?? null,
+                            );
+                        })
+                        ->successNotificationTitle('Stock updated'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
