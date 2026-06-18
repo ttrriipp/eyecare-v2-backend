@@ -80,7 +80,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `products` | brand_id, category_id, name, slug, is_active, product_type (frame/contact_lens/accessory), images (nullable JSON array of file paths) — no price/dimensions (on variants) |
 | `product_variants` | price, attributes (nullable JSON — replaces old `dimensions`; stores frame measurements or contact lens power/base_curve/diameter), stock_quantity, ar_eligible, ar_asset_reference, images (nullable JSON array of file paths) |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
-| `order_items` | price snapshot at order time — product_name, variant_name, unit_price, etc. |
+| `order_items` | price snapshot at order time — product_name, variant_name, unit_price, lens_type_name, lens_type_price, subtotal (frame + lens). `lens_type_price` is nullable (null = no lens charge). |
 | `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), due_date |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
@@ -226,7 +226,7 @@ PATCH  /staff/orders/{id}/status
 ## Important Conventions
 
 - **Walk-in customers:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone. They cannot log in to the mobile app.
-- **Order item snapshots:** `order_items` stores product/variant/lens names and prices at time of order. Source records can change without affecting historical orders.
+- **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. Lens type price is snapshotted at order time. If a lens type has no price (null), only the frame price is counted. Order `total_amount` = sum of all item subtotals before discount.
 - **Billing:** One billing per order. Generated manually by staff after order is confirmed. Payments reduce balance; voided/reversed payments undo that reduction.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
