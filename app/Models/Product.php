@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'slug',
     'description',
     'is_active',
+    'product_type',
     'images',
 ])]
 class Product extends Model

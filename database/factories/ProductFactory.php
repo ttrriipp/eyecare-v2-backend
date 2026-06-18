@@ -29,6 +29,7 @@ class ProductFactory extends Factory
             'slug' => Str::slug($name).'-'.fake()->unique()->numerify('###'),
             'description' => fake()->optional()->paragraph(),
             'is_active' => true,
+            'product_type' => 'frame',
         ];
     }
 
@@ -36,6 +37,13 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'is_active' => false,
+        ]);
+    }
+
+    public function accessory(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'product_type' => 'accessory',
         ]);
     }
 }
