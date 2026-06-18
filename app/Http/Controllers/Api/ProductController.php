@@ -14,6 +14,7 @@ class ProductController extends Controller
     {
         $products = Product::query()
             ->where('is_active', true)
+            ->where('product_type', 'frame')
             ->with([
                 'brand',
                 'category',
@@ -27,7 +28,7 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        abort_unless($product->is_active, 404);
+        abort_unless($product->is_active && $product->product_type === 'frame', 404);
 
         $product->load([
             'brand',

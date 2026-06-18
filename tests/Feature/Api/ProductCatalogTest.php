@@ -77,3 +77,28 @@ test('unauthenticated users cannot access product catalog endpoints', function (
     $this->getJson('/api/products')->assertUnauthorized();
     $this->getJson("/api/products/{$product->id}")->assertUnauthorized();
 });
+
+test('mobile api only returns frame products in listing', function () {
+    $customer = User::factory()->customer()->create();
+
+    $frame = Product::factory()->create(['product_type' => 'frame']);
+    $lens = Product::factory()->create(['product_type' => 'lens']);
+    $accessory = Product::factory()->create(['product_type' => 'accessory']);
+
+    $response = $this->actingAs($customer, 'sanctum')->getJson('/api/products');
+
+    $productIds = collect($response->json('data'))->pluck('id')->all();
+
+    expect($productIds)->toContain($frame->id)
+        ->and($productIds)->not->toContain($lens->id)
+        ->and($productIds)->not->toContain($accessory->id);
+});
+
+test('mobile api returns 404 for non-frame product detail', function () {
+    $customer = User::factory()->customer()->create();
+    $lens = Product::factory()->create(['product_type' => 'lens']);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$lens->id}")
+        ->assertNotFound();
+});
