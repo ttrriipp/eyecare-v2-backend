@@ -94,8 +94,8 @@ test('product table shows low stock state', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListProducts::class)
-        ->assertTableColumnStateSet('low_stock_state', 'Low stock', $lowStockProduct)
-        ->assertTableColumnStateSet('low_stock_state', 'OK', $healthyProduct);
+        ->assertTableColumnStateSet('stock', 'Low stock', $lowStockProduct)
+        ->assertTableColumnStateSet('stock', 'OK', $healthyProduct);
 });
 
 test('staff can create lens types', function () {
