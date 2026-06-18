@@ -46,7 +46,8 @@ class OrderController extends Controller
                 $lensType = LensType::query()->findOrFail($item['lens_type_id']);
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (string) $variant->price;
-                $lineSubtotal = bcmul($unitPrice, (string) $quantity, 2);
+                $lensTypePrice = $lensType->price !== null ? (string) $lensType->price : '0.00';
+                $lineSubtotal = bcmul(bcadd($unitPrice, $lensTypePrice, 2), (string) $quantity, 2);
                 $subtotal = bcadd($subtotal, $lineSubtotal, 2);
 
                 $lineItems[] = [
@@ -57,6 +58,7 @@ class OrderController extends Controller
                     'variant_name' => $variant->name,
                     'variant_sku' => $variant->sku,
                     'lens_type_name' => $lensType->name,
+                    'lens_type_price' => $lensType->price !== null ? (string) $lensType->price : null,
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'subtotal' => $lineSubtotal,

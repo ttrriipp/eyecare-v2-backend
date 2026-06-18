@@ -16,6 +16,10 @@ class LensTypeForm
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
+                TextInput::make('price')
+                    ->numeric()
+                    ->prefix('₱')
+                    ->helperText('Price added to order total when this lens type is selected.'),
                 Textarea::make('description')
                     ->columnSpanFull(),
             ]);

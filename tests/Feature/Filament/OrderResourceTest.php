@@ -205,7 +205,7 @@ test('staff can create an order with items and price snapshot', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
     $variant = ProductVariant::factory()->create(['price' => '150.00']);
-    $lensType = LensType::factory()->create();
+    $lensType = LensType::factory()->create(['price' => null]);
 
     $this->actingAs($staff);
 

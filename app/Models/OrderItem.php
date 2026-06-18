@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'variant_name',
     'variant_sku',
     'lens_type_name',
+    'lens_type_price',
     'unit_price',
     'quantity',
     'subtotal',
@@ -67,6 +68,7 @@ class OrderItem extends Model
     {
         return [
             'unit_price' => 'decimal:2',
+            'lens_type_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'quantity' => 'integer',
             'created_at' => 'datetime',

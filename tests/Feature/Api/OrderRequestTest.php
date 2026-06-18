@@ -92,6 +92,7 @@ test('order items keep catalog snapshots after product data changes', function (
     ]);
     $lensType = LensType::factory()->create([
         'name' => 'progressive',
+        'price' => null,
     ]);
 
     $response = $this->actingAs($customer, 'sanctum')

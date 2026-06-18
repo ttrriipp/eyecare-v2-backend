@@ -14,12 +14,12 @@ class CatalogSeeder extends Seeder
     public function run(): void
     {
         collect([
-            ['name' => 'single_vision', 'description' => 'Standard single vision lenses.'],
-            ['name' => 'progressive', 'description' => 'Progressive multifocal lenses.'],
-            ['name' => 'bifocal', 'description' => 'Bifocal lenses with visible segment.'],
+            ['name' => 'single_vision', 'description' => 'Standard single vision lenses.', 'price' => 2500.00],
+            ['name' => 'progressive', 'description' => 'Progressive multifocal lenses.', 'price' => 6500.00],
+            ['name' => 'bifocal', 'description' => 'Bifocal lenses with visible segment.', 'price' => 4500.00],
         ])->each(fn (array $attributes) => LensType::query()->firstOrCreate(
             ['name' => $attributes['name']],
-            ['description' => $attributes['description']],
+            ['description' => $attributes['description'], 'price' => $attributes['price']],
         ));
 
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);

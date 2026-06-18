@@ -20,6 +20,7 @@ class LensTypeFactory extends Factory
         return [
             'name' => fake()->unique()->word(),
             'description' => fake()->optional()->sentence(),
+            'price' => fake()->optional(0.8)->randomFloat(2, 500, 8000),
         ];
     }
 }
