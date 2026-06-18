@@ -17,7 +17,6 @@ class ProductsTable
                 ImageColumn::make('images')
                     ->label('Image')
                     ->state(fn (Product $record): ?string => collect($record->images)->first())
-                    ->defaultImageUrl(asset('images/placeholder.png'))
                     ->square()
                     ->size(48),
                 TextColumn::make('name')
