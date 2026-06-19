@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Prescriptions\Schemas;
 
 use App\Models\Appointment;
+use App\Models\Role;
+use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -31,7 +33,21 @@ class PrescriptionForm
                     ->required()
                     ->searchable()
                     ->preload()
-                    ->live(),
+                    ->live()
+                    ->createOptionForm([
+                        TextInput::make('name')->required(),
+                        TextInput::make('phone')->required()->tel(),
+                        TextInput::make('email')->email()->nullable(),
+                    ])
+                    ->createOptionUsing(function (array $data): int {
+                        return User::create([
+                            'name' => $data['name'],
+                            'phone' => $data['phone'],
+                            'email' => $data['email'] ?? null,
+                            'password' => null,
+                            'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                        ])->getKey();
+                    }),
                 Select::make('appointment_id')
                     ->relationship(
                         'appointment',
