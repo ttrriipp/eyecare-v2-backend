@@ -26,7 +26,7 @@ class OrderForm
             Grid::make(3)->schema([
                 // ── Main (2/3) ──────────────────────────────────────
                 Grid::make(1)->columnSpan(2)->schema([
-                    Section::make('Order Details')->schema([
+                    Section::make()->schema([
                         TextInput::make('order_number')
                             ->label('Number')
                             ->disabled()
@@ -130,7 +130,7 @@ class OrderForm
 
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
-                    Section::make('Order Info')->schema([
+                    Section::make()->schema([
                         Placeholder::make('created_at')
                             ->label('Order date')
                             ->content(fn (?Order $record): string => $record?->created_at?->diffForHumans() ?? '—'),
