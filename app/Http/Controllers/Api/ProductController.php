@@ -21,7 +21,7 @@ class ProductController extends Controller
                 'variants' => fn ($query) => $query->where('is_active', true),
             ])
             ->orderBy('name')
-            ->get();
+            ->paginate(request()->integer('per_page', 15));
 
         return ProductResource::collection($products);
     }

@@ -26,7 +26,7 @@ class OrderController extends Controller
             ->where('customer_id', $request->user()->id)
             ->with(['status', 'items'])
             ->latest()
-            ->get();
+            ->paginate(request()->integer('per_page', 15));
 
         return OrderResource::collection($orders);
     }
