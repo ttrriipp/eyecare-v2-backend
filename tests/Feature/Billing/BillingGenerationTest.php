@@ -1,11 +1,14 @@
 <?php
 
 use App\Actions\Billing\GenerateBillingForOrder;
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Billing;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentMethodSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -106,4 +109,27 @@ it('the order model exposes a billing relationship', function () {
     app(GenerateBillingForOrder::class)->handle($order);
 
     expect($order->fresh()->billing)->toBeInstanceOf(Billing::class);
+});
+
+it('confirming an order automatically creates an issued billing', function () {
+    $this->seed(PaymentMethodSeeder::class);
+
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $customer = User::factory()->customer()->create();
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $requestedStatus->id,
+        'total_amount' => '500.00',
+        'is_non_prescription' => true,
+    ]);
+
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    $billing = $order->fresh()->billing;
+
+    expect($billing)->toBeInstanceOf(Billing::class)
+        ->and($billing->status->name)->toBe('issued')
+        ->and($billing->total_amount)->toBe('500.00')
+        ->and($billing->issued_at)->not->toBeNull();
 });

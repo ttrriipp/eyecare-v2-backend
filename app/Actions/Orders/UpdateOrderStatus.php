@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\Order;
 use App\Models\OrderStatus;
@@ -81,6 +82,13 @@ class UpdateOrderStatus
                 throw ValidationException::withMessages([
                     'status' => [$e->getMessage()],
                 ]);
+            }
+
+            try {
+                app(GenerateBillingForOrder::class)->handle($order->fresh());
+            } catch (\Throwable) {
+                // Billing failure must not block confirmation — log silently
+                logger()->error("Failed to auto-generate billing for order #{$order->id}");
             }
         }
         if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {

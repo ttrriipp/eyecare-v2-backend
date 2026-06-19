@@ -1,6 +1,5 @@
 <?php
 
-use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Orders\ApplyDiscount;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\DiscountType;
@@ -186,8 +185,6 @@ it('billing is generated with the discounted total_amount', function () {
         statusName: 'confirmed',
         discountTypeId: $seniorDiscount->id,
     );
-
-    app(GenerateBillingForOrder::class)->handle($order->fresh());
 
     $billing = $order->fresh()->billing;
     expect($billing->total_amount)->toBe('80.00')
