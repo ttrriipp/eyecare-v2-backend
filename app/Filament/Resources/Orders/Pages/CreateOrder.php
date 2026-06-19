@@ -112,29 +112,37 @@ class CreateOrder extends CreateRecord
                     Repeater::make('items')
                         ->hiddenLabel()
                         ->minItems(1)
+                        ->reorderable()
+                        ->addActionLabel('Add to order items')
                         ->schema([
                             Select::make('product_variant_id')
-                                ->label('Product Variant')
+                                ->label('Product')
                                 ->options(fn () => ProductVariant::query()
                                     ->with('product')
                                     ->where('is_active', true)
                                     ->get()
-                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name} (₱{$v->price})"]))
+                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
                                 ->required()
                                 ->searchable()
                                 ->live()
-                                ->afterStateUpdated(function (Set $set, ?int $state): void {
+                                ->columnSpan(3)
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     if ($state) {
                                         $variant = ProductVariant::find($state);
-                                        $set('unit_price', $variant?->price);
+                                        $lensTypeId = $get('lens_type_id');
+                                        $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
+                                        $unitPrice = (float) ($variant?->price ?? 0);
+                                        $lensPrice = (float) ($lensType?->price ?? 0);
+                                        $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
                                     }
                                 }),
                             Select::make('lens_type_id')
                                 ->label('Lens Type')
                                 ->options(fn () => LensType::query()->pluck('name', 'id'))
                                 ->nullable()
-                                ->placeholder('No lens required')
+                                ->placeholder('None')
                                 ->live()
+                                ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     $variantId = $get('product_variant_id');
                                     $variant = $variantId ? ProductVariant::find($variantId) : null;
@@ -144,18 +152,20 @@ class CreateOrder extends CreateRecord
                                     $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
                                 }),
                             TextInput::make('quantity')
+                                ->label('Qty')
                                 ->required()
                                 ->numeric()
                                 ->minValue(1)
                                 ->default(1)
-                                ->live(),
+                                ->columnSpan(1),
                             TextInput::make('unit_price')
                                 ->label('Unit Price')
                                 ->prefix('₱')
                                 ->disabled()
-                                ->dehydrated(false),
+                                ->dehydrated(false)
+                                ->columnSpan(2),
                         ])
-                        ->columns(4)
+                        ->columns(8)
                         ->columnSpanFull()
                         ->defaultItems(1),
                 ]),
