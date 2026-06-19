@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources\Orders\Tables;
 
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class OrdersTable
@@ -38,9 +42,13 @@ class OrdersTable
                     ->relationship('status', 'name'),
                 SelectFilter::make('customer')
                     ->relationship('customer', 'name'),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 EditAction::make(),
+                RestoreAction::make(),
+                DeleteAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->defaultSort('created_at', 'desc');
     }

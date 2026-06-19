@@ -2,11 +2,15 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -53,9 +57,13 @@ class AppointmentsTable
                             fn (Builder $query, string $date): Builder => $query->whereDate('scheduled_at', $date),
                         );
                     }),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 EditAction::make(),
+                RestoreAction::make(),
+                DeleteAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->defaultSort('scheduled_at', 'desc');
     }

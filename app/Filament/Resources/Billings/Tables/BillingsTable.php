@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources\Billings\Tables;
 
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class BillingsTable
@@ -38,9 +42,13 @@ class BillingsTable
             ->filters([
                 SelectFilter::make('status')
                     ->relationship('status', 'name'),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 ViewAction::make(),
+                RestoreAction::make(),
+                DeleteAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->defaultSort('created_at', 'desc');
     }
