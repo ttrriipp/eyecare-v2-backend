@@ -45,7 +45,7 @@ class ItemsRelationManager extends RelationManager
                     ->icon('heroicon-o-beaker')
                     ->color('warning')
                     ->visible(fn ($record): bool => $record->lens_type_id !== null
-                        && ! in_array($this->getOwnerRecord()->status->name, ['completed', 'cancelled'], true))
+                        && $this->getOwnerRecord()->status->name === 'requested')
                     ->schema([
                         Select::make('lens_product_variant_id')
                             ->label('Lens Product Variant')
