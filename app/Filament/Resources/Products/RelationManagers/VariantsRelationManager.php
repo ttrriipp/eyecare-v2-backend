@@ -8,7 +8,6 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
@@ -134,10 +133,46 @@ class VariantsRelationManager extends RelationManager
             ])
             ->recordActions([
                 ActionGroup::make([
-                    ViewAction::make()
-                        ->color('gray'),
                     EditAction::make()
                         ->color('info'),
+                    Action::make('toggleVisibility')
+                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                        ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
+                        ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
+                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
+                    Action::make('adjustPrice')
+                        ->label('Adjust Price')
+                        ->icon('heroicon-o-currency-dollar')
+                        ->color('warning')
+                        ->schema([
+                            TextInput::make('price')
+                                ->label('Selling Price')
+                                ->required()
+                                ->numeric()
+                                ->prefix('₱'),
+                            TextInput::make('compare_at_price')
+                                ->label('Compare at Price')
+                                ->numeric()
+                                ->prefix('₱')
+                                ->helperText('Original price shown crossed out (sale indicator).'),
+                            TextInput::make('cost_price')
+                                ->label('Cost Price')
+                                ->numeric()
+                                ->prefix('₱')
+                                ->helperText('Internal only — not shown to customers.'),
+                        ])
+                        ->fillForm(fn ($record): array => [
+                            'price' => $record->price,
+                            'compare_at_price' => $record->compare_at_price,
+                            'cost_price' => $record->cost_price,
+                        ])
+                        ->action(fn (array $data, $record) => $record->update([
+                            'price' => $data['price'],
+                            'compare_at_price' => $data['compare_at_price'],
+                            'cost_price' => $data['cost_price'],
+                        ]))
+                        ->successNotificationTitle('Prices updated'),
                     Action::make('adjustStock')
                         ->label('Adjust Stock')
                         ->icon('heroicon-o-archive-box')
