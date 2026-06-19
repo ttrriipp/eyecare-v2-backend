@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Orders\Widgets\OrderStatsWidget;
-use App\Models\OrderStatus;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -30,11 +29,19 @@ class ListOrders extends ListRecords
 
     public function getTabs(): array
     {
-        $statuses = OrderStatus::query()->pluck('name')->all();
+        $orderedStatuses = [
+            'requested',
+            'under_review',
+            'confirmed',
+            'preparing',
+            'ready_for_pickup',
+            'completed',
+            'cancelled',
+        ];
 
         $tabs = ['all' => Tab::make('All')];
 
-        foreach ($statuses as $status) {
+        foreach ($orderedStatuses as $status) {
             $label = ucwords(str_replace('_', ' ', $status));
             $tabs[$status] = Tab::make($label)
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereHas(
