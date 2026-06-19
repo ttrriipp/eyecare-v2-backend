@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\Billings;
 
-use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Billings\Pages\ListBillings;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
-use App\Filament\Resources\Billings\Schemas\BillingForm;
 use App\Filament\Resources\Billings\Schemas\BillingInfolist;
 use App\Filament\Resources\Billings\Tables\BillingsTable;
 use App\Models\Billing;
@@ -23,11 +21,6 @@ class BillingResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
     protected static ?string $navigationLabel = 'Billings';
-
-    public static function form(Schema $schema): Schema
-    {
-        return BillingForm::configure($schema);
-    }
 
     public static function infolist(Schema $schema): Schema
     {
@@ -50,7 +43,6 @@ class BillingResource extends Resource
     {
         return [
             'index' => ListBillings::route('/'),
-            'edit' => EditBilling::route('/{record}/edit'),
             'view' => ViewBilling::route('/{record}'),
         ];
     }
