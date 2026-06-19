@@ -73,9 +73,17 @@ class UpdateOrderStatus
         $order->update($attributes);
 
         if ($statusName === 'confirmed') {
-            $this->deductInventory($order);
-        }
+            try {
+                $this->deductInventory($order);
+            } catch (\RuntimeException $e) {
+                // Roll back the status change and surface a user-friendly error
+                $order->update(['order_status_id' => OrderStatus::query()->where('name', $currentStatus)->value('id')]);
 
+                throw ValidationException::withMessages([
+                    'status' => [$e->getMessage()],
+                ]);
+            }
+        }
         if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
             $this->restoreInventory($order);
         }

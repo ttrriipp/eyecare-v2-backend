@@ -1,11 +1,16 @@
 <?php
 
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\InventoryMovementTypeSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -187,4 +192,27 @@ test('admin users can update order status through the staff endpoint', function 
         ])
         ->assertSuccessful()
         ->assertJsonPath('data.status', 'under_review');
+});
+
+test('order confirmation throws ValidationException when frame variant has insufficient stock', function () {
+    $this->seed(InventoryMovementTypeSeeder::class);
+
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 0]);
+
+    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $order = Order::factory()->create([
+        'order_status_id' => $underReviewStatus->id,
+        'is_non_prescription' => true,
+    ]);
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $variant->id,
+        'quantity' => 1,
+    ]);
+
+    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'confirmed'))
+        ->toThrow(ValidationException::class);
+
+    // Order status must remain unchanged
+    expect($order->fresh()->status->name)->toBe('under_review');
 });
