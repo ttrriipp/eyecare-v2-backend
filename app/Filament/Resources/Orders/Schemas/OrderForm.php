@@ -69,24 +69,28 @@ class OrderForm
                                     'cancelled' => [],
                                 ];
 
+                                $order = ['requested', 'confirmed', 'preparing', 'ready_for_pickup', 'completed', 'cancelled'];
+
                                 $currentName = $record->status->name;
                                 $allowed = $transitions[$currentName] ?? [];
+                                $visible = [$currentName, ...$allowed];
 
                                 return OrderStatus::query()
-                                    ->whereIn('name', [$currentName, ...$allowed])
-                                    ->pluck('name', 'id')
-                                    ->mapWithKeys(fn ($name, $id) => [$id => ucwords(str_replace('_', ' ', $name))])
+                                    ->whereIn('name', $visible)
+                                    ->get()
+                                    ->sortBy(fn ($s) => array_search($s->name, $order))
+                                    ->mapWithKeys(fn ($s) => [$s->id => ucwords(str_replace('_', ' ', $s->name))])
                                     ->toArray();
                             })
                             ->colors(fn (?Order $record): array => [
                                 OrderStatus::query()->where('name', 'requested')->value('id') => 'gray',
-                                OrderStatus::query()->where('name', 'under_review')->value('id') => 'warning',
                                 OrderStatus::query()->where('name', 'confirmed')->value('id') => 'info',
                                 OrderStatus::query()->where('name', 'preparing')->value('id') => 'warning',
                                 OrderStatus::query()->where('name', 'ready_for_pickup')->value('id') => 'success',
                                 OrderStatus::query()->where('name', 'completed')->value('id') => 'success',
                                 OrderStatus::query()->where('name', 'cancelled')->value('id') => 'danger',
                             ])
+                            ->inline()
                             ->disabledOn('create')
                             ->dehydrated()
                             ->hiddenOn('create')
