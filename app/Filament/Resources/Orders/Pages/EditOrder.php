@@ -4,71 +4,59 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
-use App\Models\Order;
-use App\Models\OrderStatus;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 class EditOrder extends EditRecord
 {
     protected static string $resource = OrderResource::class;
 
-    protected bool $statusUpdateHandled = false;
-
-    /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    protected function mutateFormDataBeforeSave(array $data): array
+    protected function getHeaderActions(): array
     {
-        /** @var Order $order */
-        $order = $this->getRecord()->fresh(['status']);
+        return [
+            Action::make('review')
+                ->label('Review')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->successNotificationTitle('Order moved to under review')
+                ->visible(fn (): bool => $this->getRecord()->status->name === 'requested')
+                ->action(fn () => app(UpdateOrderStatus::class)->handle($this->getRecord(), 'under_review')),
 
-        $newStatusId = (int) ($data['order_status_id'] ?? $order->order_status_id);
+            Action::make('confirm')
+                ->label('Confirm')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalDescription('Confirm this order? Inventory will be deducted.')
+                ->successNotificationTitle('Order confirmed')
+                ->visible(fn (): bool => $this->getRecord()->status->name === 'under_review')
+                ->action(function (): void {
+                    try {
+                        app(UpdateOrderStatus::class)->handle($this->getRecord(), 'confirmed');
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot confirm order.';
+                        Notification::make()->title('Cannot confirm order')->body($message)->danger()->send();
+                    }
+                }),
 
-        if ($newStatusId === (int) $order->order_status_id) {
-            return $data;
-        }
+            Action::make('cancel')
+                ->label('Cancel')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->successNotificationTitle('Order cancelled')
+                ->visible(fn (): bool => ! in_array($this->getRecord()->status->name, ['completed', 'cancelled'], true))
+                ->action(fn () => app(UpdateOrderStatus::class)->handle($this->getRecord(), 'cancelled')),
 
-        $statusName = OrderStatus::query()->findOrFail($newStatusId)->name;
-
-        try {
-            app(UpdateOrderStatus::class)->handle(order: $order, statusName: $statusName);
-        } catch (ValidationException $e) {
-            $message = collect($e->errors())->flatten()->first() ?? 'Invalid status transition.';
-            Notification::make()->title('Cannot update status')->body($message)->danger()->send();
-
-            throw ValidationException::withMessages([
-                'data.order_status_id' => [$message],
-            ]);
-        }
-
-        unset($data['order_status_id']);
-        $this->statusUpdateHandled = true;
-
-        return $data;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    protected function handleRecordUpdate(Model $record, array $data): Model
-    {
-        $handled = $this->statusUpdateHandled;
-        $this->statusUpdateHandled = false;
-
-        if ($handled) {
-            if ($data !== []) {
-                $record->update($data);
-            }
-
-            return $record->fresh(['status', 'customer', 'items']);
-        }
-
-        $record->update($data);
-
-        return $record;
+            RestoreAction::make(),
+            DeleteAction::make(),
+            ForceDeleteAction::make(),
+        ];
     }
 }

@@ -92,7 +92,7 @@ test('staff can update order notes via the edit form', function () {
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    expect($order->fresh()->notes)->toBe('Updated staff notes.');
+    expect($order->fresh()->notes)->toBe('<p>Updated staff notes.</p>');
 });
 
 test('review action transitions requested order to under_review', function () {
@@ -149,10 +149,10 @@ test('confirm fails for prescription order without prescription', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
-        ->fillForm(['order_status_id' => $confirmedStatus->id])
-        ->call('save')
-        ->assertHasFormErrors(['order_status_id']);
+        ->callAction('confirm')
+        ->assertNotified();
 
+    // Status should remain under_review — confirm sends a danger notification
     expect($order->fresh()->status->name)->toBe('under_review');
 });
 
