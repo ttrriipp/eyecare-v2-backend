@@ -89,10 +89,18 @@ class ItemsRelationManager extends RelationManager
 
                         $record->update($updates);
 
-                        // Recalculate order total from item subtotals
+                        // Recalculate order subtotal and total from item subtotals
                         $order = $record->order()->with('items')->first();
-                        $newTotal = $order->items->sum(fn ($i): float => (float) $i->fresh()->subtotal);
-                        $order->update(['total_amount' => number_format($newTotal, 2, '.', '')]);
+                        $newSubtotalOrder = $order->items->sum(fn ($i): float => (float) $i->fresh()->subtotal);
+                        $newTotal = bcsub(
+                            number_format($newSubtotalOrder, 2, '.', ''),
+                            (string) $order->discount_amount,
+                            2
+                        );
+                        $order->update([
+                            'subtotal' => number_format($newSubtotalOrder, 2, '.', ''),
+                            'total_amount' => $newTotal,
+                        ]);
 
                         Notification::make()
                             ->title('Lens product assigned')

@@ -346,6 +346,7 @@ test('assigning a lens product variant updates item lens_type_price and order to
     expect($item->fresh()->lens_type_price)->toBe('7500.00')
         ->and($item->fresh()->subtotal)->toBe('10500.00');
 
-    // Order total recalculated
-    expect($order->fresh()->total_amount)->toBe('10500.00');
+    // Order subtotal and total recalculated
+    expect($order->fresh()->subtotal)->toBe('10500.00')
+        ->and($order->fresh()->total_amount)->toBe('10500.00');
 });
