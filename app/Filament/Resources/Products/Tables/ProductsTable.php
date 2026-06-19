@@ -19,6 +19,7 @@ class ProductsTable
                 ImageColumn::make('images')
                     ->label('Image')
                     ->state(fn (Product $record): ?string => collect($record->images)->first())
+                    ->disk('public')
                     ->square()
                     ->size(48),
                 TextColumn::make('name')
