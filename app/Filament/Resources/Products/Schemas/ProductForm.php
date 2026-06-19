@@ -82,7 +82,6 @@ class ProductForm
                             ->multiple()
                             ->reorderable()
                             ->appendFiles()
-                            ->imageEditor()
                             ->maxSize(5120)
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->hiddenLabel(),
