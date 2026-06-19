@@ -33,12 +33,12 @@ class BillingFactory extends Factory
     }
 
     /**
-     * Set the billing status to draft.
+     * Set the billing status to issued.
      */
-    public function draft(): static
+    public function issued(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'billing_status_id' => BillingStatus::query()->firstOrCreate(['name' => 'draft'])->id,
+            'billing_status_id' => BillingStatus::query()->firstOrCreate(['name' => 'issued'])->id,
         ]);
     }
 

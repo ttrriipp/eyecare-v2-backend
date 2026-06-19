@@ -104,10 +104,10 @@ test('stats widget counts low stock active variants', function () {
 test('stats widget counts unpaid billings', function () {
     $staff = User::factory()->staff()->create();
 
-    $draftId = BillingStatus::query()->where('name', 'draft')->value('id');
+    $issuedId = BillingStatus::query()->where('name', 'issued')->value('id');
     $paidId = BillingStatus::query()->where('name', 'paid')->value('id');
 
-    Billing::factory()->count(2)->create(['billing_status_id' => $draftId]);
+    Billing::factory()->count(2)->create(['billing_status_id' => $issuedId]);
     Billing::factory()->create(['billing_status_id' => $paidId]);
 
     $this->actingAs($staff);
@@ -116,7 +116,7 @@ test('stats widget counts unpaid billings', function () {
 
     expect(
         Billing::query()
-            ->whereHas('status', fn ($q) => $q->whereIn('name', ['draft', 'issued', 'partially_paid']))
+            ->whereHas('status', fn ($q) => $q->whereIn('name', ['issued', 'partially_paid']))
             ->count()
     )->toBe(2);
 });

@@ -28,7 +28,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->count();
 
         $unpaidBillings = Billing::query()
-            ->whereHas('status', fn ($q) => $q->whereIn('name', ['draft', 'issued', 'partially_paid']))
+            ->whereHas('status', fn ($q) => $q->whereIn('name', ['issued', 'partially_paid']))
             ->count();
 
         return [

@@ -13,7 +13,6 @@ class BillingStatusSeeder extends Seeder
     public function run(): void
     {
         collect([
-            'draft',
             'issued',
             'partially_paid',
             'paid',

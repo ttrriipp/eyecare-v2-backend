@@ -65,13 +65,12 @@ test('billing statuses are seeded idempotently with approved names', function ()
 
     expect(BillingStatus::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
-            'draft',
             'issued',
             'partially_paid',
             'paid',
             'voided',
         ])
-        ->and(BillingStatus::query()->count())->toBe(5);
+        ->and(BillingStatus::query()->count())->toBe(4);
 });
 
 test('payment statuses are seeded idempotently with approved names', function () {

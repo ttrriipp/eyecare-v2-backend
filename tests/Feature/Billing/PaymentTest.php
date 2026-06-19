@@ -23,7 +23,7 @@ beforeEach(function () {
 // ─── RecalculateBillingBalance action ────────────────────────────────────────
 
 it('posted payment reduces the billing balance_due', function () {
-    $billing = Billing::factory()->draft()->create(['total_amount' => '300.00', 'balance_due' => '300.00']);
+    $billing = Billing::factory()->issued()->create(['total_amount' => '300.00', 'balance_due' => '300.00']);
     $postedStatus = PaymentStatus::query()->where('name', 'posted')->firstOrFail();
 
     Payment::factory()->create([
@@ -173,7 +173,7 @@ it('customers cannot view billings belonging to other customers', function () {
         'confirmed_at' => now(),
     ]);
 
-    $billing = Billing::factory()->draft()->create(['order_id' => $order->id]);
+    $billing = Billing::factory()->issued()->create(['order_id' => $order->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/billing/{$billing->id}")

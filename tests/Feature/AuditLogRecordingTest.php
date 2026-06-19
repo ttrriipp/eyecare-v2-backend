@@ -144,7 +144,7 @@ test('payment record triggers billing balance recalculation audit log', function
     $staff = User::factory()->staff()->create();
     Auth::login($staff);
 
-    $billing = Billing::factory()->draft()->create();
+    $billing = Billing::factory()->issued()->create();
     $payment = Payment::factory()->posted()->create(['billing_id' => $billing->id]);
 
     app(RecalculateBillingBalance::class)->handle($billing);
