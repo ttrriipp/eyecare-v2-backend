@@ -42,7 +42,18 @@ class EditOrder extends EditRecord
                         ->numeric()
                         ->minValue(0.01)
                         ->maxValue(fn (): float => (float) ($this->getRecord()->billing?->balance_due ?? 0))
-                        ->prefix('₱'),
+                        ->prefix('₱')
+                        ->helperText(function (): ?string {
+                            $billing = $this->getRecord()->billing;
+
+                            if (! $billing || $billing->payments()->whereHas('status', fn ($q) => $q->where('name', 'posted'))->exists()) {
+                                return null;
+                            }
+
+                            $half = number_format((float) $billing->total_amount / 2, 2);
+
+                            return "Suggested downpayment (50%): ₱{$half}";
+                        }),
                     Select::make('payment_method_id')
                         ->label('Method')
                         ->required()

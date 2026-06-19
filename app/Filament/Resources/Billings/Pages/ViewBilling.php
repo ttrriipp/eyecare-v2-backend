@@ -35,7 +35,18 @@ class ViewBilling extends ViewRecord
                         ->numeric()
                         ->minValue(0.01)
                         ->maxValue(fn () => (float) $this->getRecord()->balance_due)
-                        ->prefix('₱'),
+                        ->prefix('₱')
+                        ->helperText(function (): ?string {
+                            $billing = $this->getRecord();
+
+                            if ($billing->payments()->whereHas('status', fn ($q) => $q->where('name', 'posted'))->exists()) {
+                                return null;
+                            }
+
+                            $half = number_format((float) $billing->total_amount / 2, 2);
+
+                            return "Suggested downpayment (50%): ₱{$half}";
+                        }),
                     Select::make('payment_method_id')
                         ->label('Method')
                         ->required()
