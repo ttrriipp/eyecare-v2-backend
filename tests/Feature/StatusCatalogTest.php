@@ -81,7 +81,6 @@ test('payment statuses are seeded idempotently with approved names', function ()
         ->toEqualCanonicalizing([
             'posted',
             'voided',
-            'reversed',
         ])
-        ->and(PaymentStatus::query()->count())->toBe(3);
+        ->and(PaymentStatus::query()->count())->toBe(2);
 });

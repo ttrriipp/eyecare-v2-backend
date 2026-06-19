@@ -101,31 +101,6 @@ it('voided payment is excluded from balance calculation', function () {
         ->and($billing->balance_due)->toBe('120.00');
 });
 
-it('reversed payment is excluded from balance calculation', function () {
-    $billing = Billing::factory()->issued()->create(['total_amount' => '100.00', 'balance_due' => '100.00']);
-    $postedStatus = PaymentStatus::query()->where('name', 'posted')->firstOrFail();
-    $reversedStatus = PaymentStatus::query()->where('name', 'reversed')->firstOrFail();
-
-    Payment::factory()->create([
-        'billing_id' => $billing->id,
-        'payment_status_id' => $postedStatus->id,
-        'amount' => '40.00',
-    ]);
-
-    Payment::factory()->create([
-        'billing_id' => $billing->id,
-        'payment_status_id' => $reversedStatus->id,
-        'amount' => '40.00',
-    ]);
-
-    app(RecalculateBillingBalance::class)->handle($billing);
-
-    $billing->refresh();
-
-    expect($billing->amount_paid)->toBe('40.00')
-        ->and($billing->balance_due)->toBe('60.00');
-});
-
 // ─── Customer API ─────────────────────────────────────────────────────────────
 
 it('customers can view their own billing and payment history', function () {

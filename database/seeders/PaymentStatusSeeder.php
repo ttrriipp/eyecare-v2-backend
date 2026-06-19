@@ -15,7 +15,6 @@ class PaymentStatusSeeder extends Seeder
         collect([
             'posted',
             'voided',
-            'reversed',
         ])->each(fn (string $name) => PaymentStatus::query()->firstOrCreate([
             'name' => $name,
         ]));

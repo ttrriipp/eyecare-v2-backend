@@ -9,7 +9,7 @@ use App\Models\BillingStatus;
 class RecalculateBillingBalance
 {
     /**
-     * Recalculate billing balance from posted payments only (voided and reversed are excluded),
+     * Recalculate billing balance from posted payments only (voided payments are excluded),
      * then update billing status to reflect the current payment state.
      */
     public function handle(Billing $billing): Billing

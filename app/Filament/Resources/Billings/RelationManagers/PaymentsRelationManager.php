@@ -32,7 +32,6 @@ class PaymentsRelationManager extends RelationManager
                     ->color(fn (string $state): string => match ($state) {
                         'posted' => 'success',
                         'voided' => 'danger',
-                        'reversed' => 'warning',
                         default => 'gray',
                     }),
                 TextColumn::make('reference_number')
