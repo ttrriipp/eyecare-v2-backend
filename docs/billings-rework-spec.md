@@ -17,13 +17,15 @@ Task 1: GenerateBillingForOrder starts as issued
     │
     └── Task 2: Auto-generate in UpdateOrderStatus
             │
-            └── Task 3: Remove manual generate action from ListBillings
+            ├── Task 3: Remove manual generate action from ListBillings
+            │
+            └── Task 4: Billing section + Record Payment on Order Edit
                     │
-                    └── Task 4: 50% hint on Record Payment
+                    └── Task 5: 50% hint on Record Payment (both places)
                             │
-                            └── Task 5: Payments RelationManager
+                            └── Task 6: Payments RelationManager on ViewBilling
                                     │
-                                    └── Task 6: Docs + final verification
+                                    └── Task 7: Docs + final verification
 ```
 
 ## Task List
@@ -110,40 +112,69 @@ Task 1: GenerateBillingForOrder starts as issued
 
 ---
 
-### Task 4: Add 50% downpayment hint to Record Payment
+### Task 4: Billing section + Record Payment on Order Edit page
 
-**Description:** On the `record_payment` action modal, show helper text on the amount field: "Suggested downpayment (50%): ₱X.XX" — calculated from `total_amount`. Only show on first payment (when no posted payments exist).
+**Description:** Add a billing summary section and "Record Payment" action directly on the Order Edit page. Staff confirms order → billing appears → records downpayment without navigating away. Shows billing status, total, paid, balance, and payment history inline.
+
+**Acceptance criteria:**
+- [ ] After order is confirmed, billing section visible on order edit (hidden for non-confirmed orders with no billing)
+- [ ] Shows: status badge, total, amount paid, balance due
+- [ ] "Record Payment" action available (same modal as ViewBilling: amount, method, reference, date, notes)
+- [ ] Payment history table below billing summary (date, method, amount, status)
+- [ ] Void action per payment row
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact --filter=OrderResource`
+- [ ] Manual: confirm an order, see billing appear, record payment
+
+**Dependencies:** Task 2
+
+**Files likely touched:**
+- `app/Filament/Resources/Orders/Pages/EditOrder.php` or new RelationManager
+- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
+- `tests/Feature/Filament/OrderResourceTest.php`
+
+**Estimated scope:** M (3-4 files)
+
+---
+
+### Task 5: Add 50% downpayment hint to Record Payment
+
+**Description:** On the `record_payment` action modal (both on ViewBilling and Order Edit), show helper text: "Suggested downpayment (50%): ₱X.XX" — calculated from `total_amount`. Only show when no posted payments exist yet.
 
 **Acceptance criteria:**
 - [ ] Amount field shows 50% hint when no payments recorded yet
-- [ ] Hint disappears after first payment is recorded (on page refresh/revisit)
+- [ ] Hint disappears after first payment is recorded
 - [ ] Staff can still enter any amount (not enforced)
+- [ ] Hint shows on both ViewBilling and Order Edit payment modals
 
 **Verification:**
 - [ ] Manual verification in browser
 - [ ] Existing `record_payment` tests still pass
 
-**Dependencies:** Task 3
+**Dependencies:** Task 4
 
 **Files likely touched:**
 - `app/Filament/Resources/Billings/Pages/ViewBilling.php`
+- `app/Filament/Resources/Orders/Pages/EditOrder.php` (or wherever payment action lives)
 
-**Estimated scope:** XS (1 file)
+**Estimated scope:** XS (2 files)
 
 ---
 
-### Checkpoint: After Tasks 3-4
+### Checkpoint: After Tasks 3-5
 - [ ] All tests pass
 - [ ] Manual generate button gone
-- [ ] Payment hint visible on fresh billing
+- [ ] Payment recording works from Order Edit page
+- [ ] 50% hint visible on fresh billing
 
 ---
 
-### Phase 3: Payments visibility
+### Phase 3: Billing standalone page polish
 
 ---
 
-### Task 5: Payments RelationManager on ViewBilling
+### Task 6: Payments RelationManager on ViewBilling
 
 **Description:** Create a PaymentsRelationManager showing payment history inline on the billing view page. Each row shows date, method, amount, status. Posted payments have a "Void" row action.
 
@@ -157,7 +188,7 @@ Task 1: GenerateBillingForOrder starts as issued
 - [ ] `vendor/bin/sail artisan test --compact --filter=BillingResource`
 - [ ] Manual check: view a billing with payments, void one
 
-**Dependencies:** Task 4
+**Dependencies:** Task 5
 
 **Files likely touched:**
 - `app/Filament/Resources/Billings/RelationManagers/PaymentsRelationManager.php` (new)
@@ -168,19 +199,20 @@ Task 1: GenerateBillingForOrder starts as issued
 
 ---
 
-### Task 6: Docs update + final verification
+### Task 7: Docs update + final verification
 
 **Description:** Update BACKEND_CONTEXT.md to reflect new billing flow. Run full test suite.
 
 **Acceptance criteria:**
 - [ ] `BACKEND_CONTEXT.md` says billing auto-generates on confirmation
 - [ ] Status flow documented as `issued → partially_paid → paid` (+ voided)
-- [ ] Full test suite passes (352+ tests)
+- [ ] Notes that payment recording is on Order Edit page
+- [ ] Full test suite passes
 
 **Verification:**
 - [ ] `vendor/bin/sail artisan test --compact`
 
-**Dependencies:** Task 5
+**Dependencies:** Task 6
 
 **Files likely touched:**
 - `docs/BACKEND_CONTEXT.md`
@@ -192,7 +224,7 @@ Task 1: GenerateBillingForOrder starts as issued
 ### Checkpoint: Complete
 - [ ] All acceptance criteria met
 - [ ] Full test suite green
-- [ ] Billing flow works end-to-end in Filament
+- [ ] Billing flow works end-to-end: confirm order → billing appears → record payment → balance tracks
 
 ## Risks and Mitigations
 
@@ -200,7 +232,7 @@ Task 1: GenerateBillingForOrder starts as issued
 |------|--------|------------|
 | Existing tests assert `draft` status | Med | Update in Task 1 before other changes |
 | Auto-billing fails silently | Low | Log the error, add monitoring test |
-| Void action on RelationManager conflicts with header action | Low | Remove void from header after RelationManager is in place |
+| Order edit page gets cluttered with billing section | Med | Only show after billing exists; use collapsible section |
 
 ## Out of Scope
 
@@ -209,3 +241,4 @@ Task 1: GenerateBillingForOrder starts as issued
 - Installment plans beyond downpayment + balance
 - Insurance billing, refunds
 - Removing `draft` from `billing_statuses` table
+- Separate "Billings" nav resource may be demoted to read-only overview later
