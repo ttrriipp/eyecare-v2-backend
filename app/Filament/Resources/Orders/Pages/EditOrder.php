@@ -106,4 +106,10 @@ class EditOrder extends EditRecord
 
         return $data;
     }
+
+    protected function afterSave(): void
+    {
+        // Redirect to self so relation managers re-render with updated order status
+        $this->redirect($this->getResource()::getUrl('edit', ['record' => $this->getRecord()]));
+    }
 }
