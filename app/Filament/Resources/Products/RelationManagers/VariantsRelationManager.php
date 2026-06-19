@@ -75,8 +75,7 @@ class VariantsRelationManager extends RelationManager
                 ->maxLength(255)
                 ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
-                ->columnSpanFull()
-                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
+                ->columnSpanFull(),
             FileUpload::make('images')
                 ->disk('public')
                 ->directory('variants')

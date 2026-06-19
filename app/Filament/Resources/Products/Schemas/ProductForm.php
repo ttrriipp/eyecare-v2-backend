@@ -38,6 +38,8 @@ class ProductForm
                                 ->default('frame')
                                 ->required()
                                 ->live()
+                                ->disabledOn('edit')
+                                ->dehydrated()
                                 ->columnSpanFull(),
                             Select::make('lens_type_id')
                                 ->label('Lens Type Category')
@@ -168,8 +170,7 @@ class ProductForm
                             TextInput::make('ar_asset_reference')
                                 ->maxLength(255)
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
-                            KeyValue::make('attributes')->columnSpanFull()
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
+                            KeyValue::make('attributes')->columnSpanFull(),
                             FileUpload::make('images')
                                 ->disk('public')
                                 ->directory('variants')
