@@ -152,7 +152,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 **Resources (operational):**
 - Appointments — guarded status dropdown on edit form; staff assignment
 - Orders — guarded status dropdown on edit form; ItemsRelationManager shows order items with lens product assignment per item
-- Products — 3-col sidebar layout. Product type at top of Product Details. On edit: Variants managed via VariantsRelationManager with Adjust Stock (movement type selector) and Adjust Price row actions. Product type + visibility filters on list.
+- Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
 - Prescriptions
 - Billings — generate billing from confirmed orders, record/void payments
 - Conversations — chat-style page
@@ -162,7 +162,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - User Management (admin only)
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
-- Categories, Brands, Lens Types (with price), Visit Reasons
+- Categories, Brands (CRUD), Lens Types (with price), Visit Reasons
 
 **Dashboard widgets:** appointment counts, pending orders, low stock, unpaid billings, recent feedback.
 
@@ -272,3 +272,5 @@ vendor/bin/sail bin pint --dirty --format agent          # format changed PHP
 vendor/bin/sail npm run build                            # build frontend assets
 vendor/bin/sail artisan route:list --except-vendor       # inspect routes
 ```
+
+**Important:** `APP_URL` in `.env` must match the URL you use to access the app in the browser (including or excluding port). If FilePond image previews load indefinitely, check that `APP_URL` matches exactly. Run `php artisan storage:link` if the storage symlink is missing.
