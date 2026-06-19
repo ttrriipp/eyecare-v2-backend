@@ -131,7 +131,8 @@ test('confirm fails for prescription order without prescription', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
-        ->callAction('confirm')
+        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->call('save')
         ->assertNotified();
 
     // Status should remain requested — confirm sends a danger notification
