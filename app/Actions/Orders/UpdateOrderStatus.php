@@ -50,6 +50,19 @@ class UpdateOrderStatus
             }
         }
 
+        if ($statusName === 'confirmed') {
+            $order->loadMissing('items');
+            $hasUnassignedLens = $order->items->contains(
+                fn ($item) => $item->lens_type_id !== null && $item->lens_product_variant_id === null
+            );
+
+            if ($hasUnassignedLens) {
+                throw ValidationException::withMessages([
+                    'status' => ['All lens items must have a lens product assigned before confirming.'],
+                ]);
+            }
+        }
+
         $status = OrderStatus::query()->where('name', $statusName)->firstOrFail();
 
         $attributes = [

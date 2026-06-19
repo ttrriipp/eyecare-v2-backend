@@ -1,14 +1,17 @@
 <?php
 
 use App\Actions\Orders\UpdateOrderStatus;
+use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\InventoryMovementTypeSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -214,4 +217,65 @@ test('order confirmation throws ValidationException when frame variant has insuf
 
     // Order status must remain unchanged
     expect($order->fresh()->status->name)->toBe('requested');
+});
+
+test('confirming an order with unassigned lens items throws a ValidationException', function () {
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
+    $this->seed(InventoryMovementTypeSeeder::class);
+
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $lensType = LensType::factory()->create();
+    $customer = User::factory()->customer()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $requestedStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    // Item with lens_type_id but no lens_product_variant_id assigned
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $variant->id,
+        'lens_type_id' => $lensType->id,
+        'lens_product_variant_id' => null,
+        'quantity' => 1,
+    ]);
+
+    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'confirmed'))
+        ->toThrow(ValidationException::class);
+
+    expect($order->fresh()->status->name)->toBe('requested');
+});
+
+test('confirming an order with all lens items assigned succeeds', function () {
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
+    $this->seed(InventoryMovementTypeSeeder::class);
+
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $lensType = LensType::factory()->create();
+    $customer = User::factory()->customer()->create();
+    $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $requestedStatus->id,
+        'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $frameVariant->id,
+        'lens_type_id' => $lensType->id,
+        'lens_product_variant_id' => $lensVariant->id,
+        'quantity' => 1,
+    ]);
+
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    expect($order->fresh()->status->name)->toBe('confirmed');
 });
