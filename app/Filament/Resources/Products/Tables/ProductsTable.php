@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Products\Tables;
 
 use App\Models\Product;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -26,6 +27,9 @@ class ProductsTable
                 TextColumn::make('brand.name')
                     ->label('Brand')
                     ->searchable(),
+                TextColumn::make('category.name')
+                    ->label('Category')
+                    ->searchable(),
                 TextColumn::make('product_type')
                     ->label('Type')
                     ->badge()
@@ -43,21 +47,17 @@ class ProductsTable
                         'accessory' => 'gray',
                         default => 'gray',
                     }),
-                TextColumn::make('is_active')
-                    ->label('Visibility')
-                    ->badge()
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Visible' : 'Hidden')
-                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
-                TextColumn::make('stock')
-                    ->label('Stock')
-                    ->state(function (Product $record): string {
-                        $hasLowStock = $record->variants
-                            ->contains(fn ($v): bool => $v->stock_quantity <= $v->low_stock_threshold && $v->low_stock_threshold > 0);
-
-                        return $hasLowStock ? 'Low stock' : 'OK';
-                    })
-                    ->badge()
-                    ->color(fn (string $state): string => $state === 'Low stock' ? 'danger' : 'success'),
+                IconColumn::make('is_active')
+                    ->label('Visible')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
+                TextColumn::make('total_quantity')
+                    ->label('Qty')
+                    ->state(fn (Product $record): int => $record->variants->sum('stock_quantity'))
+                    ->sortable(false),
             ])
             ->recordActions([
                 EditAction::make(),

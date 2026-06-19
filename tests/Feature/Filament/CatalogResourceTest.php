@@ -76,26 +76,17 @@ test('staff can create and edit products with variants', function () {
     expect($product->fresh()->name)->toBe('Aviator Frame Updated');
 });
 
-test('product table shows low stock state', function () {
+test('product table shows total variant quantity', function () {
     $staff = User::factory()->staff()->create();
 
-    $lowStockProduct = Product::factory()->create(['name' => 'Low Stock Frame']);
-    ProductVariant::factory()->for($lowStockProduct)->create([
-        'stock_quantity' => 1,
-        'low_stock_threshold' => 3,
-    ]);
-
-    $healthyProduct = Product::factory()->create(['name' => 'Healthy Stock Frame']);
-    ProductVariant::factory()->for($healthyProduct)->create([
-        'stock_quantity' => 10,
-        'low_stock_threshold' => 3,
-    ]);
+    $product = Product::factory()->create(['name' => 'Frame With Stock']);
+    ProductVariant::factory()->for($product)->create(['stock_quantity' => 5]);
+    ProductVariant::factory()->for($product)->create(['stock_quantity' => 8]);
 
     $this->actingAs($staff);
 
     Livewire::test(ListProducts::class)
-        ->assertTableColumnStateSet('stock', 'Low stock', $lowStockProduct)
-        ->assertTableColumnStateSet('stock', 'OK', $healthyProduct);
+        ->assertTableColumnStateSet('total_quantity', 13, $product);
 });
 
 test('staff can create lens types', function () {
