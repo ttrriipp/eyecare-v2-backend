@@ -332,7 +332,7 @@ PATCH  /staff/orders/{id}/status
 - **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager on the order edit page. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table (movement type selector). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource.
-- **Billing:** One billing per order. Generated manually by staff after order is confirmed. Payments reduce balance; voided/reversed payments undo that reduction.
+- **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided` from any). Staff records payments from the Order Edit page (Record Payment header action) or from the ViewBilling page. Both show a 50% downpayment hint on the first payment. Voided/reversed payments undo their reduction. `draft` status exists in the DB but is no longer used for new billings.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
 - **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
@@ -358,6 +358,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/post-mvp-phase2-spec.md` | Complete — 11 tasks |
 | `docs/lens-inventory-spec.md` | Complete — 7 tasks |
 | `docs/backend-polish-spec.md` | Complete — 11 tasks |
+| `docs/billings-rework-spec.md` | Complete — 7 tasks |
 
 ---
 
