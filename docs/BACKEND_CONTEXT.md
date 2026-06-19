@@ -209,6 +209,107 @@ PATCH  /staff/orders/{id}/status
 
 ---
 
+## API Response Examples (for Android)
+
+**POST /register** and **POST /login** → returns:
+```json
+{ "token": "1|abc123...", "user": { "id": 3, "name": "...", "email": "...", "role": "customer" } }
+```
+
+**GET /user:**
+```json
+{ "data": { "id": 3, "name": "Demo Customer", "email": "customer@eyecare.test", "role": "customer" } }
+```
+
+**GET /products** (paginated, frame-only):
+```json
+{
+  "data": [{
+    "id": 3,
+    "name": "Classic Rectangle Frame",
+    "slug": "classic-rectangle-frame",
+    "description": "...",
+    "product_type": "frame",
+    "brand": "VisionCraft",
+    "category": "frames",
+    "variants": [{
+      "id": 3,
+      "name": "Matte Black",
+      "sku": "CRF-BLK-001",
+      "price": "159.99",
+      "compare_at_price": null,
+      "attributes": { "bridge": 18, "temple": 140, "lens_width": 52 },
+      "ar_eligible": true,
+      "ar_asset_reference": "frames/classic-rectangle-matte-black.glb",
+      "images": []
+    }],
+    "images": []
+  }],
+  "links": { "first": "...", "next": "..." },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 2 }
+}
+```
+
+**GET /appointments:**
+```json
+{
+  "data": [{
+    "id": 1,
+    "visit_reason": "eye_exam",
+    "status": "confirmed",
+    "scheduled_at": "2026-06-22T10:00:00.000000Z",
+    "contact_notes": "...",
+    "staff_notes": "...",
+    "assigned_staff": { "id": 2, "name": "Demo Staff" }
+  }]
+}
+```
+
+**GET /orders** (paginated):
+```json
+{
+  "data": [{
+    "id": 4,
+    "order_number": "ORD-2026-000004",
+    "appointment_id": null,
+    "is_non_prescription": true,
+    "status": "requested",
+    "subtotal": "5600.00",
+    "total_amount": "5600.00",
+    "items": [{
+      "id": 4,
+      "product_variant_id": 2,
+      "lens_type_id": null,
+      "product_id": 2,
+      "product_name": "Zeiss Single Vision",
+      "variant_name": "1.50 Standard",
+      "variant_sku": "ZSV-150-STD",
+      "lens_type_name": null,
+      "unit_price": "2800.00",
+      "quantity": 1,
+      "subtotal": "5600.00"
+    }],
+    "created_at": "2026-06-19T05:16:53.000000Z"
+  }],
+  "links": { "first": "...", "next": "..." },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 2 }
+}
+```
+
+**POST /orders** request body:
+```json
+{
+  "is_non_prescription": true,
+  "appointment_id": null,
+  "items": [
+    { "product_variant_id": 3, "lens_type_id": 1, "quantity": 1 },
+    { "product_variant_id": 5, "lens_type_id": null, "quantity": 2 }
+  ]
+}
+```
+
+---
+
 ## Key Actions (Single-Purpose Workflow Classes)
 
 | Action | Location | Does |
