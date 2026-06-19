@@ -51,7 +51,8 @@ test('order table can filter by status', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListOrders::class)
-        ->filterTable('status', $requestedStatus->id)
+        ->assertCanSeeTableRecords([$requestedOrder, $underReviewOrder])
+        ->set('activeTab', 'requested')
         ->assertCanSeeTableRecords([$requestedOrder])
         ->assertCanNotSeeTableRecords([$underReviewOrder]);
 });
