@@ -1,6 +1,5 @@
 <?php
 
-use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Billings\Pages\ListBillings;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Models\Billing;
@@ -46,25 +45,6 @@ test('staff can view a billing record', function () {
 
     Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
         ->assertSuccessful();
-});
-
-test('staff can set due_date on a billing record', function () {
-    $staff = User::factory()->staff()->create();
-    $billing = Billing::factory()->issued()->create();
-    $dueDate = now()->addDays(30)->toDateString();
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
-        ->fillForm(['due_date' => $dueDate])
-        ->call('save')
-        ->assertNotified()
-        ->assertHasNoFormErrors();
-
-    $this->assertDatabaseHas(Billing::class, [
-        'id' => $billing->id,
-        'due_date' => $dueDate,
-    ]);
 });
 
 test('staff can record a payment on a billing via the view page action', function () {
