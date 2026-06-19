@@ -61,7 +61,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 |---|---|
 | `roles` | admin, staff, customer |
 | `appointment_statuses` | pending, confirmed, rescheduled, cancelled, completed |
-| `order_statuses` | requested, under_review, confirmed, preparing, ready_for_pickup, completed, cancelled |
+| `order_statuses` | requested, confirmed, preparing, ready_for_pickup, completed, cancelled |
 | `billing_statuses` | draft, issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided, reversed |
 | `notification_statuses` | queued, sent, failed, cancelled |
@@ -132,8 +132,7 @@ SMS notification records created on: confirmed, rescheduled, cancelled.
 
 **Orders** (`UpdateOrderStatus`):
 ```
-requested → under_review, cancelled
-under_review → confirmed, cancelled
+requested → confirmed, cancelled
 confirmed → preparing, cancelled
 preparing → ready_for_pickup, cancelled
 ready_for_pickup → completed, cancelled
@@ -151,7 +150,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 
 **Resources (operational):**
 - Appointments — guarded status dropdown on edit form; staff assignment
-- Orders — guarded status dropdown on edit form; ItemsRelationManager shows order items with lens product assignment per item
+- Orders — KPI stats (total, open, avg price) + status tabs on list. Create uses 2-step wizard (Order Details → Order Items with table-style repeater). Edit shows sidebar with order date/last modified, ToggleButtons for status (cycle-guarded), RichEditor notes, Confirm/Cancel header actions. ItemsRelationManager below form for lens product assignment. Soft delete (trash) with restore.
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
 - Prescriptions
 - Billings — generate billing from confirmed orders, record/void payments
@@ -229,7 +228,7 @@ PATCH  /staff/orders/{id}/status
 
 - **Walk-in customers:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone. They cannot log in to the mobile app.
 - **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. `lens_type_id` and `lens_type_price` are nullable (no lens = frame-only price). Order `subtotal` = sum of all item subtotals. `total_amount` = `subtotal` − `discount_amount`. Both recalculate when staff assigns a lens product variant.
-- **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status reverts to `under_review`.
+- **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager on the order edit page. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table (movement type selector). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource.
 - **Billing:** One billing per order. Generated manually by staff after order is confirmed. Payments reduce balance; voided/reversed payments undo that reduction.
