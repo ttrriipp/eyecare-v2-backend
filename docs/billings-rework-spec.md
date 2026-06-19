@@ -1,124 +1,211 @@
-# Billings Rework Spec
+# Implementation Plan: Billings Rework
 
-> **Intent:** Billing auto-generates on order confirmation, starts as `issued` (no draft), staff records payments freely (50% downpayment hint), balance auto-tracks.
+## Overview
 
----
+Rework billing so it auto-generates on order confirmation, starts as `issued` (no draft step), and provides a clean payment recording UI with a 50% downpayment hint. Staff records free-form payment amounts; balance auto-tracks.
 
-## Current State
+## Architecture Decisions
 
-- `GenerateBillingForOrder` is triggered manually from ListBillings page action
-- Billing starts in `draft` status
-- Staff manually transitions to `issued`
-- ViewBilling page has Record Payment and Void Payment header actions
-- EditBilling allows due_date/notes
-- `RecalculateBillingBalance` auto-transitions: `partially_paid` → `paid`
+- **Auto-generate in `UpdateOrderStatus`** — billing creation is a side-effect of confirmation, not a separate staff action. Keeps the workflow atomic.
+- **Keep `draft` status in seeder** — existing data won't break, but new billings skip it entirely.
+- **Payments relation manager on ViewBilling** — inline table is easier to scan than navigating to a separate resource. Void action stays per-row.
 
-## Target State
+## Dependency Graph
 
-- Billing auto-generates when order is confirmed (inside `UpdateOrderStatus`)
-- No `draft` status — billing starts as `issued` with `issued_at = now()`
-- Remove manual "Generate Billing" action from ListBillings
-- Record Payment modal shows 50% hint as helper text
-- Payment history visible inline (relation manager or infolist repeatable)
-- Void payment remains available
+```
+Task 1: GenerateBillingForOrder starts as issued
+    │
+    └── Task 2: Auto-generate in UpdateOrderStatus
+            │
+            └── Task 3: Remove manual generate action from ListBillings
+                    │
+                    └── Task 4: 50% hint on Record Payment
+                            │
+                            └── Task 5: Payments RelationManager
+                                    │
+                                    └── Task 6: Docs + final verification
+```
 
----
+## Task List
 
-## Tasks
-
-### Task 1 — Auto-generate billing on order confirmation
-
-**File:** `app/Actions/Orders/UpdateOrderStatus.php`
-
-**Changes:**
-- After successful confirmation (inventory deducted, status saved), call `GenerateBillingForOrder`
-- If billing generation fails (shouldn't happen since order is freshly confirmed), log but don't block the confirmation
-
-**Tests to update:**
-- `tests/Feature/Billing/BillingGenerationTest.php` — existing tests still valid; add a test that confirming an order creates a billing
-- `tests/Feature/Api/OrderProcessingTest.php` — assert billing exists after confirm
-
-### Task 2 — Remove `draft` status, start as `issued`
-
-**File:** `app/Actions/Billing/GenerateBillingForOrder.php`
-
-**Changes:**
-- Use `issued` status instead of `draft`
-- Set `issued_at = now()` on creation
-
-**File:** `database/seeders/BillingStatusSeeder.php`
-
-**Changes:**
-- Keep `draft` in the seeder (don't break existing data) but it won't be used for new billings
-
-**Tests to update:**
-- `tests/Feature/Billing/BillingGenerationTest.php` — change assertions from `draft` to `issued`
-- `tests/Feature/Filament/BillingResourceTest.php` — update factory calls that use `draft()` state where testing new creation flow
-
-### Task 3 — Remove manual "Generate Billing" action from ListBillings
-
-**File:** `app/Filament/Resources/Billings/Pages/ListBillings.php`
-
-**Changes:**
-- Remove `generate_billing` header action entirely (billing is now automatic)
-
-**Tests to update:**
-- `tests/Feature/Filament/BillingResourceTest.php` — remove the 3 tests for `generate_billing` action (generate, duplicate blocked, non-confirmed blocked)
-
-### Task 4 — Add 50% payment hint to Record Payment
-
-**File:** `app/Filament/Resources/Billings/Pages/ViewBilling.php`
-
-**Changes:**
-- Add `->helperText()` to the amount field showing "50% = ₱{half}" calculated from `balance_due` or `total_amount`
-- On first payment (no payments yet): hint shows 50% of total
-- On subsequent payments: no special hint (just pay what's owed)
-
-### Task 5 — Payments relation manager on ViewBilling
-
-**File:** `app/Filament/Resources/Billings/RelationManagers/PaymentsRelationManager.php` (new)
-
-**Changes:**
-- Table showing: date (paid_at), method, amount, status, reference
-- Void action per row (for posted payments only)
-- Read-only — payments created via the header "Record Payment" action
-
-**File:** `app/Filament/Resources/Billings/BillingResource.php`
-
-**Changes:**
-- Register `PaymentsRelationManager` in `getRelations()`
-
-**Tests:**
-- Test that payments table renders on ViewBilling
-
-### Task 6 — Clean up tests and verify
-
-- Run full test suite
-- Update `docs/BACKEND_CONTEXT.md`:
-  - Remove "Generated manually by staff" from billing conventions
-  - Update billing status flow to: `issued → partially_paid → paid` (+ voided)
-  - Note auto-generation on confirmation
+### Phase 1: Foundation (billing creation logic)
 
 ---
 
-## Summary
+### Task 1: GenerateBillingForOrder starts as `issued`
 
-| # | Task | Files Modified |
-|---|---|---|
-| 1 | Auto-generate on confirm | `UpdateOrderStatus`, tests |
-| 2 | Remove draft, start as issued | `GenerateBillingForOrder`, tests |
-| 3 | Remove manual generate action | `ListBillings`, tests |
-| 4 | 50% payment hint | `ViewBilling` |
-| 5 | Payments relation manager | New RelationManager, `BillingResource` |
-| 6 | Test cleanup + docs | Tests, `BACKEND_CONTEXT.md` |
+**Description:** Change the action to create billings with `issued` status and `issued_at = now()` instead of `draft`.
+
+**Acceptance criteria:**
+- [ ] New billings have `billing_status_id` pointing to `issued`
+- [ ] `issued_at` is set to current timestamp on creation
+- [ ] Existing tests updated to assert `issued` instead of `draft`
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact --filter=BillingGeneration`
+
+**Dependencies:** None
+
+**Files likely touched:**
+- `app/Actions/Billing/GenerateBillingForOrder.php`
+- `tests/Feature/Billing/BillingGenerationTest.php`
+
+**Estimated scope:** S (2 files)
 
 ---
+
+### Task 2: Auto-generate billing on order confirmation
+
+**Description:** Call `GenerateBillingForOrder` inside `UpdateOrderStatus` after a successful `confirmed` transition. Wrap in try/catch — billing failure should not block confirmation.
+
+**Acceptance criteria:**
+- [ ] Confirming an order creates a billing record automatically
+- [ ] Billing `total_amount` matches `order.total_amount`
+- [ ] If billing generation fails (edge case), order still confirms — failure is logged
+- [ ] Cancelling a confirmed order does NOT delete the billing (billing tracks independently)
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact --filter="BillingGeneration|OrderProcessing|OrderResource"`
+
+**Dependencies:** Task 1
+
+**Files likely touched:**
+- `app/Actions/Orders/UpdateOrderStatus.php`
+- `tests/Feature/Billing/BillingGenerationTest.php` (add new test)
+- `tests/Feature/Api/OrderProcessingTest.php` (assert billing created)
+
+**Estimated scope:** S (3 files)
+
+---
+
+### Checkpoint: After Tasks 1-2
+- [ ] All billing + order tests pass
+- [ ] Confirming an order in Filament creates a billing automatically
+
+---
+
+### Phase 2: UI cleanup
+
+---
+
+### Task 3: Remove manual "Generate Billing" action from ListBillings
+
+**Description:** Remove the `generate_billing` header action and its tests. Billing is now automatic.
+
+**Acceptance criteria:**
+- [ ] No "Generate Billing" button on the billings list page
+- [ ] Tests for the manual action are removed
+- [ ] ListBillings page still renders correctly
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact --filter=BillingResource`
+
+**Dependencies:** Task 2
+
+**Files likely touched:**
+- `app/Filament/Resources/Billings/Pages/ListBillings.php`
+- `tests/Feature/Filament/BillingResourceTest.php`
+
+**Estimated scope:** S (2 files)
+
+---
+
+### Task 4: Add 50% downpayment hint to Record Payment
+
+**Description:** On the `record_payment` action modal, show helper text on the amount field: "Suggested downpayment (50%): ₱X.XX" — calculated from `total_amount`. Only show on first payment (when no posted payments exist).
+
+**Acceptance criteria:**
+- [ ] Amount field shows 50% hint when no payments recorded yet
+- [ ] Hint disappears after first payment is recorded (on page refresh/revisit)
+- [ ] Staff can still enter any amount (not enforced)
+
+**Verification:**
+- [ ] Manual verification in browser
+- [ ] Existing `record_payment` tests still pass
+
+**Dependencies:** Task 3
+
+**Files likely touched:**
+- `app/Filament/Resources/Billings/Pages/ViewBilling.php`
+
+**Estimated scope:** XS (1 file)
+
+---
+
+### Checkpoint: After Tasks 3-4
+- [ ] All tests pass
+- [ ] Manual generate button gone
+- [ ] Payment hint visible on fresh billing
+
+---
+
+### Phase 3: Payments visibility
+
+---
+
+### Task 5: Payments RelationManager on ViewBilling
+
+**Description:** Create a PaymentsRelationManager showing payment history inline on the billing view page. Each row shows date, method, amount, status. Posted payments have a "Void" row action.
+
+**Acceptance criteria:**
+- [ ] Payment history table renders on ViewBilling page
+- [ ] Columns: paid_at, payment method name, amount (₱), status badge, reference
+- [ ] "Void" action visible only on `posted` payments
+- [ ] Voiding recalculates billing balance
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact --filter=BillingResource`
+- [ ] Manual check: view a billing with payments, void one
+
+**Dependencies:** Task 4
+
+**Files likely touched:**
+- `app/Filament/Resources/Billings/RelationManagers/PaymentsRelationManager.php` (new)
+- `app/Filament/Resources/Billings/BillingResource.php`
+- `tests/Feature/Filament/BillingResourceTest.php`
+
+**Estimated scope:** M (3 files)
+
+---
+
+### Task 6: Docs update + final verification
+
+**Description:** Update BACKEND_CONTEXT.md to reflect new billing flow. Run full test suite.
+
+**Acceptance criteria:**
+- [ ] `BACKEND_CONTEXT.md` says billing auto-generates on confirmation
+- [ ] Status flow documented as `issued → partially_paid → paid` (+ voided)
+- [ ] Full test suite passes (352+ tests)
+
+**Verification:**
+- [ ] `vendor/bin/sail artisan test --compact`
+
+**Dependencies:** Task 5
+
+**Files likely touched:**
+- `docs/BACKEND_CONTEXT.md`
+
+**Estimated scope:** XS (1 file)
+
+---
+
+### Checkpoint: Complete
+- [ ] All acceptance criteria met
+- [ ] Full test suite green
+- [ ] Billing flow works end-to-end in Filament
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Existing tests assert `draft` status | Med | Update in Task 1 before other changes |
+| Auto-billing fails silently | Low | Log the error, add monitoring test |
+| Void action on RelationManager conflicts with header action | Low | Remove void from header after RelationManager is in place |
 
 ## Out of Scope
 
 - Printing/receipts
-- Fixed percentage enforcement (staff enters any amount)
+- Fixed percentage enforcement
 - Installment plans beyond downpayment + balance
-- Insurance billing
-- Refunds (separate from void)
-- Removing `draft` from the `billing_statuses` table (existing data compatibility)
+- Insurance billing, refunds
+- Removing `draft` from `billing_statuses` table
