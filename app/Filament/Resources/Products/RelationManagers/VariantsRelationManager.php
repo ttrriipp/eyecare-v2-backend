@@ -217,6 +217,8 @@ class VariantsRelationManager extends RelationManager
                                 ->success()
                                 ->send();
                         }),
+                    DeleteAction::make()
+                        ->color('danger'),
                 ]),
             ]);
     }
