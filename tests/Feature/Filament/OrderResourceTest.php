@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
@@ -7,10 +8,14 @@ use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
 use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentMethodSeeder;
+use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -333,4 +338,76 @@ test('assigning a lens product variant updates item lens_type_price and order to
     // Order subtotal and total recalculated
     expect($order->fresh()->subtotal)->toBe('10500.00')
         ->and($order->fresh()->total_amount)->toBe('10500.00');
+});
+
+test('confirmed order edit page shows record payment action', function () {
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
+    $this->seed(PaymentMethodSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $requestedStatus->id,
+        'total_amount' => '400.00',
+        'is_non_prescription' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    // Confirm the order — billing auto-generates
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->assertActionVisible('record_payment');
+});
+
+test('staff can record a payment from the order edit page', function () {
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
+    $this->seed(PaymentMethodSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
+
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'order_status_id' => $requestedStatus->id,
+        'total_amount' => '400.00',
+        'is_non_prescription' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->callAction('record_payment', data: [
+            'amount' => 200.00,
+            'payment_method_id' => $cashMethod->id,
+            'paid_at' => now()->toDateTimeString(),
+        ])
+        ->assertNotified()
+        ->assertHasNoActionErrors();
+
+    $billing = $order->fresh()->billing;
+    expect((float) $billing->amount_paid)->toBe(200.0)
+        ->and((float) $billing->balance_due)->toBe(200.0);
+});
+
+test('record payment action is hidden for non-confirmed orders', function () {
+    $staff = User::factory()->staff()->create();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+
+    $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->assertActionHidden('record_payment');
 });
