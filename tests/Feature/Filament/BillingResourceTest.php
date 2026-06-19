@@ -7,6 +7,7 @@ use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
+use App\Models\PaymentStatus;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
@@ -150,4 +151,23 @@ test('void payment action cannot target a payment from a different billing', fun
         ->callAction(
             TestAction::make('void_payment')->arguments(['payment_id' => $otherPayment->id]),
         );
+});
+
+test('payments table renders on billing view page', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create(['total_amount' => '300.00', 'balance_due' => '300.00']);
+    $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
+    $postedStatus = PaymentStatus::query()->where('name', 'posted')->firstOrFail();
+
+    Payment::factory()->create([
+        'billing_id' => $billing->id,
+        'payment_status_id' => $postedStatus->id,
+        'payment_method_id' => $cashMethod->id,
+        'amount' => '150.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertSuccessful();
 });

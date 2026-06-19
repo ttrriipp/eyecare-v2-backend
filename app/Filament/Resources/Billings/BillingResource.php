@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Billings;
 use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Billings\Pages\ListBillings;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
+use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
 use App\Filament\Resources\Billings\Schemas\BillingForm;
 use App\Filament\Resources\Billings\Schemas\BillingInfolist;
 use App\Filament\Resources\Billings\Tables\BillingsTable;
@@ -40,7 +41,9 @@ class BillingResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            PaymentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
