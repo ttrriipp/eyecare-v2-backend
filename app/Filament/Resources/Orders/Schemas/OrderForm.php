@@ -112,7 +112,8 @@ class OrderForm
                         Select::make('lens_type_id')
                             ->label('Lens Type')
                             ->options(fn () => LensType::query()->pluck('name', 'id'))
-                            ->required(),
+                            ->nullable()
+                            ->placeholder('No lens required'),
                         TextInput::make('quantity')
                             ->required()
                             ->numeric()

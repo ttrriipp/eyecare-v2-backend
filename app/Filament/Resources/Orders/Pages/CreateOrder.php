@@ -29,22 +29,24 @@ class CreateOrder extends CreateRecord
 
             foreach ($items as $item) {
                 $variant = ProductVariant::query()->with('product')->findOrFail($item['product_variant_id']);
-                $lensType = LensType::query()->findOrFail($item['lens_type_id']);
+                $lensType = isset($item['lens_type_id']) && $item['lens_type_id']
+                    ? LensType::query()->findOrFail($item['lens_type_id'])
+                    : null;
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (string) $variant->price;
-                $lensTypePrice = $lensType->price !== null ? (string) $lensType->price : '0.00';
+                $lensTypePrice = $lensType?->price !== null ? (string) $lensType->price : '0.00';
                 $lineSubtotal = bcmul(bcadd($unitPrice, $lensTypePrice, 2), (string) $quantity, 2);
                 $subtotal = bcadd($subtotal, $lineSubtotal, 2);
 
                 $lineItems[] = [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType->id,
+                    'lens_type_id' => $lensType?->id,
                     'product_id' => $variant->product_id,
                     'product_name' => $variant->product->name,
                     'variant_name' => $variant->name,
                     'variant_sku' => $variant->sku,
-                    'lens_type_name' => $lensType->name,
-                    'lens_type_price' => $lensType->price !== null ? (string) $lensType->price : null,
+                    'lens_type_name' => $lensType?->name,
+                    'lens_type_price' => $lensType?->price !== null ? (string) $lensType->price : null,
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'subtotal' => $lineSubtotal,

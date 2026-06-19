@@ -44,7 +44,7 @@ class StoreOrderRequest extends FormRequest
                             ->where('is_active', true);
                     }),
             ],
-            'items.*.lens_type_id' => ['required', 'integer', Rule::exists('lens_types', 'id')],
+            'items.*.lens_type_id' => ['nullable', 'integer', Rule::exists('lens_types', 'id')],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         ];
     }

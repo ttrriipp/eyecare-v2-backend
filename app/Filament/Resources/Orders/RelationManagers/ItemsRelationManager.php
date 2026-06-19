@@ -44,7 +44,7 @@ class ItemsRelationManager extends RelationManager
                     ->label('Assign Lens')
                     ->icon('heroicon-o-beaker')
                     ->color('warning')
-                    ->visible(fn ($record): bool => $record->lens_type_id !== null)
+                    ->visible(fn ($record): bool => true)
                     ->schema([
                         Select::make('lens_product_variant_id')
                             ->label('Lens Product Variant')
@@ -52,7 +52,7 @@ class ItemsRelationManager extends RelationManager
                                 return ProductVariant::query()
                                     ->whereHas('product', fn ($q) => $q
                                         ->where('product_type', 'lens')
-                                        ->where('lens_type_id', $record->lens_type_id)
+                                        ->when($record->lens_type_id, fn ($q, $id) => $q->where('lens_type_id', $id))
                                         ->where('is_active', true)
                                     )
                                     ->where('is_active', true)
