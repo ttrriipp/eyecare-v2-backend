@@ -54,7 +54,10 @@ class VariantsRelationManager extends RelationManager
                 ->required()
                 ->numeric()
                 ->minValue(0)
-                ->default(0),
+                ->default(0)
+                ->disabled()
+                ->dehydrated(false)
+                ->helperText('Use "Adjust Stock" to change stock quantity.'),
             TextInput::make('low_stock_threshold')
                 ->required()
                 ->numeric()
