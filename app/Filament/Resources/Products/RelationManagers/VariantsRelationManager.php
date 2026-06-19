@@ -7,6 +7,7 @@ use App\Models\InventoryMovementType;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
@@ -134,7 +135,12 @@ class VariantsRelationManager extends RelationManager
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make()
-                        ->color('info'),
+                        ->color('info')
+                        ->extraModalActions([
+                            DeleteAction::make()
+                                ->color('danger')
+                                ->requiresConfirmation(),
+                        ]),
                     Action::make('toggleVisibility')
                         ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
                         ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
