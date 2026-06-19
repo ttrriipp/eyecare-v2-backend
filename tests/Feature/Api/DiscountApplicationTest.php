@@ -20,7 +20,7 @@ beforeEach(function () {
     $this->seed(DiscountTypeSeeder::class);
     $this->seed(BillingStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();
-    $this->underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $this->requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
 });
 
 // ─── ApplyDiscount action ─────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ it('applies discount when confirming an order via the action', function () {
     $order = Order::factory()->create([
         'subtotal' => '100.00',
         'total_amount' => '100.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -93,7 +93,7 @@ it('confirms without discount when no discount_type_id given', function () {
     $order = Order::factory()->create([
         'subtotal' => '100.00',
         'total_amount' => '100.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -111,7 +111,7 @@ it('staff can confirm an order with a percentage discount via API', function () 
     $order = Order::factory()->create([
         'subtotal' => '200.00',
         'total_amount' => '200.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -133,7 +133,7 @@ it('staff can confirm an order with a custom discount amount via API', function 
     $order = Order::factory()->create([
         'subtotal' => '300.00',
         'total_amount' => '300.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -155,7 +155,7 @@ it('API rejects a discount that would exceed the subtotal', function () {
     $order = Order::factory()->create([
         'subtotal' => '50.00',
         'total_amount' => '50.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -167,7 +167,7 @@ it('API rejects a discount that would exceed the subtotal', function () {
         ])
         ->assertUnprocessable();
 
-    expect($order->fresh()->status->name)->toBe('under_review');
+    expect($order->fresh()->status->name)->toBe('requested');
 });
 
 // ─── Billing uses discounted total ───────────────────────────────────────────
@@ -177,7 +177,7 @@ it('billing is generated with the discounted total_amount', function () {
     $order = Order::factory()->create([
         'subtotal' => '100.00',
         'total_amount' => '100.00',
-        'order_status_id' => $this->underReviewStatus->id,
+        'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 

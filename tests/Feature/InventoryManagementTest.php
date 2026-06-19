@@ -59,7 +59,7 @@ test('staff receives a notification when variant stock drops to or below low_sto
 
     $this->seed(OrderStatusSeeder::class);
     $order = Order::factory()->create([
-        'order_status_id' => OrderStatus::query()->where('name', 'under_review')->value('id'),
+        'order_status_id' => OrderStatus::query()->where('name', 'requested')->value('id'),
         'is_non_prescription' => true,
     ]);
     OrderItem::factory()->create([

@@ -87,7 +87,7 @@ it('rejects billing generation for non-confirmed orders', function (string $stat
     expect(Billing::where('order_id', $order->id)->count())->toBe(0);
 })->with([
     'requested' => ['requested'],
-    'under_review' => ['under_review'],
+
     'cancelled' => ['cancelled'],
 ]);
 

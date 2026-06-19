@@ -18,10 +18,10 @@ it('allows a valid transition and updates the order status', function () {
     $order = Order::factory()->create(['is_non_prescription' => true]);
 
     $action = new UpdateOrderStatus;
-    $updated = $action->handle($order, 'under_review');
+    $updated = $action->handle($order, 'confirmed');
 
-    expect($updated->status->name)->toBe('under_review');
-    expect($order->fresh()->status->name)->toBe('under_review');
+    expect($updated->status->name)->toBe('confirmed');
+    expect($order->fresh()->status->name)->toBe('confirmed');
 });
 
 it('rejects an invalid transition and throws a validation exception', function () {
@@ -34,10 +34,10 @@ it('rejects an invalid transition and throws a validation exception', function (
 });
 
 it('sets confirmed_at when transitioning to confirmed', function () {
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     $action = new UpdateOrderStatus;
@@ -62,10 +62,10 @@ it('sets completed_at when transitioning to completed', function () {
 });
 
 it('blocks confirming a prescription order without a prescription on record', function () {
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     $action = new UpdateOrderStatus;
@@ -75,10 +75,10 @@ it('blocks confirming a prescription order without a prescription on record', fu
 });
 
 it('allows confirming a prescription order when the customer has a prescription', function () {
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     Prescription::factory()->create(['customer_id' => $order->customer_id]);
@@ -98,7 +98,7 @@ it('blocks transitions from terminal states', function (string $terminalStatus) 
 
     $action = new UpdateOrderStatus;
 
-    expect(fn () => $action->handle($order, 'under_review'))
+    expect(fn () => $action->handle($order, 'confirmed'))
         ->toThrow(ValidationException::class);
 })->with([
     'completed' => ['completed'],

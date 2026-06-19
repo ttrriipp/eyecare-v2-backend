@@ -64,7 +64,7 @@ test('stats widget counts pending and under review orders', function () {
     $staff = User::factory()->staff()->create();
 
     $requestedId = OrderStatus::query()->where('name', 'requested')->value('id');
-    $underReviewId = OrderStatus::query()->where('name', 'under_review')->value('id');
+    $underReviewId = OrderStatus::query()->where('name', 'requested')->value('id');
     $completedId = OrderStatus::query()->where('name', 'completed')->value('id');
 
     Order::factory()->count(2)->create(['order_status_id' => $requestedId]);
@@ -77,7 +77,7 @@ test('stats widget counts pending and under review orders', function () {
 
     expect(
         Order::query()
-            ->whereHas('status', fn ($q) => $q->whereIn('name', ['requested', 'under_review']))
+            ->whereHas('status', fn ($q) => $q->whereIn('name', ['requested']))
             ->count()
     )->toBe(3);
 });

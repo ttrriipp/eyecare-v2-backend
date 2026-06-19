@@ -77,7 +77,7 @@ test('customer is NOT notified when appointment is completed', function () {
 test('customer is notified when order status changes', function () {
     $order = Order::factory()->create(['is_non_prescription' => true]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'under_review');
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
 
     Notification::assertSentTo($order->customer, OrderStatusChanged::class);
 });
@@ -85,7 +85,7 @@ test('customer is notified when order status changes', function () {
 test('order notification payload contains correct data', function () {
     $order = Order::factory()->create(['is_non_prescription' => true]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'under_review');
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
 
     Notification::assertSentTo(
         $order->customer,

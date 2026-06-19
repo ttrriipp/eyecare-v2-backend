@@ -61,8 +61,8 @@ class OrderForm
                                 }
 
                                 $transitions = [
-                                    'requested' => ['under_review', 'cancelled'],
-                                    'under_review' => ['confirmed', 'cancelled'],
+                                    'requested' => ['confirmed', 'cancelled'],
+                                    'under_review' => ['confirmed', 'cancelled'], // legacy
                                     'confirmed' => ['preparing', 'cancelled'],
                                     'preparing' => ['ready_for_pickup', 'cancelled'],
                                     'ready_for_pickup' => ['completed', 'cancelled'],

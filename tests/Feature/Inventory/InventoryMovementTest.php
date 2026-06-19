@@ -23,9 +23,9 @@ beforeEach(function () {
 it('deducts stock and records an order_commitment movement when an order is confirmed', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -50,9 +50,9 @@ it('deducts stock and records an order_commitment movement when an order is conf
 it('does not deduct stock more than once if confirmed twice (idempotent via transition guard)', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -125,9 +125,9 @@ it('stock remains correct after movements from multiple items', function () {
     $variantA = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $variantB = ProductVariant::factory()->create(['stock_quantity' => 20]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -207,9 +207,9 @@ it('deducts both frame and lens product variant stock on order confirmation', fu
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 5]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -234,9 +234,9 @@ it('deducts both frame and lens product variant stock on order confirmation', fu
 it('only deducts frame stock when no lens product variant is assigned', function () {
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
 

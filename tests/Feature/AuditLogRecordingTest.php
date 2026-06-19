@@ -97,7 +97,7 @@ test('order status change creates an audit log', function () {
 
     $order = Order::factory()->create();
 
-    app(UpdateOrderStatus::class)->handle($order, 'under_review');
+    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
 
     $this->assertDatabaseHas(AuditLog::class, [
         'subject_type' => $order->getMorphClass(),
@@ -272,7 +272,7 @@ test('every order status transition creates an audit log entry', function () {
     ]);
 
     // requested → under_review → confirmed → preparing → ready_for_pickup → completed
-    foreach (['under_review', 'confirmed', 'preparing', 'ready_for_pickup', 'completed'] as $status) {
+    foreach (['confirmed', 'preparing', 'ready_for_pickup', 'completed'] as $status) {
         app(UpdateOrderStatus::class)->handle($order->fresh(), $status);
     }
 
@@ -282,7 +282,7 @@ test('every order status transition creates an audit log entry', function () {
         ->where('action', 'order.status_changed')
         ->get();
 
-    expect($logs)->toHaveCount(5)
+    expect($logs)->toHaveCount(4)
         ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))
-        ->toContain('under_review', 'confirmed', 'preparing', 'ready_for_pickup', 'completed');
+        ->toContain('confirmed', 'preparing', 'ready_for_pickup', 'completed');
 });

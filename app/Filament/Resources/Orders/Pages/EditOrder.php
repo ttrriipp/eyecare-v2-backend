@@ -19,15 +19,6 @@ class EditOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('review')
-                ->label('Review')
-                ->icon('heroicon-o-eye')
-                ->color('gray')
-                ->requiresConfirmation()
-                ->successNotificationTitle('Order moved to under review')
-                ->visible(fn (): bool => $this->getRecord()->status->name === 'requested')
-                ->action(fn () => app(UpdateOrderStatus::class)->handle($this->getRecord(), 'under_review')),
-
             Action::make('confirm')
                 ->label('Confirm')
                 ->icon('heroicon-o-check-circle')
@@ -35,7 +26,7 @@ class EditOrder extends EditRecord
                 ->requiresConfirmation()
                 ->modalDescription('Confirm this order? Inventory will be deducted.')
                 ->successNotificationTitle('Order confirmed')
-                ->visible(fn (): bool => $this->getRecord()->status->name === 'under_review')
+                ->visible(fn (): bool => in_array($this->getRecord()->status->name, ['requested', 'under_review'], true))
                 ->action(function (): void {
                     try {
                         app(UpdateOrderStatus::class)->handle($this->getRecord(), 'confirmed');

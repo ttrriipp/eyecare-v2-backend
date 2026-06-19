@@ -31,7 +31,6 @@ class ListOrders extends ListRecords
     {
         $orderedStatuses = [
             'requested',
-            'under_review',
             'confirmed',
             'preparing',
             'ready_for_pickup',

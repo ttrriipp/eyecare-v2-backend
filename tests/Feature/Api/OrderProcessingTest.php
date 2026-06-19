@@ -23,8 +23,7 @@ test('staff can advance orders through the full workflow chain', function () {
     $order = Order::factory()->create(['is_non_prescription' => true]);
 
     $chain = [
-        'requested' => 'under_review',
-        'under_review' => 'confirmed',
+        'requested' => 'confirmed',
         'confirmed' => 'preparing',
         'preparing' => 'ready_for_pickup',
         'ready_for_pickup' => 'completed',
@@ -175,7 +174,7 @@ test('customers cannot update order status through the staff endpoint', function
 
     $this->actingAs($customer, 'sanctum')
         ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'under_review',
+            'status' => 'confirmed',
         ])
         ->assertForbidden();
 });
@@ -188,10 +187,10 @@ test('admin users can update order status through the staff endpoint', function 
 
     $this->actingAs($admin, 'sanctum')
         ->patchJson("/api/staff/orders/{$order->id}/status", [
-            'status' => 'under_review',
+            'status' => 'confirmed',
         ])
         ->assertSuccessful()
-        ->assertJsonPath('data.status', 'under_review');
+        ->assertJsonPath('data.status', 'confirmed');
 });
 
 test('order confirmation throws ValidationException when frame variant has insufficient stock', function () {

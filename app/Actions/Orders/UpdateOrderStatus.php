@@ -18,8 +18,8 @@ class UpdateOrderStatus
      * @var array<string, string[]>
      */
     private const ALLOWED_TRANSITIONS = [
-        'requested' => ['under_review', 'cancelled'],
-        'under_review' => ['confirmed', 'cancelled'],
+        'requested' => ['confirmed', 'cancelled'],
+        'under_review' => ['confirmed', 'cancelled'], // legacy — kept for existing records
         'confirmed' => ['preparing', 'cancelled'],
         'preparing' => ['ready_for_pickup', 'cancelled'],
         'ready_for_pickup' => ['completed', 'cancelled'],
