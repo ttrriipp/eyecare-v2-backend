@@ -26,6 +26,23 @@ class ProductsTable
                 TextColumn::make('brand.name')
                     ->label('Brand')
                     ->searchable(),
+                TextColumn::make('product_type')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'frame' => 'Frame',
+                        'lens' => 'Lens',
+                        'contact_lens' => 'Contact Lens',
+                        'accessory' => 'Accessory',
+                        default => $state,
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'frame' => 'info',
+                        'lens' => 'success',
+                        'contact_lens' => 'warning',
+                        'accessory' => 'gray',
+                        default => 'gray',
+                    }),
                 TextColumn::make('is_active')
                     ->label('Visibility')
                     ->badge()
