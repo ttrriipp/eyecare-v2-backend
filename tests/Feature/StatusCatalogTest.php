@@ -2,13 +2,11 @@
 
 use App\Models\AppointmentStatus;
 use App\Models\BillingStatus;
-use App\Models\InventoryMovementStatus;
 use App\Models\NotificationStatus;
 use App\Models\OrderStatus;
 use App\Models\PaymentStatus;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\BillingStatusSeeder;
-use Database\Seeders\InventoryMovementStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentStatusSeeder;
@@ -88,18 +86,4 @@ test('payment statuses are seeded idempotently with approved names', function ()
             'reversed',
         ])
         ->and(PaymentStatus::query()->count())->toBe(3);
-});
-
-test('inventory movement statuses are seeded idempotently with approved names', function () {
-    $this->seed(InventoryMovementStatusSeeder::class);
-    $this->seed(InventoryMovementStatusSeeder::class);
-
-    expect(InventoryMovementStatus::query()->pluck('name')->all())
-        ->toEqualCanonicalizing([
-            'initial',
-            'manual_adjustment',
-            'order_commitment',
-            'order_reversal',
-        ])
-        ->and(InventoryMovementStatus::query()->count())->toBe(4);
 });

@@ -23,7 +23,6 @@ class DatabaseSeeder extends Seeder
             BillingStatusSeeder::class,
             PaymentStatusSeeder::class,
             PaymentMethodSeeder::class,
-            InventoryMovementStatusSeeder::class,
             InventoryMovementTypeSeeder::class,
             DiscountTypeSeeder::class,
             CatalogSeeder::class,

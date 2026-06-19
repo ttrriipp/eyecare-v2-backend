@@ -19,7 +19,6 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\BillingStatusSeeder;
-use Database\Seeders\InventoryMovementStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentStatusSeeder;
@@ -34,7 +33,6 @@ beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
     $this->seed(PaymentStatusSeeder::class);
-    $this->seed(InventoryMovementStatusSeeder::class);
 });
 
 test('CreateAuditLog records actor subject action and metadata', function () {
