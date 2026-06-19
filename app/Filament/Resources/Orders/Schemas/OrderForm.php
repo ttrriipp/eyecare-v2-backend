@@ -12,6 +12,7 @@ use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -52,7 +53,7 @@ class OrderForm
                                     'role_id' => Role::query()->where('name', 'customer')->value('id'),
                                 ])->getKey();
                             }),
-                        Select::make('order_status_id')
+                        ToggleButtons::make('order_status_id')
                             ->label('Status')
                             ->options(function (?Order $record): array {
                                 if (! $record) {
@@ -75,11 +76,22 @@ class OrderForm
                                 return OrderStatus::query()
                                     ->whereIn('name', [$currentName, ...$allowed])
                                     ->pluck('name', 'id')
+                                    ->mapWithKeys(fn ($name, $id) => [$id => ucwords(str_replace('_', ' ', $name))])
                                     ->toArray();
                             })
+                            ->colors(fn (?Order $record): array => [
+                                OrderStatus::query()->where('name', 'requested')->value('id') => 'gray',
+                                OrderStatus::query()->where('name', 'under_review')->value('id') => 'warning',
+                                OrderStatus::query()->where('name', 'confirmed')->value('id') => 'info',
+                                OrderStatus::query()->where('name', 'preparing')->value('id') => 'warning',
+                                OrderStatus::query()->where('name', 'ready_for_pickup')->value('id') => 'success',
+                                OrderStatus::query()->where('name', 'completed')->value('id') => 'success',
+                                OrderStatus::query()->where('name', 'cancelled')->value('id') => 'danger',
+                            ])
                             ->disabledOn('create')
                             ->dehydrated()
-                            ->hiddenOn('create'),
+                            ->hiddenOn('create')
+                            ->columnSpanFull(),
                         Toggle::make('is_non_prescription')
                             ->label('Non-Prescription Order')
                             ->default(true)
