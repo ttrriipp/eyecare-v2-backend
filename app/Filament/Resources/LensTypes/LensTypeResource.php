@@ -19,11 +19,11 @@ class LensTypeResource extends Resource
 {
     protected static ?string $model = LensType::class;
 
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedEye;
 
     protected static ?string $navigationLabel = 'Lens Types';
-
-    protected static string|UnitEnum|null $navigationGroup = 'Catalog';
 
     public static function form(Schema $schema): Schema
     {

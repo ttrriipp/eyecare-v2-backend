@@ -19,11 +19,11 @@ class VisitReasonResource extends Resource
 {
     protected static ?string $model = VisitReason::class;
 
+    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
     protected static ?string $navigationLabel = 'Visit Reasons';
-
-    protected static string|UnitEnum|null $navigationGroup = 'Catalog';
 
     public static function form(Schema $schema): Schema
     {
