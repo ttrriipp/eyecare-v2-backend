@@ -20,6 +20,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Get as FormGet;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -97,6 +98,12 @@ class VariantsRelationManager extends RelationManager
     {
         return $table
             ->columns([
+                ImageColumn::make('images')
+                    ->label('Image')
+                    ->state(fn ($record): ?string => collect($record->images)->first())
+                    ->disk('public')
+                    ->square()
+                    ->size(40),
                 TextColumn::make('name')
                     ->searchable(),
                 TextColumn::make('sku')
@@ -105,12 +112,20 @@ class VariantsRelationManager extends RelationManager
                     ->money('PHP')
                     ->sortable(),
                 IconColumn::make('is_active')
-                    ->label('Visibility')
+                    ->label('Visible')
                     ->boolean()
-                    ->trueIcon('heroicon-o-eye')
-                    ->falseIcon('heroicon-o-eye-slash')
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
-                    ->falseColor('gray'),
+                    ->falseColor('danger'),
+                IconColumn::make('ar_eligible')
+                    ->label('AR')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
                 TextColumn::make('stock_quantity')
                     ->label('Qty')
                     ->sortable(),
