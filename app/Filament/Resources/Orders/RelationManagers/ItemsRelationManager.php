@@ -28,7 +28,7 @@ class ItemsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('product_name')->label('Product'),
                 TextColumn::make('variant_name')->label('Variant'),
-                TextColumn::make('lens_type_name')->label('Lens Type'),
+                TextColumn::make('lens_type_name')->label('Lens Type')->placeholder('No lens'),
                 TextColumn::make('lensProductVariant.name')
                     ->label('Assigned Lens Product')
                     ->placeholder('Not assigned')
