@@ -50,14 +50,13 @@ test('order statuses are seeded idempotently with approved names', function () {
     expect(OrderStatus::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
             'requested',
-            'under_review',
             'confirmed',
             'preparing',
             'ready_for_pickup',
             'completed',
             'cancelled',
         ])
-        ->and(OrderStatus::query()->count())->toBe(7);
+        ->and(OrderStatus::query()->count())->toBe(6);
 });
 
 test('billing statuses are seeded idempotently with approved names', function () {

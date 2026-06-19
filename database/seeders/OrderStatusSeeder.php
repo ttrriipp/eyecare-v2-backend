@@ -14,7 +14,6 @@ class OrderStatusSeeder extends Seeder
     {
         collect([
             'requested',
-            'under_review',
             'confirmed',
             'preparing',
             'ready_for_pickup',

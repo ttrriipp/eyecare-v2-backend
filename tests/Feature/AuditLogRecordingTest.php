@@ -271,7 +271,7 @@ test('every order status transition creates an audit log entry', function () {
         'is_non_prescription' => true,
     ]);
 
-    // requested → under_review → confirmed → preparing → ready_for_pickup → completed
+    // requested → confirmed → preparing → ready_for_pickup → completed
     foreach (['confirmed', 'preparing', 'ready_for_pickup', 'completed'] as $status) {
         app(UpdateOrderStatus::class)->handle($order->fresh(), $status);
     }

@@ -38,23 +38,23 @@ test('order table can filter by status', function () {
     $staff = User::factory()->staff()->create();
 
     $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $requestedOrder = Order::factory()->create([
         'order_status_id' => $requestedStatus->id,
     ]);
 
-    $underReviewOrder = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+    $confirmedOrder = Order::factory()->create([
+        'order_status_id' => $confirmedStatus->id,
     ]);
 
     $this->actingAs($staff);
 
     Livewire::test(ListOrders::class)
-        ->assertCanSeeTableRecords([$requestedOrder, $underReviewOrder])
+        ->assertCanSeeTableRecords([$requestedOrder, $confirmedOrder])
         ->set('activeTab', 'requested')
         ->assertCanSeeTableRecords([$requestedOrder])
-        ->assertCanNotSeeTableRecords([$underReviewOrder]);
+        ->assertCanNotSeeTableRecords([$confirmedOrder]);
 });
 
 test('order table can filter by customer', function () {

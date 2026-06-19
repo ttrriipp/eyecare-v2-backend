@@ -53,7 +53,7 @@ test('staff can cancel orders from any cancellable state', function (string $cur
         ->assertJsonPath('data.status', 'cancelled');
 })->with([
     'from requested' => ['requested'],
-    'from under_review' => ['under_review'],
+    'from under_review' => ['requested'],
     'from confirmed' => ['confirmed'],
     'from preparing' => ['preparing'],
     'from ready_for_pickup' => ['ready_for_pickup'],
@@ -79,7 +79,7 @@ test('completed and cancelled orders cannot be transitioned further', function (
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'under_review'])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'requested'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['status']);
 })->with([
@@ -89,10 +89,10 @@ test('completed and cancelled orders cannot be transitioned further', function (
 
 test('confirming an order sets confirmed_at', function () {
     $staff = User::factory()->staff()->create();
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
@@ -120,10 +120,10 @@ test('completing an order sets completed_at', function () {
 
 test('prescription orders cannot be confirmed without a customer prescription', function () {
     $staff = User::factory()->staff()->create();
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
@@ -134,10 +134,10 @@ test('prescription orders cannot be confirmed without a customer prescription', 
 
 test('prescription orders can be confirmed when the customer has a prescription', function () {
     $staff = User::factory()->staff()->create();
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     Prescription::factory()->create([
@@ -152,10 +152,10 @@ test('prescription orders can be confirmed when the customer has a prescription'
 
 test('non prescription orders can be confirmed without prescription data', function () {
     $staff = User::factory()->staff()->create();
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
@@ -198,9 +198,9 @@ test('order confirmation throws ValidationException when frame variant has insuf
 
     $variant = ProductVariant::factory()->create(['stock_quantity' => 0]);
 
-    $underReviewStatus = OrderStatus::query()->where('name', 'under_review')->firstOrFail();
+    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $underReviewStatus->id,
+        'order_status_id' => $requestedStatus->id,
         'is_non_prescription' => true,
     ]);
     OrderItem::factory()->create([
@@ -213,5 +213,5 @@ test('order confirmation throws ValidationException when frame variant has insuf
         ->toThrow(ValidationException::class);
 
     // Order status must remain unchanged
-    expect($order->fresh()->status->name)->toBe('under_review');
+    expect($order->fresh()->status->name)->toBe('requested');
 });
