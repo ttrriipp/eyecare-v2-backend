@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Products\Tables;
 
 use App\Models\Product;
+use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
@@ -65,10 +67,18 @@ class ProductsTable
                     ->sortable(false),
             ])
             ->recordActions([
-                EditAction::make(),
-                RestoreAction::make(),
-                DeleteAction::make(),
-                ForceDeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    Action::make('toggleVisibility')
+                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                        ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
+                        ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
+                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product hidden' : 'Product visible'),
+                    DeleteAction::make()->color('danger'),
+                    RestoreAction::make(),
+                    ForceDeleteAction::make(),
+                ]),
             ])
             ->filters([
                 SelectFilter::make('product_type')
