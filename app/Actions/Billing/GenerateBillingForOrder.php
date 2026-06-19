@@ -31,14 +31,15 @@ class GenerateBillingForOrder
             ]);
         }
 
-        $draftStatus = BillingStatus::query()->where('name', 'draft')->firstOrFail();
+        $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
 
         $billing = Billing::query()->create([
             'order_id' => $order->id,
-            'billing_status_id' => $draftStatus->id,
+            'billing_status_id' => $issuedStatus->id,
             'total_amount' => $order->total_amount,
             'amount_paid' => '0.00',
             'balance_due' => $order->total_amount,
+            'issued_at' => now(),
         ]);
 
         app(CreateAuditLog::class)->handle(
