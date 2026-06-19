@@ -65,7 +65,6 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_statuses` | draft, issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided, reversed |
 | `notification_statuses` | queued, sent, failed, cancelled |
-| `inventory_movement_statuses` | initial, manual_adjustment, order_commitment, order_reversal |
 | `inventory_movement_types` | restock, sale, adjustment, return, manual_adjustment, order_commitment, order_reversal |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
 | `discount_types` | Senior Citizen (20%), PWD (20%), Loyalty (10%), Custom |
@@ -80,7 +79,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `products` | brand_id, category_id, lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
 | `product_variants` | price, compare_at_price, cost_price, attributes (nullable JSON), stock_quantity, low_stock_threshold, ar_eligible, ar_asset_reference, images (nullable JSON) |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
-| `order_items` | price snapshot at order time — product_name, variant_name, unit_price, lens_type_name, lens_type_price, lens_product_variant_id (nullable FK — specific lens assigned by staff), subtotal (frame + lens). |
+| `order_items` | price snapshot — product_name, variant_name, unit_price, lens_type_id (nullable FK), lens_type_name (nullable), lens_type_price (nullable), lens_product_variant_id (nullable — specific lens assigned by staff), subtotal. |
 | `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), due_date |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
@@ -109,9 +108,9 @@ These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`,
   - `products.images` — product-level hero/lifestyle shots (JSON array of paths)
   - `product_variants.images` — variant-specific images per colorway/size (JSON array of paths). Android app should prefer variant images when a variant is selected, fall back to product images if none.
   - No separate images table. API returns both. No `is_primary` or `sort_order` metadata.
-- **`product_type`** controls form behavior and API visibility. Fixed values: `frame`, `lens`, `contact_lens`, `accessory`. `frame` shows AR fields and attributes on variants; others hide them. Mobile API returns only `frame` products.
+- **`product_type`** controls form behavior and API visibility. Fixed values: `frame`, `lens`, `contact_lens`, `accessory`. `frame` shows AR fields; all types show `attributes`. Mobile API returns only `frame` products. **Disabled on edit** — set at creation time only.
 - **`lens_type_id`** — nullable FK on products, only used for `product_type = 'lens'`. Links a lens product to its lens type category (progressive, single_vision, etc.). The form shows this field only when type is `lens`.
-- **`attributes`** — replaces the old `dimensions` JSON on variants. Generic key-value for variant-specific data. Frame: `{"eye_size":52,"bridge":18,"temple":140}`. Contact lens: `{"power":"-1.25","base_curve":"8.4","diameter":"14.0"}`. Accessory: empty/null.
+- **`attributes`** — replaces old `dimensions`. Generic key-value JSON on variants, visible for ALL product types. Frame: `{"eye_size":52,"bridge":18,"temple":140}`. Contact lens: `{"power":"-1.25","base_curve":"8.4","diameter":"14.0"}`. Accessory/Lens: use as needed.
 
 See `docs/product-data-structure.md` for full rationale.
 
@@ -162,7 +161,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Audit Logs (read-only)
 - User Management (admin only)
 
-**Resources (lookup / settings):**
+**Resources (lookup / settings — grouped under "Settings" nav):**
 - Categories, Brands, Lens Types (with price), Visit Reasons
 
 **Dashboard widgets:** appointment counts, pending orders, low stock, unpaid billings, recent feedback.
@@ -183,14 +182,14 @@ GET    /appointments            Customer's own appointments
 POST   /appointments            Book appointment (customer, status locked to pending)
 GET    /appointments/{id}
 
-GET    /products                Active FRAME products only (paginated) — other product types are admin-only
+GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Non-frame types return 404.
 GET    /products/{id}           Product detail with variants + AR metadata (404 for non-frame products)
 
 GET    /prescriptions           Customer's own prescription history
 GET    /prescriptions/{id}
 
-POST   /orders                  Submit order request (status locked to requested)
-GET    /orders                  Customer's own orders
+POST   /orders                  Submit order request (status locked to requested). `items[].lens_type_id` is nullable — omit for accessories/contact lenses.
+GET    /orders                  Customer's own orders, paginated (default 15, `?per_page=N`)
 GET    /orders/{id}
 
 GET    /billing/{id}            Customer billing with payment history
@@ -229,9 +228,10 @@ PATCH  /staff/orders/{id}/status
 ## Important Conventions
 
 - **Walk-in customers:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone. They cannot log in to the mobile app.
-- **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. Lens type price is snapshotted at order time. If a lens type has no price (null), only the frame price is counted. Order `total_amount` = sum of all item subtotals before discount.
+- **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. `lens_type_id` and `lens_type_price` are nullable (no lens = frame-only price). Order `subtotal` = sum of all item subtotals. `total_amount` = `subtotal` − `discount_amount`. Both recalculate when staff assigns a lens product variant.
+- **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status reverts to `under_review`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager on the order edit page. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
-- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table to record manual movements. Full history viewable in the Inventory History resource.
+- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table (movement type selector). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource.
 - **Billing:** One billing per order. Generated manually by staff after order is confirmed. Payments reduce balance; voided/reversed payments undo that reduction.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
@@ -257,6 +257,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/pre-phase2-bugfix-spec.md` | Complete — 8 tasks |
 | `docs/post-mvp-phase2-spec.md` | Complete — 11 tasks |
 | `docs/lens-inventory-spec.md` | Complete — 7 tasks |
+| `docs/backend-polish-spec.md` | Complete — 11 tasks |
 
 ---
 

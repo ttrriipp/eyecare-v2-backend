@@ -1,6 +1,6 @@
 # Spec: Backend Polish & Improvements
 
-Status: Draft — awaiting review
+Status: Complete — all 11 tasks done
 Phase: Specification
 
 ## Assumptions
