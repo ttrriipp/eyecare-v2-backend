@@ -15,7 +15,6 @@ use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\ToggleButtons;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -65,19 +64,6 @@ class CreateOrder extends CreateRecord
                                 'role_id' => Role::query()->where('name', 'customer')->value('id'),
                             ])->getKey();
                         }),
-                    ToggleButtons::make('order_status_id')
-                        ->label('Status')
-                        ->options(fn () => [
-                            OrderStatus::query()->where('name', 'requested')->value('id') => 'Requested',
-                        ])
-                        ->colors(fn () => [
-                            OrderStatus::query()->where('name', 'requested')->value('id') => 'gray',
-                        ])
-                        ->default(fn () => OrderStatus::query()->where('name', 'requested')->value('id'))
-                        ->required()
-                        ->disabled()
-                        ->dehydrated()
-                        ->columnSpanFull(),
                     Toggle::make('is_non_prescription')
                         ->label('Non-Prescription Order')
                         ->default(true)
