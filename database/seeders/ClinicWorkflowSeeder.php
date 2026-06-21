@@ -145,7 +145,6 @@ class ClinicWorkflowSeeder extends Seeder
                 'amount_paid' => '80.00',
                 'balance_due' => bcsub($totalAmount, '80.00', 2),
                 'issued_at' => now()->subDays(4),
-                'notes' => 'Partial payment received. Balance on pickup. Senior Citizen discount applied.',
             ],
         );
 
