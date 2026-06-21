@@ -206,7 +206,6 @@ class ClinicWorkflowSeeder extends Seeder
                 'amount_paid' => $subtotal,
                 'balance_due' => '0.00',
                 'issued_at' => now()->subDays(13),
-                'notes' => 'Paid in full. Ready for pickup.',
             ],
         );
 
