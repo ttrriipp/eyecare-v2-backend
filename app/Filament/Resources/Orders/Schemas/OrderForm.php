@@ -328,15 +328,42 @@ class OrderForm
                     Grid::make(3)->schema([
                         Placeholder::make('subtotal_display')
                             ->label('Subtotal')
-                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->subtotal, 2) : '—'),
+                            ->content(function (Get $get): string {
+                                $items = $get('/items') ?? [];
+                                $subtotal = collect($items)->sum(function (array $item): float {
+                                    $unit = (float) ($item['unit_price'] ?? 0);
+                                    $lens = (float) ($item['lens_type_price'] ?? 0);
+                                    $qty = max(1, (int) ($item['quantity'] ?? 1));
+
+                                    return ($unit + $lens) * $qty;
+                                });
+
+                                return '₱'.number_format($subtotal, 2);
+                            }),
                         Placeholder::make('discount_display')
                             ->label('Discount')
-                            ->content(fn (?Order $record): string => $record && (float) $record->discount_amount > 0
-                                ? '-₱'.number_format((float) $record->discount_amount, 2)
-                                : '—'),
+                            ->content(function (?Order $record): string {
+                                if (! $record || (float) $record->discount_amount <= 0) {
+                                    return '—';
+                                }
+
+                                return '-₱'.number_format((float) $record->discount_amount, 2);
+                            }),
                         Placeholder::make('total_display')
                             ->label('Total')
-                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->total_amount, 2) : '—'),
+                            ->content(function (Get $get, ?Order $record): string {
+                                $items = $get('/items') ?? [];
+                                $subtotal = collect($items)->sum(function (array $item): float {
+                                    $unit = (float) ($item['unit_price'] ?? 0);
+                                    $lens = (float) ($item['lens_type_price'] ?? 0);
+                                    $qty = max(1, (int) ($item['quantity'] ?? 1));
+
+                                    return ($unit + $lens) * $qty;
+                                });
+                                $discount = (float) ($record?->discount_amount ?? 0);
+
+                                return '₱'.number_format(max(0, $subtotal - $discount), 2);
+                            }),
                         Hidden::make('total_amount')->dehydrated(),
                     ]),
                 ]),
