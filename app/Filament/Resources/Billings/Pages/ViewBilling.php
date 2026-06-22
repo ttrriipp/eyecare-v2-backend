@@ -2,13 +2,10 @@
 
 namespace App\Filament\Resources\Billings\Pages;
 
-use App\Actions\Billing\RecalculateBillingBalance;
 use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Billings\BillingResource;
 use App\Models\Billing;
-use App\Models\Payment;
 use App\Models\PaymentMethod;
-use App\Models\PaymentStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -63,29 +60,6 @@ class ViewBilling extends ViewRecord
                     app(RecordPayment::class)->handle($billing, $data);
                 })
                 ->successNotificationTitle('Payment recorded'),
-
-            Action::make('void_payment')
-                ->label('Void Payment')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->requiresConfirmation()
-                ->arguments([
-                    'payment_id' => null,
-                ])
-                ->action(function (array $arguments): void {
-                    $payment = Payment::query()
-                        ->where('billing_id', $this->getRecord()->id)
-                        ->findOrFail($arguments['payment_id']);
-
-                    if ($payment->status->name !== 'posted') {
-                        return;
-                    }
-
-                    $voidedStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
-                    $payment->update(['payment_status_id' => $voidedStatus->id]);
-                    app(RecalculateBillingBalance::class)->handle($this->getRecord());
-                })
-                ->successNotificationTitle('Payment voided'),
         ];
     }
 }

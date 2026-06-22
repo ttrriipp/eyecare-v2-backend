@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Billings\Schemas;
 
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class BillingInfolist
@@ -11,24 +12,39 @@ class BillingInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('order.order_number')
-                    ->label('Order #'),
-                TextEntry::make('order.customer.name')
-                    ->label('Customer'),
-                TextEntry::make('status.name')
-                    ->label('Status'),
-                TextEntry::make('total_amount')
-                    ->label('Total Amount')
-                    ->money('PHP'),
-                TextEntry::make('amount_paid')
-                    ->label('Amount Paid')
-                    ->money('PHP'),
-                TextEntry::make('balance_due')
-                    ->label('Balance Due')
-                    ->money('PHP'),
-                TextEntry::make('issued_at')
-                    ->label('Issued At')
-                    ->dateTime(),
+                Section::make('Billing Details')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('billing_number')
+                            ->label('Billing #'),
+                        TextEntry::make('order.order_number')
+                            ->label('Order #'),
+                        TextEntry::make('order.customer.name')
+                            ->label('Customer'),
+                        TextEntry::make('status.name')
+                            ->label('Status')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'issued' => 'warning',
+                                'partially_paid' => 'info',
+                                'paid' => 'success',
+                                'voided' => 'danger',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+                        TextEntry::make('total_amount')
+                            ->label('Total')
+                            ->money('PHP'),
+                        TextEntry::make('amount_paid')
+                            ->label('Amount Paid')
+                            ->money('PHP'),
+                        TextEntry::make('balance_due')
+                            ->label('Balance Due')
+                            ->money('PHP'),
+                        TextEntry::make('issued_at')
+                            ->label('Issued At')
+                            ->dateTime('M j, Y'),
+                    ]),
             ]);
     }
 }
