@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Orders\Widgets;
 use App\Models\Order;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Livewire\Attributes\On;
 
 class OrderStatsWidget extends BaseWidget
 {
@@ -13,6 +14,12 @@ class OrderStatsWidget extends BaseWidget
     protected ?string $pollingInterval = null;
 
     public ?string $activeTab = null;
+
+    #[On('order-tab-changed')]
+    public function updateTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+    }
 
     protected function getStats(): array
     {

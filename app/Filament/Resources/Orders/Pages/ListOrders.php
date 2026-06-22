@@ -27,13 +27,9 @@ class ListOrders extends ListRecords
         ];
     }
 
-    protected function getHeaderWidgetsData(): array
+    public function updatedActiveTab(): void
     {
-        return [
-            OrderStatsWidget::class => [
-                'activeTab' => $this->activeTab,
-            ],
-        ];
+        $this->dispatch('order-tab-changed', tab: $this->activeTab);
     }
 
     public function getTabs(): array
