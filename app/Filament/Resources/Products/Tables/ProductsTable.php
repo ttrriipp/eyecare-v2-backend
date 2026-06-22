@@ -37,10 +37,12 @@ class ProductsTable
                     ->sortable(),
                 TextColumn::make('brand.name')
                     ->label('Brand')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('category.name')
                     ->label('Category')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('product_type')
                     ->label('Type')
                     ->badge()
@@ -68,7 +70,8 @@ class ProductsTable
                 TextColumn::make('total_quantity')
                     ->label('Qty')
                     ->state(fn (Product $record): int => $record->variants->sum('stock_quantity'))
-                    ->sortable(false),
+                    ->sortable(false)
+                    ->toggleable(),
             ])
             ->recordActions([
                 ActionGroup::make([
