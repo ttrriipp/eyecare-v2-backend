@@ -19,6 +19,10 @@ class InventoryMovementResource extends Resource
 
     protected static ?string $navigationLabel = 'Inventory History';
 
+    protected static ?string $modelLabel = 'Inventory History';
+
+    protected static ?string $pluralModelLabel = 'Inventory History';
+
     public static function form(Schema $schema): Schema
     {
         return $schema;
