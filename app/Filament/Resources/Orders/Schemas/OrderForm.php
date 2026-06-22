@@ -126,11 +126,6 @@ class OrderForm
                             ->visible(fn (Get $get): bool => ! $get('is_non_prescription'))
                             ->disabled()
                             ->dehydrated(),
-                        TextInput::make('total_amount')
-                            ->label('Total')
-                            ->disabled()
-                            ->dehydrated()
-                            ->prefix('₱'),
                         RichEditor::make('notes')
                             ->label('Staff Notes')
                             ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])
@@ -287,6 +282,23 @@ class OrderForm
                         ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
                         ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
                         ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
+
+                    Grid::make(4)->schema([
+                        Placeholder::make('subtotal_display')
+                            ->label('Subtotal')
+                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->subtotal, 2) : '—')
+                            ->columnStart(3),
+                        Placeholder::make('discount_display')
+                            ->label('Discount')
+                            ->content(fn (?Order $record): string => $record && (float) $record->discount_amount > 0
+                                ? '-₱'.number_format((float) $record->discount_amount, 2)
+                                : '—'),
+                        Placeholder::make('total_display')
+                            ->label('Total')
+                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->total_amount, 2) : '—')
+                            ->columnStart(4),
+                        Hidden::make('total_amount')->dehydrated(),
+                    ])->hiddenOn('create'),
                 ]),
         ]);
     }
