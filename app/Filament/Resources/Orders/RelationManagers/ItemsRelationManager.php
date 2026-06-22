@@ -33,7 +33,7 @@ class ItemsRelationManager extends RelationManager
                     ->label('Assigned Lens Product')
                     ->placeholder('Not assigned')
                     ->badge()
-                    ->color('info'),
+                    ->color(fn ($record): string => $record->lens_type_id && ! $record->lens_product_variant_id ? 'warning' : 'info'),
                 TextColumn::make('unit_price')->label('Frame Price')->money('PHP'),
                 TextColumn::make('lens_type_price')->label('Lens Price')->money('PHP')->placeholder('—'),
                 TextColumn::make('quantity')->label('Qty'),

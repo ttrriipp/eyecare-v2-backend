@@ -18,6 +18,28 @@ class EditOrder extends EditRecord
 {
     protected static string $resource = OrderResource::class;
 
+    protected function afterFill(): void
+    {
+        $record = $this->getRecord();
+
+        if ($record->status->name !== 'requested') {
+            return;
+        }
+
+        $record->loadMissing('items');
+        $unassigned = $record->items->filter(
+            fn ($item) => $item->lens_type_id !== null && $item->lens_product_variant_id === null
+        )->count();
+
+        if ($unassigned > 0) {
+            Notification::make()
+                ->title("{$unassigned} item(s) need a lens assigned before confirming")
+                ->warning()
+                ->persistent()
+                ->send();
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
