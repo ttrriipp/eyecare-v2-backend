@@ -250,7 +250,7 @@ class OrderForm
                                         ->with('product')
                                         ->get()
                                         ->mapWithKeys(fn ($v) => [
-                                            $v->id => "{$v->product->name} — {$v->name} (Stock: {$v->stock_quantity})",
+                                            $v->id => "{$v->product->name} — {$v->name}",
                                         ])
                                         ->toArray();
                                 })
@@ -282,11 +282,10 @@ class OrderForm
             Section::make('Order Summary')
                 ->hiddenOn('create')
                 ->schema([
-                    Grid::make(4)->schema([
+                    Grid::make(3)->schema([
                         Placeholder::make('subtotal_display')
                             ->label('Subtotal')
-                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->subtotal, 2) : '—')
-                            ->columnStart(3),
+                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->subtotal, 2) : '—'),
                         Placeholder::make('discount_display')
                             ->label('Discount')
                             ->content(fn (?Order $record): string => $record && (float) $record->discount_amount > 0
@@ -294,8 +293,7 @@ class OrderForm
                                 : '—'),
                         Placeholder::make('total_display')
                             ->label('Total')
-                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->total_amount, 2) : '—')
-                            ->columnStart(4),
+                            ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->total_amount, 2) : '—'),
                         Hidden::make('total_amount')->dehydrated(),
                     ]),
                 ]),
