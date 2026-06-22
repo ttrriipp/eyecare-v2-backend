@@ -73,8 +73,13 @@ class VariantsRelationManager extends RelationManager
             Toggle::make('ar_eligible')
                 ->live()
                 ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
-            TextInput::make('ar_asset_reference')
-                ->maxLength(255)
+            FileUpload::make('ar_asset_reference')
+                ->label('AR Asset (.glb / .gltf)')
+                ->disk('public')
+                ->directory('ar-assets')
+                ->visibility('public')
+                ->acceptedFileTypes(['model/gltf-binary', 'model/gltf+json', '.glb', '.gltf'])
+                ->maxSize(20480)
                 ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
                 ->columnSpanFull(),
