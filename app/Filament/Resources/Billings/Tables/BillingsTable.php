@@ -7,9 +7,6 @@ use App\Models\Billing;
 use App\Models\PaymentMethod;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\ForceDeleteAction;
-use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
@@ -116,9 +113,6 @@ class BillingsTable
                             app(RecordPayment::class)->handle($record, $data);
                         })
                         ->successNotificationTitle('Payment recorded'),
-                    RestoreAction::make(),
-                    DeleteAction::make(),
-                    ForceDeleteAction::make(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');
