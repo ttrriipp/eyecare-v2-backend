@@ -262,13 +262,10 @@ class OrderForm
                                 ->placeholder('Not assigned')
                                 ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
                                 ->columnSpan(2),
-                            TextInput::make('lens_price_display')
+                            Placeholder::make('lens_price_display')
                                 ->label('Lens Price')
-                                ->prefix('₱')
-                                ->disabled()
-                                ->dehydrated(false)
+                                ->content(fn (Get $get): string => '₱'.number_format((float) ($get('lens_type_price') ?? 0), 2))
                                 ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
-                                ->afterStateHydrated(fn (TextInput $component, Get $get) => $component->state($get('lens_type_price')))
                                 ->columnSpan(1),
                             Hidden::make('subtotal'),
                             Hidden::make('product_id'),
