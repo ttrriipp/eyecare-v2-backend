@@ -6,7 +6,6 @@ use App\Actions\Billing\RecalculateBillingBalance;
 use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -20,7 +19,7 @@ class PaymentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'payments';
 
-    protected static ?string $title = 'Payment History';
+    protected static ?string $title = 'Payments';
 
     public function form(Schema $schema): Schema
     {
@@ -69,17 +68,40 @@ class PaymentsRelationManager extends RelationManager
                     }),
             ])
             ->headerActions([
-                CreateAction::make()
-                    ->label('New Payment')
+                Action::make('record_payment')
+                    ->label('Record Payment')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
                     ->visible(fn (): bool => (float) $this->getOwnerRecord()->balance_due > 0
                         && $this->getOwnerRecord()->status->name !== 'voided')
-                    ->mutateFormDataUsing(function (array $data): array {
-                        $data['payment_status_id'] = PaymentStatus::query()
-                            ->where('name', 'posted')->value('id');
+                    ->schema([
+                        TextInput::make('amount')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
+                            ->prefix('₱')
+                            ->helperText(function (): ?string {
+                                $billing = $this->getOwnerRecord();
 
-                        return $data;
+                                if ($billing->payments()->whereHas('status', fn ($q) => $q->where('name', 'posted'))->exists()) {
+                                    return null;
+                                }
+
+                                return 'Suggested downpayment (50%): ₱'.number_format((float) $billing->total_amount / 2, 2);
+                            }),
+                        Select::make('payment_method_id')
+                            ->label('Method')
+                            ->required()
+                            ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
+                        TextInput::make('reference_number')->maxLength(100),
+                        DateTimePicker::make('paid_at')->default(now()),
+                        Textarea::make('notes'),
+                    ])
+                    ->action(function (array $data): void {
+                        app(RecordPayment::class)->handle($this->getOwnerRecord(), $data);
                     })
-                    ->after(fn () => app(RecalculateBillingBalance::class)->handle($this->getOwnerRecord())),
+                    ->successNotificationTitle('Payment recorded'),
             ])
             ->recordActions([
                 Action::make('void')

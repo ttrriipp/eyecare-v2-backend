@@ -13,7 +13,7 @@ class BillingInfolist
         return $schema
             ->components([
                 Section::make('Billing Details')
-                    ->columns(3)
+                    ->columns(4)
                     ->schema([
                         TextEntry::make('billing_number')
                             ->label('Billing #'),
