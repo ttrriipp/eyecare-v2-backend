@@ -2,12 +2,21 @@
 
 namespace App\Filament\Resources\Billings\Tables;
 
+use App\Actions\Billing\RecalculateBillingBalance;
+use App\Actions\Billing\RecordPayment;
+use App\Models\Billing;
+use App\Models\PaymentMethod;
+use App\Models\PaymentStatus;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -85,6 +94,51 @@ class BillingsTable
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make(),
+                    Action::make('record_payment')
+                        ->label('Record Payment')
+                        ->icon('heroicon-o-banknotes')
+                        ->color('success')
+                        ->visible(fn (Billing $record): bool => (float) $record->balance_due > 0
+                            && $record->status->name !== 'voided')
+                        ->schema([
+                            TextInput::make('amount')
+                                ->required()
+                                ->numeric()
+                                ->minValue(0.01)
+                                ->maxValue(fn (Billing $record): float => (float) $record->balance_due)
+                                ->prefix('₱'),
+                            Select::make('payment_method_id')
+                                ->label('Method')
+                                ->required()
+                                ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
+                            TextInput::make('reference_number')->maxLength(100),
+                            DateTimePicker::make('paid_at')->default(now()),
+                        ])
+                        ->action(function (array $data, Billing $record): void {
+                            app(RecordPayment::class)->handle($record, $data);
+                        })
+                        ->successNotificationTitle('Payment recorded'),
+                    Action::make('void_latest')
+                        ->label('Void Latest Payment')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (Billing $record): bool => $record->payments()
+                            ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
+                            ->exists())
+                        ->action(function (Billing $record): void {
+                            $payment = $record->payments()
+                                ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
+                                ->latest()
+                                ->first();
+
+                            if ($payment) {
+                                $voidedStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
+                                $payment->update(['payment_status_id' => $voidedStatus->id]);
+                                app(RecalculateBillingBalance::class)->handle($record);
+                            }
+                        })
+                        ->successNotificationTitle('Payment voided'),
                     RestoreAction::make(),
                     DeleteAction::make(),
                     ForceDeleteAction::make(),
