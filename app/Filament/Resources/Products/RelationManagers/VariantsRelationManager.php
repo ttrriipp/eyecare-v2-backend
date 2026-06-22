@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Products\RelationManagers;
 
 use App\Actions\Inventory\RecordInventoryMovement;
-use App\Models\InventoryMovementType;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -186,12 +185,15 @@ class VariantsRelationManager extends RelationManager
                         ->schema([
                             Select::make('type')
                                 ->label('Movement Type')
-                                ->options(fn () => InventoryMovementType::query()->pluck('name', 'name'))
+                                ->options([
+                                    'restock' => 'Restock (add units)',
+                                    'manual_adjustment' => 'Manual Adjustment (remove units)',
+                                ])
                                 ->required()
                                 ->live(),
                             TextInput::make('quantity')
                                 ->label(
-                                    fn (FormGet $get): string => in_array($get('type'), ['restock', 'return'])
+                                    fn (FormGet $get): string => $get('type') === 'restock'
                                         ? 'Units to add'
                                         : 'Units to remove'
                                 )
@@ -202,7 +204,7 @@ class VariantsRelationManager extends RelationManager
                                 ->placeholder('Optional notes'),
                         ])
                         ->action(function (array $data, $record): void {
-                            $isAddition = in_array($data['type'], ['restock', 'return']);
+                            $isAddition = $data['type'] === 'restock';
                             $quantityChange = $isAddition ? (int) $data['quantity'] : -(int) $data['quantity'];
 
                             app(RecordInventoryMovement::class)->handle(
@@ -210,6 +212,7 @@ class VariantsRelationManager extends RelationManager
                                 quantityChange: $quantityChange,
                                 type: $data['type'],
                                 notes: $data['notes'] ?? null,
+                                actingUser: auth()->user(),
                             );
 
                             Notification::make()

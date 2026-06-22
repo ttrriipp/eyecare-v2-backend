@@ -18,7 +18,7 @@ class InventoryMovementsTable
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Date')
-                    ->dateTime()
+                    ->dateTime('M j, Y g:i A')
                     ->sortable(),
                 TextColumn::make('productVariant.product.name')
                     ->label('Product')
@@ -30,23 +30,35 @@ class InventoryMovementsTable
                     ->label('Type')
                     ->badge()
                     ->color(fn (InventoryMovement $record): string => match ($record->movementType?->name) {
-                        'restock', 'return' => 'success',
+                        'restock' => 'success',
                         'order_commitment' => 'warning',
                         'order_reversal' => 'info',
-                        'sale', 'adjustment', 'manual_adjustment' => 'gray',
+                        'manual_adjustment' => 'gray',
                         default => 'gray',
-                    }),
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
                 TextColumn::make('quantity_change')
                     ->label('Change')
                     ->formatStateUsing(fn (int $state): string => $state > 0 ? "+{$state}" : (string) $state)
                     ->color(fn (int $state): string => $state > 0 ? 'success' : 'danger'),
+                TextColumn::make('previous_stock')
+                    ->label('Before')
+                    ->placeholder('—'),
+                TextColumn::make('new_stock')
+                    ->label('After')
+                    ->placeholder('—'),
+                TextColumn::make('createdBy.name')
+                    ->label('By')
+                    ->placeholder('System')
+                    ->toggleable(),
                 TextColumn::make('order.order_number')
                     ->label('Order')
                     ->placeholder('—')
                     ->url(fn (InventoryMovement $record): ?string => $record->order_id
                         ? route('filament.admin.resources.orders.edit', $record->order_id)
                         : null
-                    ),
+                    )
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('notes')
                     ->label('Notes')
                     ->limit(40)
@@ -70,6 +82,6 @@ class InventoryMovementsTable
                     ->columns(2),
             ])
             ->defaultSort('created_at', 'desc')
-            ->recordAction(null); // read-only: no row click action
+            ->recordAction(null);
     }
 }
