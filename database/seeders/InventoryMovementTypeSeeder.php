@@ -10,14 +10,10 @@ class InventoryMovementTypeSeeder extends Seeder
     public function run(): void
     {
         collect([
-            'initial',
+            'restock',
             'manual_adjustment',
             'order_commitment',
             'order_reversal',
-            'restock',
-            'sale',
-            'adjustment',
-            'return',
         ])->each(fn (string $name) => InventoryMovementType::query()->firstOrCreate(['name' => $name]));
     }
 }
