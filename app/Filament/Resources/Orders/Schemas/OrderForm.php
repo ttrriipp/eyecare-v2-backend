@@ -264,12 +264,7 @@ class OrderForm
                                 ->disabled()
                                 ->dehydrated()
                                 ->columnSpan(1),
-                            TextInput::make('subtotal')
-                                ->label('Subtotal')
-                                ->prefix('₱')
-                                ->disabled()
-                                ->dehydrated()
-                                ->columnSpan(1),
+                            Hidden::make('subtotal'),
                             Hidden::make('product_id'),
                             Hidden::make('product_name'),
                             Hidden::make('variant_name'),
@@ -282,7 +277,11 @@ class OrderForm
                         ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
                         ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
                         ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
+                ]),
 
+            Section::make('Order Summary')
+                ->hiddenOn('create')
+                ->schema([
                     Grid::make(4)->schema([
                         Placeholder::make('subtotal_display')
                             ->label('Subtotal')
@@ -298,7 +297,7 @@ class OrderForm
                             ->content(fn (?Order $record): string => $record ? '₱'.number_format((float) $record->total_amount, 2) : '—')
                             ->columnStart(4),
                         Hidden::make('total_amount')->dehydrated(),
-                    ])->hiddenOn('create'),
+                    ]),
                 ]),
         ]);
     }
