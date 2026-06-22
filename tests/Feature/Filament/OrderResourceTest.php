@@ -61,22 +61,6 @@ test('order table can filter by status', function () {
         ->assertCanNotSeeTableRecords([$confirmedOrder]);
 });
 
-test('order table can filter by customer', function () {
-    $staff = User::factory()->staff()->create();
-    $customerA = User::factory()->customer()->create();
-    $customerB = User::factory()->customer()->create();
-
-    $orderA = Order::factory()->create(['customer_id' => $customerA->id]);
-    $orderB = Order::factory()->create(['customer_id' => $customerB->id]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(ListOrders::class)
-        ->filterTable('customer', $customerA->id)
-        ->assertCanSeeTableRecords([$orderA])
-        ->assertCanNotSeeTableRecords([$orderB]);
-});
-
 test('staff can update order notes via the edit form', function () {
     $staff = User::factory()->staff()->create();
 

@@ -10,12 +10,15 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
+use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 class OrdersTable
@@ -37,7 +40,8 @@ class OrdersTable
                     ->sortable(),
                 TextColumn::make('customer.name')
                     ->label('Customer')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()
@@ -50,26 +54,50 @@ class OrdersTable
                         'cancelled' => 'danger',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state)))
+                    ->toggleable(),
                 IconColumn::make('is_non_prescription')
                     ->label('Non-Rx')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
-                    ->falseColor('gray'),
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('total_amount')
                     ->label('Total Price')
                     ->money('PHP')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->label('Order Date')
                     ->dateTime('M j, Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
             ])
+            ->groups([
+                Group::make('created_at')
+                    ->label('Order Date')
+                    ->date()
+                    ->collapsible(),
+            ])
+            ->defaultGroup('created_at')
+            ->groupsInDropdownOnDesktop()
             ->filters([
-                SelectFilter::make('customer')
-                    ->relationship('customer', 'name'),
+                Filter::make('created_from')
+                    ->label('Created from')
+                    ->form([DatePicker::make('date')])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['date'],
+                        fn (Builder $q, string $date) => $q->whereDate('created_at', '>=', $date)
+                    )),
+                Filter::make('created_until')
+                    ->label('Created until')
+                    ->form([DatePicker::make('date')])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['date'],
+                        fn (Builder $q, string $date) => $q->whereDate('created_at', '<=', $date)
+                    )),
                 TrashedFilter::make(),
             ])
             ->recordActions([
