@@ -22,6 +22,8 @@ class FeedbackResource extends Resource
 
     protected static ?string $navigationLabel = 'Feedback';
 
+    protected static ?int $navigationSort = 31;
+
     protected static string|UnitEnum|null $navigationGroup = 'Communication';
 
     public static function infolist(Schema $schema): Schema

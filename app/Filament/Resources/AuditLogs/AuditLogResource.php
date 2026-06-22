@@ -22,6 +22,8 @@ class AuditLogResource extends Resource
 
     protected static ?string $navigationLabel = 'Audit Logs';
 
+    protected static ?int $navigationSort = 41;
+
     protected static string|UnitEnum|null $navigationGroup = 'Administration';
 
     public static function infolist(Schema $schema): Schema

@@ -22,6 +22,8 @@ class InventoryMovementResource extends Resource
 
     protected static ?string $navigationLabel = 'Inventory History';
 
+    protected static ?int $navigationSort = 21;
+
     protected static string|UnitEnum|null $navigationGroup = 'Products & Inventory';
 
     protected static ?string $modelLabel = 'Inventory History';

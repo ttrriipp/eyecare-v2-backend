@@ -23,6 +23,8 @@ class PrescriptionResource extends Resource
 
     protected static ?string $navigationLabel = 'Prescriptions';
 
+    protected static ?int $navigationSort = 2;
+
     public static function form(Schema $schema): Schema
     {
         return PrescriptionForm::configure($schema);

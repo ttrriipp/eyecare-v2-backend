@@ -23,6 +23,8 @@ class BillingResource extends Resource
 
     protected static ?string $navigationLabel = 'Billings';
 
+    protected static ?int $navigationSort = 11;
+
     protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
 
     public static function infolist(Schema $schema): Schema

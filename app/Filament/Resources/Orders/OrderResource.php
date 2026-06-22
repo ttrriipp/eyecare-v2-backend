@@ -23,6 +23,8 @@ class OrderResource extends Resource
 
     protected static ?string $navigationLabel = 'Orders';
 
+    protected static ?int $navigationSort = 10;
+
     protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
 
     public static function form(Schema $schema): Schema

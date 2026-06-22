@@ -23,6 +23,8 @@ class UserResource extends Resource
 
     protected static ?string $navigationLabel = 'Users';
 
+    protected static ?int $navigationSort = 40;
+
     protected static string|UnitEnum|null $navigationGroup = 'Administration';
 
     public static function canViewAny(): bool
