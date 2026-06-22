@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -100,6 +101,12 @@ class CreateOrder extends CreateRecord
                         ->minItems(1)
                         ->reorderable()
                         ->addActionLabel('Add to order items')
+                        ->table([
+                            TableColumn::make('Product')->width('35%'),
+                            TableColumn::make('Lens Type')->width('20%'),
+                            TableColumn::make('Qty')->width('10%'),
+                            TableColumn::make('Unit Price')->width('15%'),
+                        ])
                         ->schema([
                             Select::make('product_variant_id')
                                 ->label('Product')
@@ -109,9 +116,7 @@ class CreateOrder extends CreateRecord
                                     ->get()
                                     ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
                                 ->required()
-                                ->searchable()
                                 ->live()
-                                ->columnSpan(3)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     if ($state) {
                                         $variant = ProductVariant::find($state);
@@ -128,7 +133,6 @@ class CreateOrder extends CreateRecord
                                 ->nullable()
                                 ->placeholder('None')
                                 ->live()
-                                ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     $variantId = $get('product_variant_id');
                                     $variant = $variantId ? ProductVariant::find($variantId) : null;
@@ -142,16 +146,13 @@ class CreateOrder extends CreateRecord
                                 ->required()
                                 ->numeric()
                                 ->minValue(1)
-                                ->default(1)
-                                ->columnSpan(1),
+                                ->default(1),
                             TextInput::make('unit_price')
                                 ->label('Unit Price')
                                 ->prefix('₱')
                                 ->disabled()
-                                ->dehydrated(false)
-                                ->columnSpan(2),
+                                ->dehydrated(false),
                         ])
-                        ->columns(8)
                         ->columnSpanFull()
                         ->defaultItems(1),
                 ]),
