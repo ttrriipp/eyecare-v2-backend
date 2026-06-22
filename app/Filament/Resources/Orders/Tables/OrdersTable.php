@@ -81,7 +81,6 @@ class OrdersTable
                     ->date()
                     ->collapsible(),
             ])
-            ->defaultGroup('created_at')
             ->groupsInDropdownOnDesktop()
             ->filters([
                 Filter::make('created_from')
