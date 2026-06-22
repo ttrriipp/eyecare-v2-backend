@@ -328,8 +328,8 @@ class OrderForm
                     Grid::make(3)->schema([
                         Placeholder::make('subtotal_display')
                             ->label('Subtotal')
-                            ->content(function (Get $get): string {
-                                $items = $get('/items') ?? [];
+                            ->content(function ($livewire): string {
+                                $items = $livewire->data['items'] ?? [];
                                 $subtotal = collect($items)->sum(function (array $item): float {
                                     $unit = (float) ($item['unit_price'] ?? 0);
                                     $lens = (float) ($item['lens_type_price'] ?? 0);
@@ -351,8 +351,8 @@ class OrderForm
                             }),
                         Placeholder::make('total_display')
                             ->label('Total')
-                            ->content(function (Get $get, ?Order $record): string {
-                                $items = $get('/items') ?? [];
+                            ->content(function ($livewire, ?Order $record): string {
+                                $items = $livewire->data['items'] ?? [];
                                 $subtotal = collect($items)->sum(function (array $item): float {
                                     $unit = (float) ($item['unit_price'] ?? 0);
                                     $lens = (float) ($item['lens_type_price'] ?? 0);
