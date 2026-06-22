@@ -5,6 +5,7 @@ namespace App\Actions\Orders;
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Inventory\RecordInventoryMovement;
+use App\Models\BillingStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
@@ -106,6 +107,11 @@ class UpdateOrderStatus
         }
         if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
             $this->restoreInventory($order);
+
+            // Auto-void the billing since the order is cancelled
+            $order->billing?->update([
+                'billing_status_id' => BillingStatus::query()->where('name', 'voided')->value('id'),
+            ]);
         }
 
         app(CreateAuditLog::class)->handle(
