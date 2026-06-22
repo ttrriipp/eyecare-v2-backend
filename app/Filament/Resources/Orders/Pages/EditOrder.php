@@ -83,7 +83,13 @@ class EditOrder extends EditRecord
 
     protected function afterSave(): void
     {
-        // Redirect to self so relation managers re-render with updated order status
-        $this->redirect($this->getResource()::getUrl('edit', ['record' => $this->getRecord()]));
+        // Recalculate order totals from saved items
+        $order = $this->getRecord()->fresh(['items']);
+        $newSubtotal = $order->items->sum(fn ($i): float => (float) $i->subtotal);
+        $newTotal = bcsub(number_format($newSubtotal, 2, '.', ''), (string) $order->discount_amount, 2);
+        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => $newTotal]);
+
+        // Redirect to self so the form re-renders with updated order status and totals
+        $this->redirect($this->getResource()::getUrl('edit', ['record' => $order]));
     }
 }

@@ -2,12 +2,17 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -16,6 +21,7 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 
 class OrderForm
@@ -130,6 +136,96 @@ class OrderForm
                             ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])
                             ->columnSpanFull(),
                     ])->columns(2),
+
+                    Repeater::make('items')
+                        ->relationship()
+                        ->label('Order Items')
+                        ->table([
+                            TableColumn::make('Product')->width('40%'),
+                            TableColumn::make('Lens Type')->width('20%'),
+                            TableColumn::make('Qty')->width('10%'),
+                            TableColumn::make('Unit Price')->width('15%'),
+                            TableColumn::make('Subtotal')->width('15%'),
+                        ])
+                        ->compact()
+                        ->schema([
+                            Select::make('product_variant_id')
+                                ->label('Product')
+                                ->options(fn () => ProductVariant::query()
+                                    ->with('product')
+                                    ->where('is_active', true)
+                                    ->get()
+                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
+                                    ->toArray()
+                                )
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    if (! $state) {
+                                        return;
+                                    }
+
+                                    $variant = ProductVariant::with('product')->find($state);
+                                    if (! $variant) {
+                                        return;
+                                    }
+
+                                    $set('product_id', $variant->product_id);
+                                    $set('product_name', $variant->product->name);
+                                    $set('variant_name', $variant->name);
+                                    $set('variant_sku', $variant->sku);
+                                    $set('unit_price', $variant->price);
+
+                                    $lensTypeId = $get('lens_type_id');
+                                    $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
+                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $qty = max(1, (int) $get('quantity'));
+                                    $set('subtotal', bcmul(bcadd((string) $variant->price, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            Select::make('lens_type_id')
+                                ->label('Lens Type')
+                                ->options(fn () => LensType::query()->pluck('name', 'id'))
+                                ->nullable()
+                                ->placeholder('No lens')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    $lensType = $state ? LensType::find($state) : null;
+                                    $set('lens_type_name', $lensType?->name);
+                                    $set('lens_type_price', $lensType?->price);
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $qty = max(1, (int) $get('quantity'));
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            TextInput::make('quantity')
+                                ->label('Qty')
+                                ->numeric()
+                                ->minValue(1)
+                                ->default(1)
+                                ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
+                                    $qty = max(1, (int) $state);
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated(),
+                            TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated(),
+                            // Hidden fields to persist snapshot data
+                            Hidden::make('product_id'),
+                            Hidden::make('product_name'),
+                            Hidden::make('variant_name'),
+                            Hidden::make('variant_sku'),
+                            Hidden::make('lens_type_name'),
+                            Hidden::make('lens_type_price'),
+                            Hidden::make('lens_product_variant_id'),
+                        ])
+                        ->addActionLabel('Add to order items')
+                        ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
+                        ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
+                        ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested')
+                        ->columnSpanFull(),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────
