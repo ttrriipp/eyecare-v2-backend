@@ -20,10 +20,10 @@ class InventoryMovementsTable
                     ->label('Date')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
-                TextColumn::make('productVariant.product.name')
+                TextColumn::make('variant.product.name')
                     ->label('Product')
                     ->searchable(),
-                TextColumn::make('productVariant.name')
+                TextColumn::make('variant.name')
                     ->label('Variant')
                     ->searchable(),
                 TextColumn::make('movementType.name')
