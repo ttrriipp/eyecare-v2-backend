@@ -261,10 +261,24 @@ class OrderForm
                                 ->nullable()
                                 ->placeholder('Not assigned')
                                 ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    if ($state) {
+                                        $variant = ProductVariant::find($state);
+                                        if ($variant) {
+                                            $set('lens_type_price', $variant->price);
+                                            $unitPrice = (float) ($get('unit_price') ?? 0);
+                                            $qty = max(1, (int) $get('quantity'));
+                                            $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $variant->price, 2), (string) $qty, 2));
+                                        }
+                                    }
+                                })
                                 ->columnSpan(2),
-                            Placeholder::make('lens_price_display')
+                            TextInput::make('lens_type_price')
                                 ->label('Lens Price')
-                                ->content(fn (Get $get): string => '₱'.number_format((float) ($get('lens_type_price') ?? 0), 2))
+                                ->prefix('₱')
+                                ->disabled()
+                                ->dehydrated()
                                 ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
                                 ->columnSpan(1),
                             Hidden::make('subtotal'),
@@ -273,7 +287,6 @@ class OrderForm
                             Hidden::make('variant_name'),
                             Hidden::make('variant_sku'),
                             Hidden::make('lens_type_name'),
-                            Hidden::make('lens_type_price'),
                         ])
                         ->addActionLabel('Add to order items')
                         ->deleteAction(fn (Action $action) => $action->iconButton())
