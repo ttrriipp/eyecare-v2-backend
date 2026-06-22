@@ -153,119 +153,133 @@ class OrderForm
             ]),
 
             // ── Order Items (full width) ─────────────────────────────
-            Repeater::make('items')
-                ->relationship()
-                ->label('Order Items')
-                ->table([
-                    TableColumn::make('Product')->width('30%'),
-                    TableColumn::make('Lens Type')->width('15%'),
-                    TableColumn::make('Assigned Lens')->width('20%'),
-                    TableColumn::make('Qty')->width('8%'),
-                    TableColumn::make('Unit Price')->width('12%'),
-                    TableColumn::make('Subtotal')->width('15%'),
+            Section::make('Order Items')
+                ->headerActions([
+                    Action::make('reset_items')
+                        ->label('Reset')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (?Order $record): bool => $record?->status?->name === 'requested')
+                        ->action(function ($livewire): void {
+                            $livewire->dispatch('resetItems');
+                        }),
                 ])
                 ->schema([
-                    Select::make('product_variant_id')
-                        ->label('Product')
-                        ->options(fn () => ProductVariant::query()
-                            ->with('product')
-                            ->where('is_active', true)
-                            ->get()
-                            ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
-                            ->toArray()
-                        )
-                        ->required()
-                        ->live()
-                        ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                            if (! $state) {
-                                return;
-                            }
-
-                            $variant = ProductVariant::with('product')->find($state);
-                            if (! $variant) {
-                                return;
-                            }
-
-                            $set('product_id', $variant->product_id);
-                            $set('product_name', $variant->product->name);
-                            $set('variant_name', $variant->name);
-                            $set('variant_sku', $variant->sku);
-                            $set('unit_price', $variant->price);
-
-                            $lensTypeId = $get('lens_type_id');
-                            $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
-                            $lensPrice = (float) ($lensType?->price ?? 0);
-                            $qty = max(1, (int) $get('quantity'));
-                            $set('subtotal', bcmul(bcadd((string) $variant->price, (string) $lensPrice, 2), (string) $qty, 2));
-                        }),
-                    Select::make('lens_type_id')
-                        ->label('Lens Type')
-                        ->options(fn () => LensType::query()->pluck('name', 'id'))
-                        ->nullable()
-                        ->placeholder('No lens')
-                        ->live()
-                        ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                            $lensType = $state ? LensType::find($state) : null;
-                            $set('lens_type_name', $lensType?->name);
-                            $set('lens_type_price', $lensType?->price);
-                            $set('lens_product_variant_id', null);
-                            $unitPrice = (float) ($get('unit_price') ?? 0);
-                            $lensPrice = (float) ($lensType?->price ?? 0);
-                            $qty = max(1, (int) $get('quantity'));
-                            $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
-                        }),
-                    Select::make('lens_product_variant_id')
-                        ->label('Assigned Lens')
-                        ->options(function (Get $get): array {
-                            $lensTypeId = $get('lens_type_id');
-                            if (! $lensTypeId) {
-                                return [];
-                            }
-
-                            return ProductVariant::query()
-                                ->whereHas('product', fn ($q) => $q
-                                    ->where('product_type', 'lens')
-                                    ->where('lens_type_id', $lensTypeId)
+                    Repeater::make('items')
+                        ->relationship()
+                        ->label('Order Items')
+                        ->table([
+                            TableColumn::make('Product')->width('30%'),
+                            TableColumn::make('Lens Type')->width('15%'),
+                            TableColumn::make('Assigned Lens')->width('20%'),
+                            TableColumn::make('Qty')->width('8%'),
+                            TableColumn::make('Unit Price')->width('12%'),
+                            TableColumn::make('Subtotal')->width('15%'),
+                        ])
+                        ->schema([
+                            Select::make('product_variant_id')
+                                ->label('Product')
+                                ->options(fn () => ProductVariant::query()
+                                    ->with('product')
                                     ->where('is_active', true)
+                                    ->get()
+                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
+                                    ->toArray()
                                 )
-                                ->where('is_active', true)
-                                ->with('product')
-                                ->get()
-                                ->mapWithKeys(fn ($v) => [
-                                    $v->id => "{$v->product->name} — {$v->name} (Stock: {$v->stock_quantity})",
-                                ])
-                                ->toArray();
-                        })
-                        ->nullable()
-                        ->placeholder('Not assigned')
-                        ->hidden(fn (Get $get): bool => ! $get('lens_type_id')),
-                    TextInput::make('quantity')
-                        ->label('Qty')
-                        ->numeric()
-                        ->minValue(1)
-                        ->default(1)
-                        ->required()
-                        ->live(onBlur: true)
-                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
-                            $unitPrice = (float) ($get('unit_price') ?? 0);
-                            $lensPrice = (float) ($get('lens_type_price') ?? 0);
-                            $qty = max(1, (int) $state);
-                            $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
-                        }),
-                    TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated(),
-                    TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated(),
-                    Hidden::make('product_id'),
-                    Hidden::make('product_name'),
-                    Hidden::make('variant_name'),
-                    Hidden::make('variant_sku'),
-                    Hidden::make('lens_type_name'),
-                    Hidden::make('lens_type_price'),
-                ])
-                ->addActionLabel('Add to order items')
-                ->deleteAction(fn (Action $action) => $action->iconButton())
-                ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
-                ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
-                ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    if (! $state) {
+                                        return;
+                                    }
+
+                                    $variant = ProductVariant::with('product')->find($state);
+                                    if (! $variant) {
+                                        return;
+                                    }
+
+                                    $set('product_id', $variant->product_id);
+                                    $set('product_name', $variant->product->name);
+                                    $set('variant_name', $variant->name);
+                                    $set('variant_sku', $variant->sku);
+                                    $set('unit_price', $variant->price);
+
+                                    $lensTypeId = $get('lens_type_id');
+                                    $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
+                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $qty = max(1, (int) $get('quantity'));
+                                    $set('subtotal', bcmul(bcadd((string) $variant->price, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            Select::make('lens_type_id')
+                                ->label('Lens Type')
+                                ->options(fn () => LensType::query()->pluck('name', 'id'))
+                                ->nullable()
+                                ->placeholder('No lens')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    $lensType = $state ? LensType::find($state) : null;
+                                    $set('lens_type_name', $lensType?->name);
+                                    $set('lens_type_price', $lensType?->price);
+                                    $set('lens_product_variant_id', null);
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $qty = max(1, (int) $get('quantity'));
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            Select::make('lens_product_variant_id')
+                                ->label('Assigned Lens')
+                                ->options(function (Get $get): array {
+                                    $lensTypeId = $get('lens_type_id');
+                                    if (! $lensTypeId) {
+                                        return [];
+                                    }
+
+                                    return ProductVariant::query()
+                                        ->whereHas('product', fn ($q) => $q
+                                            ->where('product_type', 'lens')
+                                            ->where('lens_type_id', $lensTypeId)
+                                            ->where('is_active', true)
+                                        )
+                                        ->where('is_active', true)
+                                        ->with('product')
+                                        ->get()
+                                        ->mapWithKeys(fn ($v) => [
+                                            $v->id => "{$v->product->name} — {$v->name} (Stock: {$v->stock_quantity})",
+                                        ])
+                                        ->toArray();
+                                })
+                                ->nullable()
+                                ->placeholder('Not assigned')
+                                ->hidden(fn (Get $get): bool => ! $get('lens_type_id')),
+                            TextInput::make('quantity')
+                                ->label('Qty')
+                                ->numeric()
+                                ->minValue(1)
+                                ->default(1)
+                                ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
+                                    $qty = max(1, (int) $state);
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated(),
+                            TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated(),
+                            Hidden::make('product_id'),
+                            Hidden::make('product_name'),
+                            Hidden::make('variant_name'),
+                            Hidden::make('variant_sku'),
+                            Hidden::make('lens_type_name'),
+                            Hidden::make('lens_type_price'),
+                        ])
+                        ->addActionLabel('Add to order items')
+                        ->deleteAction(fn (Action $action) => $action->iconButton())
+                        ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
+                        ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
+                        ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
+                ]),
         ]);
     }
 }

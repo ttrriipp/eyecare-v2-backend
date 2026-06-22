@@ -43,14 +43,6 @@ class EditOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('reset_items')
-                ->label('Reset Items')
-                ->icon('heroicon-o-arrow-path')
-                ->color('danger')
-                ->requiresConfirmation()
-                ->visible(fn (): bool => $this->getRecord()->status->name === 'requested')
-                ->action(fn () => $this->redirect($this->getResource()::getUrl('edit', ['record' => $this->getRecord()]))),
-
             Action::make('view_billing')
                 ->label('View Billing')
                 ->icon('heroicon-o-banknotes')
@@ -99,5 +91,10 @@ class EditOrder extends EditRecord
 
         // Redirect to self so the form re-renders with updated order status and totals
         $this->redirect($this->getResource()::getUrl('edit', ['record' => $order]));
+    }
+
+    public function resetItems(): void
+    {
+        $this->redirect($this->getResource()::getUrl('edit', ['record' => $this->getRecord()]));
     }
 }
