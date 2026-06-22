@@ -65,7 +65,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_statuses` | issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided |
 | `notification_statuses` | queued, sent, failed, cancelled |
-| `inventory_movement_types` | restock, sale, adjustment, return, manual_adjustment, order_commitment, order_reversal |
+| `inventory_movement_types` | restock, manual_adjustment, order_commitment, order_reversal |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
 | `discount_types` | Senior Citizen (20%), PWD (20%), Loyalty (10%), Custom |
 
@@ -76,7 +76,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `users` | email + password nullable for walk-in customers |
 | `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
-| `products` | brand_id, category_id, lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
+| `products` | brand_id, category_id (nullable), lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
 | `product_variants` | price, compare_at_price, cost_price, attributes (nullable JSON), stock_quantity, low_stock_threshold, ar_eligible, ar_asset_reference, images (nullable JSON) |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
 | `order_items` | price snapshot — product_name, variant_name, unit_price, lens_type_id (nullable FK), lens_type_name (nullable), lens_type_price (nullable), lens_product_variant_id (nullable — specific lens assigned by staff), subtotal. |
@@ -88,6 +88,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `message_attachments` | private storage, images + PDFs only |
 | `feedback` | customer_id, appointment_id or order_id (one required), rating (1–5), staff_reply |
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
+| `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
 | `sms_notifications` | appointment-scoped only |
 
 ### Soft Deletes
@@ -150,6 +151,14 @@ Discount: applied at confirmation time via `discount_type_id` (Senior Citizen 20
 
 URL: `/admin` — accessible to `staff` and `admin` roles only.
 
+**Navigation groups (in order):**
+- *(ungrouped)* — Appointments, Prescriptions
+- Orders & Billing — Orders, Billings
+- Products & Inventory — Products, Inventory History
+- Communication — Conversations, Feedback
+- Administration — Users, Audit Logs
+- Settings — Categories, Brands, Lens Types, Visit Reasons
+
 **Resources (operational):**
 - Appointments — guarded status dropdown on edit form; staff assignment
 - Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
@@ -158,7 +167,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Billings — KPI stats (total, unpaid, collected) + status tabs. Table with badges, date range filters, row actions (View/View Order/Record Payment). View page: 3-col Billing Details infolist + Payments section with Record Payment and void per row. Not deletable — voided automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback
-- Inventory History — read-only movement log with type and date range filters
+- Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
 - User Management (admin only)
 
@@ -322,7 +331,7 @@ PATCH  /staff/orders/{id}/status
 | `GenerateBillingForOrder` | `app/Actions/Billing/` | Creates billing from confirmed order (1:1, duplicate-guarded) |
 | `RecalculateBillingBalance` | `app/Actions/Billing/` | Sums posted payments, updates amount_paid/balance_due/status |
 | `RecordPayment` | `app/Actions/Billing/` | Creates payment + recalculates balance |
-| `RecordInventoryMovement` | `app/Actions/Inventory/` | Creates inventory_movement record, updates variant stock_quantity, fires low stock notification if stock ≤ threshold after deduction |
+| `RecordInventoryMovement` | `app/Actions/Inventory/` | Creates inventory_movement record (with previous_stock, new_stock, created_by), updates variant stock_quantity, fires low stock notification if stock ≤ threshold after deduction |
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata) |
 
 ---
@@ -333,7 +342,7 @@ PATCH  /staff/orders/{id}/status
 - **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. `lens_type_id` and `lens_type_price` are nullable (no lens = frame-only price). Order `subtotal` = sum of all item subtotals. `total_amount` = `subtotal` − `discount_amount`. Both recalculate when staff assigns a lens product variant.
 - **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager **on the order edit page while the order is still `requested`**. "Assign Lens" action is hidden once the order is confirmed or beyond. Confirmation is gated: if any order item has `lens_type_id` set but `lens_product_variant_id` is null, `UpdateOrderStatus` throws a `ValidationException` — staff must assign all lenses before confirming. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
-- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table (movement type selector). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource.
+- **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource (read-only, with view modal per row).
 - **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided`). Billing is auto-voided when the order is cancelled. Staff records payments from the ViewBilling page's Payments section (50% downpayment hint on first payment). Payments are voidable (not deletable) — voided payments excluded from balance. Billings are not deletable through the UI.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
