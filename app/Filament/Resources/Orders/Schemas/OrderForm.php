@@ -9,6 +9,7 @@ use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -141,13 +142,13 @@ class OrderForm
                         ->relationship()
                         ->label('Order Items')
                         ->table([
-                            TableColumn::make('Product')->width('40%'),
-                            TableColumn::make('Lens Type')->width('20%'),
-                            TableColumn::make('Qty')->width('10%'),
-                            TableColumn::make('Unit Price')->width('15%'),
+                            TableColumn::make('Product')->width('30%'),
+                            TableColumn::make('Lens Type')->width('15%'),
+                            TableColumn::make('Assigned Lens')->width('20%'),
+                            TableColumn::make('Qty')->width('8%'),
+                            TableColumn::make('Unit Price')->width('12%'),
                             TableColumn::make('Subtotal')->width('15%'),
                         ])
-                        ->compact()
                         ->schema([
                             Select::make('product_variant_id')
                                 ->label('Product')
@@ -192,11 +193,37 @@ class OrderForm
                                     $lensType = $state ? LensType::find($state) : null;
                                     $set('lens_type_name', $lensType?->name);
                                     $set('lens_type_price', $lensType?->price);
+                                    $set('lens_product_variant_id', null);
                                     $unitPrice = (float) ($get('unit_price') ?? 0);
                                     $lensPrice = (float) ($lensType?->price ?? 0);
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
+                            Select::make('lens_product_variant_id')
+                                ->label('Assigned Lens')
+                                ->options(function (Get $get): array {
+                                    $lensTypeId = $get('lens_type_id');
+                                    if (! $lensTypeId) {
+                                        return [];
+                                    }
+
+                                    return ProductVariant::query()
+                                        ->whereHas('product', fn ($q) => $q
+                                            ->where('product_type', 'lens')
+                                            ->where('lens_type_id', $lensTypeId)
+                                            ->where('is_active', true)
+                                        )
+                                        ->where('is_active', true)
+                                        ->with('product')
+                                        ->get()
+                                        ->mapWithKeys(fn ($v) => [
+                                            $v->id => "{$v->product->name} — {$v->name} (Stock: {$v->stock_quantity})",
+                                        ])
+                                        ->toArray();
+                                })
+                                ->nullable()
+                                ->placeholder('Not assigned')
+                                ->hidden(fn (Get $get): bool => ! $get('lens_type_id')),
                             TextInput::make('quantity')
                                 ->label('Qty')
                                 ->numeric()
@@ -212,16 +239,15 @@ class OrderForm
                                 }),
                             TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated(),
                             TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated(),
-                            // Hidden fields to persist snapshot data
                             Hidden::make('product_id'),
                             Hidden::make('product_name'),
                             Hidden::make('variant_name'),
                             Hidden::make('variant_sku'),
                             Hidden::make('lens_type_name'),
                             Hidden::make('lens_type_price'),
-                            Hidden::make('lens_product_variant_id'),
                         ])
                         ->addActionLabel('Add to order items')
+                        ->deleteAction(fn (Action $action) => $action->iconButton())
                         ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
                         ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
                         ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested')
