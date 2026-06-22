@@ -251,7 +251,7 @@ PATCH  /staff/orders/{id}/status
       "compare_at_price": null,
       "attributes": { "bridge": 18, "temple": 140, "lens_width": 52 },
       "ar_eligible": true,
-      "ar_asset_reference": "frames/classic-rectangle-matte-black.glb",
+      "ar_asset_reference": "ar-assets/abc123.glb",
       "images": []
     }],
     "images": []
@@ -345,7 +345,7 @@ PATCH  /staff/orders/{id}/status
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource (read-only, with view modal per row).
 - **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided`). Billing is auto-voided when the order is cancelled. Staff records payments from the ViewBilling page's Payments section (50% downpayment hint on first payment). Payments are voidable (not deletable) — voided payments excluded from balance. Billings are not deletable through the UI.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
-- **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
+- **AR assets:** `ar_asset_reference` stores the storage path to the uploaded 3D model file. Staff uploads `.glb`, `.gltf`, or transparent `.png` files via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored.
 - **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
 
 ---
