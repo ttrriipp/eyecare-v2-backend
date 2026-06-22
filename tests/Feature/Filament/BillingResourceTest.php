@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\Billings\Pages\ListBillings;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
+use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\Payment;
@@ -10,6 +11,7 @@ use App\Models\PaymentStatus;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentMethodSeeder;
 use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -150,4 +152,30 @@ test('payments table renders on billing view page', function () {
 
     Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
         ->assertSuccessful();
+});
+
+test('staff can record a payment via the payments relation manager', function () {
+    $this->seed(PaymentStatusSeeder::class);
+    $this->seed(PaymentMethodSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create(['total_amount' => '500.00', 'balance_due' => '500.00']);
+    $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(PaymentsRelationManager::class, [
+        'ownerRecord' => $billing,
+        'pageClass' => ViewBilling::class,
+    ])
+        ->callAction('record_payment', data: [
+            'amount' => 250.00,
+            'payment_method_id' => $cashMethod->id,
+            'paid_at' => now()->toDateTimeString(),
+        ])
+        ->assertNotified()
+        ->assertHasNoActionErrors();
+
+    $billing->refresh();
+    expect((float) $billing->amount_paid)->toBe(250.0);
 });
