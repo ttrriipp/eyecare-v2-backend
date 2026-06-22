@@ -137,6 +137,7 @@ class OrderForm
                             ->numeric()
                             ->prefix('₱')
                             ->minValue(0)
+                            ->live(onBlur: true)
                             ->visible(fn (Get $get): bool => (bool) $get('discount_type_id') &&
                                 DiscountType::find($get('discount_type_id'))?->type === 'fixed')
                             ->dehydrated(false)
@@ -342,25 +343,49 @@ class OrderForm
                             }),
                         Placeholder::make('discount_display')
                             ->label('Discount')
-                            ->content(function (?Order $record): string {
-                                if (! $record || (float) $record->discount_amount <= 0) {
+                            ->content(function ($livewire): string {
+                                $discountTypeId = $livewire->data['discount_type_id'] ?? null;
+                                if (! $discountTypeId) {
                                     return '—';
                                 }
 
-                                return '-₱'.number_format((float) $record->discount_amount, 2);
+                                $discountType = DiscountType::find($discountTypeId);
+                                if (! $discountType) {
+                                    return '—';
+                                }
+
+                                $items = $livewire->data['items'] ?? [];
+                                $subtotal = collect($items)->sum(function (array $item): float {
+                                    return ((float) ($item['unit_price'] ?? 0) + (float) ($item['lens_type_price'] ?? 0))
+                                        * max(1, (int) ($item['quantity'] ?? 1));
+                                });
+
+                                $discount = $discountType->type === 'percentage'
+                                    ? $subtotal * ((float) $discountType->value / 100)
+                                    : (float) ($livewire->data['custom_discount_amount'] ?? $discountType->value);
+
+                                return '-₱'.number_format(min($discount, $subtotal), 2);
                             }),
                         Placeholder::make('total_display')
                             ->label('Total')
-                            ->content(function ($livewire, ?Order $record): string {
+                            ->content(function ($livewire): string {
                                 $items = $livewire->data['items'] ?? [];
                                 $subtotal = collect($items)->sum(function (array $item): float {
-                                    $unit = (float) ($item['unit_price'] ?? 0);
-                                    $lens = (float) ($item['lens_type_price'] ?? 0);
-                                    $qty = max(1, (int) ($item['quantity'] ?? 1));
-
-                                    return ($unit + $lens) * $qty;
+                                    return ((float) ($item['unit_price'] ?? 0) + (float) ($item['lens_type_price'] ?? 0))
+                                        * max(1, (int) ($item['quantity'] ?? 1));
                                 });
-                                $discount = (float) ($record?->discount_amount ?? 0);
+
+                                $discountTypeId = $livewire->data['discount_type_id'] ?? null;
+                                $discount = 0.0;
+                                if ($discountTypeId) {
+                                    $discountType = DiscountType::find($discountTypeId);
+                                    if ($discountType) {
+                                        $discount = $discountType->type === 'percentage'
+                                            ? $subtotal * ((float) $discountType->value / 100)
+                                            : (float) ($livewire->data['custom_discount_amount'] ?? $discountType->value);
+                                        $discount = min($discount, $subtotal);
+                                    }
+                                }
 
                                 return '₱'.number_format(max(0, $subtotal - $discount), 2);
                             }),
