@@ -5,7 +5,10 @@ namespace App\Filament\Resources\Products\Tables;
 use App\Models\Product;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
@@ -15,6 +18,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 
 class ProductsTable
 {
@@ -97,6 +101,19 @@ class ProductsTable
                     ]),
                 TrashedFilter::make(),
             ])
-            ->defaultSort('name');
+            ->defaultSort('name')
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('toggle_visibility')
+                        ->label('Toggle Visibility')
+                        ->icon('heroicon-o-eye')
+                        ->requiresConfirmation()
+                        ->action(fn (Collection $records) => $records->each(
+                            fn ($record) => $record->update(['is_active' => ! $record->is_active])
+                        ))
+                        ->deselectRecordsAfterCompletion(),
+                    DeleteBulkAction::make(),
+                ]),
+            ]);
     }
 }
