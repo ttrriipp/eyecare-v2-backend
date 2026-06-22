@@ -20,8 +20,8 @@ class UpdateOrderStatus
      */
     public const ALLOWED_TRANSITIONS = [
         'requested' => ['confirmed', 'cancelled'],
-        'confirmed' => ['preparing', 'cancelled'],
-        'preparing' => ['ready_for_pickup', 'cancelled'],
+        'confirmed' => ['processing', 'cancelled'],
+        'processing' => ['ready_for_pickup', 'cancelled'],
         'ready_for_pickup' => ['completed', 'cancelled'],
         'completed' => [],
         'cancelled' => [],

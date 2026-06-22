@@ -272,7 +272,7 @@ test('every order status transition creates an audit log entry', function () {
     ]);
 
     // requested → confirmed → preparing → ready_for_pickup → completed
-    foreach (['confirmed', 'preparing', 'ready_for_pickup', 'completed'] as $status) {
+    foreach (['confirmed', 'processing', 'ready_for_pickup', 'completed'] as $status) {
         app(UpdateOrderStatus::class)->handle($order->fresh(), $status);
     }
 
@@ -284,5 +284,5 @@ test('every order status transition creates an audit log entry', function () {
 
     expect($logs)->toHaveCount(4)
         ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))
-        ->toContain('confirmed', 'preparing', 'ready_for_pickup', 'completed');
+        ->toContain('confirmed', 'processing', 'ready_for_pickup', 'completed');
 });

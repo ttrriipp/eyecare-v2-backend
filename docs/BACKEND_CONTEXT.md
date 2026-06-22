@@ -61,7 +61,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 |---|---|
 | `roles` | admin, staff, customer |
 | `appointment_statuses` | pending, confirmed, rescheduled, cancelled, completed |
-| `order_statuses` | requested, confirmed, preparing, ready_for_pickup, completed, cancelled |
+| `order_statuses` | requested, confirmed, processing, ready_for_pickup, completed, cancelled |
 | `billing_statuses` | draft, issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided, reversed |
 | `notification_statuses` | queued, sent, failed, cancelled |
@@ -133,8 +133,8 @@ SMS notification records created on: confirmed, rescheduled, cancelled.
 **Orders** (`UpdateOrderStatus`):
 ```
 requested → confirmed, cancelled
-confirmed → preparing, cancelled
-preparing → ready_for_pickup, cancelled
+confirmed → processing, cancelled
+processing → ready_for_pickup, cancelled
 ready_for_pickup → completed, cancelled
 completed → (terminal)
 cancelled → (terminal)

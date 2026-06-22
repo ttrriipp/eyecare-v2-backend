@@ -24,8 +24,8 @@ class OrdersTable
     {
         $advanceLabels = [
             'requested' => ['label' => 'Confirm', 'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
-            'confirmed' => ['label' => 'Start Preparing', 'icon' => 'heroicon-o-wrench-screwdriver', 'color' => 'warning', 'next' => 'preparing'],
-            'preparing' => ['label' => 'Mark Ready', 'icon' => 'heroicon-o-archive-box', 'color' => 'info', 'next' => 'ready_for_pickup'],
+            'confirmed' => ['label' => 'Start Processing', 'icon' => 'heroicon-o-wrench-screwdriver', 'color' => 'warning', 'next' => 'processing'],
+            'processing' => ['label' => 'Mark Ready', 'icon' => 'heroicon-o-archive-box', 'color' => 'info', 'next' => 'ready_for_pickup'],
             'ready_for_pickup' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'completed'],
         ];
 
@@ -44,7 +44,7 @@ class OrdersTable
                     ->color(fn (Order $record): string => match ($record->status?->name) {
                         'requested' => 'gray',
                         'confirmed' => 'info',
-                        'preparing' => 'warning',
+                        'processing' => 'warning',
                         'ready_for_pickup' => 'success',
                         'completed' => 'success',
                         'cancelled' => 'danger',

@@ -32,7 +32,7 @@ class ListOrders extends ListRecords
         $orderedStatuses = [
             'requested',
             'confirmed',
-            'preparing',
+            'processing',
             'ready_for_pickup',
             'completed',
             'cancelled',

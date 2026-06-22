@@ -68,7 +68,7 @@ class OrderForm
                                     return [];
                                 }
 
-                                $order = ['requested', 'confirmed', 'preparing', 'ready_for_pickup', 'completed', 'cancelled'];
+                                $order = ['requested', 'confirmed', 'processing', 'ready_for_pickup', 'completed', 'cancelled'];
 
                                 $transitions = UpdateOrderStatus::ALLOWED_TRANSITIONS;
 
@@ -86,7 +86,7 @@ class OrderForm
                             ->colors(fn (?Order $record): array => [
                                 OrderStatus::query()->where('name', 'requested')->value('id') => 'gray',
                                 OrderStatus::query()->where('name', 'confirmed')->value('id') => 'info',
-                                OrderStatus::query()->where('name', 'preparing')->value('id') => 'warning',
+                                OrderStatus::query()->where('name', 'processing')->value('id') => 'warning',
                                 OrderStatus::query()->where('name', 'ready_for_pickup')->value('id') => 'success',
                                 OrderStatus::query()->where('name', 'completed')->value('id') => 'success',
                                 OrderStatus::query()->where('name', 'cancelled')->value('id') => 'danger',

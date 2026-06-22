@@ -51,7 +51,7 @@ test('order statuses are seeded idempotently with approved names', function () {
         ->toEqualCanonicalizing([
             'requested',
             'confirmed',
-            'preparing',
+            'processing',
             'ready_for_pickup',
             'completed',
             'cancelled',

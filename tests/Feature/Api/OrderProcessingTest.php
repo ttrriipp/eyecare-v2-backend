@@ -27,8 +27,8 @@ test('staff can advance orders through the full workflow chain', function () {
 
     $chain = [
         'requested' => 'confirmed',
-        'confirmed' => 'preparing',
-        'preparing' => 'ready_for_pickup',
+        'confirmed' => 'processing',
+        'processing' => 'ready_for_pickup',
         'ready_for_pickup' => 'completed',
     ];
 
@@ -58,7 +58,7 @@ test('staff can cancel orders from any cancellable state', function (string $cur
     'from requested' => ['requested'],
     'from under_review' => ['requested'],
     'from confirmed' => ['confirmed'],
-    'from preparing' => ['preparing'],
+    'from preparing' => ['processing'],
     'from ready_for_pickup' => ['ready_for_pickup'],
 ]);
 
