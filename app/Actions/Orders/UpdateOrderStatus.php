@@ -18,7 +18,7 @@ class UpdateOrderStatus
      *
      * @var array<string, string[]>
      */
-    private const ALLOWED_TRANSITIONS = [
+    public const ALLOWED_TRANSITIONS = [
         'requested' => ['confirmed', 'cancelled'],
         'confirmed' => ['preparing', 'cancelled'],
         'preparing' => ['ready_for_pickup', 'cancelled'],

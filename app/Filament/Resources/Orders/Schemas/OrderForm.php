@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
@@ -68,14 +69,7 @@ class OrderForm
 
                                 $order = ['requested', 'confirmed', 'preparing', 'ready_for_pickup', 'completed', 'cancelled'];
 
-                                $transitions = [
-                                    'requested' => ['confirmed', 'cancelled'],
-                                    'confirmed' => ['preparing', 'cancelled'],
-                                    'preparing' => ['ready_for_pickup', 'cancelled'],
-                                    'ready_for_pickup' => ['completed', 'cancelled'],
-                                    'completed' => [],
-                                    'cancelled' => [],
-                                ];
+                                $transitions = UpdateOrderStatus::ALLOWED_TRANSITIONS;
 
                                 $currentName = $record->status->name;
                                 $allowed = $transitions[$currentName] ?? [];
@@ -290,6 +284,22 @@ class OrderForm
                         ])
                         ->addActionLabel('Add to order items')
                         ->deleteAction(fn (Action $action) => $action->iconButton())
+                        ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
+                            $unitPrice = (float) ($data['unit_price'] ?? 0);
+                            $lensPrice = (float) ($data['lens_type_price'] ?? 0);
+                            $qty = max(1, (int) ($data['quantity'] ?? 1));
+                            $data['subtotal'] = bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2);
+
+                            return $data;
+                        })
+                        ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                            $unitPrice = (float) ($data['unit_price'] ?? 0);
+                            $lensPrice = (float) ($data['lens_type_price'] ?? 0);
+                            $qty = max(1, (int) ($data['quantity'] ?? 1));
+                            $data['subtotal'] = bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2);
+
+                            return $data;
+                        })
                         ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
                         ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
                         ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
