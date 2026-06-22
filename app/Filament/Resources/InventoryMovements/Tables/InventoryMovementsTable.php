@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InventoryMovements\Tables;
 
 use App\Models\InventoryMovement;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -82,6 +83,8 @@ class InventoryMovementsTable
                     ->columns(2),
             ])
             ->defaultSort('created_at', 'desc')
-            ->recordAction(null);
+            ->recordActions([
+                ViewAction::make(),
+            ]);
     }
 }
