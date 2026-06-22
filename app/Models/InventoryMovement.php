@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'order_id',
     'inventory_movement_type_id',
     'quantity_change',
+    'previous_stock',
+    'new_stock',
+    'created_by',
     'notes',
 ])]
 class InventoryMovement extends Model
@@ -42,6 +45,14 @@ class InventoryMovement extends Model
     public function movementType(): BelongsTo
     {
         return $this->belongsTo(InventoryMovementType::class, 'inventory_movement_type_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 
     /**

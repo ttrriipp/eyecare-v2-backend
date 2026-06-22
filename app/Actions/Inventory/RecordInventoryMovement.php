@@ -27,8 +27,11 @@ class RecordInventoryMovement
         string $type,
         ?int $orderId = null,
         ?string $notes = null,
+        ?User $actingUser = null,
     ): InventoryMovement {
-        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes): InventoryMovement {
+        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes, $actingUser): InventoryMovement {
+            $previousStock = $variant->stock_quantity;
+
             if ($quantityChange < 0) {
                 $deduction = abs($quantityChange);
 
@@ -46,12 +49,17 @@ class RecordInventoryMovement
                 $variant->increment('stock_quantity', $quantityChange);
             }
 
+            $newStock = $previousStock + $quantityChange;
+
             $movement = InventoryMovement::query()->create([
                 'product_variant_id' => $variant->id,
                 'order_id' => $orderId,
                 'inventory_movement_type_id' => InventoryMovementType::query()
                     ->firstOrCreate(['name' => $type])->id,
                 'quantity_change' => $quantityChange,
+                'previous_stock' => $previousStock,
+                'new_stock' => $newStock,
+                'created_by' => $actingUser?->id ?? auth()->id(),
                 'notes' => $notes,
             ]);
 

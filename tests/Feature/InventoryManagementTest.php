@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Inventory\RecordInventoryMovement;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
@@ -10,8 +11,10 @@ use App\Models\OrderStatus;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\InventoryMovementTypeSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
@@ -58,6 +61,8 @@ test('staff receives a notification when variant stock drops to or below low_sto
     ]);
 
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
     $order = Order::factory()->create([
         'order_status_id' => OrderStatus::query()->where('name', 'requested')->value('id'),
         'is_non_prescription' => true,
@@ -65,6 +70,8 @@ test('staff receives a notification when variant stock drops to or below low_sto
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 1,
     ]);
 
@@ -77,4 +84,22 @@ test('staff receives a notification when variant stock drops to or below low_sto
         ->first();
 
     expect($notification)->not->toBeNull();
+});
+
+test('inventory movement records previous_stock, new_stock, and created_by', function () {
+    $this->seed(InventoryMovementTypeSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+
+    $movement = app(RecordInventoryMovement::class)->handle(
+        variant: $variant,
+        quantityChange: 5,
+        type: 'restock',
+        actingUser: $staff,
+    );
+
+    expect($movement->previous_stock)->toBe(10)
+        ->and($movement->new_stock)->toBe(15)
+        ->and($movement->created_by)->toBe($staff->id);
 });
