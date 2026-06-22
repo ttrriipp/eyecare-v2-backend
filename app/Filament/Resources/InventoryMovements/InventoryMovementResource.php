@@ -12,6 +12,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class InventoryMovementResource extends Resource
 {
@@ -20,6 +21,8 @@ class InventoryMovementResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsUpDown;
 
     protected static ?string $navigationLabel = 'Inventory History';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Products & Inventory';
 
     protected static ?string $modelLabel = 'Inventory History';
 

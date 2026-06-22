@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
+use UnitEnum;
 
 class ConversationResource extends Resource
 {
@@ -15,6 +16,8 @@ class ConversationResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 
     protected static ?string $navigationLabel = 'Conversations';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Communication';
 
     public static function getPages(): array
     {

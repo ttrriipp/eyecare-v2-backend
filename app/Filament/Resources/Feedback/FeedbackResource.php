@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class FeedbackResource extends Resource
 {
@@ -20,6 +21,8 @@ class FeedbackResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedStar;
 
     protected static ?string $navigationLabel = 'Feedback';
+
+    protected static string|UnitEnum|null $navigationGroup = 'Communication';
 
     public static function infolist(Schema $schema): Schema
     {
