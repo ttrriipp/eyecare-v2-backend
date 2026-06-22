@@ -17,6 +17,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard\Step;
@@ -96,65 +97,67 @@ class CreateOrder extends CreateRecord
 
             Step::make('Order Items')
                 ->schema([
-                    Repeater::make('items')
-                        ->hiddenLabel()
-                        ->minItems(1)
-                        ->reorderable()
-                        ->addActionLabel('Add to order items')
-                        ->table([
-                            TableColumn::make('Product')->width('35%'),
-                            TableColumn::make('Lens Type')->width('20%'),
-                            TableColumn::make('Qty')->width('10%'),
-                            TableColumn::make('Unit Price')->width('15%'),
-                        ])
-                        ->schema([
-                            Select::make('product_variant_id')
-                                ->label('Product')
-                                ->options(fn () => ProductVariant::query()
-                                    ->with('product')
-                                    ->where('is_active', true)
-                                    ->get()
-                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                                    if ($state) {
-                                        $variant = ProductVariant::find($state);
-                                        $lensTypeId = $get('lens_type_id');
-                                        $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
+                    Section::make()->schema([
+                        Repeater::make('items')
+                            ->hiddenLabel()
+                            ->minItems(1)
+                            ->reorderable()
+                            ->addActionLabel('Add to order items')
+                            ->table([
+                                TableColumn::make('Product')->width('35%'),
+                                TableColumn::make('Lens Type')->width('20%'),
+                                TableColumn::make('Qty')->width('10%'),
+                                TableColumn::make('Unit Price')->width('15%'),
+                            ])
+                            ->schema([
+                                Select::make('product_variant_id')
+                                    ->label('Product')
+                                    ->options(fn () => ProductVariant::query()
+                                        ->with('product')
+                                        ->where('is_active', true)
+                                        ->get()
+                                        ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                        if ($state) {
+                                            $variant = ProductVariant::find($state);
+                                            $lensTypeId = $get('lens_type_id');
+                                            $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
+                                            $unitPrice = (float) ($variant?->price ?? 0);
+                                            $lensPrice = (float) ($lensType?->price ?? 0);
+                                            $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
+                                        }
+                                    }),
+                                Select::make('lens_type_id')
+                                    ->label('Lens Type')
+                                    ->options(fn () => LensType::query()->pluck('name', 'id'))
+                                    ->nullable()
+                                    ->placeholder('None')
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                        $variantId = $get('product_variant_id');
+                                        $variant = $variantId ? ProductVariant::find($variantId) : null;
+                                        $lensType = $state ? LensType::find($state) : null;
                                         $unitPrice = (float) ($variant?->price ?? 0);
                                         $lensPrice = (float) ($lensType?->price ?? 0);
                                         $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
-                                    }
-                                }),
-                            Select::make('lens_type_id')
-                                ->label('Lens Type')
-                                ->options(fn () => LensType::query()->pluck('name', 'id'))
-                                ->nullable()
-                                ->placeholder('None')
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                                    $variantId = $get('product_variant_id');
-                                    $variant = $variantId ? ProductVariant::find($variantId) : null;
-                                    $lensType = $state ? LensType::find($state) : null;
-                                    $unitPrice = (float) ($variant?->price ?? 0);
-                                    $lensPrice = (float) ($lensType?->price ?? 0);
-                                    $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
-                                }),
-                            TextInput::make('quantity')
-                                ->label('Qty')
-                                ->required()
-                                ->numeric()
-                                ->minValue(1)
-                                ->default(1),
-                            TextInput::make('unit_price')
-                                ->label('Unit Price')
-                                ->prefix('₱')
-                                ->disabled()
-                                ->dehydrated(false),
-                        ])
-                        ->columnSpanFull()
-                        ->defaultItems(1),
+                                    }),
+                                TextInput::make('quantity')
+                                    ->label('Qty')
+                                    ->required()
+                                    ->numeric()
+                                    ->minValue(1)
+                                    ->default(1),
+                                TextInput::make('unit_price')
+                                    ->label('Unit Price')
+                                    ->prefix('₱')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                            ])
+                            ->columnSpanFull()
+                            ->defaultItems(1),
+                    ]),
                 ]),
         ];
     }
