@@ -67,7 +67,10 @@ class EditOrder extends EditRecord
 
             if ($newStatusName) {
                 try {
-                    app(UpdateOrderStatus::class)->handle($record, $newStatusName);
+                    $discountTypeId = isset($data['discount_type_id']) ? (int) $data['discount_type_id'] : null;
+                    $customDiscountAmount = isset($data['custom_discount_amount']) ? (float) $data['custom_discount_amount'] : null;
+
+                    app(UpdateOrderStatus::class)->handle($record, $newStatusName, $discountTypeId, $customDiscountAmount);
                 } catch (ValidationException $e) {
                     $message = collect($e->errors())->flatten()->first() ?? 'Cannot change order status.';
                     Notification::make()->title('Status update failed')->body($message)->danger()->send();

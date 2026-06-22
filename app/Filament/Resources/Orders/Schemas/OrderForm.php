@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Actions\Orders\UpdateOrderStatus;
+use App\Models\DiscountType;
 use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
@@ -123,6 +124,22 @@ class OrderForm
                         RichEditor::make('notes')
                             ->label('Staff Notes')
                             ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])
+                            ->columnSpanFull(),
+                        Select::make('discount_type_id')
+                            ->label('Discount')
+                            ->relationship('discountType', 'name', fn ($query) => $query->where('is_active', true))
+                            ->nullable()
+                            ->placeholder('No discount')
+                            ->live()
+                            ->columnSpanFull(),
+                        TextInput::make('custom_discount_amount')
+                            ->label('Custom Discount Amount')
+                            ->numeric()
+                            ->prefix('₱')
+                            ->minValue(0)
+                            ->visible(fn (Get $get): bool => (bool) $get('discount_type_id') &&
+                                DiscountType::find($get('discount_type_id'))?->type === 'fixed')
+                            ->dehydrated(false)
                             ->columnSpanFull(),
                     ])->columns(2),
                 ]),
