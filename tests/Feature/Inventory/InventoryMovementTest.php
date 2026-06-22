@@ -8,8 +8,10 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
 use App\Models\ProductVariant;
+use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\InventoryMovementTypeSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +20,8 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(InventoryMovementTypeSeeder::class);
+    $this->seed(BillingStatusSeeder::class);
+    $this->seed(PaymentStatusSeeder::class);
 });
 
 it('deducts stock and records an order_commitment movement when an order is confirmed', function () {
@@ -32,6 +36,8 @@ it('deducts stock and records an order_commitment movement when an order is conf
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
@@ -59,6 +65,8 @@ it('does not deduct stock more than once if confirmed twice (idempotent via tran
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
@@ -85,6 +93,8 @@ it('restores stock and records an order_reversal movement when a confirmed order
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 3,
     ]);
 
@@ -112,6 +122,8 @@ it('does not create reversal movements when a non-confirmed order is cancelled',
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
@@ -134,12 +146,16 @@ it('stock remains correct after movements from multiple items', function () {
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variantA->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variantB->id,
+        'lens_type_id' => null,
+        'lens_product_variant_id' => null,
         'quantity' => 5,
     ]);
 
@@ -243,6 +259,7 @@ it('only deducts frame stock when no lens product variant is assigned', function
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $frameVariant->id,
+        'lens_type_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 1,
     ]);
