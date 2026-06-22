@@ -62,8 +62,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `roles` | admin, staff, customer |
 | `appointment_statuses` | pending, confirmed, rescheduled, cancelled, completed |
 | `order_statuses` | requested, confirmed, processing, ready_for_pickup, completed, cancelled |
-| `billing_statuses` | draft, issued, partially_paid, paid, voided |
-| `payment_statuses` | posted, voided, reversed |
+| `billing_statuses` | issued, partially_paid, paid, voided |
+| `payment_statuses` | posted, voided |
 | `notification_statuses` | queued, sent, failed, cancelled |
 | `inventory_movement_types` | restock, sale, adjustment, return, manual_adjustment, order_commitment, order_reversal |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
@@ -80,7 +80,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `product_variants` | price, compare_at_price, cost_price, attributes (nullable JSON), stock_quantity, low_stock_threshold, ar_eligible, ar_asset_reference, images (nullable JSON) |
 | `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
 | `order_items` | price snapshot — product_name, variant_name, unit_price, lens_type_id (nullable FK), lens_type_name (nullable), lens_type_price (nullable), lens_product_variant_id (nullable — specific lens assigned by staff), subtotal. |
-| `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), due_date |
+| `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), total_amount, amount_paid, balance_due, issued_at |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
 | `messages` | conversation_id, sender_id, body |
@@ -139,8 +139,10 @@ ready_for_pickup → completed, cancelled
 completed → (terminal)
 cancelled → (terminal)
 ```
-Inventory deducted on `confirmed`. Inventory restored on `cancelled` (if was `confirmed`).
+Inventory deducted on `confirmed`. Inventory restored + billing voided on `cancelled` (if was `confirmed`).
 Prescription gate: orders with `is_non_prescription = false` cannot be confirmed without a customer prescription on record.
+Lens gate: all order items with `lens_type_id` must have `lens_product_variant_id` assigned before confirming.
+Discount: applied at confirmation time via `discount_type_id` (Senior Citizen 20%, PWD 20%, Loyalty 10%, Custom fixed amount).
 
 ---
 
@@ -150,10 +152,10 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 
 **Resources (operational):**
 - Appointments — guarded status dropdown on edit form; staff assignment
-- Orders — KPI stats (total, open, avg price) + status tabs on list. Create uses 2-step wizard (Order Details → Order Items with table-style repeater). Edit shows sidebar with order date/last modified, ToggleButtons for status (cycle-guarded), RichEditor notes, Confirm/Cancel header actions. ItemsRelationManager below form for lens product assignment. Soft delete (trash) with restore.
+- Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
 - Prescriptions
-- Billings — generate billing from confirmed orders, record/void payments
+- Billings — KPI stats (total, unpaid, collected) + status tabs. Table with badges, date range filters, row actions (View/View Order/Record Payment). View page: 3-col Billing Details infolist + Payments section with Record Payment and void per row. Not deletable — voided automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback
 - Inventory History — read-only movement log with type and date range filters
@@ -332,7 +334,7 @@ PATCH  /staff/orders/{id}/status
 - **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager **on the order edit page while the order is still `requested`**. "Assign Lens" action is hidden once the order is confirmed or beyond. Confirmation is gated: if any order item has `lens_type_id` set but `lens_product_variant_id` is null, `UpdateOrderStatus` throws a `ValidationException` — staff must assign all lenses before confirming. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `sale`, `adjustment`, `return`, `manual_adjustment`, `order_commitment`, `order_reversal`. Staff uses the "Adjust Stock" action on the Variants table (movement type selector). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource.
-- **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided` from any). Staff records payments from the Order Edit page (Record Payment header action) or from the ViewBilling page. Both show a 50% downpayment hint on the first payment. Voided/reversed payments undo their reduction. `draft` status exists in the DB but is no longer used for new billings.
+- **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided`). Billing is auto-voided when the order is cancelled. Staff records payments from the ViewBilling page's Payments section (50% downpayment hint on first payment). Payments are voidable (not deletable) — voided payments excluded from balance. Billings are not deletable through the UI.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** Backend stores only `ar_asset_reference` (a path/reference string). No biometric data, face geometry, or facial landmarks are stored anywhere.
 - **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
