@@ -13,7 +13,6 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -168,15 +167,8 @@ class OrderForm
                 ->schema([
                     Repeater::make('items')
                         ->relationship()
-                        ->label('Order Items')
-                        ->table([
-                            TableColumn::make('Product')->width('30%'),
-                            TableColumn::make('Lens Type')->width('15%'),
-                            TableColumn::make('Assigned Lens')->width('20%'),
-                            TableColumn::make('Qty')->width('8%'),
-                            TableColumn::make('Unit Price')->width('12%'),
-                            TableColumn::make('Subtotal')->width('15%'),
-                        ])
+                        ->hiddenLabel()
+                        ->columns(4)
                         ->schema([
                             Select::make('product_variant_id')
                                 ->label('Product')
@@ -189,6 +181,7 @@ class OrderForm
                                 )
                                 ->required()
                                 ->live()
+                                ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     if (! $state) {
                                         return;
@@ -217,6 +210,7 @@ class OrderForm
                                 ->nullable()
                                 ->placeholder('No lens')
                                 ->live()
+                                ->columnSpan(1)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     $lensType = $state ? LensType::find($state) : null;
                                     $set('lens_type_name', $lensType?->name);
@@ -251,7 +245,8 @@ class OrderForm
                                 })
                                 ->nullable()
                                 ->placeholder('Not assigned')
-                                ->hidden(fn (Get $get): bool => ! $get('lens_type_id')),
+                                ->hidden(fn (Get $get): bool => ! $get('lens_type_id'))
+                                ->columnSpan(2),
                             TextInput::make('quantity')
                                 ->label('Qty')
                                 ->numeric()
@@ -259,14 +254,15 @@ class OrderForm
                                 ->default(1)
                                 ->required()
                                 ->live(onBlur: true)
+                                ->columnSpan(1)
                                 ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
                                     $unitPrice = (float) ($get('unit_price') ?? 0);
                                     $lensPrice = (float) ($get('lens_type_price') ?? 0);
                                     $qty = max(1, (int) $state);
                                     $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
-                            TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated(),
-                            TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated(),
+                            TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated()->columnSpan(1),
+                            TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated()->columnSpan(1),
                             Hidden::make('product_id'),
                             Hidden::make('product_name'),
                             Hidden::make('variant_name'),
