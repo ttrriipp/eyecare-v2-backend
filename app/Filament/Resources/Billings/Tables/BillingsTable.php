@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\Billings\Tables;
 
-use App\Actions\Billing\RecalculateBillingBalance;
 use App\Actions\Billing\RecordPayment;
 use App\Models\Billing;
 use App\Models\PaymentMethod;
-use App\Models\PaymentStatus;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
@@ -118,27 +116,6 @@ class BillingsTable
                             app(RecordPayment::class)->handle($record, $data);
                         })
                         ->successNotificationTitle('Payment recorded'),
-                    Action::make('void_latest')
-                        ->label('Void Latest Payment')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->visible(fn (Billing $record): bool => $record->payments()
-                            ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
-                            ->exists())
-                        ->action(function (Billing $record): void {
-                            $payment = $record->payments()
-                                ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
-                                ->latest()
-                                ->first();
-
-                            if ($payment) {
-                                $voidedStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
-                                $payment->update(['payment_status_id' => $voidedStatus->id]);
-                                app(RecalculateBillingBalance::class)->handle($record);
-                            }
-                        })
-                        ->successNotificationTitle('Payment voided'),
                     RestoreAction::make(),
                     DeleteAction::make(),
                     ForceDeleteAction::make(),
