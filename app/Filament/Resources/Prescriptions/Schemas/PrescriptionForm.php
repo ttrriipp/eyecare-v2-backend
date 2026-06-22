@@ -21,48 +21,50 @@ class PrescriptionForm
     {
         return $schema
             ->components([
-                Select::make('customer_id')
-                    ->relationship(
-                        'customer',
-                        'name',
-                        fn (Builder $query): Builder => $query->whereHas(
-                            'role',
-                            fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'customer'),
-                        ),
-                    )
-                    ->required()
-                    ->searchable()
-                    ->preload()
-                    ->live()
-                    ->createOptionForm([
-                        TextInput::make('name')->required(),
-                        TextInput::make('phone')->required()->tel(),
-                        TextInput::make('email')->email()->nullable(),
-                    ])
-                    ->createOptionUsing(function (array $data): int {
-                        return User::create([
-                            'name' => $data['name'],
-                            'phone' => $data['phone'],
-                            'email' => $data['email'] ?? null,
-                            'password' => null,
-                            'role_id' => Role::query()->where('name', 'customer')->value('id'),
-                        ])->getKey();
-                    }),
-                Select::make('appointment_id')
-                    ->relationship(
-                        'appointment',
-                        'id',
-                        fn (Builder $query, Get $get): Builder => $query
-                            ->when(
-                                filled($get('customer_id')),
-                                fn (Builder $appointmentQuery): Builder => $appointmentQuery->where('customer_id', $get('customer_id')),
+                Section::make('Patient Information')->schema([
+                    Select::make('customer_id')
+                        ->relationship(
+                            'customer',
+                            'name',
+                            fn (Builder $query): Builder => $query->whereHas(
+                                'role',
+                                fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'customer'),
                             ),
-                    )
-                    ->getOptionLabelFromRecordUsing(
-                        fn (Appointment $record): string => "{$record->scheduled_at->format('Y-m-d H:i')} (#{$record->id})",
-                    )
-                    ->searchable()
-                    ->preload(),
+                        )
+                        ->required()
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->createOptionForm([
+                            TextInput::make('name')->required(),
+                            TextInput::make('phone')->required()->tel(),
+                            TextInput::make('email')->email()->nullable(),
+                        ])
+                        ->createOptionUsing(function (array $data): int {
+                            return User::create([
+                                'name' => $data['name'],
+                                'phone' => $data['phone'],
+                                'email' => $data['email'] ?? null,
+                                'password' => null,
+                                'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                            ])->getKey();
+                        }),
+                    Select::make('appointment_id')
+                        ->relationship(
+                            'appointment',
+                            'id',
+                            fn (Builder $query, Get $get): Builder => $query
+                                ->when(
+                                    filled($get('customer_id')),
+                                    fn (Builder $appointmentQuery): Builder => $appointmentQuery->where('customer_id', $get('customer_id')),
+                                ),
+                        )
+                        ->getOptionLabelFromRecordUsing(
+                            fn (Appointment $record): string => "{$record->scheduled_at->format('Y-m-d H:i')} (#{$record->id})",
+                        )
+                        ->searchable()
+                        ->preload(),
+                ])->columns(2),
                 Section::make('Right Eye (OD)')
                     ->schema([
                         Grid::make(3)->schema([
@@ -143,23 +145,25 @@ class PrescriptionForm
                                 ->maxLength(20),
                         ]),
                     ]),
-                Grid::make(3)->schema([
-                    TextInput::make('pd')
-                        ->label('PD (mm)')
-                        ->required()
-                        ->numeric()
-                        ->minValue(40)
-                        ->maxValue(80)
-                        ->step(0.5),
-                    DatePicker::make('prescribed_at')
-                        ->required()
-                        ->live(onBlur: true),
-                    DatePicker::make('expires_at')
-                        ->required()
-                        ->afterOrEqual('prescribed_at'),
+                Section::make('Prescription Details')->schema([
+                    Grid::make(3)->schema([
+                        TextInput::make('pd')
+                            ->label('PD (mm)')
+                            ->required()
+                            ->numeric()
+                            ->minValue(40)
+                            ->maxValue(80)
+                            ->step(0.5),
+                        DatePicker::make('prescribed_at')
+                            ->required()
+                            ->live(onBlur: true),
+                        DatePicker::make('expires_at')
+                            ->required()
+                            ->afterOrEqual('prescribed_at'),
+                    ]),
+                    Textarea::make('notes')
+                        ->columnSpanFull(),
                 ]),
-                Textarea::make('notes')
-                    ->columnSpanFull(),
             ]);
     }
 }
