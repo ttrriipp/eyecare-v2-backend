@@ -73,45 +73,43 @@ class OrdersTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                Action::make('advance')
-                    ->label(fn (Order $record): string => $advanceLabels[$record->status?->name]['label'] ?? '')
-                    ->icon(fn (Order $record): string => $advanceLabels[$record->status?->name]['icon'] ?? 'heroicon-o-arrow-right')
-                    ->color(fn (Order $record): string => $advanceLabels[$record->status?->name]['color'] ?? 'gray')
-                    ->visible(fn (Order $record): bool => isset($advanceLabels[$record->status?->name]))
-                    ->requiresConfirmation()
-                    ->action(function (Order $record) use ($advanceLabels): void {
-                        $next = $advanceLabels[$record->status->name]['next'] ?? null;
-                        if (! $next) {
-                            return;
-                        }
-
-                        try {
-                            app(UpdateOrderStatus::class)->handle($record, $next);
-                            Notification::make()->title('Order status updated')->success()->send();
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot advance order.';
-                            Notification::make()->title('Cannot advance order')->body($message)->danger()->send();
-                        }
-                    }),
-
-                Action::make('cancel')
-                    ->label('Cancel')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->visible(fn (Order $record): bool => ! in_array($record->status?->name, ['completed', 'cancelled'], true))
-                    ->requiresConfirmation()
-                    ->action(function (Order $record): void {
-                        try {
-                            app(UpdateOrderStatus::class)->handle($record, 'cancelled');
-                            Notification::make()->title('Order cancelled')->success()->send();
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot cancel order.';
-                            Notification::make()->title('Cannot cancel order')->body($message)->danger()->send();
-                        }
-                    }),
-
                 ActionGroup::make([
                     EditAction::make(),
+                    Action::make('advance')
+                        ->label(fn (Order $record): string => $advanceLabels[$record->status?->name]['label'] ?? '')
+                        ->icon(fn (Order $record): string => $advanceLabels[$record->status?->name]['icon'] ?? 'heroicon-o-arrow-right')
+                        ->color(fn (Order $record): string => $advanceLabels[$record->status?->name]['color'] ?? 'gray')
+                        ->visible(fn (Order $record): bool => isset($advanceLabels[$record->status?->name]))
+                        ->requiresConfirmation()
+                        ->action(function (Order $record) use ($advanceLabels): void {
+                            $next = $advanceLabels[$record->status->name]['next'] ?? null;
+                            if (! $next) {
+                                return;
+                            }
+
+                            try {
+                                app(UpdateOrderStatus::class)->handle($record, $next);
+                                Notification::make()->title('Order status updated')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot advance order.';
+                                Notification::make()->title('Cannot advance order')->body($message)->danger()->send();
+                            }
+                        }),
+                    Action::make('cancel')
+                        ->label('Cancel Order')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (Order $record): bool => ! in_array($record->status?->name, ['completed', 'cancelled'], true))
+                        ->requiresConfirmation()
+                        ->action(function (Order $record): void {
+                            try {
+                                app(UpdateOrderStatus::class)->handle($record, 'cancelled');
+                                Notification::make()->title('Order cancelled')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot cancel order.';
+                                Notification::make()->title('Cannot cancel order')->body($message)->danger()->send();
+                            }
+                        }),
                     RestoreAction::make(),
                     DeleteAction::make(),
                     ForceDeleteAction::make(),
