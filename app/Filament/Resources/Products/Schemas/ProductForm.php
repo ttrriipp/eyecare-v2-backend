@@ -111,7 +111,7 @@ class ProductForm
                                 ->preload(),
                             Select::make('category_id')
                                 ->relationship('category', 'name')
-                                ->required()
+                                ->nullable()
                                 ->searchable()
                                 ->preload(),
                         ]),
