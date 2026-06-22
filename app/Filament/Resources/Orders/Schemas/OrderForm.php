@@ -170,6 +170,7 @@ class OrderForm
                         ->hiddenLabel()
                         ->columns(4)
                         ->schema([
+                            // Row 1: Product(2) | Lens Type(1) | Qty(1)
                             Select::make('product_variant_id')
                                 ->label('Product')
                                 ->options(fn () => ProductVariant::query()
@@ -221,6 +222,21 @@ class OrderForm
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
+                            TextInput::make('quantity')
+                                ->label('Qty')
+                                ->numeric()
+                                ->minValue(1)
+                                ->default(1)
+                                ->required()
+                                ->live(onBlur: true)
+                                ->columnSpan(1)
+                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
+                                    $qty = max(1, (int) $state);
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            // Row 2: Assigned Lens(2) | Unit Price(1) | Subtotal(1)
                             Select::make('lens_product_variant_id')
                                 ->label('Assigned Lens')
                                 ->options(function (Get $get): array {
@@ -245,24 +261,20 @@ class OrderForm
                                 })
                                 ->nullable()
                                 ->placeholder('Not assigned')
-                                ->hidden(fn (Get $get): bool => ! $get('lens_type_id'))
+                                ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
                                 ->columnSpan(2),
-                            TextInput::make('quantity')
-                                ->label('Qty')
-                                ->numeric()
-                                ->minValue(1)
-                                ->default(1)
-                                ->required()
-                                ->live(onBlur: true)
-                                ->columnSpan(1)
-                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
-                                    $unitPrice = (float) ($get('unit_price') ?? 0);
-                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
-                                    $qty = max(1, (int) $state);
-                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
-                                }),
-                            TextInput::make('unit_price')->label('Unit Price')->prefix('₱')->disabled()->dehydrated()->columnSpan(1),
-                            TextInput::make('subtotal')->label('Subtotal')->prefix('₱')->disabled()->dehydrated()->columnSpan(1),
+                            TextInput::make('unit_price')
+                                ->label('Unit Price')
+                                ->prefix('₱')
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
+                            TextInput::make('subtotal')
+                                ->label('Subtotal')
+                                ->prefix('₱')
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
                             Hidden::make('product_id'),
                             Hidden::make('product_name'),
                             Hidden::make('variant_name'),
