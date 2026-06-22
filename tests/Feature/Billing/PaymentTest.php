@@ -154,3 +154,24 @@ it('customers cannot view billings belonging to other customers', function () {
         ->getJson("/api/billing/{$billing->id}")
         ->assertForbidden();
 });
+
+it('billing reverts to issued status when all payments are voided', function () {
+    $billing = Billing::factory()->issued()->create(['total_amount' => '200.00', 'balance_due' => '0.00', 'amount_paid' => '200.00']);
+    $paidStatus = BillingStatus::query()->where('name', 'paid')->firstOrFail();
+    $billing->update(['billing_status_id' => $paidStatus->id]);
+
+    $postedStatus = PaymentStatus::query()->where('name', 'posted')->firstOrFail();
+    $payment = Payment::factory()->create([
+        'billing_id' => $billing->id,
+        'payment_status_id' => $postedStatus->id,
+        'amount' => '200.00',
+    ]);
+
+    $voidedStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
+    $payment->update(['payment_status_id' => $voidedStatus->id]);
+    app(RecalculateBillingBalance::class)->handle($billing);
+
+    $billing->refresh();
+    expect($billing->status->name)->toBe('issued')
+        ->and((float) $billing->balance_due)->toBe(200.0);
+});

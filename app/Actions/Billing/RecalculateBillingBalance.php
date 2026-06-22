@@ -53,6 +53,7 @@ class RecalculateBillingBalance
             return 'partially_paid';
         }
 
-        return $billing->status->name;
+        // All payments voided or none recorded — revert to issued
+        return 'issued';
     }
 }
