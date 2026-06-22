@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Billings\Tables;
 
 use App\Actions\Billing\RecordPayment;
+use App\Filament\Resources\Orders\OrderResource;
 use App\Models\Billing;
 use App\Models\PaymentMethod;
 use Filament\Actions\Action;
@@ -89,6 +90,11 @@ class BillingsTable
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make(),
+                    Action::make('view_order')
+                        ->label('View Order')
+                        ->icon('heroicon-o-shopping-bag')
+                        ->color('gray')
+                        ->url(fn ($record) => OrderResource::getUrl('edit', ['record' => $record->order_id])),
                     Action::make('record_payment')
                         ->label('Record Payment')
                         ->icon('heroicon-o-banknotes')
