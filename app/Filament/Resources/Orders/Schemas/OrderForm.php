@@ -165,7 +165,7 @@ class OrderForm
                         ->hiddenLabel()
                         ->columns(4)
                         ->schema([
-                            // Row 1: Product(2) | Lens Type(1) | Qty(1)
+                            // Row 1: Product(2) | Qty(1) | Unit Price(1)
                             Select::make('product_variant_id')
                                 ->label('Product')
                                 ->options(fn () => ProductVariant::query()
@@ -200,6 +200,27 @@ class OrderForm
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $variant->price, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
+                            TextInput::make('quantity')
+                                ->label('Qty')
+                                ->numeric()
+                                ->minValue(1)
+                                ->default(1)
+                                ->required()
+                                ->live(onBlur: true)
+                                ->columnSpan(1)
+                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                    $unitPrice = (float) ($get('unit_price') ?? 0);
+                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
+                                    $qty = max(1, (int) $state);
+                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
+                                }),
+                            TextInput::make('unit_price')
+                                ->label('Unit Price')
+                                ->prefix('₱')
+                                ->disabled()
+                                ->dehydrated()
+                                ->columnSpan(1),
+                            // Row 2 (lens only): Lens Type(1) | Assigned Lens(2) | Lens Price(1)
                             Select::make('lens_type_id')
                                 ->label('Lens Type')
                                 ->options(fn () => LensType::query()->pluck('name', 'id'))
@@ -217,21 +238,6 @@ class OrderForm
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
-                            TextInput::make('quantity')
-                                ->label('Qty')
-                                ->numeric()
-                                ->minValue(1)
-                                ->default(1)
-                                ->required()
-                                ->live(onBlur: true)
-                                ->columnSpan(1)
-                                ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
-                                    $unitPrice = (float) ($get('unit_price') ?? 0);
-                                    $lensPrice = (float) ($get('lens_type_price') ?? 0);
-                                    $qty = max(1, (int) $state);
-                                    $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
-                                }),
-                            // Row 2: Assigned Lens(2) | Unit Price(1) | Subtotal(1)
                             Select::make('lens_product_variant_id')
                                 ->label('Assigned Lens')
                                 ->options(function (Get $get): array {
@@ -249,20 +255,20 @@ class OrderForm
                                         ->where('is_active', true)
                                         ->with('product')
                                         ->get()
-                                        ->mapWithKeys(fn ($v) => [
-                                            $v->id => "{$v->product->name} — {$v->name}",
-                                        ])
+                                        ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
                                         ->toArray();
                                 })
                                 ->nullable()
                                 ->placeholder('Not assigned')
                                 ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
                                 ->columnSpan(2),
-                            TextInput::make('unit_price')
-                                ->label('Unit Price')
+                            TextInput::make('lens_price_display')
+                                ->label('Lens Price')
                                 ->prefix('₱')
                                 ->disabled()
-                                ->dehydrated()
+                                ->dehydrated(false)
+                                ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
+                                ->afterStateHydrated(fn (TextInput $component, Get $get) => $component->state($get('lens_type_price')))
                                 ->columnSpan(1),
                             Hidden::make('subtotal'),
                             Hidden::make('product_id'),
