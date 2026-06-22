@@ -145,7 +145,8 @@ class ProductForm
                             TextInput::make('cost_price')
                                 ->label('Cost Price')
                                 ->numeric()
-                                ->prefix('₱'),
+                                ->prefix('₱')
+                                ->helperText('Internal use only — not visible to customers.'),
                             TextInput::make('stock_quantity')
                                 ->required()
                                 ->numeric()
