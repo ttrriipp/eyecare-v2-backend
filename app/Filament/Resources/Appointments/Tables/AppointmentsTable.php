@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
@@ -60,10 +61,12 @@ class AppointmentsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                EditAction::make(),
-                RestoreAction::make(),
-                DeleteAction::make(),
-                ForceDeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    RestoreAction::make(),
+                    DeleteAction::make(),
+                    ForceDeleteAction::make(),
+                ]),
             ])
             ->defaultSort('scheduled_at', 'desc');
     }

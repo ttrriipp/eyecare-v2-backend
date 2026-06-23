@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Prescriptions\Tables;
 
+use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
@@ -37,10 +38,12 @@ class PrescriptionsTable
                 TrashedFilter::make(),
             ])
             ->recordActions([
-                EditAction::make(),
-                RestoreAction::make(),
-                DeleteAction::make(),
-                ForceDeleteAction::make(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    RestoreAction::make(),
+                    DeleteAction::make(),
+                    ForceDeleteAction::make(),
+                ]),
             ]);
     }
 }
