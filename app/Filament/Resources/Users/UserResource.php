@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class UserResource extends Resource
@@ -30,6 +31,12 @@ class UserResource extends Resource
     public static function canViewAny(): bool
     {
         return auth()->user()?->role->name === 'admin';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'staff']));
     }
 
     public static function form(Schema $schema): Schema
