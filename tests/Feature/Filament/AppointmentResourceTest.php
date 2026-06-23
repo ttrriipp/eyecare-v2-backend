@@ -53,7 +53,7 @@ test('appointment table can filter by status and scheduled date', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListAppointments::class)
-        ->filterTable('status', $pendingStatus->id)
+        ->set('activeTab', 'pending')
         ->assertCanSeeTableRecords([$pendingAppointment])
         ->assertCanNotSeeTableRecords([$confirmedAppointment]);
 

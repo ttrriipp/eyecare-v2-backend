@@ -14,7 +14,6 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,7 +38,17 @@ class AppointmentsTable
                 TextColumn::make('visitReason.name')
                     ->label('Visit reason'),
                 TextColumn::make('status.name')
-                    ->label('Status'),
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn (Appointment $record): string => match ($record->status?->name) {
+                        'pending' => 'gray',
+                        'confirmed' => 'info',
+                        'rescheduled' => 'warning',
+                        'completed' => 'success',
+                        'cancelled' => 'danger',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
                 TextColumn::make('staff.name')
                     ->label('Assigned staff')
                     ->placeholder('Unassigned')
@@ -52,8 +61,6 @@ class AppointmentsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('status')
-                    ->relationship('status', 'name'),
                 Filter::make('assigned_to_me')
                     ->label('Assigned to me')
                     ->query(fn (Builder $query): Builder => $query->where('staff_id', Auth::id()))

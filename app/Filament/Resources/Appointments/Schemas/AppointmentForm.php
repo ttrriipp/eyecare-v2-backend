@@ -73,13 +73,17 @@ class AppointmentForm
                             ->mapWithKeys(fn ($s) => [$s->id => ucfirst($s->name)])
                             ->toArray();
                     })
-                    ->colors(fn (?Appointment $record): array => [
-                        AppointmentStatus::query()->where('name', 'pending')->value('id') => 'gray',
-                        AppointmentStatus::query()->where('name', 'confirmed')->value('id') => 'info',
-                        AppointmentStatus::query()->where('name', 'rescheduled')->value('id') => 'warning',
-                        AppointmentStatus::query()->where('name', 'completed')->value('id') => 'success',
-                        AppointmentStatus::query()->where('name', 'cancelled')->value('id') => 'danger',
-                    ])
+                    ->colors(function (): array {
+                        $ids = AppointmentStatus::query()->pluck('id', 'name');
+
+                        return [
+                            $ids['pending'] ?? null => 'gray',
+                            $ids['confirmed'] ?? null => 'info',
+                            $ids['rescheduled'] ?? null => 'warning',
+                            $ids['completed'] ?? null => 'success',
+                            $ids['cancelled'] ?? null => 'danger',
+                        ];
+                    })
                     ->inline()
                     ->disabledOn('create')
                     ->dehydrated()
