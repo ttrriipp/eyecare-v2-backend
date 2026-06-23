@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Patients\Schemas;
 
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -15,6 +16,7 @@ class PatientForm
                 TextInput::make('name')->required(),
                 TextInput::make('phone')->tel()->nullable(),
                 TextInput::make('email')->email()->nullable(),
+                DatePicker::make('date_of_birth')->label('Date of Birth')->nullable()->maxDate(now()),
             ]),
         ]);
     }
