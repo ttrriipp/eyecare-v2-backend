@@ -27,18 +27,14 @@ class PatientsTable
                     ->placeholder('Walk-in'),
                 TextColumn::make('last_visit')
                     ->label('Last Visit')
-                    ->state(fn (User $record): string => Appointment::query()
-                        ->where('customer_id', $record->id)
-                        ->latest('scheduled_at')
-                        ->value('scheduled_at')
-                        ? Carbon::parse(
-                            Appointment::query()
-                                ->where('customer_id', $record->id)
-                                ->latest('scheduled_at')
-                                ->value('scheduled_at')
-                        )->format('M j, Y')
-                        : '—'
-                    ),
+                    ->state(function (User $record): string {
+                        $date = Appointment::query()
+                            ->where('customer_id', $record->id)
+                            ->latest('scheduled_at')
+                            ->value('scheduled_at');
+
+                        return $date ? Carbon::parse($date)->format('M j, Y') : '—';
+                    }),
                 TextColumn::make('orders_count')
                     ->label('Orders')
                     ->state(fn (User $record): int => Order::query()
