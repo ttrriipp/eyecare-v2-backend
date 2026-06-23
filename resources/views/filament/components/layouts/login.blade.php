@@ -17,6 +17,13 @@
         .eyecare-img-left img { width: 100%; height: 100%; object-fit: cover; border-radius: 1rem; }
         .eyecare-img-right { flex: 1; display: flex; flex-direction: column; gap: .75rem; }
         .eyecare-img-right img { width: 100%; height: 50%; object-fit: cover; border-radius: 1rem; }
+
+        /* Dark mode — Filament adds .dark to <html> */
+        .dark body, .dark html { background: #111827 !important; }
+        .dark .eyecare-wrap { background: #111827; }
+        .dark .eyecare-card { background: #1f2937; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+        .dark .eyecare-card h1 { color: #f9fafb; }
+        .dark .eyecare-card p { color: #9ca3af; }
     </style>
 
     <div class="eyecare-wrap">
