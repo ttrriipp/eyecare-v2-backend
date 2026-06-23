@@ -163,7 +163,8 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Appointments — guarded status dropdown on edit form; staff assignment
 - Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
-- Prescriptions
+- Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details)
+- Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. DB role stays `customer`, UI label is "Patient". Customers cannot access.
 - Billings — KPI stats (total, unpaid, collected) + status tabs. Table with badges, date range filters, row actions (View/View Order/Record Payment). View page: 3-col Billing Details infolist + Payments section with Record Payment and void per row. Not deletable — voided automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback
@@ -370,6 +371,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/lens-inventory-spec.md` | Complete — 7 tasks |
 | `docs/backend-polish-spec.md` | Complete — 11 tasks |
 | `docs/billings-rework-spec.md` | Complete — 7 tasks |
+| `docs/patients-resource-spec.md` | Complete — 4 tasks |
 
 ---
 
