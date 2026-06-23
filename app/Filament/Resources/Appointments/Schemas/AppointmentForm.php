@@ -74,15 +74,15 @@ class AppointmentForm
                             ->toArray();
                     })
                     ->colors(function (): array {
-                        $ids = AppointmentStatus::query()->pluck('id', 'name');
+                        $ids = once(fn () => AppointmentStatus::query()->pluck('id', 'name'));
 
-                        return [
+                        return array_filter([
                             $ids['pending'] ?? null => 'gray',
                             $ids['confirmed'] ?? null => 'info',
                             $ids['rescheduled'] ?? null => 'warning',
                             $ids['completed'] ?? null => 'success',
                             $ids['cancelled'] ?? null => 'danger',
-                        ];
+                        ], fn ($k) => $k !== null, ARRAY_FILTER_USE_KEY);
                     })
                     ->inline()
                     ->disabledOn('create')
