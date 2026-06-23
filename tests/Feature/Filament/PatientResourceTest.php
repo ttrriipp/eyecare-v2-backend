@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\Pages\ListPatients;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,4 +36,28 @@ test('customers cannot access the patients resource', function () {
     $this->actingAs($customer);
 
     $this->get('/admin/patients')->assertForbidden();
+});
+
+test('staff can view a patient profile', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->customer()->create();
+
+    $this->actingAs($staff);
+
+    $this->get("/admin/patients/{$patient->id}/edit")
+        ->assertSuccessful();
+});
+
+test('staff can update patient name and phone', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->customer()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditPatient::class, ['record' => $patient->getRouteKey()])
+        ->fillForm(['name' => 'Updated Name', 'phone' => '09171234567'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($patient->fresh()->name)->toBe('Updated Name');
 });

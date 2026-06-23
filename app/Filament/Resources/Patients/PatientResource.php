@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Patients;
 
+use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\Pages\ListPatients;
+use App\Filament\Resources\Patients\Schemas\PatientForm;
 use App\Filament\Resources\Patients\Tables\PatientsTable;
 use App\Models\User;
 use BackedEnum;
@@ -40,7 +42,7 @@ class PatientResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema;
+        return PatientForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -57,6 +59,7 @@ class PatientResource extends Resource
     {
         return [
             'index' => ListPatients::route('/'),
+            'edit' => EditPatient::route('/{record}/edit'),
         ];
     }
 }
