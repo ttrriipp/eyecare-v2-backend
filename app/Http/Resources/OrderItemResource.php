@@ -30,6 +30,8 @@ class OrderItemResource extends JsonResource
             'unit_price' => $this->unit_price,
             'quantity' => $this->quantity,
             'subtotal' => $this->subtotal,
+            'product_images' => $this->whenLoaded('productVariant', fn () => $this->productVariant?->product?->images ?? []),
+            'variant_images' => $this->whenLoaded('productVariant', fn () => $this->productVariant?->images ?? []),
         ];
     }
 }

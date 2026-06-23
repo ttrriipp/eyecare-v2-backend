@@ -228,3 +228,32 @@ test('order endpoints require authentication', function () {
     $this->postJson('/api/orders', [])->assertUnauthorized();
     $this->getJson('/api/orders')->assertUnauthorized();
 });
+
+test('order item response includes product and variant image urls', function () {
+    $customer = User::factory()->customer()->create();
+    $product = Product::factory()->create([
+        'is_active' => true,
+        'images' => ['products/hero.jpg'],
+    ]);
+    $variant = ProductVariant::factory()->for($product)->create([
+        'is_active' => true,
+        'images' => ['variants/color.jpg'],
+    ]);
+    $lensType = LensType::factory()->create(['price' => null]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'is_non_prescription' => true,
+            'items' => [
+                ['product_variant_id' => $variant->id, 'lens_type_id' => $lensType->id, 'quantity' => 1],
+            ],
+        ]);
+
+    $order = Order::query()->where('customer_id', $customer->id)->firstOrFail();
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/orders/{$order->id}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.product_images', ['products/hero.jpg'])
+        ->assertJsonPath('data.items.0.variant_images', ['variants/color.jpg']);
+});

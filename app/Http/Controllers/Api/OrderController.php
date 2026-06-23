@@ -24,7 +24,7 @@ class OrderController extends Controller
     {
         $orders = Order::query()
             ->where('customer_id', $request->user()->id)
-            ->with(['status', 'items'])
+            ->with(['status', 'items.productVariant.product'])
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 
@@ -109,7 +109,7 @@ class OrderController extends Controller
     {
         abort_unless($order->customer_id === $request->user()->id, 404);
 
-        $order->load(['status', 'items']);
+        $order->load(['status', 'items.productVariant.product']);
 
         return response()->json([
             'data' => OrderResource::make($order),
