@@ -28,7 +28,7 @@ class UsersTable
             ])
             ->filters([
                 SelectFilter::make('role')
-                    ->relationship('role', 'name'),
+                    ->relationship('role', 'name', fn ($query) => $query->whereIn('name', ['admin', 'staff'])),
             ])
             ->recordActions([
                 EditAction::make(),
