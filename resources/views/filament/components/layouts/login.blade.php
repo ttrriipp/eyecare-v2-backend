@@ -3,42 +3,39 @@
 @endphp
 
 <x-filament-panels::layout.base :livewire="$livewire">
-    <div class="flex min-h-screen items-center justify-center bg-[#DCEEFB] px-4 py-12">
-        <div class="flex w-full max-w-5xl items-stretch gap-6">
+    <style>
+        body, html { background: #DCEEFB !important; }
+        .fi-simple-layout, .fi-simple-main-ctn, .fi-simple-main { background: transparent !important; max-width: 100% !important; padding: 0 !important; }
+        .eyecare-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 1rem; background: #DCEEFB; }
+        .eyecare-inner { display: flex; width: 100%; max-width: 72rem; align-items: stretch; gap: 1.5rem; }
+        .eyecare-card { background: #fff; border-radius: 1rem; padding: 2.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); width: 100%; max-width: 28rem; display: flex; flex-direction: column; justify-content: center; }
+        .eyecare-card h1 { font-size: 2.25rem; font-weight: 900; letter-spacing: .05em; color: #111827; text-align: center; margin: 0 0 .5rem; }
+        .eyecare-card p { font-size: .875rem; font-style: italic; color: #6b7280; text-align: center; margin: 0 0 2rem; }
+        .eyecare-images { flex: 1; display: none; gap: .75rem; }
+        @media (min-width: 768px) { .eyecare-images { display: flex; } }
+        .eyecare-img-left { flex: 1; }
+        .eyecare-img-left img { width: 100%; height: 100%; object-fit: cover; border-radius: 1rem; }
+        .eyecare-img-right { flex: 1; display: flex; flex-direction: column; gap: .75rem; }
+        .eyecare-img-right img { width: 100%; height: 50%; object-fit: cover; border-radius: 1rem; }
+    </style>
 
-            {{-- Left: Login Card --}}
-            <div class="flex w-full max-w-md flex-col justify-center rounded-2xl bg-white p-10 shadow-sm">
-                <div class="mb-8 text-center">
-                    <h1 class="text-4xl font-black tracking-wide text-gray-900">EYECARE</h1>
-                    <p class="mt-2 text-sm italic text-gray-500">"When elegance meets convenience"</p>
-                </div>
-
+    <div class="eyecare-wrap">
+        <div class="eyecare-inner">
+            <div class="eyecare-card">
+                <h1>EYECARE</h1>
+                <p>"When elegance meets convenience"</p>
                 {{ $slot }}
             </div>
 
-            {{-- Right: Image Collage --}}
-            <div class="hidden flex-1 gap-3 md:flex">
-                <div class="flex-1">
-                    <img
-                        src="{{ asset('images/login/eyeglass1.png') }}"
-                        alt="Person wearing eyeglasses"
-                        class="h-full w-full rounded-2xl object-cover"
-                    />
+            <div class="eyecare-images">
+                <div class="eyecare-img-left">
+                    <img src="{{ asset('images/login/eyeglass1.png') }}" alt="Person wearing eyeglasses" />
                 </div>
-                <div class="flex flex-1 flex-col gap-3">
-                    <img
-                        src="{{ asset('images/login/eyeglass2.png') }}"
-                        alt="Eyeglasses on display"
-                        class="h-1/2 w-full rounded-2xl object-cover"
-                    />
-                    <img
-                        src="{{ asset('images/login/eyeglass3.png') }}"
-                        alt="Eyeglasses product"
-                        class="h-1/2 w-full rounded-2xl object-cover"
-                    />
+                <div class="eyecare-img-right">
+                    <img src="{{ asset('images/login/eyeglass2.png') }}" alt="Eyeglasses on display" />
+                    <img src="{{ asset('images/login/eyeglass3.png') }}" alt="Eyeglasses product" />
                 </div>
             </div>
-
         </div>
     </div>
 </x-filament-panels::layout.base>
