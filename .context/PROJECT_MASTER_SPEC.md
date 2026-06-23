@@ -499,3 +499,17 @@ The system is a centralized optical clinic platform providing:
 * Role-Based Access Control
 
 Backend is shared by both the Filament admin web application and the Android Kotlin mobile application.
+
+---
+
+## Admin Panel UI Customizations
+
+### Login Page
+
+Custom two-column login layout replacing Filament's default simple page:
+
+- **Background:** Light blue (sky-200)
+- **Left column:** White card with "EYECARE" branding, tagline, and Filament login form
+- **Right column:** Eyewear image collage (1 tall portrait + 2 stacked product shots)
+- **Implementation:** `App\Filament\Pages\Auth\Login` overrides `static $layout` → `resources/views/filament/components/layouts/login.blade.php`
+- **Assets:** `public/images/login/eyeglass{1,2,3}.png`
