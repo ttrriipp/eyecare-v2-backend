@@ -80,7 +80,7 @@ test('staff can update order notes via the edit form', function () {
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    expect($order->fresh()->notes)->toBe('<p>Updated staff notes.</p>');
+    expect($order->fresh()->notes)->toBe('Updated staff notes.');
 });
 
 test('confirm action transitions requested non-prescription order to confirmed and deducts inventory', function () {

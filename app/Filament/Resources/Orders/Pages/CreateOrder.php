@@ -12,8 +12,8 @@ use App\Models\Role;
 use App\Models\User;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
-use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Pages\CreateRecord;
@@ -88,9 +88,8 @@ class CreateOrder extends CreateRecord
                         })
                         ->visible(fn (Get $get): bool => ! $get('is_non_prescription'))
                         ->nullable(),
-                    RichEditor::make('notes')
+                    Textarea::make('notes')
                         ->label('Staff Notes')
-                        ->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])
                         ->columnSpanFull(),
                 ])
                 ->columns(2),
