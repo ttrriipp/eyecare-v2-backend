@@ -10,6 +10,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Schema;
 
 class AppointmentForm
@@ -44,17 +45,14 @@ class AppointmentForm
                     ->required()
                     ->disabledOn('edit')
                     ->dehydrated(),
-                TextInput::make('status.name')
-                    ->label('Status')
-                    ->disabled()
-                    ->dehydrated(false)
-                    ->hiddenOn('create'),
-                Select::make('appointment_status_id')
+                ToggleButtons::make('appointment_status_id')
                     ->label('Status')
                     ->options(function (?Appointment $record): array {
                         if (! $record) {
                             return [];
                         }
+
+                        $order = ['pending', 'confirmed', 'rescheduled', 'completed', 'cancelled'];
 
                         $transitions = [
                             'pending' => ['confirmed', 'rescheduled', 'cancelled'],
@@ -66,15 +64,27 @@ class AppointmentForm
 
                         $currentName = $record->status->name;
                         $allowed = $transitions[$currentName] ?? [];
+                        $visible = [$currentName, ...$allowed];
 
                         return AppointmentStatus::query()
-                            ->whereIn('name', [$currentName, ...$allowed])
-                            ->pluck('name', 'id')
+                            ->whereIn('name', $visible)
+                            ->get()
+                            ->sortBy(fn ($s) => array_search($s->name, $order))
+                            ->mapWithKeys(fn ($s) => [$s->id => ucfirst($s->name)])
                             ->toArray();
                     })
+                    ->colors(fn (?Appointment $record): array => [
+                        AppointmentStatus::query()->where('name', 'pending')->value('id') => 'gray',
+                        AppointmentStatus::query()->where('name', 'confirmed')->value('id') => 'info',
+                        AppointmentStatus::query()->where('name', 'rescheduled')->value('id') => 'warning',
+                        AppointmentStatus::query()->where('name', 'completed')->value('id') => 'success',
+                        AppointmentStatus::query()->where('name', 'cancelled')->value('id') => 'danger',
+                    ])
+                    ->inline()
                     ->disabledOn('create')
                     ->dehydrated()
-                    ->hiddenOn('create'),
+                    ->hiddenOn('create')
+                    ->columnSpanFull(),
                 DateTimePicker::make('scheduled_at')
                     ->required()
                     ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : ''),
