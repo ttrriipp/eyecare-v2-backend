@@ -65,22 +65,23 @@ class VariantsRelationManager extends RelationManager
             Toggle::make('is_active')
                 ->label('Visibility')
                 ->helperText(
-                    fn(bool $state): string => $state
+                    fn (bool $state): string => $state
                         ? 'This variant is available to customers.'
                         : 'This variant will be hidden from all sales channels.'
                 )
                 ->default(true),
             Toggle::make('ar_eligible')
                 ->live()
-                ->visible(fn(): bool => $this->getOwnerRecord()->product_type === 'frame'),
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
             FileUpload::make('ar_asset_reference')
-                ->label('AR Asset (.glb / .gltf / .png)')
+                ->label('AR Overlay Image (PNG)')
                 ->disk('public')
                 ->directory('ar-assets')
                 ->visibility('public')
-                ->acceptedFileTypes(['model/gltf-binary', 'model/gltf+json', '.glb', '.gltf', 'image/png'])
-                ->maxSize(20480)
-                ->visible(fn(Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
+                ->acceptedFileTypes(['image/png'])
+                ->maxSize(5120)
+                ->helperText('PNG with transparent background only. Full front-facing frame (both lenses + bridge + temples), landscape ~3:1 ratio (e.g. 900×300px), tight crop, no padding, no background color.')
+                ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
                 ->columnSpanFull(),
             FileUpload::make('images')
@@ -103,7 +104,7 @@ class VariantsRelationManager extends RelationManager
             ->columns([
                 ImageColumn::make('images')
                     ->label('Image')
-                    ->state(fn($record): ?string => collect($record->images)->first())
+                    ->state(fn ($record): ?string => collect($record->images)->first())
                     ->disk('public')
                     ->square()
                     ->size(40),
@@ -128,7 +129,7 @@ class VariantsRelationManager extends RelationManager
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('gray')
-                    ->visible(fn(): bool => $this->getOwnerRecord()->product_type === 'frame'),
+                    ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
                 TextColumn::make('stock_quantity')
                     ->label('Qty')
                     ->sortable(),
@@ -146,11 +147,11 @@ class VariantsRelationManager extends RelationManager
                                 ->requiresConfirmation(),
                         ]),
                     Action::make('toggleVisibility')
-                        ->label(fn($record): string => $record->is_active ? 'Hide' : 'Show')
-                        ->icon(fn($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
-                        ->color(fn($record): string => $record->is_active ? 'warning' : 'success')
-                        ->action(fn($record) => $record->update(['is_active' => ! $record->is_active]))
-                        ->successNotificationTitle(fn($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
+                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                        ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
+                        ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
+                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
@@ -172,12 +173,12 @@ class VariantsRelationManager extends RelationManager
                                 ->prefix('₱')
                                 ->helperText('Internal only — not shown to customers.'),
                         ])
-                        ->fillForm(fn($record): array => [
+                        ->fillForm(fn ($record): array => [
                             'price' => $record->price,
                             'compare_at_price' => $record->compare_at_price,
                             'cost_price' => $record->cost_price,
                         ])
-                        ->action(fn(array $data, $record) => $record->update([
+                        ->action(fn (array $data, $record) => $record->update([
                             'price' => $data['price'],
                             'compare_at_price' => $data['compare_at_price'],
                             'cost_price' => $data['cost_price'],
@@ -198,7 +199,7 @@ class VariantsRelationManager extends RelationManager
                                 ->live(),
                             TextInput::make('quantity')
                                 ->label(
-                                    fn(FormGet $get): string => $get('type') === 'restock'
+                                    fn (FormGet $get): string => $get('type') === 'restock'
                                         ? 'Units to add'
                                         : 'Units to remove'
                                 )
