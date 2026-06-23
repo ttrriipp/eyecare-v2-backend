@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Patients;
 
+use App\Filament\Resources\Patients\Pages\CreatePatient;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\Pages\ListPatients;
 use App\Filament\Resources\Patients\RelationManagers\AppointmentsRelationManager;
@@ -38,11 +39,6 @@ class PatientResource extends Resource
             ->whereHas('role', fn (Builder $q) => $q->where('name', 'customer'));
     }
 
-    public static function canCreate(): bool
-    {
-        return false;
-    }
-
     public static function form(Schema $schema): Schema
     {
         return PatientForm::configure($schema);
@@ -66,6 +62,7 @@ class PatientResource extends Resource
     {
         return [
             'index' => ListPatients::route('/'),
+            'create' => CreatePatient::route('/create'),
             'edit' => EditPatient::route('/{record}/edit'),
         ];
     }
