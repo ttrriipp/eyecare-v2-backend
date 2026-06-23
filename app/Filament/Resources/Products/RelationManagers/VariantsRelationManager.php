@@ -80,7 +80,6 @@ class VariantsRelationManager extends RelationManager
                 ->visibility('public')
                 ->acceptedFileTypes(['image/png'])
                 ->maxSize(10240)
-                ->rules(['dimensions:min_width=600,max_width=1200'])
                 ->helperText('PNG with transparent background only. Full front-facing frame (both lenses + bridge + temples), landscape ~3:1 ratio (e.g. 900×300px), tight crop, no padding, no background color.')
                 ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
