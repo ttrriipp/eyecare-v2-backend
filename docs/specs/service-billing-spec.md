@@ -142,7 +142,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
 
 ### Phase 1: Foundation (Schema & Models)
 
-- [ ] **Task 1: Create `services` table, model, factory, seeder**
+- [x] **Task 1: Create `services` table, model, factory, seeder**
   - Description: Fee schedule table for optical clinic services.
   - Acceptance:
     - [ ] `services` table with columns: id, name, description (nullable), price, is_active (default true), timestamps
@@ -153,7 +153,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
   - Files: migration, `app/Models/Service.php`, `database/factories/ServiceFactory.php`, `database/seeders/ServiceSeeder.php`
   - Scope: S (3 files + migration)
 
-- [ ] **Task 2: Create `service_records` table, model, factory**
+- [x] **Task 2: Create `service_records` table, model, factory**
   - Description: Records a service performed for a patient, with optional appointment link and discount.
   - Acceptance:
     - [ ] `service_records` table with all columns per schema spec (customer_id, service_id, appointment_id nullable, staff_id, amount, discount_type_id nullable, discount_amount, total_amount, notes, performed_at, soft deletes)
@@ -164,7 +164,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
   - Files: migration, `app/Models/ServiceRecord.php`, `database/factories/ServiceRecordFactory.php`
   - Scope: S (3 files)
 
-- [ ] **Task 3: Make `billings` table polymorphic**
+- [x] **Task 3: Make `billings` table polymorphic**
   - Description: Replace `order_id` FK with `billable_type`/`billable_id` morph columns. Migrate existing data. Update all references.
   - Acceptance:
     - [ ] Migration adds `billable_type` + `billable_id`, copies `order_id` data into morph columns, drops `order_id`
@@ -189,7 +189,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
 
 ### Phase 2: Business Logic
 
-- [ ] **Task 4: `GenerateBillingForService` action + tests**
+- [x] **Task 4: `GenerateBillingForService` action + tests**
   - Description: Action that creates a billing from a service record, applying discount and generating billing number.
   - Acceptance:
     - [ ] Creates billing with `billable_type = App\Models\ServiceRecord`, correct total
@@ -213,7 +213,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
 
 ### Phase 3: Filament UI
 
-- [ ] **Task 5: `ServiceResource` — Settings CRUD**
+- [x] **Task 5: `ServiceResource` — Settings CRUD**
   - Description: Fee schedule management in Settings nav group (same pattern as Brands/Categories).
   - Acceptance:
     - [ ] List page: name, price (formatted), visibility badge
@@ -225,7 +225,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
   - Files: `app/Filament/Resources/Services/` (resource, pages, form, table)
   - Scope: M (4-5 files)
 
-- [ ] **Task 6: `ServiceRecordResource` + auto-billing on create**
+- [x] **Task 6: `ServiceRecordResource` + auto-billing on create**
   - Description: Resource where staff creates service records. On successful create, auto-generates billing.
   - Acceptance:
     - [ ] Create form: customer select (with walk-in quick-create), service select (populates amount from price), appointment select (optional, filtered to customer), staff (defaults to auth user), amount (overridable), discount type, performed_at (defaults to now), notes
@@ -238,7 +238,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
   - Files: `app/Filament/Resources/ServiceRecords/` (resource, pages, form, table)
   - Scope: M (4-5 files)
 
-- [ ] **Task 7: Update `BillingsResource` for polymorphic source**
+- [x] **Task 7: Update `BillingsResource` for polymorphic source**
   - Description: Add "Source" column and filter to the existing billings list. Ensure ViewBilling works for both types.
   - Acceptance:
     - [ ] "Source" column shows "Order #ORD-2026-000001" or "Service: Comprehensive Eye Exam"
@@ -251,7 +251,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
   - Files: Billings table file, Billings view page, Billings resource
   - Scope: M (3-4 files)
 
-- [ ] **Task 8: "Bill Service" actions on Appointment + Patient pages**
+- [x] **Task 8: "Bill Service" actions on Appointment + Patient pages**
   - Description: Header action on appointment edit page and action on patient page that opens service record creation pre-filled.
   - Acceptance:
     - [ ] Appointment edit: "Bill Service" header action visible when appointment is `completed`
@@ -274,7 +274,7 @@ Service fee schedule CRUD in Settings. Service records resource with "Bill Servi
 
 ### Phase 4: Integration & Polish
 
-- [ ] **Task 9: Seeders, demo data, full regression**
+- [x] **Task 9: Seeders, demo data, full regression**
   - Description: Wire ServiceSeeder into DatabaseSeeder. Add demo service records + billings to ClinicWorkflowSeeder. Full test pass.
   - Acceptance:
     - [ ] `migrate:fresh --seed` creates services, demo service records, and their billings
