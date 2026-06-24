@@ -3,11 +3,17 @@
 namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Actions\Appointments\UpdateAppointmentStatus;
+use App\Actions\Billing\AddServiceToBilling;
+use App\Actions\Billing\CreateServiceBilling;
 use App\Filament\Resources\Appointments\AppointmentResource;
-use App\Filament\Resources\ServiceRecords\ServiceRecordResource;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\Service;
+use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -60,11 +66,50 @@ class EditAppointment extends EditRecord
                 ->label('Bill Service')
                 ->icon('heroicon-o-banknotes')
                 ->color('success')
-                ->url(fn (): string => ServiceRecordResource::getUrl('create', [
-                    'customer_id' => $this->getRecord()->customer_id,
-                    'appointment_id' => $this->getRecord()->id,
-                    'staff_id' => auth()->id(),
-                ])),
+                ->schema([
+                    Select::make('service_id')
+                        ->label('Service')
+                        ->options(fn () => Service::query()->active()->pluck('name', 'id'))
+                        ->required()
+                        ->searchable(),
+                    TextInput::make('amount')
+                        ->label('Amount')
+                        ->numeric()
+                        ->minValue(0)
+                        ->prefix('₱')
+                        ->helperText('Leave blank to use default price.'),
+                    Select::make('staff_id')
+                        ->label('Performed by')
+                        ->options(fn () => User::query()
+                            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+                            ->pluck('name', 'id')
+                        )
+                        ->required()
+                        ->default(fn () => auth()->id()),
+                    DateTimePicker::make('performed_at')
+                        ->label('Performed at')
+                        ->required()
+                        ->default(now()),
+                ])
+                ->action(function (array $data): void {
+                    /** @var Appointment $appointment */
+                    $appointment = $this->getRecord();
+                    if (empty($data['amount'])) {
+                        unset($data['amount']);
+                    }
+                    $data['appointment_id'] = $appointment->id;
+
+                    // Add to existing billing if the appointment's order has one
+                    $existingBilling = $appointment->order?->billing;
+                    if ($existingBilling) {
+                        $data['customer_id'] = $appointment->customer_id;
+                        app(AddServiceToBilling::class)->handle($existingBilling, $data);
+                    } else {
+                        $data['customer_id'] = $appointment->customer_id;
+                        app(CreateServiceBilling::class)->handle($data);
+                    }
+                })
+                ->successNotificationTitle('Service billed'),
         ];
     }
 
