@@ -13,7 +13,6 @@ class CreateServiceRecord extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        // Ensure discount_amount and total_amount fall back to amount if not set
         if (empty($data['discount_amount'])) {
             $data['discount_amount'] = '0.00';
         }
@@ -31,22 +30,5 @@ class CreateServiceRecord extends CreateRecord
         $record = $this->getRecord();
 
         app(GenerateBillingForService::class)->handle($record);
-    }
-
-    protected function getFillableFromRequest(): array
-    {
-        return array_filter([
-            'customer_id' => request()->query('customer_id'),
-            'appointment_id' => request()->query('appointment_id'),
-            'staff_id' => request()->query('staff_id'),
-        ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    protected function getFormDefaults(): array
-    {
-        return $this->getFillableFromRequest();
     }
 }

@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ServiceRecordResource extends Resource
@@ -26,6 +27,11 @@ class ServiceRecordResource extends Resource
     protected static ?string $navigationLabel = 'Service Records';
 
     protected static ?int $navigationSort = 12;
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with(['customer', 'service', 'billing.status']);
+    }
 
     public static function form(Schema $schema): Schema
     {
