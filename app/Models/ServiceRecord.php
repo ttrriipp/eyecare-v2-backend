@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -16,9 +15,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'appointment_id',
     'staff_id',
     'amount',
-    'discount_type_id',
-    'discount_amount',
-    'total_amount',
     'notes',
     'performed_at',
 ])]
@@ -60,30 +56,12 @@ class ServiceRecord extends Model
     }
 
     /**
-     * @return BelongsTo<DiscountType, $this>
-     */
-    public function discountType(): BelongsTo
-    {
-        return $this->belongsTo(DiscountType::class);
-    }
-
-    /**
-     * @return MorphOne<Billing, $this>
-     */
-    public function billing(): MorphOne
-    {
-        return $this->morphOne(Billing::class, 'billable');
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'amount' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
-            'total_amount' => 'decimal:2',
             'performed_at' => 'datetime',
         ];
     }

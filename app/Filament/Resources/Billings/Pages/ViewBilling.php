@@ -6,8 +6,6 @@ use App\Actions\Billing\RecalculateBillingBalance;
 use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Billings\BillingResource;
 use App\Filament\Resources\Orders\OrderResource;
-use App\Filament\Resources\ServiceRecords\ServiceRecordResource;
-use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
@@ -24,17 +22,12 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('view_source')
-                ->label(fn () => $this->getRecord()->billable_type === Order::class ? 'View Order' : 'View Service Record')
-                ->icon(fn () => $this->getRecord()->billable_type === Order::class ? 'heroicon-o-shopping-bag' : 'heroicon-o-clipboard-document-list')
+            Action::make('view_order')
+                ->label('View Order')
+                ->icon('heroicon-o-shopping-bag')
                 ->color('gray')
-                ->url(function () {
-                    $billing = $this->getRecord();
-
-                    return $billing->billable_type === Order::class
-                        ? OrderResource::getUrl('edit', ['record' => $billing->billable_id])
-                        : ServiceRecordResource::getUrl('edit', ['record' => $billing->billable_id]);
-                }),
+                ->visible(fn (): bool => $this->getRecord()->order_id !== null)
+                ->url(fn (): string => OrderResource::getUrl('edit', ['record' => $this->getRecord()->order_id])),
 
             Action::make('record_payment')
                 ->label('Record Payment')
@@ -69,10 +62,8 @@ class ViewBilling extends ViewRecord
                 ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided')
                 ->arguments(['payment_id' => null])
                 ->action(function (array $arguments): void {
-                    $paymentId = $arguments['payment_id'] ?? null;
-
                     /** @var Payment $payment */
-                    $payment = $this->getRecord()->payments()->findOrFail($paymentId);
+                    $payment = $this->getRecord()->payments()->findOrFail($arguments['payment_id'] ?? null);
 
                     $voidedStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
                     $payment->update(['payment_status_id' => $voidedStatus->id]);

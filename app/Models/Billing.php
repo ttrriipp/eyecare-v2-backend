@@ -8,12 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'billable_type',
-    'billable_id',
+    'customer_id',
+    'order_id',
+    'discount_type_id',
+    'discount_amount',
+    'subtotal',
     'billing_number',
     'billing_status_id',
     'total_amount',
@@ -46,36 +48,48 @@ class Billing extends Model
         return sprintf('BIL-%s-%06d', $year, $sequence);
     }
 
-    /**
-     * @return MorphTo<Model, $this>
-     */
-    public function billable(): MorphTo
+    /** @return BelongsTo<User, $this> */
+    public function customer(): BelongsTo
     {
-        return $this->morphTo();
+        return $this->belongsTo(User::class, 'customer_id');
     }
 
-    /**
-     * @return BelongsTo<BillingStatus, $this>
-     */
+    /** @return BelongsTo<Order, $this> */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    /** @return BelongsTo<DiscountType, $this> */
+    public function discountType(): BelongsTo
+    {
+        return $this->belongsTo(DiscountType::class);
+    }
+
+    /** @return BelongsTo<BillingStatus, $this> */
     public function status(): BelongsTo
     {
         return $this->belongsTo(BillingStatus::class, 'billing_status_id');
     }
 
-    /**
-     * @return HasMany<Payment, $this>
-     */
+    /** @return HasMany<Payment, $this> */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
 
-    /**
-     * @return array<string, string>
-     */
+    /** @return HasMany<BillingItem, $this> */
+    public function items(): HasMany
+    {
+        return $this->hasMany(BillingItem::class);
+    }
+
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
+            'subtotal' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',

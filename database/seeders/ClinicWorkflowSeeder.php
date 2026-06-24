@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Billing;
+use App\Models\BillingItem;
 use App\Models\BillingStatus;
 use App\Models\Conversation;
 use App\Models\DiscountType;
@@ -141,9 +142,11 @@ class ClinicWorkflowSeeder extends Seeder
 
         $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
         $billing = Billing::query()->firstOrCreate(
-            ['billable_type' => Order::class, 'billable_id' => $order->id],
+            ['order_id' => $order->id],
             [
+                'customer_id' => $order->customer_id,
                 'billing_status_id' => $issuedStatus->id,
+                'subtotal' => $totalAmount,
                 'total_amount' => $totalAmount,
                 'amount_paid' => '80.00',
                 'balance_due' => bcsub($totalAmount, '80.00', 2),
@@ -202,9 +205,11 @@ class ClinicWorkflowSeeder extends Seeder
 
         $paidStatus = BillingStatus::query()->where('name', 'paid')->firstOrFail();
         $billing = Billing::query()->firstOrCreate(
-            ['billable_type' => Order::class, 'billable_id' => $order->id],
+            ['order_id' => $order->id],
             [
+                'customer_id' => $order->customer_id,
                 'billing_status_id' => $paidStatus->id,
+                'subtotal' => $subtotal,
                 'total_amount' => $subtotal,
                 'amount_paid' => $subtotal,
                 'balance_due' => '0.00',
@@ -245,8 +250,7 @@ class ClinicWorkflowSeeder extends Seeder
             ->first();
 
         $billing = Billing::query()
-            ->where('billable_type', Order::class)
-            ->whereHas('billable', fn ($q) => $q->where('customer_id', $customer->id))
+            ->where('customer_id', $customer->id)
             ->latest()
             ->first();
 
@@ -327,20 +331,30 @@ class ClinicWorkflowSeeder extends Seeder
             [
                 'staff_id' => $staff->id,
                 'amount' => $service->price,
-                'discount_amount' => '0.00',
-                'total_amount' => $service->price,
                 'performed_at' => now()->subDays(3),
             ],
         );
 
-        Billing::query()->firstOrCreate(
-            ['billable_type' => ServiceRecord::class, 'billable_id' => $serviceRecord->id],
+        $billing = Billing::query()->firstOrCreate(
+            ['customer_id' => $customer->id, 'order_id' => null, 'issued_at' => now()->subDays(3)->startOfDay()],
             [
                 'billing_status_id' => $issuedStatus->id,
+                'subtotal' => $service->price,
                 'total_amount' => $service->price,
                 'amount_paid' => '0.00',
                 'balance_due' => $service->price,
                 'issued_at' => now()->subDays(3),
+            ],
+        );
+
+        BillingItem::query()->firstOrCreate(
+            ['billing_id' => $billing->id, 'service_record_id' => $serviceRecord->id],
+            [
+                'type' => 'service',
+                'description' => $service->name,
+                'quantity' => 1,
+                'unit_price' => $service->price,
+                'amount' => $service->price,
             ],
         );
     }

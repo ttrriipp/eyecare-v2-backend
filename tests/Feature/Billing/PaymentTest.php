@@ -116,8 +116,8 @@ it('customers can view their own billing and payment history', function () {
     ]);
 
     $billing = Billing::factory()->issued()->create([
-        'billable_type' => Order::class,
-        'billable_id' => $order->id,
+        'customer_id' => $customer->id,
+        'order_id' => $order->id,
         'total_amount' => '250.00',
         'balance_due' => '250.00',
     ]);
@@ -151,8 +151,8 @@ it('customers cannot view billings belonging to other customers', function () {
     ]);
 
     $billing = Billing::factory()->issued()->create([
-        'billable_type' => Order::class,
-        'billable_id' => $order->id,
+        'customer_id' => $otherCustomer->id,
+        'order_id' => $order->id,
     ]);
 
     $this->actingAs($customer, 'sanctum')

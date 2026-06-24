@@ -21,8 +21,10 @@ beforeEach(function () {
 
 it('generates a billing record from a confirmed order', function () {
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $customer = User::factory()->customer()->create();
 
     $order = Order::factory()->create([
+        'customer_id' => $customer->id,
         'order_status_id' => $confirmedStatus->id,
         'total_amount' => '350.00',
         'confirmed_at' => now(),
@@ -31,16 +33,16 @@ it('generates a billing record from a confirmed order', function () {
     $billing = app(GenerateBillingForOrder::class)->handle($order);
 
     expect($billing)->toBeInstanceOf(Billing::class)
-        ->and($billing->billable_id)->toBe($order->id)
-        ->and($billing->billable_type)->toBe(Order::class)
+        ->and($billing->order_id)->toBe($order->id)
+        ->and($billing->customer_id)->toBe($customer->id)
         ->and($billing->total_amount)->toBe('350.00')
         ->and($billing->balance_due)->toBe('350.00')
         ->and($billing->status->name)->toBe('issued')
         ->and($billing->issued_at)->not->toBeNull();
 
     $this->assertDatabaseHas(Billing::class, [
-        'billable_type' => Order::class,
-        'billable_id' => $order->id,
+        'order_id' => $order->id,
+        'customer_id' => $customer->id,
         'total_amount' => '350.00',
         'balance_due' => '350.00',
     ]);
@@ -77,25 +79,19 @@ it('prevents generating a second billing for the same order', function () {
     expect(fn () => app(GenerateBillingForOrder::class)->handle($order))
         ->toThrow(ValidationException::class);
 
-    expect(Billing::where('billable_type', Order::class)->where('billable_id', $order->id)->count())->toBe(1);
+    expect(Billing::where('order_id', $order->id)->count())->toBe(1);
 });
 
 it('rejects billing generation for non-confirmed orders', function (string $statusName) {
     $status = OrderStatus::query()->where('name', $statusName)->firstOrFail();
 
-    $order = Order::factory()->create([
-        'order_status_id' => $status->id,
-    ]);
+    $order = Order::factory()->create(['order_status_id' => $status->id]);
 
     expect(fn () => app(GenerateBillingForOrder::class)->handle($order))
         ->toThrow(ValidationException::class);
 
-    expect(Billing::where('billable_type', Order::class)->where('billable_id', $order->id)->count())->toBe(0);
-})->with([
-    'requested' => ['requested'],
-
-    'cancelled' => ['cancelled'],
-]);
+    expect(Billing::where('order_id', $order->id)->count())->toBe(0);
+})->with(['requested' => ['requested'], 'cancelled' => ['cancelled']]);
 
 it('the order model exposes a billing relationship', function () {
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();

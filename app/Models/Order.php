@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -100,11 +100,11 @@ class Order extends Model
     }
 
     /**
-     * @return MorphOne<Billing, $this>
+     * @return HasOne<Billing, $this>
      */
-    public function billing(): MorphOne
+    public function billing(): HasOne
     {
-        return $this->morphOne(Billing::class, 'billable');
+        return $this->hasOne(Billing::class);
     }
 
     /**

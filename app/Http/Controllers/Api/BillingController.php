@@ -12,15 +12,13 @@ class BillingController extends Controller
 {
     /**
      * Show a single billing record, with payment history.
-     * Only the customer who owns the linked order may view this.
+     * Only the customer who owns the billing may view it.
      */
     public function show(Request $request, Billing $billing): BillingResource|JsonResponse
     {
-        $customerId = $billing->billable?->customer_id;
+        abort_unless($billing->customer_id === $request->user()->id, 403);
 
-        abort_unless($customerId === $request->user()->id, 403);
-
-        $billing->load(['status', 'billable', 'payments.status']);
+        $billing->load(['status', 'items', 'payments.status']);
 
         return new BillingResource($billing);
     }

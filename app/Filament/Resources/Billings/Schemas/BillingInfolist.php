@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Billings\Schemas;
 
-use App\Models\Billing;
-use App\Models\Order;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -20,18 +18,11 @@ class BillingInfolist
                     ->schema([
                         TextEntry::make('billing_number')
                             ->label('Billing #'),
-                        TextEntry::make('source')
-                            ->label('Source')
-                            ->state(function (Billing $record): string {
-                                if ($record->billable_type === Order::class) {
-                                    return 'Order #'.($record->billable?->order_number ?? '-');
-                                }
-
-                                return 'Service: '.($record->billable?->service?->name ?? '-');
-                            }),
-                        TextEntry::make('customer_name')
-                            ->label('Customer')
-                            ->state(fn (Billing $record): string => $record->billable?->customer?->name ?? '-'),
+                        TextEntry::make('customer.name')
+                            ->label('Customer'),
+                        TextEntry::make('order.order_number')
+                            ->label('Order #')
+                            ->placeholder('—'),
                         TextEntry::make('status.name')
                             ->label('Status')
                             ->badge()
@@ -43,6 +34,12 @@ class BillingInfolist
                                 default => 'gray',
                             })
                             ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),
+                        TextEntry::make('subtotal')
+                            ->label('Subtotal')
+                            ->money('PHP'),
+                        TextEntry::make('discount_amount')
+                            ->label('Discount')
+                            ->money('PHP'),
                         TextEntry::make('total_amount')
                             ->label('Total')
                             ->money('PHP'),
