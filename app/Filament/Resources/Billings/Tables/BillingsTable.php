@@ -4,8 +4,11 @@ namespace App\Filament\Resources\Billings\Tables;
 
 use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Orders\OrderResource;
+use App\Filament\Resources\ServiceRecords\ServiceRecordResource;
 use App\Models\Billing;
+use App\Models\Order;
 use App\Models\PaymentMethod;
+use App\Models\ServiceRecord;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
@@ -30,9 +33,31 @@ class BillingsTable
                     ->label('Billing #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('order.customer.name')
+                TextColumn::make('source')
+                    ->label('Source')
+                    ->state(function (Billing $record): string {
+                        if ($record->billable_type === Order::class) {
+                            return 'Order #'.($record->billable?->order_number ?? '-');
+                        }
+
+                        return 'Service: '.($record->billable?->service?->name ?? '-');
+                    }),
+                TextColumn::make('customer_name')
                     ->label('Customer')
-                    ->searchable(),
+                    ->state(function (Billing $record): string {
+                        return $record->billable_type === Order::class
+                            ? ($record->billable?->customer?->name ?? '-')
+                            : ($record->billable?->customer?->name ?? '-');
+                    })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function (Builder $q) use ($search): void {
+                            $q->whereHasMorph('billable', [Order::class], function (Builder $q) use ($search): void {
+                                $q->whereHas('customer', fn (Builder $q) => $q->where('name', 'like', "%{$search}%"));
+                            })->orWhereHasMorph('billable', [ServiceRecord::class], function (Builder $q) use ($search): void {
+                                $q->whereHas('customer', fn (Builder $q) => $q->where('name', 'like', "%{$search}%"));
+                            });
+                        });
+                    }),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()
@@ -53,24 +78,25 @@ class BillingsTable
                     ->money('PHP')
                     ->sortable()
                     ->color(fn ($record): string => (float) $record->balance_due > 0 ? 'warning' : 'success'),
-                TextColumn::make('order.created_at')
-                    ->label('Order Date')
-                    ->date('M j, Y')
-                    ->sortable()
-                    ->toggleable(),
                 TextColumn::make('amount_paid')
                     ->label('Paid')
                     ->money('PHP')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('order.order_number')
-                    ->label('Order #')
-                    ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
                     ->relationship('status', 'name')
                     ->preload(),
+                SelectFilter::make('source_type')
+                    ->label('Source Type')
+                    ->options([
+                        Order::class => 'Orders',
+                        ServiceRecord::class => 'Services',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        $data['value'],
+                        fn (Builder $q, string $type) => $q->where('billable_type', $type)
+                    )),
                 Filter::make('issued_from')
                     ->label('Issued from')
                     ->form([DatePicker::make('date')])
@@ -90,11 +116,14 @@ class BillingsTable
             ->recordActions([
                 ActionGroup::make([
                     ViewAction::make(),
-                    Action::make('view_order')
-                        ->label('View Order')
-                        ->icon('heroicon-o-shopping-bag')
+                    Action::make('view_source')
+                        ->label(fn (Billing $record): string => $record->billable_type === Order::class ? 'View Order' : 'View Service Record')
+                        ->icon(fn (Billing $record): string => $record->billable_type === Order::class ? 'heroicon-o-shopping-bag' : 'heroicon-o-clipboard-document-list')
                         ->color('gray')
-                        ->url(fn ($record) => OrderResource::getUrl('edit', ['record' => $record->order_id])),
+                        ->url(fn (Billing $record): string => $record->billable_type === Order::class
+                            ? OrderResource::getUrl('edit', ['record' => $record->billable_id])
+                            : ServiceRecordResource::getUrl('edit', ['record' => $record->billable_id])
+                        ),
                     Action::make('record_payment')
                         ->label('Record Payment')
                         ->icon('heroicon-o-banknotes')

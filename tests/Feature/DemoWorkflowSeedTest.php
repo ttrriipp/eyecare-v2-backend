@@ -47,7 +47,7 @@ test('demo workflow seeds a prescription order with billing and partial payment'
     expect($order)->not->toBeNull()
         ->and($order->is_non_prescription)->toBeFalse();
 
-    $billing = Billing::query()->where('order_id', $order->id)->first();
+    $billing = Billing::query()->where('billable_type', Order::class)->where('billable_id', $order->id)->first();
     expect($billing)->not->toBeNull()
         ->and((float) $billing->balance_due)->toBeGreaterThan(0);
 
@@ -60,7 +60,7 @@ test('demo workflow seeds a non-prescription completed order with paid billing',
     expect($order)->not->toBeNull()
         ->and($order->is_non_prescription)->toBeTrue();
 
-    $billing = Billing::query()->where('order_id', $order->id)->first();
+    $billing = Billing::query()->where('billable_type', Order::class)->where('billable_id', $order->id)->first();
     expect($billing)->not->toBeNull()
         ->and((float) $billing->balance_due)->toBe(0.0);
 });

@@ -138,7 +138,7 @@ class ClinicWorkflowSeeder extends Seeder
 
         $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
         $billing = Billing::query()->firstOrCreate(
-            ['order_id' => $order->id],
+            ['billable_type' => Order::class, 'billable_id' => $order->id],
             [
                 'billing_status_id' => $issuedStatus->id,
                 'total_amount' => $totalAmount,
@@ -199,7 +199,7 @@ class ClinicWorkflowSeeder extends Seeder
 
         $paidStatus = BillingStatus::query()->where('name', 'paid')->firstOrFail();
         $billing = Billing::query()->firstOrCreate(
-            ['order_id' => $order->id],
+            ['billable_type' => Order::class, 'billable_id' => $order->id],
             [
                 'billing_status_id' => $paidStatus->id,
                 'total_amount' => $subtotal,
@@ -242,7 +242,8 @@ class ClinicWorkflowSeeder extends Seeder
             ->first();
 
         $billing = Billing::query()
-            ->whereHas('order', fn ($q) => $q->where('customer_id', $customer->id))
+            ->where('billable_type', Order::class)
+            ->whereHas('billable', fn ($q) => $q->where('customer_id', $customer->id))
             ->latest()
             ->first();
 

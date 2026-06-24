@@ -2,6 +2,7 @@
 
 use App\Actions\Billing\RecalculateBillingBalance;
 use App\Models\Billing;
+use App\Models\BillingStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Payment;
@@ -115,7 +116,8 @@ it('customers can view their own billing and payment history', function () {
     ]);
 
     $billing = Billing::factory()->issued()->create([
-        'order_id' => $order->id,
+        'billable_type' => Order::class,
+        'billable_id' => $order->id,
         'total_amount' => '250.00',
         'balance_due' => '250.00',
     ]);
@@ -133,7 +135,7 @@ it('customers can view their own billing and payment history', function () {
         ->assertJsonPath('data.id', $billing->id)
         ->assertJsonPath('data.total_amount', '250.00')
         ->assertJsonStructure([
-            'data' => ['id', 'order_id', 'total_amount', 'amount_paid', 'balance_due', 'status', 'payments'],
+            'data' => ['id', 'billing_number', 'total_amount', 'amount_paid', 'balance_due', 'status', 'payments'],
         ]);
 });
 
@@ -148,7 +150,10 @@ it('customers cannot view billings belonging to other customers', function () {
         'confirmed_at' => now(),
     ]);
 
-    $billing = Billing::factory()->issued()->create(['order_id' => $order->id]);
+    $billing = Billing::factory()->issued()->create([
+        'billable_type' => Order::class,
+        'billable_id' => $order->id,
+    ]);
 
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/billing/{$billing->id}")

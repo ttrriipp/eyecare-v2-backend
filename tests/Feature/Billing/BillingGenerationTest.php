@@ -31,14 +31,16 @@ it('generates a billing record from a confirmed order', function () {
     $billing = app(GenerateBillingForOrder::class)->handle($order);
 
     expect($billing)->toBeInstanceOf(Billing::class)
-        ->and($billing->order_id)->toBe($order->id)
+        ->and($billing->billable_id)->toBe($order->id)
+        ->and($billing->billable_type)->toBe(Order::class)
         ->and($billing->total_amount)->toBe('350.00')
         ->and($billing->balance_due)->toBe('350.00')
         ->and($billing->status->name)->toBe('issued')
         ->and($billing->issued_at)->not->toBeNull();
 
     $this->assertDatabaseHas(Billing::class, [
-        'order_id' => $order->id,
+        'billable_type' => Order::class,
+        'billable_id' => $order->id,
         'total_amount' => '350.00',
         'balance_due' => '350.00',
     ]);
@@ -75,7 +77,7 @@ it('prevents generating a second billing for the same order', function () {
     expect(fn () => app(GenerateBillingForOrder::class)->handle($order))
         ->toThrow(ValidationException::class);
 
-    expect(Billing::where('order_id', $order->id)->count())->toBe(1);
+    expect(Billing::where('billable_type', Order::class)->where('billable_id', $order->id)->count())->toBe(1);
 });
 
 it('rejects billing generation for non-confirmed orders', function (string $statusName) {
@@ -88,7 +90,7 @@ it('rejects billing generation for non-confirmed orders', function (string $stat
     expect(fn () => app(GenerateBillingForOrder::class)->handle($order))
         ->toThrow(ValidationException::class);
 
-    expect(Billing::where('order_id', $order->id)->count())->toBe(0);
+    expect(Billing::where('billable_type', Order::class)->where('billable_id', $order->id)->count())->toBe(0);
 })->with([
     'requested' => ['requested'],
 

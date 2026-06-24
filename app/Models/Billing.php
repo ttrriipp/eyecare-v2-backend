@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'order_id',
+    'billable_type',
+    'billable_id',
     'billing_number',
     'billing_status_id',
     'total_amount',
@@ -45,11 +47,11 @@ class Billing extends Model
     }
 
     /**
-     * @return BelongsTo<Order, $this>
+     * @return MorphTo<Model, $this>
      */
-    public function order(): BelongsTo
+    public function billable(): MorphTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->morphTo();
     }
 
     /**

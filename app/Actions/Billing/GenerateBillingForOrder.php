@@ -34,7 +34,8 @@ class GenerateBillingForOrder
         $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
 
         $billing = Billing::query()->create([
-            'order_id' => $order->id,
+            'billable_type' => Order::class,
+            'billable_id' => $order->id,
             'billing_status_id' => $issuedStatus->id,
             'total_amount' => $order->total_amount,
             'amount_paid' => '0.00',

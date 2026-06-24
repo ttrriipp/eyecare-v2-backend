@@ -16,7 +16,7 @@ class BillingResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'order_id' => $this->order_id,
+            'billing_number' => $this->billing_number,
             'status' => $this->status->name,
             'total_amount' => $this->total_amount,
             'amount_paid' => $this->amount_paid,
