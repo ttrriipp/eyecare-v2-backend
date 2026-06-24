@@ -73,7 +73,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | email + password nullable for walk-in customers |
+| `users` | email + password nullable for walk-in customers, date_of_birth (nullable) |
 | `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
 | `products` | brand_id, category_id (nullable), lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
@@ -152,7 +152,7 @@ Discount: applied at confirmation time via `discount_type_id` (Senior Citizen 20
 URL: `/admin` — accessible to `staff` and `admin` roles only.
 
 **Navigation groups (in order):**
-- *(ungrouped)* — Appointments, Prescriptions
+- *(ungrouped)* — Appointments, Prescriptions, Patients
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback
@@ -170,7 +170,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Feedback
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
-- User Management (admin only)
+- User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
 - Categories, Brands (CRUD), Lens Types (with price), Visit Reasons
@@ -299,7 +299,9 @@ PATCH  /staff/orders/{id}/status
       "lens_type_name": null,
       "unit_price": "2800.00",
       "quantity": 1,
-      "subtotal": "5600.00"
+      "subtotal": "5600.00",
+      "product_images": [],
+      "variant_images": []
     }],
     "created_at": "2026-06-19T05:16:53.000000Z"
   }],
@@ -346,7 +348,7 @@ PATCH  /staff/orders/{id}/status
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource (read-only, with view modal per row).
 - **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided`). Billing is auto-voided when the order is cancelled. Staff records payments from the ViewBilling page's Payments section (50% downpayment hint on first payment). Payments are voidable (not deletable) — voided payments excluded from balance. Billings are not deletable through the UI.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
-- **AR assets:** `ar_asset_reference` stores the storage path to the uploaded 3D model file. Staff uploads `.glb`, `.gltf`, or transparent `.png` files via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored.
+- **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
 - **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
 
 ---
