@@ -145,12 +145,25 @@ class ClinicWorkflowSeeder extends Seeder
             ['order_id' => $order->id],
             [
                 'customer_id' => $order->customer_id,
+                'discount_type_id' => $seniorDiscount->id,
+                'discount_amount' => $discountAmount,
                 'billing_status_id' => $issuedStatus->id,
-                'subtotal' => $totalAmount,
+                'subtotal' => $subtotal,
                 'total_amount' => $totalAmount,
                 'amount_paid' => '80.00',
                 'balance_due' => bcsub($totalAmount, '80.00', 2),
                 'issued_at' => now()->subDays(4),
+            ],
+        );
+
+        BillingItem::query()->firstOrCreate(
+            ['billing_id' => $billing->id, 'order_item_id' => $order->items()->value('id')],
+            [
+                'type' => 'product',
+                'description' => $variant->product->name.' — '.$variant->name,
+                'quantity' => 1,
+                'unit_price' => $unitPrice,
+                'amount' => $unitPrice,
             ],
         );
 
@@ -214,6 +227,17 @@ class ClinicWorkflowSeeder extends Seeder
                 'amount_paid' => $subtotal,
                 'balance_due' => '0.00',
                 'issued_at' => now()->subDays(13),
+            ],
+        );
+
+        BillingItem::query()->firstOrCreate(
+            ['billing_id' => $billing->id, 'order_item_id' => $order->items()->value('id')],
+            [
+                'type' => 'product',
+                'description' => $variant->product->name.' — '.$variant->name,
+                'quantity' => 1,
+                'unit_price' => $unitPrice,
+                'amount' => $unitPrice,
             ],
         );
 
@@ -335,27 +359,32 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
-        $billing = Billing::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'order_id' => null, 'issued_at' => now()->subDays(3)->startOfDay()],
-            [
-                'billing_status_id' => $issuedStatus->id,
-                'subtotal' => $service->price,
-                'total_amount' => $service->price,
-                'amount_paid' => '0.00',
-                'balance_due' => $service->price,
-                'issued_at' => now()->subDays(3),
-            ],
-        );
+        // Find billing via billing_items to stay idempotent
+        $existingItem = BillingItem::query()->where('service_record_id', $serviceRecord->id)->first();
 
-        BillingItem::query()->firstOrCreate(
-            ['billing_id' => $billing->id, 'service_record_id' => $serviceRecord->id],
-            [
-                'type' => 'service',
-                'description' => $service->name,
-                'quantity' => 1,
-                'unit_price' => $service->price,
-                'amount' => $service->price,
-            ],
-        );
+        if ($existingItem) {
+            return;
+        }
+
+        $billing = Billing::query()->create([
+            'customer_id' => $customer->id,
+            'order_id' => null,
+            'billing_status_id' => $issuedStatus->id,
+            'subtotal' => $service->price,
+            'total_amount' => $service->price,
+            'amount_paid' => '0.00',
+            'balance_due' => $service->price,
+            'issued_at' => now()->subDays(3),
+        ]);
+
+        BillingItem::query()->create([
+            'billing_id' => $billing->id,
+            'service_record_id' => $serviceRecord->id,
+            'type' => 'service',
+            'description' => $service->name,
+            'quantity' => 1,
+            'unit_price' => $service->price,
+            'amount' => $service->price,
+        ]);
     }
 }
