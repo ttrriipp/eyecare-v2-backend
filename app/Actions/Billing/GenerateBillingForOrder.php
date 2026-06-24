@@ -49,18 +49,15 @@ class GenerateBillingForOrder
         // Create billing items from order items
         $order->load('items');
         foreach ($order->items as $orderItem) {
-            $lineAmount = bcadd(
-                bcmul((string) ($orderItem->unit_price + ($orderItem->lens_type_price ?? 0)), (string) $orderItem->quantity, 2),
-                '0',
-                2
-            );
+            $unitPrice = bcadd((string) $orderItem->unit_price, (string) ($orderItem->lens_type_price ?? 0), 2);
+            $lineAmount = bcmul($unitPrice, (string) $orderItem->quantity, 2);
 
             BillingItem::query()->create([
                 'billing_id' => $billing->id,
                 'type' => 'product',
                 'description' => $orderItem->product_name.' — '.$orderItem->variant_name,
                 'quantity' => $orderItem->quantity,
-                'unit_price' => bcadd((string) $orderItem->unit_price, (string) ($orderItem->lens_type_price ?? 0), 2),
+                'unit_price' => $unitPrice,
                 'amount' => $lineAmount,
                 'order_item_id' => $orderItem->id,
             ]);

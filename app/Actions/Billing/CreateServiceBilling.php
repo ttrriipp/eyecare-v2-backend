@@ -5,7 +5,6 @@ namespace App\Actions\Billing;
 use App\Actions\Audit\CreateAuditLog;
 use App\Models\Billing;
 use App\Models\BillingStatus;
-use App\Models\User;
 use App\Notifications\BillingIssued;
 
 class CreateServiceBilling
@@ -45,9 +44,7 @@ class CreateServiceBilling
             metadata: ['customer_id' => $data['customer_id']],
         );
 
-        /** @var User $customer */
-        $customer = $billing->customer;
-        $customer->notify(new BillingIssued($billing));
+        $billing->customer->notify(new BillingIssued($billing));
 
         return $billing;
     }
