@@ -44,11 +44,7 @@ class BillingsTable
                     }),
                 TextColumn::make('customer_name')
                     ->label('Customer')
-                    ->state(function (Billing $record): string {
-                        return $record->billable_type === Order::class
-                            ? ($record->billable?->customer?->name ?? '-')
-                            : ($record->billable?->customer?->name ?? '-');
-                    })
+                    ->state(fn (Billing $record): string => $record->billable?->customer?->name ?? '-')
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where(function (Builder $q) use ($search): void {
                             $q->whereHasMorph('billable', [Order::class], function (Builder $q) use ($search): void {

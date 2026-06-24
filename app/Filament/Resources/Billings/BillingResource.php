@@ -8,11 +8,15 @@ use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
 use App\Filament\Resources\Billings\Schemas\BillingInfolist;
 use App\Filament\Resources\Billings\Tables\BillingsTable;
 use App\Models\Billing;
+use App\Models\Order;
+use App\Models\ServiceRecord;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use UnitEnum;
 
 class BillingResource extends Resource
@@ -26,6 +30,20 @@ class BillingResource extends Resource
     protected static ?int $navigationSort = 11;
 
     protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['status'])
+            ->with([
+                'billable' => function (MorphTo $morphTo) {
+                    $morphTo->morphWith([
+                        Order::class => ['customer'],
+                        ServiceRecord::class => ['customer', 'service'],
+                    ]);
+                },
+            ]);
+    }
 
     public static function infolist(Schema $schema): Schema
     {
