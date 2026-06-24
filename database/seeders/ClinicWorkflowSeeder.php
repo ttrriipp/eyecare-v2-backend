@@ -19,6 +19,8 @@ use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
+use App\Models\Service;
+use App\Models\ServiceRecord;
 use App\Models\User;
 use App\Models\VisitReason;
 use App\Notifications\AppointmentStatusChanged;
@@ -51,6 +53,7 @@ class ClinicWorkflowSeeder extends Seeder
         $this->seedConversation($customer, $staff, $appointment);
         $this->seedFeedback($customer, $appointment);
         $this->seedSampleNotifications($customer);
+        $this->seedServiceRecord($customer, $appointment, $staff);
     }
 
     private function demoCustomer(): User
@@ -310,6 +313,34 @@ class ClinicWorkflowSeeder extends Seeder
                 'staff_reply' => 'Thank you so much! We look forward to serving you again.',
                 'replied_by' => User::query()->where('email', 'staff@eyecare.test')->value('id'),
                 'replied_at' => now()->subDays(9),
+            ],
+        );
+    }
+
+    private function seedServiceRecord(User $customer, Appointment $appointment, User $staff): void
+    {
+        $service = Service::query()->where('name', 'Comprehensive Eye Exam')->firstOrFail();
+        $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
+
+        $serviceRecord = ServiceRecord::query()->firstOrCreate(
+            ['customer_id' => $customer->id, 'service_id' => $service->id, 'appointment_id' => $appointment->id],
+            [
+                'staff_id' => $staff->id,
+                'amount' => $service->price,
+                'discount_amount' => '0.00',
+                'total_amount' => $service->price,
+                'performed_at' => now()->subDays(3),
+            ],
+        );
+
+        Billing::query()->firstOrCreate(
+            ['billable_type' => ServiceRecord::class, 'billable_id' => $serviceRecord->id],
+            [
+                'billing_status_id' => $issuedStatus->id,
+                'total_amount' => $service->price,
+                'amount_paid' => '0.00',
+                'balance_due' => $service->price,
+                'issued_at' => now()->subDays(3),
             ],
         );
     }
