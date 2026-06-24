@@ -4,8 +4,10 @@ namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\ServiceRecords\ServiceRecordResource;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -50,6 +52,21 @@ class EditAppointment extends EditRecord
     }
 
     protected bool $statusUpdateHandled = false;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('bill_service')
+                ->label('Bill Service')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->url(fn (): string => ServiceRecordResource::getUrl('create', [
+                    'customer_id' => $this->getRecord()->customer_id,
+                    'appointment_id' => $this->getRecord()->id,
+                    'staff_id' => auth()->id(),
+                ])),
+        ];
+    }
 
     /**
      * @param  array<string, mixed>  $data
