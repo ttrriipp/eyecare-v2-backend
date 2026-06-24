@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
-use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use Illuminate\Database\Seeder;
 
@@ -23,8 +23,8 @@ class CatalogSeeder extends Seeder
         ));
 
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
-        $category = Category::query()->firstOrCreate(['name' => 'frames']);
-        $lensCategory = Category::query()->firstOrCreate(['name' => 'lenses']);
+        $category = ProductCategory::query()->firstOrCreate(['name' => 'frames']);
+        $lensCategory = ProductCategory::query()->firstOrCreate(['name' => 'lenses']);
 
         $progressiveLensType = LensType::query()->where('name', 'progressive')->first();
         $singleVisionLensType = LensType::query()->where('name', 'single_vision')->first();

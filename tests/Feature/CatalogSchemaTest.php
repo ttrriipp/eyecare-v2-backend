@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\Brand;
-use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\CatalogSeeder;
@@ -31,7 +31,7 @@ test('product factory creates valid catalog records with required attributes', f
     ]);
 
     expect($product->brand)->toBeInstanceOf(Brand::class)
-        ->and($product->category)->toBeInstanceOf(Category::class)
+        ->and($product->category)->toBeInstanceOf(ProductCategory::class)
         ->and($variant->product->is($product))->toBeTrue()
         ->and($variant->stock_quantity)->toBe(12)
         ->and($variant->low_stock_threshold)->toBe(3)
@@ -68,7 +68,7 @@ test('catalog seeder creates demo frame products and lens types idempotently', f
 
 test('product slug auto-generates from name if not provided', function () {
     $brand = Brand::factory()->create();
-    $category = Category::factory()->create();
+    $category = ProductCategory::factory()->create();
 
     $product = Product::factory()->create([
         'brand_id' => $brand->id,
@@ -82,7 +82,7 @@ test('product slug auto-generates from name if not provided', function () {
 
 test('product slug auto-generates with suffix on collision', function () {
     $brand = Brand::factory()->create();
-    $category = Category::factory()->create();
+    $category = ProductCategory::factory()->create();
 
     Product::factory()->create([
         'brand_id' => $brand->id,

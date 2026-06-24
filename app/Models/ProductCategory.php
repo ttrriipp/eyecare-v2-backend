@@ -2,23 +2,25 @@
 
 namespace App\Models;
 
-use Database\Factories\CategoryFactory;
+use Database\Factories\ProductCategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name'])]
-class Category extends Model
+class ProductCategory extends Model
 {
-    /** @use HasFactory<CategoryFactory> */
+    /** @use HasFactory<ProductCategoryFactory> */
     use HasFactory;
+
+    protected $table = 'product_categories';
 
     /**
      * @return HasMany<Product, $this>
      */
     public function products(): HasMany
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Product::class, 'category_id');
     }
 }

@@ -6,9 +6,9 @@ use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Brand;
-use App\Models\Category;
 use App\Models\LensType;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,7 +33,7 @@ test('staff and admin users can list products', function (string $factoryState) 
 test('staff can create and edit products with variants', function () {
     $staff = User::factory()->staff()->create();
     $brand = Brand::factory()->create();
-    $category = Category::factory()->create();
+    $category = ProductCategory::factory()->create();
 
     $this->actingAs($staff);
 
