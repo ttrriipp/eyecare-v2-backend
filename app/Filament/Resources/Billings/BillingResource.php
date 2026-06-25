@@ -30,7 +30,7 @@ class BillingResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['status', 'customer', 'order', 'items']);
+        return parent::getEloquentQuery()->with(['status', 'customer', 'order', 'items', 'appointment.visitReason']);
     }
 
     public static function infolist(Schema $schema): Schema
