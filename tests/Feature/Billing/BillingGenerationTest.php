@@ -4,7 +4,9 @@ use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Billing;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\OrderStatus;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
@@ -26,8 +28,16 @@ it('generates a billing record from a confirmed order', function () {
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
         'order_status_id' => $confirmedStatus->id,
+        'subtotal' => '350.00',
         'total_amount' => '350.00',
         'confirmed_at' => now(),
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'unit_price' => '350.00',
+        'quantity' => 1,
+        'subtotal' => '350.00',
     ]);
 
     $billing = app(GenerateBillingForOrder::class)->handle($order);
@@ -48,21 +58,27 @@ it('generates a billing record from a confirmed order', function () {
     ]);
 });
 
-it('billing total and initial balance match the order total_amount snapshot', function () {
+it('billing total reflects order items sum', function () {
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $order = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
         'subtotal' => '200.00',
-        'total_amount' => '220.00',
-        'discount_amount' => '0.00',
+        'total_amount' => '200.00',
         'confirmed_at' => now(),
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'unit_price' => '200.00',
+        'quantity' => 1,
+        'subtotal' => '200.00',
     ]);
 
     $billing = app(GenerateBillingForOrder::class)->handle($order);
 
-    expect($billing->total_amount)->toBe('220.00')
-        ->and($billing->balance_due)->toBe('220.00');
+    expect($billing->total_amount)->toBe('200.00')
+        ->and($billing->balance_due)->toBe('200.00');
 });
 
 it('prevents generating a second billing for the same order', function () {
@@ -70,7 +86,6 @@ it('prevents generating a second billing for the same order', function () {
 
     $order = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
-        'total_amount' => '150.00',
         'confirmed_at' => now(),
     ]);
 
@@ -98,7 +113,6 @@ it('the order model exposes a billing relationship', function () {
 
     $order = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
-        'total_amount' => '100.00',
         'confirmed_at' => now(),
     ]);
 
@@ -118,8 +132,20 @@ it('confirming an order automatically creates an issued billing', function () {
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
         'order_status_id' => $requestedStatus->id,
+        'subtotal' => '500.00',
         'total_amount' => '500.00',
         'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'unit_price' => '500.00',
+        'quantity' => 1,
+        'subtotal' => '500.00',
+        'lens_type_id' => null,
+        'lens_type_name' => null,
+        'lens_type_price' => null,
+        'product_variant_id' => ProductVariant::factory()->create(['stock_quantity' => 10])->id,
     ]);
 
     app(UpdateOrderStatus::class)->handle($order, 'confirmed');

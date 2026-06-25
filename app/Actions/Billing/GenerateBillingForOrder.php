@@ -4,18 +4,22 @@ namespace App\Actions\Billing;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Models\Billing;
-use App\Models\BillingItem;
-use App\Models\BillingStatus;
 use App\Models\Order;
 use App\Notifications\BillingIssued;
 use Illuminate\Validation\ValidationException;
 
 class GenerateBillingForOrder
 {
+    public function __construct(
+        private readonly GetOrCreateBilling $getOrCreate,
+        private readonly AddOrderItemsToBilling $addItems,
+    ) {}
+
     /**
-     * Generate a billing (invoice) for a confirmed order, with product line items.
+     * Generate or update a billing (invoice) for a confirmed order.
      *
-     * Throws ValidationException if the order is not confirmed or a billing already exists.
+     * Uses GetOrCreateBilling to find an existing billing for the same appointment,
+     * then adds product line items via AddOrderItemsToBilling.
      */
     public function handle(Order $order): Billing
     {
@@ -31,37 +35,14 @@ class GenerateBillingForOrder
             ]);
         }
 
-        $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
+        $billing = $this->getOrCreate->handle(
+            customerId: $order->customer_id,
+            appointmentId: $order->appointment_id,
+        );
 
-        $billing = Billing::query()->create([
-            'customer_id' => $order->customer_id,
-            'order_id' => $order->id,
-            'discount_type_id' => $order->discount_type_id,
-            'discount_amount' => $order->discount_amount,
-            'subtotal' => $order->subtotal,
-            'billing_status_id' => $issuedStatus->id,
-            'total_amount' => $order->total_amount,
-            'amount_paid' => '0.00',
-            'balance_due' => $order->total_amount,
-            'issued_at' => now(),
-        ]);
+        $isNewBilling = $billing->wasRecentlyCreated;
 
-        // Create billing items from order items
-        $order->load('items');
-        foreach ($order->items as $orderItem) {
-            $unitPrice = bcadd((string) $orderItem->unit_price, (string) ($orderItem->lens_type_price ?? 0), 2);
-            $lineAmount = bcmul($unitPrice, (string) $orderItem->quantity, 2);
-
-            BillingItem::query()->create([
-                'billing_id' => $billing->id,
-                'type' => 'product',
-                'description' => $orderItem->product_name.' — '.$orderItem->variant_name,
-                'quantity' => $orderItem->quantity,
-                'unit_price' => $unitPrice,
-                'amount' => $lineAmount,
-                'order_item_id' => $orderItem->id,
-            ]);
-        }
+        $billing = $this->addItems->handle($billing, $order);
 
         app(CreateAuditLog::class)->handle(
             subject: $billing,
@@ -69,7 +50,9 @@ class GenerateBillingForOrder
             metadata: ['order_id' => $order->id, 'total_amount' => (string) $order->total_amount],
         );
 
-        $order->customer->notify(new BillingIssued($billing));
+        if ($isNewBilling) {
+            $order->customer->notify(new BillingIssued($billing));
+        }
 
         return $billing;
     }

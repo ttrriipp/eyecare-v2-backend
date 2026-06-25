@@ -4,7 +4,9 @@ use App\Actions\Orders\ApplyDiscount;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\DiscountType;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\OrderStatus;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\DiscountTypeSeeder;
@@ -178,6 +180,17 @@ it('billing is generated with the discounted total_amount', function () {
         'total_amount' => '100.00',
         'order_status_id' => $this->requestedStatus->id,
         'is_non_prescription' => true,
+    ]);
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'unit_price' => '100.00',
+        'quantity' => 1,
+        'subtotal' => '100.00',
+        'lens_type_id' => null,
+        'lens_type_name' => null,
+        'lens_type_price' => null,
+        'product_variant_id' => ProductVariant::factory()->create(['stock_quantity' => 10])->id,
     ]);
 
     app(UpdateOrderStatus::class)->handle(

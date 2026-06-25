@@ -145,6 +145,7 @@ class ClinicWorkflowSeeder extends Seeder
             ['order_id' => $order->id],
             [
                 'customer_id' => $order->customer_id,
+                'appointment_id' => $appointment->id,
                 'discount_type_id' => $seniorDiscount->id,
                 'discount_amount' => $discountAmount,
                 'billing_status_id' => $issuedStatus->id,
