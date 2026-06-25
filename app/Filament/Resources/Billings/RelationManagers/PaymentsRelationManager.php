@@ -40,49 +40,6 @@ class PaymentsRelationManager extends RelationManager
         ]);
     }
 
-    /**
-     * @return array<Action>
-     */
-    protected function getHeaderActions(): array
-    {
-        return [
-            Action::make('record_payment')
-                ->label('Record Payment')
-                ->icon('heroicon-o-banknotes')
-                ->color('success')
-                ->visible(fn (): bool => (float) $this->getOwnerRecord()->balance_due > 0
-                    && $this->getOwnerRecord()->status->name !== 'voided')
-                ->schema([
-                    TextInput::make('amount')
-                        ->required()
-                        ->numeric()
-                        ->minValue(0.01)
-                        ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
-                        ->prefix('₱')
-                        ->helperText(function (): ?string {
-                            $billing = $this->getOwnerRecord();
-
-                            if ($billing->payments()->whereHas('status', fn ($q) => $q->where('name', 'posted'))->exists()) {
-                                return null;
-                            }
-
-                            return 'Suggested downpayment (50%): ₱'.number_format((float) $billing->total_amount / 2, 2);
-                        }),
-                    Select::make('payment_method_id')
-                        ->label('Method')
-                        ->required()
-                        ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
-                    TextInput::make('reference_number')->maxLength(100),
-                    DateTimePicker::make('paid_at')->default(now()),
-                    Textarea::make('notes'),
-                ])
-                ->action(function (array $data): void {
-                    app(RecordPayment::class)->handle($this->getOwnerRecord(), $data);
-                })
-                ->successNotificationTitle('Payment recorded'),
-        ];
-    }
-
     public function table(Table $table): Table
     {
         return $table
@@ -110,6 +67,42 @@ class PaymentsRelationManager extends RelationManager
                         'voided' => 'danger',
                         default => 'gray',
                     }),
+            ])
+            ->headerActions([
+                Action::make('record_payment')
+                    ->label('Record Payment')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
+                    ->visible(fn (): bool => (float) $this->getOwnerRecord()->balance_due > 0
+                        && $this->getOwnerRecord()->status->name !== 'voided')
+                    ->schema([
+                        TextInput::make('amount')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
+                            ->prefix('₱')
+                            ->helperText(function (): ?string {
+                                $billing = $this->getOwnerRecord();
+
+                                if ($billing->payments()->whereHas('status', fn ($q) => $q->where('name', 'posted'))->exists()) {
+                                    return null;
+                                }
+
+                                return 'Suggested downpayment (50%): ₱'.number_format((float) $billing->total_amount / 2, 2);
+                            }),
+                        Select::make('payment_method_id')
+                            ->label('Method')
+                            ->required()
+                            ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
+                        TextInput::make('reference_number')->maxLength(100),
+                        DateTimePicker::make('paid_at')->default(now()),
+                        Textarea::make('notes'),
+                    ])
+                    ->action(function (array $data): void {
+                        app(RecordPayment::class)->handle($this->getOwnerRecord(), $data);
+                    })
+                    ->successNotificationTitle('Payment recorded'),
             ])
             ->recordActions([
                 Action::make('void')

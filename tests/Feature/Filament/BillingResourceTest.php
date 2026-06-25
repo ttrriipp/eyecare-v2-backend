@@ -14,6 +14,7 @@ use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentMethodSeeder;
 use Database\Seeders\PaymentStatusSeeder;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -81,7 +82,7 @@ test('staff can record a payment via the payments relation manager', function ()
         'ownerRecord' => $billing,
         'pageClass' => ViewBilling::class,
     ])
-        ->callAction('record_payment', data: [
+        ->callAction(TestAction::make('record_payment')->table(), data: [
             'amount' => 250.00,
             'payment_method_id' => $cashMethod->id,
             'paid_at' => now()->toDateTimeString(),
