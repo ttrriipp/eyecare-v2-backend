@@ -25,6 +25,11 @@ class LensTypeResource extends Resource
 
     protected static ?string $navigationLabel = 'Lens Types';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return LensTypeForm::configure($schema);

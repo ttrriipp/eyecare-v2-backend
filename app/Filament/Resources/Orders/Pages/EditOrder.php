@@ -50,9 +50,9 @@ class EditOrder extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->billing !== null)
                 ->url(fn (): string => BillingResource::getUrl('view', ['record' => $this->getRecord()->billing])),
 
-            RestoreAction::make(),
-            DeleteAction::make(),
-            ForceDeleteAction::make(),
+            RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
         ];
     }
 

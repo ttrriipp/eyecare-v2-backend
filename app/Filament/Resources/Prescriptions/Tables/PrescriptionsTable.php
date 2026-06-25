@@ -40,9 +40,9 @@ class PrescriptionsTable
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make(),
-                    RestoreAction::make(),
-                    DeleteAction::make(),
-                    ForceDeleteAction::make(),
+                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
                 ]),
             ]);
     }

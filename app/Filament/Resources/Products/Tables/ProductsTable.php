@@ -82,9 +82,9 @@ class ProductsTable
                         ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
                         ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
                         ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product hidden' : 'Product visible'),
-                    DeleteAction::make()->color('danger'),
-                    RestoreAction::make(),
-                    ForceDeleteAction::make(),
+                    DeleteAction::make()->color('danger')->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
                 ]),
             ])
             ->filters([

@@ -39,6 +39,22 @@ Three fixed roles. No dynamic permission management.
 
 Role enforcement: `canAccessPanel()` on `User` model for Filament; `EnsureUserIsStaff` middleware for staff API routes; form request `authorize()` for customer-scoped endpoints.
 
+### Admin vs Staff permissions
+
+Use `User::isAdmin()` to check role in Filament. The default is "staff can do all operational work; admin additionally controls configuration and destructive actions."
+
+| Area | Staff CAN | Admin only |
+|---|---|---|
+| Appointments | Create, edit, change status, assign staff, bill service | — |
+| Orders | Create, edit, advance status, assign lenses, cancel `requested` | Cancel `confirmed`/`processing`/`ready_for_pickup` (triggers inventory reversal) |
+| Billings | View, record payment, add service | Void billing, apply/change discount |
+| Products | Create, edit, manage variants, adjust stock | Delete/restore |
+| Prescriptions | Create, edit | Delete/restore |
+| Appointments | Create, edit, change status | Delete/restore |
+| Users | ❌ Hidden entirely | Full CRUD |
+| Audit Logs | ❌ Hidden entirely | Read-only access |
+| Settings (categories, brands, lens types, visit reasons, services) | ❌ Hidden entirely | Full CRUD |
+
 ---
 
 ## Demo Accounts

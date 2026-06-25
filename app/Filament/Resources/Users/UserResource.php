@@ -30,7 +30,7 @@ class UserResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->role->name === 'admin';
+        return auth()->user()?->isAdmin() ?? false;
     }
 
     public static function getEloquentQuery(): Builder

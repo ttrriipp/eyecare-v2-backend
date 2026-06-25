@@ -3,6 +3,7 @@
 use App\Filament\Resources\ProductCategories\Pages\CreateProductCategory;
 use App\Filament\Resources\ProductCategories\Pages\EditProductCategory;
 use App\Filament\Resources\ProductCategories\Pages\ListProductCategories;
+use App\Filament\Resources\ProductCategories\ProductCategoryResource;
 use App\Models\ProductCategory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,13 +21,12 @@ test('staff and admin can list categories', function (string $factoryState) {
         ->assertCanSeeTableRecords($categories);
 })->with([
     'admin' => ['admin'],
-    'staff' => ['staff'],
 ]);
 
-test('staff can create a category', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can create a category', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateProductCategory::class)
         ->fillForm(['name' => 'Eyeglasses'])
@@ -38,11 +38,11 @@ test('staff can create a category', function () {
     $this->assertDatabaseHas(ProductCategory::class, ['name' => 'Eyeglasses']);
 });
 
-test('staff can edit a category', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can edit a category', function () {
+    $admin = User::factory()->admin()->create();
     $category = ProductCategory::factory()->create(['name' => 'Old Category']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(EditProductCategory::class, ['record' => $category->getRouteKey()])
         ->fillForm(['name' => 'Updated Category'])
@@ -54,9 +54,9 @@ test('staff can edit a category', function () {
 });
 
 test('category name is required', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateProductCategory::class)
         ->fillForm(['name' => null])
@@ -65,13 +65,20 @@ test('category name is required', function () {
 });
 
 test('category name must be unique', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     ProductCategory::factory()->create(['name' => 'Sunglasses']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateProductCategory::class)
         ->fillForm(['name' => 'Sunglasses'])
         ->call('create')
         ->assertHasFormErrors(['name' => 'unique']);
+});
+
+test('staff cannot access categories', function () {
+    $staff = User::factory()->staff()->create();
+    $this->actingAs($staff);
+
+    $this->get(ProductCategoryResource::getUrl('index'))->assertForbidden();
 });

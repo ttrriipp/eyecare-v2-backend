@@ -90,10 +90,10 @@ test('product table shows total variant quantity', function () {
         ->assertTableColumnStateSet('total_quantity', 13, $product);
 });
 
-test('staff can create lens types', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can create lens types', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateLensType::class)
         ->fillForm([

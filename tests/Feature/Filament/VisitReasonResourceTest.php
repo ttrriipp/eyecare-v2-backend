@@ -3,6 +3,7 @@
 use App\Filament\Resources\VisitReasons\Pages\CreateVisitReason;
 use App\Filament\Resources\VisitReasons\Pages\EditVisitReason;
 use App\Filament\Resources\VisitReasons\Pages\ListVisitReasons;
+use App\Filament\Resources\VisitReasons\VisitReasonResource;
 use App\Models\User;
 use App\Models\VisitReason;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,13 +21,12 @@ test('staff and admin can list visit reasons', function (string $factoryState) {
         ->assertCanSeeTableRecords($reasons);
 })->with([
     'admin' => ['admin'],
-    'staff' => ['staff'],
 ]);
 
-test('staff can create a visit reason', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can create a visit reason', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateVisitReason::class)
         ->fillForm(['name' => 'General Checkup'])
@@ -38,11 +38,11 @@ test('staff can create a visit reason', function () {
     $this->assertDatabaseHas(VisitReason::class, ['name' => 'General Checkup']);
 });
 
-test('staff can edit a visit reason', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can edit a visit reason', function () {
+    $admin = User::factory()->admin()->create();
     $reason = VisitReason::factory()->create(['name' => 'Old Name']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(EditVisitReason::class, ['record' => $reason->getRouteKey()])
         ->fillForm(['name' => 'Updated Name'])
@@ -54,9 +54,9 @@ test('staff can edit a visit reason', function () {
 });
 
 test('visit reason name is required', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateVisitReason::class)
         ->fillForm(['name' => null])
@@ -65,13 +65,20 @@ test('visit reason name is required', function () {
 });
 
 test('visit reason name must be unique', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     VisitReason::factory()->create(['name' => 'Eye Exam']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(CreateVisitReason::class)
         ->fillForm(['name' => 'Eye Exam'])
         ->call('create')
         ->assertHasFormErrors(['name' => 'unique']);
+});
+
+test('staff cannot access visit reasons', function () {
+    $staff = User::factory()->staff()->create();
+    $this->actingAs($staff);
+
+    $this->get(VisitReasonResource::getUrl('index'))->assertForbidden();
 });

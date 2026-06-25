@@ -22,6 +22,11 @@ class AuditLogResource extends Resource
 
     protected static ?string $navigationLabel = 'Audit Logs';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     protected static ?int $navigationSort = 41;
 
     protected static string|UnitEnum|null $navigationGroup = 'Administration';

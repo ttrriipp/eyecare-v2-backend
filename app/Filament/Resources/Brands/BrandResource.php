@@ -26,6 +26,11 @@ class BrandResource extends Resource
 
     protected static ?string $navigationLabel = 'Brands';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([

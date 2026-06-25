@@ -15,9 +15,9 @@ class EditProduct extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            RestoreAction::make(),
-            DeleteAction::make(),
-            ForceDeleteAction::make(),
+            RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
         ];
     }
 }

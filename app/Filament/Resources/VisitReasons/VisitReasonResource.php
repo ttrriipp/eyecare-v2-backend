@@ -25,6 +25,11 @@ class VisitReasonResource extends Resource
 
     protected static ?string $navigationLabel = 'Visit Reasons';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return VisitReasonForm::configure($schema);

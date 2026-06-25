@@ -126,7 +126,8 @@ class OrdersTable
                         ->label('Cancel Order')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (Order $record): bool => ! in_array($record->status?->name, ['completed', 'cancelled'], true))
+                        ->visible(fn (Order $record): bool => ! in_array($record->status?->name, ['completed', 'cancelled'], true)
+                            && ($record->status?->name === 'requested' || (auth()->user()?->isAdmin() ?? false)))
                         ->requiresConfirmation()
                         ->action(function (Order $record): void {
                             try {
@@ -137,8 +138,8 @@ class OrdersTable
                                 Notification::make()->title('Cannot cancel order')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make(),
-                    DeleteAction::make(),
+                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
                     ForceDeleteAction::make(),
                 ]),
             ])

@@ -124,7 +124,7 @@ test('staff can void a payment via the payments table row action', function () {
 test('void_billing action voids the billing and all posted payments', function () {
     $this->seed(PaymentStatusSeeder::class);
 
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $billing = Billing::factory()->issued()->create([
         'total_amount' => '200.00',
         'balance_due' => '200.00',
@@ -144,7 +144,7 @@ test('void_billing action voids the billing and all posted payments', function (
         'billing_status_id' => BillingStatus::query()->where('name', 'partially_paid')->value('id'),
     ]);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
         ->callAction('void_billing')
@@ -158,14 +158,14 @@ test('void_billing action voids the billing and all posted payments', function (
 });
 
 test('apply_discount action updates billing totals', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $billing = Billing::factory()->issued()->create([
         'subtotal' => '800.00',
         'total_amount' => '800.00',
         'balance_due' => '800.00',
     ]);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     // Senior Citizen 20% → 160.00 discount → 640.00 total
     $seniorType = DiscountType::query()->firstOrCreate(

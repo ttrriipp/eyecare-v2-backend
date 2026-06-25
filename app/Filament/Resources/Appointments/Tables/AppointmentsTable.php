@@ -115,9 +115,9 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot cancel appointment')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make(),
-                    DeleteAction::make(),
-                    ForceDeleteAction::make(),
+                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
                 ]),
             ])
             ->defaultSort('scheduled_at', 'desc');

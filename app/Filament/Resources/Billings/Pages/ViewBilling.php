@@ -83,7 +83,7 @@ class ViewBilling extends ViewRecord
                 ->label('Apply Discount')
                 ->icon('heroicon-o-tag')
                 ->color('warning')
-                ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided')
+                ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided' && (auth()->user()?->isAdmin() ?? false))
                 ->schema([
                     Select::make('discount_type_id')
                         ->label('Discount Type')
@@ -133,7 +133,7 @@ class ViewBilling extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Void this billing?')
                 ->modalDescription('This will void the billing and all posted payments. This cannot be undone.')
-                ->visible(fn (): bool => in_array($this->getRecord()->status->name, ['issued', 'partially_paid']))
+                ->visible(fn (): bool => in_array($this->getRecord()->status->name, ['issued', 'partially_paid']) && (auth()->user()?->isAdmin() ?? false))
                 ->action(function (): void {
                     $billing = $this->getRecord();
 

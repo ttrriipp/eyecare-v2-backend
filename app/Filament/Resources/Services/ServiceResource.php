@@ -25,6 +25,11 @@ class ServiceResource extends Resource
 
     protected static ?string $navigationLabel = 'Services';
 
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ServiceForm::configure($schema);

@@ -18,15 +18,15 @@ test('staff and admin can list audit logs', function (string $role) {
 
     Livewire::test(ListAuditLogs::class)
         ->assertCanSeeTableRecords($logs);
-})->with(['staff', 'admin']);
+})->with(['admin']);
 
 test('audit logs table can be filtered by action', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
     $log = AuditLog::factory()->create(['action' => 'appointment.status_changed']);
     AuditLog::factory()->create(['action' => 'order.status_changed']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(ListAuditLogs::class)
         ->filterTable('action', 'appointment.status_changed')
@@ -34,36 +34,31 @@ test('audit logs table can be filtered by action', function () {
 });
 
 test('audit logs table can be filtered by subject type', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
     $apptLog = AuditLog::factory()->create(['subject_type' => 'App\\Models\\Appointment']);
     AuditLog::factory()->create(['subject_type' => 'App\\Models\\Order']);
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(ListAuditLogs::class)
         ->filterTable('subject_type', 'App\\Models\\Appointment')
         ->assertCanSeeTableRecords([$apptLog]);
 });
 
-test('staff can view an audit log record', function () {
-    $staff = User::factory()->staff()->create();
+test('admin can view an audit log record', function () {
+    $admin = User::factory()->admin()->create();
     $log = AuditLog::factory()->create();
 
-    $this->actingAs($staff);
+    $this->actingAs($admin);
 
     Livewire::test(ViewAuditLog::class, ['record' => $log->getRouteKey()])
         ->assertSuccessful();
 });
 
-test('audit logs have no edit or create actions', function () {
+test('staff cannot access audit logs', function () {
     $staff = User::factory()->staff()->create();
     $this->actingAs($staff);
 
-    $pages = AuditLogResource::getPages();
-
-    expect($pages)->toHaveKey('index')
-        ->toHaveKey('view')
-        ->not->toHaveKey('create')
-        ->not->toHaveKey('edit');
+    $this->get(AuditLogResource::getUrl('index'))->assertForbidden();
 });

@@ -3,6 +3,7 @@
 use App\Filament\Resources\Services\Pages\CreateService;
 use App\Filament\Resources\Services\Pages\EditService;
 use App\Filament\Resources\Services\Pages\ListServices;
+use App\Filament\Resources\Services\ServiceResource;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,17 +12,17 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->staff()->create());
+    $this->actingAs(User::factory()->admin()->create());
 });
 
-test('staff can list services', function () {
+test('admin can list services', function () {
     $services = Service::factory()->count(3)->create();
 
     Livewire::test(ListServices::class)
         ->assertCanSeeTableRecords($services);
 });
 
-test('staff can create a service', function () {
+test('admin can create a service', function () {
     Livewire::test(CreateService::class)
         ->fillForm([
             'name' => 'Glaucoma Screening',
@@ -39,7 +40,7 @@ test('staff can create a service', function () {
     ]);
 });
 
-test('staff can edit a service', function () {
+test('admin can edit a service', function () {
     $service = Service::factory()->create(['price' => '300.00']);
 
     Livewire::test(EditService::class, ['record' => $service->id])
@@ -57,4 +58,11 @@ test('service name must be unique', function () {
         ->fillForm(['name' => 'Eye Exam', 'price' => 500.00])
         ->call('create')
         ->assertHasFormErrors(['name' => 'unique']);
+});
+
+test('staff cannot access services', function () {
+    $staff = User::factory()->staff()->create();
+    $this->actingAs($staff);
+
+    $this->get(ServiceResource::getUrl('index'))->assertForbidden();
 });
