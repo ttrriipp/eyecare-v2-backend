@@ -76,11 +76,15 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `users` | email + password nullable for walk-in customers, date_of_birth (nullable) |
 | `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
-| `products` | brand_id, category_id (nullable), lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
+| `products` | brand_id, category_id (nullable FK → product_categories), lens_type_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (frame/lens/contact_lens/accessory), images (nullable JSON). No price/dimensions (on variants). |
 | `product_variants` | price, compare_at_price, cost_price, attributes (nullable JSON), stock_quantity, low_stock_threshold, ar_eligible, ar_asset_reference, images (nullable JSON) |
-| `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, total_amount |
+| `product_categories` | name. FK target for products.category_id. PHP class: `ProductCategory`. |
+| `services` | name, description, price, is_active. Fee schedule for billable clinical services. |
+| `service_records` | customer_id, service_id, appointment_id (nullable), staff_id, amount, notes, performed_at. Audit log of services performed — created when a service is added to a billing. |
+| `orders` | order_number (ORD-YYYY-XXXXXX), customer_id, is_non_prescription, discount_type_id, discount_amount, subtotal, total_amount |
 | `order_items` | price snapshot — product_name, variant_name, unit_price, lens_type_id (nullable FK), lens_type_name (nullable), lens_type_price (nullable), lens_product_variant_id (nullable — specific lens assigned by staff), subtotal. |
-| `billings` | billing_number (BIL-YYYY-XXXXXX), order_id (1:1), total_amount, amount_paid, balance_due, issued_at |
+| `billings` | billing_number (BIL-YYYY-XXXXXX), customer_id, order_id (nullable FK — set when triggered by an order), discount_type_id (nullable), discount_amount, subtotal, total_amount, amount_paid, balance_due, issued_at |
+| `billing_items` | billing_id, type (product\|service), description, quantity, unit_price, amount, order_item_id (nullable FK), service_record_id (nullable FK). Line items on an invoice. |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
 | `messages` | conversation_id, sender_id, body |
@@ -93,7 +97,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 ### Soft Deletes
 
-These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`, `Appointment`, `Prescription`, `Conversation`, `Feedback`.
+These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`, `Appointment`, `Prescription`, `Conversation`, `Feedback`, `ServiceRecord`.
 
 ---
 
@@ -114,6 +118,27 @@ These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`,
 - **`attributes`** — replaces old `dimensions`. Generic key-value JSON on variants, visible for ALL product types. Frame: `{"eye_size":52,"bridge":18,"temple":140}`. Contact lens: `{"power":"-1.25","base_curve":"8.4","diameter":"14.0"}`. Accessory/Lens: use as needed.
 
 See `docs/product-data-structure.md` for full rationale.
+
+---
+
+## Billing Model (Encounter/Invoice)
+
+Billings are standalone invoices — not owned by any single entity. A billing has:
+- A `customer_id` (who pays)
+- An optional `order_id` (which order triggered this billing, if any)
+- One or more `billing_items` — product charges (from order items) or service charges (from service records)
+- A discount applied at the billing level (`discount_type_id`, `discount_amount`)
+- A payment trail via `payments`
+
+**Two creation paths:**
+1. **Order confirmed** → `GenerateBillingForOrder` auto-creates a billing + product billing_items from order_items
+2. **Staff bills a service** → "Bill Service" action on Appointment/Patient page → `CreateServiceBilling` or `AddServiceToBilling`
+
+**Billing items** (`billing_items`):
+- `type = 'product'` → links to `order_item_id`, description is "Product — Variant"
+- `type = 'service'` → links to `service_record_id`, description is the service name
+
+**Adding services to an existing billing:** Staff uses the "Add Service" action on the ViewBilling page. If an appointment has an existing order billing, "Bill Service" on the appointment page adds a service item to that billing instead of creating a new one.
 
 ---
 
@@ -145,6 +170,12 @@ Prescription gate: orders with `is_non_prescription = false` cannot be confirmed
 Lens gate: all order items with `lens_type_id` must have `lens_product_variant_id` assigned before confirming.
 Discount: applied at confirmation time via `discount_type_id` (Senior Citizen 20%, PWD 20%, Loyalty 10%, Custom fixed amount).
 
+**Billing statuses** (`issued → partially_paid → paid` + `voided`):
+- `issued` — billing generated, no payments recorded
+- `partially_paid` — some payments posted but balance remains
+- `paid` — balance_due = 0
+- `voided` — billing cancelled (auto-triggered when order is cancelled from confirmed)
+
 ---
 
 ## Filament Panel
@@ -157,15 +188,15 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback
 - Administration — Users, Audit Logs
-- Settings — Categories, Brands, Lens Types, Visit Reasons
+- Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
 **Resources (operational):**
-- Appointments — guarded status dropdown on edit form; staff assignment
+- Appointments — guarded status dropdown on edit form; staff assignment. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing.
 - Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
 - Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details)
-- Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. DB role stays `customer`, UI label is "Patient". Customers cannot access.
-- Billings — KPI stats (total, unpaid, collected) + status tabs. Table with badges, date range filters, row actions (View/View Order/Record Payment). View page: 3-col Billing Details infolist + Payments section with Record Payment and void per row. Not deletable — voided automatically on order cancellation. No create page.
+- Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. "Bill Service" header action. DB role stays `customer`, UI label is "Patient". Customers cannot access.
+- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: billing details infolist + line items table + payments section with Record Payment + Void Payment + "Add Service" header action. Not deletable — voided automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
@@ -173,7 +204,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
-- Categories, Brands (CRUD), Lens Types (with price), Visit Reasons
+- Categories, Brands (CRUD), Lens Types (with price), Visit Reasons, Services (fee schedule with price, visibility toggle)
 
 **Dashboard widgets:** appointment counts, pending orders, low stock, unpaid billings, recent feedback.
 
@@ -203,7 +234,7 @@ POST   /orders                  Submit order request (status locked to requested
 GET    /orders                  Customer's own orders, paginated (default 15, `?per_page=N`)
 GET    /orders/{id}
 
-GET    /billing/{id}            Customer billing with payment history
+GET    /billing/{id}            Customer billing with payment history (auth: billing.customer_id must match user)
 
 GET    /conversations           Customer's single persistent conversation
 GET    /conversations/{id}/messages
@@ -331,7 +362,9 @@ PATCH  /staff/orders/{id}/status
 | `UpdateAppointmentStatus` | `app/Actions/Appointments/` | Validates transition, updates status, creates SMS record, fires audit log |
 | `UpdateOrderStatus` | `app/Actions/Orders/` | Validates transition, checks prescription gate, deducts/restores inventory, fires audit log |
 | `ApplyDiscount` | `app/Actions/Orders/` | Calculates discount_amount from type, updates total_amount |
-| `GenerateBillingForOrder` | `app/Actions/Billing/` | Creates billing from confirmed order (1:1, duplicate-guarded) |
+| `GenerateBillingForOrder` | `app/Actions/Billing/` | Creates billing with customer_id/order_id + product billing_items from each order_item |
+| `AddServiceToBilling` | `app/Actions/Billing/` | Creates service_record + service billing_item, recalculates billing subtotal/total |
+| `CreateServiceBilling` | `app/Actions/Billing/` | Creates a standalone billing (no order) with one service item via AddServiceToBilling |
 | `RecalculateBillingBalance` | `app/Actions/Billing/` | Sums posted payments, updates amount_paid/balance_due/status |
 | `RecordPayment` | `app/Actions/Billing/` | Creates payment + recalculates balance |
 | `RecordInventoryMovement` | `app/Actions/Inventory/` | Creates inventory_movement record (with previous_stock, new_stock, created_by), updates variant stock_quantity, fires low stock notification if stock ≤ threshold after deduction |
@@ -343,10 +376,14 @@ PATCH  /staff/orders/{id}/status
 
 - **Walk-in customers:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone. They cannot log in to the mobile app.
 - **Order item totals:** `subtotal` = (`unit_price` + `lens_type_price`) × `quantity`. `lens_type_id` and `lens_type_price` are nullable (no lens = frame-only price). Order `subtotal` = sum of all item subtotals. `total_amount` = `subtotal` − `discount_amount`. Both recalculate when staff assigns a lens product variant.
+- **Billing (encounter model):** A billing is a standalone invoice with line items. When an order is confirmed, a billing is auto-generated with product line items and a copy of the order's discount. Staff can add service items to any non-voided billing via "Add Service" on the ViewBilling page, or via "Bill Service" on the Appointment/Patient edit page. Standalone service billings (no order) are created the same way. `billing_items.created_at` is insert-only — line items are never edited.
+- **Billing auth (API):** `GET /billing/{id}` checks `billing.customer_id === $user->id` directly — no polymorphic lookup.
 - **Insufficient stock:** If a variant has 0 stock when an order is confirmed, `UpdateOrderStatus` throws a `ValidationException` (not a crash). The order status remains `requested`.
 - **Lens inventory:** Lens products (type `lens`) are linked to a `lens_type` via `products.lens_type_id`. Staff assigns a specific lens product variant per order item via the ItemsRelationManager **on the order edit page while the order is still `requested`**. "Assign Lens" action is hidden once the order is confirmed or beyond. Confirmation is gated: if any order item has `lens_type_id` set but `lens_product_variant_id` is null, `UpdateOrderStatus` throws a `ValidationException` — staff must assign all lenses before confirming. On confirmation, both frame variant AND lens product variant stock deduct. On cancellation (from confirmed), both restore. Mobile API returns only `frame` products — all other types are admin-only.
 - **Inventory movements:** All stock changes go through `RecordInventoryMovement`. Types: `restock`, `manual_adjustment`, `order_commitment`, `order_reversal`. Each movement records `previous_stock`, `new_stock`, and `created_by` (the user who triggered it, or null for system actions). Staff uses the "Adjust Stock" action on the Variants table (restock = add units, manual_adjustment = remove units). `stock_quantity` is read-only on the variant edit form — changes only through Adjust Stock. Full history viewable in Inventory History resource (read-only, with view modal per row).
-- **Billing:** One billing per order. **Auto-generated when the order is confirmed** — status starts as `issued` with `issued_at` set. Status flow: `issued → partially_paid → paid` (+ `voided`). Billing is auto-voided when the order is cancelled. Staff records payments from the ViewBilling page's Payments section (50% downpayment hint on first payment). Payments are voidable (not deletable) — voided payments excluded from balance. Billings are not deletable through the UI.
+- **Product categories:** The DB table is `product_categories` and the PHP class is `ProductCategory`. The FK column on `products` stays `category_id`. The Filament nav label is "Categories".
+- **Services vs Visit Reasons:** `visit_reasons` describe *why a patient is booking* (scheduling vocabulary). `services` describe *what was performed and charged* (billing vocabulary). They are separate tables with different purposes.
+- **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Bill Service" / "Add Service" actions create them as a side effect.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
 - **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
@@ -374,6 +411,8 @@ PATCH  /staff/orders/{id}/status
 | `docs/backend-polish-spec.md` | Complete — 11 tasks |
 | `docs/billings-rework-spec.md` | Complete — 7 tasks |
 | `docs/patients-resource-spec.md` | Complete — 4 tasks |
+| `docs/specs/service-billing-spec.md` | Complete — 9 tasks |
+| `docs/specs/encounter-billing-refactor-spec.md` | Complete — 12 tasks |
 
 ---
 
