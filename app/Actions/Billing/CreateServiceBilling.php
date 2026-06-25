@@ -33,7 +33,7 @@ class CreateServiceBilling
 
         app(CreateAuditLog::class)->handle(
             subject: $billing,
-            action: 'billing.service_added',
+            action: $isNewBilling ? 'billing.generated' : 'billing.service_added',
             metadata: ['customer_id' => $data['customer_id'], 'service_id' => $data['service_id']],
         );
 
