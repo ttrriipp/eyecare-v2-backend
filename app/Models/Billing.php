@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'customer_id',
     'order_id',
+    'appointment_id',
     'discount_type_id',
     'discount_amount',
     'subtotal',
@@ -58,6 +59,12 @@ class Billing extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /** @return BelongsTo<Appointment, $this> */
+    public function appointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class);
     }
 
     /** @return BelongsTo<DiscountType, $this> */
