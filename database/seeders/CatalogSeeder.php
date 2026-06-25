@@ -14,20 +14,20 @@ class CatalogSeeder extends Seeder
     public function run(): void
     {
         collect([
-            ['name' => 'single_vision', 'description' => 'Standard single vision lenses.', 'price' => 2500.00],
-            ['name' => 'progressive', 'description' => 'Progressive multifocal lenses.', 'price' => 6500.00],
-            ['name' => 'bifocal', 'description' => 'Bifocal lenses with visible segment.', 'price' => 4500.00],
+            ['name' => 'Single Vision', 'description' => 'Standard single vision lenses.', 'price' => 2500.00],
+            ['name' => 'Progressive', 'description' => 'Progressive multifocal lenses.', 'price' => 6500.00],
+            ['name' => 'Bifocal', 'description' => 'Bifocal lenses with visible segment.', 'price' => 4500.00],
         ])->each(fn (array $attributes) => LensType::query()->firstOrCreate(
             ['name' => $attributes['name']],
             ['description' => $attributes['description'], 'price' => $attributes['price']],
         ));
 
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
-        $category = ProductCategory::query()->firstOrCreate(['name' => 'frames']);
-        $lensCategory = ProductCategory::query()->firstOrCreate(['name' => 'lenses']);
+        $category = ProductCategory::query()->firstOrCreate(['name' => 'Frames']);
+        $lensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lenses']);
 
-        $progressiveLensType = LensType::query()->where('name', 'progressive')->first();
-        $singleVisionLensType = LensType::query()->where('name', 'single_vision')->first();
+        $progressiveLensType = LensType::query()->where('name', 'Progressive')->first();
+        $singleVisionLensType = LensType::query()->where('name', 'Single Vision')->first();
 
         // Lens products
         $lensProducts = [

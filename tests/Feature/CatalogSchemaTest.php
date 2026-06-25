@@ -58,9 +58,9 @@ test('catalog seeder creates demo frame products and lens types idempotently', f
 
     expect(LensType::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
-            'single_vision',
-            'progressive',
-            'bifocal',
+            'Single Vision',
+            'Progressive',
+            'Bifocal',
         ])
         ->and(Product::query()->where('is_active', true)->count())->toBeGreaterThanOrEqual(2)
         ->and(ProductVariant::query()->where('ar_eligible', true)->count())->toBeGreaterThanOrEqual(1);

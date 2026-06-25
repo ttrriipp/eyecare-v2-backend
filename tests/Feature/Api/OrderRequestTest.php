@@ -33,7 +33,7 @@ test('customers can submit order requests with item snapshots and lens type sele
         'is_active' => true,
     ]);
     $lensType = LensType::factory()->create([
-        'name' => 'single_vision',
+        'name' => 'Single Vision',
         'price' => null,
     ]);
 
@@ -56,7 +56,7 @@ test('customers can submit order requests with item snapshots and lens type sele
         ->assertJsonPath('data.appointment_id', $appointment->id)
         ->assertJsonPath('data.items.0.product_name', 'Aviator Frame')
         ->assertJsonPath('data.items.0.variant_name', 'Silver')
-        ->assertJsonPath('data.items.0.lens_type_name', 'single_vision')
+        ->assertJsonPath('data.items.0.lens_type_name', 'Single Vision')
         ->assertJsonPath('data.items.0.unit_price', '189.99')
         ->assertJsonPath('data.total_amount', '189.99');
 
@@ -73,7 +73,7 @@ test('customers can submit order requests with item snapshots and lens type sele
         'lens_type_id' => $lensType->id,
         'product_name' => 'Aviator Frame',
         'variant_name' => 'Silver',
-        'lens_type_name' => 'single_vision',
+        'lens_type_name' => 'Single Vision',
         'unit_price' => '189.99',
         'quantity' => 1,
         'subtotal' => '189.99',

@@ -43,9 +43,9 @@ test('visit reasons are seeded idempotently', function () {
 
     expect(VisitReason::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
-            'eye_exam',
-            'follow_up',
-            'prescription_check',
+            'Eye Exam',
+            'Follow-up',
+            'Prescription Check',
         ])
         ->and(VisitReason::query()->count())->toBe(3);
 });

@@ -65,7 +65,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedAppointment(User $customer, User $staff): Appointment
     {
         $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
-        $visitReason = VisitReason::query()->where('name', 'eye_exam')->firstOrFail();
+        $visitReason = VisitReason::query()->where('name', 'Eye Exam')->firstOrFail();
 
         return Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'visit_reason_id' => $visitReason->id],
@@ -102,7 +102,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedPrescriptionOrder(User $customer, Appointment $appointment, Prescription $prescription, User $staff): void
     {
         $variant = ProductVariant::query()->where('sku', 'CRF-BLK-001')->firstOrFail();
-        $lensType = LensType::query()->where('name', 'single_vision')->firstOrFail();
+        $lensType = LensType::query()->where('name', 'Single Vision')->firstOrFail();
         $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
         $seniorDiscount = DiscountType::query()->where('name', 'Senior Citizen')->firstOrFail();
 
@@ -144,6 +144,7 @@ class ClinicWorkflowSeeder extends Seeder
         $billing = Billing::query()->firstOrCreate(
             ['order_id' => $order->id],
             [
+                'billing_number' => 'BIL-DEMO-0001',
                 'customer_id' => $order->customer_id,
                 'appointment_id' => $appointment->id,
                 'discount_type_id' => $seniorDiscount->id,
@@ -184,7 +185,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedNonPrescriptionOrder(User $customer): void
     {
         $variant = ProductVariant::query()->where('sku', 'RMF-GLD-001')->firstOrFail();
-        $lensType = LensType::query()->where('name', 'single_vision')->firstOrFail();
+        $lensType = LensType::query()->where('name', 'Single Vision')->firstOrFail();
         $completedStatus = OrderStatus::query()->where('name', 'completed')->firstOrFail();
 
         $unitPrice = (string) $variant->price;
@@ -221,6 +222,7 @@ class ClinicWorkflowSeeder extends Seeder
         $billing = Billing::query()->firstOrCreate(
             ['order_id' => $order->id],
             [
+                'billing_number' => 'BIL-DEMO-0002',
                 'customer_id' => $order->customer_id,
                 'billing_status_id' => $paidStatus->id,
                 'subtotal' => $subtotal,
@@ -328,7 +330,7 @@ class ClinicWorkflowSeeder extends Seeder
         $completedAppointment = Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'appointment_status_id' => $completedStatus->id],
             [
-                'visit_reason_id' => VisitReason::query()->where('name', 'follow_up')->firstOrFail()->id,
+                'visit_reason_id' => VisitReason::query()->where('name', 'Follow-up')->firstOrFail()->id,
                 'scheduled_at' => now()->subDays(10),
                 'contact_notes' => 'Follow-up after prescription.',
             ],
@@ -368,6 +370,7 @@ class ClinicWorkflowSeeder extends Seeder
         }
 
         $billing = Billing::query()->create([
+            'billing_number' => 'BIL-DEMO-0003',
             'customer_id' => $customer->id,
             'order_id' => null,
             'billing_status_id' => $issuedStatus->id,

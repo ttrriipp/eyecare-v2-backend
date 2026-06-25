@@ -13,9 +13,9 @@ class VisitReasonSeeder extends Seeder
     public function run(): void
     {
         collect([
-            'eye_exam',
-            'follow_up',
-            'prescription_check',
+            'Eye Exam',
+            'Follow-up',
+            'Prescription Check',
         ])->each(fn (string $name) => VisitReason::query()->firstOrCreate([
             'name' => $name,
         ]));
