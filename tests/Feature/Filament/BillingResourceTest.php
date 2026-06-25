@@ -5,6 +5,7 @@ use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
 use App\Models\Billing;
 use App\Models\BillingStatus;
+use App\Models\DiscountType;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
@@ -117,4 +118,69 @@ test('staff can void a payment via the payments table row action', function () {
 
     expect($payment->status->name)->toBe('voided')
         ->and((float) $billing->balance_due)->toBe(200.0);
+});
+
+test('void_billing action voids the billing and all posted payments', function () {
+    $this->seed(PaymentStatusSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create([
+        'total_amount' => '200.00',
+        'balance_due' => '200.00',
+    ]);
+
+    $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
+    $postedStatus = PaymentStatus::query()->where('name', 'posted')->firstOrFail();
+
+    $payment = Payment::factory()->create([
+        'billing_id' => $billing->id,
+        'payment_status_id' => $postedStatus->id,
+        'amount' => '100.00',
+        'payment_method_id' => $cashMethod->id,
+    ]);
+
+    $billing->update(['amount_paid' => '100.00', 'balance_due' => '100.00',
+        'billing_status_id' => BillingStatus::query()->where('name', 'partially_paid')->value('id'),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction('void_billing')
+        ->assertNotified();
+
+    $billing->refresh();
+    $payment->refresh();
+
+    expect($billing->status->name)->toBe('voided')
+        ->and($payment->status->name)->toBe('voided');
+});
+
+test('apply_discount action updates billing totals', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create([
+        'subtotal' => '800.00',
+        'total_amount' => '800.00',
+        'balance_due' => '800.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    // Senior Citizen 20% → 160.00 discount → 640.00 total
+    $seniorType = DiscountType::query()->firstOrCreate(
+        ['name' => 'Senior Citizen'],
+        ['type' => 'percentage', 'value' => 20, 'is_active' => true]
+    );
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction('apply_discount', data: ['discount_type_id' => $seniorType->id])
+        ->assertNotified()
+        ->assertHasNoActionErrors();
+
+    $billing->refresh();
+
+    expect($billing->discount_type_id)->toBe($seniorType->id)
+        ->and($billing->discount_amount)->toBe('160.00')
+        ->and($billing->total_amount)->toBe('640.00')
+        ->and($billing->balance_due)->toBe('640.00');
 });
