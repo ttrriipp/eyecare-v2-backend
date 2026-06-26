@@ -7,8 +7,13 @@ use App\Filament\Resources\Appointments\Widgets\AppointmentCalendarWidget;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\Livewire;
+use Filament\Schemas\Components\RenderHook;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListAppointments extends ListRecords
@@ -20,6 +25,20 @@ class ListAppointments extends ListRecords
     public function toggleView(bool $calendar): void
     {
         $this->showCalendar = $calendar;
+    }
+
+    public function content(Schema $schema): Schema
+    {
+        return $schema->components(
+            $this->showCalendar
+                ? [Livewire::make(AppointmentCalendarWidget::class)]
+                : [
+                    $this->getTabsContentComponent(),
+                    RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_BEFORE),
+                    EmbeddedTable::make(),
+                    RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_AFTER),
+                ]
+        );
     }
 
     public function table(Table $table): Table
@@ -45,11 +64,6 @@ class ListAppointments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [CreateAction::make()];
-    }
-
-    public function getHeaderWidgets(): array
-    {
-        return $this->showCalendar ? [AppointmentCalendarWidget::class] : [];
     }
 
     public function getTabs(): array
