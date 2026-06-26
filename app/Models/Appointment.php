@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Database\Factories\AppointmentFactory;
+use Guava\Calendar\Contracts\Eventable;
+use Guava\Calendar\ValueObjects\CalendarEvent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,10 +20,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'contact_notes',
     'staff_notes',
 ])]
-class Appointment extends Model
+class Appointment extends Model implements Eventable
 {
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory, SoftDeletes;
+
+    public function toCalendarEvent(): CalendarEvent
+    {
+        $color = match ($this->status?->name) {
+            'confirmed' => '#3b82f6',
+            'rescheduled' => '#f59e0b',
+            'completed' => '#22c55e',
+            'cancelled' => '#ef4444',
+            default => '#6b7280',
+        };
+
+        return CalendarEvent::make($this)
+            ->title($this->customer?->name ?? 'Appointment')
+            ->start($this->scheduled_at)
+            ->end($this->scheduled_at->addHour())
+            ->backgroundColor($color);
+    }
 
     /**
      * @return BelongsTo<User, $this>
