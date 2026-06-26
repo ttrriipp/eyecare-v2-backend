@@ -22,48 +22,39 @@ class ListAppointments extends ListRecords
 
     public bool $showCalendar = false;
 
-    public function toggleView(bool $calendar): void
-    {
-        $this->showCalendar = $calendar;
-    }
-
     public function content(Schema $schema): Schema
     {
-        return $schema->components(
-            $this->showCalendar
-                ? [Livewire::make(AppointmentCalendarWidget::class)]
-                : [
-                    $this->getTabsContentComponent(),
-                    RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_BEFORE),
-                    EmbeddedTable::make(),
-                    RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_AFTER),
-                ]
-        );
+        return $schema->components([
+            $this->getTabsContentComponent()->hidden(fn (): bool => $this->showCalendar),
+            RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_BEFORE)->hidden(fn (): bool => $this->showCalendar),
+            EmbeddedTable::make()->hidden(fn (): bool => $this->showCalendar),
+            RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_AFTER)->hidden(fn (): bool => $this->showCalendar),
+            Livewire::make(AppointmentCalendarWidget::class)->hidden(fn (): bool => ! $this->showCalendar),
+        ]);
     }
 
     public function table(Table $table): Table
     {
-        return $table->toolbarActions([
+        return $table;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make(),
             Action::make('tableView')
                 ->label('')
                 ->icon('heroicon-o-table-cells')
                 ->tooltip('Table view')
                 ->color(fn (): string => $this->showCalendar ? 'gray' : 'primary')
-                ->action(fn () => $this->toggleView(false))
-                ->livewireClickHandlerEnabled(),
+                ->action(fn () => ($this->showCalendar = false)),
             Action::make('calendarView')
                 ->label('')
                 ->icon('heroicon-o-calendar-days')
                 ->tooltip('Calendar view')
                 ->color(fn (): string => $this->showCalendar ? 'primary' : 'gray')
-                ->action(fn () => $this->toggleView(true))
-                ->livewireClickHandlerEnabled(),
-        ]);
-    }
-
-    protected function getHeaderActions(): array
-    {
-        return [CreateAction::make()];
+                ->action(fn () => ($this->showCalendar = true)),
+        ];
     }
 
     public function getTabs(): array
