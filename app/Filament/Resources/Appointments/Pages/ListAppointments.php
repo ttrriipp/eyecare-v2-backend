@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Appointments\Widgets\AppointmentStatsWidget;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -19,6 +20,16 @@ class ListAppointments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [CreateAction::make()];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [AppointmentStatsWidget::class];
+    }
+
+    public function updatedActiveTab(): void
+    {
+        $this->dispatch('appointment-tab-changed', tab: $this->activeTab);
     }
 
     public function getTabs(): array
