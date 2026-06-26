@@ -4,10 +4,12 @@ namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Widgets\AppointmentCalendarWidget;
-use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Support\Facades\FilamentView;
+use Filament\Tables\View\TablesRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListAppointments extends ListRecords
@@ -16,17 +18,23 @@ class ListAppointments extends ListRecords
 
     public bool $showCalendar = false;
 
+    public function boot(): void
+    {
+        FilamentView::registerRenderHook(
+            TablesRenderHook::TOOLBAR_END,
+            fn (): View => view('filament.appointments.view-toggle', ['showCalendar' => $this->showCalendar]),
+            scopes: static::class,
+        );
+    }
+
+    public function toggleView(bool $calendar): void
+    {
+        $this->showCalendar = $calendar;
+    }
+
     protected function getHeaderActions(): array
     {
-        return [
-            Action::make('toggleCalendar')
-                ->label(fn (): string => $this->showCalendar ? 'Hide Calendar' : 'Show Calendar')
-                ->icon(fn (): string => $this->showCalendar ? 'heroicon-o-calendar-days' : 'heroicon-o-calendar-days')
-                ->color(fn (): string => $this->showCalendar ? 'gray' : 'info')
-                ->action(fn () => $this->showCalendar = ! $this->showCalendar)
-                ->livewireClickHandlerEnabled(),
-            CreateAction::make(),
-        ];
+        return [CreateAction::make()];
     }
 
     public function getHeaderWidgets(): array
