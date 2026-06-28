@@ -3,9 +3,12 @@
 namespace App\Filament\Resources\Feedback\Tables;
 
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class FeedbackTable
 {
@@ -51,6 +54,20 @@ class FeedbackTable
                         '2' => '⭐⭐ (2)',
                         '1' => '⭐ (1)',
                     ]),
+                Filter::make('submitted_from')
+                    ->label('Submitted from')
+                    ->form([DatePicker::make('date')])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['date'],
+                        fn (Builder $q, string $date) => $q->whereDate('created_at', '>=', $date)
+                    )),
+                Filter::make('submitted_until')
+                    ->label('Submitted until')
+                    ->form([DatePicker::make('date')])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['date'],
+                        fn (Builder $q, string $date) => $q->whereDate('created_at', '<=', $date)
+                    )),
             ])
             ->defaultSort('created_at', 'desc');
     }
