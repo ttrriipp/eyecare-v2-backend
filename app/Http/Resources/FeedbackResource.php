@@ -22,8 +22,6 @@ class FeedbackResource extends JsonResource
             'order_id' => $this->order_id,
             'rating' => $this->rating,
             'comment' => $this->comment,
-            'staff_reply' => $this->staff_reply,
-            'replied_at' => $this->replied_at?->toISOString(),
         ];
     }
 }

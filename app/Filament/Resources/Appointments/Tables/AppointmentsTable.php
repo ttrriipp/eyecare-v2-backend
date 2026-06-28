@@ -11,12 +11,14 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -25,9 +27,9 @@ class AppointmentsTable
     public static function configure(Table $table): Table
     {
         $advanceLabels = [
-            'pending' => ['label' => 'Confirm',    'icon' => 'heroicon-o-check-circle',    'color' => 'success', 'next' => 'confirmed'],
-            'confirmed' => ['label' => 'Complete',   'icon' => 'heroicon-o-check-badge',     'color' => 'success', 'next' => 'completed'],
-            'rescheduled' => ['label' => 'Confirm',    'icon' => 'heroicon-o-check-circle',    'color' => 'success', 'next' => 'confirmed'],
+            'pending' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
+            'confirmed' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge',  'color' => 'success', 'next' => 'completed'],
+            'rescheduled' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
         ];
 
         return $table
@@ -100,6 +102,30 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot advance appointment')->body($message)->danger()->send();
                             }
                         }),
+                    Action::make('reschedule')
+                        ->label('Reschedule')
+                        ->icon('heroicon-o-calendar-days')
+                        ->color('warning')
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'rescheduled'], true))
+                        ->schema([
+                            DateTimePicker::make('scheduled_at')
+                                ->label('New date & time')
+                                ->required()
+                                ->after('now'),
+                        ])
+                        ->action(function (Appointment $record, array $data): void {
+                            try {
+                                app(UpdateAppointmentStatus::class)->handle(
+                                    appointment: $record,
+                                    statusName: 'rescheduled',
+                                    scheduledAt: Carbon::parse($data['scheduled_at']),
+                                );
+                                Notification::make()->title('Appointment rescheduled')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
+                                Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
+                            }
+                        }),
                     Action::make('cancel')
                         ->label('Cancel Appointment')
                         ->icon('heroicon-o-x-circle')
@@ -115,9 +141,9 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot cancel appointment')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    ForceDeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    RestoreAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    ForceDeleteAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                 ]),
             ])
             ->defaultSort('scheduled_at', 'desc');

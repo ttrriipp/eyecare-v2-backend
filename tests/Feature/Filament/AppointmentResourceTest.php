@@ -11,6 +11,7 @@ use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
@@ -134,25 +135,47 @@ test('cancel action transitions pending appointment to cancelled and creates SMS
     ]);
 });
 
-test('reschedule action transitions confirmed appointment to rescheduled with SMS notification', function () {
+test('reschedule header action is visible for pending, confirmed, and rescheduled appointments', function (string $statusName) {
     $staff = User::factory()->staff()->create();
-    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
-    $rescheduledStatus = AppointmentStatus::query()->where('name', 'rescheduled')->firstOrFail();
-
-    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+    $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $status->id]);
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->fillForm([
-            'appointment_status_id' => $rescheduledStatus->id,
-            'staff_notes' => 'Patient requested reschedule',
-        ])
-        ->call('save')
-        ->assertNotified()
-        ->assertHasNoFormErrors();
+        ->assertActionVisible('reschedule');
+})->with(['pending', 'confirmed', 'rescheduled']);
 
-    expect($appointment->fresh()->status->name)->toBe('rescheduled');
+test('reschedule header action is hidden for terminal appointments', function (string $statusName) {
+    $staff = User::factory()->staff()->create();
+    $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $status->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionHidden('reschedule');
+})->with(['cancelled', 'completed']);
+
+test('reschedule action transitions appointment to rescheduled with new date and creates SMS', function () {
+    Http::fake();
+
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+    $newDate = now()->addWeek()->toDateTimeString();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->callAction('reschedule', ['scheduled_at' => $newDate])
+        ->assertNotified();
+
+    $fresh = $appointment->fresh();
+    expect($fresh->status->name)->toBe('rescheduled')
+        ->and($fresh->scheduled_at->toDateTimeString())->toBe(
+            Carbon::parse($newDate)->toDateTimeString()
+        );
 
     $this->assertDatabaseHas(SmsNotification::class, [
         'appointment_id' => $appointment->id,
@@ -245,6 +268,43 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
     expect($walkIn->email)->toBeNull()
         ->and($walkIn->password)->toBeNull();
 });
+
+test('reschedule row action reschedules appointment with new date and creates SMS', function () {
+    Http::fake();
+
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+    $newDate = now()->addWeek()->toDateTimeString();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('reschedule', $appointment, ['scheduled_at' => $newDate])
+        ->assertNotified();
+
+    $fresh = $appointment->fresh();
+    expect($fresh->status->name)->toBe('rescheduled')
+        ->and($fresh->scheduled_at->toDateTimeString())->toBe(
+            Carbon::parse($newDate)->toDateTimeString()
+        );
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'appointment_id' => $appointment->id,
+        'event' => 'appointment_rescheduled',
+    ]);
+});
+
+test('reschedule row action is hidden for cancelled and completed appointments', function (string $statusName) {
+    $staff = User::factory()->staff()->create();
+    $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $status->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableActionHidden('reschedule', $appointment);
+})->with(['cancelled', 'completed']);
 
 test('appointment create form rejects past scheduled_at', function () {
     $staff = User::factory()->staff()->create();

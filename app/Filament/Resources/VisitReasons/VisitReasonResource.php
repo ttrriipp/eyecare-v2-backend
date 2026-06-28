@@ -5,6 +5,7 @@ namespace App\Filament\Resources\VisitReasons;
 use App\Filament\Resources\VisitReasons\Pages\CreateVisitReason;
 use App\Filament\Resources\VisitReasons\Pages\EditVisitReason;
 use App\Filament\Resources\VisitReasons\Pages\ListVisitReasons;
+use App\Filament\Resources\VisitReasons\RelationManagers\AppointmentsRelationManager;
 use App\Filament\Resources\VisitReasons\Schemas\VisitReasonForm;
 use App\Filament\Resources\VisitReasons\Tables\VisitReasonsTable;
 use App\Models\VisitReason;
@@ -42,7 +43,9 @@ class VisitReasonResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            AppointmentsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

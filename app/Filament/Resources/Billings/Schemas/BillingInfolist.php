@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\Billings\Schemas;
 
+use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Orders\OrderResource;
 use App\Models\Billing;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Alignment;
@@ -17,23 +20,11 @@ class BillingInfolist
         return $schema
             ->columns(1)
             ->components([
-                Section::make('Billing Details')
+                Section::make('Billing Summary')
                     ->columns(3)
                     ->schema([
                         TextEntry::make('billing_number')
                             ->label('Billing #'),
-                        TextEntry::make('customer.name')
-                            ->label('Patient'),
-                        TextEntry::make('order.order_number')
-                            ->label('Order #')
-                            ->placeholder('—'),
-                        TextEntry::make('appointment.scheduled_at')
-                            ->label('Appointment')
-                            ->formatStateUsing(fn ($state, Billing $record): string => $state
-                                ? $state->format('M j, Y g:i A').' — '.($record->appointment?->visitReason?->name ?? '')
-                                : '—'
-                            )
-                            ->placeholder('—'),
                         TextEntry::make('status.name')
                             ->label('Status')
                             ->badge()
@@ -48,15 +39,8 @@ class BillingInfolist
                         TextEntry::make('issued_at')
                             ->label('Issued At')
                             ->dateTime('M j, Y'),
-                        TextEntry::make('subtotal')
-                            ->label('Subtotal')
-                            ->money('PHP'),
-                        TextEntry::make('discount_amount')
-                            ->label('Discount')
-                            ->money('PHP'),
-                        TextEntry::make('total_amount')
-                            ->label('Total')
-                            ->money('PHP'),
+                        TextEntry::make('customer.name')
+                            ->label('Patient'),
                         TextEntry::make('amount_paid')
                             ->label('Amount Paid')
                             ->money('PHP'),
@@ -65,7 +49,33 @@ class BillingInfolist
                             ->money('PHP'),
                     ]),
 
+                Section::make('Linked Records')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('order.order_number')
+                            ->label('Order')
+                            ->placeholder('—')
+                            ->url(fn (Billing $record): ?string => $record->order_id
+                                ? OrderResource::getUrl('edit', ['record' => $record->order_id])
+                                : null
+                            )
+                            ->color('primary'),
+                        TextEntry::make('appointment.scheduled_at')
+                            ->label('Appointment')
+                            ->formatStateUsing(fn ($state, Billing $record): string => $state
+                                ? $state->format('M j, Y g:i A').' — '.($record->appointment?->visitReason?->name ?? '')
+                                : '—'
+                            )
+                            ->placeholder('—')
+                            ->url(fn (Billing $record): ?string => $record->appointment_id
+                                ? AppointmentResource::getUrl('edit', ['record' => $record->appointment_id])
+                                : null
+                            )
+                            ->color('primary'),
+                    ]),
+
                 Section::make('Line Items')
+                    ->columns(1)
                     ->schema([
                         RepeatableEntry::make('items')
                             ->label('')
@@ -86,12 +96,29 @@ class BillingInfolist
                                     })
                                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
                                 TextEntry::make('description'),
-                                TextEntry::make('quantity'),
+                                TextEntry::make('quantity')
+                                    ->alignment(Alignment::End),
                                 TextEntry::make('unit_price')
-                                    ->money('PHP'),
+                                    ->money('PHP')
+                                    ->alignment(Alignment::End),
                                 TextEntry::make('amount')
-                                    ->money('PHP'),
+                                    ->money('PHP')
+                                    ->alignment(Alignment::End),
                             ]),
+
+                        Grid::make(3)
+                            ->schema([
+                                TextEntry::make('subtotal')
+                                    ->label('Subtotal')
+                                    ->money('PHP'),
+                                TextEntry::make('discount_amount')
+                                    ->label('Discount')
+                                    ->money('PHP'),
+                                TextEntry::make('total_amount')
+                                    ->label('Total')
+                                    ->money('PHP'),
+                            ])
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

@@ -44,6 +44,11 @@ class ProductResource extends Resource
         return parent::getEloquentQuery()->with(['brand', 'category', 'variants']);
     }
 
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withTrashed()->with(['brand', 'category', 'variants']);
+    }
+
     public static function getRelations(): array
     {
         return [

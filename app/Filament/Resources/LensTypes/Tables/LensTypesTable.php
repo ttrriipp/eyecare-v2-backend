@@ -15,6 +15,9 @@ class LensTypesTable
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('price')
+                    ->money('PHP')
+                    ->sortable(),
                 TextColumn::make('description')
                     ->limit(50)
                     ->toggleable(),

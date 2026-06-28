@@ -4,10 +4,7 @@ namespace App\Filament\Resources\Billings\Pages;
 
 use App\Actions\Billing\AddServiceToBilling;
 use App\Actions\Billing\RecalculateBillingBalance;
-use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Billings\BillingResource;
-use App\Filament\Resources\Orders\OrderResource;
-use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\DiscountType;
 use App\Models\PaymentStatus;
@@ -27,20 +24,6 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('view_order')
-                ->label('View Order')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('gray')
-                ->visible(fn (): bool => $this->getRecord()->order_id !== null)
-                ->url(fn (): string => OrderResource::getUrl('edit', ['record' => $this->getRecord()->order_id])),
-
-            Action::make('view_appointment')
-                ->label('View Appointment')
-                ->icon('heroicon-o-calendar')
-                ->color('gray')
-                ->visible(fn (): bool => $this->getRecord()->appointment_id !== null)
-                ->url(fn (): string => AppointmentResource::getUrl('edit', ['record' => $this->getRecord()->appointment_id])),
-
             Action::make('add_service')
                 ->label('Add Service')
                 ->icon('heroicon-o-plus-circle')
@@ -137,13 +120,11 @@ class ViewBilling extends ViewRecord
                 ->action(function (): void {
                     $billing = $this->getRecord();
 
-                    // Auto-void all posted payments
                     $voidedPaymentStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
                     $billing->payments()
                         ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
                         ->update(['payment_status_id' => $voidedPaymentStatus->id]);
 
-                    // Void the billing itself
                     $voidedBillingStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
                     $billing->update(['billing_status_id' => $voidedBillingStatus->id]);
                 })

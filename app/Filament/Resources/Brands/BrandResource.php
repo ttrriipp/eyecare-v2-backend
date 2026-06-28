@@ -5,14 +5,14 @@ namespace App\Filament\Resources\Brands;
 use App\Filament\Resources\Brands\Pages\CreateBrand;
 use App\Filament\Resources\Brands\Pages\EditBrand;
 use App\Filament\Resources\Brands\Pages\ListBrands;
+use App\Filament\Resources\Brands\RelationManagers\ProductsRelationManager;
+use App\Filament\Resources\Brands\Schemas\BrandForm;
+use App\Filament\Resources\Brands\Tables\BrandsTable;
 use App\Models\Brand;
 use BackedEnum;
-use Filament\Actions\EditAction;
-use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -33,31 +33,19 @@ class BrandResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([
-            TextInput::make('name')
-                ->required()
-                ->maxLength(255)
-                ->unique(ignoreRecord: true),
-        ]);
+        return BrandForm::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                TextColumn::make('name')
-                    ->searchable()
-                    ->sortable(),
-            ])
-            ->recordActions([
-                EditAction::make(),
-            ])
-            ->defaultSort('name');
+        return BrandsTable::configure($table);
     }
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ProductsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

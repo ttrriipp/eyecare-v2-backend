@@ -55,8 +55,8 @@ class AppointmentForm
                         $order = ['pending', 'confirmed', 'rescheduled', 'completed', 'cancelled'];
 
                         $transitions = [
-                            'pending' => ['confirmed', 'rescheduled', 'cancelled'],
-                            'confirmed' => ['rescheduled', 'cancelled', 'completed'],
+                            'pending' => ['confirmed', 'cancelled'],
+                            'confirmed' => ['cancelled', 'completed'],
                             'rescheduled' => ['confirmed', 'cancelled', 'completed'],
                             'cancelled' => [],
                             'completed' => [],

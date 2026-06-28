@@ -138,9 +138,9 @@ class OrdersTable
                                 Notification::make()->title('Cannot cancel order')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    ForceDeleteAction::make(),
+                    RestoreAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    ForceDeleteAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

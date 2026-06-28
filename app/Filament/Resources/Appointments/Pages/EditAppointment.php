@@ -14,8 +14,10 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class EditAppointment extends EditRecord
@@ -62,6 +64,38 @@ class EditAppointment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('reschedule')
+                ->label('Reschedule')
+                ->icon('heroicon-o-calendar-days')
+                ->color('warning')
+                ->visible(fn (): bool => in_array(
+                    $this->getRecord()->status?->name,
+                    ['pending', 'confirmed', 'rescheduled'],
+                    true,
+                ))
+                ->schema([
+                    DateTimePicker::make('scheduled_at')
+                        ->label('New date & time')
+                        ->required()
+                        ->after('now'),
+                ])
+                ->action(function (array $data): void {
+                    /** @var Appointment $appointment */
+                    $appointment = $this->getRecord()->fresh(['status']);
+                    try {
+                        app(UpdateAppointmentStatus::class)->handle(
+                            appointment: $appointment,
+                            statusName: 'rescheduled',
+                            scheduledAt: Carbon::parse($data['scheduled_at']),
+                        );
+                        Notification::make()->title('Appointment rescheduled')->success()->send();
+                        $this->refreshFormData(['appointment_status_id', 'scheduled_at']);
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
+                        Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
+                    }
+                }),
+
             Action::make('bill_service')
                 ->label('Bill Service')
                 ->icon('heroicon-o-banknotes')

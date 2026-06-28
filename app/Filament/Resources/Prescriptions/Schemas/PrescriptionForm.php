@@ -24,6 +24,7 @@ class PrescriptionForm
             ->components([
                 Section::make('Patient Information')->schema([
                     Select::make('customer_id')
+                        ->label('Patient')
                         ->relationship(
                             'customer',
                             'name',

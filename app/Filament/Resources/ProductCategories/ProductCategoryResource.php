@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ProductCategories;
 use App\Filament\Resources\ProductCategories\Pages\CreateProductCategory;
 use App\Filament\Resources\ProductCategories\Pages\EditProductCategory;
 use App\Filament\Resources\ProductCategories\Pages\ListProductCategories;
+use App\Filament\Resources\ProductCategories\RelationManagers\ProductsRelationManager;
 use App\Filament\Resources\ProductCategories\Schemas\ProductCategoryForm;
 use App\Filament\Resources\ProductCategories\Tables\ProductCategoriesTable;
 use App\Models\ProductCategory;
@@ -42,7 +43,9 @@ class ProductCategoryResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ProductsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

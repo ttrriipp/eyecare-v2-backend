@@ -106,7 +106,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `messages` | conversation_id, sender_id, body |
 | `message_context_links` | polymorphic — links message to Appointment, Order, or Product |
 | `message_attachments` | private storage, images + PDFs only |
-| `feedback` | customer_id, appointment_id or order_id (one required), rating (1–5), staff_reply |
+| `feedback` | customer_id, appointment_id or order_id (one required), rating (1–5), comment |
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
 | `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
 | `sms_notifications` | appointment-scoped only |
@@ -166,13 +166,14 @@ Status changes always go through the relevant action class — never direct mode
 
 **Appointments** (`UpdateAppointmentStatus`):
 ```
-pending → confirmed, rescheduled, cancelled
-confirmed → rescheduled, cancelled, completed
+pending → confirmed, cancelled          (+ reschedule via dedicated action)
+confirmed → cancelled, completed        (+ reschedule via dedicated action)
 rescheduled → confirmed, cancelled, completed
 cancelled → (terminal)
 completed → (terminal)
 ```
 SMS notification records created on: confirmed, rescheduled, cancelled.
+Rescheduling always goes through the dedicated "Reschedule" action (header action on edit page, row action in list) which accepts a new date — it does not appear in the status toggle buttons.
 
 **Orders** (`UpdateOrderStatus`):
 ```
@@ -209,20 +210,22 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
 **Resources (operational):**
-- Appointments — guarded status dropdown on edit form; staff assignment. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing.
+- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing.
 - Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
 - Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details)
 - Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. "Bill Service" header action. DB role stays `customer`, UI label is "Patient". Customers cannot access.
-- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: billing details infolist (includes appointment link) + line items table (type badge, description, qty, price, amount) + payments section (Record Payment + Void per row). Header actions: View Order (if order linked), View Appointment (if appointment linked), Add Service (modal), Apply Discount (modal, recalculates totals), Void Billing (destructive, auto-voids posted payments). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
+- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: infolist with Billing Summary section (billing #, status, issued at, patient, amount paid, balance due), Linked Records section (clickable links to Order and Appointment), Line Items section (items table + subtotal/discount/total below). Header actions: Add Service (modal), Apply Discount (modal, recalculates totals, admin only), Void Billing (destructive, auto-voids posted payments, admin only). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
 - Conversations — chat-style page
-- Feedback
+- Feedback — read-only. List: customer, rating, comment (toggleable), appointment/order (hidden by default, toggleable), submitted date. Filter by rating. View page: sections layout (Feedback Details + Timestamps sidebar). Staff reply was intentionally removed — staff communicates with patients via Conversations instead.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
 - User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
-- Categories, Brands (CRUD), Lens Types (with price), Visit Reasons, Services (fee schedule with price, visibility toggle)
+- Categories, Brands (CRUD), Lens Types (with price + description), Visit Reasons, Services (fee schedule with price, description, visibility toggle)
+- All settings edit forms use a 2-column layout: main details section (left, 2/3) + Timestamps sidebar (right, 1/3) showing Created at and Last modified.
+- Edit pages include relation managers: Brands → Products table, Categories → Products table, Lens Types → Products table, Visit Reasons → Appointments table. Services has no relation manager (service_records are audit-only, not directly managed).
 
 **Dashboard widgets:** appointment counts, pending orders, low stock, unpaid billings, recent feedback.
 

@@ -5,6 +5,7 @@ namespace App\Filament\Resources\LensTypes;
 use App\Filament\Resources\LensTypes\Pages\CreateLensType;
 use App\Filament\Resources\LensTypes\Pages\EditLensType;
 use App\Filament\Resources\LensTypes\Pages\ListLensTypes;
+use App\Filament\Resources\LensTypes\RelationManagers\ProductsRelationManager;
 use App\Filament\Resources\LensTypes\Schemas\LensTypeForm;
 use App\Filament\Resources\LensTypes\Tables\LensTypesTable;
 use App\Models\LensType;
@@ -42,7 +43,9 @@ class LensTypeResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ProductsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
