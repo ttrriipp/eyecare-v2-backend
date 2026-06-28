@@ -4,6 +4,7 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -12,6 +13,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 test('customer can cancel their own requested order', function () {

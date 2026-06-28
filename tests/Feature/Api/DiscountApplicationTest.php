@@ -10,6 +10,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\DiscountTypeSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +19,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->seed(DiscountTypeSeeder::class);
     $this->seed(BillingStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();

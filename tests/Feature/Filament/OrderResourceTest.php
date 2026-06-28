@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentMethodSeeder;
 use Database\Seeders\PaymentStatusSeeder;
@@ -23,6 +24,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 test('staff and admin users can list orders', function (string $factoryState) {

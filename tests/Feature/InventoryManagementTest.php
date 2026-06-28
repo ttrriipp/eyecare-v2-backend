@@ -13,6 +13,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\InventoryMovementTypeSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
@@ -61,6 +62,7 @@ test('staff receives a notification when variant stock drops to or below low_sto
     ]);
 
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
     $this->seed(PaymentStatusSeeder::class);
     $order = Order::factory()->create([

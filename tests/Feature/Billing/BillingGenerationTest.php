@@ -9,6 +9,7 @@ use App\Models\OrderStatus;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentMethodSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,6 +19,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
 });
 
