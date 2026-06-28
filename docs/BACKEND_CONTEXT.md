@@ -109,7 +109,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `feedback` | customer_id, appointment_id or order_id (one required), rating (1–5), comment |
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
 | `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
-| `sms_notifications` | appointment-scoped only |
+| `sms_notifications` | appointment-scoped only; queued but not yet dispatched to provider |
 
 ### Soft Deletes
 
@@ -265,6 +265,10 @@ GET    /attachments/{id}        Download attachment (authorized)
 POST   /feedback                Submit feedback (completed appointment or order only)
 GET    /feedback
 GET    /feedback/{id}
+
+POST   /appointments/{id}/cancel  Cancel own appointment (pending or confirmed only)
+POST   /orders/{id}/cancel        Cancel own order (requested only)
+PATCH  /user                      Update own profile (name, email, phone)
 
 --- Staff only (EnsureUserIsStaff middleware) ---
 PATCH  /staff/appointments/{id}/status
