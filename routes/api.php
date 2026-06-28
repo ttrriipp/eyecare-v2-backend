@@ -19,6 +19,7 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
+    Route::patch('/user', [AuthController::class, 'update']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);

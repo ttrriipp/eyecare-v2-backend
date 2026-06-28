@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterCustomerRequest;
+use App\Http\Requests\Api\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Role;
 use App\Models\User;
@@ -60,5 +61,16 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json();
+    }
+
+    public function update(UpdateProfileRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->update($request->validated());
+        $user->load('role');
+
+        return response()->json([
+            'data' => UserResource::make($user),
+        ]);
     }
 }
