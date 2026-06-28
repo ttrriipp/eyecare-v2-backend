@@ -6,9 +6,11 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\BillingStatus;
+use App\Models\NotificationStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\SmsNotification;
 use App\Notifications\OrderStatusChanged;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +28,16 @@ class UpdateOrderStatus
         'ready_for_pickup' => ['completed', 'cancelled'],
         'completed' => [],
         'cancelled' => [],
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    private const SMS_EVENTS = [
+        'confirmed' => 'order_confirmed',
+        'ready_for_pickup' => 'order_ready',
+        'completed' => 'order_completed',
+        'cancelled' => 'order_cancelled',
     ];
 
     public function handle(Order $order, string $statusName, ?int $discountTypeId = null, ?float $customDiscountAmount = null): Order
@@ -120,10 +132,36 @@ class UpdateOrderStatus
             metadata: ['from' => $currentStatus, 'to' => $statusName],
         );
 
+        if (array_key_exists($statusName, self::SMS_EVENTS)) {
+            $this->createSmsNotification($order, self::SMS_EVENTS[$statusName]);
+        }
+
         $freshOrder = $order->fresh(['status', 'items']);
         $freshOrder->customer->notify(new OrderStatusChanged($freshOrder));
 
         return $freshOrder;
+    }
+
+    private function createSmsNotification(Order $order, string $event): void
+    {
+        $order->loadMissing('customer');
+        $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
+
+        $message = match ($event) {
+            'order_confirmed' => "Your order {$order->order_number} has been confirmed and is being processed.",
+            'order_ready' => "Your order {$order->order_number} is ready for pickup.",
+            'order_completed' => "Your order {$order->order_number} has been completed. Thank you!",
+            'order_cancelled' => "Your order {$order->order_number} has been cancelled.",
+            default => "Your order {$order->order_number} status has been updated.",
+        };
+
+        SmsNotification::query()->create([
+            'order_id' => $order->id,
+            'notification_status_id' => $queuedStatus->id,
+            'event' => $event,
+            'recipient' => $order->customer->phone ?? $order->customer->email,
+            'message' => $message,
+        ]);
     }
 
     /**

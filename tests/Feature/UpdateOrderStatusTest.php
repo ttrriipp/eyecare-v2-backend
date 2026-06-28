@@ -4,6 +4,8 @@ use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\SmsNotification;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -12,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 it('allows a valid transition and updates the order status', function () {
@@ -104,3 +107,25 @@ it('blocks transitions from terminal states', function (string $terminalStatus) 
     'completed' => ['completed'],
     'cancelled' => ['cancelled'],
 ]);
+
+test('SMS notification record created when order is confirmed', function () {
+    $order = Order::factory()->create(['is_non_prescription' => true]);
+
+    (new UpdateOrderStatus)->handle($order, 'confirmed');
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'order_id' => $order->id,
+        'event' => 'order_confirmed',
+    ]);
+});
+
+test('SMS notification record created when order is cancelled', function () {
+    $order = Order::factory()->create(['is_non_prescription' => true]);
+
+    (new UpdateOrderStatus)->handle($order, 'cancelled');
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'order_id' => $order->id,
+        'event' => 'order_cancelled',
+    ]);
+});
