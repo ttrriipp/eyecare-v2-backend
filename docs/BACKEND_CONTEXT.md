@@ -103,13 +103,14 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_items` | billing_id, type (product\|service), description, quantity, unit_price, amount, order_item_id (nullable FK), service_record_id (nullable FK). Line items on an invoice. |
 | `payments` | billing_id, payment_method_id, amount, payment_status_id |
 | `conversations` | customer_id — one per customer |
-| `messages` | conversation_id, sender_id, body |
+| `messages` | conversation_id, sender_id, body, read_at (nullable timestamp) |
 | `message_context_links` | polymorphic — links message to Appointment, Order, or Product |
 | `message_attachments` | private storage, images + PDFs only |
 | `feedback` | customer_id, appointment_id or order_id (one required), rating (1–5), comment |
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
 | `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
-| `sms_notifications` | appointment-scoped only; queued but not yet dispatched to provider |
+| `sms_notifications` | appointment_id (nullable), order_id (nullable), notification_status_id, event, recipient, message, failure_reason (nullable). Queued records dispatched via `sms:process` command using Semaphore API (config-gated). |
+| `prescription_uploads` | customer_id, file_path, original_name, mime_type, status (pending/approved/rejected), admin_notes (nullable), prescription_id (nullable FK). Customer-uploaded prescription images for admin review. |
 
 ### Soft Deletes
 
@@ -205,7 +206,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - *(ungrouped)* — Appointments, Prescriptions, Patients
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
-- Communication — Conversations, Feedback
+- Communication — Conversations, Feedback, SMS Log (admin only)
 - Administration — Users, Audit Logs
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
@@ -221,6 +222,8 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
 - User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
+- SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`.
+- Prescription Uploads (admin only) — list of customer-uploaded prescription images with status filter. Approve action opens prescription form to create a `Prescription` record and link it. Reject action records admin notes.
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
 - Categories, Brands (CRUD), Lens Types (with price + description), Visit Reasons, Services (fee schedule with price, description, visibility toggle)
@@ -250,6 +253,8 @@ GET    /products/{id}           Product detail with variants + AR metadata (404 
 
 GET    /prescriptions           Customer's own prescription history
 GET    /prescriptions/{id}
+POST   /prescriptions/upload    Upload prescription image/PDF for admin review (max 5MB, jpg/png/pdf)
+GET    /prescriptions/uploads   Customer's own upload history with status
 
 POST   /orders                  Submit order request (status locked to requested). `items[].lens_type_id` is nullable — omit for accessories/contact lenses.
 GET    /orders                  Customer's own orders, paginated (default 15, `?per_page=N`)
@@ -257,9 +262,10 @@ GET    /orders/{id}
 
 GET    /billing/{id}            Customer billing with payment history (auth: billing.customer_id must match user)
 
-GET    /conversations           Customer's single persistent conversation
+GET    /conversations           Customer's single persistent conversation (includes unread_count)
 GET    /conversations/{id}/messages
 POST   /conversations/{id}/messages  (with optional contexts[] and attachments)
+POST   /conversations/{id}/messages/read  Mark all messages from other party as read
 GET    /attachments/{id}        Download attachment (authorized)
 
 POST   /feedback                Submit feedback (completed appointment or order only)
@@ -396,6 +402,7 @@ PATCH  /staff/orders/{id}/status
 | `RecordPayment` | `app/Actions/Billing/` | Creates payment + recalculates balance |
 | `RecordInventoryMovement` | `app/Actions/Inventory/` | Creates inventory_movement record (with previous_stock, new_stock, created_by), updates variant stock_quantity, fires low stock notification if stock ≤ threshold after deduction |
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata) |
+| `ProcessSmsNotification` | `app/Actions/Sms/` | Takes a queued SmsNotification, calls SemaphoreService, updates status to `sent` or `failed` with reason |
 
 ---
 
@@ -412,9 +419,11 @@ PATCH  /staff/orders/{id}/status
 - **Services vs Visit Reasons:** `visit_reasons` describe *why a patient is booking* (scheduling vocabulary). `services` describe *what was performed and charged* (billing vocabulary). They are separate tables with different purposes. Visit reason names use proper capitalization: "Eye Exam", "Follow-up", "Prescription Check".
 - **Billing grouping by appointment:** When `GetOrCreateBilling` is called with an `appointment_id`, it reuses any existing non-voided billing for that appointment. This means an order billing and a service billing for the same appointment share one invoice automatically. Walk-ins without an appointment (`appointment_id = null`) always get a fresh billing.
 - **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Bill Service" / "Add Service" actions create them as a side effect.
-- **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table.
+- **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
+- **Appointment slot check:** `POST /appointments` (API) and the Filament create form both validate that no non-cancelled appointment exists within ±30 minutes of the requested `scheduled_at`. Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (edit) excludes the current appointment from the conflict check.
+- **Prescription uploads:** Customers upload prescription images/PDFs via `POST /prescriptions/upload`. Files stored privately at `prescription-uploads/`. Admin reviews via the Prescription Uploads Filament resource — approve (creates a `Prescription` record and links it) or reject (with notes). Rejected uploads kept as history; no customer delete.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
-- **SMS:** Appointment events only (confirmation, reschedule, cancellation). Records stored in `sms_notifications`. Real sending via Semaphore behind config flag — faked in tests.
+- **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. Actual dispatch via `SemaphoreService` using `sms:process` artisan command. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
 
 ---
 
@@ -442,6 +451,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/specs/service-billing-spec.md` | Complete — 9 tasks |
 | `docs/specs/encounter-billing-refactor-spec.md` | Complete — 12 tasks |
 | `docs/specs/unified-billing-flow-spec.md` | Complete — 7 tasks |
+| `docs/specs/priority-gaps-spec.md` | In progress — P1–P3 gaps (Phases 1–5 of 6 complete) |
 
 ---
 

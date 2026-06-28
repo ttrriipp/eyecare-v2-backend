@@ -21,8 +21,11 @@
 - [ ] Appointment list loads and shows status, date, visit reason
 - [ ] Tap appointment → detail screen shows all fields
 - [ ] Book new appointment → appears in list with status `pending`
+- [ ] Book appointment at conflicting time (within 30 min of existing) → 422 error shown
 - [ ] Appointment with status `confirmed` shows correct label
 - [ ] Appointment with status `cancelled` shows correct label, no booking actions
+- [ ] Cancel own pending/confirmed appointment → status updates to `cancelled`
+- [ ] Cancel completed/cancelled appointment → error shown
 
 ---
 
@@ -42,6 +45,20 @@
 
 - [ ] Prescription list loads
 - [ ] Tap prescription → detail shows OD, OS, PD fields, prescribed date, expiry date
+- [ ] Upload prescription image → status shows `pending`
+- [ ] Upload prescription PDF → status shows `pending`
+- [ ] Upload file > 5MB → error shown
+- [ ] Prescription upload list loads with status (pending/approved/rejected)
+
+---
+
+## Profile
+
+- [ ] View profile → shows name, email, phone
+- [ ] Update name → saved and displayed
+- [ ] Update email to already-taken address → validation error shown
+- [ ] Update own email to same value → succeeds
+- [ ] Submit empty PATCH /user → validation error shown
 
 ---
 
@@ -52,6 +69,8 @@
 - [ ] Submit new order → appears in list with status `requested`
 - [ ] Order item with lens type shows lens type name
 - [ ] Order with `is_non_prescription: true` submits without prescription
+- [ ] Cancel own `requested` order → status updates to `cancelled`
+- [ ] Cancel `confirmed` order → 422 error shown (customer cannot cancel)
 - [ ] Order status `cancelled` shows correct label
 
 ---
@@ -70,6 +89,8 @@
 ## Messaging
 
 - [ ] Conversation screen loads message history
+- [ ] Unread message count shown on conversation (from staff messages)
+- [ ] Opening conversation marks messages as read → unread count drops to 0
 - [ ] Send a text message → appears immediately in chat
 - [ ] Send message with image attachment → attachment visible in chat
 - [ ] Tap attachment → opens/downloads correctly
