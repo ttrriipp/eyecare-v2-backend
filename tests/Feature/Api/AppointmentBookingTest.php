@@ -102,3 +102,61 @@ test('unauthenticated users cannot access appointment endpoints', function () {
     $this->getJson('/api/appointments')->assertUnauthorized();
     $this->getJson("/api/appointments/{$appointment->id}")->assertUnauthorized();
 });
+
+test('booking is rejected when slot conflicts within 30 minutes', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    // Existing appointment at 10:00
+    Appointment::factory()->create([
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+    ]);
+
+    // New booking at 10:20 — within 30 min window
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/appointments', [
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(20)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('scheduled_at');
+});
+
+test('booking is allowed when slot is outside 30 minute window', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    Appointment::factory()->create([
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+    ]);
+
+    // New booking at 11:00 — outside 30 min window
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/appointments', [
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->addDay()->setHour(11)->setMinute(0)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertCreated();
+});
+
+test('cancelled appointments do not block new bookings at same time', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+    $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
+
+    Appointment::factory()->create([
+        'appointment_status_id' => $cancelled->id,
+        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/appointments', [
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertCreated();
+});

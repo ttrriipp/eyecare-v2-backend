@@ -12,6 +12,8 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rules\Exists;
 
 class AppointmentForm
 {
@@ -91,7 +93,21 @@ class AppointmentForm
                     ->columnSpanFull(),
                 DateTimePicker::make('scheduled_at')
                     ->required()
-                    ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : ''),
+                    ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : '')
+                    ->rule(fn (string $operation, ?Appointment $record): Exists|string|\Closure => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
+                        if (! $value) {
+                            return;
+                        }
+                        $date = Carbon::parse($value);
+                        $conflict = Appointment::query()
+                            ->whereHas('status', fn ($q) => $q->whereNotIn('name', ['cancelled']))
+                            ->whereBetween('scheduled_at', [$date->copy()->subMinutes(30), $date->copy()->addMinutes(30)])
+                            ->when($record, fn ($q) => $q->where('id', '!=', $record->id))
+                            ->exists();
+                        if ($conflict) {
+                            $fail('This time slot is not available. Please choose another time.');
+                        }
+                    }),
                 Textarea::make('contact_notes')
                     ->disabledOn('edit')
                     ->dehydrated()
