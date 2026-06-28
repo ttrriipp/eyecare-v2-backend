@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
+    Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
 
     Route::get('conversations', [ConversationController::class, 'show']);

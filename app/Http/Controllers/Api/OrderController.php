@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
@@ -17,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
@@ -108,6 +110,25 @@ class OrderController extends Controller
     public function show(Request $request, Order $order): JsonResponse
     {
         abort_unless($order->customer_id === $request->user()->id, 404);
+
+        $order->load(['status', 'items.productVariant.product']);
+
+        return response()->json([
+            'data' => OrderResource::make($order),
+        ]);
+    }
+
+    public function cancel(Request $request, Order $order): JsonResponse
+    {
+        abort_unless($order->customer_id === $request->user()->id, 403);
+
+        if ($order->status->name !== 'requested') {
+            throw ValidationException::withMessages([
+                'order' => ['This order cannot be cancelled. Only orders with status "requested" can be cancelled by customers.'],
+            ]);
+        }
+
+        app(UpdateOrderStatus::class)->handle($order, 'cancelled');
 
         $order->load(['status', 'items.productVariant.product']);
 
