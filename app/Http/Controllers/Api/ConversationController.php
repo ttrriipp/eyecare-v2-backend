@@ -37,6 +37,18 @@ class ConversationController extends Controller
         return ConversationResource::make($conversation);
     }
 
+    public function markRead(Request $request, Conversation $conversation): JsonResponse
+    {
+        abort_unless($this->canAccessConversation($request->user(), $conversation), 403);
+
+        $marked = $conversation->messages()
+            ->where('sender_id', '!=', $request->user()->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        return response()->json(['data' => ['marked' => $marked]]);
+    }
+
     public function indexMessages(Request $request, Conversation $conversation): AnonymousResourceCollection
     {
         abort_unless($this->canAccessConversation($request->user(), $conversation), 404);

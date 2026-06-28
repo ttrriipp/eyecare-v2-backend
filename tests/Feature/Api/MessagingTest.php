@@ -194,3 +194,60 @@ test('contexts type must be valid', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['contexts.0.type']);
 });
+
+test('GET /conversations includes unread_count', function () {
+    $customer = User::factory()->customer()->create();
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+
+    // Staff sends 2 messages (unread by customer)
+    Message::factory()->count(2)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson('/api/conversations')
+        ->assertSuccessful()
+        ->assertJsonPath('data.unread_count', 2);
+});
+
+test('POST /conversations/{id}/messages/read marks unread messages as read', function () {
+    $customer = User::factory()->customer()->create();
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+
+    $messages = Message::factory()->count(3)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages/read")
+        ->assertOk()
+        ->assertJsonPath('data.marked', 3);
+
+    foreach ($messages as $message) {
+        expect($message->fresh()->read_at)->not->toBeNull();
+    }
+});
+
+test('messages sent by self are not marked by mark-read', function () {
+    $customer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+
+    $ownMessage = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $customer->id,
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages/read")
+        ->assertOk()
+        ->assertJsonPath('data.marked', 0);
+
+    expect($ownMessage->fresh()->read_at)->toBeNull();
+});

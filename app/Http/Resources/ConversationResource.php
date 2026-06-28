@@ -19,6 +19,10 @@ class ConversationResource extends JsonResource
         return [
             'id' => $this->id,
             'customer_id' => $this->customer_id,
+            'unread_count' => $this->messages()
+                ->where('sender_id', '!=', $this->customer_id)
+                ->whereNull('read_at')
+                ->count(),
             'messages' => MessageResource::collection($this->whenLoaded('messages')),
             'created_at' => $this->created_at->toISOString(),
         ];
