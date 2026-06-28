@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);
+    Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);

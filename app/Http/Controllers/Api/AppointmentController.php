@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Resources\AppointmentResource;
@@ -13,6 +14,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
@@ -62,6 +64,25 @@ class AppointmentController extends Controller
     public function show(Request $request, Appointment $appointment): JsonResponse
     {
         abort_unless($appointment->customer_id === $request->user()->id, 404);
+
+        $appointment->load(['visitReason', 'status']);
+
+        return response()->json([
+            'data' => AppointmentResource::make($appointment),
+        ]);
+    }
+
+    public function cancel(Request $request, Appointment $appointment): JsonResponse
+    {
+        abort_unless($appointment->customer_id === $request->user()->id, 403);
+
+        if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
+            throw ValidationException::withMessages([
+                'appointment' => ['This appointment cannot be cancelled.'],
+            ]);
+        }
+
+        app(UpdateAppointmentStatus::class)->handle($appointment, 'cancelled');
 
         $appointment->load(['visitReason', 'status']);
 
