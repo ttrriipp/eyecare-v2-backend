@@ -267,6 +267,7 @@ POST   /logout
 GET    /appointments            Customer's own appointments
 POST   /appointments            Book appointment (customer, status locked to pending)
 GET    /appointments/{id}
+GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
 
 GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Non-frame types return 404.
 GET    /products/{id}           Product detail with variants + AR metadata (404 for non-frame products)
@@ -278,7 +279,7 @@ POST   /orders                  Submit order request (status locked to requested
 GET    /orders                  Customer's own orders, paginated (default 15, `?per_page=N`)
 GET    /orders/{id}
 
-GET    /billing/{id}            Customer billing with payment history (auth: billing.customer_id must match user)
+GET    /billing/{id}            Customer billing with line items + payment history (auth: billing.customer_id must match user)
 
 GET    /conversations           Customer's single persistent conversation (includes unread_count)
 GET    /conversations/{id}/messages
@@ -305,12 +306,12 @@ PATCH  /staff/orders/{id}/status
 
 **POST /register** and **POST /login** → returns:
 ```json
-{ "token": "1|abc123...", "user": { "id": 3, "name": "...", "email": "...", "role": "customer" } }
+{ "token": "1|abc123...", "user": { "id": 3, "name": "...", "email": "...", "phone": "...", "role": "customer" } }
 ```
 
 **GET /user:**
 ```json
-{ "data": { "id": 3, "name": "Demo Customer", "email": "customer@eyecare.test", "role": "customer" } }
+{ "data": { "id": 3, "name": "Demo Customer", "email": "customer@eyecare.test", "phone": "09171234567", "role": "customer" } }
 ```
 
 **GET /products** (paginated, frame-only):
@@ -364,6 +365,7 @@ PATCH  /staff/orders/{id}/status
     "id": 4,
     "order_number": "ORD-2026-000004",
     "appointment_id": null,
+    "billing_id": null,
     "is_non_prescription": true,
     "status": "requested",
     "subtotal": "5600.00",
@@ -399,6 +401,42 @@ PATCH  /staff/orders/{id}/status
     { "product_variant_id": 3, "lens_type_id": 1, "quantity": 1 },
     { "product_variant_id": 5, "lens_type_id": null, "quantity": 2 }
   ]
+}
+```
+
+**GET /visit-reasons:**
+```json
+{
+  "data": [
+    { "id": 1, "name": "Eye Exam", "duration_minutes": 30 },
+    { "id": 2, "name": "Follow-up", "duration_minutes": 15 },
+    { "id": 3, "name": "Prescription Check", "duration_minutes": 20 },
+    { "id": 4, "name": "Contact Lens Fitting", "duration_minutes": 60 }
+  ]
+}
+```
+
+**GET /billing/{id}:**
+```json
+{
+  "data": {
+    "id": 1,
+    "billing_number": "BIL-2026-000001",
+    "status": "partially_paid",
+    "subtotal": "2500.00",
+    "discount_amount": "0.00",
+    "total_amount": "2500.00",
+    "amount_paid": "1000.00",
+    "balance_due": "1500.00",
+    "issued_at": "2026-06-29T10:00:00.000000Z",
+    "created_at": "2026-06-29T10:00:00.000000Z",
+    "items": [
+      { "id": 1, "type": "product", "description": "Classic Frame — Matte Black", "quantity": 1, "unit_price": "2500.00", "amount": "2500.00" }
+    ],
+    "payments": [
+      { "id": 1, "amount": "1000.00", "status": "posted", "method": "Cash", "reference_number": null, "paid_at": "2026-06-29T11:00:00.000000Z" }
+    ]
+  }
 }
 ```
 
