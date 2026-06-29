@@ -11,3 +11,21 @@
         'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Make the appointment calendar (guava/calendar / @event-calendar) follow dark mode.
+   The package maps several --ec-* variables from source variables this app does not
+   define, and leaves the main background/text unset — so we set the calendar's theme
+   variables directly for dark mode. Defined after the package import so these win. */
+.dark .ec {
+    --ec-bg-color: #0f172a;                      /* slate-900 */
+    --ec-text-color: #e2e8f0;                    /* slate-200 */
+    --ec-border-color: rgb(255 255 255 / 0.1);
+    --ec-button-bg-color: #1e293b;               /* slate-800 */
+    --ec-button-text-color: #e2e8f0;
+    --ec-button-active-bg-color: #334155;        /* slate-700 */
+    --ec-button-active-text-color: #ffffff;
+    --ec-today-bg-color: rgb(79 141 215 / 0.15); /* brand tint */
+    --ec-highlight-color: rgb(255 255 255 / 0.06);
+    --ec-list-day-bg-color: #1e293b;
+    --ec-now-indicator-color: #4f8dd7;
+}
