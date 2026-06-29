@@ -8,6 +8,7 @@ use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Models\Appointment;
 use Carbon\CarbonInterface;
 use Filament\Notifications\Notification;
+use Guava\Calendar\Enums\CalendarViewType;
 use Guava\Calendar\Filament\CalendarWidget;
 use Guava\Calendar\ValueObjects\DateClickInfo;
 use Guava\Calendar\ValueObjects\EventClickInfo;
@@ -24,6 +25,8 @@ class AppointmentCalendarWidget extends CalendarWidget
     protected bool $eventDragEnabled = true;
 
     protected bool $dateClickEnabled = true;
+
+    protected CalendarViewType $calendarView = CalendarViewType::TimeGridDay;
 
     /**
      * Calendar options passed to the underlying @event-calendar instance.
