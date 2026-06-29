@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'prescribed_at',
     'expires_at',
     'notes',
+    'last_expiry_notified_at',
 ])]
 class Prescription extends Model
 {
@@ -92,6 +93,7 @@ class Prescription extends Model
             'notes' => 'encrypted',
             'prescribed_at' => 'date',
             'expires_at' => 'date',
+            'last_expiry_notified_at' => 'datetime',
         ];
     }
 }
