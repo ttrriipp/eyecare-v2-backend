@@ -3,8 +3,10 @@
 use App\Filament\Pages\Reports\AppointmentsReport;
 use App\Filament\Pages\Reports\FeedbackReport;
 use App\Filament\Pages\Reports\OrdersReport;
+use App\Filament\Pages\Reports\ReorderReport;
 use App\Filament\Pages\Reports\SalesReport;
 use App\Models\Billing;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -104,4 +106,39 @@ test('breakdown shows an empty state when no records in range', function () {
         ->set('dateFrom', '2000-01-01')
         ->set('dateUntil', '2000-01-02')
         ->assertSee('No records in this period');
+});
+
+test('reorder report renders for admin', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(ReorderReport::class)->assertSuccessful();
+});
+
+test('reorder report shows items below threshold', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    $variant = ProductVariant::factory()->create([
+        'stock_quantity' => 2,
+        'low_stock_threshold' => 10,
+    ]);
+
+    $page = Livewire::test(ReorderReport::class);
+    $items = $page->instance()->getItems();
+
+    expect($items)->toHaveCount(1)
+        ->and($items->first()['deficit'])->toBe(8)
+        ->and($items->first()['sku'])->toBe($variant->sku);
+});
+
+test('reorder report excludes items above threshold', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    ProductVariant::factory()->create([
+        'stock_quantity' => 20,
+        'low_stock_threshold' => 5,
+    ]);
+
+    $items = Livewire::test(ReorderReport::class)->instance()->getItems();
+
+    expect($items)->toHaveCount(0);
 });

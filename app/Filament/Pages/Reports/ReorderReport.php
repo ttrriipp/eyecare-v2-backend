@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Filament\Pages\Reports;
+
+use App\Models\ProductVariant;
+use BackedEnum;
+use Filament\Pages\Page;
+use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Collection;
+use UnitEnum;
+
+class ReorderReport extends Page
+{
+    protected static string|UnitEnum|null $navigationGroup = 'Reports';
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::ShoppingCart;
+
+    protected static ?int $navigationSort = 5;
+
+    protected static ?string $title = 'Reorder Report';
+
+    protected string $view = 'filament.pages.reports.reorder';
+
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->isAdmin() ?? false;
+    }
+
+    public function getItems(): Collection
+    {
+        return ProductVariant::query()
+            ->where('low_stock_threshold', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+            ->with('product:id,name')
+            ->get()
+            ->map(fn (ProductVariant $v) => [
+                'product' => $v->product?->name ?? '—',
+                'variant' => $v->name,
+                'sku' => $v->sku,
+                'stock' => $v->stock_quantity,
+                'threshold' => $v->low_stock_threshold,
+                'deficit' => $v->low_stock_threshold - $v->stock_quantity,
+            ])
+            ->sortByDesc('deficit')
+            ->values();
+    }
+}
