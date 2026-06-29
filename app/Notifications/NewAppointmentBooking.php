@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
-use Illuminate\Notifications\Messages\DatabaseMessage;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 class NewAppointmentBooking extends Notification
@@ -16,15 +16,13 @@ class NewAppointmentBooking extends Notification
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): DatabaseMessage
+    public function toDatabase(object $notifiable): array
     {
-        return new DatabaseMessage([
-            'type' => 'new_appointment_booking',
-            'title' => 'New Appointment Booked',
-            'body' => "{$this->appointment->customer->name} booked an appointment on {$this->appointment->scheduled_at->format('M d, Y g:i A')}.",
-            'action_url' => '/admin/appointments/'.$this->appointment->id.'/edit',
-            'related_type' => 'appointment',
-            'related_id' => $this->appointment->id,
-        ]);
+        return FilamentNotification::make()
+            ->icon('heroicon-o-calendar')
+            ->iconColor('success')
+            ->title('New Appointment Booked')
+            ->body("{$this->appointment->customer->name} booked an appointment on {$this->appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->getDatabaseMessage();
     }
 }

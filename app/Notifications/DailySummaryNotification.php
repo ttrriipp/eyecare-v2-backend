@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -25,17 +26,17 @@ class DailySummaryNotification extends Notification
     /** @return array<string, mixed> */
     public function toDatabase(object $notifiable): array
     {
-        return [
-            'title' => 'Daily Clinic Summary',
-            'body' => sprintf(
+        return FilamentNotification::make()
+            ->icon('heroicon-o-chart-bar')
+            ->iconColor('primary')
+            ->title('Daily Clinic Summary')
+            ->body(sprintf(
                 "Appointments completed: %d\nRevenue collected: ₱%s\nNew orders: %d\nPending orders: %d",
                 $this->completedAppointments,
                 number_format((float) $this->revenue, 2),
                 $this->newOrders,
                 $this->pendingOrders,
-            ),
-            'icon' => 'heroicon-o-chart-bar',
-            'iconColor' => 'primary',
-        ];
+            ))
+            ->getDatabaseMessage();
     }
 }

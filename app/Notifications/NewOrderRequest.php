@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
-use Illuminate\Notifications\Messages\DatabaseMessage;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 class NewOrderRequest extends Notification
@@ -16,15 +16,13 @@ class NewOrderRequest extends Notification
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): DatabaseMessage
+    public function toDatabase(object $notifiable): array
     {
-        return new DatabaseMessage([
-            'type' => 'new_order_request',
-            'title' => 'New Order Request',
-            'body' => "{$this->order->customer->name} submitted order {$this->order->order_number}.",
-            'action_url' => '/admin/orders/'.$this->order->id.'/edit',
-            'related_type' => 'order',
-            'related_id' => $this->order->id,
-        ]);
+        return FilamentNotification::make()
+            ->icon('heroicon-o-shopping-cart')
+            ->iconColor('primary')
+            ->title('New Order Request')
+            ->body("{$this->order->customer->name} submitted order {$this->order->order_number}.")
+            ->getDatabaseMessage();
     }
 }

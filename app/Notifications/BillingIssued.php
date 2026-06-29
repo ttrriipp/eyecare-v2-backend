@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Billing;
-use Illuminate\Notifications\Messages\DatabaseMessage;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 class BillingIssued extends Notification
@@ -16,15 +16,13 @@ class BillingIssued extends Notification
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): DatabaseMessage
+    public function toDatabase(object $notifiable): array
     {
-        return new DatabaseMessage([
-            'type' => 'billing_issued',
-            'title' => 'Billing Issued',
-            'body' => "Billing {$this->billing->billing_number} has been issued for ₱{$this->billing->total_amount}.",
-            'action_url' => null,
-            'related_type' => 'billing',
-            'related_id' => $this->billing->id,
-        ]);
+        return FilamentNotification::make()
+            ->icon('heroicon-o-banknotes')
+            ->iconColor('info')
+            ->title('Billing Issued')
+            ->body("Billing {$this->billing->billing_number} has been issued for ₱{$this->billing->total_amount}.")
+            ->getDatabaseMessage();
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -23,11 +24,11 @@ class PrescriptionsExpiringNotification extends Notification
     /** @return array<string, mixed> */
     public function toDatabase(object $notifiable): array
     {
-        return [
-            'title' => "{$this->count} prescription(s) expiring soon",
-            'body' => $this->summary,
-            'icon' => 'heroicon-o-exclamation-triangle',
-            'iconColor' => 'warning',
-        ];
+        return FilamentNotification::make()
+            ->icon('heroicon-o-exclamation-triangle')
+            ->iconColor('warning')
+            ->title("{$this->count} prescription(s) expiring soon")
+            ->body($this->summary)
+            ->getDatabaseMessage();
     }
 }

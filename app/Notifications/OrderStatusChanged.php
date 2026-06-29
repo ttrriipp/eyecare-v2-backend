@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Order;
-use Illuminate\Notifications\Messages\DatabaseMessage;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 class OrderStatusChanged extends Notification
@@ -16,17 +16,19 @@ class OrderStatusChanged extends Notification
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): DatabaseMessage
+    public function toDatabase(object $notifiable): array
     {
         $status = $this->order->status->name;
 
-        return new DatabaseMessage([
-            'type' => 'order_status_changed',
-            'title' => 'Order '.ucwords(str_replace('_', ' ', $status)),
-            'body' => "Your order {$this->order->order_number} is now {$status}.",
-            'action_url' => null,
-            'related_type' => 'order',
-            'related_id' => $this->order->id,
-        ]);
+        return FilamentNotification::make()
+            ->icon('heroicon-o-shopping-bag')
+            ->iconColor(match ($status) {
+                'confirmed', 'completed' => 'success',
+                'cancelled' => 'danger',
+                default => 'info',
+            })
+            ->title('Order '.ucwords(str_replace('_', ' ', $status)))
+            ->body("Your order {$this->order->order_number} is now {$status}.")
+            ->getDatabaseMessage();
     }
 }

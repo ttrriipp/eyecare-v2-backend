@@ -93,9 +93,8 @@ test('order notification payload contains correct data', function () {
         function (OrderStatusChanged $notification) use ($order): bool {
             $data = $notification->toDatabase(new User);
 
-            return $data->data['type'] === 'order_status_changed'
-                && $data->data['related_id'] === $order->id
-                && $data->data['related_type'] === 'order';
+            return $data['title'] === 'Order Confirmed'
+                && str_contains($data['body'], $order->order_number);
         },
     );
 });
@@ -132,8 +131,8 @@ test('billing notification payload contains correct data', function () {
         function (BillingIssued $notification): bool {
             $data = $notification->toDatabase(new User);
 
-            return $data->data['type'] === 'billing_issued'
-                && $data->data['related_type'] === 'billing';
+            return $data['title'] === 'Billing Issued'
+                && str_contains($data['body'], '₱');
         },
     );
 });

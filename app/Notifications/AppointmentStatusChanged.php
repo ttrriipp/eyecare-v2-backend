@@ -3,7 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Appointment;
-use Illuminate\Notifications\Messages\DatabaseMessage;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
 
 class AppointmentStatusChanged extends Notification
@@ -16,17 +16,21 @@ class AppointmentStatusChanged extends Notification
         return ['database'];
     }
 
-    public function toDatabase(object $notifiable): DatabaseMessage
+    public function toDatabase(object $notifiable): array
     {
         $status = $this->appointment->status->name;
 
-        return new DatabaseMessage([
-            'type' => 'appointment_status_changed',
-            'title' => 'Appointment '.ucfirst($status),
-            'body' => "Your appointment scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been {$status}.",
-            'action_url' => null,
-            'related_type' => 'appointment',
-            'related_id' => $this->appointment->id,
-        ]);
+        return FilamentNotification::make()
+            ->icon('heroicon-o-calendar-days')
+            ->iconColor(match ($status) {
+                'confirmed' => 'success',
+                'cancelled' => 'danger',
+                'rescheduled' => 'warning',
+                'completed' => 'success',
+                default => 'info',
+            })
+            ->title('Appointment '.ucfirst($status))
+            ->body("Your appointment scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been {$status}.")
+            ->getDatabaseMessage();
     }
 }
