@@ -77,6 +77,12 @@ class EditAppointment extends EditRecord
                     DateTimePicker::make('scheduled_at')
                         ->label('New date & time')
                         ->required()
+                        ->native(false)
+                        ->seconds(false)
+                        ->minutesStep(15)
+                        ->displayFormat('M d, Y h:i A')
+                        ->prefixIcon('heroicon-o-calendar-days')
+                        ->minDate(now())
                         ->after('now'),
                 ])
                 ->action(function (array $data): void {

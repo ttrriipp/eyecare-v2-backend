@@ -173,8 +173,8 @@ test('reschedule action transitions appointment to rescheduled with new date and
 
     $fresh = $appointment->fresh();
     expect($fresh->status->name)->toBe('rescheduled')
-        ->and($fresh->scheduled_at->toDateTimeString())->toBe(
-            Carbon::parse($newDate)->toDateTimeString()
+        ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
+            Carbon::parse($newDate)->format('Y-m-d H:i')
         );
 
     $this->assertDatabaseHas(SmsNotification::class, [
@@ -285,8 +285,8 @@ test('reschedule row action reschedules appointment with new date and creates SM
 
     $fresh = $appointment->fresh();
     expect($fresh->status->name)->toBe('rescheduled')
-        ->and($fresh->scheduled_at->toDateTimeString())->toBe(
-            Carbon::parse($newDate)->toDateTimeString()
+        ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
+            Carbon::parse($newDate)->format('Y-m-d H:i')
         );
 
     $this->assertDatabaseHas(SmsNotification::class, [
