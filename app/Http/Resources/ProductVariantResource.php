@@ -27,6 +27,7 @@ class ProductVariantResource extends JsonResource
             'attributes' => $this->attributes,
             'ar_eligible' => $this->ar_eligible,
             'ar_asset_reference' => $this->ar_eligible ? $this->ar_asset_reference : null,
+            'in_stock' => $this->stock_quantity > 0,
             'images' => $this->images ?? [],
         ];
     }

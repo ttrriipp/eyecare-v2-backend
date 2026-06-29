@@ -40,7 +40,8 @@ test('authenticated customers can view active product details with variants', fu
         ->assertJsonPath('data.name', 'Demo Frame')
         ->assertJsonPath('data.variants.0.id', $variant->id)
         ->assertJsonPath('data.variants.0.ar_eligible', true)
-        ->assertJsonPath('data.variants.0.ar_asset_reference', 'frames/demo-matte-black.glb');
+        ->assertJsonPath('data.variants.0.ar_asset_reference', 'frames/demo-matte-black.glb')
+        ->assertJsonPath('data.variants.0.in_stock', true);
 });
 
 test('inactive products are hidden from product detail endpoint', function () {
