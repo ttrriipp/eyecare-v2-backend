@@ -58,6 +58,8 @@ class AppointmentForm
                                 ->dehydrated(),
                             DateTimePicker::make('scheduled_at')
                                 ->required()
+                                ->native(false)
+                                ->minDate(now())
                                 ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : '')
                                 ->rule(fn (string $operation, ?Appointment $record): Exists|string|\Closure => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
                                     if (! $value) {
