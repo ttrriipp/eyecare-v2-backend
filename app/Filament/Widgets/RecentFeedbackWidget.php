@@ -12,6 +12,8 @@ class RecentFeedbackWidget extends TableWidget
 {
     protected static ?string $heading = 'Recent Feedback';
 
+    protected static ?int $sort = 3;
+
     protected int|string|array $columnSpan = 'full';
 
     public function table(Table $table): Table

@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Pages\Auth\Login;
+use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\RecentFeedbackWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use Filament\Enums\ThemeMode;
@@ -55,6 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 StatsOverviewWidget::class,
+                AppointmentsChartWidget::class,
                 RecentFeedbackWidget::class,
             ])
             ->middleware([

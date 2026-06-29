@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\RecentFeedbackWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Models\Appointment;
@@ -9,6 +10,7 @@ use App\Models\BillingStatus;
 use App\Models\Feedback;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\Payment;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -132,4 +134,46 @@ test('recent feedback widget shows at most 5 records', function () {
     // The widget query applies limit(5) — verify via the underlying query
     $count = Feedback::query()->latest()->limit(5)->get()->count();
     expect($count)->toBe(5);
+});
+
+test('appointments chart widget renders for staff and admin', function (string $role) {
+    $user = User::factory()->{$role}()->create();
+
+    $confirmedId = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    Appointment::factory()->count(3)->create([
+        'appointment_status_id' => $confirmedId,
+        'scheduled_at' => today()->subDays(3)->setTime(10, 0),
+    ]);
+
+    $this->actingAs($user);
+
+    Livewire::test(AppointmentsChartWidget::class)->assertSuccessful();
+})->with(['admin', 'staff']);
+
+test('appointments chart widget renders gracefully with no appointments', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(AppointmentsChartWidget::class)->assertSuccessful();
+});
+
+test('stats widget surfaces revenue from this month posted payments', function () {
+    $staff = User::factory()->staff()->create();
+
+    Payment::factory()->posted()->create(['amount' => 1500, 'paid_at' => now()]);
+    Payment::factory()->posted()->create(['amount' => 750, 'paid_at' => now()->subDays(40)]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(StatsOverviewWidget::class)
+        ->assertSuccessful()
+        ->assertSee('Revenue this month');
+
+    expect(
+        (float) Payment::query()
+            ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
+            ->whereBetween('paid_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum('amount')
+    )->toBe(1500.0);
 });
