@@ -133,3 +133,19 @@ test('the calendar exposes month, week, and day view toggles', function () {
         ->toContain('timeGridWeek')
         ->toContain('timeGridDay');
 });
+
+test('dragging an appointment to a past date is rejected', function () {
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmed,
+        'scheduled_at' => now()->addDay()->setTime(10, 0),
+    ]);
+    $original = $appointment->scheduled_at->toDateTimeString();
+
+    $widget = new AppointmentCalendarWidget;
+    // Yesterday — before today's start, so it must be rejected.
+    $result = invokeWidgetMethod($widget, 'attemptReschedule', [$appointment, now()->subDay()->setTime(11, 0)]);
+
+    expect($result)->toBeFalse()
+        ->and($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($original);
+});

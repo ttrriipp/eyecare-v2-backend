@@ -120,10 +120,10 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
-        if ($newStart->isPast()) {
+        if ($newStart->lt(now()->startOfDay())) {
             Notification::make()
-                ->title('Invalid time')
-                ->body('Appointments cannot be moved to a past time.')
+                ->title('Invalid date')
+                ->body('Appointments cannot be moved to a past date.')
                 ->warning()
                 ->send();
 
