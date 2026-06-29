@@ -29,6 +29,18 @@ class ProductResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Products & Inventory';
 
+    protected static bool $isGloballySearchable = true;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'variants.sku'];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ProductForm::configure($schema);

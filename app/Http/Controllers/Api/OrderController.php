@@ -130,7 +130,17 @@ class OrderController extends Controller
 
         app(UpdateOrderStatus::class)->handle($order, 'cancelled');
 
-        $order->load(['status', 'items.productVariant.product']);
+        $order->load(['status', 'items.productVariant.product', 'customer']);
+
+        $staff = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('Order Cancelled by Customer')
+            ->body("{$order->customer->name} cancelled order {$order->order_number}.")
+            ->warning()
+            ->sendToDatabase($staff);
 
         return response()->json([
             'data' => OrderResource::make($order),

@@ -32,6 +32,18 @@ class PatientResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    protected static bool $isGloballySearchable = true;
+
+    protected static ?string $recordTitleAttribute = 'name';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name', 'phone', 'email'];
+    }
+
     // Scope all queries to customer-role users only
     public static function getEloquentQuery(): Builder
     {

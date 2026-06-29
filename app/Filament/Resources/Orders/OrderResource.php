@@ -28,6 +28,18 @@ class OrderResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
 
+    protected static bool $isGloballySearchable = true;
+
+    protected static ?string $recordTitleAttribute = 'order_number';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['order_number', 'customer.name'];
+    }
+
     public static function form(Schema $schema): Schema
     {
         return OrderForm::configure($schema);

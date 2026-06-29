@@ -84,7 +84,17 @@ class AppointmentController extends Controller
 
         app(UpdateAppointmentStatus::class)->handle($appointment, 'cancelled');
 
-        $appointment->load(['visitReason', 'status']);
+        $appointment->load(['visitReason', 'status', 'customer']);
+
+        $staff = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('Appointment Cancelled by Customer')
+            ->body("{$appointment->customer->name} cancelled their appointment on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->warning()
+            ->sendToDatabase($staff);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),

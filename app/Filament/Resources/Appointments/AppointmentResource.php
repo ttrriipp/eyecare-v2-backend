@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class AppointmentResource extends Resource
 {
@@ -23,6 +24,23 @@ class AppointmentResource extends Resource
     protected static ?string $navigationLabel = 'Appointments';
 
     protected static ?int $navigationSort = 1;
+
+    protected static bool $isGloballySearchable = true;
+
+    protected static ?string $recordTitleAttribute = 'id';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['customer.name', 'customer.phone'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->customer?->name ?? "Appointment #{$record->id}";
+    }
 
     public static function form(Schema $schema): Schema
     {

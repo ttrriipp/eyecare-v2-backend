@@ -37,6 +37,8 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2rem')
             ->favicon(asset('images/favicon.svg'))
             ->defaultThemeMode(ThemeMode::Light)
+            ->databaseNotifications()
+            ->globalSearchResourceOptIn()
             ->colors([
                 'primary' => Color::hex('#4F8DD7'),
                 'gray' => Color::Slate,

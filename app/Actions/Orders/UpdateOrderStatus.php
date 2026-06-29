@@ -11,7 +11,9 @@ use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
 use App\Models\SmsNotification;
+use App\Models\User;
 use App\Notifications\OrderStatusChanged;
+use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
 
 class UpdateOrderStatus
@@ -116,6 +118,17 @@ class UpdateOrderStatus
                 // Billing failure must not block confirmation — log silently
                 logger()->error("Failed to auto-generate billing for order #{$order->id}");
             }
+
+            $order->loadMissing('customer');
+            $recipients = User::query()
+                ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+                ->get();
+
+            Notification::make()
+                ->title('Order Confirmed')
+                ->body("Order {$order->order_number} by {$order->customer->name} has been confirmed.")
+                ->success()
+                ->sendToDatabase($recipients);
         }
         if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
             $this->restoreInventory($order);
