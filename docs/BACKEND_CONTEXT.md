@@ -124,7 +124,6 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
 | `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
 | `sms_notifications` | appointment_id (nullable), order_id (nullable), notification_status_id, event, recipient, message, failure_reason (nullable). Queued records dispatched via `sms:process` command using Semaphore API (config-gated). |
-| `prescription_uploads` | customer_id, file_path, original_name, mime_type, status (pending/approved/rejected), admin_notes (nullable), prescription_id (nullable FK). **Unused** — table exists from early development but no model, controller, or Filament resource consumes it. |
 
 ### Soft Deletes
 
