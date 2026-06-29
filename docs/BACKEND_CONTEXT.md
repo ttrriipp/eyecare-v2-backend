@@ -216,6 +216,10 @@ Discount: applied at confirmation time via `discount_type_id` (Senior Citizen 20
 
 URL: `/admin` — accessible to `staff` and `admin` roles only.
 
+**Panel features:**
+- **Database Notifications** — bell icon in topbar with unread badge. Auto-fires on: new appointment booked, new order placed, order confirmed, customer cancels appointment/order, low stock alert. All staff/admin receive.
+- **Global Search** — topbar search bar (opt-in). Searches: Patients (name/phone/email), Orders (order number/customer name), Appointments (customer name/phone), Products (name/variant SKU).
+
 **Navigation groups (in order):**
 - *(ungrouped)* — Appointments, Prescriptions, Patients
 - Orders & Billing — Orders, Billings
@@ -236,7 +240,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Feedback — read-only. List: customer, rating, comment (toggleable), appointment/order (hidden by default, toggleable), submitted date. Filter by rating. View page: sections layout (Feedback Details + Timestamps sidebar). Staff reply was intentionally removed — staff communicates with patients via Conversations instead.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
-- User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
+- User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). 3-col sidebar layout: main (Account Details: name, email, phone, password) + sidebar (Role & Access selector + Timeline). Table: name, email, phone, color-coded role badge (admin=red, staff=blue), relative joined date. Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
 - SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`.
 - Prescription Uploads (admin only) — list of customer-uploaded prescription images with status filter. Approve action opens prescription form to create a `Prescription` record and link it. Reject action records admin notes.
 
