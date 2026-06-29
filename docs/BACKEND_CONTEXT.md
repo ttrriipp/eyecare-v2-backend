@@ -225,7 +225,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback, SMS Log (admin only)
-- Reports — Sales, Orders, Appointments, Feedback (admin only)
+- Reports — Sales, Orders, Appointments, Feedback, Reorder (admin only)
 - Administration — Users, Audit Logs
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
@@ -275,8 +275,6 @@ GET    /products/{id}           Product detail with variants + AR metadata (404 
 
 GET    /prescriptions           Customer's own prescription history
 GET    /prescriptions/{id}
-POST   /prescriptions/upload    Upload prescription image/PDF for admin review (max 5MB, jpg/png/pdf)
-GET    /prescriptions/uploads   Customer's own upload history with status
 
 POST   /orders                  Submit order request (status locked to requested). `items[].lens_type_id` is nullable — omit for accessories/contact lenses.
 GET    /orders                  Customer's own orders, paginated (default 15, `?per_page=N`)
@@ -443,13 +441,18 @@ PATCH  /staff/orders/{id}/status
 - **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Bill Service" / "Add Service" actions create them as a side effect.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
 - **Appointment slot check:** `POST /appointments` (API) and the Filament create form both validate that no non-cancelled appointment exists within ±30 minutes of the requested `scheduled_at`. Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (edit) excludes the current appointment from the conflict check.
-- **Prescription uploads:** Customers upload prescription images/PDFs via `POST /prescriptions/upload`. Files stored privately at `prescription-uploads/`. Admin reviews via the Prescription Uploads Filament resource — approve (creates a `Prescription` record and links it) or reject (with notes). Rejected uploads kept as history; no customer delete.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
 - **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. Actual dispatch via `SemaphoreService` using `sms:process` artisan command. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
 - **Appointment reminders:** `appointments:send-reminders` command creates queued SMS records for tomorrow's confirmed appointments. Idempotent (won't duplicate if run multiple times per day). Schedule daily at 6 PM.
 - **Token expiration:** Sanctum tokens expire after 30 days (`config/sanctum.php` → `expiration = 43200`). Expired tokens return 401.
 - **Rate limiting:** Login/register: 5 attempts/minute per IP (`throttle:login`). General authenticated API: 60 requests/minute per user (`throttle:60,1`). Exceeding returns 429.
 - **Stock visibility:** `GET /products` variant objects include `"in_stock": true|false` (derived from `stock_quantity > 0`). Additive — does not break existing Android responses.
+- **Prescription encryption at rest:** All sensitive prescription health data columns (sphere, cylinder, axis, add, prism, base, pd, notes) use Laravel's `encrypted` cast — stored as AES-256 ciphertext in MySQL. Demonstrates DPA compliance. Non-health columns (dates, FKs) remain unencrypted.
+- **Variable appointment duration:** Visit reasons have a `duration_minutes` column (default 30). Conflict detection uses actual overlap based on each appointment's visit reason duration — not a fixed ±30 min window. Calendar events render with correct duration.
+- **Prescription expiry alerts:** `prescriptions:check-expiry` command (daily at 8 AM) notifies staff about prescriptions expiring within 30 days. Batched notification. Idempotent via `last_expiry_notified_at` timestamp.
+- **End-of-day summary:** `clinic:daily-summary` command (daily at 9 PM) sends admin users a database notification with: appointments completed, revenue collected, new orders, pending orders.
+- **Billing void audit:** Voiding a billing with posted payments shows the exact amount being voided and creates a full audit log entry (billing number, amounts, payment details, line items) for recoverability.
+- **Reorder report:** Reports → Reorder shows product variants at or below their low_stock_threshold, sorted by deficit. Answers "what needs to be reordered?"
 
 ---
 
@@ -478,6 +481,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/specs/encounter-billing-refactor-spec.md` | Complete — 12 tasks |
 | `docs/specs/unified-billing-flow-spec.md` | Complete — 7 tasks |
 | `docs/specs/priority-gaps-spec.md` | In progress — P1–P3 gaps (Phases 1–5 of 6 complete) |
+| `docs/specs/defense-hardening-spec.md` | Complete — 7 features (performance indexes, variable duration, expiry alerts, daily summary, void audit, reorder report, docs) |
 
 ---
 
@@ -488,6 +492,8 @@ vendor/bin/sail up -d                                    # start
 vendor/bin/sail artisan migrate:fresh --seed             # reset + seed
 vendor/bin/sail artisan db:seed --class=DashboardDemoSeeder  # populate dashboard demo data (idempotent)
 vendor/bin/sail artisan appointments:send-reminders      # queue SMS reminders for tomorrow's appointments
+vendor/bin/sail artisan prescriptions:check-expiry       # notify staff about expiring prescriptions
+vendor/bin/sail artisan clinic:daily-summary             # send daily operations summary to admins
 vendor/bin/sail artisan test --compact                   # run all tests
 vendor/bin/sail artisan test --compact --filter=Name     # filtered tests
 vendor/bin/sail bin pint --dirty --format agent          # format changed PHP
