@@ -12,6 +12,20 @@ Laravel 13 backend for the Padilla Optical Clinic Management System. Serves two 
 
 ---
 
+## Branding
+
+| Element | Value |
+|---|---|
+| App name | Eyecare |
+| Clinic name | Padilla Optical Clinic |
+| Primary color | `#4F8DD7` (use in both web panel and mobile app) |
+| Panel font | Instrument Sans (400/500/600) |
+| Logo | Biconvex lens/eye mark + "Eyecare" wordmark — see `resources/views/filament/admin/logo.blade.php` |
+| Favicon | `public/images/favicon.svg` |
+| Default theme mode | Light (dark mode toggle available) |
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -207,6 +221,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback, SMS Log (admin only)
+- Reports — Sales, Orders, Appointments, Feedback (admin only)
 - Administration — Users, Audit Logs
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
@@ -230,7 +245,10 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - All settings edit forms use a 2-column layout: main details section (left, 2/3) + Timestamps sidebar (right, 1/3) showing Created at and Last modified.
 - Edit pages include relation managers: Brands → Products table, Categories → Products table, Lens Types → Products table, Visit Reasons → Appointments table. Services has no relation manager (service_records are audit-only, not directly managed).
 
-**Dashboard widgets:** appointment counts, pending orders, low stock, unpaid billings, recent feedback.
+**Dashboard widgets (ordered top to bottom):**
+1. **Stats Overview** — Today's appointments (sparkline + delta vs yesterday), Revenue this month (sparkline + % vs last month), Pending orders (sparkline), Unpaid billings (₱ outstanding), Low stock variants
+2. **Appointments Chart** (hero) — 30-day trend line of daily non-cancelled appointments, brand color `#4F8DD7`
+3. **Recent Feedback** — last 5 feedback entries table
 
 ---
 
@@ -424,6 +442,10 @@ PATCH  /staff/orders/{id}/status
 - **Prescription uploads:** Customers upload prescription images/PDFs via `POST /prescriptions/upload`. Files stored privately at `prescription-uploads/`. Admin reviews via the Prescription Uploads Filament resource — approve (creates a `Prescription` record and links it) or reject (with notes). Rejected uploads kept as history; no customer delete.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
 - **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. Actual dispatch via `SemaphoreService` using `sms:process` artisan command. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
+- **Appointment reminders:** `appointments:send-reminders` command creates queued SMS records for tomorrow's confirmed appointments. Idempotent (won't duplicate if run multiple times per day). Schedule daily at 6 PM.
+- **Token expiration:** Sanctum tokens expire after 30 days (`config/sanctum.php` → `expiration = 43200`). Expired tokens return 401.
+- **Rate limiting:** Login/register: 5 attempts/minute per IP (`throttle:login`). General authenticated API: 60 requests/minute per user (`throttle:60,1`). Exceeding returns 429.
+- **Stock visibility:** `GET /products` variant objects include `"in_stock": true|false` (derived from `stock_quantity > 0`). Additive — does not break existing Android responses.
 
 ---
 
@@ -460,6 +482,8 @@ PATCH  /staff/orders/{id}/status
 ```bash
 vendor/bin/sail up -d                                    # start
 vendor/bin/sail artisan migrate:fresh --seed             # reset + seed
+vendor/bin/sail artisan db:seed --class=DashboardDemoSeeder  # populate dashboard demo data (idempotent)
+vendor/bin/sail artisan appointments:send-reminders      # queue SMS reminders for tomorrow's appointments
 vendor/bin/sail artisan test --compact                   # run all tests
 vendor/bin/sail artisan test --compact --filter=Name     # filtered tests
 vendor/bin/sail bin pint --dirty --format agent          # format changed PHP
