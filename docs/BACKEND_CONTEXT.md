@@ -124,7 +124,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `audit_logs` | actor_id, subject_type, subject_id, action, metadata (JSON) |
 | `inventory_movements` | product_variant_id, order_id, inventory_movement_type_id, quantity_change, previous_stock, new_stock, created_by (FK to users), notes |
 | `sms_notifications` | appointment_id (nullable), order_id (nullable), notification_status_id, event, recipient, message, failure_reason (nullable). Queued records dispatched via `sms:process` command using Semaphore API (config-gated). |
-| `prescription_uploads` | customer_id, file_path, original_name, mime_type, status (pending/approved/rejected), admin_notes (nullable), prescription_id (nullable FK). Customer-uploaded prescription images for admin review. |
+| `prescription_uploads` | customer_id, file_path, original_name, mime_type, status (pending/approved/rejected), admin_notes (nullable), prescription_id (nullable FK). **Unused** — table exists from early development but no model, controller, or Filament resource consumes it. |
 
 ### Soft Deletes
 
@@ -242,7 +242,6 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Audit Logs (read-only)
 - User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). 3-col sidebar layout: main (Account Details: name, email, phone, password) + sidebar (Role & Access selector + Timeline). Table: name, email, phone, color-coded role badge (admin=red, staff=blue), relative joined date. Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
 - SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`.
-- Prescription Uploads (admin only) — list of customer-uploaded prescription images with status filter. Approve action opens prescription form to create a `Prescription` record and link it. Reject action records admin notes.
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
 - Categories, Brands (CRUD), Lens Types (with price + description), Visit Reasons, Services (fee schedule with price, description, visibility toggle)
@@ -440,9 +439,9 @@ PATCH  /staff/orders/{id}/status
 - **Billing grouping by appointment:** When `GetOrCreateBilling` is called with an `appointment_id`, it reuses any existing non-voided billing for that appointment. This means an order billing and a service billing for the same appointment share one invoice automatically. Walk-ins without an appointment (`appointment_id = null`) always get a fresh billing.
 - **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Bill Service" / "Add Service" actions create them as a side effect.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
-- **Appointment slot check:** `POST /appointments` (API) and the Filament create form both validate that no non-cancelled appointment exists within ±30 minutes of the requested `scheduled_at`. Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (edit) excludes the current appointment from the conflict check.
+- **Appointment slot check:** `POST /appointments` (API) and the Filament create form both validate that no non-cancelled appointment overlaps with the requested time slot (using each appointment's visit reason `duration_minutes`). Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (edit) excludes the current appointment from the conflict check.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded overlay image. Staff uploads transparent PNG files (front-facing frame, landscape ~3:1 ratio, tight crop, no background) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`.
-- **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. Actual dispatch via `SemaphoreService` using `sms:process` artisan command. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
+- **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. `sms:process` command dispatches `SendSmsJob` per record to the queue (3 retries, 30s backoff). Actual delivery via `SemaphoreService`. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
 - **Appointment reminders:** `appointments:send-reminders` command creates queued SMS records for tomorrow's confirmed appointments. Idempotent (won't duplicate if run multiple times per day). Schedule daily at 6 PM.
 - **Token expiration:** Sanctum tokens expire after 30 days (`config/sanctum.php` → `expiration = 43200`). Expired tokens return 401.
 - **Rate limiting:** Login/register: 5 attempts/minute per IP (`throttle:login`). General authenticated API: 60 requests/minute per user (`throttle:60,1`). Exceeding returns 429.
@@ -502,3 +501,12 @@ vendor/bin/sail artisan route:list --except-vendor       # inspect routes
 ```
 
 **Important:** `APP_URL` in `.env` must match the URL you use to access the app in the browser (including or excluding port). If FilePond image previews load indefinitely, check that `APP_URL` matches exactly. Run `php artisan storage:link` if the storage symlink is missing.
+
+---
+
+## Production Infrastructure
+
+- **Health check:** `GET /health` returns 200 with DB connectivity status (or 503 if disconnected). Use with uptime monitors.
+- **CI:** `.github/workflows/ci.yml` runs Pint lint check + full test suite on push/PR to `main`.
+- **Deployment:** See `docs/DEPLOYMENT.md` for full VPS setup (nginx, queue worker, scheduler, SSL, backup) or Laravel Cloud deployment.
+- **Queue:** `QUEUE_CONNECTION=database` in production. Queue worker processes `SendSmsJob` (SMS delivery with retries). See deployment docs for Supervisor config.
