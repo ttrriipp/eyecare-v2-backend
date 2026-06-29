@@ -124,3 +124,12 @@ test('dragging into a conflicting slot is rejected', function () {
     expect($result)->toBeFalse();
     expect($moving->fresh()->scheduled_at->toDateTimeString())->toBe($original);
 });
+
+test('the calendar exposes month, week, and day view toggles', function () {
+    $options = (new AppointmentCalendarWidget)->getOptions();
+
+    expect($options['headerToolbar']['end'])
+        ->toContain('dayGridMonth')
+        ->toContain('timeGridWeek')
+        ->toContain('timeGridDay');
+});

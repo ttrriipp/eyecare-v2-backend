@@ -25,6 +25,33 @@ class AppointmentCalendarWidget extends CalendarWidget
 
     protected bool $dateClickEnabled = true;
 
+    /**
+     * Calendar options passed to the underlying @event-calendar instance.
+     * Adds Month / Week / Day view toggles to the header toolbar.
+     *
+     * @return array<string, mixed>
+     */
+    public function getOptions(): array
+    {
+        return [
+            'headerToolbar' => [
+                'start' => 'prev,next today',
+                'center' => 'title',
+                'end' => 'dayGridMonth,timeGridWeek,timeGridDay',
+            ],
+            'buttonText' => [
+                'today' => 'Today',
+                'dayGridMonth' => 'Month',
+                'timeGridWeek' => 'Week',
+                'timeGridDay' => 'Day',
+            ],
+            // Focus the week/day time grid on clinic hours (trims the empty overnight scroll).
+            'slotMinTime' => '07:00:00',
+            'slotMaxTime' => '20:00:00',
+            'nowIndicator' => true,
+        ];
+    }
+
     protected function getEvents(FetchInfo $info): Builder|array
     {
         return Appointment::query()
