@@ -2,18 +2,18 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\Sms\ProcessSmsNotification;
+use App\Jobs\SendSmsJob;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use Illuminate\Console\Command;
 
 class ProcessPendingSmsCommand extends Command
 {
-    protected $signature = 'sms:process {--limit=50 : Maximum number of SMS to process}';
+    protected $signature = 'sms:process {--limit=50 : Maximum number of SMS to dispatch}';
 
-    protected $description = 'Process queued SMS notifications via Semaphore';
+    protected $description = 'Dispatch queued SMS notifications to the job queue';
 
-    public function handle(ProcessSmsNotification $action): int
+    public function handle(): int
     {
         $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
 
@@ -28,22 +28,9 @@ class ProcessPendingSmsCommand extends Command
             return self::SUCCESS;
         }
 
-        $sent = 0;
-        $failed = 0;
+        $pending->each(fn (SmsNotification $sms) => SendSmsJob::dispatch($sms));
 
-        foreach ($pending as $sms) {
-            $statusBefore = $sms->status->name;
-            $action->handle($sms);
-            $sms->refresh();
-
-            if ($sms->status->name === 'sent') {
-                $sent++;
-            } else {
-                $failed++;
-            }
-        }
-
-        $this->info("Processed {$pending->count()} SMS: {$sent} sent, {$failed} failed.");
+        $this->info("Dispatched {$pending->count()} SMS job(s) to the queue.");
 
         return self::SUCCESS;
     }
