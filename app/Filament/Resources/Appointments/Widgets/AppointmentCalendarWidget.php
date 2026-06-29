@@ -26,6 +26,11 @@ class AppointmentCalendarWidget extends CalendarWidget
 
     protected bool $dateClickEnabled = true;
 
+    // Interpret calendar times in the Filament/app timezone (Asia/Manila) instead of
+    // the raw browser locale. Without this, drag-and-drop round-trips the time with the
+    // wrong offset, so future slots are wrongly rejected as "past".
+    protected bool $useFilamentTimezone = true;
+
     protected CalendarViewType $calendarView = CalendarViewType::TimeGridDay;
 
     /**
