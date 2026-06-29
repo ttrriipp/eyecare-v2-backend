@@ -69,22 +69,27 @@ class Prescription extends Model
     }
 
     /**
+     * Sensitive health data is encrypted at rest (DPA compliance).
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'od_sphere' => 'decimal:2',
-            'od_cylinder' => 'decimal:2',
-            'od_axis' => 'integer',
-            'od_add' => 'decimal:2',
-            'od_prism' => 'decimal:2',
-            'os_sphere' => 'decimal:2',
-            'os_cylinder' => 'decimal:2',
-            'os_axis' => 'integer',
-            'os_add' => 'decimal:2',
-            'os_prism' => 'decimal:2',
-            'pd' => 'decimal:2',
+            'od_sphere' => 'encrypted',
+            'od_cylinder' => 'encrypted',
+            'od_axis' => 'encrypted',
+            'od_add' => 'encrypted',
+            'od_prism' => 'encrypted',
+            'od_base' => 'encrypted',
+            'os_sphere' => 'encrypted',
+            'os_cylinder' => 'encrypted',
+            'os_axis' => 'encrypted',
+            'os_add' => 'encrypted',
+            'os_prism' => 'encrypted',
+            'os_base' => 'encrypted',
+            'pd' => 'encrypted',
+            'notes' => 'encrypted',
             'prescribed_at' => 'date',
             'expires_at' => 'date',
         ];

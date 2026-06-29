@@ -54,14 +54,16 @@ test('staff can record prescriptions linked to customers with optional appointme
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    $this->assertDatabaseHas(Prescription::class, [
-        'customer_id' => $customer->id,
-        'appointment_id' => $appointment->id,
-        'created_by' => $staff->id,
-        'od_sphere' => '-2.25',
-        'pd' => '62.50',
-        'notes' => 'Annual exam update.',
-    ]);
+    $prescription = Prescription::query()
+        ->where('customer_id', $customer->id)
+        ->where('appointment_id', $appointment->id)
+        ->first();
+
+    expect($prescription)->not->toBeNull()
+        ->and($prescription->created_by)->toBe($staff->id)
+        ->and($prescription->od_sphere)->toBe('-2.25')
+        ->and($prescription->pd)->toBe('62.5')
+        ->and($prescription->notes)->toBe('Annual exam update.');
 });
 
 test('staff can edit prescriptions', function () {
