@@ -17,13 +17,22 @@ class UsersTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('email')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
+                TextColumn::make('phone')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('role.name')
                     ->label('Role')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'admin' => 'danger',
+                        'staff' => 'info',
+                        default => 'gray',
+                    }),
                 TextColumn::make('created_at')
                     ->label('Joined')
-                    ->date()
+                    ->since()
                     ->sortable(),
             ])
             ->filters([
