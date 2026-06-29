@@ -7,6 +7,7 @@ use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Models\Appointment;
 use Carbon\CarbonInterface;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Guava\Calendar\Enums\CalendarViewType;
 use Guava\Calendar\Filament\CalendarWidget;
@@ -95,7 +96,8 @@ class AppointmentCalendarWidget extends CalendarWidget
     }
 
     /**
-     * Dragging an event reschedules it. Returning false reverts the drag.
+     * Dragging an event validates the move, reverts the visual drag, and asks for
+     * confirmation before committing. Returning false reverts the drag.
      */
     protected function onEventDrop(EventDropInfo $info, Model $event): bool
     {
@@ -103,10 +105,51 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
-        return $this->attemptReschedule($event, $info->event->getStart());
+        $newStart = $info->event->getStart();
+
+        // Reject invalid moves outright (with a warning); valid moves go to confirmation.
+        if (! $this->validateReschedule($event, $newStart)) {
+            return false;
+        }
+
+        $this->mountAction('confirmReschedule', [
+            'appointmentId' => $event->getKey(),
+            'newStart' => $newStart->toIso8601String(),
+        ]);
+
+        // Always revert the visual drag — the move only applies once confirmed (then we refresh).
+        return false;
     }
 
-    protected function attemptReschedule(Appointment $appointment, CarbonInterface $newStart): bool
+    public function confirmRescheduleAction(): Action
+    {
+        return Action::make('confirmReschedule')
+            ->requiresConfirmation()
+            ->modalHeading('Reschedule appointment?')
+            ->modalIcon('heroicon-o-calendar-days')
+            ->modalDescription(fn (array $arguments): string => 'Move this appointment to '
+                .Carbon::parse($arguments['newStart'])->format('M j, Y g:i A').'?')
+            ->modalSubmitActionLabel('Reschedule')
+            ->action(function (array $arguments): void {
+                $appointment = Appointment::query()->find($arguments['appointmentId']);
+
+                if (! $appointment) {
+                    return;
+                }
+
+                $newStart = Carbon::parse($arguments['newStart']);
+
+                // Re-validate at confirm time — state may have changed since the drag.
+                if (! $this->validateReschedule($appointment, $newStart)) {
+                    return;
+                }
+
+                $this->performReschedule($appointment, $newStart);
+                $this->refreshRecords();
+            });
+    }
+
+    protected function validateReschedule(Appointment $appointment, CarbonInterface $newStart): bool
     {
         $appointment->loadMissing('status');
 
@@ -140,6 +183,11 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
+        return true;
+    }
+
+    protected function performReschedule(Appointment $appointment, CarbonInterface $newStart): void
+    {
         app(UpdateAppointmentStatus::class)->handle(
             $appointment,
             'rescheduled',
@@ -151,7 +199,5 @@ class AppointmentCalendarWidget extends CalendarWidget
             ->body('Moved to '.$newStart->format('M j, Y g:i A').'.')
             ->success()
             ->send();
-
-        return true;
     }
 }

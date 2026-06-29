@@ -18,6 +18,19 @@ beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
 });
 
+/**
+ * Invoke a protected method for testing internal widget logic.
+ */
+function invokeWidgetMethod(object $widget, string $method, array $args): mixed
+{
+    $reflection = new ReflectionMethod($widget, $method);
+    $reflection->setAccessible(true);
+
+    return $reflection->invoke($widget, ...$args);
+}
+
+// ─── Conflict helper ───────────────────────────────────────────────────────────
+
 test('conflictsWith detects an appointment within 30 minutes', function () {
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
     Appointment::factory()->create([
@@ -49,6 +62,8 @@ test('conflictsWith ignores cancelled appointments', function () {
     expect(Appointment::conflictsWith(Carbon::parse('2026-07-01 10:10:00')))->toBeFalse();
 });
 
+// ─── Create prefill ─────────────────────────────────────────────────────────────
+
 test('create appointment page prefills scheduled_at from the query string', function () {
     $this->actingAs(User::factory()->admin()->create());
 
@@ -57,18 +72,71 @@ test('create appointment page prefills scheduled_at from the query string', func
         ->assertSet('data.scheduled_at', '2026-07-15 14:00:00');
 });
 
-/**
- * Invoke a protected/private method for testing internal widget logic.
- */
-function invokeWidgetMethod(object $widget, string $method, array $args): mixed
-{
-    $reflection = new ReflectionMethod($widget, $method);
-    $reflection->setAccessible(true);
+// ─── Reschedule validation (drag guard) ─────────────────────────────────────────
 
-    return $reflection->invoke($widget, ...$args);
-}
+test('validateReschedule accepts a valid future slot', function () {
+    $pending = AppointmentStatus::query()->where('name', 'pending')->value('id');
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $pending,
+        'scheduled_at' => now()->addDay()->setTime(9, 0),
+    ]);
 
-test('dragging a pending appointment to a free future slot reschedules it', function () {
+    $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
+        $appointment, now()->addDays(2)->setTime(14, 0),
+    ]);
+
+    expect($result)->toBeTrue();
+});
+
+test('validateReschedule rejects a completed appointment', function () {
+    $completed = AppointmentStatus::query()->where('name', 'completed')->value('id');
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $completed,
+        'scheduled_at' => now()->subDay()->setTime(9, 0),
+    ]);
+
+    $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
+        $appointment, now()->addDays(2)->setTime(10, 0),
+    ]);
+
+    expect($result)->toBeFalse();
+});
+
+test('validateReschedule rejects a past date', function () {
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmed,
+        'scheduled_at' => now()->addDay()->setTime(10, 0),
+    ]);
+
+    $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
+        $appointment, now()->subDay()->setTime(11, 0),
+    ]);
+
+    expect($result)->toBeFalse();
+});
+
+test('validateReschedule rejects a conflicting slot', function () {
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    $existing = Appointment::factory()->create([
+        'appointment_status_id' => $confirmed,
+        'scheduled_at' => now()->addDays(2)->setTime(14, 0),
+    ]);
+    $moving = Appointment::factory()->create([
+        'appointment_status_id' => $confirmed,
+        'scheduled_at' => now()->addDay()->setTime(9, 0),
+    ]);
+
+    $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
+        $moving, $existing->scheduled_at->copy()->addMinutes(10),
+    ]);
+
+    expect($result)->toBeFalse();
+});
+
+// ─── Reschedule execution ────────────────────────────────────────────────────────
+
+test('performReschedule moves the appointment and marks it rescheduled', function () {
     Http::fake();
     $this->seed(NotificationStatusSeeder::class);
 
@@ -79,50 +147,34 @@ test('dragging a pending appointment to a free future slot reschedules it', func
     ]);
     $newStart = now()->addDays(2)->setTime(14, 0);
 
-    $widget = new AppointmentCalendarWidget;
-    $result = invokeWidgetMethod($widget, 'attemptReschedule', [$appointment, $newStart]);
-
-    expect($result)->toBeTrue();
+    invokeWidgetMethod(new AppointmentCalendarWidget, 'performReschedule', [$appointment, $newStart]);
 
     $appointment->refresh();
     expect($appointment->status->name)->toBe('rescheduled')
         ->and($appointment->scheduled_at->format('Y-m-d H:i'))->toBe($newStart->format('Y-m-d H:i'));
 });
 
-test('dragging a completed appointment is rejected and leaves it unchanged', function () {
-    $completed = AppointmentStatus::query()->where('name', 'completed')->value('id');
-    $appointment = Appointment::factory()->create([
-        'appointment_status_id' => $completed,
-        'scheduled_at' => now()->subDay()->setTime(9, 0),
-    ]);
-    $original = $appointment->scheduled_at->toDateTimeString();
+// ─── Confirmation + view toggles ──────────────────────────────────────────────────
 
-    $widget = new AppointmentCalendarWidget;
-    $result = invokeWidgetMethod($widget, 'attemptReschedule', [$appointment, now()->addDays(2)->setTime(10, 0)]);
-
-    expect($result)->toBeFalse();
-    expect($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($original)
-        ->and($appointment->fresh()->status->name)->toBe('completed');
+test('the calendar exposes a confirmation action for rescheduling', function () {
+    expect((new AppointmentCalendarWidget)->confirmRescheduleAction()->getName())->toBe('confirmReschedule');
 });
 
-test('dragging into a conflicting slot is rejected', function () {
-    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+test('the reschedule confirmation action mounts on the calendar widget', function () {
+    $this->actingAs(User::factory()->admin()->create());
 
-    $existing = Appointment::factory()->create([
-        'appointment_status_id' => $confirmed,
-        'scheduled_at' => now()->addDays(2)->setTime(14, 0),
-    ]);
-    $moving = Appointment::factory()->create([
-        'appointment_status_id' => $confirmed,
+    $pending = AppointmentStatus::query()->where('name', 'pending')->value('id');
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $pending,
         'scheduled_at' => now()->addDay()->setTime(9, 0),
     ]);
-    $original = $moving->scheduled_at->toDateTimeString();
 
-    $widget = new AppointmentCalendarWidget;
-    $result = invokeWidgetMethod($widget, 'attemptReschedule', [$moving, $existing->scheduled_at->copy()->addMinutes(10)]);
-
-    expect($result)->toBeFalse();
-    expect($moving->fresh()->scheduled_at->toDateTimeString())->toBe($original);
+    Livewire::test(AppointmentCalendarWidget::class)
+        ->mountAction('confirmReschedule', [
+            'appointmentId' => $appointment->id,
+            'newStart' => now()->addDays(2)->setTime(14, 0)->toIso8601String(),
+        ])
+        ->assertActionMounted('confirmReschedule');
 });
 
 test('the calendar exposes month, week, and day view toggles', function () {
@@ -132,20 +184,4 @@ test('the calendar exposes month, week, and day view toggles', function () {
         ->toContain('dayGridMonth')
         ->toContain('timeGridWeek')
         ->toContain('timeGridDay');
-});
-
-test('dragging an appointment to a past date is rejected', function () {
-    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
-    $appointment = Appointment::factory()->create([
-        'appointment_status_id' => $confirmed,
-        'scheduled_at' => now()->addDay()->setTime(10, 0),
-    ]);
-    $original = $appointment->scheduled_at->toDateTimeString();
-
-    $widget = new AppointmentCalendarWidget;
-    // Yesterday — before today's start, so it must be rejected.
-    $result = invokeWidgetMethod($widget, 'attemptReschedule', [$appointment, now()->subDay()->setTime(11, 0)]);
-
-    expect($result)->toBeFalse()
-        ->and($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($original);
 });
