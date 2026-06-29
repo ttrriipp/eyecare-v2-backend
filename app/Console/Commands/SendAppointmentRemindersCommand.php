@@ -31,6 +31,13 @@ class SendAppointmentRemindersCommand extends Command
             ->whereDate('scheduled_at', $tomorrow)
             ->get();
 
+        // Batch idempotency check: skip appointments that already have a reminder today
+        $alreadyReminded = SmsNotification::query()
+            ->whereIn('appointment_id', $appointments->pluck('id'))
+            ->where('event', 'appointment_reminder')
+            ->whereDate('created_at', today())
+            ->pluck('appointment_id');
+
         $created = 0;
 
         foreach ($appointments as $appointment) {
@@ -40,14 +47,7 @@ class SendAppointmentRemindersCommand extends Command
                 continue;
             }
 
-            // Idempotent: skip if a reminder was already created today for this appointment
-            $alreadySent = SmsNotification::query()
-                ->where('appointment_id', $appointment->id)
-                ->where('event', 'appointment_reminder')
-                ->whereDate('created_at', today())
-                ->exists();
-
-            if ($alreadySent) {
+            if ($alreadyReminded->contains($appointment->id)) {
                 continue;
             }
 

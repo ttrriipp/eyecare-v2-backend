@@ -44,6 +44,18 @@ test('authenticated customers can view active product details with variants', fu
         ->assertJsonPath('data.variants.0.in_stock', true);
 });
 
+test('variant with zero stock shows in_stock as false', function () {
+    $customer = User::factory()->customer()->create();
+
+    $product = Product::factory()->create();
+    ProductVariant::factory()->for($product)->create(['stock_quantity' => 0]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$product->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.variants.0.in_stock', false);
+});
+
 test('inactive products are hidden from product detail endpoint', function () {
     $customer = User::factory()->customer()->create();
     $inactiveProduct = Product::factory()->inactive()->create();
