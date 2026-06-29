@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Database\Factories\AppointmentFactory;
 use Guava\Calendar\Contracts\Eventable;
 use Guava\Calendar\ValueObjects\CalendarEvent;
@@ -72,6 +73,20 @@ class Appointment extends Model implements Eventable
     public function status(): BelongsTo
     {
         return $this->belongsTo(AppointmentStatus::class, 'appointment_status_id');
+    }
+
+    /**
+     * Whether a non-cancelled appointment exists within ±30 minutes of the given time.
+     *
+     * @param  int|null  $ignoreId  An appointment id to exclude (e.g. the one being rescheduled).
+     */
+    public static function conflictsWith(CarbonInterface $at, ?int $ignoreId = null): bool
+    {
+        return static::query()
+            ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
+            ->whereBetween('scheduled_at', [$at->copy()->subMinutes(30), $at->copy()->addMinutes(30)])
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->exists();
     }
 
     /**
