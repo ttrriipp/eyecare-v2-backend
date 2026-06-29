@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\VisitReason;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -62,13 +63,10 @@ class AppointmentForm
                                     if (! $value) {
                                         return;
                                     }
-                                    $date = Carbon::parse($value);
-                                    $conflict = Appointment::query()
-                                        ->whereHas('status', fn ($q) => $q->whereNotIn('name', ['cancelled']))
-                                        ->whereBetween('scheduled_at', [$date->copy()->subMinutes(30), $date->copy()->addMinutes(30)])
-                                        ->when($record, fn ($q) => $q->where('id', '!=', $record->id))
-                                        ->exists();
-                                    if ($conflict) {
+                                    $duration = (int) request()->input('data.visit_reason_id')
+                                        ? (VisitReason::query()->find(request()->input('data.visit_reason_id'))?->duration_minutes ?? 30)
+                                        : 30;
+                                    if (Appointment::conflictsWith(Carbon::parse($value), $duration, $record?->id)) {
                                         $fail('This time slot is not available. Please choose another time.');
                                     }
                                 }),

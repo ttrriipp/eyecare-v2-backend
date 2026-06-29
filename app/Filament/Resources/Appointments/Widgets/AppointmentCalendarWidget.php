@@ -173,7 +173,7 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
-        if (Appointment::conflictsWith($newStart, $appointment->id)) {
+        if (Appointment::conflictsWith($newStart, $appointment->visitReason?->duration_minutes ?? 30, $appointment->id)) {
             Notification::make()
                 ->title('Time slot unavailable')
                 ->body('Another appointment is within 30 minutes of that time.')

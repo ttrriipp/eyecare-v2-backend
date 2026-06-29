@@ -19,6 +19,7 @@ class VisitReasonFactory extends Factory
     {
         return [
             'name' => fake()->unique()->word(),
+            'duration_minutes' => fake()->randomElement([15, 20, 30, 45, 60]),
         ];
     }
 }

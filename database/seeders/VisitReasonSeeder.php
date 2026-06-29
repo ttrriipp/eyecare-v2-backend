@@ -12,12 +12,18 @@ class VisitReasonSeeder extends Seeder
      */
     public function run(): void
     {
-        collect([
-            'Eye Exam',
-            'Follow-up',
-            'Prescription Check',
-        ])->each(fn (string $name) => VisitReason::query()->firstOrCreate([
-            'name' => $name,
-        ]));
+        $reasons = [
+            ['name' => 'Eye Exam', 'duration_minutes' => 30],
+            ['name' => 'Follow-up', 'duration_minutes' => 15],
+            ['name' => 'Prescription Check', 'duration_minutes' => 20],
+            ['name' => 'Contact Lens Fitting', 'duration_minutes' => 60],
+        ];
+
+        foreach ($reasons as $reason) {
+            VisitReason::query()->updateOrCreate(
+                ['name' => $reason['name']],
+                ['duration_minutes' => $reason['duration_minutes']],
+            );
+        }
     }
 }

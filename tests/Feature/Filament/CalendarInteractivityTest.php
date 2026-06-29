@@ -5,6 +5,7 @@ use App\Filament\Resources\Appointments\Widgets\AppointmentCalendarWidget;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\User;
+use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,15 +32,34 @@ function invokeWidgetMethod(object $widget, string $method, array $args): mixed
 
 // ─── Conflict helper ───────────────────────────────────────────────────────────
 
-test('conflictsWith detects an appointment within 30 minutes', function () {
+test('conflictsWith detects an appointment within its duration window', function () {
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    $reason = VisitReason::factory()->create(['duration_minutes' => 30]);
     Appointment::factory()->create([
         'appointment_status_id' => $confirmed,
+        'visit_reason_id' => $reason->id,
         'scheduled_at' => '2026-07-01 10:00:00',
     ]);
 
+    // 10:20 is inside the 10:00–10:30 window of the existing appointment
     expect(Appointment::conflictsWith(Carbon::parse('2026-07-01 10:20:00')))->toBeTrue()
+        // 11:00 is outside (existing ends at 10:30)
         ->and(Appointment::conflictsWith(Carbon::parse('2026-07-01 11:00:00')))->toBeFalse();
+});
+
+test('conflictsWith respects longer durations', function () {
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
+    $longReason = VisitReason::factory()->create(['duration_minutes' => 90]);
+    Appointment::factory()->create([
+        'appointment_status_id' => $confirmed,
+        'visit_reason_id' => $longReason->id,
+        'scheduled_at' => '2026-07-01 10:00:00',
+    ]);
+
+    // 11:00 is inside the 10:00–11:30 window of the 90-min appointment
+    expect(Appointment::conflictsWith(Carbon::parse('2026-07-01 11:00:00')))->toBeTrue()
+        // 11:30 is at the boundary — a 30-min proposed appointment at 11:30 starts exactly when existing ends
+        ->and(Appointment::conflictsWith(Carbon::parse('2026-07-01 11:30:00')))->toBeFalse();
 });
 
 test('conflictsWith ignores the excluded appointment id', function () {
@@ -49,7 +69,7 @@ test('conflictsWith ignores the excluded appointment id', function () {
         'scheduled_at' => '2026-07-01 10:00:00',
     ]);
 
-    expect(Appointment::conflictsWith(Carbon::parse('2026-07-01 10:00:00'), $appointment->id))->toBeFalse();
+    expect(Appointment::conflictsWith(Carbon::parse('2026-07-01 10:00:00'), 30, $appointment->id))->toBeFalse();
 });
 
 test('conflictsWith ignores cancelled appointments', function () {

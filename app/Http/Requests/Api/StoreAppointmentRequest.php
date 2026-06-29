@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Models\Appointment;
+use App\Models\VisitReason;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -32,20 +33,14 @@ class StoreAppointmentRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $scheduledAt = $this->input('scheduled_at');
-            if (! $scheduledAt) {
+            $visitReasonId = $this->input('visit_reason_id');
+            if (! $scheduledAt || ! $visitReasonId) {
                 return;
             }
 
-            $date = Carbon::parse($scheduledAt);
-            $windowStart = $date->copy()->subMinutes(30);
-            $windowEnd = $date->copy()->addMinutes(30);
+            $duration = VisitReason::query()->where('id', $visitReasonId)->value('duration_minutes') ?? 30;
 
-            $conflict = Appointment::query()
-                ->whereHas('status', fn ($q) => $q->whereNotIn('name', ['cancelled']))
-                ->whereBetween('scheduled_at', [$windowStart, $windowEnd])
-                ->exists();
-
-            if ($conflict) {
+            if (Appointment::conflictsWith(Carbon::parse($scheduledAt), $duration)) {
                 $validator->errors()->add(
                     'scheduled_at',
                     'This time slot is not available. Please choose another time.'

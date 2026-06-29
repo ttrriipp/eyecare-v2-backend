@@ -105,16 +105,17 @@ test('unauthenticated users cannot access appointment endpoints', function () {
 
 test('booking is rejected when slot conflicts within 30 minutes', function () {
     $customer = User::factory()->customer()->create();
-    $visitReason = VisitReason::factory()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
 
-    // Existing appointment at 10:00
+    // Existing appointment at 10:00 with 30-min duration (ends 10:30)
     Appointment::factory()->create([
         'appointment_status_id' => $confirmed->id,
+        'visit_reason_id' => $visitReason->id,
         'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
     ]);
 
-    // New booking at 10:20 — within 30 min window
+    // New booking at 10:20 — overlaps the 10:00–10:30 window
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,

@@ -39,7 +39,7 @@ class Appointment extends Model implements Eventable
         return CalendarEvent::make($this)
             ->title($this->customer?->name ?? 'Appointment')
             ->start($this->scheduled_at)
-            ->end($this->scheduled_at->addHour())
+            ->end($this->scheduled_at->addMinutes($this->visitReason?->duration_minutes ?? 30))
             ->backgroundColor($color);
     }
 
@@ -76,16 +76,28 @@ class Appointment extends Model implements Eventable
     }
 
     /**
-     * Whether a non-cancelled appointment exists within ±30 minutes of the given time.
+     * Whether a non-cancelled appointment overlaps with the given time range.
      *
+     * Uses the existing appointment's visit reason duration for its end time,
+     * and the provided $durationMinutes for the proposed slot's end time.
+     *
+     * @param  int  $durationMinutes  Duration of the proposed appointment.
      * @param  int|null  $ignoreId  An appointment id to exclude (e.g. the one being rescheduled).
      */
-    public static function conflictsWith(CarbonInterface $at, ?int $ignoreId = null): bool
+    public static function conflictsWith(CarbonInterface $at, int $durationMinutes = 30, ?int $ignoreId = null): bool
     {
+        $proposedStart = $at->copy();
+        $proposedEnd = $at->copy()->addMinutes($durationMinutes);
+
         return static::query()
             ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
-            ->whereBetween('scheduled_at', [$at->copy()->subMinutes(30), $at->copy()->addMinutes(30)])
             ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            // Overlap: existing_start < proposed_end AND proposed_start < existing_end
+            ->where('scheduled_at', '<', $proposedEnd)
+            ->whereRaw(
+                'DATE_ADD(scheduled_at, INTERVAL COALESCE((SELECT duration_minutes FROM visit_reasons WHERE visit_reasons.id = appointments.visit_reason_id), 30) MINUTE) > ?',
+                [$proposedStart],
+            )
             ->exists();
     }
 

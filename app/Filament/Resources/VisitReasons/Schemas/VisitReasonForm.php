@@ -21,6 +21,15 @@ class VisitReasonForm
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
+                        TextInput::make('duration_minutes')
+                            ->label('Duration (minutes)')
+                            ->numeric()
+                            ->required()
+                            ->default(30)
+                            ->minValue(5)
+                            ->maxValue(180)
+                            ->suffix('min')
+                            ->helperText('Used for appointment conflict detection.'),
                     ]),
 
                 Section::make('Timestamps')
