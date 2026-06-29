@@ -47,6 +47,7 @@ class AdminPanelProvider extends PanelProvider
                 'Orders & Billing',
                 'Products & Inventory',
                 'Communication',
+                'Reports',
                 'Administration',
                 'Settings',
             ])
