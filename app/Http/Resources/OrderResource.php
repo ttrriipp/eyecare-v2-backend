@@ -22,6 +22,7 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'order_number' => $this->order_number,
             'appointment_id' => $this->appointment_id,
+            'billing_id' => $this->billing?->id,
             'is_non_prescription' => $this->is_non_prescription,
             'status' => $this->status->name,
             'subtotal' => $this->subtotal,

@@ -18,7 +18,7 @@ class BillingController extends Controller
     {
         abort_unless($billing->customer_id === $request->user()->id, 403);
 
-        $billing->load(['status', 'items', 'payments.status']);
+        $billing->load(['status', 'items', 'payments.status', 'payments.paymentMethod']);
 
         return new BillingResource($billing);
     }
