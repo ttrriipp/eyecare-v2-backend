@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Billings\Pages;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Billing\AddServiceToBilling;
 use App\Actions\Billing\RecalculateBillingBalance;
 use App\Filament\Resources\Billings\BillingResource;
@@ -115,10 +116,46 @@ class ViewBilling extends ViewRecord
                 ->color('danger')
                 ->requiresConfirmation()
                 ->modalHeading('Void this billing?')
-                ->modalDescription('This will void the billing and all posted payments. This cannot be undone.')
+                ->modalDescription(function (): string {
+                    $billing = $this->getRecord();
+                    $postedPayments = $billing->payments()
+                        ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
+                        ->sum('amount');
+
+                    if ((float) $postedPayments > 0) {
+                        return 'This billing has ₱'.number_format((float) $postedPayments, 2).' in posted payments. Voiding will mark those payments as voided and cannot be undone. The full billing state will be preserved in the audit log.';
+                    }
+
+                    return 'This will void the billing. This action is logged and cannot be undone.';
+                })
                 ->visible(fn (): bool => in_array($this->getRecord()->status->name, ['issued', 'partially_paid']) && (auth()->user()?->isAdmin() ?? false))
                 ->action(function (): void {
                     $billing = $this->getRecord();
+
+                    // Capture full state for audit before voiding
+                    $payments = $billing->payments()
+                        ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
+                        ->with('paymentMethod')
+                        ->get();
+
+                    $auditMetadata = [
+                        'billing_number' => $billing->billing_number,
+                        'total_amount' => (string) $billing->total_amount,
+                        'amount_paid' => (string) $billing->amount_paid,
+                        'balance_due' => (string) $billing->balance_due,
+                        'payments_voided' => $payments->map(fn ($p) => [
+                            'id' => $p->id,
+                            'amount' => (string) $p->amount,
+                            'method' => $p->paymentMethod?->name,
+                            'paid_at' => $p->paid_at?->toDateTimeString(),
+                        ])->all(),
+                        'line_items' => $billing->items->map(fn ($item) => [
+                            'description' => $item->description,
+                            'quantity' => $item->quantity,
+                            'unit_price' => (string) $item->unit_price,
+                            'amount' => (string) $item->amount,
+                        ])->all(),
+                    ];
 
                     $voidedPaymentStatus = PaymentStatus::query()->where('name', 'voided')->firstOrFail();
                     $billing->payments()
@@ -127,6 +164,8 @@ class ViewBilling extends ViewRecord
 
                     $voidedBillingStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
                     $billing->update(['billing_status_id' => $voidedBillingStatus->id]);
+
+                    app(CreateAuditLog::class)->handle($billing, 'voided', $auditMetadata);
                 })
                 ->successNotificationTitle('Billing voided'),
         ];

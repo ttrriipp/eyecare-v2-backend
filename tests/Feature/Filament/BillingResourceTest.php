@@ -3,6 +3,7 @@
 use App\Filament\Resources\Billings\Pages\ListBillings;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
+use App\Models\AuditLog;
 use App\Models\Billing;
 use App\Models\BillingStatus;
 use App\Models\DiscountType;
@@ -155,6 +156,19 @@ test('void_billing action voids the billing and all posted payments', function (
 
     expect($billing->status->name)->toBe('voided')
         ->and($payment->status->name)->toBe('voided');
+
+    // Audit log captures full billing state
+    $auditLog = AuditLog::query()
+        ->where('subject_type', Billing::class)
+        ->where('subject_id', $billing->id)
+        ->where('action', 'voided')
+        ->first();
+
+    expect($auditLog)->not->toBeNull()
+        ->and($auditLog->metadata['billing_number'])->toBe($billing->billing_number)
+        ->and($auditLog->metadata['amount_paid'])->toBe('100.00')
+        ->and($auditLog->metadata['payments_voided'])->toHaveCount(1)
+        ->and($auditLog->metadata['payments_voided'][0]['amount'])->toBe('100.00');
 });
 
 test('apply_discount action updates billing totals', function () {
