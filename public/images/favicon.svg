@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Eyecare">
+    <rect width="32" height="32" rx="7" fill="#4F8DD7" />
+    <path d="M5 16C9 9.5 23 9.5 27 16C23 22.5 9 22.5 5 16Z" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linejoin="round" />
+    <circle cx="16" cy="16" r="4.2" fill="#FFFFFF" />
+    <circle cx="16" cy="16" r="1.8" fill="#4F8DD7" />
+</svg>
