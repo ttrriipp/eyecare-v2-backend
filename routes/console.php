@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('prescriptions:check-expiry')->dailyAt('08:00');
+Schedule::command('clinic:daily-summary')->dailyAt('21:00');
