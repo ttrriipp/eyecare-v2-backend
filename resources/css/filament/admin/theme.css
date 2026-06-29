@@ -12,6 +12,12 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+/* Subtle, on-brand "today" highlight (the package default is undefined here, so it
+   falls back to a noisy library default). Keep it quiet in both modes. */
+.ec {
+    --ec-today-bg-color: rgb(79 141 215 / 0.06);
+}
+
 /* Make the appointment calendar (guava/calendar / @event-calendar) follow dark mode.
    The package maps several --ec-* variables from source variables this app does not
    define, and leaves the main background/text unset — so we set the calendar's theme

@@ -45,10 +45,18 @@ class AppointmentCalendarWidget extends CalendarWidget
                 'timeGridWeek' => 'Week',
                 'timeGridDay' => 'Day',
             ],
-            // Focus the week/day time grid on clinic hours (trims the empty overnight scroll).
-            'slotMinTime' => '07:00:00',
-            'slotMaxTime' => '20:00:00',
+            // Expand to fit all slots so evening events are never clipped (page scrolls instead).
+            'height' => 'auto',
+            // No all-day appointments — hide the empty all-day row.
+            'allDaySlot' => false,
+            // Week/Day time grid: clinic hours, taller slots for readable event labels.
+            'slotMinTime' => '08:00:00',
+            'slotMaxTime' => '21:00:00',
+            'slotDuration' => '00:30:00',
+            'slotHeight' => 40,
             'nowIndicator' => true,
+            // Month view: collapse crowded days into a "+N more" link.
+            'dayMaxEvents' => true,
         ];
     }
 
