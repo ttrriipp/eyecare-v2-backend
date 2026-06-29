@@ -38,7 +38,7 @@ test('staff cannot access the users list', function () {
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 test('admin can see all users in the table', function () {
-    $users = User::factory()->count(3)->create();
+    $users = User::factory()->count(3)->staff()->create();
 
     $this->actingAs($this->admin);
 
@@ -176,7 +176,7 @@ test('created user password can authenticate', function () {
 });
 
 test('edit page has no delete action', function () {
-    $user = User::factory()->customer()->create();
+    $user = User::factory()->staff()->create();
 
     $this->actingAs($this->admin);
 
