@@ -27,6 +27,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
     {
         return Cache::remember('dashboard.stats', now()->addMinutes(2), fn () => [
             $this->todaysAppointmentsStat(),
+            $this->walkInQueueStat(),
             $this->revenueStat(),
             $this->pendingOrdersStat(),
             $this->unpaidBillingsStat(),
@@ -52,6 +53,21 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->descriptionColor($delta > 0 ? 'success' : ($delta < 0 ? 'danger' : 'gray'))
             ->chart($this->dailyConfirmedAppointments(7))
             ->color('info');
+    }
+
+    private function walkInQueueStat(): Stat
+    {
+        $waiting = Appointment::query()
+            ->whereHas('status', fn ($q) => $q->where('name', 'pending'))
+            ->whereDate('scheduled_at', today())
+            ->count();
+
+        return Stat::make('Waiting today', number_format($waiting))
+            ->description($waiting > 0 ? 'Pending appointments for today' : 'No pending appointments')
+            ->descriptionIcon($waiting > 0 ? Heroicon::UserGroup : Heroicon::CheckCircle)
+            ->descriptionColor($waiting > 0 ? 'warning' : 'success')
+            ->color($waiting > 0 ? 'warning' : 'success')
+            ->url('/admin/appointments?tableFilters[status][value]=pending');
     }
 
     private function revenueStat(): Stat
