@@ -107,11 +107,14 @@ class EditOrder extends EditRecord
 
                     app(RecordPayment::class)->handle($billing, $data);
                     Notification::make()->title('Payment recorded')->success()->send();
+
+                    // Refresh the page so the header button visibility and billing status update
+                    $this->redirect($this->getResource()::getUrl('edit', ['record' => $this->getRecord()]));
                 }),
 
             Action::make('view_billing')
                 ->label('View Billing')
-                ->icon('heroicon-o-banknotes')
+                ->icon('heroicon-o-document-text')
                 ->color('primary')
                 ->visible(fn (): bool => $this->getRecord()->billing !== null)
                 ->url(fn (): string => BillingResource::getUrl('view', ['record' => $this->getRecord()->billing])),
