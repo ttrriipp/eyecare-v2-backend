@@ -10,7 +10,6 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
@@ -84,7 +83,6 @@ class ProductsTable
                         ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product hidden' : 'Product visible'),
                     DeleteAction::make()->color('danger')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                     RestoreAction::make()->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    ForceDeleteAction::make()->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                 ]),
             ])
             ->filters([

@@ -12,7 +12,6 @@ use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Filament\Actions\DeleteAction;
-use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -27,105 +26,95 @@ beforeEach(function () {
 
 // --- Appointments Table ---
 
-test('appointment table shows delete and hides restore/force-delete for non-deleted record', function () {
+test('appointment table shows delete and hides restore for non-deleted record', function () {
     $appointment = Appointment::factory()->create();
 
     Livewire::test(ListAppointments::class)
         ->assertTableActionVisible('delete', $appointment)
-        ->assertTableActionHidden('restore', $appointment)
-        ->assertTableActionHidden('forceDelete', $appointment);
+        ->assertTableActionHidden('restore', $appointment);
 });
 
-test('appointment table hides delete and shows restore/force-delete for soft-deleted record', function () {
+test('appointment table hides delete and shows restore for soft-deleted record', function () {
     $appointment = Appointment::factory()->create();
     $appointment->delete();
 
     Livewire::test(ListAppointments::class)
         ->assertTableActionHidden('delete', $appointment)
-        ->assertTableActionVisible('restore', $appointment)
-        ->assertTableActionVisible('forceDelete', $appointment);
+        ->assertTableActionVisible('restore', $appointment);
 });
 
 // --- Orders Table ---
 
-test('order table shows delete and hides restore/force-delete for non-deleted record', function () {
+test('order table shows delete and hides restore for non-deleted record', function () {
     $order = Order::factory()->create();
 
     Livewire::test(ListOrders::class)
         ->assertTableActionVisible('delete', $order)
-        ->assertTableActionHidden('restore', $order)
-        ->assertTableActionHidden('forceDelete', $order);
+        ->assertTableActionHidden('restore', $order);
 });
 
-test('order table hides delete and shows restore/force-delete for soft-deleted record', function () {
+test('order table hides delete and shows restore for soft-deleted record', function () {
     $order = Order::factory()->create();
     $order->delete();
 
     Livewire::test(ListOrders::class)
         ->assertTableActionHidden('delete', $order)
-        ->assertTableActionVisible('restore', $order)
-        ->assertTableActionVisible('forceDelete', $order);
+        ->assertTableActionVisible('restore', $order);
 });
 
 // --- Products Table ---
 
-test('product table shows delete and hides restore/force-delete for non-deleted record', function () {
+test('product table shows delete and hides restore for non-deleted record', function () {
     $product = Product::factory()->create();
 
     Livewire::test(ListProducts::class)
         ->assertTableActionVisible('delete', $product)
-        ->assertTableActionHidden('restore', $product)
-        ->assertTableActionHidden('forceDelete', $product);
+        ->assertTableActionHidden('restore', $product);
 });
 
-test('product table hides delete and shows restore/force-delete for soft-deleted record', function () {
+test('product table hides delete and shows restore for soft-deleted record', function () {
     $product = Product::factory()->create();
     $product->delete();
 
     Livewire::test(ListProducts::class)
         ->assertTableActionHidden('delete', $product)
-        ->assertTableActionVisible('restore', $product)
-        ->assertTableActionVisible('forceDelete', $product);
+        ->assertTableActionVisible('restore', $product);
 });
 
 // --- EditOrder Header ---
 
-test('edit order page shows delete and hides restore/force-delete for non-deleted order', function () {
+test('edit order page shows delete and hides restore for non-deleted order', function () {
     $order = Order::factory()->create();
 
     Livewire::test(EditOrder::class, ['record' => $order->id])
         ->assertActionVisible(DeleteAction::class)
-        ->assertActionHidden(RestoreAction::class)
-        ->assertActionHidden(ForceDeleteAction::class);
+        ->assertActionHidden(RestoreAction::class);
 });
 
-test('edit order page hides delete and shows restore/force-delete for soft-deleted order', function () {
+test('edit order page hides delete and shows restore for soft-deleted order', function () {
     $order = Order::factory()->create();
     $order->delete();
 
     Livewire::test(EditOrder::class, ['record' => $order->id])
         ->assertActionHidden(DeleteAction::class)
-        ->assertActionVisible(RestoreAction::class)
-        ->assertActionVisible(ForceDeleteAction::class);
+        ->assertActionVisible(RestoreAction::class);
 });
 
 // --- EditProduct Header ---
 
-test('edit product page shows delete and hides restore/force-delete for non-deleted product', function () {
+test('edit product page shows delete and hides restore for non-deleted product', function () {
     $product = Product::factory()->create();
 
     Livewire::test(EditProduct::class, ['record' => $product->id])
         ->assertActionVisible(DeleteAction::class)
-        ->assertActionHidden(RestoreAction::class)
-        ->assertActionHidden(ForceDeleteAction::class);
+        ->assertActionHidden(RestoreAction::class);
 });
 
-test('edit product page hides delete and shows restore/force-delete for soft-deleted product', function () {
+test('edit product page hides delete and shows restore for soft-deleted product', function () {
     $product = Product::factory()->create();
     $product->delete();
 
     Livewire::test(EditProduct::class, ['record' => $product->id])
         ->assertActionHidden(DeleteAction::class)
-        ->assertActionVisible(RestoreAction::class)
-        ->assertActionVisible(ForceDeleteAction::class);
+        ->assertActionVisible(RestoreAction::class);
 });
