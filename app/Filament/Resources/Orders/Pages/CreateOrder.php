@@ -162,7 +162,11 @@ class CreateOrder extends CreateRecord
                                         ->with('product')
                                         ->where('is_active', true)
                                         ->get()
-                                        ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"]))
+                                        ->mapWithKeys(fn ($v) => [
+                                            $v->id => $v->stock_quantity > 0
+                                                ? "{$v->product->name} — {$v->name} (stock: {$v->stock_quantity})"
+                                                : "⚠ {$v->product->name} — {$v->name} [OUT OF STOCK]",
+                                        ]))
                                     ->required()
                                     ->live()
                                     ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
@@ -180,6 +184,10 @@ class CreateOrder extends CreateRecord
                                     ->options(fn () => LensType::query()->pluck('name', 'id'))
                                     ->nullable()
                                     ->placeholder('None')
+                                    ->helperText(fn (Get $get): ?string => $get('lens_type_id')
+                                        ? '⚠ You will need to assign a specific lens on the order edit page before confirming.'
+                                        : null
+                                    )
                                     ->live()
                                     ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                         $variantId = $get('product_variant_id');

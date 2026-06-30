@@ -184,7 +184,11 @@ class OrderForm
                                     ->with('product')
                                     ->where('is_active', true)
                                     ->get()
-                                    ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
+                                    ->mapWithKeys(fn ($v) => [
+                                        $v->id => $v->stock_quantity > 0
+                                            ? "{$v->product->name} — {$v->name} (stock: {$v->stock_quantity})"
+                                            : "⚠ {$v->product->name} — {$v->name} [OUT OF STOCK]",
+                                    ])
                                     ->toArray()
                                 )
                                 ->required()
@@ -267,7 +271,11 @@ class OrderForm
                                         ->where('is_active', true)
                                         ->with('product')
                                         ->get()
-                                        ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
+                                        ->mapWithKeys(fn ($v) => [
+                                            $v->id => $v->stock_quantity > 0
+                                                ? "{$v->product->name} — {$v->name} (stock: {$v->stock_quantity})"
+                                                : "⚠ {$v->product->name} — {$v->name} [OUT OF STOCK]",
+                                        ])
                                         ->toArray();
                                 })
                                 ->nullable()
