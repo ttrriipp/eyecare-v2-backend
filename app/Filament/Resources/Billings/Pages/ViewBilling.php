@@ -71,7 +71,14 @@ class ViewBilling extends ViewRecord
                 ->schema([
                     Select::make('discount_type_id')
                         ->label('Discount Type')
-                        ->options(fn () => DiscountType::query()->where('is_active', true)->pluck('name', 'id'))
+                        ->options(fn () => DiscountType::query()
+                            ->where('is_active', true)
+                            ->get()
+                            ->mapWithKeys(fn (DiscountType $dt) => [
+                                $dt->id => $dt->type === 'percentage'
+                                    ? "{$dt->name} ({$dt->value}%)"
+                                    : $dt->name,
+                            ]))
                         ->nullable()
                         ->live()
                         ->placeholder('No discount'),
