@@ -98,7 +98,6 @@ class OrderForm
                             ->columnSpanFull(),
                         Toggle::make('is_non_prescription')
                             ->label('No lens cutting required')
-                            ->helperText('Enable for sunglasses, accessories, or ready-made frames that do not need prescription lenses cut and fitted.')
                             ->default(true)
                             ->disabledOn('edit')
                             ->dehydrated()
