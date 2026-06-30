@@ -2,13 +2,17 @@
 
 namespace App\Filament\Resources\Orders\Pages;
 
+use App\Actions\Billing\RecordPayment;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Billings\BillingResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\OrderStatus;
+use App\Models\PaymentMethod;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\RestoreAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Validation\ValidationException;
@@ -42,10 +46,51 @@ class EditOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('collect_payment')
+                ->label('Collect Payment')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->visible(function (): bool {
+                    $billing = $this->getRecord()->billing;
+
+                    return $billing !== null
+                        && (float) $billing->balance_due > 0
+                        && $billing->status?->name !== 'voided';
+                })
+                ->schema([
+                    TextInput::make('amount')
+                        ->label('Amount')
+                        ->required()
+                        ->numeric()
+                        ->minValue(0.01)
+                        ->prefix('₱')
+                        ->default(fn () => (float) $this->getRecord()->billing?->balance_due),
+                    Select::make('payment_method_id')
+                        ->label('Payment Method')
+                        ->required()
+                        ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
+                    TextInput::make('reference_number')
+                        ->label('Reference Number')
+                        ->maxLength(100)
+                        ->nullable(),
+                ])
+                ->action(function (array $data): void {
+                    $billing = $this->getRecord()->billing;
+
+                    if (! $billing) {
+                        Notification::make()->title('No billing found')->danger()->send();
+
+                        return;
+                    }
+
+                    app(RecordPayment::class)->handle($billing, $data);
+                    Notification::make()->title('Payment recorded')->success()->send();
+                }),
+
             Action::make('view_billing')
                 ->label('View Billing')
                 ->icon('heroicon-o-banknotes')
-                ->color('success')
+                ->color('primary')
                 ->visible(fn (): bool => $this->getRecord()->billing !== null)
                 ->url(fn (): string => BillingResource::getUrl('view', ['record' => $this->getRecord()->billing])),
 
