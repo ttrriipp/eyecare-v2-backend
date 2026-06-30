@@ -36,6 +36,16 @@
                         </div>
                     </div>
                 </div>
+                <div class="ml-auto">
+                    <button
+                        type="button"
+                        wire:click="exportCsv"
+                        class="fi-btn fi-btn-size-md inline-grid grid-flow-col items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition fi-btn-color-gray fi-color-gray bg-white shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:ring-white/20"
+                    >
+                        <x-filament::icon icon="heroicon-o-arrow-down-tray" class="h-4 w-4" />
+                        Export CSV
+                    </button>
+                </div>
             </div>
         </div>
     </div>

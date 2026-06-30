@@ -142,3 +142,19 @@ test('reorder report excludes items above threshold', function () {
 
     expect($items)->toHaveCount(0);
 });
+
+test('sales report exportCsv returns a CSV file', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    $response = Livewire::test(SalesReport::class)->call('exportCsv');
+
+    $response->assertFileDownloaded();
+});
+
+test('reorder report exportCsv returns a CSV file', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    $response = Livewire::test(ReorderReport::class)->call('exportCsv');
+
+    $response->assertFileDownloaded();
+});

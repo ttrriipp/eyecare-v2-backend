@@ -3,6 +3,17 @@
         <x-slot name="heading">Items at or below reorder threshold</x-slot>
         <x-slot name="description">Use this list to determine what needs to be reordered from suppliers.</x-slot>
 
+        <div class="mb-4 flex justify-end">
+            <button
+                type="button"
+                wire:click="exportCsv"
+                class="fi-btn fi-btn-size-md inline-grid grid-flow-col items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition fi-btn-color-gray fi-color-gray bg-white shadow-sm ring-1 ring-gray-950/10 dark:bg-white/5 dark:ring-white/20"
+            >
+                <x-filament::icon icon="heroicon-o-arrow-down-tray" class="h-4 w-4" />
+                Export CSV
+            </button>
+        </div>
+
         @php $items = $this->getItems(); @endphp
 
         @if($items->isEmpty())

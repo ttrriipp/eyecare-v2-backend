@@ -7,6 +7,7 @@ use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
 class ReorderReport extends Page
@@ -43,5 +44,19 @@ class ReorderReport extends Page
             ])
             ->sortByDesc('deficit')
             ->values();
+    }
+
+    public function exportCsv(): StreamedResponse
+    {
+        $items = $this->getItems();
+
+        return response()->streamDownload(function () use ($items): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['Product', 'Variant', 'SKU', 'Stock', 'Threshold', 'Deficit']);
+            foreach ($items as $item) {
+                fputcsv($handle, array_values($item));
+            }
+            fclose($handle);
+        }, 'reorder_report_'.now()->format('Y_m_d').'.csv', ['Content-Type' => 'text/csv']);
     }
 }
