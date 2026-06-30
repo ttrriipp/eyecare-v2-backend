@@ -12,9 +12,16 @@ class AppointmentsReport extends BaseReport
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 4;
 
     protected static ?string $title = 'Appointments Report';
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->isAdmin() || $user?->role?->name === 'staff';
+    }
 
     /**
      * @return array<int, Stat>

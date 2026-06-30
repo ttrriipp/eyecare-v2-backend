@@ -12,9 +12,16 @@ class OrdersReport extends BaseReport
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingCart;
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 3;
 
     protected static ?string $title = 'Orders Report';
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->isAdmin() || $user?->role?->name === 'staff';
+    }
 
     /**
      * @return array<int, Stat>

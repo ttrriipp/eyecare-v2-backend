@@ -27,7 +27,7 @@ test('admin can access all report pages', function (string $pageClass) {
     'Feedback' => [FeedbackReport::class],
 ]);
 
-test('staff cannot access report pages', function (string $pageClass) {
+test('staff cannot access admin-only report pages', function (string $pageClass) {
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff);
@@ -36,9 +36,19 @@ test('staff cannot access report pages', function (string $pageClass) {
         ->assertForbidden();
 })->with([
     'Sales' => [SalesReport::class],
+    'Feedback' => [FeedbackReport::class],
+]);
+
+test('staff can access operational report pages', function (string $pageClass) {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test($pageClass)
+        ->assertSuccessful();
+})->with([
     'Orders' => [OrdersReport::class],
     'Appointments' => [AppointmentsReport::class],
-    'Feedback' => [FeedbackReport::class],
 ]);
 
 test('sales report shows correct stats for date range', function () {

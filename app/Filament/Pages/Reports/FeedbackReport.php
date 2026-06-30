@@ -11,7 +11,7 @@ class FeedbackReport extends BaseReport
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 5;
 
     protected static ?string $title = 'Feedback Report';
 

@@ -42,7 +42,13 @@
                     <tbody class="divide-y divide-gray-200 whitespace-nowrap dark:divide-white/5">
                         @foreach($items as $item)
                             <tr>
-                                <td class="fi-ta-cell px-3 py-4 sm:first-of-type:ps-6 text-sm text-gray-950 dark:text-white">{{ $item['product'] }}</td>
+                                <td class="fi-ta-cell px-3 py-4 sm:first-of-type:ps-6 text-sm text-gray-950 dark:text-white">
+                                    @if($item['product_id'])
+                                        <a href="{{ route('filament.admin.resources.products.edit', $item['product_id']) }}" class="text-primary-600 hover:underline dark:text-primary-400">{{ $item['product'] }}</a>
+                                    @else
+                                        {{ $item['product'] }}
+                                    @endif
+                                </td>
                                 <td class="fi-ta-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $item['variant'] }} <span class="text-xs text-gray-400 dark:text-gray-500">{{ $item['sku'] }}</span></td>
                                 <td class="fi-ta-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $item['supplier'] }}</td>
                                 <td class="fi-ta-cell px-3 py-4 text-end text-sm font-medium {{ $item['stock'] === 0 ? 'text-danger-600 dark:text-danger-400' : 'text-gray-950 dark:text-white' }}">{{ $item['stock'] }}</td>

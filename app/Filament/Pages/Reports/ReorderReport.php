@@ -16,7 +16,7 @@ class ReorderReport extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::ShoppingCart;
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $title = 'Reorder Report';
 
@@ -24,7 +24,9 @@ class ReorderReport extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        $user = auth()->user();
+
+        return $user?->isAdmin() || $user?->role?->name === 'staff';
     }
 
     public function getItems(): Collection
@@ -35,6 +37,7 @@ class ReorderReport extends Page
             ->with('product:id,name,brand_id', 'product.brand:id,name,supplier_contact')
             ->get()
             ->map(fn (ProductVariant $v) => [
+                'product_id' => $v->product?->id,
                 'product' => $v->product?->name ?? '—',
                 'variant' => $v->name,
                 'sku' => $v->sku,

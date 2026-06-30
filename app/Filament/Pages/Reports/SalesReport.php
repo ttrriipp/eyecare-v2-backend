@@ -12,7 +12,7 @@ class SalesReport extends BaseReport
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $title = 'Sales Report';
 
