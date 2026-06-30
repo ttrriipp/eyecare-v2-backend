@@ -11,6 +11,7 @@ use App\Models\DiscountType;
 use App\Models\PaymentStatus;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\PdfService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -25,6 +26,12 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('download_receipt')
+                ->label('Download Receipt')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->action(fn () => app(PdfService::class)->billingReceipt($this->getRecord())),
+
             Action::make('add_service')
                 ->label('Add Service')
                 ->icon('heroicon-o-plus-circle')

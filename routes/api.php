@@ -31,6 +31,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
     Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
+    Route::get('billing/{billing}/pdf', [BillingController::class, 'receipt'])->name('billing.pdf');
 
     Route::get('conversations', [ConversationController::class, 'show']);
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'indexMessages']);
