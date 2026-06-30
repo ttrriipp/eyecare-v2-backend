@@ -23,6 +23,10 @@ class BillingInfolist
                 Section::make('Billing Summary')
                     ->columns(3)
                     ->schema([
+                        TextEntry::make('or_number')
+                            ->label('OR Number')
+                            ->placeholder('—')
+                            ->copyable(),
                         TextEntry::make('billing_number')
                             ->label('Billing #'),
                         TextEntry::make('status.name')
@@ -76,6 +80,8 @@ class BillingInfolist
 
                 Section::make('Line Items')
                     ->columns(1)
+                    ->collapsed(fn (): bool => ! (auth()->user()?->isAdmin() ?? false))
+                    ->collapsible()
                     ->schema([
                         RepeatableEntry::make('items')
                             ->label('')

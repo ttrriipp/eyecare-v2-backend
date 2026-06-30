@@ -41,4 +41,12 @@ Route::middleware(['auth', 'web'])->group(function () {
 
         return $pdf->billingReceipt($billing);
     })->name('pdf.billing');
+
+    Route::get('/thermal/billings/{billing}', function (Billing $billing) {
+        abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
+
+        $billing->loadMissing(['customer', 'items', 'payments.status', 'payments.paymentMethod', 'discountType', 'status']);
+
+        return view('thermal.billing-receipt', ['billing' => $billing]);
+    })->name('thermal.billing');
 });

@@ -60,8 +60,9 @@
 
     <div class="meta">
         <div class="meta-left">
-            <div class="meta-label">Billing Number</div>
-            <div class="meta-value">{{ $billing->billing_number }}</div>
+            <div class="meta-label">OR Number</div>
+            <div class="meta-value">{{ $billing->or_number ?? '—' }}</div>
+            <div class="meta-secondary">Billing #: {{ $billing->billing_number }}</div>
             <div class="meta-secondary">
                 Status:
                 @php $statusName = $billing->status?->name ?? 'issued'; @endphp

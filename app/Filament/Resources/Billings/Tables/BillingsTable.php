@@ -25,6 +25,11 @@ class BillingsTable
     {
         return $table
             ->columns([
+                TextColumn::make('or_number')
+                    ->label('OR #')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—'),
                 TextColumn::make('billing_number')
                     ->label('Billing #')
                     ->searchable()

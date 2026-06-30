@@ -8,10 +8,12 @@ use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -82,6 +84,7 @@ class PaymentsRelationManager extends RelationManager
                             ->minValue(0.01)
                             ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
                             ->prefix('₱')
+                            ->live(onBlur: true)
                             ->helperText(function (): ?string {
                                 $billing = $this->getOwnerRecord();
 
@@ -94,7 +97,26 @@ class PaymentsRelationManager extends RelationManager
                         Select::make('payment_method_id')
                             ->label('Method')
                             ->required()
-                            ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id')),
+                            ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id'))
+                            ->live(),
+                        TextInput::make('cash_tendered')
+                            ->label('Cash Tendered')
+                            ->numeric()
+                            ->minValue(0)
+                            ->prefix('₱')
+                            ->live(onBlur: true)
+                            ->visible(fn (Get $get): bool => (int) $get('payment_method_id') === PaymentMethod::query()->where('name', 'Cash')->value('id'))
+                            ->dehydrated(false),
+                        Placeholder::make('change_due')
+                            ->label('Change')
+                            ->content(function (Get $get): string {
+                                $tendered = (float) ($get('cash_tendered') ?? 0);
+                                $amount = (float) ($get('amount') ?? 0);
+                                $change = $tendered - $amount;
+
+                                return $change >= 0 ? '₱'.number_format($change, 2) : '—';
+                            })
+                            ->visible(fn (Get $get): bool => (int) $get('payment_method_id') === PaymentMethod::query()->where('name', 'Cash')->value('id') && filled($get('cash_tendered'))),
                         TextInput::make('reference_number')->maxLength(100),
                         DateTimePicker::make('paid_at')->default(now()),
                         Textarea::make('notes'),

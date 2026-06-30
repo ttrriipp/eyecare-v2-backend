@@ -32,6 +32,14 @@ class ViewBilling extends ViewRecord
                 ->url(fn () => route('pdf.billing', $this->getRecord()))
                 ->openUrlInNewTab(),
 
+            Action::make('print_thermal')
+                ->label('Print Receipt')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->tooltip('80mm thermal receipt — optimised for receipt printers')
+                ->url(fn () => route('thermal.billing', $this->getRecord()))
+                ->openUrlInNewTab(),
+
             Action::make('add_service')
                 ->label('Add Service')
                 ->icon('heroicon-o-plus-circle')
