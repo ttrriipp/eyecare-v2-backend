@@ -8,7 +8,9 @@ use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Models\Appointment;
 use Carbon\CarbonInterface;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
 use Guava\Calendar\Enums\CalendarViewType;
 use Guava\Calendar\Filament\CalendarWidget;
 use Guava\Calendar\ValueObjects\DateClickInfo;
@@ -78,11 +80,69 @@ class AppointmentCalendarWidget extends CalendarWidget
     }
 
     /**
-     * Clicking an event opens its full edit page (with status/reschedule/bill actions).
+     * Clicking an event shows a quick-view modal with key details.
+     * Staff can then choose to open the full edit page or dismiss.
      */
     protected function onEventClick(EventClickInfo $info, Model $event, ?string $action = null): void
     {
-        $this->redirect(EditAppointment::getUrl(['record' => $event->getKey()]));
+        if (! $event instanceof Appointment) {
+            return;
+        }
+
+        $event->loadMissing(['customer', 'visitReason', 'status']);
+
+        $this->mountAction('viewAppointment', [
+            'appointmentId' => $event->getKey(),
+        ]);
+    }
+
+    public function viewAppointmentAction(): Action
+    {
+        return Action::make('viewAppointment')
+            ->modalHeading(fn (array $arguments): string => $this->getAppointmentForAction($arguments)->customer?->name ?? 'Appointment')
+            ->modalWidth('md')
+            ->schema(function (array $arguments): array {
+                $appointment = $this->getAppointmentForAction($arguments);
+
+                return [
+                    Grid::make(2)->schema([
+                        Placeholder::make('phone')
+                            ->label('Phone')
+                            ->content($appointment->customer?->phone ?? '—'),
+                        Placeholder::make('status')
+                            ->label('Status')
+                            ->content(ucfirst($appointment->status?->name ?? 'unknown')),
+                        Placeholder::make('visit_reason')
+                            ->label('Visit Reason')
+                            ->content($appointment->visitReason?->name ?? '—'),
+                        Placeholder::make('time')
+                            ->label('Time')
+                            ->content($appointment->scheduled_at->format('M j, Y · g:i A')),
+                        Placeholder::make('duration')
+                            ->label('Duration')
+                            ->content(($appointment->visitReason?->duration_minutes ?? 30).' minutes'),
+                        Placeholder::make('assigned_staff')
+                            ->label('Assigned Staff')
+                            ->content($appointment->staff?->name ?? 'Unassigned'),
+                    ]),
+                    Placeholder::make('notes')
+                        ->label('Contact Notes')
+                        ->content($appointment->contact_notes ?: '—')
+                        ->visible(fn (): bool => filled($appointment->contact_notes)),
+                ];
+            })
+            ->modalSubmitActionLabel('Open Full Details')
+            ->modalCancelActionLabel('Close')
+            ->action(function (array $arguments): void {
+                $this->redirect(EditAppointment::getUrl(['record' => $arguments['appointmentId']]));
+            });
+    }
+
+    private function getAppointmentForAction(array $arguments): Appointment
+    {
+        return Appointment::query()
+            ->with(['customer', 'visitReason', 'status', 'staff'])
+            ->findOrFail($arguments['appointmentId']);
     }
 
     /**
