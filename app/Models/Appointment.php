@@ -36,8 +36,20 @@ class Appointment extends Model implements Eventable
             default => '#6b7280',
         };
 
+        $title = $this->customer?->name ?? 'Appointment';
+        $phone = $this->customer?->phone;
+        $reason = $this->visitReason?->name;
+
+        if ($phone) {
+            $title .= " · {$phone}";
+        }
+
+        if ($reason) {
+            $title .= " — {$reason}";
+        }
+
         return CalendarEvent::make($this)
-            ->title($this->customer?->name ?? 'Appointment')
+            ->title($title)
             ->start($this->scheduled_at)
             ->end($this->scheduled_at->addMinutes($this->visitReason?->duration_minutes ?? 30))
             ->backgroundColor($color);
