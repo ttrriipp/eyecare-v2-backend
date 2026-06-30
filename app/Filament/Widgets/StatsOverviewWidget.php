@@ -25,21 +25,63 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      */
     protected function getStats(): array
     {
-        return Cache::remember('dashboard.stats', now()->addMinutes(2), fn () => [
-            $this->todaysAppointmentsStat(),
-            $this->walkInQueueStat(),
-            $this->revenueStat(),
-            $this->pendingOrdersStat(),
-            $this->unpaidBillingsStat(),
-            $this->lowStockStat(),
-        ]);
+        // Cache raw numeric data only — Stat objects are not safely serializable.
+        $data = Cache::remember('dashboard.stats', now()->addMinutes(2), fn () => $this->computeStatsData());
+
+        return [
+            $this->todaysAppointmentsStat($data),
+            $this->walkInQueueStat($data),
+            $this->revenueStat($data),
+            $this->pendingOrdersStat($data),
+            $this->unpaidBillingsStat($data),
+            $this->lowStockStat($data),
+        ];
     }
 
-    private function todaysAppointmentsStat(): Stat
+    /**
+     * @return array<string, mixed>
+     */
+    private function computeStatsData(): array
     {
         $today = $this->confirmedAppointmentsOn(today());
         $yesterday = $this->confirmedAppointmentsOn(today()->subDay());
-        $delta = $today - $yesterday;
+        $thisMonthRevenue = $this->revenueBetween(now()->startOfMonth(), now()->endOfMonth());
+        $lastMonthRevenue = $this->revenueBetween(
+            now()->subMonthNoOverflow()->startOfMonth(),
+            now()->subMonthNoOverflow()->endOfMonth(),
+        );
+        $unpaidQuery = Billing::query()
+            ->whereHas('status', fn ($q) => $q->whereIn('name', ['issued', 'partially_paid']));
+
+        return [
+            'today_confirmed' => $today,
+            'yesterday_confirmed' => $yesterday,
+            'today_confirmed_chart' => $this->dailyConfirmedAppointments(7),
+            'walk_in_queue' => Appointment::query()
+                ->whereHas('status', fn ($q) => $q->where('name', 'pending'))
+                ->whereDate('scheduled_at', today())
+                ->count(),
+            'this_month_revenue' => $thisMonthRevenue,
+            'last_month_revenue' => $lastMonthRevenue,
+            'daily_revenue_chart' => $this->dailyRevenue(14),
+            'pending_orders' => Order::query()
+                ->whereHas('status', fn ($q) => $q->whereIn('name', ['requested', 'under_review']))
+                ->count(),
+            'daily_orders_chart' => $this->dailyNewOrders(7),
+            'unpaid_count' => (clone $unpaidQuery)->count(),
+            'unpaid_balance' => (float) (clone $unpaidQuery)->sum('balance_due'),
+            'low_stock' => ProductVariant::query()
+                ->where('is_active', true)
+                ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+                ->count(),
+        ];
+    }
+
+    /** @param array<string, mixed> $data */
+    private function todaysAppointmentsStat(array $data): Stat
+    {
+        $today = $data['today_confirmed'];
+        $delta = $today - $data['yesterday_confirmed'];
 
         $description = match (true) {
             $delta > 0 => "{$delta} more than yesterday",
@@ -51,16 +93,14 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->description($description)
             ->descriptionIcon($delta >= 0 ? Heroicon::ArrowUpRight : Heroicon::ArrowDownRight)
             ->descriptionColor($delta > 0 ? 'success' : ($delta < 0 ? 'danger' : 'gray'))
-            ->chart($this->dailyConfirmedAppointments(7))
+            ->chart($data['today_confirmed_chart'])
             ->color('info');
     }
 
-    private function walkInQueueStat(): Stat
+    /** @param array<string, mixed> $data */
+    private function walkInQueueStat(array $data): Stat
     {
-        $waiting = Appointment::query()
-            ->whereHas('status', fn ($q) => $q->where('name', 'pending'))
-            ->whereDate('scheduled_at', today())
-            ->count();
+        $waiting = $data['walk_in_queue'];
 
         return Stat::make('Waiting today', number_format($waiting))
             ->description($waiting > 0 ? 'Pending appointments for today' : 'No pending appointments')
@@ -70,44 +110,39 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->url('/admin/appointments?tableFilters[status][value]=pending');
     }
 
-    private function revenueStat(): Stat
+    /** @param array<string, mixed> $data */
+    private function revenueStat(array $data): Stat
     {
-        $thisMonth = $this->revenueBetween(now()->startOfMonth(), now()->endOfMonth());
-        $lastMonth = $this->revenueBetween(
-            now()->subMonthNoOverflow()->startOfMonth(),
-            now()->subMonthNoOverflow()->endOfMonth(),
+        [$description, $icon, $color] = $this->revenueDelta(
+            $data['this_month_revenue'],
+            $data['last_month_revenue'],
         );
 
-        [$description, $icon, $color] = $this->revenueDelta($thisMonth, $lastMonth);
-
-        return Stat::make('Revenue this month', '₱'.number_format($thisMonth, 2))
+        return Stat::make('Revenue this month', '₱'.number_format($data['this_month_revenue'], 2))
             ->description($description)
             ->descriptionIcon($icon)
             ->descriptionColor($color)
-            ->chart($this->dailyRevenue(14))
+            ->chart($data['daily_revenue_chart'])
             ->color('success');
     }
 
-    private function pendingOrdersStat(): Stat
+    /** @param array<string, mixed> $data */
+    private function pendingOrdersStat(array $data): Stat
     {
-        $pending = Order::query()
-            ->whereHas('status', fn ($query) => $query->whereIn('name', ['requested', 'under_review']))
-            ->count();
+        $pending = $data['pending_orders'];
 
         return Stat::make('Pending orders', number_format($pending))
             ->description($pending > 0 ? 'Awaiting confirmation' : 'All caught up')
             ->descriptionIcon($pending > 0 ? Heroicon::Clock : Heroicon::CheckCircle)
-            ->chart($this->dailyNewOrders(7))
+            ->chart($data['daily_orders_chart'])
             ->color($pending > 0 ? 'warning' : 'success');
     }
 
-    private function unpaidBillingsStat(): Stat
+    /** @param array<string, mixed> $data */
+    private function unpaidBillingsStat(array $data): Stat
     {
-        $unpaid = Billing::query()
-            ->whereHas('status', fn ($query) => $query->whereIn('name', ['issued', 'partially_paid']));
-
-        $count = (clone $unpaid)->count();
-        $outstanding = (float) (clone $unpaid)->sum('balance_due');
+        $count = $data['unpaid_count'];
+        $outstanding = $data['unpaid_balance'];
 
         return Stat::make('Unpaid billings', number_format($count))
             ->description('₱'.number_format($outstanding, 2).' outstanding')
@@ -115,12 +150,10 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->color($count > 0 ? 'warning' : 'success');
     }
 
-    private function lowStockStat(): Stat
+    /** @param array<string, mixed> $data */
+    private function lowStockStat(array $data): Stat
     {
-        $lowStock = ProductVariant::query()
-            ->where('is_active', true)
-            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-            ->count();
+        $lowStock = $data['low_stock'];
 
         return Stat::make('Low stock variants', number_format($lowStock))
             ->description($lowStock > 0 ? 'Reorder soon' : 'Stock healthy')
