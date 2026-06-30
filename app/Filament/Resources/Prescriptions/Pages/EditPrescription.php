@@ -21,6 +21,13 @@ class EditPrescription extends EditRecord
                 ->color('gray')
                 ->action(fn () => app(PdfService::class)->prescriptionPrintout($this->getRecord())),
 
+            Action::make('print_card')
+                ->label('Print Card')
+                ->icon('heroicon-o-credit-card')
+                ->color('gray')
+                ->tooltip('Wallet-size prescription card')
+                ->action(fn () => app(PdfService::class)->prescriptionCard($this->getRecord())),
+
             DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
         ];
     }

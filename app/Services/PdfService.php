@@ -24,7 +24,7 @@ class PdfService
     }
 
     /**
-     * Generate a prescription printout PDF response.
+     * Generate a prescription printout PDF response (A4 portrait).
      */
     public function prescriptionPrintout(Prescription $prescription): Response
     {
@@ -33,6 +33,21 @@ class PdfService
         $pdf = Pdf::loadView('pdf.prescription', ['prescription' => $prescription]);
 
         $filename = 'prescription_'.$prescription->id.'.pdf';
+
+        return $pdf->stream($filename);
+    }
+
+    /**
+     * Generate a wallet/credit-card size prescription card (85.6mm × 54mm landscape).
+     */
+    public function prescriptionCard(Prescription $prescription): Response
+    {
+        $prescription->loadMissing(['customer', 'createdBy']);
+
+        $pdf = Pdf::loadView('pdf.prescription-card', ['prescription' => $prescription])
+            ->setPaper([0, 0, 242.24, 153.07], 'landscape'); // 85.6mm × 54mm in points
+
+        $filename = 'prescription_card_'.$prescription->id.'.pdf';
 
         return $pdf->stream($filename);
     }

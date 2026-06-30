@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Prescriptions\Tables;
 
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Models\Prescription;
+use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -38,6 +41,11 @@ class PrescriptionsTable
             ])
             ->recordActions([
                 ActionGroup::make([
+                    Action::make('copy_to_new')
+                        ->label('Copy to New')
+                        ->icon('heroicon-o-document-duplicate')
+                        ->color('info')
+                        ->url(fn (Prescription $record): string => PrescriptionResource::getUrl('create', ['copy' => $record->id])),
                     EditAction::make(),
                     RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
                     DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
