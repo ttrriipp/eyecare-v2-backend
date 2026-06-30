@@ -59,12 +59,12 @@ class OrdersTable
                     ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state)))
                     ->toggleable(),
                 IconColumn::make('is_non_prescription')
-                    ->label('Non-Rx')
+                    ->label('No Lens Cut')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle')
+                    ->falseIcon('heroicon-o-scissors')
                     ->trueColor('success')
-                    ->falseColor('gray')
+                    ->falseColor('warning')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('total_amount')
                     ->label('Total Price')
