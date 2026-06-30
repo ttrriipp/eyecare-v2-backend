@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Prescriptions\Pages;
 
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Services\PdfService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
@@ -19,14 +18,16 @@ class EditPrescription extends EditRecord
                 ->label('Print Prescription')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
-                ->action(fn () => app(PdfService::class)->prescriptionPrintout($this->getRecord())),
+                ->url(fn () => route('pdf.prescription', $this->getRecord()))
+                ->openUrlInNewTab(),
 
             Action::make('print_card')
                 ->label('Print Card')
                 ->icon('heroicon-o-credit-card')
                 ->color('gray')
                 ->tooltip('Wallet-size prescription card')
-                ->action(fn () => app(PdfService::class)->prescriptionCard($this->getRecord())),
+                ->url(fn () => route('pdf.prescription.card', $this->getRecord()))
+                ->openUrlInNewTab(),
 
             DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
         ];
