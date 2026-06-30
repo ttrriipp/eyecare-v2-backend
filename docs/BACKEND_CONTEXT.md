@@ -332,6 +332,7 @@ PATCH  /staff/orders/{id}/status
       "sku": "CRF-BLK-001",
       "price": "159.99",
       "compare_at_price": null,
+      "in_stock": true,
       "attributes": { "bridge": 18, "temple": 140, "lens_width": 52 },
       "ar_eligible": true,
       "ar_asset_reference": "ar-assets/abc123.glb",
@@ -343,6 +344,21 @@ PATCH  /staff/orders/{id}/status
   "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 2 }
 }
 ```
+
+**GET /products — Search & Filter params (all optional, combinable):**
+
+| Param | Type | Example | Behaviour |
+|---|---|---|---|
+| `search` | string | `?search=classic` | Fuzzy match on product name and description |
+| `brand` | integer | `?brand=2` | Filter by brand ID |
+| `category` | integer | `?category=1` | Filter by category ID |
+| `min_price` | numeric | `?min_price=100` | At least one variant priced ≥ value |
+| `max_price` | numeric | `?max_price=500` | At least one variant priced ≤ value |
+| `in_stock` | boolean | `?in_stock=true` | Only products with stock > 0 |
+| `sort` | string | `?sort=price_asc` | `name` (default), `newest`, `price_asc`, `price_desc` |
+| `per_page` | integer | `?per_page=20` | Items per page (default 15) |
+
+Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Brands and categories are returned in the product response as name strings — use a separate `GET /brands` or `GET /categories` endpoint if needed, or store IDs from the product list response.
 
 **GET /appointments:**
 ```json
