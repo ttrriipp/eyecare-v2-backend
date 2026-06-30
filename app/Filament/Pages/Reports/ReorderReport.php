@@ -32,7 +32,7 @@ class ReorderReport extends Page
         return ProductVariant::query()
             ->where('low_stock_threshold', '>', 0)
             ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-            ->with('product:id,name')
+            ->with('product:id,name,brand_id', 'product.brand:id,name,supplier_contact')
             ->get()
             ->map(fn (ProductVariant $v) => [
                 'product' => $v->product?->name ?? '—',
@@ -41,6 +41,7 @@ class ReorderReport extends Page
                 'stock' => $v->stock_quantity,
                 'threshold' => $v->low_stock_threshold,
                 'deficit' => $v->low_stock_threshold - $v->stock_quantity,
+                'supplier' => $v->product?->brand?->supplier_contact ?? '—',
             ])
             ->sortByDesc('deficit')
             ->values();
@@ -52,7 +53,7 @@ class ReorderReport extends Page
 
         return response()->streamDownload(function () use ($items): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Product', 'Variant', 'SKU', 'Stock', 'Threshold', 'Deficit']);
+            fputcsv($handle, ['Product', 'Variant', 'SKU', 'Stock', 'Threshold', 'Deficit', 'Supplier Contact']);
             foreach ($items as $item) {
                 fputcsv($handle, array_values($item));
             }

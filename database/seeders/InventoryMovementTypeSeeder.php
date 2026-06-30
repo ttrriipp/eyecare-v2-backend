@@ -14,6 +14,7 @@ class InventoryMovementTypeSeeder extends Seeder
             'manual_adjustment',
             'order_commitment',
             'order_reversal',
+            'damaged',
         ])->each(fn (string $name) => InventoryMovementType::query()->firstOrCreate(['name' => $name]));
     }
 }

@@ -35,6 +35,7 @@ class InventoryMovementsTable
                         'order_commitment' => 'warning',
                         'order_reversal' => 'info',
                         'manual_adjustment' => 'gray',
+                        'damaged' => 'danger',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),

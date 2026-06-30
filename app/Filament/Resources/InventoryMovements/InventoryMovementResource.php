@@ -44,6 +44,7 @@ class InventoryMovementResource extends Resource
                         'restock' => 'success',
                         'order_commitment' => 'warning',
                         'order_reversal' => 'info',
+                        'damaged' => 'danger',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => ucwords(str_replace('_', ' ', $state))),

@@ -21,6 +21,11 @@ class BrandForm
                             ->required()
                             ->maxLength(255)
                             ->unique(ignoreRecord: true),
+                        TextInput::make('supplier_contact')
+                            ->label('Supplier Contact')
+                            ->maxLength(255)
+                            ->placeholder('e.g. Juan - 0917 123 4567 (Viber)')
+                            ->helperText('Name, phone, or Viber/WhatsApp of your frame supplier rep.'),
                     ]),
 
                 Section::make('Timestamps')

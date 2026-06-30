@@ -226,6 +226,39 @@ class VariantsRelationManager extends RelationManager
                                 ->success()
                                 ->send();
                         }),
+                    Action::make('writeOffDamaged')
+                        ->label('Write Off Damaged')
+                        ->icon('heroicon-o-exclamation-triangle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Write off damaged stock')
+                        ->modalDescription('This will permanently reduce the stock count and record the loss in Inventory History.')
+                        ->schema([
+                            TextInput::make('quantity')
+                                ->label('Units to write off')
+                                ->required()
+                                ->numeric()
+                                ->minValue(1),
+                            TextInput::make('notes')
+                                ->label('Damage reason')
+                                ->required()
+                                ->placeholder('e.g. Frame scratched during display, lens cracked in storage'),
+                        ])
+                        ->action(function (array $data, $record): void {
+                            app(RecordInventoryMovement::class)->handle(
+                                variant: $record,
+                                quantityChange: -(int) $data['quantity'],
+                                type: 'damaged',
+                                notes: $data['notes'],
+                                actingUser: auth()->user(),
+                            );
+
+                            Notification::make()
+                                ->title('Damaged stock written off')
+                                ->body("{$data['quantity']} unit(s) removed from inventory.")
+                                ->warning()
+                                ->send();
+                        }),
                     DeleteAction::make()
                         ->color('danger'),
                 ]),
