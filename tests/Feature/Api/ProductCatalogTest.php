@@ -31,6 +31,7 @@ test('authenticated customers can view active product details with variants', fu
     $variant = ProductVariant::factory()->for($product)->arEligible()->create([
         'name' => 'Matte Black',
         'ar_asset_reference' => 'frames/demo-matte-black.glb',
+        'stock_quantity' => 5,
     ]);
 
     $this->actingAs($customer, 'sanctum')

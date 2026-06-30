@@ -6,6 +6,8 @@ use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Order;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
@@ -18,6 +20,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class OrdersTable
@@ -139,6 +142,50 @@ class OrdersTable
                         }),
                     RestoreAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                     DeleteAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('bulk_advance')
+                        ->label('Advance Selected')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->color('primary')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records): void {
+                            /** @var array<string, string> $nextStatus */
+                            $nextStatus = [
+                                'requested' => 'confirmed',
+                                'confirmed' => 'processing',
+                                'processing' => 'ready_for_pickup',
+                                'ready_for_pickup' => 'completed',
+                            ];
+
+                            $advanced = 0;
+                            $skipped = 0;
+
+                            foreach ($records as $record) {
+                                $current = $record->status?->name;
+
+                                if (! isset($nextStatus[$current])) {
+                                    $skipped++;
+
+                                    continue;
+                                }
+
+                                try {
+                                    app(UpdateOrderStatus::class)->handle($record, $nextStatus[$current]);
+                                    $advanced++;
+                                } catch (ValidationException) {
+                                    $skipped++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("{$advanced} order(s) advanced".($skipped > 0 ? ", {$skipped} skipped (gate blocked or terminal)" : ''))
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

@@ -5,10 +5,13 @@ namespace App\Filament\Resources\SmsNotifications\Tables;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 
 class SmsNotificationsTable
 {
@@ -77,6 +80,37 @@ class SmsNotificationsTable
                         ]);
                         Notification::make()->title('SMS queued for retry')->success()->send();
                     }),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('bulk_retry')
+                        ->label('Retry Selected')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
+                        ->action(function (Collection $records): void {
+                            $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
+                            $count = 0;
+
+                            foreach ($records as $record) {
+                                if ($record->status?->name !== 'failed') {
+                                    continue;
+                                }
+
+                                $record->update([
+                                    'notification_status_id' => $queuedStatus->id,
+                                    'failure_reason' => null,
+                                ]);
+                                $count++;
+                            }
+
+                            Notification::make()
+                                ->title("{$count} SMS queued for retry")
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+                ]),
             ])
             ->defaultSort('created_at', 'desc');
     }

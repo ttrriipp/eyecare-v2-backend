@@ -6,6 +6,8 @@ use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Models\Appointment;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
@@ -18,6 +20,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -148,6 +151,72 @@ class AppointmentsTable
                         }),
                     RestoreAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                     DeleteAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                ]),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('bulk_confirm')
+                        ->label('Confirm Selected')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->action(function (Collection $records): void {
+                            $advanced = 0;
+                            $skipped = 0;
+
+                            foreach ($records as $record) {
+                                if ($record->status?->name !== 'pending') {
+                                    $skipped++;
+
+                                    continue;
+                                }
+
+                                try {
+                                    app(UpdateAppointmentStatus::class)->handle($record, 'confirmed');
+                                    $advanced++;
+                                } catch (\Throwable) {
+                                    $skipped++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("{$advanced} appointment(s) confirmed".($skipped > 0 ? ", {$skipped} skipped" : ''))
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    BulkAction::make('bulk_cancel')
+                        ->label('Cancel Selected')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
+                        ->action(function (Collection $records): void {
+                            $cancelled = 0;
+                            $skipped = 0;
+
+                            foreach ($records as $record) {
+                                if (! in_array($record->status?->name, ['pending', 'confirmed'], true)) {
+                                    $skipped++;
+
+                                    continue;
+                                }
+
+                                try {
+                                    app(UpdateAppointmentStatus::class)->handle($record, 'cancelled');
+                                    $cancelled++;
+                                } catch (\Throwable) {
+                                    $skipped++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title("{$cancelled} appointment(s) cancelled".($skipped > 0 ? ", {$skipped} skipped" : ''))
+                                ->success()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->defaultSort('scheduled_at', 'desc');
