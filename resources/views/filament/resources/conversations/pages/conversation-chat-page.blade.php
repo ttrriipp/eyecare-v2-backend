@@ -70,7 +70,7 @@
                 </div>
 
                 {{-- Messages --}}
-                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4" id="chat-messages">
+                <div wire:poll.5s class="flex-1 overflow-y-auto px-5 py-4 space-y-4" id="chat-messages">
                     @forelse ($this->messages ?? [] as $message)
                         @php $isStaff = $message->sender?->role?->name !== 'customer'; @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
