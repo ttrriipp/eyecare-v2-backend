@@ -9,6 +9,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -67,6 +68,19 @@ class PrescriptionForm
                         ->searchable()
                         ->preload(),
                 ])->columns(2),
+                Toggle::make('show_prism_base')
+                    ->label('Show Prism / Base fields')
+                    ->helperText('Enable for prescriptions that include prism correction (rare).')
+                    ->default(false)
+                    ->afterStateHydrated(function (Toggle $component, $record, $livewire): void {
+                        if ($record && (filled($record->od_prism) || filled($record->os_prism) || filled($record->od_base) || filled($record->os_base))) {
+                            $component->state(true);
+                            $livewire->showPrismBase = true;
+                        }
+                    })
+                    ->dehydrated(false)
+                    ->live()
+                    ->afterStateUpdated(fn ($state, $livewire) => $livewire->showPrismBase = (bool) $state),
                 Grid::make(2)->schema([
                     Section::make('Right Eye (OD)')
                         ->schema([
@@ -102,10 +116,12 @@ class PrescriptionForm
                                     ->numeric()
                                     ->minValue(0)
                                     ->maxValue(10)
-                                    ->step(0.25),
+                                    ->step(0.25)
+                                    ->visible(fn ($livewire): bool => $livewire->showPrismBase ?? false),
                                 TextInput::make('od_base')
                                     ->label('Base')
-                                    ->maxLength(20),
+                                    ->maxLength(20)
+                                    ->visible(fn ($livewire): bool => $livewire->showPrismBase ?? false),
                             ]),
                         ]),
                     Section::make('Left Eye (OS)')
@@ -142,10 +158,12 @@ class PrescriptionForm
                                     ->numeric()
                                     ->minValue(0)
                                     ->maxValue(10)
-                                    ->step(0.25),
+                                    ->step(0.25)
+                                    ->visible(fn ($livewire): bool => $livewire->showPrismBase ?? false),
                                 TextInput::make('os_base')
                                     ->label('Base')
-                                    ->maxLength(20),
+                                    ->maxLength(20)
+                                    ->visible(fn ($livewire): bool => $livewire->showPrismBase ?? false),
                             ]),
                         ]),
                 ]),

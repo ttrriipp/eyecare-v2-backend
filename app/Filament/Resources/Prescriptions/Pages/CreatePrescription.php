@@ -11,6 +11,8 @@ class CreatePrescription extends CreateRecord
 {
     protected static string $resource = PrescriptionResource::class;
 
+    public bool $showPrismBase = false;
+
     /**
      * Optional: pre-fill form from an existing prescription's ID (passed via URL).
      * Staff picks "Copy from previous" → redirects here with copyFromId set.
