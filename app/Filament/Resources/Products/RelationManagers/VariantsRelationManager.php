@@ -74,12 +74,13 @@ class VariantsRelationManager extends RelationManager
                 ->live()
                 ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
             FileUpload::make('ar_asset_reference')
-                ->label('AR Overlay Image (PNG)')
+                ->label('AR Asset (PNG or 3D Model)')
                 ->disk('public')
                 ->directory('ar-assets')
                 ->visibility('public')
-                ->acceptedFileTypes(['image/png'])
+                ->acceptedFileTypes(['image/png', 'model/gltf-binary', 'model/gltf+json', 'application/octet-stream'])
                 ->maxSize(10240)
+                ->helperText('PNG overlay or 3D model (.glb, .gltf, .obj)')
                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
                 ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
