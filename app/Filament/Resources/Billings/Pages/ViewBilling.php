@@ -5,14 +5,17 @@ namespace App\Filament\Resources\Billings\Pages;
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Billing\AddServiceToBilling;
 use App\Actions\Billing\RecalculateBillingBalance;
+use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Billings\BillingResource;
 use App\Models\BillingStatus;
 use App\Models\DiscountType;
+use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
 use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
@@ -29,16 +32,63 @@ class ViewBilling extends ViewRecord
                 ->label('Download Receipt')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('gray')
+                ->tooltip('Download as A4 PDF')
                 ->url(fn () => route('pdf.billing', $this->getRecord()))
                 ->openUrlInNewTab(),
 
             Action::make('print_thermal')
                 ->label('Print Receipt')
                 ->icon('heroicon-o-printer')
-                ->color('gray')
-                ->tooltip('80mm thermal receipt — optimised for receipt printers')
+                ->color('info')
+                ->tooltip('Print on 80mm thermal receipt printer')
                 ->url(fn () => route('thermal.billing', $this->getRecord()))
                 ->openUrlInNewTab(),
+
+            Action::make('record_payment_shortcut')
+                ->label('Record Payment')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->visible(fn (): bool => (float) $this->getRecord()->balance_due > 0
+                    && $this->getRecord()->status?->name !== 'voided')
+                ->schema([
+                    TextInput::make('amount')
+                        ->label('Amount')
+                        ->required()
+                        ->numeric()
+                        ->minValue(0.01)
+                        ->prefix('₱')
+                        ->live(onBlur: true)
+                        ->default(fn () => (float) $this->getRecord()->balance_due),
+                    Select::make('payment_method_id')
+                        ->label('Payment Method')
+                        ->required()
+                        ->options(fn () => PaymentMethod::query()->where('is_active', true)->pluck('name', 'id'))
+                        ->live(),
+                    Placeholder::make('change_due')
+                        ->label('Change')
+                        ->content(function (Get $get): string {
+                            $tendered = (float) ($get('cash_tendered') ?? 0);
+                            $amount = (float) ($get('amount') ?? 0);
+                            $change = $tendered - $amount;
+
+                            return $change >= 0 ? '₱'.number_format($change, 2) : '—';
+                        })
+                        ->visible(fn (Get $get): bool => filled($get('cash_tendered'))),
+                    TextInput::make('cash_tendered')
+                        ->label('Cash Tendered')
+                        ->numeric()
+                        ->minValue(0)
+                        ->prefix('₱')
+                        ->live(onBlur: true)
+                        ->visible(fn (Get $get): bool => (int) $get('payment_method_id') === PaymentMethod::query()->where('name', 'Cash')->value('id'))
+                        ->dehydrated(false),
+                    TextInput::make('reference_number')->label('Reference Number')->maxLength(100)->nullable(),
+                ])
+                ->action(function (array $data): void {
+                    app(RecordPayment::class)->handle($this->getRecord(), $data);
+                    $this->refreshFormData(['billing_status_id', 'amount_paid', 'balance_due']);
+                })
+                ->successNotificationTitle('Payment recorded'),
 
             Action::make('add_service')
                 ->label('Add Service')

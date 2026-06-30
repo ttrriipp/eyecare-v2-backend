@@ -78,7 +78,7 @@ class BillingInfolist
                             ->color('primary'),
                     ]),
 
-                Section::make('Line Items')
+                Section::make(fn (Billing $record): string => 'Line Items ('.$record->items->count().')')
                     ->columns(1)
                     ->collapsed(fn (): bool => ! (auth()->user()?->isAdmin() ?? false))
                     ->collapsible()
