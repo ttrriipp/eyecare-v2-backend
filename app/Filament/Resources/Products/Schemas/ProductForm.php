@@ -169,6 +169,7 @@ class ProductForm
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
                             TextInput::make('ar_asset_reference')
                                 ->maxLength(255)
+                                ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
                             KeyValue::make('attributes')->columnSpanFull(),
                             FileUpload::make('images')
