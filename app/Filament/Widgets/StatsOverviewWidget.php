@@ -12,6 +12,7 @@ use Filament\Widgets\StatsOverviewWidget as BaseStatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class StatsOverviewWidget extends BaseStatsOverviewWidget
 {
@@ -24,13 +25,13 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      */
     protected function getStats(): array
     {
-        return [
+        return Cache::remember('dashboard.stats', now()->addMinutes(2), fn () => [
             $this->todaysAppointmentsStat(),
             $this->revenueStat(),
             $this->pendingOrdersStat(),
             $this->unpaidBillingsStat(),
             $this->lowStockStat(),
-        ];
+        ]);
     }
 
     private function todaysAppointmentsStat(): Stat

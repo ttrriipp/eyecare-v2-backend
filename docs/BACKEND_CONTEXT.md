@@ -268,6 +268,8 @@ GET    /appointments            Customer's own appointments
 POST   /appointments            Book appointment (customer, status locked to pending)
 GET    /appointments/{id}
 GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
+GET    /brands                  List all brands (id, name) — use for product filter UI
+GET    /categories              List all product categories (id, name) — use for product filter UI
 
 GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Supports: `?search=`, `?brand={id}`, `?category={id}`, `?min_price=`, `?max_price=`, `?in_stock=true`, `?sort=name|newest|price_asc|price_desc`. All params optional — without params behavior unchanged.
 GET    /products/{id}           Product detail with variants + AR metadata (404 for non-frame products)

@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Models\Appointment;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\Cache;
 
 class AppointmentsChartWidget extends ChartWidget
 {
@@ -34,43 +35,45 @@ class AppointmentsChartWidget extends ChartWidget
      */
     protected function getData(): array
     {
-        $days = 30;
-        $start = today()->subDays($days - 1);
+        return Cache::remember('dashboard.appointments_chart', now()->addMinutes(5), function () {
+            $days = 30;
+            $start = today()->subDays($days - 1);
 
-        $countsByDay = Appointment::query()
-            ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
-            ->whereDate('scheduled_at', '>=', $start)
-            ->whereDate('scheduled_at', '<=', today())
-            ->get(['scheduled_at'])
-            ->groupBy(fn (Appointment $appointment): string => $appointment->scheduled_at->toDateString())
-            ->map
-            ->count();
+            $countsByDay = Appointment::query()
+                ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
+                ->whereDate('scheduled_at', '>=', $start)
+                ->whereDate('scheduled_at', '<=', today())
+                ->get(['scheduled_at'])
+                ->groupBy(fn (Appointment $appointment): string => $appointment->scheduled_at->toDateString())
+                ->map
+                ->count();
 
-        $labels = [];
-        $data = [];
+            $labels = [];
+            $data = [];
 
-        for ($offset = 0; $offset < $days; $offset++) {
-            $date = $start->copy()->addDays($offset);
-            $labels[] = $date->format('M j');
-            $data[] = $countsByDay->get($date->toDateString(), 0);
-        }
+            for ($offset = 0; $offset < $days; $offset++) {
+                $date = $start->copy()->addDays($offset);
+                $labels[] = $date->format('M j');
+                $data[] = $countsByDay->get($date->toDateString(), 0);
+            }
 
-        return [
-            'datasets' => [
-                [
-                    'label' => 'Appointments',
-                    'data' => $data,
-                    'borderColor' => '#4F8DD7',
-                    'backgroundColor' => 'rgba(79, 141, 215, 0.12)',
-                    'fill' => true,
-                    'tension' => 0.35,
-                    'pointRadius' => 2,
-                    'pointHoverRadius' => 4,
-                    'pointBackgroundColor' => '#4F8DD7',
+            return [
+                'datasets' => [
+                    [
+                        'label' => 'Appointments',
+                        'data' => $data,
+                        'borderColor' => '#4F8DD7',
+                        'backgroundColor' => 'rgba(79, 141, 215, 0.12)',
+                        'fill' => true,
+                        'tension' => 0.35,
+                        'pointRadius' => 2,
+                        'pointHoverRadius' => 4,
+                        'pointBackgroundColor' => '#4F8DD7',
+                    ],
                 ],
-            ],
-            'labels' => $labels,
-        ];
+                'labels' => $labels,
+            ];
+        });
     }
 
     /**
