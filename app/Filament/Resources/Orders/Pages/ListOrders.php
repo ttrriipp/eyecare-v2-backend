@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Orders\Widgets\OrderStatsWidget;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -17,6 +18,11 @@ class ListOrders extends ListRecords
     {
         return [
             CreateAction::make()->label('New order'),
+            Action::make('walk_in_sale')
+                ->label('Walk-in Sale')
+                ->icon('heroicon-o-bolt')
+                ->color('warning')
+                ->url(fn (): string => OrderResource::getUrl('create', ['walkin' => 'true'])),
         ];
     }
 

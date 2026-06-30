@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders\Pages;
 
+use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\LensType;
 use App\Models\Order;
@@ -16,6 +17,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -23,12 +25,56 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard\Step;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Url;
 
 class CreateOrder extends CreateRecord
 {
     use CreateRecord\Concerns\HasWizard;
 
     protected static string $resource = OrderResource::class;
+
+    /**
+     * When true, the order is immediately confirmed after creation (Walk-in Sale mode).
+     */
+    #[Url(as: 'walkin')]
+    public bool $isWalkIn = false;
+
+    public function getSubheading(): ?string
+    {
+        return $this->isWalkIn
+            ? 'Walk-in Sale — order will be confirmed immediately after creation.'
+            : null;
+    }
+
+    protected function afterCreate(): void
+    {
+        if (! $this->isWalkIn) {
+            return;
+        }
+
+        /** @var Order $order */
+        $order = $this->getRecord();
+
+        try {
+            app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+            Notification::make()
+                ->title('Walk-in sale confirmed')
+                ->body('Inventory deducted and billing generated.')
+                ->success()
+                ->send();
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first()
+                ?? 'Order saved as pending — please resolve the issue before confirming.';
+
+            Notification::make()
+                ->title('Order saved as pending')
+                ->body($message)
+                ->warning()
+                ->persistent()
+                ->send();
+        }
+    }
 
     protected function getSteps(): array
     {
