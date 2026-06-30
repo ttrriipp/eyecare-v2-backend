@@ -224,23 +224,23 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Orders & Billing — Orders, Billings
 - Products & Inventory — Products, Inventory History
 - Communication — Conversations, Feedback, SMS Log (admin only)
-- Reports — Sales, Orders, Appointments, Feedback, Reorder (admin only)
+- Reports — Sales, Orders, Appointments, Feedback, Reorder (admin only). Each report page has an Export CSV button that downloads the current breakdown respecting active date filters.
 - Administration — Users, Audit Logs
 - Settings — Categories, Brands, Lens Types, Visit Reasons, Services
 
 **Resources (operational):**
-- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing. Calendar view (toggle on the list page): drag an event to reschedule (validates status + ±30-min conflict via `UpdateAppointmentStatus`), click an empty day to create with `scheduled_at` pre-filled, click an event to open its edit page.
-- Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore.
+- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. "Bill Service" header action opens modal to add a service charge to existing billing (if linked order has one) or create a standalone service billing. Calendar view (toggle on the list page): drag an event to reschedule (validates status + ±30-min conflict via `UpdateAppointmentStatus`), click an empty day to create with `scheduled_at` pre-filled, click an event to open its edit page. **Bulk actions:** Confirm Selected (staff+admin, pending only), Cancel Selected (admin only, pending/confirmed).
+- Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). Create: 2-step wizard (Order Details → Order Items table repeater). Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), discount selector, RichEditor notes. Full-width Order Items section (4-col grid repeater, inline lens assignment). Live Order Summary (subtotal/discount/total). View Billing header action. Soft delete with restore. **Bulk action:** Advance Selected (moves each to next status, skips gate-blocked).
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit). On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions. Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge, visible ✓/✗, total qty.
-- Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details)
+- Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details). "Print Prescription" header action downloads a PDF with full OD/OS table and prescribing staff signature.
 - Patients — dedicated resource for customer-role users labeled as "Patients". List: Name, Phone, Email, Last Visit, Orders count. Edit: Patient Information section + relation managers for Prescriptions, Appointments, Orders. "Bill Service" header action. DB role stays `customer`, UI label is "Patient". Customers cannot access.
-- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: infolist with Billing Summary section (billing #, status, issued at, patient, amount paid, balance due), Linked Records section (clickable links to Order and Appointment), Line Items section (items table + subtotal/discount/total below). Header actions: Add Service (modal), Apply Discount (modal, recalculates totals, admin only), Void Billing (destructive, auto-voids posted payments, admin only). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
+- Billings — KPI stats (total, unpaid, collected) + status tabs. Table shows: billing #, customer name, items summary, total, balance, status. Row actions: View, Record Payment. View page: infolist with Billing Summary section (billing #, status, issued at, patient, amount paid, balance due), Linked Records section (clickable links to Order and Appointment), Line Items section (items table + subtotal/discount/total below). Header actions: Download Receipt (PDF), Add Service (modal), Apply Discount (modal, recalculates totals, shows % in selector, admin only), Void Billing (destructive, auto-voids posted payments with audit trail, admin only). Not deletable — voided via Void Billing action or automatically on order cancellation. No create page.
 - Conversations — chat-style page
 - Feedback — read-only. List: customer, rating, comment (toggleable), appointment/order (hidden by default, toggleable), submitted date. Filter by rating. View page: sections layout (Feedback Details + Timestamps sidebar). Staff reply was intentionally removed — staff communicates with patients via Conversations instead.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
 - User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). 3-col sidebar layout: main (Account Details: name, email, phone, password) + sidebar (Role & Access selector + Timeline). Table: name, email, phone, color-coded role badge (admin=red, staff=blue), relative joined date. Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
-- SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`.
+- SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`. **Bulk action:** Retry Selected (admin only, resets failed to queued).
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
 - Categories, Brands (CRUD), Lens Types (with price + description), Visit Reasons, Services (fee schedule with price, description, visibility toggle)
@@ -269,7 +269,7 @@ POST   /appointments            Book appointment (customer, status locked to pen
 GET    /appointments/{id}
 GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
 
-GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Non-frame types return 404.
+GET    /products                Active FRAME products only, paginated (default 15, `?per_page=N`). Supports: `?search=`, `?brand={id}`, `?category={id}`, `?min_price=`, `?max_price=`, `?in_stock=true`, `?sort=name|newest|price_asc|price_desc`. All params optional — without params behavior unchanged.
 GET    /products/{id}           Product detail with variants + AR metadata (404 for non-frame products)
 
 GET    /prescriptions           Customer's own prescription history
@@ -280,6 +280,7 @@ GET    /orders                  Customer's own orders, paginated (default 15, `?
 GET    /orders/{id}
 
 GET    /billing/{id}            Customer billing with line items + payment history (auth: billing.customer_id must match user)
+GET    /billing/{id}/pdf        Download billing receipt as PDF (same auth as show)
 
 GET    /conversations           Customer's single persistent conversation (includes unread_count)
 GET    /conversations/{id}/messages
@@ -518,6 +519,7 @@ PATCH  /staff/orders/{id}/status
 | `docs/specs/unified-billing-flow-spec.md` | Complete — 7 tasks |
 | `docs/specs/priority-gaps-spec.md` | In progress — P1–P3 gaps (Phases 1–5 of 6 complete) |
 | `docs/specs/defense-hardening-spec.md` | Complete — 7 features (performance indexes, variable duration, expiry alerts, daily summary, void audit, reorder report, docs) |
+| `docs/specs/search-bulk-export-spec.md` | Complete — product search/filter API, bulk actions, PDF receipts, CSV export |
 
 ---
 
