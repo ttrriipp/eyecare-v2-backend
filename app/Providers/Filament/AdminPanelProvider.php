@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\AvatarProviders\BrandAvatarProvider;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\RecentFeedbackWidget;
@@ -37,6 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogoHeight('2rem')
             ->favicon(asset('images/favicon.svg'))
             ->defaultThemeMode(ThemeMode::Light)
+            ->defaultAvatarProvider(BrandAvatarProvider::class)
             ->databaseNotifications()
             ->globalSearchResourceOptIn()
             ->colors([

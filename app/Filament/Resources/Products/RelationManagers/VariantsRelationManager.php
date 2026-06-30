@@ -78,7 +78,7 @@ class VariantsRelationManager extends RelationManager
                 ->disk('public')
                 ->directory('ar-assets')
                 ->visibility('public')
-                ->acceptedFileTypes(['image/png', 'model/gltf-binary', 'model/gltf+json', 'application/octet-stream'])
+                ->acceptedFileTypes(['image/png', 'application/octet-stream', 'model/gltf-binary', 'model/gltf+json', '.glb', '.gltf', '.obj'])
                 ->maxSize(10240)
                 ->helperText('PNG overlay or 3D model (.glb, .gltf, .obj)')
                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
