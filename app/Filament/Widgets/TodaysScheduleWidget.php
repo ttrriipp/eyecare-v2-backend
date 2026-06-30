@@ -3,17 +3,31 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Appointment;
+use App\Models\Order;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 
 class TodaysScheduleWidget extends TableWidget
 {
-    protected static ?string $heading = "Today's Schedule";
-
     protected static ?int $sort = 2;
 
     protected int|string|array $columnSpan = 'full';
+
+    public function getHeading(): string
+    {
+        $pickupCount = Order::query()
+            ->whereHas('status', fn ($q) => $q->where('name', 'ready_for_pickup'))
+            ->count();
+
+        $heading = "Today's Schedule";
+
+        if ($pickupCount > 0) {
+            $heading .= " · {$pickupCount} order".($pickupCount > 1 ? 's' : '').' ready for pickup';
+        }
+
+        return $heading;
+    }
 
     public function table(Table $table): Table
     {
