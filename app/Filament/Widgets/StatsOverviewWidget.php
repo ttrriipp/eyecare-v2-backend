@@ -31,6 +31,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
         return [
             $this->todaysAppointmentsStat($data),
             $this->walkInQueueStat($data),
+            $this->readyForPickupStat($data),
             $this->revenueStat($data),
             $this->pendingOrdersStat($data),
             $this->unpaidBillingsStat($data),
@@ -74,6 +75,9 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
                 ->where('is_active', true)
                 ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
                 ->count(),
+            'ready_for_pickup' => Order::query()
+                ->whereHas('status', fn ($q) => $q->where('name', 'ready_for_pickup'))
+                ->count(),
         ];
     }
 
@@ -108,6 +112,19 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             ->descriptionColor($waiting > 0 ? 'warning' : 'success')
             ->color($waiting > 0 ? 'warning' : 'success')
             ->url('/admin/appointments?tableFilters[status][value]=pending');
+    }
+
+    /** @param array<string, mixed> $data */
+    private function readyForPickupStat(array $data): Stat
+    {
+        $count = $data['ready_for_pickup'];
+
+        return Stat::make('Ready for pickup', number_format($count))
+            ->description($count > 0 ? 'Orders awaiting patient collection' : 'No orders waiting')
+            ->descriptionIcon($count > 0 ? Heroicon::ShoppingBag : Heroicon::CheckCircle)
+            ->descriptionColor($count > 0 ? 'info' : 'success')
+            ->color($count > 0 ? 'info' : 'success')
+            ->url('/admin/orders?activeTab=ready_for_pickup');
     }
 
     /** @param array<string, mixed> $data */

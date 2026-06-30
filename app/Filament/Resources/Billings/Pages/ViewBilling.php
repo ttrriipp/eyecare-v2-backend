@@ -14,6 +14,7 @@ use App\Models\PaymentStatus;
 use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -28,22 +29,6 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('download_receipt')
-                ->label('Download Receipt')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('gray')
-                ->tooltip('Download as A4 PDF')
-                ->url(fn () => route('pdf.billing', $this->getRecord()))
-                ->openUrlInNewTab(),
-
-            Action::make('print_thermal')
-                ->label('Print Receipt')
-                ->icon('heroicon-o-printer')
-                ->color('info')
-                ->tooltip('Print on 80mm thermal receipt printer')
-                ->url(fn () => route('thermal.billing', $this->getRecord()))
-                ->openUrlInNewTab(),
-
             Action::make('record_payment_shortcut')
                 ->label('Record Payment')
                 ->icon('heroicon-o-banknotes')
@@ -240,6 +225,23 @@ class ViewBilling extends ViewRecord
                     app(CreateAuditLog::class)->handle($billing, 'voided', $auditMetadata);
                 })
                 ->successNotificationTitle('Billing voided'),
+
+            ActionGroup::make([
+                Action::make('download_receipt')
+                    ->label('Download Receipt (A4 PDF)')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->url(fn () => route('pdf.billing', $this->getRecord()))
+                    ->openUrlInNewTab(),
+                Action::make('print_thermal')
+                    ->label('Print Receipt (Thermal)')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn () => route('thermal.billing', $this->getRecord()))
+                    ->openUrlInNewTab(),
+            ])
+                ->label('Print / Download')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->button(),
         ];
     }
 }
