@@ -6,7 +6,7 @@ use App\Actions\Orders\UpdateOrderStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreOrderRequest;
 use App\Http\Resources\OrderResource;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\ProductVariant;
@@ -45,24 +45,25 @@ class OrderController extends Controller
                 $variant = ProductVariant::query()
                     ->with('product')
                     ->findOrFail($item['product_variant_id']);
-                $lensType = isset($item['lens_type_id'])
-                    ? LensType::query()->findOrFail($item['lens_type_id'])
+                $lensCategoryId = $item['lens_category_id'] ?? $item['lens_type_id'] ?? null;
+                $lensCategory = $lensCategoryId !== null
+                    ? LensCategory::query()->findOrFail($lensCategoryId)
                     : null;
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (string) $variant->price;
-                $lensTypePrice = $lensType?->price !== null ? (string) $lensType->price : '0.00';
-                $lineSubtotal = bcmul(bcadd($unitPrice, $lensTypePrice, 2), (string) $quantity, 2);
+                $lensCategoryPrice = $lensCategory?->price !== null ? (string) $lensCategory->price : '0.00';
+                $lineSubtotal = bcmul(bcadd($unitPrice, $lensCategoryPrice, 2), (string) $quantity, 2);
                 $subtotal = bcadd($subtotal, $lineSubtotal, 2);
 
                 $lineItems[] = [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType?->id,
+                    'lens_category_id' => $lensCategory?->id,
                     'product_id' => $variant->product_id,
                     'product_name' => $variant->product->name,
                     'variant_name' => $variant->name,
                     'variant_sku' => $variant->sku,
-                    'lens_type_name' => $lensType?->name,
-                    'lens_type_price' => $lensType?->price !== null ? (string) $lensType->price : null,
+                    'lens_category_name' => $lensCategory?->name,
+                    'lens_type_price' => $lensCategory?->price !== null ? (string) $lensCategory->price : null,
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'subtotal' => $lineSubtotal,
@@ -77,7 +78,6 @@ class OrderController extends Controller
                 'order_status_id' => $requestedStatus->id,
                 'subtotal' => $subtotal,
                 'total_amount' => $subtotal,
-                'discount_amount' => 0,
             ]);
 
             $order->items()->createMany($lineItems);

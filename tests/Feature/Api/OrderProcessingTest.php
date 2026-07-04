@@ -1,7 +1,7 @@
 <?php
 
 use App\Actions\Orders\UpdateOrderStatus;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
@@ -21,6 +21,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+    $this->seed(BillingStatusSeeder::class);
 });
 
 test('staff can advance orders through the full workflow chain', function () {
@@ -123,26 +124,26 @@ test('completing an order sets completed_at', function () {
     expect($order->fresh()->completed_at)->not->toBeNull();
 });
 
-test('prescription orders cannot be confirmed without a customer prescription', function () {
+test('prescription orders cannot be processed without a customer prescription', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'processing'])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['status']);
 });
 
-test('prescription orders can be confirmed when the customer has a prescription', function () {
+test('prescription orders can be processed when the customer has a prescription', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => false,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
     ]);
 
     Prescription::factory()->create([
@@ -150,23 +151,23 @@ test('prescription orders can be confirmed when the customer has a prescription'
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'processing'])
         ->assertSuccessful()
-        ->assertJsonPath('data.status', 'confirmed');
+        ->assertJsonPath('data.status', 'processing');
 });
 
-test('non prescription orders can be confirmed without prescription data', function () {
+test('non prescription orders can be processed without prescription data', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
     ]);
 
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'confirmed'])
+        ->patchJson("/api/staff/orders/{$order->id}/status", ['status' => 'processing'])
         ->assertSuccessful()
-        ->assertJsonPath('data.status', 'confirmed');
+        ->assertJsonPath('data.status', 'processing');
 
     expect(Prescription::query()->where('customer_id', $order->customer_id)->exists())->toBeFalse();
 });
@@ -198,14 +199,14 @@ test('admin users can update order status through the staff endpoint', function 
         ->assertJsonPath('data.status', 'confirmed');
 });
 
-test('order confirmation throws ValidationException when frame variant has insufficient stock', function () {
+test('order processing throws ValidationException when frame variant has insufficient stock', function () {
     $this->seed(InventoryMovementTypeSeeder::class);
 
     $variant = ProductVariant::factory()->create(['stock_quantity' => 0]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
     OrderItem::factory()->create([
@@ -214,70 +215,68 @@ test('order confirmation throws ValidationException when frame variant has insuf
         'quantity' => 1,
     ]);
 
-    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'confirmed'))
+    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'processing'))
         ->toThrow(ValidationException::class);
 
     // Order status must remain unchanged
-    expect($order->fresh()->status->name)->toBe('requested');
+    expect($order->fresh()->status->name)->toBe('confirmed');
 });
 
-test('confirming an order with unassigned lens items throws a ValidationException', function () {
-    $this->seed(BillingStatusSeeder::class);
+test('processing an order with unassigned lens items throws a ValidationException', function () {
     $this->seed(PaymentStatusSeeder::class);
     $this->seed(InventoryMovementTypeSeeder::class);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
-    $lensType = LensType::factory()->create();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $lensCategory = LensCategory::factory()->create();
     $customer = User::factory()->customer()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
-    // Item with lens_type_id but no lens_product_variant_id assigned
+    // Item with lens_category_id but no lens_product_variant_id assigned
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
         'lens_product_variant_id' => null,
         'quantity' => 1,
     ]);
 
-    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'confirmed'))
+    expect(fn () => app(UpdateOrderStatus::class)->handle($order, 'processing'))
         ->toThrow(ValidationException::class);
 
-    expect($order->fresh()->status->name)->toBe('requested');
+    expect($order->fresh()->status->name)->toBe('confirmed');
 });
 
-test('confirming an order with all lens items assigned succeeds', function () {
-    $this->seed(BillingStatusSeeder::class);
+test('processing an order with all lens items assigned succeeds', function () {
     $this->seed(PaymentStatusSeeder::class);
     $this->seed(InventoryMovementTypeSeeder::class);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
-    $lensType = LensType::factory()->create();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $lensCategory = LensCategory::factory()->create();
     $customer = User::factory()->customer()->create();
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $frameVariant->id,
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
         'lens_product_variant_id' => $lensVariant->id,
         'quantity' => 1,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
-    expect($order->fresh()->status->name)->toBe('confirmed');
+    expect($order->fresh()->status->name)->toBe('processing');
 });

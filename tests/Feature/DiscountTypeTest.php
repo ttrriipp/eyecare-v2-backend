@@ -1,9 +1,7 @@
 <?php
 
 use App\Models\DiscountType;
-use App\Models\Order;
 use Database\Seeders\DiscountTypeSeeder;
-use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -36,23 +34,4 @@ test('discount type factory creates a valid record', function () {
     expect($discountType->type)->toBe('percentage')
         ->and($discountType->value)->toBe('20.00')
         ->and($discountType->is_active)->toBeTrue();
-});
-
-test('order has nullable discountType relationship', function () {
-    $this->seed(OrderStatusSeeder::class);
-
-    $order = Order::factory()->create(['discount_type_id' => null]);
-
-    expect($order->discountType)->toBeNull();
-});
-
-test('order discountType relationship returns the linked discount type', function () {
-    $this->seed(OrderStatusSeeder::class);
-    $this->seed(DiscountTypeSeeder::class);
-
-    $discountType = DiscountType::query()->where('name', 'Senior Citizen')->first();
-    $order = Order::factory()->create(['discount_type_id' => $discountType->id]);
-
-    expect($order->discountType->name)->toBe('Senior Citizen')
-        ->and($order->discountType->type)->toBe('percentage');
 });

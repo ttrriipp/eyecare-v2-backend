@@ -2,7 +2,7 @@
 
 use App\Models\Appointment;
 use App\Models\Conversation;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -58,7 +58,7 @@ test('all staff and admin are notified when a customer submits an order', functi
         ->has(ProductVariant::factory()->count(1), 'variants')
         ->create();
     $variant = $product->variants->first();
-    $lensType = LensType::factory()->create();
+    $lensType = LensCategory::factory()->create();
 
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/orders', [

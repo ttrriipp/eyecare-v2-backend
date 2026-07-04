@@ -44,7 +44,7 @@ it('creates product billing_items from order_items', function () {
         ->and($result->total_amount)->toBe('200.00');
 });
 
-it('copies discount from order to billing', function () {
+it('preserves an existing billing-level discount when order items are added', function () {
     $this->seed(DiscountTypeSeeder::class);
 
     $customer = User::factory()->customer()->create();
@@ -55,14 +55,17 @@ it('copies discount from order to billing', function () {
         'customer_id' => $customer->id,
         'order_status_id' => $confirmedStatus->id,
         'subtotal' => '200.00',
-        'discount_type_id' => $discount->id,
-        'discount_amount' => '40.00',
-        'total_amount' => '160.00',
+        'total_amount' => '200.00',
     ]);
 
     OrderItem::factory()->create(['order_id' => $order->id, 'unit_price' => '200.00', 'quantity' => 1, 'subtotal' => '200.00']);
 
-    $billing = Billing::factory()->issued()->create(['customer_id' => $customer->id]);
+    // Discount is applied directly on the billing (not derived from the order)
+    $billing = Billing::factory()->issued()->create([
+        'customer_id' => $customer->id,
+        'discount_type_id' => $discount->id,
+        'discount_amount' => '40.00',
+    ]);
 
     $result = app(AddOrderItemsToBilling::class)->handle($billing, $order);
 

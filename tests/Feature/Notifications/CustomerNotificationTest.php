@@ -102,10 +102,10 @@ test('order notification payload contains correct data', function () {
 // ─── Billing notifications ────────────────────────────────────────────────────
 
 test('customer is notified when billing is issued', function () {
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $confirmedStatus->id,
+        'order_status_id' => $processingStatus->id,
         'confirmed_at' => now(),
     ]);
 
@@ -115,10 +115,10 @@ test('customer is notified when billing is issued', function () {
 });
 
 test('billing notification payload contains correct data', function () {
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $order = Order::factory()->create([
         'is_non_prescription' => true,
-        'order_status_id' => $confirmedStatus->id,
+        'order_status_id' => $processingStatus->id,
         'total_amount' => '150.00',
         'confirmed_at' => now(),
     ]);

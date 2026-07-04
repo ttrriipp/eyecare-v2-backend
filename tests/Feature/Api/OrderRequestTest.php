@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Appointment;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatus;
@@ -32,7 +32,7 @@ test('customers can submit order requests with item snapshots and lens type sele
         'price' => 189.99,
         'is_active' => true,
     ]);
-    $lensType = LensType::factory()->create([
+    $lensType = LensCategory::factory()->create([
         'name' => 'Single Vision',
         'price' => null,
     ]);
@@ -70,10 +70,10 @@ test('customers can submit order requests with item snapshots and lens type sele
 
     $this->assertDatabaseHas(OrderItem::class, [
         'product_variant_id' => $variant->id,
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensType->id,
         'product_name' => 'Aviator Frame',
         'variant_name' => 'Silver',
-        'lens_type_name' => 'Single Vision',
+        'lens_category_name' => 'Single Vision',
         'unit_price' => '189.99',
         'quantity' => 1,
         'subtotal' => '189.99',
@@ -91,7 +91,7 @@ test('order items keep catalog snapshots after product data changes', function (
         'price' => 120.00,
         'is_active' => true,
     ]);
-    $lensType = LensType::factory()->create([
+    $lensType = LensCategory::factory()->create([
         'name' => 'progressive',
         'price' => null,
     ]);
@@ -178,7 +178,7 @@ test('order requests reject invalid variants lens types and appointment ownershi
             'items' => [
                 [
                     'product_variant_id' => $inactiveVariant->id,
-                    'lens_type_id' => LensType::factory()->create()->id,
+                    'lens_type_id' => LensCategory::factory()->create()->id,
                     'quantity' => 1,
                 ],
             ],
@@ -192,7 +192,7 @@ test('order requests reject invalid variants lens types and appointment ownershi
             'items' => [
                 [
                     'product_variant_id' => $disabledVariant->id,
-                    'lens_type_id' => LensType::factory()->create()->id,
+                    'lens_type_id' => LensCategory::factory()->create()->id,
                     'quantity' => 1,
                 ],
             ],
@@ -239,7 +239,7 @@ test('order item response includes product and variant image urls', function () 
         'is_active' => true,
         'images' => ['variants/color.jpg'],
     ]);
-    $lensType = LensType::factory()->create(['price' => null]);
+    $lensType = LensCategory::factory()->create(['price' => null]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
