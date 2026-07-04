@@ -103,7 +103,7 @@ class ClinicWorkflowSeeder extends Seeder
     {
         $variant = ProductVariant::query()->where('sku', 'CRF-BLK-001')->firstOrFail();
         $lensCategory = LensCategory::query()->where('name', 'Single Vision')->firstOrFail();
-        $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+        $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
         $seniorDiscount = DiscountType::query()->where('name', 'Senior Citizen')->firstOrFail();
 
         $unitPrice = (string) $variant->price;
@@ -116,11 +116,9 @@ class ClinicWorkflowSeeder extends Seeder
             [
                 'order_number' => 'ORD-DEMO-0001',
                 'prescription_id' => $prescription->id,
-                'order_status_id' => $confirmedStatus->id,
+                'order_status_id' => $processingStatus->id,
                 'subtotal' => $subtotal,
-                'discount_type_id' => $seniorDiscount->id,
-                'discount_amount' => $discountAmount,
-                'total_amount' => $totalAmount,
+                'total_amount' => $subtotal,
                 'confirmed_at' => now()->subDays(5),
             ],
         );
@@ -197,7 +195,6 @@ class ClinicWorkflowSeeder extends Seeder
                 'order_status_id' => $completedStatus->id,
                 'subtotal' => $subtotal,
                 'total_amount' => $subtotal,
-                'discount_amount' => 0,
                 'confirmed_at' => now()->subDays(14),
                 'completed_at' => now()->subDays(7),
             ],
