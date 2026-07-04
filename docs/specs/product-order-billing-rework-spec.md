@@ -38,23 +38,25 @@ Fresh:   vendor/bin/sail artisan migrate:fresh --seed
 ```
 app/Models/
   Product.php                    → product_type values change
-  LensType.php                   → rename to LensCategory
-  Order.php                      → remove discount fields
-  OrderItem.php                  → lens_type_id rename to lens_category_id
-  Billing.php                    → remove or_number, add notes
-database/migrations/             → new migrations for schema changes
+  LensType.php                   → renamed to LensCategory
+  Order.php                      → discount fields removed; billing_id FK + preLinkedBilling()/resolvedBilling() added
+  OrderItem.php                  → lens_type_id renamed to lens_category_id
+  Billing.php                    → or_number removed, notes added
+database/migrations/             → new migrations for schema changes (includes orders.billing_id, not in original plan — see Decisions)
 app/Actions/Orders/
-  UpdateOrderStatus.php          → inventory commits at processing, not confirmed
-  ApplyDiscount.php              → moves to billing-only context
+  UpdateOrderStatus.php          → inventory commits at processing, not confirmed; cancel-void respects shared billings
+  ApplyDiscount.php              → deleted (discount is billing-only)
 app/Actions/Billing/
   GenerateBillingForOrder.php    → triggered at processing, handles pre-linked billing
+  AddOrderItemsToBilling.php     → no longer overwrites billing.order_id once set (multi-order encounter fix)
+  CreateServiceBilling.php       → deleted (Task 17, after its callers were removed)
 app/Filament/Resources/
-  Orders/                        → single New Order button, lens UI on edit only
+  Orders/                        → single New Order button, lens UI on edit only, billing_id pre-link support on create
   Billings/                      → Create page, "Create Order" action, remove OR#
-  Appointments/                  → remove "Bill Service" action
+  Appointments/                  → remove "Bill Service" action, add BillingsRelationManager
   Patients/                      → remove "Bill Service" action
   LensCategories/                → renamed from LensTypes
-app/Http/Controllers/Api/        → update product API (frame + general)
+app/Http/Controllers/Api/        → update product API (frame + general), order API excludes lens products from line items
 ```
 
 ## Code Style
@@ -118,6 +120,7 @@ Follow existing patterns. Key conventions for this spec:
 - **Auto-generates at `processing`** — when order advances to `processing`, billing is created (or items are added to a pre-linked billing)
 - **Pre-linked billing:** If an order has `billing_id` set (via "Create Order" action on a billing), items attach to that billing instead of creating a new one
 - **Encounter grouping preserved:** If a billing already exists for the same `appointment_id`, order items merge into it
+- **Multi-order billings:** A billing can accumulate items from more than one order (either via appointment-based encounter grouping or explicit pre-linking). `billings.order_id` records only the *first* order that generated the billing — it is never overwritten by subsequent orders attaching items to the same billing. `Order::resolvedBilling()` is the correct accessor for "the billing this order's items are on" since it checks the pre-linked FK (`billing_id`) before falling back to the `order_id`-based relationship. Cancelling one order on a shared billing does not void the billing if other active orders still reference it.
 - **Discount lives on billing only** — removed from orders table
 - **OR number removed** — `billing_number` is the sole identifier
 - **Notes field added** — nullable text for staff annotations
@@ -159,32 +162,50 @@ Follow existing patterns. Key conventions for this spec:
 
 ## Success Criteria
 
-- [ ] Product form shows 3 types: Frame, Lens, General
-- [ ] Existing `contact_lens` and `accessory` products migrated to `general`
-- [ ] "Lens Type" renamed to "Lens Category" in all UI, models, and tables
-- [ ] Admin-created orders start at `confirmed` (single "New Order" button)
-- [ ] Customer-submitted orders start at `requested` (unchanged)
-- [ ] Orders are fully editable in `confirmed` status (items, quantities, lens category, lens assignment)
-- [ ] Orders lock at `processing` — no edits allowed
-- [ ] Inventory commits when order advances to `processing`
-- [ ] Billing auto-generates at `processing` (or attaches to pre-linked billing)
-- [ ] Discount fields removed from orders table; discount lives on billing only
-- [ ] OR number removed from billing (column, logic, UI, PDFs)
-- [ ] Billing has a `notes` field, editable while not voided
-- [ ] "Bill Service" actions removed from Appointment and Patient pages
-- [ ] "Create Order" action exists on ViewBilling page
-- [ ] Product selector on order form excludes `lens` type products
-- [ ] Lens category field on order items only shown for `frame` type products
-- [ ] Mobile API returns frame + general products
-- [ ] Walk-in appointments bypass slot conflict check
-- [ ] All existing tests updated and passing
-- [ ] Full test suite green
+- [x] Product form shows 3 types: Frame, Lens, General
+- [x] Existing `contact_lens` and `accessory` products migrated to `general`
+- [x] "Lens Type" renamed to "Lens Category" in all UI, models, and tables
+- [x] Admin-created orders start at `confirmed` (single "New Order" button)
+- [x] Customer-submitted orders start at `requested` (unchanged)
+- [x] Orders are fully editable in `confirmed` status (items, quantities, lens category, lens assignment)
+- [x] Orders lock at `processing` — no edits allowed
+- [x] Inventory commits when order advances to `processing`
+- [x] Billing auto-generates at `processing` (or attaches to pre-linked billing)
+- [x] Discount fields removed from orders table; discount lives on billing only
+- [x] OR number removed from billing (column, logic, UI, PDFs)
+- [x] Billing has a `notes` field, editable while not voided
+- [x] "Bill Service" actions removed from Appointment and Patient pages
+- [x] "Create Order" action exists on ViewBilling page
+- [x] Product selector on order form excludes `lens` type products
+- [x] Lens category field on order items only shown for `frame` type products
+- [x] Mobile API returns frame + general products
+- [x] Walk-in appointments bypass slot conflict check (unchanged from before this spec — verified still true, not modified)
+- [ ] All existing tests updated and passing — 18 pre-existing failures remain, confined to 4 files (`CatalogSchemaTest`, `DemoAccountsSeedTest`, `InventoryMovementTest`, `LensTypePricingTest`), scoped to Task 19
+- [ ] Full test suite green — 534/552 passing as of the Phase 4 code review; Task 19 closes the gap
 
 ---
 
 ## Open Questions
 
-None — all decisions made during ideation.
+- **OR number vs. BIR compliance:** Earlier specs (`docs/specs/defense-hardening-spec.md` and related) documented `or_number` as "required for BIR-compliant Official Receipt issuance in the Philippines." This spec removes it per explicit instruction. `billing_number` is now the sole identifier on receipts. **This is a business/legal question, not a code question** — confirm with clinic stakeholders whether `billing_number` alone satisfies real-world BIR Official Receipt requirements before this ships to production, or whether a compliant OR numbering scheme needs to be reintroduced under a different name.
+
+---
+
+## Deviations From Original Plan & Review Findings
+
+Recorded during implementation and a subsequent five-axis code review (see `code-review-and-quality` skill). This section exists because the spec is a living document — these are the points where the actual build diverged from what was originally planned above, and why.
+
+1. **`orders.billing_id` FK was not in the original file list** but was required to implement "pre-linked billing" (Billing Flow decisions, above). Added as part of Task 9. `Order::preLinkedBilling()` (belongsTo) and `Order::resolvedBilling()` (billing_id first, falls back to the order_id-based hasOne) were added to support this correctly.
+
+2. **`CreateServiceBilling` deletion deferred from Task 9 to Task 17.** The spec's Task 9 says to delete it, but it was still used by the "Bill Service" actions on Appointment/Patient pages, which aren't removed until Task 17. Deleting it in Task 9 would have broken working functionality prematurely. Deleted in Task 17 once its only callers were removed — correct dependency order even though it differs from the literal Task 9 wording.
+
+3. **Code review (post-Phase 4) found and fixed a Critical bug in the pre-linked billing feature:** `AddOrderItemsToBilling` unconditionally overwrote `billings.order_id` on every call. When a billing is shared by more than one pre-linked order (the exact scenario Task 9/15 built), the second order's items being added would silently overwrite the first order's link to that billing — breaking `Order::billing()`, the "View Billing" button, and the cancellation billing-void logic for the first order. Fixed by: no longer overwriting `order_id` once set; adding `Order::resolvedBilling()`; making the cancellation-void logic check whether the billing is exclusively this order's before voiding it. Regression tests added in `AddOrderItemsToBillingTest.php` and `UpdateOrderStatusTest.php`.
+
+4. **Code review also found a gap in Task 12 (order API):** `StoreOrderRequest` validated `product_variant_id` against active products only, without excluding `product_type = 'lens'`. Every Filament admin surface (Tasks 10/11) excludes lens products from order item selection since lenses are staff-assigned to frame items, never ordered directly — the mobile API allowed customers to bypass this. Fixed by adding `whereIn('product_type', ['frame', 'general'])` to the validation rule, with a regression test in `OrderRequestTest.php`.
+
+5. **`CreateOrder`'s customer-mismatch guard (pre-linked billing validation) is not wrapped in a try/catch** the way `EditOrder`'s equivalent status-transition call is. Verified directly (not just asserted) that the thrown `ValidationException` is well-formed and does prevent order creation — confirmed via reflection test that no order is persisted on mismatch. The open question is purely whether Filament/Livewire renders this as an inline form error or a less graceful error state during the live HTTP request cycle; this is a UX polish item, not a data-integrity bug. Left as-is; revisit if staff report a confusing error screen in practice.
+
+6. **Migration data-loss pattern flagged, not fixed:** `remove_discount_from_orders` and `consolidate_product_types` migrations have `down()` paths that don't restore data (order discount amounts, contact_lens/accessory distinction). Not exploitable currently — dev database, no production data. **Before this ships to a real production database with real order/discount history, add a data-preservation step** (e.g., snapshot to an audit table) to both migrations, or accept the data loss explicitly with stakeholder sign-off.
 
 ---
 
@@ -226,14 +247,14 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ### Phase 1: Schema + Model Foundation (Lens Category Rename)
 
-#### Task 1: Migration — rename lens_types table and FK columns
+#### Task 1: Migration — rename lens_types table and FK columns (✅ DONE — 65f9d94)
 **Description:** Create migration to rename `lens_types` → `lens_categories`, `products.lens_type_id` → `products.lens_category_id`, `order_items.lens_type_id` → `order_items.lens_category_id`.
 
 **Acceptance criteria:**
-- [ ] `lens_types` table renamed to `lens_categories`
-- [ ] `products.lens_type_id` renamed to `products.lens_category_id`
-- [ ] `order_items.lens_type_id` renamed to `order_items.lens_category_id`
-- [ ] Migration is reversible
+- [x] `lens_types` table renamed to `lens_categories`
+- [x] `products.lens_type_id` renamed to `products.lens_category_id`
+- [x] `order_items.lens_type_id` renamed to `order_items.lens_category_id`
+- [x] Migration is reversible
 
 **Verification:** `vendor/bin/sail artisan migrate && vendor/bin/sail artisan migrate:rollback && vendor/bin/sail artisan migrate`
 
@@ -246,15 +267,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 2: Rename LensType model → LensCategory + update relationships
+#### Task 2: Rename LensType model → LensCategory + update relationships (✅ DONE — 6cec40c)
 **Description:** Rename model file, class, factory, seeder. Update `Product::lensCategory()` and `OrderItem::lensCategory()` relationships. Update all imports across the codebase.
 
 **Acceptance criteria:**
-- [ ] `LensCategory` model exists referencing `lens_categories` table
-- [ ] `Product::lensCategory()` works (was `lensType()`)
-- [ ] `OrderItem::lensCategory()` works (was `lensType()`)
-- [ ] No remaining `LensType` references in app/ or database/ directories
-- [ ] Factory creates records successfully
+- [x] `LensCategory` model exists referencing `lens_categories` table
+- [x] `Product::lensCategory()` works (was `lensType()`)
+- [x] `OrderItem::lensCategory()` works (was `lensType()`)
+- [x] No remaining `LensType` references in app/ or database/ directories
+- [x] Factory creates records successfully
 
 **Verification:** `vendor/bin/sail artisan tinker --execute 'App\Models\LensCategory::count();'`
 
@@ -271,14 +292,14 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 3: Rename LensType Filament resource → LensCategory
+#### Task 3: Rename LensType Filament resource → LensCategory (✅ DONE — cbd8ccd)
 **Description:** Rename the Filament resource class, pages, and relation managers. Update navigation label to "Lens Categories" under Settings.
 
 **Acceptance criteria:**
-- [ ] `LensCategoryResource` exists with correct model reference
-- [ ] Navigation shows "Lens Categories" under Settings group
-- [ ] Relation manager on edit page shows lens products correctly
-- [ ] Tests for the resource pass
+- [x] `LensCategoryResource` exists with correct model reference
+- [x] Navigation shows "Lens Categories" under Settings group
+- [x] Relation manager on edit page shows lens products correctly
+- [x] Tests for the resource pass
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=LensCategory`
 
@@ -292,23 +313,23 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-### ✅ Checkpoint 1 — Lens Category Rename Complete
-- [ ] `migrate:fresh --seed` runs cleanly
-- [ ] LensCategory resource accessible in panel
-- [ ] No references to `LensType` remain
+### ✅ Checkpoint 1 — Lens Category Rename Complete (DONE — commits 65f9d94, 6cec40c, cbd8ccd)
+- [x] `migrate:fresh --seed` runs cleanly
+- [x] LensCategory resource accessible in panel
+- [x] No references to `LensType` remain (except deferred old-migration files, which are never edited)
 
 ---
 
 ### Phase 2: Product Type Simplification
 
-#### Task 4: Migration — consolidate product types + update seeder
+#### Task 4: Migration — consolidate product types + update seeder (✅ DONE — 82978c6)
 **Description:** Migrate `contact_lens` and `accessory` product type values to `general`. Update seeders to use new type values.
 
 **Acceptance criteria:**
-- [ ] All `contact_lens` products now have type `general`
-- [ ] All `accessory` products now have type `general`
-- [ ] Seeders create products with types: `frame`, `lens`, `general`
-- [ ] Migration documents why type conversion is not reversible (data loss)
+- [x] All `contact_lens` products now have type `general`
+- [x] All `accessory` products now have type `general`
+- [x] Seeders create products with types: `frame`, `lens`, `general`
+- [x] Migration documents why type conversion is not reversible (data loss)
 
 **Verification:** `vendor/bin/sail artisan migrate && vendor/bin/sail artisan db:seed`
 
@@ -322,16 +343,16 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 5: Update Product Filament resource for 3 types
+#### Task 5: Update Product Filament resource for 3 types (✅ DONE — ea7e74d, 26f8fd6)
 **Description:** Update type selector options to Frame/Lens/General. Update conditional form logic. Update table badges and filters.
 
 **Acceptance criteria:**
-- [ ] Product type options: Frame, Lens, General
-- [ ] Frame → shows AR fields on variants
-- [ ] Lens → shows Lens Category selector (required)
-- [ ] General → no special fields
-- [ ] Table badges: Frame (blue), Lens (green), General (gray)
-- [ ] Type filter has 3 values
+- [x] Product type options: Frame, Lens, General
+- [x] Frame → shows AR fields on variants
+- [x] Lens → shows Lens Category selector (required)
+- [x] General → no special fields
+- [x] Table badges: Frame (blue), Lens (green), General (gray)
+- [x] Type filter has 3 values
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=ProductResource`
 
@@ -345,15 +366,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 6: Update product API to return frame + general
+#### Task 6: Update product API to return frame + general (✅ DONE — bb277f7)
 **Description:** Update `GET /products` to return both `frame` and `general` products. Update `GET /products/{id}` to allow both (404 only for `lens`).
 
 **Acceptance criteria:**
-- [ ] `GET /products` returns frame + general products
-- [ ] `GET /products/{id}` returns 200 for frame and general, 404 for lens
-- [ ] Response shape unchanged
-- [ ] Filters still work
-- [ ] API tests pass
+- [x] `GET /products` returns frame + general products
+- [x] `GET /products/{id}` returns 200 for frame and general, 404 for lens
+- [x] Response shape unchanged
+- [x] Filters still work
+- [x] API tests pass
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=ProductApi`
 
@@ -367,25 +388,25 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-### ✅ Checkpoint 2 — Product Types Simplified
-- [ ] Only 3 product types in system
-- [ ] Admin panel shows correct type options
-- [ ] Mobile API returns frame + general
-- [ ] Tests pass
+### ✅ Checkpoint 2 — Product Types Simplified (DONE — commits 82978c6, ea7e74d, bb277f7, 26f8fd6)
+- [x] Only 3 product types in system
+- [x] Admin panel shows correct type options
+- [x] Mobile API returns frame + general
+- [x] Tests pass
 
 ---
 
 ### Phase 3: Order Flow Rework
 
-#### Task 7: Migration — remove discount columns from orders
+#### Task 7: Migration — remove discount columns from orders (✅ DONE — 4358c03)
 **Description:** Drop `discount_type_id` and `discount_amount` from `orders` table. Update Order model (remove from fillable, remove `discountType()` relationship).
 
 **Acceptance criteria:**
-- [ ] `orders.discount_type_id` column removed
-- [ ] `orders.discount_amount` column removed
-- [ ] Order model fillable updated
-- [ ] `Order::discountType()` relationship removed
-- [ ] Migration is reversible
+- [x] `orders.discount_type_id` column removed
+- [x] `orders.discount_amount` column removed
+- [x] Order model fillable updated
+- [x] `Order::discountType()` relationship removed
+- [x] Migration is reversible
 
 **Verification:** `vendor/bin/sail artisan migrate`
 
@@ -399,16 +420,16 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 8: Rework UpdateOrderStatus — move gates + inventory to `processing`
+#### Task 8: Rework UpdateOrderStatus — move gates + inventory to `processing` (✅ DONE — 0bd1e5c)
 **Description:** Move prescription gate, lens gate, and inventory deduction from `confirmed` to `processing`. Make `requested → confirmed` a simple status change. Remove discount logic from this action.
 
 **Acceptance criteria:**
-- [ ] `requested → confirmed` is a simple status update (no gates, no inventory)
-- [ ] `confirmed → processing` triggers: prescription gate, lens gate, inventory deduction
-- [ ] Cancelling from `processing`+ restores inventory
-- [ ] Cancelling from `confirmed` does NOT restore inventory
-- [ ] Discount code removed from action
-- [ ] SMS + audit logs still fire correctly
+- [x] `requested → confirmed` is a simple status update (no gates, no inventory)
+- [x] `confirmed → processing` triggers: prescription gate, lens gate, inventory deduction
+- [x] Cancelling from `processing`+ restores inventory
+- [x] Cancelling from `confirmed` does NOT restore inventory
+- [x] Discount code removed from action
+- [x] SMS + audit logs still fire correctly
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=UpdateOrderStatus`
 
@@ -423,16 +444,16 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 9: Move billing generation to `processing` + pre-linked billing support
+#### Task 9: Move billing generation to `processing` + pre-linked billing support (✅ DONE — 6c35a81; fixed post-review in 8d0dccd)
 **Description:** Update `GenerateBillingForOrder` to be triggered at `processing` (called from `UpdateOrderStatus`). Add pre-linked billing support: if order has `billing_id` set, attach items to that billing. Remove discount copying. Delete `CreateServiceBilling`.
 
 **Acceptance criteria:**
-- [ ] Billing generates when order moves to `processing`
-- [ ] Pre-linked billing: if `order.billing_id` is set, items added to that billing
-- [ ] No pre-linked billing: creates new or reuses by appointment_id
-- [ ] No discount copied from order (discount applied directly on billing)
-- [ ] `CreateServiceBilling` action deleted
-- [ ] Tests for billing generation pass
+- [x] Billing generates when order moves to `processing`
+- [x] Pre-linked billing: if `order.billing_id` is set, items added to that billing
+- [x] No pre-linked billing: creates new or reuses by appointment_id
+- [x] No discount copied from order (discount applied directly on billing)
+- [x] `CreateServiceBilling` action deleted
+- [x] Tests for billing generation pass
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=Billing`
 
@@ -448,15 +469,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 10: Update Order create form — single button, starts at `confirmed`
+#### Task 10: Update Order create form — single button, starts at `confirmed` (✅ DONE — ddf7d67)
 **Description:** Remove "Walk-in Sale" header action. Single "New Order" button creates orders at `confirmed` status. Simplify create form: patient, product (frame/general only), variant, quantity. No lens fields on create.
 
 **Acceptance criteria:**
-- [ ] Single "New Order" button on ListOrders (no Walk-in Sale)
-- [ ] Created orders start at `confirmed` status
-- [ ] Product selector excludes `lens` type products
-- [ ] No lens category or lens assignment fields on create form
-- [ ] Customer quick-create still works
+- [x] Single "New Order" button on ListOrders (no Walk-in Sale)
+- [x] Created orders start at `confirmed` status
+- [x] Product selector excludes `lens` type products
+- [x] No lens category or lens assignment fields on create form
+- [x] Customer quick-create still works
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=CreateOrder`
 
@@ -470,16 +491,16 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 11: Update Order edit form — lens fields in `confirmed`, locked at `processing`
+#### Task 11: Update Order edit form — lens fields in `confirmed`, locked at `processing` (✅ DONE — 90c6510)
 **Description:** Add lens category selector and lens product variant assignment to the edit form, visible only during `confirmed` status and only for frame-type items. Lock all fields when status is `processing` or beyond. Remove discount fields from edit form.
 
 **Acceptance criteria:**
-- [ ] Frame items show lens category selector in `confirmed` status
-- [ ] Frame items show lens assignment selector in `confirmed` status (after lens category selected)
-- [ ] General items never show lens fields
-- [ ] All item fields locked at `processing`+
-- [ ] Discount fields removed from edit form
-- [ ] Status toggle shows valid transitions from current status
+- [x] Frame items show lens category selector in `confirmed` status
+- [x] Frame items show lens assignment selector in `confirmed` status (after lens category selected)
+- [x] General items never show lens fields
+- [x] All item fields locked at `processing`+
+- [x] Discount fields removed from edit form
+- [x] Status toggle shows valid transitions from current status
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=EditOrder`
 
@@ -493,14 +514,14 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 12: Update order API for lens_category_id rename + backward compat
+#### Task 12: Update order API for lens_category_id rename + backward compat (✅ DONE — c2bc388; hardened post-review in a1228c9)
 **Description:** Update `POST /orders` to accept `lens_category_id` with `lens_type_id` as alias. Update GET responses to include both field names during transition. Update resource classes.
 
 **Acceptance criteria:**
-- [ ] `POST /orders` accepts `items[].lens_category_id` and `items[].lens_type_id` (alias)
-- [ ] `GET /orders` response includes both `lens_category_id` and `lens_type_id`
-- [ ] Android app backward compatibility maintained
-- [ ] API tests pass
+- [x] `POST /orders` accepts `items[].lens_category_id` and `items[].lens_type_id` (alias)
+- [x] `GET /orders` response includes both `lens_category_id` and `lens_type_id`
+- [x] Android app backward compatibility maintained
+- [x] API tests pass
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=OrderApi`
 
@@ -516,27 +537,27 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-### ✅ Checkpoint 3 — Order Flow Reworked
-- [ ] Admin creates orders at `confirmed`
-- [ ] Customer orders start at `requested`
-- [ ] Inventory commits at `processing`
-- [ ] Lens assignment works on edit form (confirmed only)
-- [ ] No discount on orders
-- [ ] API backward compatible
-- [ ] All order tests pass
+### ✅ Checkpoint 3 — Order Flow Reworked (DONE — commits 4358c03, 0bd1e5c, 6c35a81, ddf7d67, 90c6510, c2bc388, c2bbc72)
+- [x] Admin creates orders at `confirmed`
+- [x] Customer orders start at `requested`
+- [x] Inventory commits at `processing`
+- [x] Lens assignment works on edit form (confirmed only)
+- [x] No discount on orders
+- [x] API backward compatible
+- [x] All order tests pass (522/540 at this checkpoint; remaining 18 failures pre-date this phase, confined to 4 files scoped to Task 19)
 
 ---
 
 ### Phase 4: Billing Rework
 
-#### Task 13: Migration — remove OR number, add notes to billings
+#### Task 13: Migration — remove OR number, add notes to billings (✅ DONE — 5b733da)
 **Description:** Drop `billings.or_number` column. Add nullable `notes` text column. Update Billing model (remove `or_number` from fillable, remove `generateOrNumber()`, add `notes`).
 
 **Acceptance criteria:**
-- [ ] `billings.or_number` column removed
-- [ ] `billings.notes` column added (nullable text)
-- [ ] Billing model updated (fillable, removed generation method)
-- [ ] Migration is reversible
+- [x] `billings.or_number` column removed
+- [x] `billings.notes` column added (nullable text)
+- [x] Billing model updated (fillable, removed generation method)
+- [x] Migration is reversible
 
 **Verification:** `vendor/bin/sail artisan migrate`
 
@@ -550,15 +571,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 14: Add Billing create page (standalone invoices)
+#### Task 14: Add Billing create page (standalone invoices) (✅ DONE — 8d72319)
 **Description:** Add a create page to the Billings Filament resource. Form: customer selector, optional appointment selector, notes. Creates billing with status `issued` and zero amounts.
 
 **Acceptance criteria:**
-- [ ] Create page accessible from Billings list
-- [ ] Form has: customer (required), appointment (optional), notes (optional)
-- [ ] Created billing has status `issued`, zero amounts
-- [ ] `billing_number` auto-generated
-- [ ] Test: billing can be created manually
+- [x] Create page accessible from Billings list
+- [x] Form has: customer (required), appointment (optional), notes (optional)
+- [x] Created billing has status `issued`, zero amounts
+- [x] `billing_number` auto-generated
+- [x] Test: billing can be created manually
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=CreateBilling`
 
@@ -573,15 +594,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 15: Update ViewBilling — remove OR#, add notes, add "Create Order" action
+#### Task 15: Update ViewBilling — remove OR#, add notes, add "Create Order" action (✅ DONE — d4b9b36)
 **Description:** Remove OR number from infolist. Add editable notes field. Add "Create Order" header action that redirects to order create form with customer pre-filled and `billing_id` set.
 
 **Acceptance criteria:**
-- [ ] OR number removed from billing infolist
-- [ ] Notes field visible and editable (when billing not voided)
-- [ ] "Create Order" action visible on non-voided billings
-- [ ] "Create Order" redirects to order create with customer pre-filled
-- [ ] Created order has `billing_id` linking to this billing
+- [x] OR number removed from billing infolist
+- [x] Notes field visible and editable (when billing not voided)
+- [x] "Create Order" action visible on non-voided billings
+- [x] "Create Order" redirects to order create with customer pre-filled
+- [x] Created order has `billing_id` linking to this billing
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=ViewBilling`
 
@@ -595,15 +616,15 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 16: Update Billing table + list — remove OR# references
+#### Task 16: Update Billing table + list — remove OR# references (✅ DONE — 2706133)
 **Description:** Remove OR number column from billings table. Update list page stats. Remove OR# from PDF and thermal receipt templates.
 
 **Acceptance criteria:**
-- [ ] OR# column removed from billings table
-- [ ] Billing PDF template no longer shows OR#
-- [ ] Thermal receipt template no longer shows OR#
-- [ ] Billing API response no longer includes `or_number`
-- [ ] Table shows: billing #, customer, items summary, total, balance, status
+- [x] OR# column removed from billings table
+- [x] Billing PDF template no longer shows OR#
+- [x] Thermal receipt template no longer shows OR#
+- [x] Billing API response no longer includes `or_number`
+- [x] Table shows: billing #, customer, items summary, total, balance, status
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=Billing`
 
@@ -619,14 +640,14 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-#### Task 17: Remove "Bill Service" from Appointment + Patient pages
+#### Task 17: Remove "Bill Service" from Appointment + Patient pages (✅ DONE — acf7c04)
 **Description:** Remove "Bill Service" header actions. Add Billings relation manager to Appointment page (read-only list of linked billings).
 
 **Acceptance criteria:**
-- [ ] "Bill Service" removed from EditAppointment
-- [ ] "Bill Service" removed from EditPatient
-- [ ] Billings relation manager on Appointment edit page (where `appointment_id` matches)
-- [ ] No orphaned `CreateServiceBilling` references
+- [x] "Bill Service" removed from EditAppointment
+- [x] "Bill Service" removed from EditPatient
+- [x] Billings relation manager on Appointment edit page (where `appointment_id` matches)
+- [x] No orphaned `CreateServiceBilling` references
 
 **Verification:** `vendor/bin/sail artisan test --compact --filter=Appointment`
 
@@ -641,14 +662,14 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-### ✅ Checkpoint 4 — Billing Rework Complete
-- [ ] Billing creates manually (standalone)
-- [ ] Billing auto-generates at `processing` (from order)
-- [ ] Pre-linked billing works via "Create Order" action
-- [ ] OR number gone everywhere
-- [ ] Notes field works
-- [ ] "Bill Service" removed from appointment/patient
-- [ ] All billing tests pass
+### ✅ Checkpoint 4 — Billing Rework Complete (DONE — commits 5b733da, 8d72319, d4b9b36, 2706133, acf7c04; review fixes 8d0dccd, a1228c9)
+- [x] Billing creates manually (standalone)
+- [x] Billing auto-generates at `processing` (from order)
+- [x] Pre-linked billing works via "Create Order" action (multi-order-per-billing bug found in review and fixed — see Deviations section)
+- [x] OR number gone everywhere
+- [x] Notes field works
+- [x] "Bill Service" removed from appointment/patient
+- [x] All billing tests pass (534/552 full suite after review fixes; remaining 18 failures pre-date Phase 4, confined to 4 files scoped to Task 19)
 
 ---
 
