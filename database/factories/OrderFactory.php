@@ -29,7 +29,6 @@ class OrderFactory extends Factory
             'is_non_prescription' => true,
             'subtotal' => $subtotal,
             'total_amount' => $subtotal,
-            'discount_amount' => 0,
             'confirmed_at' => null,
             'completed_at' => null,
         ];

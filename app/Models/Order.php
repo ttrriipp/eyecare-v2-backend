@@ -20,8 +20,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'is_non_prescription',
     'subtotal',
     'total_amount',
-    'discount_amount',
-    'discount_type_id',
     'notes',
     'confirmed_at',
     'completed_at',
@@ -84,14 +82,6 @@ class Order extends Model
     }
 
     /**
-     * @return BelongsTo<DiscountType, $this>
-     */
-    public function discountType(): BelongsTo
-    {
-        return $this->belongsTo(DiscountType::class);
-    }
-
-    /**
      * @return HasMany<OrderItem, $this>
      */
     public function items(): HasMany
@@ -116,7 +106,6 @@ class Order extends Model
             'is_non_prescription' => 'boolean',
             'subtotal' => 'decimal:2',
             'total_amount' => 'decimal:2',
-            'discount_amount' => 'decimal:2',
             'confirmed_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
