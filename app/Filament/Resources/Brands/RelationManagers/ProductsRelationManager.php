@@ -31,15 +31,13 @@ class ProductsRelationManager extends RelationManager
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'frame' => 'Frame',
                         'lens' => 'Lens',
-                        'contact_lens' => 'Contact Lens',
-                        'accessory' => 'Accessory',
+                        'general' => 'General',
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
                         'frame' => 'info',
                         'lens' => 'success',
-                        'contact_lens' => 'warning',
-                        'accessory' => 'gray',
+                        'general' => 'gray',
                         default => 'gray',
                     }),
                 IconColumn::make('is_active')->label('Visible')->boolean(),
