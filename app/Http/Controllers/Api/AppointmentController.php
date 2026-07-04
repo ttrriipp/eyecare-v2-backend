@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\RescheduleAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
@@ -14,6 +15,7 @@ use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
@@ -93,6 +95,45 @@ class AppointmentController extends Controller
         Notification::make()
             ->title('Appointment Cancelled by Customer')
             ->body("{$appointment->customer->name} cancelled their appointment on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->warning()
+            ->sendToDatabase($staff);
+
+        return response()->json([
+            'data' => AppointmentResource::make($appointment),
+        ]);
+    }
+
+    public function reschedule(RescheduleAppointmentRequest $request, Appointment $appointment): JsonResponse
+    {
+        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'rescheduled'], true)) {
+            throw ValidationException::withMessages([
+                'appointment' => ['This appointment cannot be rescheduled.'],
+            ]);
+        }
+
+        $previousScheduledAt = $appointment->scheduled_at->format('M d, Y g:i A');
+
+        app(UpdateAppointmentStatus::class)->handle(
+            appointment: $appointment,
+            statusName: 'rescheduled',
+            scheduledAt: Carbon::parse($request->validated('scheduled_at')),
+        );
+
+        $appointment->load(['visitReason', 'status', 'customer']);
+
+        $staff = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
+
+        Notification::make()
+            ->title('Appointment Rescheduled by Customer')
+            ->body("{$appointment->customer->name} rescheduled their appointment from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->actions([
+                Action::make('view')
+                    ->label('View')
+                    ->url('/admin/appointments/'.$appointment->id.'/edit')
+                    ->markAsRead(),
+            ])
             ->warning()
             ->sendToDatabase($staff);
 

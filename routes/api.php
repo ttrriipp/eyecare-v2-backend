@@ -27,6 +27,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
 
     Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
+    Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::get('visit-reasons', fn () => response()->json(['data' => VisitReason::all(['id', 'name', 'duration_minutes'])]));
     Route::get('brands', fn () => response()->json(['data' => Brand::orderBy('name')->get(['id', 'name'])]));
     Route::get('categories', fn () => response()->json(['data' => ProductCategory::orderBy('name')->get(['id', 'name'])]));

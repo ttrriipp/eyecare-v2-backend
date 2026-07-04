@@ -1,0 +1,213 @@
+<?php
+
+use App\Models\Appointment;
+use App\Models\AppointmentStatus;
+use App\Models\SmsNotification;
+use App\Models\User;
+use App\Models\VisitReason;
+use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
+    Http::fake();
+});
+
+test('customer can reschedule their own pending appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $pending->id,
+        'scheduled_at' => now()->addDays(2),
+    ]);
+    $newTime = now()->addDays(5)->setHour(10)->setMinute(0)->setSecond(0);
+
+    $response = $this->actingAs($customer)->postJson("/api/appointments/{$appointment->id}/reschedule", [
+        'scheduled_at' => $newTime->toDateTimeString(),
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.status', 'rescheduled');
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('rescheduled')
+        ->and($appointment->scheduled_at->format('Y-m-d H:i:s'))->toBe($newTime->format('Y-m-d H:i:s'));
+});
+
+test('customer can reschedule their own confirmed appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now()->addDays(2),
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(5)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'rescheduled');
+});
+
+test('customer can reschedule an already rescheduled appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $rescheduled = AppointmentStatus::query()->where('name', 'rescheduled')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $rescheduled->id,
+        'scheduled_at' => now()->addDays(2),
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(6)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.status', 'rescheduled');
+});
+
+test('reschedule creates an sms notification record', function () {
+    $customer = User::factory()->customer()->create(['phone' => '09171234567']);
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now()->addDays(2),
+    ]);
+
+    $this->actingAs($customer)->postJson("/api/appointments/{$appointment->id}/reschedule", [
+        'scheduled_at' => now()->addDays(5)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+    ]);
+
+    $this->assertDatabaseHas(SmsNotification::class, [
+        'appointment_id' => $appointment->id,
+        'event' => 'appointment_rescheduled',
+    ]);
+});
+
+test('customer cannot reschedule a completed appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $completed = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $completed->id,
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+        ])
+        ->assertUnprocessable();
+});
+
+test('customer cannot reschedule a cancelled appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $cancelled->id,
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+        ])
+        ->assertUnprocessable();
+});
+
+test('customer cannot reschedule another customers appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $other = User::factory()->customer()->create();
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $other->id,
+        'appointment_status_id' => $pending->id,
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+        ])
+        ->assertForbidden();
+});
+
+test('reschedule rejects a past date', function () {
+    $customer = User::factory()->customer()->create();
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $pending->id,
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->subDay()->toDateTimeString(),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('scheduled_at');
+});
+
+test('reschedule is rejected when the new slot conflicts with another appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $pending->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => now()->addDay()->setHour(9)->setMinute(0)->setSecond(0),
+    ]);
+
+    // Another appointment occupies 10:00-10:30 on the target day.
+    Appointment::factory()->create([
+        'appointment_status_id' => $confirmed->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => now()->addDays(3)->setHour(10)->setMinute(0)->setSecond(0),
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDays(3)->setHour(10)->setMinute(15)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('scheduled_at');
+});
+
+test('reschedule does not conflict with the appointments own original slot', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $pending->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => now()->addDay()->setHour(9)->setMinute(0)->setSecond(0),
+    ]);
+
+    // Rescheduling to a slightly later time within the same visit reason's duration window
+    // should not be blocked by the appointment's own current slot (ignoreId).
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => now()->addDay()->setHour(9)->setMinute(15)->setSecond(0)->toDateTimeString(),
+        ])
+        ->assertOk();
+});
+
+test('unauthenticated users cannot reschedule appointments', function () {
+    $appointment = Appointment::factory()->create();
+
+    $this->postJson("/api/appointments/{$appointment->id}/reschedule", [
+        'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+    ])->assertUnauthorized();
+});

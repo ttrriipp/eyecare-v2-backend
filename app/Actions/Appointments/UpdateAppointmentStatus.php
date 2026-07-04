@@ -21,7 +21,7 @@ class UpdateAppointmentStatus
     private const ALLOWED_TRANSITIONS = [
         'pending' => ['confirmed', 'rescheduled', 'cancelled'],
         'confirmed' => ['rescheduled', 'cancelled', 'completed'],
-        'rescheduled' => ['confirmed', 'cancelled', 'completed'],
+        'rescheduled' => ['confirmed', 'rescheduled', 'cancelled', 'completed'],
         'cancelled' => [],
         'completed' => [],
     ];

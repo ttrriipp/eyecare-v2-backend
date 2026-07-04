@@ -187,14 +187,16 @@ Status changes always go through the relevant action class — never direct mode
 
 **Appointments** (`UpdateAppointmentStatus`):
 ```
-pending → confirmed, cancelled          (+ reschedule via dedicated action)
-confirmed → cancelled, completed        (+ reschedule via dedicated action)
-rescheduled → confirmed, cancelled, completed
+pending → confirmed, rescheduled, cancelled
+confirmed → rescheduled, cancelled, completed
+rescheduled → confirmed, rescheduled, cancelled, completed
 cancelled → (terminal)
 completed → (terminal)
 ```
 SMS notification records created on: confirmed, rescheduled, cancelled.
 Rescheduling always goes through the dedicated "Reschedule" action (header action on edit page, row action in list) which accepts a new date — it does not appear in the status toggle buttons.
+
+**Customer-initiated reschedule (mobile API):** `POST /appointments/{id}/reschedule` lets a customer reschedule their own appointment while it is `pending`, `confirmed`, or `rescheduled` (same set of eligible statuses as staff — including reschedule of an already-`rescheduled` appointment, since `rescheduled → rescheduled` is an allowed transition). It calls the same `UpdateAppointmentStatus::handle()` action as the staff-facing Filament "Reschedule" action — same SMS event (`appointment_rescheduled`), same audit log entry, same resulting `rescheduled` status. There is no limit on how many times a customer may reschedule; each reschedule requires staff re-confirmation (the appointment stays in `rescheduled` until staff moves it back to `confirmed`). A database notification is sent to staff/admin on every customer-initiated reschedule (old time → new time). The endpoint uses `Appointment::conflictsWith()` with `$ignoreId` set to the appointment's own id, so the appointment's current slot never blocks its own reschedule.
 
 **Orders** (`UpdateOrderStatus`):
 ```
@@ -312,6 +314,7 @@ GET    /feedback
 GET    /feedback/{id}
 
 POST   /appointments/{id}/cancel  Cancel own appointment (pending or confirmed only)
+POST   /appointments/{id}/reschedule  Reschedule own appointment (pending, confirmed, or rescheduled only) — sets a new `scheduled_at` and transitions status to `rescheduled` via `UpdateAppointmentStatus`, no reschedule limit
 POST   /orders/{id}/cancel        Cancel own order (requested only)
 PATCH  /user                      Update own profile (name, email, phone)
 
@@ -522,7 +525,8 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 - **Billing grouping by appointment:** When `GetOrCreateBilling` is called with an `appointment_id`, it reuses any existing non-voided billing for that appointment. This means an order billing and a service billing for the same appointment share one invoice automatically. Walk-ins without an appointment (`appointment_id = null`) always get a fresh billing.
 - **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Add Service" action on ViewBilling creates them as a side effect.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
-- **Appointment slot check:** `POST /appointments` (API) and the Filament create form both validate that no non-cancelled appointment overlaps with the requested time slot (using each appointment's visit reason `duration_minutes`). Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (edit) excludes the current appointment from the conflict check.
+- **Appointment slot check:** `POST /appointments` (API), `POST /appointments/{id}/reschedule` (API), and the Filament create/reschedule forms all validate that no non-cancelled appointment overlaps with the requested time slot (using each appointment's visit reason `duration_minutes`). Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (both staff edit-page action and the customer API endpoint) excludes the current appointment from the conflict check via `Appointment::conflictsWith()`'s `$ignoreId` parameter.
+- **Unlimited customer reschedule:** There is no cap on how many times a customer may reschedule an appointment via `POST /appointments/{id}/reschedule`. Each reschedule sets status to `rescheduled` (requiring staff re-confirmation) and fires a staff database notification with the old and new times — this gives staff visibility to intervene manually (e.g. call a patient who reschedules repeatedly) rather than enforcing a hard limit in code.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded asset file. Staff uploads transparent PNG overlays or 3D models (.glb, .gltf, .obj) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). When `ar_eligible` is true, the asset is required — cannot save without uploading. Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`. The API returns the relative path (e.g. `ar-assets/abc123.glb`) — Android must prepend the base URL.
 - **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. `sms:process` command dispatches `SendSmsJob` per record to the queue (3 retries, 30s backoff). Actual delivery via `SemaphoreService`. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
 - **Appointment reminders:** `appointments:send-reminders` command creates queued SMS records for tomorrow's confirmed appointments. Idempotent (won't duplicate if run multiple times per day). Schedule daily at 6 PM.
