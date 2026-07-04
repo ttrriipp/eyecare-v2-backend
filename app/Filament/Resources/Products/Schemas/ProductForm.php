@@ -32,8 +32,7 @@ class ProductForm
                                 ->options([
                                     'frame' => 'Frame',
                                     'lens' => 'Lens',
-                                    'contact_lens' => 'Contact Lens',
-                                    'accessory' => 'Accessory',
+                                    'general' => 'General',
                                 ])
                                 ->default('frame')
                                 ->required()
