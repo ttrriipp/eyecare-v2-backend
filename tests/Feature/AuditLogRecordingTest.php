@@ -127,7 +127,7 @@ test('billing generation creates an audit log', function () {
     $staff = User::factory()->staff()->create();
     Auth::login($staff);
 
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $order = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
         'confirmed_at' => now(),

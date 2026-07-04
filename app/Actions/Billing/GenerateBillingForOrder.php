@@ -16,16 +16,18 @@ class GenerateBillingForOrder
     ) {}
 
     /**
-     * Generate or update a billing (invoice) for a confirmed order.
+     * Generate or update a billing (invoice) for an order moving to processing.
      *
-     * Uses GetOrCreateBilling to find an existing billing for the same appointment,
-     * then adds product line items via AddOrderItemsToBilling.
+     * If the order was pre-linked to an existing billing (via the "Create Order"
+     * action on a billing), items are attached to that billing instead of
+     * creating or reusing one. Otherwise falls back to GetOrCreateBilling for
+     * encounter grouping by appointment.
      */
     public function handle(Order $order): Billing
     {
-        if ($order->status->name !== 'confirmed') {
+        if ($order->status->name !== 'processing') {
             throw ValidationException::withMessages([
-                'order' => ['Billing can only be generated for confirmed orders.'],
+                'order' => ['Billing can only be generated once an order is processing.'],
             ]);
         }
 
@@ -35,12 +37,16 @@ class GenerateBillingForOrder
             ]);
         }
 
-        $billing = $this->getOrCreate->handle(
-            customerId: $order->customer_id,
-            appointmentId: $order->appointment_id,
-        );
-
-        $isNewBilling = $billing->wasRecentlyCreated;
+        if ($order->billing_id !== null) {
+            $billing = Billing::query()->findOrFail($order->billing_id);
+            $isNewBilling = false;
+        } else {
+            $billing = $this->getOrCreate->handle(
+                customerId: $order->customer_id,
+                appointmentId: $order->appointment_id,
+            );
+            $isNewBilling = $billing->wasRecentlyCreated;
+        }
 
         $billing = $this->addItems->handle($billing, $order);
 

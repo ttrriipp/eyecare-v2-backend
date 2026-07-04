@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'customer_id',
     'appointment_id',
     'prescription_id',
+    'billing_id',
     'order_status_id',
     'is_non_prescription',
     'subtotal',
@@ -95,6 +96,19 @@ class Order extends Model
     public function billing(): HasOne
     {
         return $this->hasOne(Billing::class);
+    }
+
+    /**
+     * The billing this order was pre-linked to at creation time
+     * (via the "Create Order" action on a billing). When set,
+     * GenerateBillingForOrder attaches items here instead of
+     * creating a new billing.
+     *
+     * @return BelongsTo<Billing, $this>
+     */
+    public function preLinkedBilling(): BelongsTo
+    {
+        return $this->belongsTo(Billing::class, 'billing_id');
     }
 
     /**

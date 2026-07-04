@@ -41,15 +41,13 @@ class AddOrderItemsToBilling
             ]);
         }
 
-        // Set order_id + copy discount from order
+        // Set order_id, recalculate subtotal/total (discount is applied on the billing directly)
         $newSubtotal = $billing->items()->sum('amount');
-        $discountAmount = $order->discount_amount ?? '0.00';
+        $discountAmount = $billing->discount_amount ?? '0.00';
         $newTotal = bcsub((string) $newSubtotal, (string) $discountAmount, 2);
 
         $billing->update([
             'order_id' => $order->id,
-            'discount_type_id' => $order->discount_type_id,
-            'discount_amount' => $discountAmount,
             'subtotal' => $newSubtotal,
             'total_amount' => $newTotal,
             'balance_due' => bcsub((string) $newTotal, (string) $billing->amount_paid, 2),
