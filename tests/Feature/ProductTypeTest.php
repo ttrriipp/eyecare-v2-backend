@@ -17,10 +17,10 @@ test('product factory defaults to frame type', function () {
     expect($product->product_type)->toBe('frame');
 });
 
-test('product factory accessory state creates accessory type', function () {
-    $product = Product::factory()->accessory()->create();
+test('product factory general state creates general type', function () {
+    $product = Product::factory()->general()->create();
 
-    expect($product->product_type)->toBe('accessory');
+    expect($product->product_type)->toBe('general');
 });
 
 test('product api response includes product_type', function () {

@@ -24,6 +24,41 @@ test('authenticated customers can list active products', function () {
         ->and($productIds)->not->toContain(Product::query()->where('name', 'Inactive Frame')->value('id'));
 });
 
+test('product listing includes general products and excludes lens products', function () {
+    $customer = User::factory()->customer()->create();
+
+    $frame = Product::factory()->create(['name' => 'Listed Frame']);
+    $general = Product::factory()->general()->create(['name' => 'Listed Solution']);
+    $lens = Product::factory()->create(['name' => 'Hidden Lens', 'product_type' => 'lens']);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->getJson('/api/products');
+
+    $response->assertSuccessful();
+
+    $productIds = collect($response->json('data'))->pluck('id')->all();
+
+    expect($productIds)->toContain($frame->id)
+        ->and($productIds)->toContain($general->id)
+        ->and($productIds)->not->toContain($lens->id);
+});
+
+test('general product detail is accessible, lens product detail returns 404', function () {
+    $customer = User::factory()->customer()->create();
+
+    $general = Product::factory()->general()->create();
+    $lens = Product::factory()->create(['product_type' => 'lens']);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$general->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.product_type', 'general');
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$lens->id}")
+        ->assertNotFound();
+});
+
 test('authenticated customers can view active product details with variants', function () {
     $customer = User::factory()->customer()->create();
 
