@@ -18,11 +18,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'discount_amount',
     'subtotal',
     'billing_number',
-    'or_number',
     'billing_status_id',
     'total_amount',
     'amount_paid',
     'balance_due',
+    'notes',
     'issued_at',
 ])]
 class Billing extends Model
@@ -36,9 +36,6 @@ class Billing extends Model
             if (empty($billing->billing_number)) {
                 $billing->billing_number = self::generateBillingNumber();
             }
-            if (empty($billing->or_number)) {
-                $billing->or_number = self::generateOrNumber();
-            }
         });
     }
 
@@ -51,17 +48,6 @@ class Billing extends Model
             ->count() + 1;
 
         return sprintf('BIL-%s-%06d', $year, $sequence);
-    }
-
-    private static function generateOrNumber(): string
-    {
-        $year = now()->format('Y');
-        $sequence = self::query()
-            ->whereYear('created_at', $year)
-            ->withTrashed()
-            ->count() + 1;
-
-        return sprintf('OR-%s-%06d', $year, $sequence);
     }
 
     /** @return BelongsTo<User, $this> */
