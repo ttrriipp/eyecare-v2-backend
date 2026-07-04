@@ -37,12 +37,13 @@ class UpdateOrderStatus
      */
     private const SMS_EVENTS = [
         'confirmed' => 'order_confirmed',
+        'processing' => 'order_processing',
         'ready_for_pickup' => 'order_ready',
         'completed' => 'order_completed',
         'cancelled' => 'order_cancelled',
     ];
 
-    public function handle(Order $order, string $statusName, ?int $discountTypeId = null, ?float $customDiscountAmount = null): Order
+    public function handle(Order $order, string $statusName): Order
     {
         $currentStatus = $order->status->name;
         $allowed = self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
@@ -53,29 +54,9 @@ class UpdateOrderStatus
             ]);
         }
 
-        if ($statusName === 'confirmed' && ! $order->is_non_prescription) {
-            $hasPrescription = Prescription::query()
-                ->where('customer_id', $order->customer_id)
-                ->exists();
-
-            if (! $hasPrescription) {
-                throw ValidationException::withMessages([
-                    'status' => ['A prescription is required before confirming this order.'],
-                ]);
-            }
-        }
-
-        if ($statusName === 'confirmed') {
-            $order->loadMissing('items');
-            $hasUnassignedLens = $order->items->contains(
-                fn ($item) => $item->lens_type_id !== null && $item->lens_product_variant_id === null
-            );
-
-            if ($hasUnassignedLens) {
-                throw ValidationException::withMessages([
-                    'status' => ['All lens items must have a lens product assigned before confirming.'],
-                ]);
-            }
+        if ($statusName === 'processing') {
+            $this->guardPrescription($order);
+            $this->guardLensAssignment($order);
         }
 
         $status = OrderStatus::query()->where('name', $statusName)->firstOrFail();
@@ -86,12 +67,6 @@ class UpdateOrderStatus
 
         if ($statusName === 'confirmed') {
             $attributes['confirmed_at'] = now();
-
-            // Validate and compute discount before committing the status change.
-            if ($discountTypeId !== null) {
-                $discountAttributes = app(ApplyDiscount::class)->computeAttributes($order, $discountTypeId, $customDiscountAmount);
-                $attributes = array_merge($attributes, $discountAttributes);
-            }
         }
 
         if ($statusName === 'completed') {
@@ -100,7 +75,7 @@ class UpdateOrderStatus
 
         $order->update($attributes);
 
-        if ($statusName === 'confirmed') {
+        if ($statusName === 'processing') {
             try {
                 $this->deductInventory($order);
             } catch (\RuntimeException $e) {
@@ -115,7 +90,7 @@ class UpdateOrderStatus
             try {
                 app(GenerateBillingForOrder::class)->handle($order->fresh());
             } catch (\Throwable) {
-                // Billing failure must not block confirmation — log silently
+                // Billing failure must not block processing — log silently
                 logger()->error("Failed to auto-generate billing for order #{$order->id}");
             }
 
@@ -125,12 +100,13 @@ class UpdateOrderStatus
                 ->get();
 
             Notification::make()
-                ->title('Order Confirmed')
-                ->body("Order {$order->order_number} by {$order->customer->name} has been confirmed.")
+                ->title('Order Processing')
+                ->body("Order {$order->order_number} by {$order->customer->name} is now being processed.")
                 ->success()
                 ->sendToDatabase($recipients);
         }
-        if ($statusName === 'cancelled' && $currentStatus === 'confirmed') {
+
+        if ($statusName === 'cancelled' && in_array($currentStatus, ['processing', 'ready_for_pickup'], true)) {
             $this->restoreInventory($order);
 
             // Auto-void the billing since the order is cancelled
@@ -155,13 +131,45 @@ class UpdateOrderStatus
         return $freshOrder;
     }
 
+    private function guardPrescription(Order $order): void
+    {
+        if ($order->is_non_prescription) {
+            return;
+        }
+
+        $hasPrescription = Prescription::query()
+            ->where('customer_id', $order->customer_id)
+            ->exists();
+
+        if (! $hasPrescription) {
+            throw ValidationException::withMessages([
+                'status' => ['A prescription is required before processing this order.'],
+            ]);
+        }
+    }
+
+    private function guardLensAssignment(Order $order): void
+    {
+        $order->loadMissing('items');
+        $hasUnassignedLens = $order->items->contains(
+            fn ($item) => $item->lens_category_id !== null && $item->lens_product_variant_id === null
+        );
+
+        if ($hasUnassignedLens) {
+            throw ValidationException::withMessages([
+                'status' => ['All lens items must have a lens product assigned before processing.'],
+            ]);
+        }
+    }
+
     private function createSmsNotification(Order $order, string $event): void
     {
         $order->loadMissing('customer');
         $queuedStatus = NotificationStatus::query()->where('name', 'queued')->firstOrFail();
 
         $message = match ($event) {
-            'order_confirmed' => "Your order {$order->order_number} has been confirmed and is being processed.",
+            'order_confirmed' => "Your order {$order->order_number} has been confirmed.",
+            'order_processing' => "Your order {$order->order_number} is now being processed.",
             'order_ready' => "Your order {$order->order_number} is ready for pickup.",
             'order_completed' => "Your order {$order->order_number} has been completed. Thank you!",
             'order_cancelled' => "Your order {$order->order_number} has been cancelled.",
@@ -178,7 +186,7 @@ class UpdateOrderStatus
     }
 
     /**
-     * Deduct stock for each order item when an order is confirmed.
+     * Deduct stock for each order item when an order moves to processing.
      * Deducts both frame variant and lens product variant (if assigned).
      */
     private function deductInventory(Order $order): void
@@ -193,7 +201,7 @@ class UpdateOrderStatus
                     quantityChange: -$item->quantity,
                     type: 'order_commitment',
                     orderId: $order->id,
-                    notes: "Frame deducted on order #{$order->order_number} confirmation.",
+                    notes: "Frame deducted on order #{$order->order_number} processing.",
                 );
             }
 
@@ -203,14 +211,14 @@ class UpdateOrderStatus
                     quantityChange: -$item->quantity,
                     type: 'order_commitment',
                     orderId: $order->id,
-                    notes: "Lens deducted on order #{$order->order_number} confirmation.",
+                    notes: "Lens deducted on order #{$order->order_number} processing.",
                 );
             }
         }
     }
 
     /**
-     * Restore stock for each order item when a confirmed order is cancelled.
+     * Restore stock for each order item when a processing (or later) order is cancelled.
      * Restores both frame variant and lens product variant (if assigned).
      */
     private function restoreInventory(Order $order): void

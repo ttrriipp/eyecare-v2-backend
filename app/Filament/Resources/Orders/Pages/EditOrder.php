@@ -135,10 +135,7 @@ class EditOrder extends EditRecord
 
             if ($newStatusName) {
                 try {
-                    $discountTypeId = isset($data['discount_type_id']) ? (int) $data['discount_type_id'] : null;
-                    $customDiscountAmount = isset($data['custom_discount_amount']) ? (float) $data['custom_discount_amount'] : null;
-
-                    app(UpdateOrderStatus::class)->handle($record, $newStatusName, $discountTypeId, $customDiscountAmount);
+                    app(UpdateOrderStatus::class)->handle($record, $newStatusName);
                 } catch (ValidationException $e) {
                     $message = collect($e->errors())->flatten()->first() ?? 'Cannot change order status.';
                     Notification::make()->title('Status update failed')->body($message)->danger()->send();
@@ -157,8 +154,7 @@ class EditOrder extends EditRecord
         // Recalculate order totals from saved items
         $order = $this->getRecord()->fresh(['items']);
         $newSubtotal = $order->items->sum(fn ($i): float => (float) $i->subtotal);
-        $newTotal = bcsub(number_format($newSubtotal, 2, '.', ''), (string) $order->discount_amount, 2);
-        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => $newTotal]);
+        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => number_format($newSubtotal, 2, '.', '')]);
 
         // Redirect to self so the form re-renders with updated order status and totals
         $this->redirect($this->getResource()::getUrl('edit', ['record' => $order]));
