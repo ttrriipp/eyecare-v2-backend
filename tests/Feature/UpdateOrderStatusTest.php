@@ -1,14 +1,17 @@
 <?php
 
+use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Models\Billing;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
 use App\Models\SmsNotification;
+use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
+use Database\Seeders\PaymentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -159,4 +162,34 @@ it('requires processing to be the trigger for inventory commitment and billing g
     $this->assertDatabaseHas(Billing::class, [
         'order_id' => $order->id,
     ]);
+
+    it('does not void a billing shared with another pre-linked order when one order is cancelled', function () {
+        $this->seed(PaymentStatusSeeder::class);
+
+        $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
+        $customer = User::factory()->customer()->create();
+
+        // First order generates the billing.
+        $firstOrder = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'is_non_prescription' => true,
+            'order_status_id' => $processingStatus->id,
+        ]);
+        app(GenerateBillingForOrder::class)->handle($firstOrder->fresh());
+        $billing = $firstOrder->fresh()->billing;
+
+        // Second order is pre-linked to the same billing.
+        $secondOrder = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'is_non_prescription' => true,
+            'order_status_id' => $processingStatus->id,
+            'billing_id' => $billing->id,
+        ]);
+        app(GenerateBillingForOrder::class)->handle($secondOrder->fresh());
+
+        // Cancelling the second order must not void the shared billing.
+        app(UpdateOrderStatus::class)->handle($secondOrder->fresh(), 'cancelled');
+
+        expect($billing->fresh()->status->name)->not->toBe('voided');
+    });
 });

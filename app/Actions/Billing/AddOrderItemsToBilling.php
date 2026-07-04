@@ -41,17 +41,24 @@ class AddOrderItemsToBilling
             ]);
         }
 
-        // Set order_id, recalculate subtotal/total (discount is applied on the billing directly)
+        // Set order_id only if not already linked to a different order (multi-order
+        // encounters must not clobber an earlier order's billing() lookup — the
+        // per-item association is already tracked via billing_items.order_item_id).
         $newSubtotal = $billing->items()->sum('amount');
         $discountAmount = $billing->discount_amount ?? '0.00';
         $newTotal = bcsub((string) $newSubtotal, (string) $discountAmount, 2);
 
-        $billing->update([
-            'order_id' => $order->id,
+        $updates = [
             'subtotal' => $newSubtotal,
             'total_amount' => $newTotal,
             'balance_due' => bcsub((string) $newTotal, (string) $billing->amount_paid, 2),
-        ]);
+        ];
+
+        if ($billing->order_id === null) {
+            $updates['order_id'] = $order->id;
+        }
+
+        $billing->update($updates);
 
         return $billing->fresh();
     }

@@ -34,7 +34,7 @@ it('creates product billing_items from order_items', function () {
         'lens_type_price' => null,
     ]);
 
-    $billing = Billing::factory()->issued()->create(['customer_id' => $customer->id]);
+    $billing = Billing::factory()->issued()->create(['customer_id' => $customer->id, 'order_id' => null]);
 
     $result = app(AddOrderItemsToBilling::class)->handle($billing, $order);
 
@@ -86,4 +86,27 @@ it('throws if order items already on this billing', function () {
 
     expect(fn () => app(AddOrderItemsToBilling::class)->handle($billing, $order))
         ->toThrow(ValidationException::class);
+});
+
+it('does not overwrite an earlier order link when a second order shares the same billing', function () {
+    $customer = User::factory()->customer()->create();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $billing = Billing::factory()->issued()->create(['customer_id' => $customer->id, 'order_id' => null]);
+
+    $firstOrder = Order::factory()->create(['customer_id' => $customer->id, 'order_status_id' => $confirmedStatus->id]);
+    OrderItem::factory()->create(['order_id' => $firstOrder->id, 'unit_price' => '100.00', 'quantity' => 1, 'subtotal' => '100.00']);
+    app(AddOrderItemsToBilling::class)->handle($billing, $firstOrder);
+
+    $secondOrder = Order::factory()->create(['customer_id' => $customer->id, 'order_status_id' => $confirmedStatus->id]);
+    OrderItem::factory()->create(['order_id' => $secondOrder->id, 'unit_price' => '50.00', 'quantity' => 1, 'subtotal' => '50.00']);
+    $result = app(AddOrderItemsToBilling::class)->handle($billing->fresh(), $secondOrder);
+
+    // The billing still resolves back to the first order via billing()/order_id —
+    // the second order's items are present via billing_items.order_item_id, but
+    // adding them must not clobber the first order's link to this billing.
+    expect($result->order_id)->toBe($firstOrder->id)
+        ->and($firstOrder->fresh()->billing?->id)->toBe($billing->id)
+        ->and($result->items)->toHaveCount(2)
+        ->and($result->subtotal)->toBe('150.00');
 });

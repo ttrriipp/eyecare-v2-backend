@@ -109,10 +109,15 @@ class UpdateOrderStatus
         if ($statusName === 'cancelled' && in_array($currentStatus, ['processing', 'ready_for_pickup'], true)) {
             $this->restoreInventory($order);
 
-            // Auto-void the billing since the order is cancelled
-            $order->billing?->update([
-                'billing_status_id' => BillingStatus::query()->where('name', 'voided')->value('id'),
-            ]);
+            // Auto-void the billing only if it belongs exclusively to this order.
+            // A billing shared with other pre-linked orders (multi-order encounter)
+            // must survive — cancelling one order must not destroy another's invoice.
+            $billing = $order->resolvedBilling();
+            if ($billing !== null && ! Order::query()->where('billing_id', $billing->id)->where('id', '!=', $order->id)->exists()) {
+                $billing->update([
+                    'billing_status_id' => BillingStatus::query()->where('name', 'voided')->value('id'),
+                ]);
+            }
         }
 
         app(CreateAuditLog::class)->handle(
