@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Receipt {{ $billing->or_number ?? $billing->billing_number }}</title>
+<title>Receipt {{ $billing->billing_number }}</title>
 <style>
     @media print {
         @page {
@@ -67,12 +67,8 @@
 {{-- Receipt Info --}}
 <table>
     <tr>
-        <td class="bold">OR #:</td>
-        <td class="right">{{ $billing->or_number ?? '—' }}</td>
-    </tr>
-    <tr>
-        <td class="small">Billing #:</td>
-        <td class="right small">{{ $billing->billing_number }}</td>
+        <td class="bold">Billing #:</td>
+        <td class="right">{{ $billing->billing_number }}</td>
     </tr>
     <tr>
         <td>Date:</td>
