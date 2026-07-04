@@ -180,8 +180,8 @@ Follow existing patterns. Key conventions for this spec:
 - [x] Lens category field on order items only shown for `frame` type products
 - [x] Mobile API returns frame + general products
 - [x] Walk-in appointments bypass slot conflict check (unchanged from before this spec — verified still true, not modified)
-- [ ] All existing tests updated and passing — 18 pre-existing failures remain, confined to 4 files (`CatalogSchemaTest`, `DemoAccountsSeedTest`, `InventoryMovementTest`, `LensTypePricingTest`), scoped to Task 19
-- [ ] Full test suite green — 534/552 passing as of the Phase 4 code review; Task 19 closes the gap
+- [x] All existing tests updated and passing — 552/552 passing
+- [x] Full test suite green
 
 ---
 
@@ -725,12 +725,12 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 **Description:** Rewrite relevant sections of BACKEND_CONTEXT.md to reflect all changes. Register spec as complete.
 
 **Acceptance criteria:**
-- [ ] Product types section updated (3 types)
-- [ ] Order status flow updated (admin starts at confirmed, inventory at processing)
-- [ ] Billing section updated (no OR#, notes, manual creation, pre-linked)
-- [ ] "Lens Type" → "Lens Category" throughout
-- [ ] Removed features documented
-- [ ] Spec registered in completed specs table
+- [x] Product types section updated (3 types)
+- [x] Order status flow updated (admin starts at confirmed, inventory at processing)
+- [x] Billing section updated (no OR#, notes, manual creation, pre-linked)
+- [x] "Lens Type" → "Lens Category" throughout
+- [x] Removed features documented
+- [x] Spec registered in completed specs table
 
 **Verification:** Read through document for accuracy
 
@@ -743,10 +743,10 @@ Migrations ──→ Models ──→ Actions ──→ Filament ──→ API
 
 ---
 
-### ✅ Final Checkpoint
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed` — clean
-- [ ] `vendor/bin/sail artisan test --compact` — all green
-- [ ] Filament panel fully functional
-- [ ] Mobile API backward compatible
-- [ ] No remaining references to: LensType, or_number, contact_lens, accessory, order discount
-- [ ] BACKEND_CONTEXT.md accurate
+### ✅ Final Checkpoint (DONE — commits 91b7fe0, 4636580)
+- [x] `vendor/bin/sail artisan migrate:fresh --seed` — clean
+- [x] `vendor/bin/sail artisan test --compact` — all green (552/552)
+- [x] Filament panel fully functional (49 admin routes register cleanly)
+- [x] Mobile API backward compatible (`lens_type_id` accepted as alias for `lens_category_id`)
+- [x] No remaining references to: LensType, or_number, contact_lens, accessory, order discount (outside frozen pre-existing migrations, which are correctly never edited)
+- [x] BACKEND_CONTEXT.md accurate
