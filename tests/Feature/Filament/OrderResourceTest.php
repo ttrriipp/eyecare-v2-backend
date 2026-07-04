@@ -5,7 +5,7 @@ use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Product;
@@ -25,6 +25,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+    $this->seed(BillingStatusSeeder::class);
 });
 
 test('staff and admin users can list orders', function (string $factoryState) {
@@ -43,33 +44,33 @@ test('staff and admin users can list orders', function (string $factoryState) {
 test('order table can filter by status', function () {
     $staff = User::factory()->staff()->create();
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
-
-    $requestedOrder = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
-    ]);
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
 
     $confirmedOrder = Order::factory()->create([
         'order_status_id' => $confirmedStatus->id,
     ]);
 
+    $processingOrder = Order::factory()->create([
+        'order_status_id' => $processingStatus->id,
+    ]);
+
     $this->actingAs($staff);
 
     Livewire::test(ListOrders::class)
-        ->assertCanSeeTableRecords([$requestedOrder, $confirmedOrder])
-        ->set('activeTab', 'requested')
-        ->assertCanSeeTableRecords([$requestedOrder])
-        ->assertCanNotSeeTableRecords([$confirmedOrder]);
+        ->assertCanSeeTableRecords([$confirmedOrder, $processingOrder])
+        ->set('activeTab', 'confirmed')
+        ->assertCanSeeTableRecords([$confirmedOrder])
+        ->assertCanNotSeeTableRecords([$processingOrder]);
 });
 
 test('staff can update order notes via the edit form', function () {
     $staff = User::factory()->staff()->create();
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
     ]);
 
     $this->actingAs($staff);
@@ -85,56 +86,56 @@ test('staff can update order notes via the edit form', function () {
     expect($order->fresh()->notes)->toBe('Updated staff notes.');
 });
 
-test('confirm action transitions requested non-prescription order to confirmed and deducts inventory', function () {
+test('processing action transitions confirmed non-prescription order to processing and deducts inventory', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
 
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     $this->actingAs($staff);
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
-        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->fillForm(['order_status_id' => $processingStatus->id])
         ->call('save')
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    expect($order->fresh()->status->name)->toBe('confirmed');
+    expect($order->fresh()->status->name)->toBe('processing');
 });
 
-test('confirm fails for prescription order without prescription', function () {
+test('processing fails for prescription order without prescription', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $customer = User::factory()->customer()->create();
 
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => false,
     ]);
 
     $this->actingAs($staff);
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
-        ->fillForm(['order_status_id' => $confirmedStatus->id])
+        ->fillForm(['order_status_id' => $processingStatus->id])
         ->call('save')
         ->assertNotified();
 
-    // Status should remain requested — confirm sends a danger notification
-    expect($order->fresh()->status->name)->toBe('requested');
+    // Status should remain confirmed — processing sends a danger notification
+    expect($order->fresh()->status->name)->toBe('confirmed');
 });
 
 test('cancel action transitions order to cancelled', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $cancelledStatus = OrderStatus::query()->where('name', 'cancelled')->firstOrFail();
 
-    $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
 
     $this->actingAs($staff);
 
@@ -156,7 +157,7 @@ test('status dropdown does not allow skipping steps for orders', function () {
 
     $this->actingAs($staff);
 
-    // Jump from confirmed → completed (skipping preparing and ready_for_pickup) should fail
+    // Jump from confirmed → completed (skipping processing and ready_for_pickup) should fail
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
         ->fillForm(['order_status_id' => $completedStatus->id])
         ->call('save')
@@ -174,15 +175,14 @@ test('complete and cancel actions are hidden for completed orders', function () 
     $this->actingAs($staff);
 
     // Completed order status select has no options to transition to
-    $component = Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()]);
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()]);
     expect($order->fresh()->status->name)->toBe('completed');
 });
 
-test('staff can create an order with items and price snapshot', function () {
+test('staff can create an order with items and price snapshot, starting at confirmed', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
     $variant = ProductVariant::factory()->create(['price' => '150.00']);
-    $lensType = LensType::factory()->create(['price' => null]);
 
     $this->actingAs($staff);
 
@@ -193,7 +193,6 @@ test('staff can create an order with items and price snapshot', function () {
             'items' => [
                 [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType->id,
                     'quantity' => 2,
                 ],
             ],
@@ -206,6 +205,7 @@ test('staff can create an order with items and price snapshot', function () {
     $order = Order::query()->where('customer_id', $customer->id)->firstOrFail();
 
     expect($order->total_amount)->toBe('300.00')
+        ->and($order->status->name)->toBe('confirmed')
         ->and($order->items)->toHaveCount(1)
         ->and($order->items->first()->unit_price)->toBe('150.00')
         ->and($order->items->first()->subtotal)->toBe('300.00');
@@ -215,7 +215,6 @@ test('staff can create an order for a walk-in customer (no email or password)', 
     $staff = User::factory()->staff()->create();
     $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);
     $variant = ProductVariant::factory()->create(['price' => '100.00']);
-    $lensType = LensType::factory()->create();
 
     $this->actingAs($staff);
 
@@ -226,7 +225,6 @@ test('staff can create an order for a walk-in customer (no email or password)', 
             'items' => [
                 [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType->id,
                     'quantity' => 1,
                 ],
             ],
@@ -244,18 +242,35 @@ test('staff can create an order for a walk-in customer (no email or password)', 
         ->and($walkIn->password)->toBeNull();
 });
 
-test('staff can assign a lens product variant to an order item', function () {
+test('create order form excludes lens type products from the product selector', function () {
+    $lensCategory = LensCategory::factory()->create();
+    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_category_id' => $lensCategory->id]);
+    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
+    $frameVariant = ProductVariant::factory()->create();
+
+    $selectableIds = ProductVariant::query()
+        ->with('product')
+        ->where('is_active', true)
+        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
+        ->pluck('id');
+
+    expect($selectableIds)->toContain($frameVariant->id)
+        ->and($selectableIds)->not->toContain($lensVariant->id);
+});
+
+test('staff can assign a lens product variant to an order item while confirmed', function () {
     $staff = User::factory()->staff()->create();
-    $lensType = LensType::factory()->create(['name' => 'progressive', 'price' => null]);
-    $order = Order::factory()->create();
+    $lensCategory = LensCategory::factory()->create(['name' => 'progressive', 'price' => null]);
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
     $item = $order->items()->create([
         'product_variant_id' => ProductVariant::factory()->create()->id,
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
         'product_id' => Product::factory()->create()->id,
         'product_name' => 'Frame',
         'variant_name' => 'Black',
         'variant_sku' => 'SKU-001',
-        'lens_type_name' => 'progressive',
+        'lens_category_name' => 'progressive',
         'unit_price' => '3000.00',
         'quantity' => 1,
         'subtotal' => '3000.00',
@@ -263,7 +278,7 @@ test('staff can assign a lens product variant to an order item', function () {
 
     $lensProduct = Product::factory()->create([
         'product_type' => 'lens',
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
     ]);
     $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
 
@@ -282,26 +297,27 @@ test('staff can assign a lens product variant to an order item', function () {
     expect($item->fresh()->lens_product_variant_id)->toBe($lensVariant->id);
 });
 
-test('assigning a lens product variant updates item lens_type_price and order total', function () {
+test('assigning a lens product variant updates item lens price and order total', function () {
     $staff = User::factory()->staff()->create();
-    $lensType = LensType::factory()->create(['name' => 'progressive', 'price' => 6500.00]);
+    $lensCategory = LensCategory::factory()->create(['name' => 'progressive', 'price' => 6500.00]);
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
-    $order = Order::factory()->create(['subtotal' => '3000.00', 'total_amount' => '9500.00', 'discount_amount' => '0.00']);
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id, 'subtotal' => '3000.00', 'total_amount' => '9500.00']);
     $item = $order->items()->create([
         'product_variant_id' => ProductVariant::factory()->create()->id,
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
         'product_id' => Product::factory()->create()->id,
         'product_name' => 'Frame',
         'variant_name' => 'Black',
         'variant_sku' => 'SKU-001',
-        'lens_type_name' => 'progressive',
+        'lens_category_name' => 'progressive',
         'unit_price' => '3000.00',
         'lens_type_price' => '6500.00',
         'quantity' => 1,
         'subtotal' => '9500.00',
     ]);
 
-    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_type_id' => $lensType->id]);
+    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_category_id' => $lensCategory->id]);
     $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true, 'price' => '7500.00']);
 
     $this->actingAs($staff);
@@ -316,34 +332,59 @@ test('assigning a lens product variant updates item lens_type_price and order to
         )
         ->assertNotified();
 
-    // Item lens_type_price updated to lens variant price
+    // Item lens price updated to lens variant price
     expect($item->fresh()->lens_type_price)->toBe('7500.00')
         ->and($item->fresh()->subtotal)->toBe('10500.00');
 
-    // Order subtotal and total recalculated
+    // Order subtotal and total recalculated (no discount at order level anymore)
     expect($order->fresh()->subtotal)->toBe('10500.00')
         ->and($order->fresh()->total_amount)->toBe('10500.00');
 });
 
-test('confirmed order edit page shows view billing action', function () {
-    $this->seed(BillingStatusSeeder::class);
+test('lens assignment is not available once order reaches processing', function () {
+    $staff = User::factory()->staff()->create();
+    $lensCategory = LensCategory::factory()->create(['name' => 'progressive', 'price' => null]);
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
+    $order = Order::factory()->create(['order_status_id' => $processingStatus->id]);
+    $item = $order->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create()->id,
+        'lens_category_id' => $lensCategory->id,
+        'product_id' => Product::factory()->create()->id,
+        'product_name' => 'Frame',
+        'variant_name' => 'Black',
+        'variant_sku' => 'SKU-001',
+        'lens_category_name' => 'progressive',
+        'unit_price' => '3000.00',
+        'quantity' => 1,
+        'subtotal' => '3000.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ItemsRelationManager::class, [
+        'ownerRecord' => $order,
+        'pageClass' => EditOrder::class,
+    ])->assertActionHidden(TestAction::make('assignLens')->table($item));
+});
+
+test('confirmed order edit page shows view billing action once processing generates a billing', function () {
     $this->seed(PaymentStatusSeeder::class);
     $this->seed(PaymentMethodSeeder::class);
 
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
     $order = Order::factory()->create([
         'customer_id' => $customer->id,
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'total_amount' => '400.00',
         'is_non_prescription' => true,
     ]);
 
     $this->actingAs($staff);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
         ->assertActionVisible('view_billing');
@@ -351,9 +392,9 @@ test('confirmed order edit page shows view billing action', function () {
 
 test('view billing action is hidden when order has no billing', function () {
     $staff = User::factory()->staff()->create();
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
 
-    $order = Order::factory()->create(['order_status_id' => $requestedStatus->id]);
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
 
     $this->actingAs($staff);
 

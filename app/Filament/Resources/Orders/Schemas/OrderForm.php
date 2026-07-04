@@ -3,8 +3,7 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Actions\Orders\UpdateOrderStatus;
-use App\Models\DiscountType;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
@@ -124,23 +123,6 @@ class OrderForm
                         Textarea::make('notes')
                             ->label('Staff Notes')
                             ->columnSpanFull(),
-                        Select::make('discount_type_id')
-                            ->label('Discount')
-                            ->relationship('discountType', 'name', fn ($query) => $query->where('is_active', true))
-                            ->nullable()
-                            ->placeholder('No discount')
-                            ->live()
-                            ->columnSpanFull(),
-                        TextInput::make('custom_discount_amount')
-                            ->label('Custom Discount Amount')
-                            ->numeric()
-                            ->prefix('₱')
-                            ->minValue(0)
-                            ->live(onBlur: true)
-                            ->visible(fn (Get $get): bool => (bool) $get('discount_type_id') &&
-                                DiscountType::find($get('discount_type_id'))?->type === 'fixed')
-                            ->dehydrated(false)
-                            ->columnSpanFull(),
                     ])->columns(2),
                 ]),
 
@@ -165,7 +147,7 @@ class OrderForm
                         ->icon('heroicon-o-arrow-path')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->visible(fn (?Order $record): bool => $record?->status?->name === 'requested')
+                        ->visible(fn (?Order $record): bool => $record?->status?->name === 'confirmed')
                         ->action(function ($livewire): void {
                             $livewire->dispatch('resetItems');
                         }),
@@ -182,6 +164,7 @@ class OrderForm
                                 ->options(fn () => ProductVariant::query()
                                     ->with('product')
                                     ->where('is_active', true)
+                                    ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
                                     ->get()
                                     ->mapWithKeys(fn ($v) => [
                                         $v->id => $v->stock_quantity > 0
@@ -208,10 +191,11 @@ class OrderForm
                                     $set('variant_name', $variant->name);
                                     $set('variant_sku', $variant->sku);
                                     $set('unit_price', $variant->price);
+                                    $set('is_frame', $variant->product->product_type === 'frame');
 
-                                    $lensTypeId = $get('lens_type_id');
-                                    $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
-                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $lensCategoryId = $get('lens_category_id');
+                                    $lensCategory = $lensCategoryId ? LensCategory::find($lensCategoryId) : null;
+                                    $lensPrice = (float) ($lensCategory?->price ?? 0);
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $variant->price, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
@@ -235,36 +219,37 @@ class OrderForm
                                 ->disabled()
                                 ->dehydrated()
                                 ->columnSpan(1),
-                            // Row 2 (lens only): Lens Type(1) | Assigned Lens(2) | Lens Price(1)
-                            Select::make('lens_type_id')
-                                ->label('Lens Type')
-                                ->options(fn () => LensType::query()->pluck('name', 'id'))
+                            // Row 2 (frame items in confirmed status only): Lens Category(1) | Assigned Lens(2) | Lens Price(1)
+                            Select::make('lens_category_id')
+                                ->label('Lens Category')
+                                ->options(fn () => LensCategory::query()->pluck('name', 'id'))
                                 ->nullable()
                                 ->placeholder('No lens')
                                 ->live()
                                 ->columnSpan(1)
+                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('is_frame') && $record?->status?->name === 'confirmed')
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                                    $lensType = $state ? LensType::find($state) : null;
-                                    $set('lens_type_name', $lensType?->name);
-                                    $set('lens_type_price', $lensType?->price);
+                                    $lensCategory = $state ? LensCategory::find($state) : null;
+                                    $set('lens_category_name', $lensCategory?->name);
+                                    $set('lens_type_price', $lensCategory?->price);
                                     $set('lens_product_variant_id', null);
                                     $unitPrice = (float) ($get('unit_price') ?? 0);
-                                    $lensPrice = (float) ($lensType?->price ?? 0);
+                                    $lensPrice = (float) ($lensCategory?->price ?? 0);
                                     $qty = max(1, (int) $get('quantity'));
                                     $set('subtotal', bcmul(bcadd((string) $unitPrice, (string) $lensPrice, 2), (string) $qty, 2));
                                 }),
                             Select::make('lens_product_variant_id')
                                 ->label('Assigned Lens')
                                 ->options(function (Get $get): array {
-                                    $lensTypeId = $get('lens_type_id');
-                                    if (! $lensTypeId) {
+                                    $lensCategoryId = $get('lens_category_id');
+                                    if (! $lensCategoryId) {
                                         return [];
                                     }
 
                                     return ProductVariant::query()
                                         ->whereHas('product', fn ($q) => $q
                                             ->where('product_type', 'lens')
-                                            ->where('lens_type_id', $lensTypeId)
+                                            ->where('lens_category_id', $lensCategoryId)
                                             ->where('is_active', true)
                                         )
                                         ->where('is_active', true)
@@ -279,7 +264,7 @@ class OrderForm
                                 })
                                 ->nullable()
                                 ->placeholder('Not assigned')
-                                ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
+                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('lens_category_id') && $record?->status?->name === 'confirmed')
                                 ->live()
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     if ($state) {
@@ -298,14 +283,15 @@ class OrderForm
                                 ->prefix('₱')
                                 ->disabled()
                                 ->dehydrated()
-                                ->visible(fn (Get $get): bool => (bool) $get('lens_type_id'))
+                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('lens_category_id') && $record?->status?->name === 'confirmed')
                                 ->columnSpan(1),
                             Hidden::make('subtotal'),
                             Hidden::make('product_id'),
                             Hidden::make('product_name'),
                             Hidden::make('variant_name'),
                             Hidden::make('variant_sku'),
-                            Hidden::make('lens_type_name'),
+                            Hidden::make('lens_category_name'),
+                            Hidden::make('is_frame')->dehydrated(false),
                         ])
                         ->addActionLabel('Add to order items')
                         ->deleteAction(fn (Action $action) => $action->iconButton())
@@ -325,54 +311,15 @@ class OrderForm
 
                             return $data;
                         })
-                        ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'requested')
-                        ->deletable(fn (?Order $record): bool => $record?->status?->name === 'requested')
-                        ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'requested'),
+                        ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'confirmed')
+                        ->deletable(fn (?Order $record): bool => $record?->status?->name === 'confirmed')
+                        ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'confirmed'),
                 ]),
 
             Section::make('Order Summary')
                 ->hiddenOn('create')
                 ->schema([
-                    Grid::make(3)->schema([
-                        Placeholder::make('subtotal_display')
-                            ->label('Subtotal')
-                            ->content(function ($livewire): string {
-                                $items = $livewire->data['items'] ?? [];
-                                $subtotal = collect($items)->sum(function (array $item): float {
-                                    $unit = (float) ($item['unit_price'] ?? 0);
-                                    $lens = (float) ($item['lens_type_price'] ?? 0);
-                                    $qty = max(1, (int) ($item['quantity'] ?? 1));
-
-                                    return ($unit + $lens) * $qty;
-                                });
-
-                                return '₱'.number_format($subtotal, 2);
-                            }),
-                        Placeholder::make('discount_display')
-                            ->label('Discount')
-                            ->content(function ($livewire): string {
-                                $discountTypeId = $livewire->data['discount_type_id'] ?? null;
-                                if (! $discountTypeId) {
-                                    return '—';
-                                }
-
-                                $discountType = DiscountType::find($discountTypeId);
-                                if (! $discountType) {
-                                    return '—';
-                                }
-
-                                $items = $livewire->data['items'] ?? [];
-                                $subtotal = collect($items)->sum(function (array $item): float {
-                                    return ((float) ($item['unit_price'] ?? 0) + (float) ($item['lens_type_price'] ?? 0))
-                                        * max(1, (int) ($item['quantity'] ?? 1));
-                                });
-
-                                $discount = $discountType->type === 'percentage'
-                                    ? $subtotal * ((float) $discountType->value / 100)
-                                    : (float) ($livewire->data['custom_discount_amount'] ?? $discountType->value);
-
-                                return '-₱'.number_format(min($discount, $subtotal), 2);
-                            }),
+                    Grid::make(1)->schema([
                         Placeholder::make('total_display')
                             ->label('Total')
                             ->content(function ($livewire): string {
@@ -382,19 +329,7 @@ class OrderForm
                                         * max(1, (int) ($item['quantity'] ?? 1));
                                 });
 
-                                $discountTypeId = $livewire->data['discount_type_id'] ?? null;
-                                $discount = 0.0;
-                                if ($discountTypeId) {
-                                    $discountType = DiscountType::find($discountTypeId);
-                                    if ($discountType) {
-                                        $discount = $discountType->type === 'percentage'
-                                            ? $subtotal * ((float) $discountType->value / 100)
-                                            : (float) ($livewire->data['custom_discount_amount'] ?? $discountType->value);
-                                        $discount = min($discount, $subtotal);
-                                    }
-                                }
-
-                                return '₱'.number_format(max(0, $subtotal - $discount), 2);
+                                return '₱'.number_format($subtotal, 2);
                             }),
                         Hidden::make('total_amount')->dehydrated(),
                     ]),

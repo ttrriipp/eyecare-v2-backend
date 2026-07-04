@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Orders\RelationManagers;
 
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use Filament\Actions\Action;
@@ -33,6 +33,7 @@ class ItemsRelationManager extends RelationManager
                 ->options(fn () => ProductVariant::query()
                     ->with('product')
                     ->where('is_active', true)
+                    ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
                     ->get()
                     ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name} (₱{$v->price})"])
                     ->toArray()
@@ -46,9 +47,9 @@ class ItemsRelationManager extends RelationManager
                         $set('unit_price', $variant?->price);
                     }
                 }),
-            Select::make('lens_type_id')
-                ->label('Lens Type')
-                ->options(fn () => LensType::query()->pluck('name', 'id'))
+            Select::make('lens_category_id')
+                ->label('Lens Category')
+                ->options(fn () => LensCategory::query()->pluck('name', 'id'))
                 ->nullable()
                 ->placeholder('No lens required'),
             TextInput::make('quantity')
@@ -66,7 +67,7 @@ class ItemsRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
-        $isRequested = fn (): bool => $this->getOwnerRecord()->status->name === 'requested';
+        $isConfirmed = fn (): bool => $this->getOwnerRecord()->status->name === 'confirmed';
 
         return $table
             ->reorderable('id')
@@ -76,11 +77,12 @@ class ItemsRelationManager extends RelationManager
                     ->options(fn () => ProductVariant::query()
                         ->with('product')
                         ->where('is_active', true)
+                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
                         ->get()
                         ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
                         ->toArray()
                     )
-                    ->disabled(fn (): bool => ! $isRequested())
+                    ->disabled(fn (): bool => ! $isConfirmed())
                     ->afterStateUpdated(function ($state, OrderItem $record): void {
                         if (! $state) {
                             return;
@@ -111,7 +113,7 @@ class ItemsRelationManager extends RelationManager
                     ->label('Qty')
                     ->type('number')
                     ->rules(['min:1'])
-                    ->disabled(fn (): bool => ! $isRequested())
+                    ->disabled(fn (): bool => ! $isConfirmed())
                     ->afterStateUpdated(function ($state, OrderItem $record): void {
                         $subtotal = bcmul(
                             bcadd((string) $record->unit_price, (string) ($record->lens_type_price ?? 0), 2),
@@ -122,12 +124,12 @@ class ItemsRelationManager extends RelationManager
                         $this->recalculateOrderTotal($record);
                     }),
                 TextColumn::make('unit_price')->label('Unit Price')->money('PHP'),
-                TextColumn::make('lens_type_name')->label('Lens Type')->placeholder('No lens'),
+                TextColumn::make('lens_category_name')->label('Lens Category')->placeholder('No lens'),
                 TextColumn::make('lensProductVariant.name')
                     ->label('Assigned Lens')
                     ->placeholder('Not assigned')
                     ->badge()
-                    ->color(fn ($record): string => $record->lens_type_id && ! $record->lens_product_variant_id ? 'warning' : 'info'),
+                    ->color(fn ($record): string => $record->lens_category_id && ! $record->lens_product_variant_id ? 'warning' : 'info'),
                 TextColumn::make('subtotal')->label('Subtotal')->money('PHP'),
             ])
             ->headerActions([
@@ -136,7 +138,7 @@ class ItemsRelationManager extends RelationManager
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->visible(fn (): bool => $isRequested())
+                    ->visible(fn (): bool => $isConfirmed())
                     ->action(fn () => $this->dispatch('$refresh')),
             ])
             ->recordActions([
@@ -145,7 +147,7 @@ class ItemsRelationManager extends RelationManager
                     ->icon('heroicon-o-beaker')
                     ->color('warning')
                     ->iconButton()
-                    ->visible(fn ($record): bool => $record->lens_type_id !== null && $isRequested())
+                    ->visible(fn ($record): bool => $record->lens_category_id !== null && $isConfirmed())
                     ->schema([
                         Select::make('lens_product_variant_id')
                             ->label('Lens Product Variant')
@@ -153,7 +155,7 @@ class ItemsRelationManager extends RelationManager
                                 return ProductVariant::query()
                                     ->whereHas('product', fn ($q) => $q
                                         ->where('product_type', 'lens')
-                                        ->when($record->lens_type_id, fn ($q, $id) => $q->where('lens_type_id', $id))
+                                        ->when($record->lens_category_id, fn ($q, $id) => $q->where('lens_category_id', $id))
                                         ->where('is_active', true)
                                     )
                                     ->where('is_active', true)
@@ -187,18 +189,18 @@ class ItemsRelationManager extends RelationManager
                     }),
                 DeleteAction::make()
                     ->iconButton()
-                    ->visible(fn (): bool => $isRequested())
+                    ->visible(fn (): bool => $isConfirmed())
                     ->after(fn (OrderItem $record) => $this->recalculateOrderTotal($record)),
             ])
             ->toolbarActions([
                 CreateAction::make()
                     ->label('Add to order items')
-                    ->visible(fn (): bool => $isRequested())
+                    ->visible(fn (): bool => $isConfirmed())
                     ->mutateFormDataUsing(function (array $data): array {
                         $variant = ProductVariant::with('product')->findOrFail($data['product_variant_id']);
-                        $lensType = $data['lens_type_id'] ? LensType::find($data['lens_type_id']) : null;
+                        $lensCategory = $data['lens_category_id'] ? LensCategory::find($data['lens_category_id']) : null;
                         $unitPrice = (float) $variant->price;
-                        $lensPrice = (float) ($lensType?->price ?? 0);
+                        $lensPrice = (float) ($lensCategory?->price ?? 0);
 
                         return [
                             'product_variant_id' => $variant->id,
@@ -206,8 +208,8 @@ class ItemsRelationManager extends RelationManager
                             'product_name' => $variant->product->name,
                             'variant_name' => $variant->name,
                             'variant_sku' => $variant->sku,
-                            'lens_type_id' => $lensType?->id,
-                            'lens_type_name' => $lensType?->name,
+                            'lens_category_id' => $lensCategory?->id,
+                            'lens_category_name' => $lensCategory?->name,
                             'lens_type_price' => $lensPrice > 0 ? $lensPrice : null,
                             'unit_price' => $unitPrice,
                             'quantity' => $data['quantity'],
@@ -218,8 +220,7 @@ class ItemsRelationManager extends RelationManager
                         $order = $this->getOwnerRecord();
                         $order->loadMissing('items');
                         $newSubtotal = $order->items->sum(fn ($i): float => (float) $i->subtotal);
-                        $newTotal = bcsub(number_format($newSubtotal, 2, '.', ''), (string) $order->discount_amount, 2);
-                        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => $newTotal]);
+                        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => number_format($newSubtotal, 2, '.', '')]);
                     }),
             ])
             ->paginated(false);
@@ -230,7 +231,6 @@ class ItemsRelationManager extends RelationManager
         $order = $this->getOwnerRecord();
         $order->loadMissing('items');
         $newSubtotal = $order->items->sum(fn ($i): float => (float) $i->fresh()->subtotal);
-        $newTotal = bcsub(number_format($newSubtotal, 2, '.', ''), (string) $order->discount_amount, 2);
-        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => $newTotal]);
+        $order->update(['subtotal' => number_format($newSubtotal, 2, '.', ''), 'total_amount' => number_format($newSubtotal, 2, '.', '')]);
     }
 }

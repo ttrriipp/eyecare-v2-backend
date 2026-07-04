@@ -27,18 +27,18 @@ class EditOrder extends EditRecord
     {
         $record = $this->getRecord();
 
-        if ($record->status->name !== 'requested') {
+        if ($record->status->name !== 'confirmed') {
             return;
         }
 
         $record->loadMissing('items');
         $unassigned = $record->items->filter(
-            fn ($item) => $item->lens_type_id !== null && $item->lens_product_variant_id === null
+            fn ($item) => $item->lens_category_id !== null && $item->lens_product_variant_id === null
         )->count();
 
         if ($unassigned > 0) {
             Notification::make()
-                ->title("{$unassigned} item(s) need a lens assigned before confirming")
+                ->title("{$unassigned} item(s) need a lens assigned before processing")
                 ->warning()
                 ->persistent()
                 ->send();
