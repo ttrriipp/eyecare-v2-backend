@@ -3,8 +3,11 @@
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
+use App\Filament\Resources\Appointments\RelationManagers\BillingsRelationManager;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\Billing;
+use App\Models\BillingStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
 use App\Models\VisitReason;
@@ -321,4 +324,33 @@ test('appointment create form rejects past scheduled_at', function () {
         ])
         ->call('create')
         ->assertHasFormErrors(['scheduled_at']);
+});
+
+test('appointment edit page shows linked billings via relation manager', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $issuedStatus = BillingStatus::query()->firstOrCreate(['name' => 'issued']);
+    $billing = Billing::factory()->create([
+        'customer_id' => $appointment->customer_id,
+        'appointment_id' => $appointment->id,
+        'billing_status_id' => $issuedStatus->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(BillingsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])->assertCanSeeTableRecords([$billing]);
+});
+
+test('edit appointment page no longer exposes a bill service action', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionDoesNotExist('bill_service');
 });

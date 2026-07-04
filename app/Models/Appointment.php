@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -85,6 +86,14 @@ class Appointment extends Model implements Eventable
     public function status(): BelongsTo
     {
         return $this->belongsTo(AppointmentStatus::class, 'appointment_status_id');
+    }
+
+    /**
+     * @return HasMany<Billing, $this>
+     */
+    public function billings(): HasMany
+    {
+        return $this->hasMany(Billing::class);
     }
 
     /**

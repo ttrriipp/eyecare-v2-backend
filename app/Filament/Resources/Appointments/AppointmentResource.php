@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Appointments;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
+use App\Filament\Resources\Appointments\RelationManagers\BillingsRelationManager;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Tables\AppointmentsTable;
 use App\Models\Appointment;
@@ -54,7 +55,9 @@ class AppointmentResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            BillingsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

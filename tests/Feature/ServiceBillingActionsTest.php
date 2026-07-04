@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Billing\AddServiceToBilling;
-use App\Actions\Billing\CreateServiceBilling;
 use App\Models\Billing;
 use App\Models\BillingItem;
 use App\Models\BillingStatus;
@@ -85,22 +84,34 @@ it('throws when adding service to a voided billing', function () {
     ]))->toThrow(ValidationException::class);
 });
 
-// ─── CreateServiceBilling ─────────────────────────────────────────────────────
+// ─── Standalone billing + Add Service (replaces the old CreateServiceBilling flow) ─
 
-it('creates a standalone service billing', function () {
+it('staff can create a standalone billing then add a service to it', function () {
     $customer = User::factory()->customer()->create();
     $staff = User::factory()->staff()->create();
     $service = Service::factory()->create(['price' => '300.00']);
+    $issuedStatus = BillingStatus::query()->where('name', 'issued')->firstOrFail();
 
-    $billing = app(CreateServiceBilling::class)->handle([
+    $billing = Billing::query()->create([
         'customer_id' => $customer->id,
+        'billing_status_id' => $issuedStatus->id,
+        'subtotal' => '0.00',
+        'discount_amount' => '0.00',
+        'total_amount' => '0.00',
+        'amount_paid' => '0.00',
+        'balance_due' => '0.00',
+        'issued_at' => now(),
+    ]);
+
+    app(AddServiceToBilling::class)->handle($billing, [
         'service_id' => $service->id,
         'staff_id' => $staff->id,
         'performed_at' => now(),
     ]);
 
-    expect($billing)->toBeInstanceOf(Billing::class)
-        ->and($billing->customer_id)->toBe($customer->id)
+    $billing->refresh();
+
+    expect($billing->customer_id)->toBe($customer->id)
         ->and($billing->order_id)->toBeNull()
         ->and($billing->status->name)->toBe('issued')
         ->and($billing->total_amount)->toBe('300.00')
