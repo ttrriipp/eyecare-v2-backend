@@ -7,6 +7,7 @@ use App\Actions\Billing\AddServiceToBilling;
 use App\Actions\Billing\RecalculateBillingBalance;
 use App\Actions\Billing\RecordPayment;
 use App\Filament\Resources\Billings\BillingResource;
+use App\Filament\Resources\Orders\OrderResource;
 use App\Models\BillingStatus;
 use App\Models\DiscountType;
 use App\Models\PaymentMethod;
@@ -18,6 +19,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
@@ -29,6 +31,30 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('create_order')
+                ->label('Create Order')
+                ->icon('heroicon-o-shopping-bag')
+                ->color('primary')
+                ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
+                ->url(fn (): string => OrderResource::getUrl('create', ['billing_id' => $this->getRecord()->id])),
+
+            Action::make('edit_notes')
+                ->label('Edit Notes')
+                ->icon('heroicon-o-pencil-square')
+                ->color('gray')
+                ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
+                ->schema([
+                    Textarea::make('notes')
+                        ->label('Notes')
+                        ->default(fn () => $this->getRecord()->notes)
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data): void {
+                    $this->getRecord()->update(['notes' => $data['notes']]);
+                    $this->refreshFormData(['notes']);
+                })
+                ->successNotificationTitle('Notes updated'),
+
             Action::make('record_payment_shortcut')
                 ->label('Record Payment')
                 ->icon('heroicon-o-banknotes')

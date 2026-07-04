@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
+use App\Models\Billing;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
@@ -25,12 +26,34 @@ use Filament\Schemas\Components\Wizard\Step;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Url;
 
 class CreateOrder extends CreateRecord
 {
     use CreateRecord\Concerns\HasWizard;
 
     protected static string $resource = OrderResource::class;
+
+    /**
+     * When set (via the "Create Order" action on a billing), the new order is
+     * pre-linked to this billing. Its items attach to that billing once the
+     * order reaches `processing`, instead of generating a new billing.
+     */
+    #[Url(as: 'billing_id')]
+    public ?int $preLinkedBillingId = null;
+
+    public function getSubheading(): ?string
+    {
+        if (! $this->preLinkedBillingId) {
+            return null;
+        }
+
+        $billing = Billing::find($this->preLinkedBillingId);
+
+        return $billing
+            ? "This order will be linked to billing #{$billing->billing_number}."
+            : null;
+    }
 
     protected function afterCreate(): void
     {
@@ -74,6 +97,9 @@ class CreateOrder extends CreateRecord
                         ->searchable()
                         ->preload()
                         ->live()
+                        ->default(fn (): ?int => $this->preLinkedBillingId
+                            ? Billing::find($this->preLinkedBillingId)?->customer_id
+                            : null)
                         ->createOptionForm([
                             TextInput::make('name')->required(),
                             TextInput::make('phone')->required()->tel(),
@@ -174,6 +200,16 @@ class CreateOrder extends CreateRecord
      */
     protected function handleRecordCreation(array $data): Model
     {
+        if ($this->preLinkedBillingId) {
+            $billing = Billing::findOrFail($this->preLinkedBillingId);
+
+            if ((int) $billing->customer_id !== (int) $data['customer_id']) {
+                throw ValidationException::withMessages([
+                    'customer_id' => ['The selected customer must match the billing\'s customer.'],
+                ]);
+            }
+        }
+
         $items = $data['items'] ?? [];
         unset($data['items']);
 
@@ -203,6 +239,7 @@ class CreateOrder extends CreateRecord
             $data['subtotal'] = $subtotal;
             $data['total_amount'] = $subtotal;
             $data['order_status_id'] = OrderStatus::query()->where('name', 'confirmed')->value('id');
+            $data['billing_id'] = $this->preLinkedBillingId;
 
             /** @var Order $order */
             $order = static::getModel()::create($data);

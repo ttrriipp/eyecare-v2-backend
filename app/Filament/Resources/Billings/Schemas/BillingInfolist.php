@@ -23,10 +23,6 @@ class BillingInfolist
                 Section::make('Billing Summary')
                     ->columns(3)
                     ->schema([
-                        TextEntry::make('or_number')
-                            ->label('OR Number')
-                            ->placeholder('—')
-                            ->copyable(),
                         TextEntry::make('billing_number')
                             ->label('Billing #'),
                         TextEntry::make('status.name')
@@ -51,6 +47,10 @@ class BillingInfolist
                         TextEntry::make('balance_due')
                             ->label('Balance Due')
                             ->money('PHP'),
+                        TextEntry::make('notes')
+                            ->label('Notes')
+                            ->placeholder('—')
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Linked Records')

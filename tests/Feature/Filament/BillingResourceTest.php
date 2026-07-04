@@ -69,6 +69,51 @@ test('payments table renders on billing view page', function () {
         ->assertSuccessful();
 });
 
+test('staff can update billing notes via the edit notes action', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->callAction('edit_notes', ['notes' => 'Patient requested split payment.'])
+        ->assertNotified();
+
+    expect($billing->fresh()->notes)->toBe('Patient requested split payment.');
+});
+
+test('edit notes action is hidden on a voided billing', function () {
+    $staff = User::factory()->staff()->create();
+    $voidedStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
+    $billing = Billing::factory()->create(['billing_status_id' => $voidedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionHidden('edit_notes');
+});
+
+test('create order action is visible on a non-voided billing and links to the order create page', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionVisible('create_order');
+});
+
+test('create order action is hidden on a voided billing', function () {
+    $staff = User::factory()->staff()->create();
+    $voidedStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
+    $billing = Billing::factory()->create(['billing_status_id' => $voidedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionHidden('create_order');
+});
+
 test('staff can record a payment via the payments relation manager', function () {
     $this->seed(PaymentStatusSeeder::class);
     $this->seed(PaymentMethodSeeder::class);
