@@ -66,18 +66,18 @@ test('staff receives a notification when variant stock drops to or below low_sto
     $this->seed(BillingStatusSeeder::class);
     $this->seed(PaymentStatusSeeder::class);
     $order = Order::factory()->create([
-        'order_status_id' => OrderStatus::query()->where('name', 'requested')->value('id'),
+        'order_status_id' => OrderStatus::query()->where('name', 'confirmed')->value('id'),
         'is_non_prescription' => true,
     ]);
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 1,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     // Staff/admin should have received a low stock notification
     $notification = DatabaseNotification::query()

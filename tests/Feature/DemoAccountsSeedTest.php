@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\CatalogSeeder;
@@ -52,11 +52,11 @@ test('demo user seeder is idempotent', function () {
         ->and(User::query()->where('email', 'customer@eyecare.test')->count())->toBe(1);
 });
 
-test('catalog seed creates demo products and lens types', function () {
+test('catalog seed creates demo products and lens categories', function () {
     $this->seed(CatalogSeeder::class);
 
     expect(Product::query()->where('is_active', true)->count())->toBeGreaterThanOrEqual(2)
-        ->and(LensType::query()->count())->toBeGreaterThanOrEqual(3);
+        ->and(LensCategory::query()->count())->toBeGreaterThanOrEqual(3);
 });
 
 test('demo admin can access filament panel', function () {

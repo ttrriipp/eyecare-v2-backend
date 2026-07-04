@@ -26,24 +26,24 @@ beforeEach(function () {
     $this->seed(PaymentStatusSeeder::class);
 });
 
-it('deducts stock and records an order_commitment movement when an order is confirmed', function () {
+it('deducts stock and records an order_commitment movement when an order is processed', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     expect($variant->fresh()->stock_quantity)->toBe(8);
 
@@ -55,39 +55,39 @@ it('deducts stock and records an order_commitment movement when an order is conf
     ]);
 });
 
-it('does not deduct stock more than once if confirmed twice (idempotent via transition guard)', function () {
+it('does not deduct stock more than once if processed twice (idempotent via transition guard)', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
-    // Confirm is terminal — any re-confirm attempt is blocked by transition rules
-    expect(fn () => app(UpdateOrderStatus::class)->handle($order->fresh(), 'confirmed'))
+    // Processing is a one-way gate — any re-processing attempt is blocked by transition rules
+    expect(fn () => app(UpdateOrderStatus::class)->handle($order->fresh(), 'processing'))
         ->toThrow(ValidationException::class);
 
     expect($variant->fresh()->stock_quantity)->toBe(8);
     expect(InventoryMovement::where('order_id', $order->id)->count())->toBe(1);
 });
 
-it('restores stock and records an order_reversal movement when a confirmed order is cancelled', function () {
+it('restores stock and records an order_reversal movement when a processing order is cancelled', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $confirmedStatus->id,
+        'order_status_id' => $processingStatus->id,
         'is_non_prescription' => true,
         'confirmed_at' => now(),
     ]);
@@ -95,7 +95,7 @@ it('restores stock and records an order_reversal movement when a confirmed order
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 3,
     ]);
@@ -112,19 +112,19 @@ it('restores stock and records an order_reversal movement when a confirmed order
     ]);
 });
 
-it('does not create reversal movements when a non-confirmed order is cancelled', function () {
+it('does not create reversal movements when a confirmed (pre-processing) order is cancelled', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
@@ -139,16 +139,16 @@ it('stock remains correct after movements from multiple items', function () {
     $variantA = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $variantB = ProductVariant::factory()->create(['stock_quantity' => 20]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variantA->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 2,
     ]);
@@ -156,12 +156,12 @@ it('stock remains correct after movements from multiple items', function () {
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $variantB->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 5,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     expect($variantA->fresh()->stock_quantity)->toBe(8);
     expect($variantB->fresh()->stock_quantity)->toBe(15);
@@ -221,13 +221,13 @@ it('RecordInventoryMovement throws when stock is insufficient and rolls back', f
     expect(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(0);
 });
 
-it('deducts both frame and lens product variant stock on order confirmation', function () {
+it('deducts both frame and lens product variant stock on order processing', function () {
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 5]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
@@ -238,7 +238,7 @@ it('deducts both frame and lens product variant stock on order confirmation', fu
         'quantity' => 1,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     expect($frameVariant->fresh()->stock_quantity)->toBe(9)
         ->and($lensVariant->fresh()->stock_quantity)->toBe(4);
@@ -252,32 +252,32 @@ it('deducts both frame and lens product variant stock on order confirmation', fu
 it('only deducts frame stock when no lens product variant is assigned', function () {
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $requestedStatus = OrderStatus::query()->where('name', 'requested')->firstOrFail();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $requestedStatus->id,
+        'order_status_id' => $confirmedStatus->id,
         'is_non_prescription' => true,
     ]);
 
     OrderItem::factory()->create([
         'order_id' => $order->id,
         'product_variant_id' => $frameVariant->id,
-        'lens_type_id' => null,
+        'lens_category_id' => null,
         'lens_product_variant_id' => null,
         'quantity' => 1,
     ]);
 
-    app(UpdateOrderStatus::class)->handle($order, 'confirmed');
+    app(UpdateOrderStatus::class)->handle($order, 'processing');
 
     expect($frameVariant->fresh()->stock_quantity)->toBe(9);
 });
 
-it('restores both frame and lens product variant stock when a confirmed order is cancelled', function () {
+it('restores both frame and lens product variant stock when a processing order is cancelled', function () {
     $frameVariant = ProductVariant::factory()->create(['stock_quantity' => 9]);
     $lensVariant = ProductVariant::factory()->create(['stock_quantity' => 4]);
 
-    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $processingStatus = OrderStatus::query()->where('name', 'processing')->firstOrFail();
     $order = Order::factory()->create([
-        'order_status_id' => $confirmedStatus->id,
+        'order_status_id' => $processingStatus->id,
         'is_non_prescription' => true,
     ]);
 

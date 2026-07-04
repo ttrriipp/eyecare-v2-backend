@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Brand;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -52,11 +52,11 @@ test('variant ar metadata columns exclude biometric fields', function () {
         ->and($columns)->not->toContain('face_geometry', 'facial_landmarks', 'biometric_identifier', 'ar_analytics');
 });
 
-test('catalog seeder creates demo frame products and lens types idempotently', function () {
+test('catalog seeder creates demo frame products and lens categories idempotently', function () {
     $this->seed(CatalogSeeder::class);
     $this->seed(CatalogSeeder::class);
 
-    expect(LensType::query()->pluck('name')->all())
+    expect(LensCategory::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
             'Single Vision',
             'Progressive',
@@ -155,31 +155,31 @@ test('product_variants table has attributes column not dimensions', function () 
         ->and($columns)->not->toContain('dimensions');
 });
 
-test('product_type accepts contact_lens value', function () {
-    $product = Product::factory()->create(['product_type' => 'contact_lens']);
+test('product_type accepts general value', function () {
+    $product = Product::factory()->general()->create();
 
-    expect($product->product_type)->toBe('contact_lens');
+    expect($product->product_type)->toBe('general');
 });
 
-test('lens products can be linked to a lens type', function () {
-    $lensType = LensType::factory()->create(['name' => 'progressive']);
+test('lens products can be linked to a lens category', function () {
+    $lensCategory = LensCategory::factory()->create(['name' => 'progressive']);
     $product = Product::factory()->create([
         'product_type' => 'lens',
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
     ]);
 
-    expect($product->lensType)->toBeInstanceOf(LensType::class)
-        ->and($product->lensType->name)->toBe('progressive');
+    expect($product->lensCategory)->toBeInstanceOf(LensCategory::class)
+        ->and($product->lensCategory->name)->toBe('progressive');
 });
 
-test('lens type has many lens products', function () {
-    $lensType = LensType::factory()->create();
+test('lens category has many lens products', function () {
+    $lensCategory = LensCategory::factory()->create();
     Product::factory()->count(2)->create([
         'product_type' => 'lens',
-        'lens_type_id' => $lensType->id,
+        'lens_category_id' => $lensCategory->id,
     ]);
 
-    expect($lensType->products)->toHaveCount(2);
+    expect($lensCategory->products)->toHaveCount(2);
 });
 
 test('order_items table has lens_product_variant_id column', function () {
@@ -192,13 +192,13 @@ test('order item can be linked to a lens product variant', function () {
 
     $item = $order->items()->create([
         'product_variant_id' => ProductVariant::factory()->create()->id,
-        'lens_type_id' => LensType::factory()->create()->id,
+        'lens_category_id' => LensCategory::factory()->create()->id,
         'lens_product_variant_id' => $lensVariant->id,
         'product_id' => Product::factory()->create()->id,
         'product_name' => 'Frame',
         'variant_name' => 'Black',
         'variant_sku' => 'SKU-001',
-        'lens_type_name' => 'progressive',
+        'lens_category_name' => 'progressive',
         'unit_price' => '3000.00',
         'quantity' => 1,
         'subtotal' => '3000.00',
