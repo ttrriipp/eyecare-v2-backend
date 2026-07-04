@@ -3,7 +3,7 @@
 use App\Filament\Resources\AuditLogs\AuditLogResource;
 use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Brands\BrandResource;
-use App\Filament\Resources\LensTypes\LensTypeResource;
+use App\Filament\Resources\LensCategories\LensCategoryResource;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Filament\Resources\ProductCategories\ProductCategoryResource;
 use App\Filament\Resources\Services\ServiceResource;
@@ -42,7 +42,7 @@ test('staff cannot access admin-only resources', function (string $url) {
     'users' => [fn () => UserResource::getUrl('index')],
     'audit_logs' => [fn () => AuditLogResource::getUrl('index')],
     'brands' => [fn () => BrandResource::getUrl('index')],
-    'lens_types' => [fn () => LensTypeResource::getUrl('index')],
+    'lens_categories' => [fn () => LensCategoryResource::getUrl('index')],
     'visit_reasons' => [fn () => VisitReasonResource::getUrl('index')],
     'categories' => [fn () => ProductCategoryResource::getUrl('index')],
     'services' => [fn () => ServiceResource::getUrl('index')],
@@ -56,7 +56,7 @@ test('admin can access all admin-only resources', function (string $url) {
 })->with([
     'audit_logs' => [fn () => AuditLogResource::getUrl('index')],
     'brands' => [fn () => BrandResource::getUrl('index')],
-    'lens_types' => [fn () => LensTypeResource::getUrl('index')],
+    'lens_categories' => [fn () => LensCategoryResource::getUrl('index')],
     'visit_reasons' => [fn () => VisitReasonResource::getUrl('index')],
     'categories' => [fn () => ProductCategoryResource::getUrl('index')],
     'services' => [fn () => ServiceResource::getUrl('index')],

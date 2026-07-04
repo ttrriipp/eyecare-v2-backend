@@ -1,12 +1,12 @@
 <?php
 
-use App\Filament\Resources\LensTypes\Pages\CreateLensType;
-use App\Filament\Resources\LensTypes\Pages\ListLensTypes;
+use App\Filament\Resources\LensCategories\Pages\CreateLensCategory;
+use App\Filament\Resources\LensCategories\Pages\ListLensCategories;
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Brand;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
@@ -90,12 +90,12 @@ test('product table shows total variant quantity', function () {
         ->assertTableColumnStateSet('total_quantity', 13, $product);
 });
 
-test('admin can create lens types', function () {
+test('admin can create lens categories', function () {
     $admin = User::factory()->admin()->create();
 
     $this->actingAs($admin);
 
-    Livewire::test(CreateLensType::class)
+    Livewire::test(CreateLensCategory::class)
         ->fillForm([
             'name' => 'photochromic',
             'description' => 'Light-responsive lenses.',
@@ -104,12 +104,12 @@ test('admin can create lens types', function () {
         ->assertNotified()
         ->assertHasNoFormErrors();
 
-    $this->assertDatabaseHas(LensType::class, [
+    $this->assertDatabaseHas(LensCategory::class, [
         'name' => 'photochromic',
     ]);
 
-    Livewire::test(ListLensTypes::class)
-        ->assertCanSeeTableRecords(LensType::query()->where('name', 'photochromic')->get());
+    Livewire::test(ListLensCategories::class)
+        ->assertCanSeeTableRecords(LensCategory::query()->where('name', 'photochromic')->get());
 });
 
 test('product edit page loads without error', function () {

@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Filament\Resources\LensTypes\Tables;
+namespace App\Filament\Resources\LensCategories\Tables;
 
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
-class LensTypesTable
+class LensCategoriesTable
 {
     public static function configure(Table $table): Table
     {

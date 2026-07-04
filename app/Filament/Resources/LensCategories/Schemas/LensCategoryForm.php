@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\LensTypes\Schemas;
+namespace App\Filament\Resources\LensCategories\Schemas;
 
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
@@ -9,13 +9,13 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
-class LensTypeForm
+class LensCategoryForm
 {
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
             Grid::make(3)->schema([
-                Section::make('Lens Type Details')
+                Section::make('Lens Category Details')
                     ->columnSpan(2)
                     ->schema([
                         TextInput::make('name')
@@ -25,7 +25,7 @@ class LensTypeForm
                         TextInput::make('price')
                             ->numeric()
                             ->prefix('₱')
-                            ->helperText('Price added to order total when this lens type is selected.'),
+                            ->helperText('Price added to order total when this lens category is selected.'),
                         Textarea::make('description')
                             ->columnSpanFull(),
                     ]),

@@ -41,9 +41,9 @@ class ProductForm
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->columnSpanFull(),
-                            Select::make('lens_type_id')
-                                ->label('Lens Type Category')
-                                ->relationship('lensType', 'name')
+                            Select::make('lens_category_id')
+                                ->label('Lens Category')
+                                ->relationship('lensCategory', 'name')
                                 ->searchable()
                                 ->preload()
                                 ->visible(fn (Get $get): bool => $get('product_type') === 'lens'),

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\LensTypes\RelationManagers;
+namespace App\Filament\Resources\LensCategories\RelationManagers;
 
 use App\Filament\Resources\Products\ProductResource;
 use App\Models\Product;
