@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
-use Database\Factories\LensTypeFactory;
+use Database\Factories\LensCategoryFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['name', 'description', 'price'])]
-class LensType extends Model
+class LensCategory extends Model
 {
-    /** @use HasFactory<LensTypeFactory> */
+    /** @use HasFactory<LensCategoryFactory> */
     use HasFactory;
 
     /**

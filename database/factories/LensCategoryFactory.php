@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\LensType;
+use App\Models\LensCategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<LensType>
+ * @extends Factory<LensCategory>
  */
-class LensTypeFactory extends Factory
+class LensCategoryFactory extends Factory
 {
     /**
      * Define the model's default state.

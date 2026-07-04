@@ -11,13 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'order_id',
     'product_variant_id',
-    'lens_type_id',
+    'lens_category_id',
     'lens_product_variant_id',
     'product_id',
     'product_name',
     'variant_name',
     'variant_sku',
-    'lens_type_name',
+    'lens_category_name',
     'lens_type_price',
     'unit_price',
     'quantity',
@@ -47,11 +47,11 @@ class OrderItem extends Model
     }
 
     /**
-     * @return BelongsTo<LensType, $this>
+     * @return BelongsTo<LensCategory, $this>
      */
-    public function lensType(): BelongsTo
+    public function lensCategory(): BelongsTo
     {
-        return $this->belongsTo(LensType::class);
+        return $this->belongsTo(LensCategory::class);
     }
 
     /**

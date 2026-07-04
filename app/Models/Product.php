@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 #[Fillable([
     'brand_id',
     'category_id',
-    'lens_type_id',
+    'lens_category_id',
     'name',
     'slug',
     'description',
@@ -67,11 +67,11 @@ class Product extends Model
     }
 
     /**
-     * @return BelongsTo<LensType, $this>
+     * @return BelongsTo<LensCategory, $this>
      */
-    public function lensType(): BelongsTo
+    public function lensCategory(): BelongsTo
     {
-        return $this->belongsTo(LensType::class);
+        return $this->belongsTo(LensCategory::class);
     }
 
     /**

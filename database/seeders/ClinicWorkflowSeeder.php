@@ -10,7 +10,7 @@ use App\Models\BillingStatus;
 use App\Models\Conversation;
 use App\Models\DiscountType;
 use App\Models\Feedback;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Message;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -102,7 +102,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedPrescriptionOrder(User $customer, Appointment $appointment, Prescription $prescription, User $staff): void
     {
         $variant = ProductVariant::query()->where('sku', 'CRF-BLK-001')->firstOrFail();
-        $lensType = LensType::query()->where('name', 'Single Vision')->firstOrFail();
+        $lensCategory = LensCategory::query()->where('name', 'Single Vision')->firstOrFail();
         $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
         $seniorDiscount = DiscountType::query()->where('name', 'Senior Citizen')->firstOrFail();
 
@@ -129,11 +129,11 @@ class ClinicWorkflowSeeder extends Seeder
             ['order_id' => $order->id, 'variant_sku' => $variant->sku],
             [
                 'product_variant_id' => $variant->id,
-                'lens_type_id' => $lensType->id,
+                'lens_category_id' => $lensCategory->id,
                 'product_id' => $variant->product_id,
                 'product_name' => $variant->product->name,
                 'variant_name' => $variant->name,
-                'lens_type_name' => $lensType->name,
+                'lens_category_name' => $lensCategory->name,
                 'unit_price' => $unitPrice,
                 'quantity' => 1,
                 'subtotal' => $subtotal,
@@ -185,7 +185,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedNonPrescriptionOrder(User $customer): void
     {
         $variant = ProductVariant::query()->where('sku', 'RMF-GLD-001')->firstOrFail();
-        $lensType = LensType::query()->where('name', 'Single Vision')->firstOrFail();
+        $lensCategory = LensCategory::query()->where('name', 'Single Vision')->firstOrFail();
         $completedStatus = OrderStatus::query()->where('name', 'completed')->firstOrFail();
 
         $unitPrice = (string) $variant->price;
@@ -207,11 +207,11 @@ class ClinicWorkflowSeeder extends Seeder
             ['order_id' => $order->id, 'variant_sku' => $variant->sku],
             [
                 'product_variant_id' => $variant->id,
-                'lens_type_id' => $lensType->id,
+                'lens_category_id' => $lensCategory->id,
                 'product_id' => $variant->product_id,
                 'product_name' => $variant->product->name,
                 'variant_name' => $variant->name,
-                'lens_type_name' => $lensType->name,
+                'lens_category_name' => $lensCategory->name,
                 'unit_price' => $unitPrice,
                 'quantity' => 1,
                 'subtotal' => $subtotal,

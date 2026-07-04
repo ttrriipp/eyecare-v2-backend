@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
-use App\Models\LensType;
+use App\Models\LensCategory;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
@@ -17,7 +17,7 @@ class CatalogSeeder extends Seeder
             ['name' => 'Single Vision', 'description' => 'Standard single vision lenses.', 'price' => 2500.00],
             ['name' => 'Progressive', 'description' => 'Progressive multifocal lenses.', 'price' => 6500.00],
             ['name' => 'Bifocal', 'description' => 'Bifocal lenses with visible segment.', 'price' => 4500.00],
-        ])->each(fn (array $attributes) => LensType::query()->firstOrCreate(
+        ])->each(fn (array $attributes) => LensCategory::query()->firstOrCreate(
             ['name' => $attributes['name']],
             ['description' => $attributes['description'], 'price' => $attributes['price']],
         ));
@@ -26,8 +26,8 @@ class CatalogSeeder extends Seeder
         $category = ProductCategory::query()->firstOrCreate(['name' => 'Frames']);
         $lensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lenses']);
 
-        $progressiveLensType = LensType::query()->where('name', 'Progressive')->first();
-        $singleVisionLensType = LensType::query()->where('name', 'Single Vision')->first();
+        $progressiveLensCategory = LensCategory::query()->where('name', 'Progressive')->first();
+        $singleVisionLensCategory = LensCategory::query()->where('name', 'Single Vision')->first();
 
         // Lens products
         $lensProducts = [
@@ -36,7 +36,7 @@ class CatalogSeeder extends Seeder
                 'slug' => 'essilor-varilux-progressive',
                 'description' => 'Premium progressive lenses.',
                 'product_type' => 'lens',
-                'lens_type_id' => $progressiveLensType?->id,
+                'lens_category_id' => $progressiveLensCategory?->id,
                 'category_id' => $lensCategory->id,
                 'variants' => [
                     [
@@ -53,7 +53,7 @@ class CatalogSeeder extends Seeder
                 'slug' => 'zeiss-single-vision',
                 'description' => 'High clarity single vision lenses.',
                 'product_type' => 'lens',
-                'lens_type_id' => $singleVisionLensType?->id,
+                'lens_category_id' => $singleVisionLensCategory?->id,
                 'category_id' => $lensCategory->id,
                 'variants' => [
                     [
@@ -73,7 +73,7 @@ class CatalogSeeder extends Seeder
                 [
                     'brand_id' => $brand->id,
                     'category_id' => $productData['category_id'],
-                    'lens_type_id' => $productData['lens_type_id'],
+                    'lens_category_id' => $productData['lens_category_id'],
                     'name' => $productData['name'],
                     'description' => $productData['description'],
                     'is_active' => true,
