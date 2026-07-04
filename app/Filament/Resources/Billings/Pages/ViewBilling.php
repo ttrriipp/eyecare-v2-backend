@@ -31,30 +31,6 @@ class ViewBilling extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('create_order')
-                ->label('Create Order')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('primary')
-                ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
-                ->url(fn (): string => OrderResource::getUrl('create', ['billing_id' => $this->getRecord()->id])),
-
-            Action::make('edit_notes')
-                ->label('Edit Notes')
-                ->icon('heroicon-o-pencil-square')
-                ->color('gray')
-                ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
-                ->schema([
-                    Textarea::make('notes')
-                        ->label('Notes')
-                        ->default(fn () => $this->getRecord()->notes)
-                        ->columnSpanFull(),
-                ])
-                ->action(function (array $data): void {
-                    $this->getRecord()->update(['notes' => $data['notes']]);
-                    $this->refreshFormData(['notes']);
-                })
-                ->successNotificationTitle('Notes updated'),
-
             Action::make('record_payment_shortcut')
                 ->label('Record Payment')
                 ->icon('heroicon-o-banknotes')
@@ -101,97 +77,123 @@ class ViewBilling extends ViewRecord
                 })
                 ->successNotificationTitle('Payment recorded'),
 
-            Action::make('add_service')
-                ->label('Add Service')
-                ->icon('heroicon-o-plus-circle')
-                ->color('primary')
-                ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided')
-                ->schema([
-                    Select::make('service_id')
-                        ->label('Service')
-                        ->options(fn () => Service::query()->active()->pluck('name', 'id'))
-                        ->required()
-                        ->searchable(),
-                    TextInput::make('amount')
-                        ->label('Amount')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('₱')
-                        ->helperText('Leave blank to use the service\'s default price.'),
-                    Select::make('staff_id')
-                        ->label('Performed by')
-                        ->options(fn () => User::query()
-                            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
-                            ->pluck('name', 'id')
-                        )
-                        ->required()
-                        ->default(fn () => auth()->id()),
-                    DateTimePicker::make('performed_at')
-                        ->label('Performed at')
-                        ->required()
-                        ->default(now()),
-                ])
-                ->action(function (array $data): void {
-                    if (empty($data['amount'])) {
-                        unset($data['amount']);
-                    }
-                    app(AddServiceToBilling::class)->handle($this->getRecord(), $data);
-                })
-                ->successNotificationTitle('Service added'),
+            ActionGroup::make([
+                Action::make('add_service')
+                    ->label('Add Service')
+                    ->icon('heroicon-o-plus-circle')
+                    ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided')
+                    ->schema([
+                        Select::make('service_id')
+                            ->label('Service')
+                            ->options(fn () => Service::query()->active()->pluck('name', 'id'))
+                            ->required()
+                            ->searchable(),
+                        TextInput::make('amount')
+                            ->label('Amount')
+                            ->numeric()
+                            ->minValue(0)
+                            ->prefix('₱')
+                            ->helperText('Leave blank to use the service\'s default price.'),
+                        Select::make('staff_id')
+                            ->label('Performed by')
+                            ->options(fn () => User::query()
+                                ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+                                ->pluck('name', 'id')
+                            )
+                            ->required()
+                            ->default(fn () => auth()->id()),
+                        DateTimePicker::make('performed_at')
+                            ->label('Performed at')
+                            ->required()
+                            ->default(now()),
+                    ])
+                    ->action(function (array $data): void {
+                        if (empty($data['amount'])) {
+                            unset($data['amount']);
+                        }
+                        app(AddServiceToBilling::class)->handle($this->getRecord(), $data);
+                    })
+                    ->successNotificationTitle('Service added'),
 
-            Action::make('apply_discount')
-                ->label('Apply Discount')
-                ->icon('heroicon-o-tag')
-                ->color('warning')
-                ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided' && (auth()->user()?->isAdmin() ?? false))
-                ->schema([
-                    Select::make('discount_type_id')
-                        ->label('Discount Type')
-                        ->options(fn () => DiscountType::query()
-                            ->where('is_active', true)
-                            ->get()
-                            ->mapWithKeys(fn (DiscountType $dt) => [
-                                $dt->id => $dt->type === 'percentage'
-                                    ? "{$dt->name} ({$dt->value}%)"
-                                    : $dt->name,
-                            ]))
-                        ->nullable()
-                        ->live()
-                        ->placeholder('No discount'),
-                    TextInput::make('custom_amount')
-                        ->label('Custom Amount (₱)')
-                        ->numeric()
-                        ->minValue(0)
-                        ->prefix('₱')
-                        ->visible(fn (Get $get): bool => DiscountType::query()
-                            ->find($get('discount_type_id'))?->type === 'fixed'
-                        )
-                        ->helperText('Enter fixed discount amount.'),
-                ])
-                ->action(function (array $data): void {
-                    $billing = $this->getRecord();
-                    $discountTypeId = $data['discount_type_id'] ?? null;
-                    $discountAmount = '0.00';
+                Action::make('apply_discount')
+                    ->label('Apply Discount')
+                    ->icon('heroicon-o-tag')
+                    ->visible(fn (): bool => $this->getRecord()->status->name !== 'voided' && (auth()->user()?->isAdmin() ?? false))
+                    ->schema([
+                        Select::make('discount_type_id')
+                            ->label('Discount Type')
+                            ->options(fn () => DiscountType::query()
+                                ->where('is_active', true)
+                                ->get()
+                                ->mapWithKeys(fn (DiscountType $dt) => [
+                                    $dt->id => $dt->type === 'percentage'
+                                        ? "{$dt->name} ({$dt->value}%)"
+                                        : $dt->name,
+                                ]))
+                            ->nullable()
+                            ->live()
+                            ->placeholder('No discount'),
+                        TextInput::make('custom_amount')
+                            ->label('Custom Amount (₱)')
+                            ->numeric()
+                            ->minValue(0)
+                            ->prefix('₱')
+                            ->visible(fn (Get $get): bool => DiscountType::query()
+                                ->find($get('discount_type_id'))?->type === 'fixed'
+                            )
+                            ->helperText('Enter fixed discount amount.'),
+                    ])
+                    ->action(function (array $data): void {
+                        $billing = $this->getRecord();
+                        $discountTypeId = $data['discount_type_id'] ?? null;
+                        $discountAmount = '0.00';
 
-                    if ($discountTypeId) {
-                        $discountType = DiscountType::query()->findOrFail($discountTypeId);
-                        $discountAmount = $discountType->type === 'percentage'
-                            ? bcmul((string) $billing->subtotal, bcdiv((string) $discountType->value, '100', 4), 2)
-                            : ($data['custom_amount'] ?? (string) $discountType->value);
-                    }
+                        if ($discountTypeId) {
+                            $discountType = DiscountType::query()->findOrFail($discountTypeId);
+                            $discountAmount = $discountType->type === 'percentage'
+                                ? bcmul((string) $billing->subtotal, bcdiv((string) $discountType->value, '100', 4), 2)
+                                : ($data['custom_amount'] ?? (string) $discountType->value);
+                        }
 
-                    $newTotal = bcsub((string) $billing->subtotal, (string) $discountAmount, 2);
+                        $newTotal = bcsub((string) $billing->subtotal, (string) $discountAmount, 2);
 
-                    $billing->update([
-                        'discount_type_id' => $discountTypeId,
-                        'discount_amount' => $discountAmount,
-                        'total_amount' => $newTotal,
-                        'balance_due' => bcsub((string) $newTotal, (string) $billing->amount_paid, 2),
-                    ]);
+                        $billing->update([
+                            'discount_type_id' => $discountTypeId,
+                            'discount_amount' => $discountAmount,
+                            'total_amount' => $newTotal,
+                            'balance_due' => bcsub((string) $newTotal, (string) $billing->amount_paid, 2),
+                        ]);
 
-                    app(RecalculateBillingBalance::class)->handle($billing->fresh());
-                })
-                ->successNotificationTitle('Discount applied'),
+                        app(RecalculateBillingBalance::class)->handle($billing->fresh());
+                    })
+                    ->successNotificationTitle('Discount applied'),
+
+                Action::make('create_order')
+                    ->label('Create Order')
+                    ->icon('heroicon-o-shopping-bag')
+                    ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
+                    ->url(fn (): string => OrderResource::getUrl('create', ['billing_id' => $this->getRecord()->id])),
+
+                Action::make('edit_notes')
+                    ->label('Edit Notes')
+                    ->icon('heroicon-o-pencil-square')
+                    ->visible(fn (): bool => $this->getRecord()->status?->name !== 'voided')
+                    ->schema([
+                        Textarea::make('notes')
+                            ->label('Notes')
+                            ->default(fn () => $this->getRecord()->notes)
+                            ->columnSpanFull(),
+                    ])
+                    ->action(function (array $data): void {
+                        $this->getRecord()->update(['notes' => $data['notes']]);
+                        $this->refreshFormData(['notes']);
+                    })
+                    ->successNotificationTitle('Notes updated'),
+            ])
+                ->label('Actions')
+                ->icon('heroicon-o-ellipsis-vertical')
+                ->color('gray')
+                ->button(),
 
             Action::make('void_billing')
                 ->label('Void Billing')
@@ -215,7 +217,6 @@ class ViewBilling extends ViewRecord
                 ->action(function (): void {
                     $billing = $this->getRecord();
 
-                    // Capture full state for audit before voiding
                     $payments = $billing->payments()
                         ->whereHas('status', fn ($q) => $q->where('name', 'posted'))
                         ->with('paymentMethod')
