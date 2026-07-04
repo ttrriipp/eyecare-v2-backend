@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Orders\Pages;
 
 use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
-use App\Models\LensType;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
@@ -26,7 +25,6 @@ use Filament\Schemas\Components\Wizard\Step;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Livewire\Attributes\Url;
 
 class CreateOrder extends CreateRecord
 {
@@ -34,41 +32,19 @@ class CreateOrder extends CreateRecord
 
     protected static string $resource = OrderResource::class;
 
-    /**
-     * When true, the order is immediately confirmed after creation (Walk-in Sale mode).
-     */
-    #[Url(as: 'walkin')]
-    public bool $isWalkIn = false;
-
-    public function getSubheading(): ?string
-    {
-        return $this->isWalkIn
-            ? 'Walk-in Sale — order will be confirmed immediately after creation.'
-            : null;
-    }
-
     protected function afterCreate(): void
     {
-        if (! $this->isWalkIn) {
-            return;
-        }
-
         /** @var Order $order */
         $order = $this->getRecord();
 
         try {
             app(UpdateOrderStatus::class)->handle($order, 'confirmed');
-            Notification::make()
-                ->title('Walk-in sale confirmed')
-                ->body('Inventory deducted and billing generated.')
-                ->success()
-                ->send();
         } catch (ValidationException $e) {
             $message = collect($e->errors())->flatten()->first()
-                ?? 'Order saved as pending — please resolve the issue before confirming.';
+                ?? 'Order saved as requested — please resolve the issue before confirming.';
 
             Notification::make()
-                ->title('Order saved as pending')
+                ->title('Order saved as requested')
                 ->body($message)
                 ->warning()
                 ->persistent()
@@ -149,9 +125,8 @@ class CreateOrder extends CreateRecord
                             ->reorderable()
                             ->addActionLabel('Add to order items')
                             ->table([
-                                TableColumn::make('Product')->width('35%'),
-                                TableColumn::make('Lens Type')->width('20%'),
-                                TableColumn::make('Qty')->width('10%'),
+                                TableColumn::make('Product')->width('70%'),
+                                TableColumn::make('Qty')->width('15%'),
                                 TableColumn::make('Unit Price')->width('15%'),
                             ])
                             ->schema([
@@ -160,6 +135,7 @@ class CreateOrder extends CreateRecord
                                     ->options(fn () => ProductVariant::query()
                                         ->with('product')
                                         ->where('is_active', true)
+                                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
                                         ->get()
                                         ->mapWithKeys(fn ($v) => [
                                             $v->id => $v->stock_quantity > 0
@@ -168,33 +144,11 @@ class CreateOrder extends CreateRecord
                                         ]))
                                     ->required()
                                     ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
+                                    ->afterStateUpdated(function (Set $set, ?int $state): void {
                                         if ($state) {
                                             $variant = ProductVariant::find($state);
-                                            $lensTypeId = $get('lens_type_id');
-                                            $lensType = $lensTypeId ? LensType::find($lensTypeId) : null;
-                                            $unitPrice = (float) ($variant?->price ?? 0);
-                                            $lensPrice = (float) ($lensType?->price ?? 0);
-                                            $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
+                                            $set('unit_price', number_format((float) ($variant?->price ?? 0), 2, '.', ''));
                                         }
-                                    }),
-                                Select::make('lens_type_id')
-                                    ->label('Lens Type')
-                                    ->options(fn () => LensType::query()->pluck('name', 'id'))
-                                    ->nullable()
-                                    ->placeholder('None')
-                                    ->helperText(fn (Get $get): ?string => $get('lens_type_id')
-                                        ? '⚠ You will need to assign a specific lens on the order edit page before confirming.'
-                                        : null
-                                    )
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
-                                        $variantId = $get('product_variant_id');
-                                        $variant = $variantId ? ProductVariant::find($variantId) : null;
-                                        $lensType = $state ? LensType::find($state) : null;
-                                        $unitPrice = (float) ($variant?->price ?? 0);
-                                        $lensPrice = (float) ($lensType?->price ?? 0);
-                                        $set('unit_price', number_format($unitPrice + $lensPrice, 2, '.', ''));
                                     }),
                                 TextInput::make('quantity')
                                     ->label('Qty')
@@ -229,24 +183,17 @@ class CreateOrder extends CreateRecord
 
             foreach ($items as $item) {
                 $variant = ProductVariant::query()->with('product')->findOrFail($item['product_variant_id']);
-                $lensType = isset($item['lens_type_id']) && $item['lens_type_id']
-                    ? LensType::query()->findOrFail($item['lens_type_id'])
-                    : null;
                 $quantity = (int) $item['quantity'];
                 $unitPrice = (string) $variant->price;
-                $lensTypePrice = $lensType?->price !== null ? (string) $lensType->price : '0.00';
-                $lineSubtotal = bcmul(bcadd($unitPrice, $lensTypePrice, 2), (string) $quantity, 2);
+                $lineSubtotal = bcmul($unitPrice, (string) $quantity, 2);
                 $subtotal = bcadd($subtotal, $lineSubtotal, 2);
 
                 $lineItems[] = [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType?->id,
                     'product_id' => $variant->product_id,
                     'product_name' => $variant->product->name,
                     'variant_name' => $variant->name,
                     'variant_sku' => $variant->sku,
-                    'lens_type_name' => $lensType?->name,
-                    'lens_type_price' => $lensType?->price !== null ? (string) $lensType->price : null,
                     'unit_price' => $unitPrice,
                     'quantity' => $quantity,
                     'subtotal' => $lineSubtotal,
@@ -255,8 +202,7 @@ class CreateOrder extends CreateRecord
 
             $data['subtotal'] = $subtotal;
             $data['total_amount'] = $subtotal;
-            $data['discount_amount'] = '0.00';
-            $data['order_status_id'] = OrderStatus::query()->where('name', 'requested')->value('id');
+            $data['order_status_id'] = OrderStatus::query()->where('name', 'confirmed')->value('id');
 
             /** @var Order $order */
             $order = static::getModel()::create($data);
