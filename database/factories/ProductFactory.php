@@ -40,10 +40,10 @@ class ProductFactory extends Factory
         ]);
     }
 
-    public function accessory(): static
+    public function general(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'product_type' => 'accessory',
+            'product_type' => 'general',
         ]);
     }
 }
