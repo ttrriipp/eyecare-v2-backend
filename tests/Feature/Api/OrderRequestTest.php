@@ -215,6 +215,23 @@ test('order requests reject invalid variants lens types and appointment ownershi
         ->assertJsonValidationErrors(['items.0.lens_type_id']);
 });
 
+test('order requests reject lens-type products as direct order line items', function () {
+    $customer = User::factory()->customer()->create();
+    $lensCategory = LensCategory::factory()->create();
+    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_category_id' => $lensCategory->id]);
+    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'is_non_prescription' => true,
+            'items' => [
+                ['product_variant_id' => $lensVariant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['items.0.product_variant_id']);
+});
+
 test('order requests require items and non prescription flag', function () {
     $customer = User::factory()->customer()->create();
 

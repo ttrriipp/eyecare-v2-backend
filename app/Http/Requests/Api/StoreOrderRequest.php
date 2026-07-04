@@ -41,7 +41,8 @@ class StoreOrderRequest extends FormRequest
                     ->whereIn('product_id', function ($query): void {
                         $query->select('id')
                             ->from('products')
-                            ->where('is_active', true);
+                            ->where('is_active', true)
+                            ->whereIn('product_type', ['frame', 'general']);
                     }),
             ],
             'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
