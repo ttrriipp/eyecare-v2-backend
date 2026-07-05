@@ -61,3 +61,17 @@ test('staff can update patient name and phone', function () {
 
     expect($patient->fresh()->name)->toBe('Updated Name');
 });
+
+test('staff can update patient address', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->customer()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditPatient::class, ['record' => $patient->getRouteKey()])
+        ->fillForm(['address' => '123 Rizal St, Quezon City'])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($patient->fresh()->address)->toBe('123 Rizal St, Quezon City');
+});

@@ -17,6 +17,7 @@ class PatientForm
                 TextInput::make('phone')->tel()->nullable(),
                 TextInput::make('email')->email()->nullable(),
                 DatePicker::make('date_of_birth')->label('Date of Birth')->nullable()->maxDate(now()),
+                TextInput::make('address')->nullable()->columnSpanFull(),
             ]),
         ]);
     }

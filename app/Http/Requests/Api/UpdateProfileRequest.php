@@ -23,14 +23,15 @@ class UpdateProfileRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user()->id)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            if (! array_intersect(array_keys($this->all()), ['name', 'email', 'phone'])) {
-                $validator->errors()->add('general', 'At least one field (name, email, phone) is required.');
+            if (! array_intersect(array_keys($this->all()), ['name', 'email', 'phone', 'address'])) {
+                $validator->errors()->add('general', 'At least one field (name, email, phone, address) is required.');
             }
         });
     }

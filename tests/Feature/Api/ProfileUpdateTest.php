@@ -34,6 +34,16 @@ test('customer can update their phone', function () {
     expect($user->fresh()->phone)->toBe('09171234567');
 });
 
+test('customer can update their address', function () {
+    $user = User::factory()->customer()->create();
+
+    $response = $this->actingAs($user)->patchJson('/api/user', ['address' => '123 Rizal St, Quezon City']);
+
+    $response->assertOk()
+        ->assertJsonPath('data.address', '123 Rizal St, Quezon City');
+    expect($user->fresh()->address)->toBe('123 Rizal St, Quezon City');
+});
+
 test('email must be unique excluding self', function () {
     $other = User::factory()->customer()->create(['email' => 'taken@email.com']);
     $user = User::factory()->customer()->create();
