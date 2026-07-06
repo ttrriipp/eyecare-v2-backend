@@ -211,6 +211,28 @@ test('staff can create an order with items and price snapshot, starting at confi
         ->and($order->items->first()->subtotal)->toBe('300.00');
 });
 
+test('creating an order does not attempt a redundant confirmed to confirmed transition', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $variant = ProductVariant::factory()->create(['price' => '150.00']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateOrder::class)
+        ->fillForm([
+            'customer_id' => $customer->id,
+            'is_non_prescription' => true,
+            'items' => [
+                ['product_variant_id' => $variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->call('create')
+        ->assertNotNotified('Order saved as requested');
+
+    $order = Order::query()->where('customer_id', $customer->id)->firstOrFail();
+    expect($order->status->name)->toBe('confirmed');
+});
+
 test('staff can create an order for a walk-in customer (no email or password)', function () {
     $staff = User::factory()->staff()->create();
     $walkIn = User::factory()->walkIn()->create(['phone' => '09171234567']);

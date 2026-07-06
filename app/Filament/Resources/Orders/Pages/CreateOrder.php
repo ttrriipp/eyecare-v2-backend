@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Orders\Pages;
 
-use App\Actions\Orders\UpdateOrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\Billing;
 use App\Models\Order;
@@ -17,7 +16,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -53,26 +51,6 @@ class CreateOrder extends CreateRecord
         return $billing
             ? "This order will be linked to billing #{$billing->billing_number}."
             : null;
-    }
-
-    protected function afterCreate(): void
-    {
-        /** @var Order $order */
-        $order = $this->getRecord();
-
-        try {
-            app(UpdateOrderStatus::class)->handle($order, 'confirmed');
-        } catch (ValidationException $e) {
-            $message = collect($e->errors())->flatten()->first()
-                ?? 'Order saved as requested — please resolve the issue before confirming.';
-
-            Notification::make()
-                ->title('Order saved as requested')
-                ->body($message)
-                ->warning()
-                ->persistent()
-                ->send();
-        }
     }
 
     protected function getSteps(): array
