@@ -192,7 +192,6 @@ class OrderForm
                                     $set('variant_name', $variant->name);
                                     $set('variant_sku', $variant->sku);
                                     $set('unit_price', $variant->price);
-                                    $set('is_frame', $variant->product->product_type === 'frame');
 
                                     $lensCategoryId = $get('lens_category_id');
                                     $lensCategory = $lensCategoryId ? LensCategory::find($lensCategoryId) : null;
@@ -228,7 +227,21 @@ class OrderForm
                                 ->placeholder('No lens')
                                 ->live()
                                 ->columnSpan(1)
-                                ->visible(fn (Get $get, Livewire $livewire): bool => (bool) $get('is_frame') && $livewire->getRecord()?->status?->name === 'confirmed')
+                                ->visible(function (Get $get, Livewire $livewire): bool {
+                                    if ($livewire->getRecord()?->status?->name !== 'confirmed') {
+                                        return false;
+                                    }
+
+                                    $variantId = $get('product_variant_id');
+                                    if (! $variantId) {
+                                        return false;
+                                    }
+
+                                    return ProductVariant::query()
+                                        ->whereHas('product', fn ($q) => $q->where('product_type', 'frame'))
+                                        ->where('id', $variantId)
+                                        ->exists();
+                                })
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     $lensCategory = $state ? LensCategory::find($state) : null;
                                     $set('lens_category_name', $lensCategory?->name);
@@ -292,7 +305,6 @@ class OrderForm
                             Hidden::make('variant_name'),
                             Hidden::make('variant_sku'),
                             Hidden::make('lens_category_name'),
-                            Hidden::make('is_frame')->dehydrated(false),
                         ])
                         ->addActionLabel('Add to order items')
                         ->deleteAction(fn (Action $action) => $action->iconButton())
