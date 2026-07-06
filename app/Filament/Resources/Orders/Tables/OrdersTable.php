@@ -141,7 +141,7 @@ class OrdersTable
                             }
                         }),
                     RestoreAction::make()->label('Restore')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

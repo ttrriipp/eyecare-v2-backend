@@ -48,7 +48,7 @@ class PrescriptionsTable
                         ->url(fn (Prescription $record): string => PrescriptionResource::getUrl('create', ['copy' => $record->id])),
                     EditAction::make(),
                     RestoreAction::make()->label('Restore')->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    DeleteAction::make()->label('Archive')->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn () => auth()->user()?->isAdmin() ?? false),
                 ]),
             ]);
     }

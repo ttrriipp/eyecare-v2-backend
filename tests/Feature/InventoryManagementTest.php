@@ -105,3 +105,69 @@ test('inventory movement records previous_stock, new_stock, and created_by', fun
         ->and($movement->new_stock)->toBe(15)
         ->and($movement->created_by)->toBe($staff->id);
 });
+
+test('admin can archive a variant via the variants relation manager', function () {
+    $admin = User::factory()->admin()->create();
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->callAction(TestAction::make('delete')->table($variant));
+
+    expect($variant->fresh()->trashed())->toBeTrue();
+});
+
+test('staff cannot archive a variant via the variants relation manager', function () {
+    $staff = User::factory()->staff()->create();
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->assertTableActionHidden('delete', $variant);
+});
+
+test('admin can restore an archived variant via the variants relation manager', function () {
+    $admin = User::factory()->admin()->create();
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+    $variant->delete();
+
+    $this->actingAs($admin);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->assertTableActionHidden('delete', $variant)
+        ->assertTableActionVisible('restore', $variant)
+        ->callAction(TestAction::make('restore')->table($variant));
+
+    expect($variant->fresh()->trashed())->toBeFalse();
+});
+
+test('archived variants are hidden from the variants relation manager by default', function () {
+    $admin = User::factory()->admin()->create();
+    $product = Product::factory()->create();
+    $activeVariant = ProductVariant::factory()->for($product)->create();
+    $archivedVariant = ProductVariant::factory()->for($product)->create();
+    $archivedVariant->delete();
+
+    $this->actingAs($admin);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->assertCanSeeTableRecords([$activeVariant])
+        ->assertCanNotSeeTableRecords([$archivedVariant]);
+});

@@ -6,6 +6,7 @@ use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
@@ -148,7 +149,8 @@ class EditPrescription extends EditRecord
                 ->url(fn () => route('pdf.prescription.card', $this->getRecord()))
                 ->openUrlInNewTab(),
 
-            DeleteAction::make()->label('Archive')->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
         ];
     }
 }

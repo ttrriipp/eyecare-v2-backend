@@ -79,7 +79,7 @@ class ProductsTable
                         ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
                         ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
                         ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product hidden' : 'Product visible'),
-                    DeleteAction::make()->label('Archive')->color('danger')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->color('danger')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                     RestoreAction::make()->label('Restore')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                 ]),
             ])
@@ -110,7 +110,7 @@ class ProductsTable
                             fn ($record) => $record->update(['is_active' => ! $record->is_active])
                         ))
                         ->deselectRecordsAfterCompletion(),
-                    DeleteBulkAction::make()->label('Archive Selected'),
+                    DeleteBulkAction::make()->label('Archive Selected')->icon('heroicon-o-archive-box'),
                 ]),
             ]);
     }

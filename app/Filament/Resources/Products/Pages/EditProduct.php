@@ -15,7 +15,7 @@ class EditProduct extends EditRecord
     {
         return [
             RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
-            DeleteAction::make()->label('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
         ];
     }
 }

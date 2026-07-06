@@ -15,7 +15,7 @@ class EditFeedback extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make()->label('Archive'),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box'),
         ];
     }
 }

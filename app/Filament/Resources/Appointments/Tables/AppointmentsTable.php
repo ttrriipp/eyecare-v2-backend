@@ -150,7 +150,7 @@ class AppointmentsTable
                             }
                         }),
                     RestoreAction::make()->label('Restore')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

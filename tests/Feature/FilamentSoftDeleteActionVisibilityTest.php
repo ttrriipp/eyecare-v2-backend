@@ -3,10 +3,12 @@
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
+use App\Filament\Resources\Prescriptions\Pages\EditPrescription;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Appointment;
 use App\Models\Order;
+use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -115,6 +117,25 @@ test('edit product page hides delete and shows restore for soft-deleted product'
     $product->delete();
 
     Livewire::test(EditProduct::class, ['record' => $product->id])
+        ->assertActionHidden(DeleteAction::class)
+        ->assertActionVisible(RestoreAction::class);
+});
+
+// --- EditPrescription Header ---
+
+test('edit prescription page shows delete and hides restore for non-deleted prescription', function () {
+    $prescription = Prescription::factory()->create();
+
+    Livewire::test(EditPrescription::class, ['record' => $prescription->id])
+        ->assertActionVisible(DeleteAction::class)
+        ->assertActionHidden(RestoreAction::class);
+});
+
+test('edit prescription page hides delete and shows restore for soft-deleted prescription', function () {
+    $prescription = Prescription::factory()->create();
+    $prescription->delete();
+
+    Livewire::test(EditPrescription::class, ['record' => $prescription->id])
         ->assertActionHidden(DeleteAction::class)
         ->assertActionVisible(RestoreAction::class);
 });

@@ -8,6 +8,7 @@ use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Select;
@@ -21,7 +22,10 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class VariantsRelationManager extends RelationManager
 {
@@ -103,6 +107,7 @@ class VariantsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
                 ImageColumn::make('images')
                     ->label('Image')
@@ -139,15 +144,13 @@ class VariantsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make(),
             ])
+            ->filters([
+                TrashedFilter::make()->label('Show Archived'),
+            ])
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make()
-                        ->color('info')
-                        ->extraModalActions([
-                            DeleteAction::make()
-                                ->color('danger')
-                                ->requiresConfirmation(),
-                        ]),
+                        ->color('info'),
                     Action::make('toggleVisibility')
                         ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
                         ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
@@ -261,8 +264,14 @@ class VariantsRelationManager extends RelationManager
                                 ->warning()
                                 ->send();
                         }),
+                    RestoreAction::make()
+                        ->label('Restore')
+                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                     DeleteAction::make()
-                        ->color('danger'),
+                        ->label('Archive')
+                        ->icon('heroicon-o-archive-box')
+                        ->color('danger')
+                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ]);
     }
