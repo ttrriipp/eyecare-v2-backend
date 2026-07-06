@@ -24,7 +24,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
-use Illuminate\Support\HtmlString;
 use Livewire\Component as Livewire;
 
 class OrderForm
@@ -316,27 +315,25 @@ class OrderForm
                         ->disabled(fn (?Order $record): bool => $record?->status?->name !== 'confirmed')
                         ->deletable(fn (?Order $record): bool => $record?->status?->name === 'confirmed')
                         ->reorderable(fn (?Order $record): bool => $record?->status?->name === 'confirmed'),
+                ]),
 
-                    Grid::make(4)
-                        ->hiddenOn('create')
-                        ->schema([
-                            Placeholder::make('total_display')
-                                ->hiddenLabel()
-                                ->columnStart(4)
-                                ->html()
-                                ->content(function ($livewire): string {
-                                    $items = $livewire->data['items'] ?? [];
-                                    $subtotal = collect($items)->sum(function (array $item): float {
-                                        return ((float) ($item['unit_price'] ?? 0) + (float) ($item['lens_type_price'] ?? 0))
-                                            * max(1, (int) ($item['quantity'] ?? 1));
-                                    });
+            Section::make('Order Summary')
+                ->hiddenOn('create')
+                ->schema([
+                    Grid::make(1)->schema([
+                        Placeholder::make('total_display')
+                            ->label('Total')
+                            ->content(function ($livewire): string {
+                                $items = $livewire->data['items'] ?? [];
+                                $subtotal = collect($items)->sum(function (array $item): float {
+                                    return ((float) ($item['unit_price'] ?? 0) + (float) ($item['lens_type_price'] ?? 0))
+                                        * max(1, (int) ($item['quantity'] ?? 1));
+                                });
 
-                                    return new HtmlString(
-                                        '<div class="text-right text-lg font-semibold">Total: ₱'.number_format($subtotal, 2).'</div>'
-                                    );
-                                }),
-                            Hidden::make('total_amount')->dehydrated(),
-                        ]),
+                                return '₱'.number_format($subtotal, 2);
+                            }),
+                        Hidden::make('total_amount')->dehydrated(),
+                    ]),
                 ]),
         ]);
     }
