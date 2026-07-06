@@ -80,7 +80,7 @@ class AppointmentsTable
                             fn (Builder $query, string $date): Builder => $query->whereDate('scheduled_at', $date),
                         );
                     }),
-                TrashedFilter::make(),
+                TrashedFilter::make()->label('Show Archived'),
             ])
             ->recordActions([
                 ActionGroup::make([
@@ -149,8 +149,8 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot cancel appointment')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    RestoreAction::make()->label('Restore')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->label('Archive')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

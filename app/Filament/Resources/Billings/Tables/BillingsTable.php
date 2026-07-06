@@ -85,7 +85,7 @@ class BillingsTable
                         $data['date'],
                         fn (Builder $q, string $date) => $q->whereDate('issued_at', '<=', $date)
                     )),
-                TrashedFilter::make(),
+                TrashedFilter::make()->label('Show Archived'),
             ])
             ->recordActions([
                 ActionGroup::make([

@@ -14,8 +14,8 @@ class EditProduct extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            RestoreAction::make()->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
-            DeleteAction::make()->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
+            RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
+            DeleteAction::make()->label('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
         ];
     }
 }

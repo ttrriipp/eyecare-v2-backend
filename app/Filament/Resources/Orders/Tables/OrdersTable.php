@@ -99,7 +99,7 @@ class OrdersTable
                         $data['date'],
                         fn (Builder $q, string $date) => $q->whereDate('created_at', '<=', $date)
                     )),
-                TrashedFilter::make(),
+                TrashedFilter::make()->label('Show Archived'),
             ])
             ->recordActions([
                 ActionGroup::make([
@@ -140,8 +140,8 @@ class OrdersTable
                                 Notification::make()->title('Cannot cancel order')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    RestoreAction::make()->label('Restore')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->label('Archive')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

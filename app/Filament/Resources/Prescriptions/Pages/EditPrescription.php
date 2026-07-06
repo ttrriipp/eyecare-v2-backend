@@ -148,7 +148,7 @@ class EditPrescription extends EditRecord
                 ->url(fn () => route('pdf.prescription.card', $this->getRecord()))
                 ->openUrlInNewTab(),
 
-            DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+            DeleteAction::make()->label('Archive')->visible(fn () => auth()->user()?->isAdmin() ?? false),
         ];
     }
 }

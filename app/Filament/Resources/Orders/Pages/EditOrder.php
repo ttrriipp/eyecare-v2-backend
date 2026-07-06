@@ -119,8 +119,8 @@ class EditOrder extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->billing !== null)
                 ->url(fn (): string => BillingResource::getUrl('view', ['record' => $this->getRecord()->billing])),
 
-            RestoreAction::make()->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
-            DeleteAction::make()->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
+            RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
+            DeleteAction::make()->label('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
         ];
     }
 

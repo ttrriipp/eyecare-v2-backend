@@ -15,7 +15,7 @@ class EditFeedback extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make(),
+            DeleteAction::make()->label('Archive'),
         ];
     }
 }

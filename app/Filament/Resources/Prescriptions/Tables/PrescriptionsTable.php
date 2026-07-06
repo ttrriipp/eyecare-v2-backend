@@ -37,7 +37,7 @@ class PrescriptionsTable
             ])
             ->defaultSort('prescribed_at', 'desc')
             ->filters([
-                TrashedFilter::make(),
+                TrashedFilter::make()->label('Show Archived'),
             ])
             ->recordActions([
                 ActionGroup::make([
@@ -47,8 +47,8 @@ class PrescriptionsTable
                         ->color('info')
                         ->url(fn (Prescription $record): string => PrescriptionResource::getUrl('create', ['copy' => $record->id])),
                     EditAction::make(),
-                    RestoreAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    DeleteAction::make()->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    RestoreAction::make()->label('Restore')->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    DeleteAction::make()->label('Archive')->visible(fn () => auth()->user()?->isAdmin() ?? false),
                 ]),
             ]);
     }

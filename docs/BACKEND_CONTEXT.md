@@ -129,6 +129,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 These models use `SoftDeletes`: `Product`, `ProductVariant`, `Order`, `Billing`, `Appointment`, `Prescription`, `Conversation`, `Feedback`, `ServiceRecord`.
 
+**UI terminology:** Filament's default "Delete"/"Restore" action labels are renamed to **"Archive"/"Restore"** in the panel (Products, Orders, Prescriptions, Appointments, Conversations, Feedback resources — Billings has no row-level delete/restore action, only `Void Billing`) — "Archive" communicates that the record is hidden but recoverable, not permanently destroyed. The underlying mechanism, action names (`delete`/`restore`), and DB behavior are unchanged — this is a label-only change. `TrashedFilter` is labeled "Show Archived". Two pre-existing gaps (not introduced by this rename, not yet fixed): `EditPrescription` has no `RestoreAction` at all (only the list table does); `ProductVariant` (which has `SoftDeletes`) has a `DeleteAction` on the Variants relation manager but no corresponding restore path anywhere in the UI.
+
 ---
 
 ## Product Data Model
