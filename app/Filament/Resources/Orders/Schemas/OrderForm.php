@@ -24,6 +24,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Livewire\Component as Livewire;
 
 class OrderForm
 {
@@ -227,7 +228,7 @@ class OrderForm
                                 ->placeholder('No lens')
                                 ->live()
                                 ->columnSpan(1)
-                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('is_frame') && $record?->status?->name === 'confirmed')
+                                ->visible(fn (Get $get, Livewire $livewire): bool => (bool) $get('is_frame') && $livewire->getRecord()?->status?->name === 'confirmed')
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     $lensCategory = $state ? LensCategory::find($state) : null;
                                     $set('lens_category_name', $lensCategory?->name);
@@ -264,7 +265,7 @@ class OrderForm
                                 })
                                 ->nullable()
                                 ->placeholder('Not assigned')
-                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('lens_category_id') && $record?->status?->name === 'confirmed')
+                                ->visible(fn (Get $get, Livewire $livewire): bool => (bool) $get('lens_category_id') && $livewire->getRecord()?->status?->name === 'confirmed')
                                 ->live()
                                 ->afterStateUpdated(function (Set $set, Get $get, ?int $state): void {
                                     if ($state) {
@@ -283,7 +284,7 @@ class OrderForm
                                 ->prefix('₱')
                                 ->disabled()
                                 ->dehydrated()
-                                ->visible(fn (Get $get, ?Order $record): bool => (bool) $get('lens_category_id') && $record?->status?->name === 'confirmed')
+                                ->visible(fn (Get $get, Livewire $livewire): bool => (bool) $get('lens_category_id') && $livewire->getRecord()?->status?->name === 'confirmed')
                                 ->columnSpan(1),
                             Hidden::make('subtotal'),
                             Hidden::make('product_id'),

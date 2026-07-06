@@ -401,3 +401,53 @@ test('view billing action is hidden when order has no billing', function () {
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
         ->assertActionHidden('view_billing');
 });
+
+test('edit order page renders successfully for a confirmed order with a frame item', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $frameProduct = Product::factory()->create(['product_type' => 'frame']);
+    $frameVariant = ProductVariant::factory()->for($frameProduct)->create();
+
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
+    $order->items()->create([
+        'product_variant_id' => $frameVariant->id,
+        'product_id' => $frameProduct->id,
+        'product_name' => $frameProduct->name,
+        'variant_name' => $frameVariant->name,
+        'variant_sku' => $frameVariant->sku,
+        'unit_price' => $frameVariant->price,
+        'quantity' => 1,
+        'subtotal' => $frameVariant->price,
+        'is_frame' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->assertSuccessful();
+});
+
+test('edit order page renders successfully for a general (non-frame) item', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $generalProduct = Product::factory()->create(['product_type' => 'general']);
+    $generalVariant = ProductVariant::factory()->for($generalProduct)->create();
+
+    $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
+    $order->items()->create([
+        'product_variant_id' => $generalVariant->id,
+        'product_id' => $generalProduct->id,
+        'product_name' => $generalProduct->name,
+        'variant_name' => $generalVariant->name,
+        'variant_sku' => $generalVariant->sku,
+        'unit_price' => $generalVariant->price,
+        'quantity' => 1,
+        'subtotal' => $generalVariant->price,
+        'is_frame' => false,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
+        ->assertSuccessful();
+});
