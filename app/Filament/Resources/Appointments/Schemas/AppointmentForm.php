@@ -66,9 +66,6 @@ class AppointmentForm
                                 ->minDate(now())
                                 ->disabledOn('edit')
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                                ->helperText(fn (string $operation): ?string => $operation === 'edit'
-                                    ? 'Use the "Reschedule" action to change the date and time.'
-                                    : null)
                                 ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : '')
                                 ->rule(fn (string $operation, ?Appointment $record): Exists|string|\Closure => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
                                     if (! $value) {
