@@ -3,18 +3,27 @@
 namespace App\Filament\Resources\Patients\Tables;
 
 use App\Models\Appointment;
-use App\Models\Order;
-use App\Models\User;
-use Carbon\Carbon;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PatientsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query) => $query
+                ->withCount('orders')
+                ->addSelect([
+                    'last_visit' => Appointment::query()
+                        ->select('scheduled_at')
+                        ->whereColumn('customer_id', 'users.id')
+                        ->latest('scheduled_at')
+                        ->limit(1),
+                ])
+                ->withCasts(['last_visit' => 'datetime']))
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
@@ -25,25 +34,30 @@ class PatientsTable
                 TextColumn::make('email')
                     ->searchable()
                     ->placeholder('Walk-in'),
+                TextColumn::make('date_of_birth')
+                    ->label('Date of Birth')
+                    ->date()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('address')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('last_visit')
                     ->label('Last Visit')
-                    ->state(function (User $record): string {
-                        $date = Appointment::query()
-                            ->where('customer_id', $record->id)
-                            ->latest('scheduled_at')
-                            ->value('scheduled_at');
-
-                        return $date ? Carbon::parse($date)->format('M j, Y') : '—';
-                    }),
+                    ->date('M j, Y')
+                    ->placeholder('—')
+                    ->sortable(),
                 TextColumn::make('orders_count')
                     ->label('Orders')
-                    ->state(fn (User $record): int => Order::query()
-                        ->where('customer_id', $record->id)
-                        ->count()
-                    ),
+                    ->sortable(),
+            ])
+            ->filters([
+                Filter::make('no_visits')
+                    ->label('No visits yet')
+                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('appointments')),
             ])
             ->recordActions([
-                EditAction::make()->label('View'),
+                EditAction::make()->label('Edit'),
             ])
             ->defaultSort('name');
     }

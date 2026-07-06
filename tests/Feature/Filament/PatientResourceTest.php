@@ -2,6 +2,8 @@
 
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\Pages\ListPatients;
+use App\Models\Appointment;
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -74,4 +76,40 @@ test('staff can update patient address', function () {
         ->assertHasNoFormErrors();
 
     expect($patient->fresh()->address)->toBe('123 Rizal St, Quezon City');
+});
+
+test('no visits yet filter shows only patients without appointments', function () {
+    $staff = User::factory()->staff()->create();
+    $patientWithVisit = User::factory()->customer()->create();
+    $patientWithoutVisit = User::factory()->customer()->create();
+
+    Appointment::factory()->create(['customer_id' => $patientWithVisit->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListPatients::class)
+        ->filterTable('no_visits')
+        ->assertCanSeeTableRecords([$patientWithoutVisit])
+        ->assertCanNotSeeTableRecords([$patientWithVisit]);
+});
+
+test('patient table shows correct orders count and last visit date', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->customer()->create();
+
+    Order::factory()->count(2)->create(['customer_id' => $patient->id]);
+    Appointment::factory()->create([
+        'customer_id' => $patient->id,
+        'scheduled_at' => now()->subDays(10),
+    ]);
+    $latestAppointment = Appointment::factory()->create([
+        'customer_id' => $patient->id,
+        'scheduled_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListPatients::class)
+        ->assertTableColumnStateSet('orders_count', 2, $patient)
+        ->assertTableColumnStateSet('last_visit', $latestAppointment->scheduled_at, $patient);
 });
