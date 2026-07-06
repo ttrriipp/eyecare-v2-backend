@@ -4,6 +4,7 @@ use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
 use App\Filament\Resources\Prescriptions\Pages\EditPrescription;
+use App\Filament\Resources\Prescriptions\Pages\ListPrescriptions;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Appointment;
@@ -81,6 +82,25 @@ test('product table hides delete and shows restore for soft-deleted record', fun
     Livewire::test(ListProducts::class)
         ->assertTableActionHidden('delete', $product)
         ->assertTableActionVisible('restore', $product);
+});
+
+// --- Prescriptions Table ---
+
+test('prescription table shows delete and hides restore for non-deleted record', function () {
+    $prescription = Prescription::factory()->create();
+
+    Livewire::test(ListPrescriptions::class)
+        ->assertTableActionVisible('delete', $prescription)
+        ->assertTableActionHidden('restore', $prescription);
+});
+
+test('prescription table hides delete and shows restore for soft-deleted record', function () {
+    $prescription = Prescription::factory()->create();
+    $prescription->delete();
+
+    Livewire::test(ListPrescriptions::class)
+        ->assertTableActionHidden('delete', $prescription)
+        ->assertTableActionVisible('restore', $prescription);
 });
 
 // --- EditOrder Header ---

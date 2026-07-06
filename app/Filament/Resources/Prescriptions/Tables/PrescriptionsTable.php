@@ -51,8 +51,8 @@ class PrescriptionsTable
                         ->color('info')
                         ->url(fn (Prescription $record): string => PrescriptionResource::getUrl('create', ['copy' => $record->id])),
                     EditAction::make(),
-                    RestoreAction::make()->label('Restore')->visible(fn () => auth()->user()?->isAdmin() ?? false),
-                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive prescription')->modalDescription('This will hide the prescription from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn () => auth()->user()?->isAdmin() ?? false),
+                    RestoreAction::make()->label('Restore')->visible(fn (Prescription $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive prescription')->modalDescription('This will hide the prescription from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Prescription $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ]);
     }
