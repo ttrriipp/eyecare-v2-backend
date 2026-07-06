@@ -186,6 +186,27 @@ test('reschedule action transitions appointment to rescheduled with new date and
     ]);
 });
 
+test('scheduled_at cannot be changed via a plain edit form save', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $originalDate = now()->addWeek();
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmedStatus->id,
+        'scheduled_at' => $originalDate,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->fillForm(['scheduled_at' => now()->addMonth()->toDateTimeString()])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $fresh = $appointment->fresh();
+    expect($fresh->scheduled_at->format('Y-m-d H:i'))->toBe($originalDate->format('Y-m-d H:i'))
+        ->and($fresh->status->name)->toBe('confirmed');
+});
+
 test('complete action transitions confirmed appointment to completed', function () {
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
