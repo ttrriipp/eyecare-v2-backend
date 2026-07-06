@@ -323,6 +323,7 @@ class OrderForm
                             Placeholder::make('total_display')
                                 ->hiddenLabel()
                                 ->columnStart(4)
+                                ->html()
                                 ->content(function ($livewire): string {
                                     $items = $livewire->data['items'] ?? [];
                                     $subtotal = collect($items)->sum(function (array $item): float {
