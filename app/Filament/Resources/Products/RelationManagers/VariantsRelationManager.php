@@ -145,7 +145,11 @@ class VariantsRelationManager extends RelationManager
                 CreateAction::make(),
             ])
             ->filters([
-                TrashedFilter::make()->label('Show Archived'),
+                TrashedFilter::make()
+                    ->label('Show Archived')
+                    ->placeholder('Active only')
+                    ->trueLabel('Active and archived')
+                    ->falseLabel('Archived only'),
             ])
             ->recordActions([
                 ActionGroup::make([

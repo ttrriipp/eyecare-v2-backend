@@ -80,7 +80,11 @@ class AppointmentsTable
                             fn (Builder $query, string $date): Builder => $query->whereDate('scheduled_at', $date),
                         );
                     }),
-                TrashedFilter::make()->label('Show Archived'),
+                TrashedFilter::make()
+                    ->label('Show Archived')
+                    ->placeholder('Active only')
+                    ->trueLabel('Active and archived')
+                    ->falseLabel('Archived only'),
             ])
             ->recordActions([
                 ActionGroup::make([

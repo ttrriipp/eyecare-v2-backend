@@ -97,7 +97,11 @@ class ProductsTable
                         '1' => 'Visible',
                         '0' => 'Hidden',
                     ]),
-                TrashedFilter::make()->label('Show Archived'),
+                TrashedFilter::make()
+                    ->label('Show Archived')
+                    ->placeholder('Active only')
+                    ->trueLabel('Active and archived')
+                    ->falseLabel('Archived only'),
             ])
             ->defaultSort('name')
             ->toolbarActions([
