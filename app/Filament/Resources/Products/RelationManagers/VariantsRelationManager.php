@@ -270,6 +270,10 @@ class VariantsRelationManager extends RelationManager
                     DeleteAction::make()
                         ->label('Archive')
                         ->icon('heroicon-o-archive-box')
+                        ->modalIcon('heroicon-o-archive-box')
+                        ->modalHeading('Archive variant')
+                        ->modalDescription('This will hide the variant from active lists. It can be restored later from the "Show Archived" filter.')
+                        ->modalSubmitActionLabel('Archive')
                         ->color('danger')
                         ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),

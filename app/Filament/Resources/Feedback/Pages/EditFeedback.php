@@ -15,7 +15,7 @@ class EditFeedback extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box'),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive feedback')->modalDescription('This will hide the feedback from active lists. It can be restored later.')->modalSubmitActionLabel('Archive'),
         ];
     }
 }

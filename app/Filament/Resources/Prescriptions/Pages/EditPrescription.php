@@ -150,7 +150,7 @@ class EditPrescription extends EditRecord
                 ->openUrlInNewTab(),
 
             RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
-            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive prescription')->modalDescription('This will hide the prescription from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
         ];
     }
 }

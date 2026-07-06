@@ -15,7 +15,7 @@ class EditConversation extends EditRecord
     {
         return [
             ViewAction::make(),
-            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box'),
+            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive conversation')->modalDescription('This will hide the conversation from active lists. It can be restored later.')->modalSubmitActionLabel('Archive'),
         ];
     }
 }

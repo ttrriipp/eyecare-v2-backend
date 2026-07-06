@@ -141,7 +141,7 @@ class OrdersTable
                             }
                         }),
                     RestoreAction::make()->label('Restore')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive order')->modalDescription('This will hide the order from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Order $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([
