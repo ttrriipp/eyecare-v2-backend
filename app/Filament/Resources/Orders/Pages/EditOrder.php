@@ -124,25 +124,38 @@ class EditOrder extends EditRecord
         ];
     }
 
+    protected function beforeSave(): void
+    {
+        $record = $this->getRecord();
+        $newStatusId = $this->data['order_status_id'] ?? null;
+
+        if (! $newStatusId || (int) $newStatusId === $record->order_status_id) {
+            return;
+        }
+
+        $newStatusName = OrderStatus::find($newStatusId)?->name;
+
+        if (! $newStatusName) {
+            return;
+        }
+
+        try {
+            app(UpdateOrderStatus::class)->handle($record, $newStatusName);
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first() ?? 'Cannot change order status.';
+            Notification::make()->title('Status update failed')->body($message)->danger()->send();
+            $this->halt();
+        }
+    }
+
     /** @param array<string, mixed> $data */
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $record = $this->getRecord();
-        $newStatusId = $data['order_status_id'] ?? null;
 
-        if ($newStatusId && (int) $newStatusId !== $record->order_status_id) {
-            $newStatusName = OrderStatus::find($newStatusId)?->name;
-
-            if ($newStatusName) {
-                try {
-                    app(UpdateOrderStatus::class)->handle($record, $newStatusName);
-                } catch (ValidationException $e) {
-                    $message = collect($e->errors())->flatten()->first() ?? 'Cannot change order status.';
-                    Notification::make()->title('Status update failed')->body($message)->danger()->send();
-                }
-            }
-
-            // Always keep DB value in sync (action already updated it, or we keep current)
+        // Status was already transitioned in beforeSave() — sync the form value to whatever
+        // the record now holds (either the new status on success, or unchanged on failure).
+        if (isset($data['order_status_id'])) {
             $data['order_status_id'] = $record->fresh()->order_status_id;
         }
 
