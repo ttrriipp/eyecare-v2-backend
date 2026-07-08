@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\Billings;
 
 use App\Filament\Resources\Billings\Pages\CreateBilling;
+use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Billings\Pages\ListBillings;
-use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
 use App\Filament\Resources\Billings\Schemas\BillingInfolist;
 use App\Filament\Resources\Billings\Tables\BillingsTable;
@@ -56,7 +56,8 @@ class BillingResource extends Resource
         return [
             'index' => ListBillings::route('/'),
             'create' => CreateBilling::route('/create'),
-            'view' => ViewBilling::route('/{record}'),
+            'view' => EditBilling::route('/{record}'),
+            'edit' => EditBilling::route('/{record}/edit'),
         ];
     }
 }

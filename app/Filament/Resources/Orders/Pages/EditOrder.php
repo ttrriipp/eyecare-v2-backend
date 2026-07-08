@@ -113,11 +113,11 @@ class EditOrder extends EditRecord
                 }),
 
             Action::make('view_billing')
-                ->label('View Billing')
+                ->label('Edit Billing')
                 ->icon('heroicon-o-document-text')
                 ->color('primary')
                 ->visible(fn (): bool => $this->getRecord()->billing !== null)
-                ->url(fn (): string => BillingResource::getUrl('view', ['record' => $this->getRecord()->billing])),
+                ->url(fn (): string => BillingResource::getUrl('edit', ['record' => $this->getRecord()->billing])),
 
             RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
             DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive order')->modalDescription('This will hide the order from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),

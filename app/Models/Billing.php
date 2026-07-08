@@ -92,6 +92,18 @@ class Billing extends Model
         return $this->hasMany(BillingItem::class);
     }
 
+    /** @return HasMany<BillingItem, $this> */
+    public function productItems(): HasMany
+    {
+        return $this->items()->where('type', 'product');
+    }
+
+    /** @return HasMany<BillingItem, $this> */
+    public function serviceItems(): HasMany
+    {
+        return $this->items()->where('type', 'service');
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {

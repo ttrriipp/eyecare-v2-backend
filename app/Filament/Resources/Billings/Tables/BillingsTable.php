@@ -7,7 +7,7 @@ use App\Models\Billing;
 use App\Models\PaymentMethod;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\ViewAction;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -93,7 +93,7 @@ class BillingsTable
             ])
             ->recordActions([
                 ActionGroup::make([
-                    ViewAction::make(),
+                    EditAction::make(),
                     Action::make('record_payment')
                         ->label('Record Payment')
                         ->icon('heroicon-o-banknotes')

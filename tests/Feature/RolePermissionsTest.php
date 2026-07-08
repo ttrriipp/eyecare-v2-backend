@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Resources\AuditLogs\AuditLogResource;
-use App\Filament\Resources\Billings\Pages\ViewBilling;
+use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Brands\BrandResource;
 use App\Filament\Resources\LensCategories\LensCategoryResource;
 use App\Filament\Resources\Orders\Pages\ListOrders;
@@ -62,28 +62,28 @@ test('admin can access all admin-only resources', function (string $url) {
     'services' => [fn () => ServiceResource::getUrl('index')],
 ]);
 
-// --- Billing actions: void and apply_discount admin-only ---
+// --- Billing actions: void is admin-only; discount is handled in the edit form ---
 
-test('staff cannot see void_billing or apply_discount actions on billing view', function () {
+test('staff cannot see void_billing or legacy apply_discount actions on billing edit', function () {
     $staff = User::factory()->staff()->create();
     $billing = Billing::factory()->issued()->create();
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
         ->assertActionHidden('void_billing')
-        ->assertActionHidden('apply_discount');
+        ->assertActionDoesNotExist('apply_discount');
 });
 
-test('admin can see void_billing and apply_discount actions on billing view', function () {
+test('admin can see void_billing and legacy apply_discount action is removed on billing edit', function () {
     $admin = User::factory()->admin()->create();
     $billing = Billing::factory()->issued()->create();
 
     $this->actingAs($admin);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
         ->assertActionVisible('void_billing')
-        ->assertActionVisible('apply_discount');
+        ->assertActionDoesNotExist('apply_discount');
 });
 
 // --- Order cancel: staff can cancel requested, not confirmed+ ---

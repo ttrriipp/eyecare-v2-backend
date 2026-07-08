@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Appointments\RelationManagers;
 
 use App\Filament\Resources\Billings\BillingResource;
 use App\Models\Billing;
-use Filament\Actions\ViewAction;
+use Filament\Actions\EditAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -42,8 +42,8 @@ class BillingsRelationManager extends RelationManager
                 TextColumn::make('issued_at')->label('Issued')->date('M j, Y')->sortable(),
             ])
             ->recordActions([
-                ViewAction::make()
-                    ->url(fn ($record) => BillingResource::getUrl('view', ['record' => $record])),
+                EditAction::make()
+                    ->url(fn ($record) => BillingResource::getUrl('edit', ['record' => $record])),
             ])
             ->defaultSort('issued_at', 'desc')
             ->paginated(false);

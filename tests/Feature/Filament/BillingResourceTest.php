@@ -1,15 +1,19 @@
 <?php
 
+use App\Filament\Resources\Billings\Pages\EditBilling;
 use App\Filament\Resources\Billings\Pages\ListBillings;
-use App\Filament\Resources\Billings\Pages\ViewBilling;
 use App\Filament\Resources\Billings\RelationManagers\PaymentsRelationManager;
+use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Billing;
+use App\Models\BillingItem;
 use App\Models\BillingStatus;
 use App\Models\DiscountType;
 use App\Models\Payment;
 use App\Models\PaymentMethod;
 use App\Models\PaymentStatus;
+use App\Models\Service;
+use App\Models\ServiceRecord;
 use App\Models\User;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
@@ -46,11 +50,28 @@ test('staff can view a billing record', function () {
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->assertSuccessful();
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSchemaStateSet([
+            'notes' => $billing->notes,
+        ]);
 });
 
-test('payments table renders on billing view page', function () {
+test('billing edit header does not expose payment or create order actions', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create([
+        'total_amount' => '300.00',
+        'balance_due' => '300.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionDoesNotExist('record_payment_shortcut')
+        ->assertActionDoesNotExist('create_order');
+});
+
+test('payments table renders on billing edit page', function () {
     $staff = User::factory()->staff()->create();
     $billing = Billing::factory()->issued()->create(['total_amount' => '300.00', 'balance_due' => '300.00']);
     $cashMethod = PaymentMethod::query()->firstOrCreate(['name' => 'Cash']);
@@ -65,53 +86,137 @@ test('payments table renders on billing view page', function () {
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
         ->assertSuccessful();
 });
 
-test('staff can update billing notes via the edit notes action', function () {
+test('staff can update billing notes from the edit form', function () {
     $staff = User::factory()->staff()->create();
     $billing = Billing::factory()->issued()->create();
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->callAction('edit_notes', ['notes' => 'Patient requested split payment.'])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->fillForm(['notes' => 'Patient requested split payment.'])
+        ->call('save')
         ->assertNotified();
 
     expect($billing->fresh()->notes)->toBe('Patient requested split payment.');
 });
 
-test('edit notes action is hidden on a voided billing', function () {
-    $staff = User::factory()->staff()->create();
-    $voidedStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
-    $billing = Billing::factory()->create(['billing_status_id' => $voidedStatus->id]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->assertActionHidden('edit_notes');
-});
-
-test('create order action is visible on a non-voided billing and links to the order create page', function () {
+test('add service and edit notes modal actions are not exposed on billing edit page', function () {
     $staff = User::factory()->staff()->create();
     $billing = Billing::factory()->issued()->create();
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->assertActionVisible('create_order');
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->assertActionDoesNotExist('add_service')
+        ->assertActionDoesNotExist('edit_notes');
 });
 
-test('create order action is hidden on a voided billing', function () {
+test('staff can link a standalone billing to an appointment from the edit form', function () {
     $staff = User::factory()->staff()->create();
-    $voidedStatus = BillingStatus::query()->where('name', 'voided')->firstOrFail();
-    $billing = Billing::factory()->create(['billing_status_id' => $voidedStatus->id]);
+    $patient = User::factory()->customer()->create();
+    $appointment = Appointment::factory()->create(['customer_id' => $patient->id]);
+    $billing = Billing::factory()->issued()->create([
+        'customer_id' => $patient->id,
+        'appointment_id' => null,
+    ]);
 
     $this->actingAs($staff);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->assertActionHidden('create_order');
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->fillForm(['appointment_id' => $appointment->id])
+        ->call('save')
+        ->assertNotified();
+
+    expect($billing->fresh()->appointment_id)->toBe($appointment->id);
+});
+
+test('staff can add a service through the billing services repeater', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create([
+        'subtotal' => '0.00',
+        'total_amount' => '0.00',
+        'balance_due' => '0.00',
+    ]);
+    $service = Service::factory()->create(['price' => '450.00']);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->fillForm([
+            'new_services' => [
+                [
+                    'service_id' => $service->id,
+                    'amount' => '500.00',
+                    'staff_id' => $staff->id,
+                    'performed_at' => now()->toDateTimeString(),
+                ],
+            ],
+        ])
+        ->call('save')
+        ->assertNotified();
+
+    $billing->refresh();
+
+    expect($billing->items()->where('type', 'service')->where('description', $service->name)->exists())->toBeTrue()
+        ->and($billing->subtotal)->toBe('500.00')
+        ->and($billing->total_amount)->toBe('500.00')
+        ->and($billing->balance_due)->toBe('500.00');
+});
+
+test('staff can edit and remove existing service billing items through the services repeater', function () {
+    $staff = User::factory()->staff()->create();
+    $billing = Billing::factory()->issued()->create([
+        'subtotal' => '700.00',
+        'total_amount' => '700.00',
+        'balance_due' => '700.00',
+    ]);
+    $serviceRecord = ServiceRecord::factory()->create([
+        'customer_id' => $billing->customer_id,
+        'staff_id' => $staff->id,
+        'amount' => '300.00',
+    ]);
+    $keptItem = BillingItem::factory()->service()->create([
+        'billing_id' => $billing->id,
+        'description' => 'Refraction',
+        'unit_price' => '300.00',
+        'amount' => '300.00',
+        'service_record_id' => $serviceRecord->id,
+    ]);
+    $removedItem = BillingItem::factory()->service()->create([
+        'billing_id' => $billing->id,
+        'description' => 'Adjustment',
+        'unit_price' => '400.00',
+        'amount' => '400.00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->fillForm([
+            'existing_services' => [
+                [
+                    'id' => $keptItem->id,
+                    'description' => $keptItem->description,
+                    'amount' => '350.00',
+                    'service_record_id' => $serviceRecord->id,
+                ],
+            ],
+        ])
+        ->call('save')
+        ->assertNotified();
+
+    $billing->refresh();
+
+    expect($keptItem->fresh()->amount)->toBe('350.00')
+        ->and($serviceRecord->fresh()->amount)->toBe('350.00')
+        ->and(BillingItem::query()->whereKey($removedItem->id)->exists())->toBeFalse()
+        ->and($billing->subtotal)->toBe('350.00')
+        ->and($billing->total_amount)->toBe('350.00')
+        ->and($billing->balance_due)->toBe('350.00');
 });
 
 test('staff can record a payment via the payments relation manager', function () {
@@ -126,7 +231,7 @@ test('staff can record a payment via the payments relation manager', function ()
 
     Livewire::test(PaymentsRelationManager::class, [
         'ownerRecord' => $billing,
-        'pageClass' => ViewBilling::class,
+        'pageClass' => EditBilling::class,
     ])
         ->callAction(TestAction::make('record_payment')->table(), data: [
             'amount' => 250.00,
@@ -155,7 +260,7 @@ test('staff can void a payment via the payments table row action', function () {
 
     Livewire::test(PaymentsRelationManager::class, [
         'ownerRecord' => $billing,
-        'pageClass' => ViewBilling::class,
+        'pageClass' => EditBilling::class,
     ])
         ->callTableAction('void', $payment)
         ->assertNotified();
@@ -192,7 +297,7 @@ test('void_billing action voids the billing and all posted payments', function (
 
     $this->actingAs($admin);
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
         ->callAction('void_billing')
         ->assertNotified();
 
@@ -216,12 +321,19 @@ test('void_billing action voids the billing and all posted payments', function (
         ->and($auditLog->metadata['payments_voided'][0]['amount'])->toBe('100.00');
 });
 
-test('apply_discount action updates billing totals', function () {
+test('admin can update billing discount from the edit form', function () {
     $admin = User::factory()->admin()->create();
     $billing = Billing::factory()->issued()->create([
         'subtotal' => '800.00',
         'total_amount' => '800.00',
         'balance_due' => '800.00',
+    ]);
+    BillingItem::factory()->product()->create([
+        'billing_id' => $billing->id,
+        'description' => 'Eyeglass frame',
+        'quantity' => 1,
+        'unit_price' => '800.00',
+        'amount' => '800.00',
     ]);
 
     $this->actingAs($admin);
@@ -232,10 +344,11 @@ test('apply_discount action updates billing totals', function () {
         ['type' => 'percentage', 'value' => 20, 'is_active' => true]
     );
 
-    Livewire::test(ViewBilling::class, ['record' => $billing->getRouteKey()])
-        ->callAction('apply_discount', data: ['discount_type_id' => $seniorType->id])
+    Livewire::test(EditBilling::class, ['record' => $billing->getRouteKey()])
+        ->fillForm(['discount_type_id' => $seniorType->id])
+        ->call('save')
         ->assertNotified()
-        ->assertHasNoActionErrors();
+        ->assertHasNoFormErrors();
 
     $billing->refresh();
 
