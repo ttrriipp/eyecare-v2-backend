@@ -31,20 +31,6 @@ it('builds a confirmation message containing the scheduled date', function () {
         ->and($sms->message)->toContain('confirmed');
 });
 
-it('builds a reschedule message containing the new scheduled date', function () {
-    $newDate = now()->addDays(5);
-    $appointment = Appointment::factory()->create();
-
-    $action = new UpdateAppointmentStatus;
-    $action->handle($appointment, 'rescheduled', scheduledAt: $newDate);
-
-    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->firstOrFail();
-
-    expect($sms->event)->toBe('appointment_rescheduled')
-        ->and($sms->message)->toContain($newDate->toDateTimeString())
-        ->and($sms->message)->toContain('rescheduled');
-});
-
 it('builds a cancellation message containing the scheduled date', function () {
     $appointment = Appointment::factory()->create();
 
@@ -58,13 +44,14 @@ it('builds a cancellation message containing the scheduled date', function () {
         ->and($sms->message)->toContain('cancelled');
 });
 
-it('does not create an sms record for the completed status', function () {
+it('does not create an sms record for arrival or completion', function () {
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => $confirmedStatus->id,
     ]);
 
     $action = new UpdateAppointmentStatus;
+    $action->handle($appointment, 'arrived');
     $action->handle($appointment, 'completed');
 
     expect(SmsNotification::query()->where('appointment_id', $appointment->id)->count())->toBe(0);

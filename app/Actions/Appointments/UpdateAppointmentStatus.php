@@ -8,7 +8,6 @@ use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Notifications\AppointmentStatusChanged;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentStatus
@@ -19,11 +18,12 @@ class UpdateAppointmentStatus
      * @var array<string, string[]>
      */
     private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'rescheduled', 'cancelled'],
-        'confirmed' => ['rescheduled', 'cancelled', 'completed'],
-        'rescheduled' => ['confirmed', 'rescheduled', 'cancelled', 'completed'],
+        'pending' => ['confirmed', 'cancelled'],
+        'confirmed' => ['arrived', 'no_show', 'cancelled'],
+        'arrived' => ['completed', 'cancelled'],
         'cancelled' => [],
         'completed' => [],
+        'no_show' => [],
     ];
 
     /**
@@ -31,14 +31,12 @@ class UpdateAppointmentStatus
      */
     private const SMS_EVENTS = [
         'confirmed' => 'appointment_confirmed',
-        'rescheduled' => 'appointment_rescheduled',
         'cancelled' => 'appointment_cancelled',
     ];
 
     public function handle(
         Appointment $appointment,
         string $statusName,
-        ?Carbon $scheduledAt = null,
         ?string $staffNotes = null,
     ): Appointment {
         $currentStatus = $appointment->status->name;
@@ -60,8 +58,12 @@ class UpdateAppointmentStatus
             $attributes['staff_notes'] = $staffNotes;
         }
 
-        if ($statusName === 'rescheduled' && $scheduledAt !== null) {
-            $attributes['scheduled_at'] = $scheduledAt;
+        if ($statusName === 'arrived') {
+            $attributes['checked_in_at'] = now();
+        }
+
+        if ($statusName === 'completed') {
+            $attributes['completed_at'] = now();
         }
 
         $appointment->update($attributes);
@@ -98,7 +100,6 @@ class UpdateAppointmentStatus
     {
         return match ($event) {
             'appointment_confirmed' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been confirmed.",
-            'appointment_rescheduled' => "Your appointment has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
             'appointment_cancelled' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been cancelled.",
         };
     }

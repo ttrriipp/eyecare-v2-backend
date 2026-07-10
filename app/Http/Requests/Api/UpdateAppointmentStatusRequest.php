@@ -24,8 +24,12 @@ class UpdateAppointmentStatusRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'status' => ['required', 'string', Rule::exists('appointment_statuses', 'name')],
-            'scheduled_at' => ['required_if:status,rescheduled', 'nullable', 'date', 'after:now'],
+            'status' => [
+                'required',
+                'string',
+                Rule::in(['confirmed', 'arrived', 'completed', 'no_show', 'cancelled']),
+                Rule::exists('appointment_statuses', 'name'),
+            ],
             'staff_notes' => ['nullable', 'string', 'max:1000'],
         ];
     }

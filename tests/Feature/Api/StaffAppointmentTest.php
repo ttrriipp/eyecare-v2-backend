@@ -17,22 +17,16 @@ beforeEach(function () {
     $this->seed(NotificationStatusSeeder::class);
 });
 
-test('staff can confirm reschedule cancel and complete appointments', function (string $startStatus, string $targetStatus, bool $expectsSms) {
+test('staff can move appointments through the approved lifecycle', function (string $startStatus, string $targetStatus, bool $expectsSms) {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => AppointmentStatus::query()->firstOrCreate(['name' => $startStatus])->id,
     ]);
 
-    $payload = [
-        'status' => $targetStatus,
-    ];
-
-    if ($targetStatus === 'rescheduled') {
-        $payload['scheduled_at'] = now()->addDays(3)->toISOString();
-    }
-
     $response = $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/appointments/{$appointment->id}/status", $payload);
+        ->patchJson("/api/staff/appointments/{$appointment->id}/status", [
+            'status' => $targetStatus,
+        ]);
 
     $response->assertSuccessful()
         ->assertJsonPath('data.status', $targetStatus);
@@ -50,25 +44,20 @@ test('staff can confirm reschedule cancel and complete appointments', function (
     Http::assertNothingSent();
 })->with([
     'confirmed' => ['pending', 'confirmed', true],
-    'rescheduled' => ['pending', 'rescheduled', true],
     'cancelled' => ['pending', 'cancelled', true],
-    'completed' => ['confirmed', 'completed', false],
+    'arrived' => ['confirmed', 'arrived', false],
+    'no-show' => ['confirmed', 'no_show', false],
+    'completed' => ['arrived', 'completed', false],
 ]);
 
-test('sms notification records are queued for confirm reschedule and cancel', function (string $status, string $event) {
+test('sms notification records are queued for confirm and cancel', function (string $status, string $event) {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => AppointmentStatus::query()->firstOrCreate(['name' => 'pending'])->id,
     ]);
 
-    $payload = ['status' => $status];
-
-    if ($status === 'rescheduled') {
-        $payload['scheduled_at'] = now()->addDays(2)->toISOString();
-    }
-
     $this->actingAs($staff, 'sanctum')
-        ->patchJson("/api/staff/appointments/{$appointment->id}/status", $payload)
+        ->patchJson("/api/staff/appointments/{$appointment->id}/status", ['status' => $status])
         ->assertSuccessful();
 
     $this->assertDatabaseHas(SmsNotification::class, [
@@ -81,9 +70,36 @@ test('sms notification records are queued for confirm reschedule and cancel', fu
     Http::assertNothingSent();
 })->with([
     'confirmed' => ['confirmed', 'appointment_confirmed'],
-    'rescheduled' => ['rescheduled', 'appointment_rescheduled'],
     'cancelled' => ['cancelled', 'appointment_cancelled'],
 ]);
+
+test('arrival and completion record their workflow timestamps', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmed->id]);
+
+    $this->actingAs($staff, 'sanctum')
+        ->patchJson("/api/staff/appointments/{$appointment->id}/status", ['status' => 'arrived'])
+        ->assertSuccessful();
+
+    expect($appointment->refresh()->checked_in_at)->not->toBeNull();
+
+    $this->actingAs($staff, 'sanctum')
+        ->patchJson("/api/staff/appointments/{$appointment->id}/status", ['status' => 'completed'])
+        ->assertSuccessful();
+
+    expect($appointment->refresh()->completed_at)->not->toBeNull();
+});
+
+test('rescheduled is not accepted as an appointment status', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff, 'sanctum')
+        ->patchJson("/api/staff/appointments/{$appointment->id}/status", ['status' => 'rescheduled'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('status');
+});
 
 test('customers cannot update appointment status through staff endpoint', function () {
     $customer = User::factory()->customer()->create();
@@ -113,4 +129,5 @@ test('terminal appointment statuses cannot be transitioned further', function (s
 })->with([
     'cancelled' => ['cancelled'],
     'completed' => ['completed'],
+    'no-show' => ['no_show'],
 ]);

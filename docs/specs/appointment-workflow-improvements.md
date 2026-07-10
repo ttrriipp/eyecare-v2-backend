@@ -531,16 +531,16 @@ Description: Rewrite appointment status transitions around the simplified small-
 
 Acceptance criteria:
 
-- [ ] Allowed transitions are `pending -> confirmed/cancelled`, `confirmed -> arrived/no_show/cancelled`, and `arrived -> completed/cancelled`.
-- [ ] `completed`, `no_show`, and `cancelled` are terminal.
-- [ ] Confirm/cancel still create SMS records where appropriate.
-- [ ] Invalid transition attempts return validation errors.
+- [x] Allowed transitions are `pending -> confirmed/cancelled`, `confirmed -> arrived/no_show/cancelled`, and `arrived -> completed/cancelled`.
+- [x] `completed`, `no_show`, and `cancelled` are terminal.
+- [x] Confirm/cancel still create SMS records where appropriate.
+- [x] Invalid transition attempts return validation errors.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/StaffAppointmentTest.php`.
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentSmsMessageTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/StaffAppointmentTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentSmsMessageTest.php`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Task 1.
 
