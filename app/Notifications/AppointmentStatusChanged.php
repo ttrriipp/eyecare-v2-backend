@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Appointment;
 use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Str;
 
 class AppointmentStatusChanged extends Notification
 {
@@ -25,12 +26,13 @@ class AppointmentStatusChanged extends Notification
             ->iconColor(match ($status) {
                 'confirmed' => 'success',
                 'cancelled' => 'danger',
-                'rescheduled' => 'warning',
+                'arrived' => 'warning',
                 'completed' => 'success',
+                'no_show' => 'gray',
                 default => 'info',
             })
-            ->title('Appointment '.ucfirst($status))
-            ->body("Your appointment scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been {$status}.")
+            ->title('Appointment '.Str::headline($status))
+            ->body("Your appointment scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been ".Str::headline($status).'.')
             ->getDatabaseMessage();
     }
 }

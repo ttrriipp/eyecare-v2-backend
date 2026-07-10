@@ -58,7 +58,8 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             'yesterday_confirmed' => $yesterday,
             'today_confirmed_chart' => $this->dailyConfirmedAppointments(7),
             'walk_in_queue' => Appointment::query()
-                ->whereHas('status', fn ($q) => $q->where('name', 'pending'))
+                ->where('source', 'walk_in')
+                ->whereHas('status', fn ($q) => $q->where('name', 'arrived'))
                 ->whereDate('scheduled_at', today())
                 ->count(),
             'this_month_revenue' => $thisMonthRevenue,
@@ -103,11 +104,11 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
         $waiting = $data['walk_in_queue'];
 
         return Stat::make('Waiting today', number_format($waiting))
-            ->description($waiting > 0 ? 'Pending appointments for today' : 'No pending appointments')
+            ->description($waiting > 0 ? 'Walk-ins waiting now' : 'No walk-ins waiting')
             ->descriptionIcon($waiting > 0 ? Heroicon::UserGroup : Heroicon::CheckCircle)
             ->descriptionColor($waiting > 0 ? 'warning' : 'success')
             ->color($waiting > 0 ? 'warning' : 'success')
-            ->url('/admin/appointments?tableFilters[status][value]=pending');
+            ->url('/admin/appointments?tableFilters[walk_in_queue][isActive]=1');
     }
 
     /** @param array<string, mixed> $data */

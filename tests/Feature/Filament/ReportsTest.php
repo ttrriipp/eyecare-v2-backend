@@ -8,6 +8,7 @@ use App\Filament\Pages\Reports\SalesReport;
 use App\Models\Billing;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -50,6 +51,17 @@ test('staff can access operational report pages', function (string $pageClass) {
     'Orders' => [OrdersReport::class],
     'Appointments' => [AppointmentsReport::class],
 ]);
+
+test('appointment report uses readable labels for the current status catalog', function () {
+    $this->seed(AppointmentStatusSeeder::class);
+    $this->actingAs(User::factory()->admin()->create());
+
+    $breakdown = Livewire::test(AppointmentsReport::class)->instance()->getBreakdown();
+
+    expect($breakdown)->toHaveKey('No Show')
+        ->not->toHaveKey('No_show')
+        ->not->toHaveKey('Rescheduled');
+});
 
 test('sales report shows correct stats for date range', function () {
     $admin = User::factory()->admin()->create();

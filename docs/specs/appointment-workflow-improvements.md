@@ -753,15 +753,15 @@ Description: Update widgets, relation managers, notifications, SMS log display, 
 
 Acceptance criteria:
 
-- [ ] `rg "rescheduled"` returns only reschedule event/SMS/history references, not status-flow references.
-- [ ] Dashboard/today widgets use the new active statuses.
-- [ ] Reports and relation managers display new status colors/labels.
+- [x] `rg "rescheduled"` in production code and tests returns only reschedule event/SMS/history or migration-guard references, not current status-flow references.
+- [x] Dashboard/today widgets use the new active statuses.
+- [x] Reports and relation managers display new status colors/labels.
 
 Verification:
 
-- [ ] Run `rg "rescheduled" app database tests docs/BACKEND_CONTEXT.md`.
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=Appointment`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `rg "rescheduled" app database tests` and classify the remaining references.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=Appointment`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 4, 5, and 10.
 
@@ -774,6 +774,8 @@ Files likely touched:
 - Relevant appointment/widget tests.
 
 Estimated scope: Medium.
+
+Implementation note: `docs/BACKEND_CONTEXT.md` remains intentionally deferred to Task 13 so the cross-session snapshot is updated once, after reminder scheduling and the final regression pass.
 
 #### Task 12: Register reminder scheduling
 

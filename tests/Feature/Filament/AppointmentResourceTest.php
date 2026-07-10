@@ -69,6 +69,18 @@ test('appointment table can filter by status and scheduled date', function () {
         ->assertCanNotSeeTableRecords([$confirmedAppointment]);
 });
 
+test('appointment table displays no-show as a readable status label', function () {
+    $staff = User::factory()->staff()->create();
+    $noShow = Appointment::factory()->create([
+        'appointment_status_id' => AppointmentStatus::query()->where('name', 'no_show')->value('id'),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableColumnFormattedStateSet('status.name', 'No Show', record: $noShow);
+});
+
 test('staff can edit appointment staff notes', function () {
     Http::fake();
 

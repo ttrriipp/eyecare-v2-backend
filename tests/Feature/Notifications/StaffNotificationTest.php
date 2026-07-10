@@ -29,7 +29,7 @@ test('all staff and admin are notified when a customer books an appointment', fu
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->toISOString(),
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
         ])
         ->assertCreated();
 
@@ -43,7 +43,7 @@ test('new booking notification has correct type and action url', function () {
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->toISOString(),
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
         ])
         ->assertCreated();
 

@@ -3,6 +3,7 @@
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\RecentFeedbackWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
+use App\Filament\Widgets\TodaysScheduleWidget;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Billing;
@@ -17,14 +18,50 @@ use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\BillingStatusSeeder;
 use Database\Seeders\OrderStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Cache::flush();
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(OrderStatusSeeder::class);
     $this->seed(BillingStatusSeeder::class);
+});
+
+test('today schedule and waiting count use arrived walk-ins', function () {
+    $staff = User::factory()->staff()->create();
+    $arrivedId = AppointmentStatus::query()->where('name', 'arrived')->value('id');
+    $pendingId = AppointmentStatus::query()->where('name', 'pending')->value('id');
+    $walkIn = Appointment::factory()->create([
+        'source' => 'walk_in',
+        'appointment_status_id' => $arrivedId,
+        'scheduled_at' => today()->setTime(10, 0),
+    ]);
+    $pending = Appointment::factory()->create([
+        'source' => 'mobile_app',
+        'appointment_status_id' => $pendingId,
+        'scheduled_at' => today()->setTime(11, 0),
+    ]);
+    Appointment::factory()->create([
+        'source' => 'staff_created',
+        'appointment_status_id' => $pendingId,
+        'scheduled_at' => today()->setTime(12, 0),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(TodaysScheduleWidget::class)
+        ->assertCanSeeTableRecords([$walkIn, $pending]);
+
+    $statsWidget = Livewire::test(StatsOverviewWidget::class)
+        ->assertSee('Waiting today')
+        ->instance();
+    $computeStatsData = new ReflectionMethod($statsWidget, 'computeStatsData');
+    $computeStatsData->setAccessible(true);
+
+    expect($computeStatsData->invoke($statsWidget)['walk_in_queue'])->toBe(1);
 });
 
 test('staff and admin can access the dashboard widgets', function (string $role) {

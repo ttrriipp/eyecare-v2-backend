@@ -7,6 +7,7 @@ use App\Models\AppointmentStatus;
 use BackedEnum;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Str;
 
 class AppointmentsReport extends BaseReport
 {
@@ -59,7 +60,7 @@ class AppointmentsReport extends BaseReport
 
         $breakdown = [];
         foreach ($statuses as $id => $name) {
-            $breakdown[ucfirst($name)] = (int) ($counts[$id] ?? 0);
+            $breakdown[Str::headline($name)] = (int) ($counts[$id] ?? 0);
         }
 
         return $breakdown;

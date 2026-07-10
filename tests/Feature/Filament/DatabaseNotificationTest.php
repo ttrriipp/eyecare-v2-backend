@@ -31,7 +31,7 @@ test('booking an appointment creates a notification for staff', function () {
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => VisitReason::query()->first()->id,
-            'scheduled_at' => now()->addDays(3)->toDateTimeString(),
+            'scheduled_at' => now()->addDays(3)->setHour(10)->setMinute(0)->toDateTimeString(),
         ])
         ->assertCreated();
 

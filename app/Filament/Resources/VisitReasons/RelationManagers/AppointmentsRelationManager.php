@@ -9,6 +9,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class AppointmentsRelationManager extends RelationManager
 {
@@ -31,12 +32,13 @@ class AppointmentsRelationManager extends RelationManager
                     ->color(fn (Appointment $record): string => match ($record->status?->name) {
                         'pending' => 'gray',
                         'confirmed' => 'info',
-                        'rescheduled' => 'warning',
+                        'arrived' => 'warning',
                         'completed' => 'success',
+                        'no_show' => 'gray',
                         'cancelled' => 'danger',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state)),
             ])
             ->recordActions([
                 Action::make('edit')

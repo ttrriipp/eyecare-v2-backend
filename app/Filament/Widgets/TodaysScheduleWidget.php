@@ -36,7 +36,7 @@ class TodaysScheduleWidget extends TableWidget
                 Appointment::query()
                     ->with(['customer', 'visitReason', 'status'])
                     ->whereDate('scheduled_at', today())
-                    ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'rescheduled']))
+                    ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived']))
                     ->orderBy('scheduled_at')
                     ->limit(5)
             )
@@ -58,7 +58,7 @@ class TodaysScheduleWidget extends TableWidget
                     ->color(fn (string $state): string => match ($state) {
                         'pending' => 'warning',
                         'confirmed' => 'info',
-                        'rescheduled' => 'warning',
+                        'arrived' => 'warning',
                         default => 'gray',
                     }),
             ])

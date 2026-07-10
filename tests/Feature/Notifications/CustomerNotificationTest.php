@@ -49,7 +49,7 @@ test('customer is notified when appointment is rescheduled', function () {
 
     app(RescheduleAppointment::class)->handle(
         appointment: $appointment,
-        scheduledAt: now()->addDays(3),
+        scheduledAt: now()->addDays(3)->setHour(10)->setMinute(0),
         customerInitiated: true,
     );
 
