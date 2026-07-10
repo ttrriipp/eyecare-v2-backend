@@ -6,6 +6,7 @@ use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -13,6 +14,16 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+});
+
+test('appointment reminders are scheduled daily without overlapping', function () {
+    $event = collect(app(Schedule::class)->events())
+        ->first(fn ($event): bool => str_contains($event->command ?? '', 'appointments:send-reminders'));
+
+    expect($event)->not->toBeNull()
+        ->and($event->expression)->toBe('0 9 * * *')
+        ->and($event->timezone)->toBe(config('app.timezone'))
+        ->and($event->withoutOverlapping)->toBeTrue();
 });
 
 test('it creates reminders for tomorrow confirmed appointments', function () {

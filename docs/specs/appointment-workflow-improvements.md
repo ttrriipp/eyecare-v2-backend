@@ -783,14 +783,15 @@ Description: Make appointment reminders operational by registering the existing 
 
 Acceptance criteria:
 
-- [ ] `appointments:send-reminders` is scheduled.
-- [ ] Scheduled command uses `withoutOverlapping()`.
-- [ ] Existing reminder command behavior remains unchanged.
+- [x] `appointments:send-reminders` is scheduled.
+- [x] Scheduled command uses `withoutOverlapping()`.
+- [x] Existing reminder command behavior remains unchanged.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentReminderTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentReminderTest.php`.
+- [x] Run `vendor/bin/sail artisan schedule:list`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: None, but best done after appointment status cleanup.
 
