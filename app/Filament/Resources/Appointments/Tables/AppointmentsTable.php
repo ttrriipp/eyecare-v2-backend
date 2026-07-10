@@ -65,6 +65,13 @@ class AppointmentsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Filter::make('walk_in_queue')
+                    ->label("Today's walk-ins")
+                    ->query(fn (Builder $query): Builder => $query
+                        ->where('source', 'walk_in')
+                        ->whereDate('scheduled_at', today())
+                        ->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'arrived')))
+                    ->toggle(),
                 Filter::make('assigned_to_me')
                     ->label('Assigned to me')
                     ->query(fn (Builder $query): Builder => $query->where('staff_id', Auth::id()))

@@ -688,15 +688,15 @@ Description: Add a staff-facing walk-in path that creates same-day `arrived` app
 
 Acceptance criteria:
 
-- [ ] Staff can add a walk-in with patient, phone, visit reason, and optional optometrist.
-- [ ] Walk-ins are created with `source = walk_in` and `status = arrived`.
-- [ ] Appointment table can filter/show today's walk-in queue.
+- [x] Staff can add a walk-in with patient, phone, visit reason, and optional optometrist.
+- [x] Walk-ins are created with `source = walk_in` and `status = arrived`.
+- [x] Appointment table can filter/show today's walk-in queue.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=WalkIn`.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=WalkIn`.
 - [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 3, 4, and 8.
 

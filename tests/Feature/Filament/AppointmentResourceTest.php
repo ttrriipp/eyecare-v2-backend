@@ -317,6 +317,60 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->and($walkIn->password)->toBeNull();
 });
 
+test('WalkIn staff can add a patient to the queue', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->walkIn()->create(['phone' => '09171234569']);
+    $visitReason = VisitReason::factory()->create();
+    $optometrist = User::factory()->optometrist()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callAction('addWalkIn', [
+            'customer_id' => $patient->id,
+            'visit_reason_id' => $visitReason->id,
+            'optometrist_id' => $optometrist->id,
+        ])
+        ->assertNotified();
+
+    $this->assertDatabaseHas(Appointment::class, [
+        'customer_id' => $patient->id,
+        'visit_reason_id' => $visitReason->id,
+        'optometrist_id' => $optometrist->id,
+        'staff_id' => $staff->id,
+        'source' => 'walk_in',
+        'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
+    ]);
+});
+
+test('WalkIn queue filter shows only todays waiting patients', function () {
+    $staff = User::factory()->staff()->create();
+    $arrived = AppointmentStatus::query()->where('name', 'arrived')->firstOrFail();
+    $completed = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
+    $waiting = Appointment::factory()->create([
+        'source' => 'walk_in',
+        'appointment_status_id' => $arrived->id,
+        'scheduled_at' => now(),
+    ]);
+    $scheduled = Appointment::factory()->create([
+        'source' => 'staff_created',
+        'appointment_status_id' => $arrived->id,
+        'scheduled_at' => now(),
+    ]);
+    $finished = Appointment::factory()->create([
+        'source' => 'walk_in',
+        'appointment_status_id' => $completed->id,
+        'scheduled_at' => now(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->filterTable('walk_in_queue', true)
+        ->assertCanSeeTableRecords([$waiting])
+        ->assertCanNotSeeTableRecords([$scheduled, $finished]);
+});
+
 test('reschedule row action reschedules appointment with new date and creates SMS', function () {
     Http::fake();
 
