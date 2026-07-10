@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
@@ -25,6 +26,7 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::patch('/user', [AuthController::class, 'update']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
+    Route::get('appointments/availability', AppointmentAvailabilityController::class);
     Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);

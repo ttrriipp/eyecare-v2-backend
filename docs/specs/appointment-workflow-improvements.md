@@ -625,15 +625,15 @@ Description: Add a small endpoint that returns available slots for a date and vi
 
 Acceptance criteria:
 
-- [ ] Endpoint returns only slots inside clinic hours.
-- [ ] Endpoint excludes slots conflicting with the selected optometrist.
-- [ ] Endpoint can show availability when no optometrist is selected.
+- [x] Endpoint returns only slots inside clinic hours.
+- [x] Endpoint excludes slots conflicting with the selected optometrist.
+- [x] Endpoint can show availability when no optometrist is selected.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=AppointmentAvailability`.
-- [ ] Run `vendor/bin/sail artisan route:list --path=appointments --except-vendor`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=AppointmentAvailability`.
+- [x] Run `vendor/bin/sail artisan route:list --path=appointments --except-vendor`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Task 3.
 
@@ -648,9 +648,9 @@ Estimated scope: Medium.
 
 #### Checkpoint: API
 
-- [ ] Customer booking/reschedule tests pass.
-- [ ] Appointment API remains backward-compatible except for documented additive fields.
-- [ ] Availability endpoint is route-listed and tested if included in this implementation pass.
+- [x] Customer booking/reschedule tests pass.
+- [x] Appointment API remains backward-compatible except for documented additive fields.
+- [x] Availability endpoint is route-listed and tested if included in this implementation pass.
 
 ### Phase D: Filament Staff Workflow
 
