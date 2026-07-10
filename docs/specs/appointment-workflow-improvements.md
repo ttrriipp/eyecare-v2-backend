@@ -808,14 +808,14 @@ Description: Update the global backend context document only after implementatio
 
 Acceptance criteria:
 
-- [ ] `docs/BACKEND_CONTEXT.md` lists the final appointment statuses.
-- [ ] It documents appointment source, optometrist assignment, walk-in queue, and reschedule-as-action.
-- [ ] It preserves the billing explanation that appointments are encounter grouping points, not automatic invoices.
+- [x] `docs/BACKEND_CONTEXT.md` lists the final appointment statuses.
+- [x] It documents appointment source, optometrist assignment, walk-in queue, and reschedule-as-action.
+- [x] It preserves the billing explanation that appointments are encounter grouping points, not automatic invoices.
 
 Verification:
 
-- [ ] Review `docs/BACKEND_CONTEXT.md` for consistency with implemented schema and tests.
-- [ ] Run `rg "rescheduled" docs/BACKEND_CONTEXT.md` and confirm remaining references only describe SMS/event history if needed.
+- [x] Review `docs/BACKEND_CONTEXT.md` for consistency with implemented schema and tests.
+- [x] Run `rg "rescheduled" docs/BACKEND_CONTEXT.md` and confirm remaining references only describe SMS/event history or explicitly state that it is not a status.
 
 Dependencies: Tasks 1-12.
 
@@ -825,12 +825,16 @@ Files likely touched:
 
 Estimated scope: Small.
 
+Implementation note: The context now records the six-state lifecycle, configurable clinic hours/capacity, source values, optometrist capability, walk-in queue, availability API, reminder schedule, and the appointment-to-billing boundary.
+
 #### Checkpoint: Complete
 
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=Appointment`.
-- [ ] Run any touched non-appointment tests, especially user, feedback, billing, and notification tests.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
-- [ ] Confirm the capstone demo path works: app booking pending, staff confirm, assign optometrist, add walk-in, mark arrived/completed, mark no-show, prevent same-optometrist double booking.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=Appointment`.
+- [x] Run any touched non-appointment tests, especially user, feedback, billing, and notification tests.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Confirm the capstone demo path works: app booking pending, staff confirm, assign optometrist, add walk-in, mark arrived/completed, mark no-show, prevent same-optometrist double booking.
+
+Final verification: 156 appointment-filtered tests (492 assertions) and 109 related user, feedback, billing, and notification tests (351 assertions) passed. Pint passed. The demo path is covered by focused API, scheduling, walk-in, lifecycle, and Filament component tests; browser screenshot/DOM verification remains unavailable because Chrome DevTools MCP is not configured in this workspace.
 
 ## Plan Approval Gate
 

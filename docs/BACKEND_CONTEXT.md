@@ -59,7 +59,7 @@ Use `User::isAdmin()` to check role in Filament. The default is "staff can do al
 
 | Area | Staff CAN | Admin only |
 |---|---|---|
-| Appointments | Create, edit, change status, assign staff | — |
+| Appointments | Create scheduled visits and walk-ins, assign staff/optometrist, reschedule, advance status | — |
 | Orders | Create (starts at `confirmed`), edit while `confirmed`, advance to `processing`, assign lenses, cancel any non-terminal status | Cancel from `processing`/`ready_for_pickup` (triggers inventory reversal) — no staff/admin distinction here beyond the general cancel permission |
 | Billings | View, record payment, add service, create standalone billing, create order from billing | Void billing, apply/change discount |
 | Products | Create, edit, manage variants, adjust stock | Delete/restore |
@@ -89,7 +89,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | Table | Values |
 |---|---|
 | `roles` | admin, staff, customer |
-| `appointment_statuses` | pending, confirmed, rescheduled, cancelled, completed |
+| `appointment_statuses` | pending, confirmed, arrived, completed, no_show, cancelled |
 | `order_statuses` | requested, confirmed, processing, ready_for_pickup, completed, cancelled |
 | `billing_statuses` | issued, partially_paid, paid, voided |
 | `payment_statuses` | posted, voided |
@@ -102,8 +102,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | email + password nullable for walk-in customers, date_of_birth (nullable), address (nullable) |
-| `appointments` | customer_id, staff_id (nullable), visit_reason_id, appointment_status_id |
+| `users` | email + password nullable for walk-in customers, date_of_birth (nullable), address (nullable), is_optometrist (staff/admin capability flag) |
+| `appointments` | customer_id, staff_id (nullable operational owner), optometrist_id (nullable clinical provider), visit_reason_id, appointment_status_id, source, scheduled_at, checked_in_at (nullable), completed_at (nullable) |
 | `prescriptions` | customer_id, appointment_id (nullable), OD/OS/PD fields |
 | `products` | brand_id, category_id (nullable FK → product_categories), lens_category_id (nullable FK — only for type `lens`), name, slug, is_active, product_type (`frame`/`lens`/`general`), images (nullable JSON). No price/dimensions (on variants). |
 | `product_variants` | price, compare_at_price, cost_price, attributes (nullable JSON), stock_quantity, low_stock_threshold, ar_eligible, ar_asset_reference, images (nullable JSON) |
@@ -191,16 +191,18 @@ Status changes always go through the relevant action class — never direct mode
 
 **Appointments** (`UpdateAppointmentStatus`):
 ```
-pending → confirmed, rescheduled, cancelled
-confirmed → rescheduled, cancelled, completed
-rescheduled → confirmed, rescheduled, cancelled, completed
-cancelled → (terminal)
+pending → confirmed, cancelled
+confirmed → arrived, no_show, cancelled
+arrived → completed, cancelled
 completed → (terminal)
+no_show → (terminal)
+cancelled → (terminal)
 ```
-SMS notification records created on: confirmed, rescheduled, cancelled.
-Rescheduling always goes through the dedicated "Reschedule" action (header action on edit page, row action in list) which accepts a new date — it does not appear in the status toggle buttons.
+Entering `arrived` sets `checked_in_at`; entering `completed` sets `completed_at`. SMS notification records are created for confirmation and cancellation. `appointment_rescheduled` remains an SMS event, not an appointment status.
 
-**Customer-initiated reschedule (mobile API):** `POST /appointments/{id}/reschedule` lets a customer reschedule their own appointment while it is `pending`, `confirmed`, or `rescheduled` (same set of eligible statuses as staff — including reschedule of an already-`rescheduled` appointment, since `rescheduled → rescheduled` is an allowed transition). It calls the same `UpdateAppointmentStatus::handle()` action as the staff-facing Filament "Reschedule" action — same SMS event (`appointment_rescheduled`), same audit log entry, same resulting `rescheduled` status. There is no limit on how many times a customer may reschedule; each reschedule requires staff re-confirmation (the appointment stays in `rescheduled` until staff moves it back to `confirmed`). A database notification is sent to staff/admin on every customer-initiated reschedule (old time → new time). The endpoint uses `Appointment::conflictsWith()` with `$ignoreId` set to the appointment's own id, so the appointment's current slot never blocks its own reschedule.
+**Rescheduling** (`RescheduleAppointment`): Rescheduling changes `scheduled_at` through a dedicated action and never changes the appointment to a `rescheduled` status. It validates clinic hours and provider capacity through `ScheduleAppointment`, sends the reschedule SMS/database notification, and audits the old and new times. A staff reschedule preserves `pending` or `confirmed`; a customer reschedule returns the appointment to `pending` for staff confirmation.
+
+**Customer-initiated reschedule (mobile API):** `POST /appointments/{id}/reschedule` lets a customer reschedule their own `pending` or `confirmed` appointment. There is no hard reschedule-count limit. The central scheduler ignores the appointment's existing slot while checking the replacement time, and the result is `pending` so staff can confirm the new schedule.
 
 **Orders** (`UpdateOrderStatus`):
 ```
@@ -252,7 +254,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Settings — Categories, Brands, Lens Categories, Visit Reasons, Services
 
 **Resources (operational):**
-- Appointments — guarded status toggle buttons on edit form (cycle-guarded, excludes rescheduled); staff assignment. `scheduled_at` is disabled on the edit form (editable only on create) — staff must use the dedicated "Reschedule" action to change the date, which is the only path that correctly transitions status to `rescheduled`, fires the SMS notification, and creates an audit log entry. "Reschedule" is a dedicated header action (and row action in list) that opens a date picker modal — it is not selectable via the status toggle buttons. Read-only **Billings relation manager** shows any invoices linked to this appointment (via `appointment_id`), with a View action to the full billing page — there is no "Bill Service" quick-action anymore (see Billing Rework below). Calendar view (toggle on the list page): events show "Patient Name · Phone — Visit Reason" in the title; clicking an event opens a quick-view modal (phone, status, visit reason, time, duration, assigned staff, notes) with "Open Full Details" button to navigate to edit; drag an event to reschedule (validates status + conflict via `UpdateAppointmentStatus`); click an empty day to create with `scheduled_at` pre-filled. **Bulk actions:** Confirm Selected (staff+admin, pending only), Cancel Selected (admin only, pending/confirmed).
+- Appointments — source and optometrist-aware scheduling with simple row actions: Confirm (`pending`), Mark Arrived (`confirmed`), Complete (`arrived`), No Show (`confirmed`), Cancel, and Reschedule. `staff_id` is the operational owner; `optometrist_id` is the clinical provider and lists only staff/admin users marked `is_optometrist`. Staff-created scheduled visits start `confirmed`. The **Add Walk-in** action creates a same-day `walk_in` appointment already `arrived`, and the table has a Today's Walk-in Queue filter. `scheduled_at` is disabled on edit; the dedicated Reschedule action and calendar drag both use `RescheduleAppointment` and the central scheduler. Table/calendar show the assigned optometrist. The read-only **Billings relation manager** shows invoices linked through `appointment_id`, but appointment completion does not create a billing automatically. **Bulk actions:** Confirm Selected (staff+admin, pending only), Cancel Selected (admin only, pending/confirmed).
 - Orders — KPI stats (reactive to active tab) + status tabs on list. Table with group-by-date, toggleable columns, date range filters, row actions (advance/cancel/edit in ⋮ menu). **Single "New Order" header action** — creates orders starting at `confirmed` directly (no separate "Walk-in Sale" button; that concept was removed). Create: 2-step wizard (Order Details → Order Items table repeater). Variant select shows stock count: `(stock: 5)` or `⚠ [OUT OF STOCK]` and excludes `lens`-type products (lenses are staff-assigned, never ordered directly). No lens fields on the create form. Edit: sidebar (dates), inline ToggleButtons (cycle-guarded, sequential), RichEditor notes — **no discount fields** (discount lives on billing only). Full-width Order Items section (4-col grid repeater) — while status is `confirmed`, frame-type items show a Lens Category selector and, once a category is chosen, an "Assign Lens" selector filtered to matching lens product variants; these fields and the whole repeater lock once the order reaches `processing`. Live Order Summary (subtotal/total only, no discount row). View Billing (document icon, resolves via `Order::resolvedBilling()`) + **Collect Payment** (banknotes icon, records payment inline, pre-fills balance_due, auto-refreshes page after success, hidden when no billing or fully paid). Soft delete with restore. **Bulk action:** Advance Selected (moves each to next status, skips gate-blocked).
 - Products — 3-col sidebar layout. Product type at top of Product Details (disabled on edit) — **3 values: Frame, Lens, General** (was 4: frame/lens/contact_lens/accessory; `contact_lens` and `accessory` were consolidated into `general`). Lens type shows a Lens Category selector. On create: inline Variants Repeater (min 1). On edit: Variants managed via VariantsRelationManager table (image, name, SKU, price, visible ✓/✗, AR ✓/✗ (frames only), qty) with Adjust Stock (movement type selector), Adjust Price row actions, and Archive/Restore (admin only — matches the top-level Products permission, staff can otherwise fully manage variants); a "Show Archived" filter reveals archived variants (hidden by default, since the relation manager removes the default soft-delete scope to make them findable at all). Product type + visibility filters on list. Products table shows: thumbnail, name, brand, category, type badge (Frame=blue, Lens=green, General=gray), visible ✓/✗, total qty.
 - Prescriptions — edit form with sections (Patient Info, OD/OS side-by-side, Prescription Details). Prism/Base fields hidden behind a "Show Prism / Base fields" toggle (auto-enables on edit if values exist). Edit page subheading shows "⚠ Expires in X days" (warning) or "⚠ Expired X days ago" (danger) when applicable. Previous Prescription section (collapsed, read-only) shows the patient's most recent prior prescription for comparison — only appears if a prior prescription exists. "Print Prescription" header action downloads A4 PDF. "Print Card" header action downloads wallet-size (85.6mm × 54mm) PDF. Table row action "Copy to New" opens create form pre-filled from that prescription (for repeat visits with minor changes). Header includes Archive/Restore (admin only, swap visibility based on trashed state); archived prescriptions remain reachable at their edit URL so Restore is always clickable.
@@ -262,7 +264,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Feedback — read-only. List: customer, rating, comment (toggleable), appointment/order (hidden by default, toggleable), submitted date. Filter by rating. View page: sections layout (Feedback Details + Timestamps sidebar). Staff reply was intentionally removed — staff communicates with patients via Conversations instead.
 - Inventory History — read-only movement log. Columns: Date, Product, Variant, Type (badge), Change (+/-), Before, After, By. Type/date range filters. View modal shows full details including notes and order link.
 - Audit Logs (read-only)
-- User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). 3-col sidebar layout: main (Account Details: name, email, phone, password) + sidebar (Role & Access selector + Timeline). Table: name, email, phone, color-coded role badge (admin=red, staff=blue), relative joined date. Role selector restricted to admin/staff. Self-role-edit disabled. Last admin demotion blocked.
+- User Management (admin only) — scoped to staff/admin accounts only (customers managed via Patients). 3-col sidebar layout: main (Account Details: name, email, phone, password) + sidebar (Role & Access selector, `is_optometrist` capability, Timeline). Table shows the optometrist marker. Optometrist is not a separate role: only staff/admin users can be marked, so an optometrist keeps normal panel access while becoming selectable as a clinical provider. Self-role-edit disabled. Last admin demotion blocked.
 - SMS Log (admin only) — read-only log of all SMS notifications. Columns: recipient, event badge, status badge, message, created at. Filters: status, event type. Row action: Retry (failed records only) — resets status to `queued`. **Bulk action:** Retry Selected (admin only, resets failed to queued).
 
 **Resources (lookup / settings — grouped under "Settings" nav):**
@@ -271,8 +273,8 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Edit pages include relation managers: Brands → Products table, Categories → Products table, Lens Categories → Products table (shows products where `product_type = 'lens'`), Visit Reasons → Appointments table. Services has no relation manager (service_records are audit-only, not directly managed).
 
 **Dashboard widgets (ordered top to bottom):**
-1. **Stats Overview** (6 cards, 2 rows of 3) — Today's appointments (sparkline + delta vs yesterday), Waiting today (pending appointments for today — walk-in queue indicator), Revenue this month (sparkline + % vs last month), Pending orders (sparkline), Unpaid billings (₱ outstanding), Low stock variants
-2. **Today's Schedule** — table of today's next 5 non-completed appointments (time, patient name, phone, visit reason, status badge). Heading includes pickup count: "Today's Schedule · 2 orders ready for pickup" when applicable. Empty state: "No appointments today"
+1. **Stats Overview** (6 cards, 2 rows of 3) — Today's appointments (sparkline + delta vs yesterday), Waiting today (`walk_in` + `arrived` queue), Revenue this month (sparkline + % vs last month), Pending orders (sparkline), Unpaid billings (₱ outstanding), Low stock variants
+2. **Today's Schedule** — table of today's next 5 active (`pending`, `confirmed`, or `arrived`) appointments (time, patient name, phone, visit reason, status badge). Heading includes pickup count: "Today's Schedule · 2 orders ready for pickup" when applicable. Empty state: "No appointments today"
 3. **Appointments Chart** (hero) — 30-day trend line of daily non-cancelled appointments, brand color `#4F8DD7`
 4. **Recent Feedback** — last 5 feedback entries table
 
@@ -289,7 +291,8 @@ GET    /user                   Authenticated user profile
 POST   /logout
 
 GET    /appointments            Customer's own appointments
-POST   /appointments            Book appointment (customer, status locked to pending)
+POST   /appointments            Book appointment (source mobile_app, status pending, optional optometrist_id; central scheduling rules apply)
+GET    /appointments/availability  Available 15-minute slots for date + visit_reason_id, optionally optometrist_id
 GET    /appointments/{id}
 GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
 GET    /brands                  List all brands (id, name) — use for product filter UI
@@ -318,7 +321,7 @@ GET    /feedback
 GET    /feedback/{id}
 
 POST   /appointments/{id}/cancel  Cancel own appointment (pending or confirmed only)
-POST   /appointments/{id}/reschedule  Reschedule own appointment (pending, confirmed, or rescheduled only) — sets a new `scheduled_at` and transitions status to `rescheduled` via `UpdateAppointmentStatus`, no reschedule limit
+POST   /appointments/{id}/reschedule  Reschedule own pending/confirmed appointment — changes `scheduled_at` through `RescheduleAppointment` and returns status to pending
 POST   /orders/{id}/cancel        Cancel own order (requested only)
 PATCH  /user                      Update own profile (name, email, phone, address)
 
@@ -493,6 +496,10 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 | Action | Location | Does |
 |---|---|---|
 | `UpdateAppointmentStatus` | `app/Actions/Appointments/` | Validates transition, updates status, creates SMS record, fires audit log |
+| `ScheduleAppointment` | `app/Actions/Appointments/` | Enforces clinic hours, closed days, visit duration, provider overlap, and unassigned-provider clinic capacity |
+| `ListAvailableAppointmentSlots` | `app/Actions/Appointments/` | Builds available 15-minute slots for a date/visit reason and optional optometrist |
+| `RescheduleAppointment` | `app/Actions/Appointments/` | Validates a replacement slot, changes `scheduled_at` without a rescheduled status, sends notifications, and audits old/new times |
+| `CreateWalkInAppointment` | `app/Actions/Appointments/` | Creates today's walk-in as arrived with check-in time, staff owner, and optional optometrist |
 | `UpdateOrderStatus` | `app/Actions/Orders/` | Validates transition. `requested → confirmed` is a plain status change. `confirmed → processing` checks prescription gate, checks lens gate, deducts inventory, generates/attaches billing, fires audit log. Cancellation from `processing`/`ready_for_pickup` restores inventory and auto-voids the billing only if it isn't shared with another active order. |
 | `GenerateBillingForOrder` | `app/Actions/Billing/` | Called when an order reaches `processing`. Attaches to a pre-linked billing (`order.billing_id`) if set, otherwise calls GetOrCreateBilling then AddOrderItemsToBilling. |
 | `GetOrCreateBilling` | `app/Actions/Billing/` | Finds existing non-voided billing for customer+appointment, or creates a new issued one. Null appointment always creates new. |
@@ -527,15 +534,17 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 - **Product type simplification:** `product_type` has 3 values: `frame`, `lens`, `general` (was 4: `frame`, `lens`, `contact_lens`, `accessory` — the latter two were consolidated into `general`, an irreversible one-time migration). Only `frame` and `lens` trigger special system behavior (AR fields + lens pairing; lens category + staff assignment, respectively). Everything else the clinic sells — contact lenses, solutions, cases, cleaning kits, accessories — is `general` and organized purely through `product_categories`. Adding a new kind of general-purpose product is a category row, not a code change.
 - **Pre-linked billing:** Staff can click "Create Order" on an existing billing to pre-link a new order to it (`orders.billing_id`). When that order reaches `processing`, its items attach to the pre-linked billing instead of generating a new one — the order's customer must match the billing's customer (validated on creation). See Billing Model → Multi-Order Billings for how `billings.order_id` and `Order::resolvedBilling()` interact in this scenario.
 - **Services vs Visit Reasons:** `visit_reasons` describe *why a patient is booking* (scheduling vocabulary). `services` describe *what was performed and charged* (billing vocabulary). They are separate tables with different purposes. Visit reason names use proper capitalization: "Eye Exam", "Follow-up", "Prescription Check".
-- **Billing grouping by appointment:** When `GetOrCreateBilling` is called with an `appointment_id`, it reuses any existing non-voided billing for that appointment. This means an order billing and a service billing for the same appointment share one invoice automatically. Walk-ins without an appointment (`appointment_id = null`) always get a fresh billing.
+- **Billing grouping by appointment:** An appointment is an encounter grouping point, not an automatic invoice trigger. Completing an appointment does not create a billing. When an order reaches `processing` or staff adds a billable service and `GetOrCreateBilling` receives an `appointment_id`, it reuses any existing non-voided billing for that customer+appointment. Order and service items for the encounter can therefore share one invoice. A walk-in created through the appointment queue has an appointment id and can use the same grouping; sales with no appointment always get a fresh billing.
 - **Service records:** `service_records` are created automatically when a service is added to a billing — they are the audit trail of "what was performed, by whom, when." They are not managed directly by staff; the "Add Service" action on ViewBilling creates them as a side effect.
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
-- **`scheduled_at` is not directly editable on the appointment edit form:** The field is disabled once an appointment exists (editable only at creation). This closes a gap where staff could previously change the date via a plain form save while leaving the status at `confirmed`/`pending` — bypassing the `rescheduled` status transition, the SMS notification, and the audit log entirely. All date changes now must go through the "Reschedule" header action, which calls `UpdateAppointmentStatus::handle()` and correctly fires every side effect.
-- **Appointment slot check:** `POST /appointments` (API), `POST /appointments/{id}/reschedule` (API), and the Filament create/reschedule forms all validate that no non-cancelled appointment overlaps with the requested time slot (using each appointment's visit reason `duration_minutes`). Returns 422 with "This time slot is not available" if a conflict exists. Reschedule (both staff edit-page action and the customer API endpoint) excludes the current appointment from the conflict check via `Appointment::conflictsWith()`'s `$ignoreId` parameter.
-- **Unlimited customer reschedule:** There is no cap on how many times a customer may reschedule an appointment via `POST /appointments/{id}/reschedule`. Each reschedule sets status to `rescheduled` (requiring staff re-confirmation) and fires a staff database notification with the old and new times — this gives staff visibility to intervene manually (e.g. call a patient who reschedules repeatedly) rather than enforcing a hard limit in code.
+- **Appointment source:** `source` records how the booking entered the clinic: `mobile_app`, `walk_in`, `phone_call`, `messenger`, or `staff_created`. It supports operations/reporting and does not change lifecycle permissions by itself.
+- **Optometrist capability and assignment:** Optometrists remain staff/admin users marked with `users.is_optometrist`; no separate role or provider table is required for this clinic. `appointments.optometrist_id` is separate from `staff_id`, because the person managing a booking may differ from the clinician providing care.
+- **Clinic scheduling rules:** `config/appointments.php` currently defines 09:00-17:00, Sunday closed, and 15-minute slot intervals. These are configuration values, not controller/UI hardcoding. `ScheduleAppointment` requires the full visit-reason duration to fit clinic hours. The same optometrist cannot overlap; different optometrists may work concurrently. An unassigned appointment uses the number of marked optometrists as clinic capacity, falling back to one. `cancelled` and `no_show` appointments do not consume capacity.
+- **`scheduled_at` is not directly editable on the appointment edit form:** All date changes use `RescheduleAppointment`, which applies the central scheduler and records SMS, database notification, and audit side effects. Rescheduling is an action, not a lifecycle state.
+- **Unlimited customer reschedule:** There is no hard cap on reschedules, but only `pending` and `confirmed` appointments are eligible. A customer-initiated reschedule returns to `pending`; a staff-initiated reschedule preserves the current eligible status.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded asset file. Staff uploads transparent PNG overlays or 3D models (.glb, .gltf, .obj) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). When `ar_eligible` is true, the asset is required — cannot save without uploading. Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`. The API returns the relative path (e.g. `ar-assets/abc123.glb`) — Android must prepend the base URL.
 - **SMS:** Appointment events (confirmation, reschedule, cancellation) and order events (confirmed, ready_for_pickup, completed, cancelled). Records stored in `sms_notifications` with status `queued`. `sms:process` command dispatches `SendSmsJob` per record to the queue (3 retries, 30s backoff). Actual delivery via `SemaphoreService`. Config: `services.semaphore.enabled` (default false — disabled in dev/tests). Failed sends record `failure_reason`; admin can retry via SMS Log Filament resource.
-- **Appointment reminders:** `appointments:send-reminders` command creates queued SMS records for tomorrow's confirmed appointments. Idempotent (won't duplicate if run multiple times per day). Schedule daily at 6 PM.
+- **Appointment reminders:** `appointments:send-reminders` creates queued SMS records for tomorrow's confirmed appointments and is idempotent per day. Laravel schedules it daily at 09:00 in the application timezone with `withoutOverlapping()`.
 - **Token expiration:** Sanctum tokens expire after 30 days (`config/sanctum.php` → `expiration = 43200`). Expired tokens return 401.
 - **Rate limiting:** Login/register: 5 attempts/minute per IP (`throttle:login`). General authenticated API: 60 requests/minute per user (`throttle:60,1`). Exceeding returns 429.
 - **Stock visibility:** `GET /products` variant objects include `"in_stock": true|false` (derived from `stock_quantity > 0`). Additive — does not break existing Android responses.
@@ -557,8 +566,8 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 ## Filament UI Conventions
 
 - **`is_active` fields** are labelled "Visibility" in all forms. Toggle states are "Visible" / "Hidden" with helper text explaining the consequence to staff. The database column stays `is_active` — label is UI-only.
-- **Status dropdowns** on appointment and order edit forms show only valid next transitions (cycle-guarded via `ALLOWED_TRANSITIONS` in the action class). Staff cannot skip steps or move to an invalid state through the form.
-- **Status on create forms** is not shown for appointments — the system auto-assigns `pending`. Orders are the exception: admin/staff-created orders start at `confirmed` directly (see "Single New Order button" above); the status only becomes visible/editable once the order exists, via the ToggleButtons on the edit form.
+- **Appointment lifecycle actions** expose only the valid next command for the current state (Confirm, Mark Arrived, Complete), plus eligible No Show, Cancel, and Reschedule actions. Staff cannot skip lifecycle steps through the form.
+- **Status on create forms** is not shown for appointments. Customer bookings start `pending`, staff-created scheduled visits start `confirmed`, and Add Walk-in starts `arrived`. Orders are the exception: admin/staff-created orders start at `confirmed` directly (see "Single New Order button" above); the status only becomes visible/editable once the order exists, via the ToggleButtons on the edit form.
 - **Walk-in customer quick-create** is available inline on appointment and order create forms via `->createOptionForm()` on the customer select. Creates a user with name + phone, no email/password.
 
 ---
@@ -583,6 +592,7 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 | `docs/specs/search-bulk-export-spec.md` | Complete — product search/filter API, bulk actions, PDF receipts, CSV export |
 | `docs/specs/order-improvements-spec.md` | Complete — label change, walk-in sale, inline payment |
 | `docs/specs/product-order-billing-rework-spec.md` | Complete — 20 tasks across 5 phases: Lens Category rename, product type simplification (frame/lens/general), order flow rework (admin orders start at confirmed, gates/inventory/billing moved to processing), billing rework (OR# removed, notes added, manual creation, pre-linked billing, Bill Service removed) |
+| `docs/specs/appointment-workflow-improvements.md` | Complete — source/provider scheduling, walk-in queue, six-state lifecycle, availability API, reminders |
 
 ---
 
