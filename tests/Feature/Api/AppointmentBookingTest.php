@@ -16,26 +16,48 @@ beforeEach(function () {
 test('authenticated customers can create pending appointments', function () {
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create();
+    $optometrist = User::factory()->optometrist()->create();
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->toISOString(),
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
+            'optometrist_id' => $optometrist->id,
             'contact_notes' => 'Please call before arrival.',
         ]);
 
     $response->assertCreated()
         ->assertJsonPath('data.status', 'pending')
+        ->assertJsonPath('data.source', 'mobile_app')
+        ->assertJsonPath('data.assigned_optometrist.id', $optometrist->id)
         ->assertJsonPath('data.visit_reason', $visitReason->name)
         ->assertJsonPath('data.contact_notes', 'Please call before arrival.');
 
     $this->assertDatabaseHas(Appointment::class, [
         'customer_id' => $customer->id,
         'visit_reason_id' => $visitReason->id,
+        'source' => 'mobile_app',
+        'optometrist_id' => $optometrist->id,
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'pending')->value('id'),
         'contact_notes' => 'Please call before arrival.',
     ]);
 });
+
+test('booking rejects times outside clinic hours and closed days', function (string $scheduledAt) {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/appointments', [
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => $scheduledAt,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('scheduled_at');
+})->with([
+    'before opening' => '2026-07-13 08:30:00',
+    'closed Sunday' => '2026-07-12 10:00:00',
+]);
 
 test('customers can list only their own appointments', function () {
     $customer = User::factory()->customer()->create();

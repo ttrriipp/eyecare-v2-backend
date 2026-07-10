@@ -60,6 +60,23 @@ test('appointment API response includes assigned staff id and name', function ()
         ->assertJsonPath('data.assigned_staff.name', $staff->name);
 });
 
+test('appointment API response includes source and assigned optometrist', function () {
+    $customer = User::factory()->customer()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'source' => 'phone_call',
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/appointments/{$appointment->id}")
+        ->assertOk()
+        ->assertJsonPath('data.source', 'phone_call')
+        ->assertJsonPath('data.assigned_optometrist.id', $optometrist->id)
+        ->assertJsonPath('data.assigned_optometrist.name', $optometrist->name);
+});
+
 // ─── Filament table ───────────────────────────────────────────────────────────
 
 test('appointment table shows assigned staff column', function () {

@@ -596,16 +596,16 @@ Description: Make customer booking use the central scheduler and set the correct
 
 Acceptance criteria:
 
-- [ ] `POST /api/appointments` creates `source = mobile_app`.
-- [ ] Customer bookings start as `pending`.
-- [ ] Booking rejects outside-hours, closed-day, and optometrist conflict violations.
-- [ ] Appointment resource includes source and assigned optometrist.
+- [x] `POST /api/appointments` creates `source = mobile_app`.
+- [x] Customer bookings start as `pending`.
+- [x] Booking rejects outside-hours, closed-day, and optometrist conflict violations.
+- [x] Appointment resource includes source and assigned optometrist.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/AppointmentBookingTest.php`.
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentStaffAssignmentTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/AppointmentBookingTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/AppointmentStaffAssignmentTest.php`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 3 and 4.
 
