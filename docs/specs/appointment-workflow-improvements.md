@@ -468,14 +468,14 @@ Description: Let admins mark staff/admin users as optometrists from the existing
 
 Acceptance criteria:
 
-- [ ] Admin can set `is_optometrist` when creating/editing staff/admin users.
-- [ ] Customer users cannot be treated as optometrists in appointment selectors.
-- [ ] User list clearly shows which users are optometrists.
+- [x] Admin can set `is_optometrist` when creating/editing staff/admin users.
+- [x] Customer users cannot be treated as optometrists in appointment selectors.
+- [x] User list clearly shows which users are optometrists.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/UserResourceTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/UserResourceTest.php`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Task 1.
 
@@ -490,9 +490,9 @@ Estimated scope: Medium.
 
 #### Checkpoint: Foundation
 
-- [ ] Schema and seed tests pass.
-- [ ] User resource tests pass.
-- [ ] No remaining seed dependency on `rescheduled`.
+- [x] Schema and seed tests pass.
+- [x] User resource tests pass.
+- [x] No remaining seed dependency on `rescheduled`.
 
 ### Phase B: Scheduling and Status Domain
 

@@ -68,6 +68,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function optometrist(): static
+    {
+        return $this->staff()->state(fn (array $attributes): array => [
+            'is_optometrist' => true,
+        ]);
+    }
+
     /**
      * Walk-in customer: name + phone only, no email, no password. Cannot log in to the API.
      */

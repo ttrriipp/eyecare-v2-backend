@@ -46,6 +46,17 @@ test('admin can see all users in the table', function () {
         ->assertCanSeeTableRecords($users);
 });
 
+test('user table identifies optometrists', function () {
+    $optometrist = User::factory()->staff()->create([
+        'is_optometrist' => true,
+    ]);
+
+    $this->actingAs($this->admin);
+
+    Livewire::test(ListUsers::class)
+        ->assertTableColumnStateSet('is_optometrist', true, record: $optometrist);
+});
+
 test('table can be filtered by role', function () {
     $staffRole = Role::where('name', 'staff')->first();
     $customerRole = Role::where('name', 'customer')->first();
@@ -88,6 +99,26 @@ test('admin can create a user', function () {
     ]);
 });
 
+test('admin can create an optometrist', function () {
+    $staffRole = Role::where('name', 'staff')->firstOrFail();
+
+    $this->actingAs($this->admin);
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'name' => 'Clinic Optometrist',
+            'email' => 'optometrist@example.com',
+            'phone' => '09171234568',
+            'role_id' => $staffRole->id,
+            'password' => 'password',
+            'is_optometrist' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(User::query()->where('email', 'optometrist@example.com')->firstOrFail()->is_optometrist)->toBeTrue();
+});
+
 test('create form requires name, phone, role, and password', function () {
     $this->actingAs($this->admin);
 
@@ -123,6 +154,32 @@ test('admin can edit a user name and role', function () {
 
     expect($user->fresh()->name)->toBe('Updated Name')
         ->and($user->fresh()->role->name)->toBe('admin');
+});
+
+test('admin can mark an existing staff user as an optometrist', function () {
+    $user = User::factory()->staff()->create(['phone' => '09171111112']);
+
+    $this->actingAs($this->admin);
+
+    Livewire::test(EditUser::class, ['record' => $user->id])
+        ->fillForm([
+            'phone' => '09171111112',
+            'password' => null,
+            'is_optometrist' => true,
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($user->fresh()->is_optometrist)->toBeTrue();
+});
+
+test('optometrist scope excludes customer users even when their flag is set', function () {
+    $staffOptometrist = User::factory()->staff()->create(['is_optometrist' => true]);
+    $customer = User::factory()->customer()->create(['is_optometrist' => true]);
+
+    expect(User::query()->optometrists()->pluck('id')->all())
+        ->toContain($staffOptometrist->id)
+        ->not->toContain($customer->id);
 });
 
 test('password is not changed when left blank on edit', function () {

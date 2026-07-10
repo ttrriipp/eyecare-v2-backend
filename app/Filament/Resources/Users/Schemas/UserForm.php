@@ -7,6 +7,7 @@ use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -60,6 +61,10 @@ class UserForm
                                 ? 'You cannot change your own role.'
                                 : null
                             ),
+                        Toggle::make('is_optometrist')
+                            ->label('Optometrist')
+                            ->helperText('Can be assigned to patient appointments.')
+                            ->default(false),
                     ]),
 
                     Section::make('Timeline')
