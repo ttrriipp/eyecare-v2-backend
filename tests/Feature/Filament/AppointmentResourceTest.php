@@ -247,6 +247,7 @@ test('staff can create an appointment for a customer', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create();
+    $optometrist = User::factory()->optometrist()->create();
 
     $this->actingAs($staff);
 
@@ -254,7 +255,9 @@ test('staff can create an appointment for a customer', function () {
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->toDateTimeString(),
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
+            'source' => 'phone_call',
+            'optometrist_id' => $optometrist->id,
         ])
         ->call('create')
         ->assertNotified()
@@ -264,7 +267,28 @@ test('staff can create an appointment for a customer', function () {
     $this->assertDatabaseHas(Appointment::class, [
         'customer_id' => $customer->id,
         'visit_reason_id' => $visitReason->id,
+        'source' => 'phone_call',
+        'optometrist_id' => $optometrist->id,
+        'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
     ]);
+});
+
+test('appointment create form rejects a customer as assigned optometrist', function () {
+    $staff = User::factory()->staff()->create();
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'customer_id' => $customer->id,
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
+            'optometrist_id' => $customer->id,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['optometrist_id']);
 });
 
 test('staff can create an appointment for a walk-in customer (no email or password)', function () {
@@ -278,7 +302,7 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->fillForm([
             'customer_id' => $walkIn->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->toDateTimeString(),
+            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
         ])
         ->call('create')
         ->assertNotified()

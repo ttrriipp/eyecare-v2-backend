@@ -6,7 +6,6 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\VisitReason;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -16,8 +15,6 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rules\Exists;
 
 class AppointmentForm
 {
@@ -56,6 +53,17 @@ class AppointmentForm
                                 ->required()
                                 ->disabledOn('edit')
                                 ->dehydrated(),
+                            Select::make('source')
+                                ->label('Booking source')
+                                ->options([
+                                    'staff_created' => 'In person',
+                                    'phone_call' => 'Phone call',
+                                    'messenger' => 'Messenger',
+                                ])
+                                ->default('staff_created')
+                                ->required()
+                                ->disabledOn('edit')
+                                ->dehydrated(),
                             DateTimePicker::make('scheduled_at')
                                 ->required()
                                 ->native(false)
@@ -66,18 +74,7 @@ class AppointmentForm
                                 ->minDate(now())
                                 ->disabledOn('edit')
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : '')
-                                ->rule(fn (string $operation, ?Appointment $record): Exists|string|\Closure => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
-                                    if (! $value) {
-                                        return;
-                                    }
-                                    $duration = (int) request()->input('data.visit_reason_id')
-                                        ? (VisitReason::query()->find(request()->input('data.visit_reason_id'))?->duration_minutes ?? 30)
-                                        : 30;
-                                    if (Appointment::conflictsWith(Carbon::parse($value), $duration, $record?->id)) {
-                                        $fail('This time slot is not available. Please choose another time.');
-                                    }
-                                }),
+                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : ''),
                             ToggleButtons::make('appointment_status_id')
                                 ->label('Status')
                                 ->options(function (?Appointment $record): array {
@@ -139,6 +136,13 @@ class AppointmentForm
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
                     Section::make('Assignment')->schema([
+                        Select::make('optometrist_id')
+                            ->label('Optometrist')
+                            ->relationship('optometrist', 'name', fn ($query) => $query->optometrists())
+                            ->searchable()
+                            ->preload()
+                            ->nullable()
+                            ->placeholder('Assign later'),
                         Select::make('staff_id')
                             ->label('Assigned staff')
                             ->relationship(

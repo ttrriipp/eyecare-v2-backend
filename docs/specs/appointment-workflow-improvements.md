@@ -660,15 +660,15 @@ Description: Update the Filament appointment form to expose source and optometri
 
 Acceptance criteria:
 
-- [ ] Appointment form includes source and assigned optometrist.
-- [ ] Optometrist selector lists only staff/admin users with `is_optometrist = true`.
-- [ ] Staff-created scheduled appointments default to `confirmed`.
-- [ ] Existing staff assignment remains separate from optometrist assignment.
+- [x] Appointment form includes source and assigned optometrist.
+- [x] Optometrist selector lists only staff/admin users with `is_optometrist = true`.
+- [x] Staff-created scheduled appointments default to `confirmed`.
+- [x] Existing staff assignment remains separate from optometrist assignment.
 
 Verification:
 
 - [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 1, 2, 3, and 4.
 
@@ -679,6 +679,8 @@ Files likely touched:
 - `tests/Feature/Filament/AppointmentResourceTest.php`
 
 Estimated scope: Medium.
+
+Implementation note: Task 8 create-form tests pass in isolation. The full appointment resource test remains a Phase D checkpoint because Tasks 9-10 replace legacy reschedule/status actions in the same file.
 
 #### Task 9: Add walk-in queue workflow
 

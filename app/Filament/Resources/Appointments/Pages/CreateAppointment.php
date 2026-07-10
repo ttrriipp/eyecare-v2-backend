@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Appointments\Pages;
 
+use App\Actions\Appointments\ScheduleAppointment;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Models\AppointmentStatus;
+use App\Models\User;
+use App\Models\VisitReason;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Url;
@@ -37,9 +40,20 @@ class CreateAppointment extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $data['appointment_status_id'] = AppointmentStatus::query()
-            ->where('name', 'pending')
+            ->where('name', 'confirmed')
             ->value('id');
 
         return $data;
+    }
+
+    protected function beforeCreate(): void
+    {
+        app(ScheduleAppointment::class)->handle(
+            scheduledAt: Carbon::parse($this->data['scheduled_at']),
+            visitReason: VisitReason::query()->findOrFail($this->data['visit_reason_id']),
+            optometrist: filled($this->data['optometrist_id'] ?? null)
+                ? User::query()->findOrFail($this->data['optometrist_id'])
+                : null,
+        );
     }
 }
