@@ -16,8 +16,11 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(AppointmentStatusSeeder::class);
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 /**
  * Invoke a protected method for testing internal widget logic.
@@ -102,7 +105,7 @@ test('validateReschedule accepts a valid future slot', function () {
     ]);
 
     $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
-        $appointment, now()->addDays(2)->setTime(14, 0),
+        $appointment, now()->addDays(3)->setTime(14, 0),
     ]);
 
     expect($result)->toBeTrue();
@@ -116,7 +119,7 @@ test('validateReschedule rejects a completed appointment', function () {
     ]);
 
     $result = invokeWidgetMethod(new AppointmentCalendarWidget, 'validateReschedule', [
-        $appointment, now()->addDays(2)->setTime(10, 0),
+        $appointment, now()->addDays(3)->setTime(10, 0),
     ]);
 
     expect($result)->toBeFalse();
@@ -140,7 +143,7 @@ test('validateReschedule rejects a conflicting slot', function () {
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->value('id');
     $existing = Appointment::factory()->create([
         'appointment_status_id' => $confirmed,
-        'scheduled_at' => now()->addDays(2)->setTime(14, 0),
+        'scheduled_at' => now()->addDays(3)->setTime(14, 0),
     ]);
     $moving = Appointment::factory()->create([
         'appointment_status_id' => $confirmed,
@@ -156,7 +159,7 @@ test('validateReschedule rejects a conflicting slot', function () {
 
 // ─── Reschedule execution ────────────────────────────────────────────────────────
 
-test('performReschedule moves the appointment and marks it rescheduled', function () {
+test('performReschedule moves the appointment without changing its status', function () {
     Http::fake();
     $this->seed(NotificationStatusSeeder::class);
 
@@ -165,12 +168,12 @@ test('performReschedule moves the appointment and marks it rescheduled', functio
         'appointment_status_id' => $pending,
         'scheduled_at' => now()->addDay()->setTime(9, 0),
     ]);
-    $newStart = now()->addDays(2)->setTime(14, 0);
+    $newStart = now()->addDays(3)->setTime(14, 0);
 
     invokeWidgetMethod(new AppointmentCalendarWidget, 'performReschedule', [$appointment, $newStart]);
 
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('rescheduled')
+    expect($appointment->status->name)->toBe('pending')
         ->and($appointment->scheduled_at->format('Y-m-d H:i'))->toBe($newStart->format('Y-m-d H:i'));
 });
 
@@ -192,7 +195,7 @@ test('the reschedule confirmation action mounts on the calendar widget', functio
     Livewire::test(AppointmentCalendarWidget::class)
         ->mountAction('confirmReschedule', [
             'appointmentId' => $appointment->id,
-            'newStart' => now()->addDays(2)->setTime(14, 0)->toIso8601String(),
+            'newStart' => now()->addDays(3)->setTime(14, 0)->toIso8601String(),
         ])
         ->assertActionMounted('confirmReschedule');
 });

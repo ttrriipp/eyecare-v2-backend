@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\Pages;
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Models\Appointment;
@@ -64,7 +65,7 @@ class EditAppointment extends EditRecord
                 ->color('warning')
                 ->visible(fn (): bool => in_array(
                     $this->getRecord()->status?->name,
-                    ['pending', 'confirmed', 'rescheduled'],
+                    ['pending', 'confirmed'],
                     true,
                 ))
                 ->schema([
@@ -83,10 +84,10 @@ class EditAppointment extends EditRecord
                     /** @var Appointment $appointment */
                     $appointment = $this->getRecord()->fresh(['status']);
                     try {
-                        app(UpdateAppointmentStatus::class)->handle(
+                        app(RescheduleAppointment::class)->handle(
                             appointment: $appointment,
-                            statusName: 'rescheduled',
                             scheduledAt: Carbon::parse($data['scheduled_at']),
+                            customerInitiated: false,
                         );
                         Notification::make()->title('Appointment rescheduled')->success()->send();
                         $this->refreshFormData(['appointment_status_id', 'scheduled_at']);
@@ -110,7 +111,7 @@ class EditAppointment extends EditRecord
                 $record->update($data);
             }
 
-            return $record->fresh(['visitReason', 'status', 'customer']);
+            return $record->fresh(['visitReason', 'status', 'customer', 'optometrist']);
         }
 
         $record->update($data);

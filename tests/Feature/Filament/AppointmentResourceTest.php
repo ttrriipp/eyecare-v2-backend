@@ -138,7 +138,7 @@ test('cancel action transitions pending appointment to cancelled and creates SMS
     ]);
 });
 
-test('reschedule header action is visible for pending, confirmed, and rescheduled appointments', function (string $statusName) {
+test('reschedule header action is visible for pending and confirmed appointments', function (string $statusName) {
     $staff = User::factory()->staff()->create();
     $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
     $appointment = Appointment::factory()->create(['appointment_status_id' => $status->id]);
@@ -147,7 +147,7 @@ test('reschedule header action is visible for pending, confirmed, and reschedule
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionVisible('reschedule');
-})->with(['pending', 'confirmed', 'rescheduled']);
+})->with(['pending', 'confirmed']);
 
 test('reschedule header action is hidden for terminal appointments', function (string $statusName) {
     $staff = User::factory()->staff()->create();
@@ -158,15 +158,15 @@ test('reschedule header action is hidden for terminal appointments', function (s
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionHidden('reschedule');
-})->with(['cancelled', 'completed']);
+})->with(['cancelled', 'completed', 'no_show']);
 
-test('reschedule action transitions appointment to rescheduled with new date and creates SMS', function () {
+test('reschedule action keeps status and changes date while creating SMS', function () {
     Http::fake();
 
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
-    $newDate = now()->addWeek()->toDateTimeString();
+    $newDate = now()->addWeek()->setHour(10)->setMinute(0)->toDateTimeString();
 
     $this->actingAs($staff);
 
@@ -175,7 +175,7 @@ test('reschedule action transitions appointment to rescheduled with new date and
         ->assertNotified();
 
     $fresh = $appointment->fresh();
-    expect($fresh->status->name)->toBe('rescheduled')
+    expect($fresh->status->name)->toBe('confirmed')
         ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
             Carbon::parse($newDate)->format('Y-m-d H:i')
         );
@@ -207,12 +207,12 @@ test('scheduled_at cannot be changed via a plain edit form save', function () {
         ->and($fresh->status->name)->toBe('confirmed');
 });
 
-test('complete action transitions confirmed appointment to completed', function () {
+test('complete action transitions arrived appointment to completed', function () {
     $staff = User::factory()->staff()->create();
-    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $arrivedStatus = AppointmentStatus::query()->where('name', 'arrived')->firstOrFail();
     $completedStatus = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
 
-    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $arrivedStatus->id]);
 
     $this->actingAs($staff);
 
@@ -241,6 +241,51 @@ test('status dropdown does not include skipped statuses for pending appointment'
         ->assertHasFormErrors(['appointment_status_id']);
 
     expect($appointment->fresh()->status->name)->toBe('pending');
+});
+
+test('appointment table supports arrival completion and no-show actions', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $confirmedAppointment = Appointment::factory()->create(['appointment_status_id' => $confirmed->id]);
+    $noShowAppointment = Appointment::factory()->create(['appointment_status_id' => $confirmed->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('advance', $confirmedAppointment)
+        ->assertNotified();
+
+    expect($confirmedAppointment->refresh()->status->name)->toBe('arrived')
+        ->and($confirmedAppointment->checked_in_at)->not->toBeNull();
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('advance', $confirmedAppointment)
+        ->assertNotified();
+
+    expect($confirmedAppointment->refresh()->status->name)->toBe('completed')
+        ->and($confirmedAppointment->completed_at)->not->toBeNull();
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('noShow', $noShowAppointment)
+        ->assertNotified();
+
+    expect($noShowAppointment->refresh()->status->name)->toBe('no_show');
+});
+
+test('appointment table shows and filters assigned optometrist', function () {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $otherOptometrist = User::factory()->optometrist()->create();
+    $assigned = Appointment::factory()->create(['optometrist_id' => $optometrist->id]);
+    $other = Appointment::factory()->create(['optometrist_id' => $otherOptometrist->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableColumnStateSet('optometrist.name', $optometrist->name, record: $assigned)
+        ->filterTable('optometrist', $optometrist->id)
+        ->assertCanSeeTableRecords([$assigned])
+        ->assertCanNotSeeTableRecords([$other]);
 });
 
 test('staff can create an appointment for a customer', function () {
@@ -371,13 +416,13 @@ test('WalkIn queue filter shows only todays waiting patients', function () {
         ->assertCanNotSeeTableRecords([$scheduled, $finished]);
 });
 
-test('reschedule row action reschedules appointment with new date and creates SMS', function () {
+test('reschedule row action changes appointment date without changing status', function () {
     Http::fake();
 
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
-    $newDate = now()->addWeek()->toDateTimeString();
+    $newDate = now()->addWeek()->setHour(10)->setMinute(0)->toDateTimeString();
 
     $this->actingAs($staff);
 
@@ -386,7 +431,7 @@ test('reschedule row action reschedules appointment with new date and creates SM
         ->assertNotified();
 
     $fresh = $appointment->fresh();
-    expect($fresh->status->name)->toBe('rescheduled')
+    expect($fresh->status->name)->toBe('confirmed')
         ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
             Carbon::parse($newDate)->format('Y-m-d H:i')
         );
@@ -406,7 +451,7 @@ test('reschedule row action is hidden for cancelled and completed appointments',
 
     Livewire::test(ListAppointments::class)
         ->assertTableActionHidden('reschedule', $appointment);
-})->with(['cancelled', 'completed']);
+})->with(['cancelled', 'completed', 'no_show']);
 
 test('appointment create form rejects past scheduled_at', function () {
     $staff = User::factory()->staff()->create();

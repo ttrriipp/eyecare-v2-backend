@@ -82,14 +82,15 @@ class AppointmentForm
                                         return [];
                                     }
 
-                                    $order = ['pending', 'confirmed', 'rescheduled', 'completed', 'cancelled'];
+                                    $order = ['pending', 'confirmed', 'arrived', 'completed', 'no_show', 'cancelled'];
 
                                     $transitions = [
                                         'pending' => ['confirmed', 'cancelled'],
-                                        'confirmed' => ['cancelled', 'completed'],
-                                        'rescheduled' => ['confirmed', 'cancelled', 'completed'],
+                                        'confirmed' => ['arrived', 'no_show', 'cancelled'],
+                                        'arrived' => ['completed', 'cancelled'],
                                         'cancelled' => [],
                                         'completed' => [],
+                                        'no_show' => [],
                                     ];
 
                                     $currentName = $record->status->name;
@@ -109,8 +110,9 @@ class AppointmentForm
                                     return array_filter([
                                         $ids['pending'] ?? null => 'gray',
                                         $ids['confirmed'] ?? null => 'info',
-                                        $ids['rescheduled'] ?? null => 'warning',
+                                        $ids['arrived'] ?? null => 'warning',
                                         $ids['completed'] ?? null => 'success',
+                                        $ids['no_show'] ?? null => 'gray',
                                         $ids['cancelled'] ?? null => 'danger',
                                     ], fn ($k) => $k !== null, ARRAY_FILTER_USE_KEY);
                                 })

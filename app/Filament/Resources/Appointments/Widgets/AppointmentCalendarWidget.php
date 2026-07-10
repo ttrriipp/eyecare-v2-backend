@@ -2,7 +2,8 @@
 
 namespace App\Filament\Resources\Appointments\Widgets;
 
-use App\Actions\Appointments\UpdateAppointmentStatus;
+use App\Actions\Appointments\RescheduleAppointment;
+use App\Actions\Appointments\ScheduleAppointment;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Models\Appointment;
@@ -20,6 +21,7 @@ use Guava\Calendar\ValueObjects\FetchInfo;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentCalendarWidget extends CalendarWidget
 {
@@ -61,9 +63,9 @@ class AppointmentCalendarWidget extends CalendarWidget
             // No all-day appointments — hide the empty all-day row.
             'allDaySlot' => false,
             // Week/Day time grid: clinic hours, taller slots for readable event labels.
-            'slotMinTime' => '08:00:00',
-            'slotMaxTime' => '21:00:00',
-            'slotDuration' => '00:30:00',
+            'slotMinTime' => config('appointments.clinic_hours.opens_at', '09:00').':00',
+            'slotMaxTime' => config('appointments.clinic_hours.closes_at', '17:00').':00',
+            'slotDuration' => '00:15:00',
             'slotHeight' => 40,
             'nowIndicator' => true,
             // Month view: collapse crowded days into a "+N more" link.
@@ -74,7 +76,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     protected function getEvents(FetchInfo $info): Builder|array
     {
         return Appointment::query()
-            ->with(['customer', 'status', 'visitReason'])
+            ->with(['customer', 'status', 'visitReason', 'staff', 'optometrist'])
             ->whereDate('scheduled_at', '>=', $info->start)
             ->whereDate('scheduled_at', '<=', $info->end);
     }
@@ -124,6 +126,9 @@ class AppointmentCalendarWidget extends CalendarWidget
                         Placeholder::make('assigned_staff')
                             ->label('Assigned Staff')
                             ->content($appointment->staff?->name ?? 'Unassigned'),
+                        Placeholder::make('optometrist')
+                            ->label('Optometrist')
+                            ->content($appointment->optometrist?->name ?? 'Unassigned'),
                     ]),
                     Placeholder::make('notes')
                         ->label('Contact Notes')
@@ -141,7 +146,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     private function getAppointmentForAction(array $arguments): Appointment
     {
         return Appointment::query()
-            ->with(['customer', 'visitReason', 'status', 'staff'])
+            ->with(['customer', 'visitReason', 'status', 'staff', 'optometrist'])
             ->findOrFail($arguments['appointmentId']);
     }
 
@@ -213,7 +218,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     {
         $appointment->loadMissing('status');
 
-        if (! in_array($appointment->status?->name, ['pending', 'confirmed', 'rescheduled'], true)) {
+        if (! in_array($appointment->status?->name, ['pending', 'confirmed'], true)) {
             Notification::make()
                 ->title('Cannot reschedule')
                 ->body('Completed or cancelled appointments cannot be moved.')
@@ -223,20 +228,19 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
-        if ($newStart->lt(now()->startOfDay())) {
-            Notification::make()
-                ->title('Invalid date')
-                ->body('Appointments cannot be moved to a past date.')
-                ->warning()
-                ->send();
+        $appointment->loadMissing(['visitReason', 'optometrist']);
 
-            return false;
-        }
-
-        if (Appointment::conflictsWith($newStart, $appointment->visitReason?->duration_minutes ?? 30, $appointment->id)) {
+        try {
+            app(ScheduleAppointment::class)->handle(
+                scheduledAt: $newStart,
+                visitReason: $appointment->visitReason,
+                optometrist: $appointment->optometrist,
+                ignoreAppointment: $appointment,
+            );
+        } catch (ValidationException $exception) {
             Notification::make()
                 ->title('Time slot unavailable')
-                ->body('Another appointment is within 30 minutes of that time.')
+                ->body(collect($exception->errors())->flatten()->first() ?? 'Choose another appointment time.')
                 ->warning()
                 ->send();
 
@@ -248,10 +252,10 @@ class AppointmentCalendarWidget extends CalendarWidget
 
     protected function performReschedule(Appointment $appointment, CarbonInterface $newStart): void
     {
-        app(UpdateAppointmentStatus::class)->handle(
-            $appointment,
-            'rescheduled',
+        app(RescheduleAppointment::class)->handle(
+            appointment: $appointment,
             scheduledAt: Carbon::parse($newStart),
+            customerInitiated: false,
         );
 
         Notification::make()

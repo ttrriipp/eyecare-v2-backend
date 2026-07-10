@@ -584,8 +584,8 @@ Estimated scope: Medium.
 
 #### Checkpoint: Domain
 
-- [ ] All appointment status and scheduling tests pass.
-- [ ] No production code still uses `statusName: 'rescheduled'`.
+- [x] All appointment status and scheduling tests pass.
+- [x] No production code still uses `statusName: 'rescheduled'`.
 - [x] Rescheduling works as an action, not as a status transition.
 
 ### Phase C: API Workflows
@@ -667,7 +667,7 @@ Acceptance criteria:
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
 - [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 1, 2, 3, and 4.
@@ -695,7 +695,7 @@ Acceptance criteria:
 Verification:
 
 - [x] Run `vendor/bin/sail artisan test --compact --filter=WalkIn`.
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
 - [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 3, 4, and 8.
@@ -715,16 +715,16 @@ Description: Replace old rescheduled-status UI with the new lifecycle actions an
 
 Acceptance criteria:
 
-- [ ] Table actions support confirm, mark arrived, complete, no-show, cancel, and reschedule.
-- [ ] Reschedule action uses `RescheduleAppointment`, not `UpdateAppointmentStatus` with `rescheduled`.
-- [ ] Calendar drag-reschedule uses the central scheduler.
-- [ ] Tables/calendar show assigned optometrist.
+- [x] Table actions support confirm, mark arrived, complete, no-show, cancel, and reschedule.
+- [x] Reschedule action uses `RescheduleAppointment`, not `UpdateAppointmentStatus` with `rescheduled`.
+- [x] Calendar drag-reschedule uses the central scheduler.
+- [x] Tables/calendar show assigned optometrist.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=AppointmentCalendar`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/CalendarInteractivityTest.php`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 3, 4, 5, and 8.
 
@@ -737,11 +737,13 @@ Files likely touched:
 
 Estimated scope: Medium.
 
+Implementation note: Livewire resource and calendar tests pass. A browser screenshot/DOM pass was unavailable because Chrome DevTools MCP is not configured in this workspace.
+
 #### Checkpoint: Filament
 
-- [ ] Staff can demo app booking confirmation, walk-in creation, arrival/completion, no-show, and optometrist assignment.
-- [ ] No visible appointment UI offers `rescheduled` as a status.
-- [ ] Filament appointment tests pass.
+- [x] Staff can demo app booking confirmation, walk-in creation, arrival/completion, no-show, and optometrist assignment.
+- [x] No visible appointment UI offers `rescheduled` as a status.
+- [x] Filament appointment tests pass.
 
 ### Phase E: Cleanup and Presentation Readiness
 

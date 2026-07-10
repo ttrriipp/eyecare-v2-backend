@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Models\Appointment;
 use Filament\Actions\Action;
@@ -16,6 +17,7 @@ use Filament\Forms\Components\DateTimePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,8 +32,8 @@ class AppointmentsTable
     {
         $advanceLabels = [
             'pending' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
-            'confirmed' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge',  'color' => 'success', 'next' => 'completed'],
-            'rescheduled' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
+            'confirmed' => ['label' => 'Mark Arrived', 'icon' => 'heroicon-o-user', 'color' => 'warning', 'next' => 'arrived'],
+            'arrived' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'completed'],
         ];
 
         return $table
@@ -47,8 +49,9 @@ class AppointmentsTable
                     ->color(fn (Appointment $record): string => match ($record->status?->name) {
                         'pending' => 'gray',
                         'confirmed' => 'info',
-                        'rescheduled' => 'warning',
+                        'arrived' => 'warning',
                         'completed' => 'success',
+                        'no_show' => 'gray',
                         'cancelled' => 'danger',
                         default => 'gray',
                     })
@@ -56,6 +59,21 @@ class AppointmentsTable
                 TextColumn::make('staff.name')
                     ->label('Assigned staff')
                     ->placeholder('Unassigned')
+                    ->toggleable(),
+                TextColumn::make('optometrist.name')
+                    ->label('Optometrist')
+                    ->placeholder('Unassigned')
+                    ->sortable(),
+                TextColumn::make('source')
+                    ->label('Source')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'mobile_app' => 'Mobile app',
+                        'walk_in' => 'Walk-in',
+                        'phone_call' => 'Phone call',
+                        'messenger' => 'Messenger',
+                        default => 'In person',
+                    })
                     ->toggleable(),
                 TextColumn::make('scheduled_at')
                     ->dateTime()
@@ -76,6 +94,10 @@ class AppointmentsTable
                     ->label('Assigned to me')
                     ->query(fn (Builder $query): Builder => $query->where('staff_id', Auth::id()))
                     ->toggle(),
+                SelectFilter::make('optometrist')
+                    ->relationship('optometrist', 'name', fn (Builder $query): Builder => $query->optometrists())
+                    ->searchable()
+                    ->preload(),
                 Filter::make('scheduled_date')
                     ->schema([
                         DatePicker::make('scheduled_on')
@@ -119,7 +141,7 @@ class AppointmentsTable
                         ->label('Reschedule')
                         ->icon('heroicon-o-calendar-days')
                         ->color('warning')
-                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'rescheduled'], true))
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed'], true))
                         ->schema([
                             DateTimePicker::make('scheduled_at')
                                 ->label('New date & time')
@@ -134,10 +156,10 @@ class AppointmentsTable
                         ])
                         ->action(function (Appointment $record, array $data): void {
                             try {
-                                app(UpdateAppointmentStatus::class)->handle(
+                                app(RescheduleAppointment::class)->handle(
                                     appointment: $record,
-                                    statusName: 'rescheduled',
                                     scheduledAt: Carbon::parse($data['scheduled_at']),
+                                    customerInitiated: false,
                                 );
                                 Notification::make()->title('Appointment rescheduled')->success()->send();
                             } catch (ValidationException $e) {
@@ -145,11 +167,21 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
                             }
                         }),
+                    Action::make('noShow')
+                        ->label('Mark No-show')
+                        ->icon('heroicon-o-user-minus')
+                        ->color('gray')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'confirmed')
+                        ->requiresConfirmation()
+                        ->action(function (Appointment $record): void {
+                            app(UpdateAppointmentStatus::class)->handle($record, 'no_show');
+                            Notification::make()->title('Appointment marked as no-show')->success()->send();
+                        }),
                     Action::make('cancel')
                         ->label('Cancel Appointment')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (Appointment $record): bool => ! in_array($record->status?->name, ['completed', 'cancelled'], true))
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true))
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
                             try {
@@ -208,7 +240,7 @@ class AppointmentsTable
                             $skipped = 0;
 
                             foreach ($records as $record) {
-                                if (! in_array($record->status?->name, ['pending', 'confirmed'], true)) {
+                                if (! in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true)) {
                                     $skipped++;
 
                                     continue;

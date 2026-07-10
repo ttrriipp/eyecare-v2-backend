@@ -35,8 +35,9 @@ class Appointment extends Model implements Eventable
     {
         $color = match ($this->status?->name) {
             'confirmed' => '#3b82f6',
-            'rescheduled' => '#f59e0b',
+            'arrived' => '#f59e0b',
             'completed' => '#22c55e',
+            'no_show' => '#6b7280',
             'cancelled' => '#ef4444',
             default => '#6b7280',
         };
