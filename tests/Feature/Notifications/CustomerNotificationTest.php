@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Orders\UpdateOrderStatus;
@@ -8,6 +9,7 @@ use App\Models\AppointmentStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\User;
+use App\Notifications\AppointmentRescheduled;
 use App\Notifications\AppointmentStatusChanged;
 use App\Notifications\BillingIssued;
 use App\Notifications\OrderStatusChanged;
@@ -45,13 +47,13 @@ test('customer is notified when appointment is rescheduled', function () {
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
     ]);
 
-    app(UpdateAppointmentStatus::class)->handle(
+    app(RescheduleAppointment::class)->handle(
         appointment: $appointment,
-        statusName: 'rescheduled',
         scheduledAt: now()->addDays(3),
+        customerInitiated: true,
     );
 
-    Notification::assertSentTo($appointment->customer, AppointmentStatusChanged::class);
+    Notification::assertSentTo($appointment->customer, AppointmentRescheduled::class);
 });
 
 test('customer is notified when appointment is cancelled', function () {
@@ -64,7 +66,7 @@ test('customer is notified when appointment is cancelled', function () {
 
 test('customer is NOT notified when appointment is completed', function () {
     $appointment = Appointment::factory()->create([
-        'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
+        'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
     ]);
 
     app(UpdateAppointmentStatus::class)->handle($appointment, 'completed');

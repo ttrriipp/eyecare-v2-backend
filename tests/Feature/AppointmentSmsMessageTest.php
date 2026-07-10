@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
@@ -42,6 +43,19 @@ it('builds a cancellation message containing the scheduled date', function () {
     expect($sms->event)->toBe('appointment_cancelled')
         ->and($sms->message)->toContain($appointment->scheduled_at->toDateTimeString())
         ->and($sms->message)->toContain('cancelled');
+});
+
+it('builds a reschedule message containing the new scheduled date', function () {
+    $newDate = now()->addDays(5)->setHour(10)->setMinute(0);
+    $appointment = Appointment::factory()->create();
+
+    app(RescheduleAppointment::class)->handle($appointment, $newDate, customerInitiated: true);
+
+    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->firstOrFail();
+
+    expect($sms->event)->toBe('appointment_rescheduled')
+        ->and($sms->message)->toContain($newDate->toDateTimeString())
+        ->and($sms->message)->toContain('rescheduled');
 });
 
 it('does not create an sms record for arrival or completion', function () {

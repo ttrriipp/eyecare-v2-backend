@@ -245,11 +245,11 @@ test('every appointment status transition creates an audit log entry', function 
     $staff = User::factory()->staff()->create();
     Auth::login($staff);
 
-    // pending → confirmed → rescheduled → cancelled (covers all non-completed transitions)
+    // pending → confirmed → arrived → cancelled (covers the active non-terminal transitions)
     $appointment = Appointment::factory()->create();
 
     app(UpdateAppointmentStatus::class)->handle($appointment, 'confirmed');
-    app(UpdateAppointmentStatus::class)->handle($appointment->fresh(), 'rescheduled', now()->addDay());
+    app(UpdateAppointmentStatus::class)->handle($appointment->fresh(), 'arrived');
     app(UpdateAppointmentStatus::class)->handle($appointment->fresh(), 'cancelled');
 
     $logs = AuditLog::query()
@@ -259,7 +259,7 @@ test('every appointment status transition creates an audit log entry', function 
         ->get();
 
     expect($logs)->toHaveCount(3)
-        ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))->toContain('confirmed', 'rescheduled', 'cancelled');
+        ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))->toContain('confirmed', 'arrived', 'cancelled');
 });
 
 test('every order status transition creates an audit log entry', function () {

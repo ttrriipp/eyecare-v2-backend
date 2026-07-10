@@ -559,16 +559,16 @@ Description: Move rescheduling out of status transitions. A dedicated action cha
 
 Acceptance criteria:
 
-- [ ] Customer reschedule changes date/time and sets status to `pending`.
-- [ ] Staff reschedule of a confirmed appointment can keep status `confirmed`.
-- [ ] Reschedule creates `appointment_rescheduled` SMS record.
-- [ ] Reschedule audit metadata includes old and new scheduled time.
+- [x] Customer reschedule changes date/time and sets status to `pending`.
+- [x] Staff reschedule of a confirmed appointment can keep status `confirmed`.
+- [x] Reschedule creates `appointment_rescheduled` SMS record.
+- [x] Reschedule audit metadata includes old and new scheduled time.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/AppointmentRescheduleTest.php`.
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=AppointmentReschedule`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/AppointmentRescheduleTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=AppointmentReschedule`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Tasks 3 and 4.
 
@@ -586,7 +586,7 @@ Estimated scope: Medium.
 
 - [ ] All appointment status and scheduling tests pass.
 - [ ] No production code still uses `statusName: 'rescheduled'`.
-- [ ] Rescheduling works as an action, not as a status transition.
+- [x] Rescheduling works as an action, not as a status transition.
 
 ### Phase C: API Workflows
 

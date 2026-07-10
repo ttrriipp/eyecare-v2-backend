@@ -1,7 +1,9 @@
 <?php
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AuditLog;
 use App\Models\SmsNotification;
 use App\Models\User;
 use App\Models\VisitReason;
@@ -33,10 +35,10 @@ test('customer can reschedule their own pending appointment', function () {
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('data.status', 'rescheduled');
+        ->assertJsonPath('data.status', 'pending');
 
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('rescheduled')
+    expect($appointment->status->name)->toBe('pending')
         ->and($appointment->scheduled_at->format('Y-m-d H:i:s'))->toBe($newTime->format('Y-m-d H:i:s'));
 });
 
@@ -54,15 +56,15 @@ test('customer can reschedule their own confirmed appointment', function () {
             'scheduled_at' => now()->addDays(5)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
         ])
         ->assertOk()
-        ->assertJsonPath('data.status', 'rescheduled');
+        ->assertJsonPath('data.status', 'pending');
 });
 
-test('customer can reschedule an already rescheduled appointment', function () {
+test('customer can reschedule a pending appointment more than once', function () {
     $customer = User::factory()->customer()->create();
-    $rescheduled = AppointmentStatus::query()->where('name', 'rescheduled')->firstOrFail();
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
         'customer_id' => $customer->id,
-        'appointment_status_id' => $rescheduled->id,
+        'appointment_status_id' => $pending->id,
         'scheduled_at' => now()->addDays(2),
     ]);
 
@@ -71,7 +73,23 @@ test('customer can reschedule an already rescheduled appointment', function () {
             'scheduled_at' => now()->addDays(6)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
         ])
         ->assertOk()
-        ->assertJsonPath('data.status', 'rescheduled');
+        ->assertJsonPath('data.status', 'pending');
+});
+
+test('staff reschedule can keep a confirmed appointment confirmed', function () {
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now()->addDays(2)->setHour(10)->setMinute(0),
+    ]);
+
+    app(RescheduleAppointment::class)->handle(
+        appointment: $appointment,
+        scheduledAt: now()->addDays(4)->setHour(10)->setMinute(0),
+        customerInitiated: false,
+    );
+
+    expect($appointment->refresh()->status->name)->toBe('confirmed');
 });
 
 test('reschedule creates an sms notification record', function () {
@@ -91,6 +109,32 @@ test('reschedule creates an sms notification record', function () {
         'appointment_id' => $appointment->id,
         'event' => 'appointment_rescheduled',
     ]);
+});
+
+test('reschedule audit records the old and new scheduled times', function () {
+    $customer = User::factory()->customer()->create();
+    $oldTime = now()->addDays(2)->setHour(10)->setMinute(0)->setSecond(0);
+    $newTime = now()->addDays(5)->setHour(11)->setMinute(0)->setSecond(0);
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'scheduled_at' => $oldTime,
+    ]);
+
+    $this->actingAs($customer)->postJson("/api/appointments/{$appointment->id}/reschedule", [
+        'scheduled_at' => $newTime->toDateTimeString(),
+    ])->assertOk();
+
+    $audit = AuditLog::query()
+        ->where('subject_type', $appointment->getMorphClass())
+        ->where('subject_id', $appointment->id)
+        ->where('action', 'appointment.rescheduled')
+        ->firstOrFail();
+
+    expect($audit->metadata)
+        ->toMatchArray([
+            'from' => $oldTime->toDateTimeString(),
+            'to' => $newTime->toDateTimeString(),
+        ]);
 });
 
 test('customer cannot reschedule a completed appointment', function () {

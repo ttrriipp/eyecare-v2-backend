@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RescheduleAppointmentRequest;
@@ -103,23 +104,18 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function reschedule(RescheduleAppointmentRequest $request, Appointment $appointment): JsonResponse
-    {
-        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'rescheduled'], true)) {
-            throw ValidationException::withMessages([
-                'appointment' => ['This appointment cannot be rescheduled.'],
-            ]);
-        }
-
+    public function reschedule(
+        RescheduleAppointmentRequest $request,
+        Appointment $appointment,
+        RescheduleAppointment $rescheduleAppointment,
+    ): JsonResponse {
         $previousScheduledAt = $appointment->scheduled_at->format('M d, Y g:i A');
 
-        app(UpdateAppointmentStatus::class)->handle(
+        $appointment = $rescheduleAppointment->handle(
             appointment: $appointment,
-            statusName: 'rescheduled',
             scheduledAt: Carbon::parse($request->validated('scheduled_at')),
+            customerInitiated: true,
         );
-
-        $appointment->load(['visitReason', 'status', 'customer']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
