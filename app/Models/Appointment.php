@@ -16,9 +16,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'customer_id',
     'staff_id',
+    'optometrist_id',
+    'source',
     'visit_reason_id',
     'appointment_status_id',
     'scheduled_at',
+    'checked_in_at',
+    'completed_at',
     'contact_notes',
     'staff_notes',
 ])]
@@ -70,6 +74,14 @@ class Appointment extends Model implements Eventable
     public function staff(): BelongsTo
     {
         return $this->belongsTo(User::class, 'staff_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function optometrist(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'optometrist_id');
     }
 
     /**
@@ -129,6 +141,8 @@ class Appointment extends Model implements Eventable
     {
         return [
             'scheduled_at' => 'datetime',
+            'checked_in_at' => 'datetime',
+            'completed_at' => 'datetime',
         ];
     }
 }

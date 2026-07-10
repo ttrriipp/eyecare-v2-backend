@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\BillingStatus;
 use App\Models\NotificationStatus;
@@ -22,11 +23,26 @@ test('appointment statuses are seeded idempotently with approved names', functio
         ->toEqualCanonicalizing([
             'pending',
             'confirmed',
-            'rescheduled',
-            'cancelled',
+            'arrived',
             'completed',
+            'no_show',
+            'cancelled',
         ])
-        ->and(AppointmentStatus::query()->count())->toBe(5);
+        ->and(AppointmentStatus::query()->count())->toBe(6);
+});
+
+test('appointment status seeding migrates legacy rescheduled appointments to pending', function () {
+    $rescheduledStatus = AppointmentStatus::query()->create([
+        'name' => 'rescheduled',
+    ]);
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $rescheduledStatus->id,
+    ]);
+
+    $this->seed(AppointmentStatusSeeder::class);
+
+    expect($appointment->refresh()->status->name)->toBe('pending')
+        ->and(AppointmentStatus::query()->where('name', 'rescheduled')->exists())->toBeFalse();
 });
 
 test('sms notification statuses are seeded idempotently with approved names', function () {
