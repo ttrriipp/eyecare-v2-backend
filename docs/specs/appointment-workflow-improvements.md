@@ -263,6 +263,7 @@ Run the minimum relevant tests during implementation, then run the broader appoi
 - The clinic has two optometrists.
 - Optometrists are staff/admin users marked with `is_optometrist`, not a separate role or table.
 - Staff should be allowed to leave `optometrist_id` blank for early/unassigned booking, but confirmed appointment availability is most reliable when an optometrist is selected.
+- When no optometrist is selected, overlapping appointments consume the clinic capacity represented by users marked as optometrists; the fallback capacity is one until optometrists are configured.
 - App-created bookings start as `pending`.
 - Staff-created phone/messenger/in-person bookings default to `confirmed`.
 - Walk-ins start as `arrived`.
@@ -502,16 +503,16 @@ Description: Introduce a scheduling action/service that owns clinic-hour validat
 
 Acceptance criteria:
 
-- [ ] Bookings outside 9:00 AM-5:00 PM are rejected.
-- [ ] Sunday bookings are rejected.
-- [ ] One optometrist cannot be double-booked for overlapping visits.
-- [ ] Two different optometrists can be booked for the same time.
-- [ ] Cancelled and no-show appointments do not block availability.
+- [x] Bookings outside 9:00 AM-5:00 PM are rejected.
+- [x] Sunday bookings are rejected.
+- [x] One optometrist cannot be double-booked for overlapping visits.
+- [x] Two different optometrists can be booked for the same time.
+- [x] Cancelled and no-show appointments do not block availability.
 
 Verification:
 
-- [ ] Run `vendor/bin/sail artisan test --compact --filter=AppointmentScheduling`.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Run `vendor/bin/sail artisan test --compact --filter=AppointmentScheduling`.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
 
 Dependencies: Task 1.
 
