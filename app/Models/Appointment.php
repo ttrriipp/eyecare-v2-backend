@@ -46,7 +46,7 @@ class Appointment extends Model implements Eventable
         });
     }
 
-    private static function generateAppointmentNumber(): string
+    public static function generateAppointmentNumber(): string
     {
         $year = now()->format('Y');
         $sequence = self::query()

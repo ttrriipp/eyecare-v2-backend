@@ -31,6 +31,7 @@ test('demo workflow seeds a confirmed appointment for the customer', function ()
         ->first();
 
     expect($appointment)->not->toBeNull();
+    expect($appointment->appointment_number)->toStartWith('APT-');
 });
 
 test('demo workflow seeds a prescription linked to the appointment', function () {

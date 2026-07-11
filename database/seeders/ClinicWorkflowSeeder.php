@@ -70,6 +70,7 @@ class ClinicWorkflowSeeder extends Seeder
         return Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'visit_reason_id' => $visitReason->id],
             [
+                'appointment_number' => Appointment::generateAppointmentNumber(),
                 'created_by' => $staff->id,
                 'appointment_status_id' => $confirmedStatus->id,
                 'scheduled_at' => now()->addDays(3)->setTime(10, 0),
@@ -327,6 +328,7 @@ class ClinicWorkflowSeeder extends Seeder
         $completedAppointment = Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'appointment_status_id' => $completedStatus->id],
             [
+                'appointment_number' => Appointment::generateAppointmentNumber(),
                 'visit_reason_id' => VisitReason::query()->where('name', 'Follow-up')->firstOrFail()->id,
                 'scheduled_at' => now()->subDays(10),
                 'contact_notes' => 'Follow-up after prescription.',

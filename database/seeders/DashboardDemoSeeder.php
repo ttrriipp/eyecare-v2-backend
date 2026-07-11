@@ -67,6 +67,7 @@ class DashboardDemoSeeder extends Seeder
                 $statusName = $this->statusForDate($date);
 
                 Appointment::query()->create([
+                    'appointment_number' => Appointment::generateAppointmentNumber(),
                     'customer_id' => fake()->randomElement($customerIds),
                     'created_by' => $staffId,
                     'visit_reason_id' => fake()->randomElement($visitReasonIds),
