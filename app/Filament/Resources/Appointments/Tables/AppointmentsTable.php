@@ -113,7 +113,8 @@ class AppointmentsTable
             ])
             ->recordActions([
                 ActionGroup::make([
-                    EditAction::make(),
+                    EditAction::make()
+                        ->color('gray'),
                     Action::make('advance')
                         ->label(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['label'] ?? '')
                         ->icon(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['icon'] ?? 'heroicon-o-arrow-right')
@@ -136,7 +137,7 @@ class AppointmentsTable
                     Action::make('reschedule')
                         ->label('Reschedule')
                         ->icon('heroicon-o-calendar-days')
-                        ->color('warning')
+                        ->color('info')
                         ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed'], true))
                         ->schema([
                             DateTimePicker::make('scheduled_at')
@@ -166,7 +167,7 @@ class AppointmentsTable
                     Action::make('noShow')
                         ->label('Mark No-show')
                         ->icon('heroicon-o-user-minus')
-                        ->color('gray')
+                        ->color('warning')
                         ->visible(fn (Appointment $record): bool => $record->status?->name === 'confirmed')
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
@@ -188,8 +189,8 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot cancel appointment')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->label('Restore')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive appointment')->modalDescription('This will hide the appointment from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    RestoreAction::make()->label('Restore')->color('success')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                    DeleteAction::make()->label('Archive')->color('gray')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive appointment')->modalDescription('This will hide the appointment from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

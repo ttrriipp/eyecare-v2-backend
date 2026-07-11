@@ -81,6 +81,32 @@ test('appointment table displays no-show as a readable status label', function (
         ->assertTableColumnFormattedStateSet('status.name', 'No Show', record: $noShow);
 });
 
+test('appointment row actions use semantic colors', function () {
+    $admin = User::factory()->admin()->create();
+    $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $arrivedStatus = AppointmentStatus::query()->where('name', 'arrived')->firstOrFail();
+
+    $pending = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
+    $confirmed = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+    $arrived = Appointment::factory()->create(['appointment_status_id' => $arrivedStatus->id]);
+    $archived = Appointment::factory()->create(['appointment_status_id' => $pendingStatus->id]);
+    $archived->delete();
+
+    $this->actingAs($admin);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableActionHasColor('edit', 'gray', $pending)
+        ->assertTableActionHasColor('advance', 'success', $pending)
+        ->assertTableActionHasColor('advance', 'warning', $confirmed)
+        ->assertTableActionHasColor('advance', 'success', $arrived)
+        ->assertTableActionHasColor('reschedule', 'info', $pending)
+        ->assertTableActionHasColor('noShow', 'warning', $confirmed)
+        ->assertTableActionHasColor('cancel', 'danger', $pending)
+        ->assertTableActionHasColor('delete', 'gray', $pending)
+        ->assertTableActionHasColor('restore', 'success', $archived);
+});
+
 test('staff can edit appointment staff notes', function () {
     Http::fake();
 
