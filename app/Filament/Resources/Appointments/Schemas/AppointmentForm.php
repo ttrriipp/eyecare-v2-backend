@@ -27,7 +27,8 @@ class AppointmentForm
                     Section::make('Appointment Details')
                         ->schema([
                             Select::make('customer_id')
-                                ->relationship('customer', 'name')
+                                ->label('Patient')
+                                ->relationship('customer', 'name', fn ($query) => $query->patients())
                                 ->required()
                                 ->searchable()
                                 ->preload()

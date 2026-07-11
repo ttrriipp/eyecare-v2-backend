@@ -52,6 +52,11 @@ class User extends Authenticatable implements FilamentUser
             ->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->whereIn('name', ['admin', 'staff']));
     }
 
+    public function scopePatients(Builder $query): Builder
+    {
+        return $query->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'customer'));
+    }
+
     /**
      * @return HasMany<Prescription, $this>
      */

@@ -356,6 +356,27 @@ test('staff can create an appointment for a customer', function () {
     ]);
 });
 
+test('appointment create form rejects staff and admin accounts as patients', function (string $factoryState) {
+    $staff = User::factory()->staff()->create();
+    $nonPatient = User::factory()->{$factoryState}()->create();
+    $visitReason = VisitReason::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'customer_id' => $nonPatient->id,
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
+            'source' => 'phone_call',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['customer_id']);
+})->with([
+    'admin' => ['admin'],
+    'staff' => ['staff'],
+]);
+
 test('appointment create form rejects a customer as assigned optometrist', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
