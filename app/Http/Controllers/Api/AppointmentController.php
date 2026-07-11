@@ -27,7 +27,7 @@ class AppointmentController extends Controller
     {
         $appointments = Appointment::query()
             ->where('customer_id', $request->user()->id)
-            ->with(['visitReason', 'status', 'staff', 'optometrist'])
+            ->with(['visitReason', 'status', 'optometrist'])
             ->latest('scheduled_at')
             ->get();
 
@@ -57,7 +57,7 @@ class AppointmentController extends Controller
             'scheduled_at' => $scheduledAt,
         ]);
 
-        $appointment->load(['visitReason', 'status', 'customer', 'staff', 'optometrist']);
+        $appointment->load(['visitReason', 'status', 'customer', 'optometrist']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
@@ -83,7 +83,7 @@ class AppointmentController extends Controller
     {
         abort_unless($appointment->customer_id === $request->user()->id, 404);
 
-        $appointment->load(['visitReason', 'status', 'staff', 'optometrist']);
+        $appointment->load(['visitReason', 'status', 'optometrist']);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),

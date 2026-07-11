@@ -15,13 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'customer_id',
-    'staff_id',
+    'created_by',
     'optometrist_id',
     'source',
     'visit_reason_id',
     'appointment_status_id',
     'scheduled_at',
     'checked_in_at',
+    'checked_in_by',
     'completed_at',
     'contact_notes',
     'staff_notes',
@@ -30,6 +31,15 @@ class Appointment extends Model implements Eventable
 {
     /** @use HasFactory<AppointmentFactory> */
     use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (Appointment $appointment): void {
+            if ($appointment->created_by === null && auth()->check()) {
+                $appointment->created_by = auth()->id();
+            }
+        });
+    }
 
     public function toCalendarEvent(): CalendarEvent
     {
@@ -72,9 +82,17 @@ class Appointment extends Model implements Eventable
     /**
      * @return BelongsTo<User, $this>
      */
-    public function staff(): BelongsTo
+    public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'staff_id');
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'checked_in_by');
     }
 
     /**

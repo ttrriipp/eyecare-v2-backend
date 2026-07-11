@@ -26,7 +26,6 @@ class AppointmentResource extends JsonResource
             'contact_notes' => $this->contact_notes,
             'staff_notes' => $this->staff_notes,
             'source' => $this->source,
-            'assigned_staff' => $this->staff ? ['id' => $this->staff->id, 'name' => $this->staff->name] : null,
             'assigned_optometrist' => $this->optometrist ? ['id' => $this->optometrist->id, 'name' => $this->optometrist->name] : null,
         ];
     }

@@ -29,7 +29,7 @@ test('all staff and admin are notified when a customer books an appointment', fu
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toISOString(),
         ])
         ->assertCreated();
 
@@ -43,7 +43,7 @@ test('new booking notification has correct type and action url', function () {
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toISOString(),
         ])
         ->assertCreated();
 
@@ -77,7 +77,7 @@ test('all staff and admin are notified when a customer submits an order', functi
 
 // ─── New message received ─────────────────────────────────────────────────────
 
-test('all staff are notified when a customer sends a message and no staff is assigned', function () {
+test('all staff are notified when a customer sends a message', function () {
     $conversation = Conversation::factory()->create(['customer_id' => $this->customer->id]);
 
     $this->actingAs($this->customer, 'sanctum')
@@ -90,13 +90,13 @@ test('all staff are notified when a customer sends a message and no staff is ass
         ->and($this->admin->notifications()->count())->toBe(1);
 });
 
-test('only the assigned staff member is notified when a customer sends a message', function () {
-    $assignedStaff = User::factory()->staff()->create();
+test('appointment booking audit does not narrow message notifications', function () {
+    $bookingStaff = User::factory()->staff()->create();
     $otherStaff = User::factory()->staff()->create();
 
     Appointment::factory()->create([
         'customer_id' => $this->customer->id,
-        'staff_id' => $assignedStaff->id,
+        'created_by' => $bookingStaff->id,
     ]);
 
     $conversation = Conversation::factory()->create(['customer_id' => $this->customer->id]);
@@ -107,8 +107,9 @@ test('only the assigned staff member is notified when a customer sends a message
         ])
         ->assertCreated();
 
-    expect($assignedStaff->notifications()->count())->toBe(1)
-        ->and($otherStaff->notifications()->count())->toBe(0);
+    expect($bookingStaff->notifications()->count())->toBe(1)
+        ->and($otherStaff->notifications()->count())->toBe(1)
+        ->and($this->admin->notifications()->count())->toBe(1);
 });
 
 test('staff sending a message does not trigger a staff notification', function () {

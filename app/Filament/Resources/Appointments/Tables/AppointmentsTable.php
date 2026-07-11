@@ -23,7 +23,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -57,14 +56,14 @@ class AppointmentsTable
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => Str::headline($state)),
-                TextColumn::make('staff.name')
-                    ->label('Assigned staff')
-                    ->placeholder('Unassigned')
-                    ->toggleable(),
                 TextColumn::make('optometrist.name')
                     ->label('Optometrist')
                     ->placeholder('Unassigned')
                     ->sortable(),
+                TextColumn::make('createdBy.name')
+                    ->label('Booked by')
+                    ->placeholder('System / patient')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('source')
                     ->label('Source')
                     ->badge()
@@ -90,10 +89,6 @@ class AppointmentsTable
                         ->where('source', 'walk_in')
                         ->whereDate('scheduled_at', today())
                         ->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'arrived')))
-                    ->toggle(),
-                Filter::make('assigned_to_me')
-                    ->label('Assigned to me')
-                    ->query(fn (Builder $query): Builder => $query->where('staff_id', Auth::id()))
                     ->toggle(),
                 SelectFilter::make('optometrist')
                     ->relationship('optometrist', 'name', fn (Builder $query): Builder => $query->optometrists())

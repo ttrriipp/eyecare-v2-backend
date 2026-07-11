@@ -312,7 +312,7 @@ test('staff can create an appointment for a customer', function () {
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
             'source' => 'phone_call',
             'optometrist_id' => $optometrist->id,
         ])
@@ -341,7 +341,7 @@ test('appointment create form rejects a customer as assigned optometrist', funct
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
             'optometrist_id' => $customer->id,
         ])
         ->call('create')
@@ -359,7 +359,7 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->fillForm([
             'customer_id' => $walkIn->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
         ])
         ->call('create')
         ->assertNotified()
@@ -394,7 +394,8 @@ test('WalkIn staff can add a patient to the queue', function () {
         'customer_id' => $patient->id,
         'visit_reason_id' => $visitReason->id,
         'optometrist_id' => $optometrist->id,
-        'staff_id' => $staff->id,
+        'created_by' => $staff->id,
+        'checked_in_by' => $staff->id,
         'source' => 'walk_in',
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
     ]);

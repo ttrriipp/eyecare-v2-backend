@@ -68,7 +68,7 @@ class DashboardDemoSeeder extends Seeder
 
                 Appointment::query()->create([
                     'customer_id' => fake()->randomElement($customerIds),
-                    'staff_id' => $staffId,
+                    'created_by' => $staffId,
                     'visit_reason_id' => fake()->randomElement($visitReasonIds),
                     'appointment_status_id' => $statusIds[$statusName] ?? $statusIds->first(),
                     'scheduled_at' => $date->copy()->setTime(

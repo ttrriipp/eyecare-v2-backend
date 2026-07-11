@@ -31,13 +31,14 @@ class CreateWalkInAppointment
 
         return Appointment::query()->create([
             'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
+            'created_by' => $staff->id,
             'optometrist_id' => $optometrist?->id,
             'visit_reason_id' => $visitReason->id,
             'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
             'source' => 'walk_in',
             'scheduled_at' => now(),
             'checked_in_at' => now(),
+            'checked_in_by' => $staff->id,
             'contact_notes' => $contactNotes,
         ]);
     }

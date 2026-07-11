@@ -70,7 +70,7 @@ class ClinicWorkflowSeeder extends Seeder
         return Appointment::query()->firstOrCreate(
             ['customer_id' => $customer->id, 'visit_reason_id' => $visitReason->id],
             [
-                'staff_id' => $staff->id,
+                'created_by' => $staff->id,
                 'appointment_status_id' => $confirmedStatus->id,
                 'scheduled_at' => now()->addDays(3)->setTime(10, 0),
                 'contact_notes' => 'Please call an hour before. Mobile: +63 912 000 0001',

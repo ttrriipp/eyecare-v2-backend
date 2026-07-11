@@ -60,6 +60,7 @@ class UpdateAppointmentStatus
 
         if ($statusName === 'arrived') {
             $attributes['checked_in_at'] = now();
+            $attributes['checked_in_by'] = auth()->id();
         }
 
         if ($statusName === 'completed') {

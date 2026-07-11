@@ -137,7 +137,7 @@ class AppointmentForm
 
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
-                    Section::make('Assignment')->schema([
+                    Section::make('Clinical Assignment')->schema([
                         Select::make('optometrist_id')
                             ->label('Optometrist')
                             ->relationship('optometrist', 'name', fn ($query) => $query->optometrists())
@@ -145,20 +145,6 @@ class AppointmentForm
                             ->preload()
                             ->nullable()
                             ->placeholder('Assign later'),
-                        Select::make('staff_id')
-                            ->label('Assigned staff')
-                            ->relationship(
-                                'staff',
-                                'name',
-                                fn ($query) => $query->whereHas(
-                                    'role',
-                                    fn ($q) => $q->whereIn('name', ['staff', 'admin']),
-                                ),
-                            )
-                            ->searchable()
-                            ->preload()
-                            ->nullable()
-                            ->placeholder('Unassigned'),
                     ]),
 
                     Section::make('Timeline')
@@ -167,6 +153,15 @@ class AppointmentForm
                             Placeholder::make('created_at')
                                 ->label('Booked')
                                 ->content(fn (?Appointment $record): string => $record?->created_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('createdBy.name')
+                                ->label('Booked by')
+                                ->content(fn (?Appointment $record): string => $record?->createdBy?->name ?? 'System / patient'),
+                            Placeholder::make('checked_in_at')
+                                ->label('Checked in')
+                                ->content(fn (?Appointment $record): string => $record?->checked_in_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('checkedInBy.name')
+                                ->label('Checked in by')
+                                ->content(fn (?Appointment $record): string => $record?->checkedInBy?->name ?? '—'),
                             Placeholder::make('updated_at')
                                 ->label('Last updated')
                                 ->content(fn (?Appointment $record): string => $record?->updated_at?->diffForHumans() ?? '—'),

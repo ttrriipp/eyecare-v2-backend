@@ -17,7 +17,7 @@
 
 ## Appointments
 
-- [ ] `GET /appointments` — list customer's appointments (status, date, visit reason, assigned staff)
+- [ ] `GET /appointments` — list customer's appointments (status, date, visit reason, source, assigned optometrist)
 - [ ] `POST /appointments` — book appointment with `visit_reason_id`, `scheduled_at`, optional `contact_notes`
 - [ ] `GET /appointments/{id}` — view single appointment detail
 - [ ] Visit reasons loaded dynamically from `GET /visit-reasons` *(not yet implemented — hardcode or skip until available)*

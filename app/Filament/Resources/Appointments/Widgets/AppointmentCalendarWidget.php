@@ -76,7 +76,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     protected function getEvents(FetchInfo $info): Builder|array
     {
         return Appointment::query()
-            ->with(['customer', 'status', 'visitReason', 'staff', 'optometrist'])
+            ->with(['customer', 'status', 'visitReason', 'createdBy', 'checkedInBy', 'optometrist'])
             ->whereDate('scheduled_at', '>=', $info->start)
             ->whereDate('scheduled_at', '<=', $info->end);
     }
@@ -123,9 +123,12 @@ class AppointmentCalendarWidget extends CalendarWidget
                         Placeholder::make('duration')
                             ->label('Duration')
                             ->content(($appointment->visitReason?->duration_minutes ?? 30).' minutes'),
-                        Placeholder::make('assigned_staff')
-                            ->label('Assigned Staff')
-                            ->content($appointment->staff?->name ?? 'Unassigned'),
+                        Placeholder::make('created_by')
+                            ->label('Booked By')
+                            ->content($appointment->createdBy?->name ?? 'System / patient'),
+                        Placeholder::make('checked_in_by')
+                            ->label('Checked In By')
+                            ->content($appointment->checkedInBy?->name ?? '—'),
                         Placeholder::make('optometrist')
                             ->label('Optometrist')
                             ->content($appointment->optometrist?->name ?? 'Unassigned'),
@@ -146,7 +149,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     private function getAppointmentForAction(array $arguments): Appointment
     {
         return Appointment::query()
-            ->with(['customer', 'visitReason', 'status', 'staff', 'optometrist'])
+            ->with(['customer', 'visitReason', 'status', 'createdBy', 'checkedInBy', 'optometrist'])
             ->findOrFail($arguments['appointmentId']);
     }
 

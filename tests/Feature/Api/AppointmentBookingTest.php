@@ -21,7 +21,7 @@ test('authenticated customers can create pending appointments', function () {
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->toISOString(),
+            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toISOString(),
             'optometrist_id' => $optometrist->id,
             'contact_notes' => 'Please call before arrival.',
         ]);
@@ -130,18 +130,20 @@ test('booking is rejected when slot conflicts within 30 minutes', function () {
     $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
 
+    $appointmentDate = now()->next('Monday');
+
     // Existing appointment at 10:00 with 30-min duration (ends 10:30)
     Appointment::factory()->create([
         'appointment_status_id' => $confirmed->id,
         'visit_reason_id' => $visitReason->id,
-        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $appointmentDate->copy()->setTime(10, 0),
     ]);
 
     // New booking at 10:20 — overlaps the 10:00–10:30 window
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(20)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => $appointmentDate->copy()->setTime(10, 20)->toDateTimeString(),
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('scheduled_at');
@@ -152,16 +154,18 @@ test('booking is allowed when slot is outside 30 minute window', function () {
     $visitReason = VisitReason::factory()->create();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
 
+    $appointmentDate = now()->next('Monday');
+
     Appointment::factory()->create([
         'appointment_status_id' => $confirmed->id,
-        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $appointmentDate->copy()->setTime(10, 0),
     ]);
 
     // New booking at 11:00 — outside 30 min window
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(11)->setMinute(0)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => $appointmentDate->copy()->setTime(11, 0)->toDateTimeString(),
         ])
         ->assertCreated();
 });
@@ -171,15 +175,17 @@ test('cancelled appointments do not block new bookings at same time', function (
     $visitReason = VisitReason::factory()->create();
     $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
 
+    $appointmentDate = now()->next('Monday');
+
     Appointment::factory()->create([
         'appointment_status_id' => $cancelled->id,
-        'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $appointmentDate->copy()->setTime(10, 0),
     ]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/appointments', [
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->addDay()->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => $appointmentDate->copy()->setTime(10, 0)->toDateTimeString(),
         ])
         ->assertCreated();
 });

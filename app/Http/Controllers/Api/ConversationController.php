@@ -117,17 +117,9 @@ class ConversationController extends Controller
 
     private function notifyStaffOfMessage(Conversation $conversation, Message $message): void
     {
-        // Notify the assigned staff on the customer's most recent appointment,
-        // falling back to all staff/admin if no assignment exists.
-        $assignedStaff = Appointment::query()
-            ->where('customer_id', $conversation->customer_id)
-            ->whereNotNull('staff_id')
-            ->latest()
-            ->value('staff_id');
-
-        $recipients = $assignedStaff
-            ? User::query()->where('id', $assignedStaff)->get()
-            : User::query()->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))->get();
+        $recipients = User::query()
+            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->get();
 
         Notification::make()
             ->title('New Message')

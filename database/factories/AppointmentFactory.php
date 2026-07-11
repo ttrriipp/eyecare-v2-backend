@@ -22,13 +22,14 @@ class AppointmentFactory extends Factory
     {
         return [
             'customer_id' => User::factory()->customer(),
-            'staff_id' => null,
+            'created_by' => null,
             'optometrist_id' => null,
             'source' => 'staff_created',
             'visit_reason_id' => VisitReason::factory(),
             'appointment_status_id' => $this->pendingStatusId(),
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),
             'checked_in_at' => null,
+            'checked_in_by' => null,
             'completed_at' => null,
             'contact_notes' => fake()->optional()->sentence(),
             'staff_notes' => null,

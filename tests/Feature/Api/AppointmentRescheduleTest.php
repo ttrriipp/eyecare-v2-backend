@@ -204,24 +204,26 @@ test('reschedule is rejected when the new slot conflicts with another appointmen
     $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $originalDate = now()->next('Monday');
+    $targetDate = now()->next('Tuesday');
 
     $appointment = Appointment::factory()->create([
         'customer_id' => $customer->id,
         'appointment_status_id' => $pending->id,
         'visit_reason_id' => $visitReason->id,
-        'scheduled_at' => now()->addDay()->setHour(9)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $originalDate->copy()->setTime(9, 0),
     ]);
 
     // Another appointment occupies 10:00-10:30 on the target day.
     Appointment::factory()->create([
         'appointment_status_id' => $confirmed->id,
         'visit_reason_id' => $visitReason->id,
-        'scheduled_at' => now()->addDays(3)->setHour(10)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $targetDate->copy()->setTime(10, 0),
     ]);
 
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/reschedule", [
-            'scheduled_at' => now()->addDays(3)->setHour(10)->setMinute(15)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => $targetDate->copy()->setTime(10, 15)->toDateTimeString(),
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('scheduled_at');
@@ -231,19 +233,20 @@ test('reschedule does not conflict with the appointments own original slot', fun
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $appointmentDate = now()->next('Monday');
 
     $appointment = Appointment::factory()->create([
         'customer_id' => $customer->id,
         'appointment_status_id' => $pending->id,
         'visit_reason_id' => $visitReason->id,
-        'scheduled_at' => now()->addDay()->setHour(9)->setMinute(0)->setSecond(0),
+        'scheduled_at' => $appointmentDate->copy()->setTime(9, 0),
     ]);
 
     // Rescheduling to a slightly later time within the same visit reason's duration window
     // should not be blocked by the appointment's own current slot (ignoreId).
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/reschedule", [
-            'scheduled_at' => now()->addDay()->setHour(9)->setMinute(15)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => $appointmentDate->copy()->setTime(9, 15)->toDateTimeString(),
         ])
         ->assertOk();
 });
