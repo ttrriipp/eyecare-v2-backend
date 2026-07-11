@@ -73,10 +73,11 @@ class AppointmentForm
                                 ->disabledOn('edit')
                                 ->dehydrated(),
                             DateTimePicker::make('scheduled_at')
+                                ->label('Appointment date and time')
                                 ->required()
                                 ->native(false)
                                 ->seconds(false)
-                                ->minutesStep(15)
+                                ->minutesStep(30)
                                 ->displayFormat('M d, Y h:i A')
                                 ->prefixIcon('heroicon-o-calendar-days')
                                 ->minDate(now())

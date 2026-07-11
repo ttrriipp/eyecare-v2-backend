@@ -70,11 +70,11 @@ class EditAppointment extends EditRecord
                 ))
                 ->schema([
                     DateTimePicker::make('scheduled_at')
-                        ->label('New date & time')
+                        ->label('New appointment date and time')
                         ->required()
                         ->native(false)
                         ->seconds(false)
-                        ->minutesStep(15)
+                        ->minutesStep(30)
                         ->displayFormat('M d, Y h:i A')
                         ->prefixIcon('heroicon-o-calendar-days')
                         ->minDate(now())

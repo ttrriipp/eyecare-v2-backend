@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
+use Filament\Forms\Components\DateTimePicker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -386,6 +387,21 @@ test('staff can create an appointment for a customer', function () {
         'optometrist_id' => $optometrist->id,
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
     ]);
+});
+
+test('appointment create form uses a staff friendly date time picker', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->assertFormFieldExists(
+            'scheduled_at',
+            checkFieldUsing: fn (DateTimePicker $field): bool => $field->getLabel() === 'Appointment date and time'
+                && $field->getMinutesStep() === 30
+                && ! $field->hasSeconds()
+                && ! $field->isNative(),
+        );
 });
 
 test('appointment create form rejects staff and admin accounts as patients', function (string $factoryState) {
