@@ -399,6 +399,8 @@ test('appointment create form uses a staff friendly date time picker', function 
             'scheduled_at',
             checkFieldUsing: fn (DateTimePicker $field): bool => $field->getLabel() === 'Appointment date and time'
                 && $field->getMinutesStep() === 30
+                && $field->getDisplayFormat() === 'M d, Y g:i A'
+                && $field->getFormat() === 'Y-m-d h:i A'
                 && ! $field->hasSeconds()
                 && ! $field->isNative(),
         );

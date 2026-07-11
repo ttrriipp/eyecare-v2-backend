@@ -150,7 +150,8 @@ class AppointmentsTable
                                 ->native(false)
                                 ->seconds(false)
                                 ->minutesStep(30)
-                                ->displayFormat('M d, Y h:i A')
+                                ->displayFormat('M d, Y g:i A')
+                                ->format('Y-m-d h:i A')
                                 ->prefixIcon('heroicon-o-calendar-days')
                                 ->minDate(now())
                                 ->after('now'),
