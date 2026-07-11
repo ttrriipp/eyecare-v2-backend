@@ -15,6 +15,7 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class AppointmentForm
 {
@@ -26,6 +27,12 @@ class AppointmentForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Appointment Details')
                         ->schema([
+                            TextInput::make('appointment_number')
+                                ->label('Appointment #')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->hiddenOn('create')
+                                ->columnSpanFull(),
                             Select::make('customer_id')
                                 ->label('Patient')
                                 ->relationship('customer', 'name', fn ($query) => $query->patients())
@@ -102,7 +109,7 @@ class AppointmentForm
                                         ->whereIn('name', $visible)
                                         ->get()
                                         ->sortBy(fn ($s) => array_search($s->name, $order))
-                                        ->mapWithKeys(fn ($s) => [$s->id => ucfirst($s->name)])
+                                        ->mapWithKeys(fn ($s) => [$s->id => Str::headline($s->name)])
                                         ->toArray();
                                 })
                                 ->colors(function (): array {
@@ -113,7 +120,7 @@ class AppointmentForm
                                         $ids['confirmed'] ?? null => 'info',
                                         $ids['arrived'] ?? null => 'warning',
                                         $ids['completed'] ?? null => 'success',
-                                        $ids['no_show'] ?? null => 'gray',
+                                        $ids['no_show'] ?? null => 'warning',
                                         $ids['cancelled'] ?? null => 'danger',
                                     ], fn ($k) => $k !== null, ARRAY_FILTER_USE_KEY);
                                 })

@@ -23,7 +23,7 @@ class AppointmentRescheduled extends Notification
             ->icon('heroicon-o-calendar-days')
             ->iconColor('warning')
             ->title('Appointment Rescheduled')
-            ->body("Your appointment is now scheduled for {$this->appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->body("Your appointment {$this->appointment->appointment_number} is now scheduled for {$this->appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->getDatabaseMessage();
     }
 }

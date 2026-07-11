@@ -46,6 +46,15 @@ test('appointments resource is globally searchable by customer name', function (
     expect($results->count())->toBeGreaterThan(0);
 });
 
+test('appointments resource is globally searchable by appointment number', function () {
+    Appointment::factory()->create(['appointment_number' => 'APT-2026-TESTXX']);
+
+    $results = AppointmentResource::getGlobalSearchResults('TESTXX')->collect();
+
+    expect($results->count())->toBeGreaterThan(0)
+        ->and($results->first()->title)->toBe('APT-2026-TESTXX');
+});
+
 test('products resource is globally searchable by name', function () {
     $product = Product::factory()->create(['name' => 'Aviator Frame']);
     ProductVariant::factory()->for($product)->create();

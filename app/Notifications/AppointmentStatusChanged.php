@@ -32,7 +32,7 @@ class AppointmentStatusChanged extends Notification
                 default => 'info',
             })
             ->title('Appointment '.Str::headline($status))
-            ->body("Your appointment scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been ".Str::headline($status).'.')
+            ->body("Your appointment {$this->appointment->appointment_number} scheduled on {$this->appointment->scheduled_at->format('M d, Y g:i A')} has been ".Str::headline($status).'.')
             ->getDatabaseMessage();
     }
 }

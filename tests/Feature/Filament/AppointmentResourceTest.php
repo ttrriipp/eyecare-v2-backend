@@ -38,6 +38,24 @@ test('staff and admin users can list appointments', function (string $factorySta
     'staff' => ['staff'],
 ]);
 
+test('appointment table displays and searches appointment numbers', function () {
+    $staff = User::factory()->staff()->create();
+    $matchingAppointment = Appointment::factory()->create([
+        'appointment_number' => 'APT-2026-SEARCH',
+    ]);
+    $otherAppointment = Appointment::factory()->create([
+        'appointment_number' => 'APT-2026-OTHER',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableColumnStateSet('appointment_number', 'APT-2026-SEARCH', record: $matchingAppointment)
+        ->searchTable('SEARCH')
+        ->assertCanSeeTableRecords([$matchingAppointment])
+        ->assertCanNotSeeTableRecords([$otherAppointment]);
+});
+
 test('appointment table can filter by status and scheduled date', function () {
     $staff = User::factory()->staff()->create();
 
@@ -79,6 +97,20 @@ test('appointment table displays no-show as a readable status label', function (
 
     Livewire::test(ListAppointments::class)
         ->assertTableColumnFormattedStateSet('status.name', 'No Show', record: $noShow);
+});
+
+test('appointment edit status buttons display no-show as a readable status label', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $confirmedStatus->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('No Show')
+        ->assertDontSee('No_show');
 });
 
 test('appointment row actions use semantic colors', function () {

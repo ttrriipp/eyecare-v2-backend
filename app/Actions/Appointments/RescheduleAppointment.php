@@ -74,7 +74,7 @@ class RescheduleAppointment
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
             'recipient' => $appointment->customer->phone ?? $appointment->customer->email,
-            'message' => "Your appointment has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
+            'message' => "Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
         ]);
     }
 }

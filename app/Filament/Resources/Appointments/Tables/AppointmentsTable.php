@@ -38,8 +38,12 @@ class AppointmentsTable
 
         return $table
             ->columns([
+                TextColumn::make('appointment_number')
+                    ->label('Number')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('customer.name')
-                    ->label('Customer')
+                    ->label('Patient')
                     ->searchable(),
                 TextColumn::make('visitReason.name')
                     ->label('Visit reason'),

@@ -65,7 +65,7 @@ class AppointmentController extends Controller
 
         Notification::make()
             ->title('New Appointment Booked')
-            ->body("{$appointment->customer->name} booked an appointment on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->body("{$appointment->customer->name} booked appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->actions([
                 Action::make('view')
                     ->label('View')
@@ -110,7 +110,7 @@ class AppointmentController extends Controller
 
         Notification::make()
             ->title('Appointment Cancelled by Customer')
-            ->body("{$appointment->customer->name} cancelled their appointment on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->body("{$appointment->customer->name} cancelled appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->warning()
             ->sendToDatabase($staff);
 
@@ -138,7 +138,7 @@ class AppointmentController extends Controller
 
         Notification::make()
             ->title('Appointment Rescheduled by Customer')
-            ->body("{$appointment->customer->name} rescheduled their appointment from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->body("{$appointment->customer->name} rescheduled appointment {$appointment->appointment_number} from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->actions([
                 Action::make('view')
                     ->label('View')

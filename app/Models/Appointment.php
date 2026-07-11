@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
+    'appointment_number',
     'customer_id',
     'created_by',
     'optometrist_id',
@@ -35,10 +36,25 @@ class Appointment extends Model implements Eventable
     protected static function booted(): void
     {
         static::creating(function (Appointment $appointment): void {
+            if (empty($appointment->appointment_number)) {
+                $appointment->appointment_number = self::generateAppointmentNumber();
+            }
+
             if ($appointment->created_by === null && auth()->check()) {
                 $appointment->created_by = auth()->id();
             }
         });
+    }
+
+    private static function generateAppointmentNumber(): string
+    {
+        $year = now()->format('Y');
+        $sequence = self::query()
+            ->whereYear('created_at', $year)
+            ->withTrashed()
+            ->count() + 1;
+
+        return sprintf('APT-%s-%06d', $year, $sequence);
     }
 
     public function toCalendarEvent(): CalendarEvent

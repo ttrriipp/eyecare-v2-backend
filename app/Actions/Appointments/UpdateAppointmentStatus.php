@@ -100,8 +100,8 @@ class UpdateAppointmentStatus
     private function buildMessage(Appointment $appointment, string $event): string
     {
         return match ($event) {
-            'appointment_confirmed' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been confirmed.",
-            'appointment_cancelled' => "Your appointment on {$appointment->scheduled_at->toDateTimeString()} has been cancelled.",
+            'appointment_confirmed' => "Your appointment {$appointment->appointment_number} on {$appointment->scheduled_at->toDateTimeString()} has been confirmed.",
+            'appointment_cancelled' => "Your appointment {$appointment->appointment_number} on {$appointment->scheduled_at->toDateTimeString()} has been cancelled.",
         };
     }
 }

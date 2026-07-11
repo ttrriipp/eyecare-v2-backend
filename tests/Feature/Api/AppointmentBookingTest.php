@@ -33,6 +33,8 @@ test('authenticated customers can create pending appointments', function () {
         ->assertJsonPath('data.visit_reason', $visitReason->name)
         ->assertJsonPath('data.contact_notes', 'Please call before arrival.');
 
+    expect(str_starts_with($response->json('data.appointment_number'), 'APT-'))->toBeTrue();
+
     $this->assertDatabaseHas(Appointment::class, [
         'customer_id' => $customer->id,
         'visit_reason_id' => $visitReason->id,
@@ -41,6 +43,8 @@ test('authenticated customers can create pending appointments', function () {
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'pending')->value('id'),
         'contact_notes' => 'Please call before arrival.',
     ]);
+
+    expect(Appointment::query()->first()?->appointment_number)->toBe('APT-'.now()->format('Y').'-000001');
 });
 
 test('booking rejects times outside clinic hours and closed days', function (string $scheduledAt) {
@@ -77,10 +81,12 @@ test('customers can list only their own appointments', function () {
     $response->assertSuccessful();
 
     $appointmentIds = collect($response->json('data'))->pluck('id')->all();
+    $appointmentNumbers = collect($response->json('data'))->pluck('appointment_number')->all();
 
     expect($appointmentIds)
         ->toEqualCanonicalizing($ownAppointments->pluck('id')->all())
-        ->and($appointmentIds)->toHaveCount(2);
+        ->and($appointmentIds)->toHaveCount(2)
+        ->and($appointmentNumbers)->toEqualCanonicalizing($ownAppointments->pluck('appointment_number')->all());
 });
 
 test('customers can view only their own appointment', function () {

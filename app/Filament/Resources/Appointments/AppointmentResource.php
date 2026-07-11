@@ -28,19 +28,19 @@ class AppointmentResource extends Resource
 
     protected static bool $isGloballySearchable = true;
 
-    protected static ?string $recordTitleAttribute = 'id';
+    protected static ?string $recordTitleAttribute = 'appointment_number';
 
     /**
      * @return array<int, string>
      */
     public static function getGloballySearchableAttributes(): array
     {
-        return ['customer.name', 'customer.phone'];
+        return ['appointment_number', 'customer.name', 'customer.phone'];
     }
 
     public static function getGlobalSearchResultTitle(Model $record): string
     {
-        return $record->customer?->name ?? "Appointment #{$record->id}";
+        return $record->appointment_number ?? "Appointment #{$record->id}";
     }
 
     public static function form(Schema $schema): Schema
