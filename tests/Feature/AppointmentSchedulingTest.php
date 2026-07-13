@@ -96,6 +96,31 @@ test('unassigned appointments use the number of available optometrists as clinic
     ))->toThrow(ValidationException::class);
 });
 
+test('clinic capacity uses peak concurrent appointments within the proposed interval', function () {
+    User::factory()->optometrist()->create();
+    $fifteenMinuteReason = VisitReason::factory()->create(['duration_minutes' => 15]);
+    $thirtyMinuteReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+
+    Appointment::factory()->create([
+        'optometrist_id' => $this->optometrist->id,
+        'visit_reason_id' => $fifteenMinuteReason->id,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    Appointment::factory()->create([
+        'optometrist_id' => null,
+        'visit_reason_id' => $fifteenMinuteReason->id,
+        'scheduled_at' => '2026-07-13 10:15:00',
+    ]);
+
+    app(ScheduleAppointment::class)->handle(
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        visitReason: $thirtyMinuteReason,
+    );
+
+    expect(true)->toBeTrue();
+});
+
 test('cancelled and no-show appointments do not block availability', function (string $statusName) {
     Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,

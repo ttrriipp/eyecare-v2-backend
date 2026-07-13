@@ -10,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 class ScheduleAppointment
 {
+    public function __construct(private readonly EvaluateAppointmentAvailability $evaluateAppointmentAvailability) {}
+
     public function handle(
         CarbonInterface $scheduledAt,
         VisitReason $visitReason,
@@ -38,29 +40,26 @@ class ScheduleAppointment
 
     private function validateClinicHours(CarbonInterface $scheduledAt, int $durationMinutes): void
     {
-        if ($scheduledAt->isPast()) {
+        $endsAt = $scheduledAt->copy()->addMinutes($durationMinutes);
+        $decision = $this->evaluateAppointmentAvailability->handle(
+            startsAt: $scheduledAt,
+            visitReason: new VisitReason(['duration_minutes' => $durationMinutes]),
+            enforceFuture: true,
+        );
+
+        if ($decision->reason === 'elapsed') {
             throw ValidationException::withMessages([
                 'scheduled_at' => ['The appointment must be scheduled in the future.'],
             ]);
         }
 
-        $closedWeekdays = config('appointments.clinic_hours.closed_weekdays', [0]);
-
-        if (in_array($scheduledAt->dayOfWeek, $closedWeekdays, true)) {
+        if ($decision->reason === 'clinic_closed') {
             throw ValidationException::withMessages([
                 'scheduled_at' => ['The clinic is closed on the selected day.'],
             ]);
         }
 
-        $openingTime = $scheduledAt->copy()->startOfDay()->setTimeFromTimeString(
-            config('appointments.clinic_hours.opens_at', '09:00'),
-        );
-        $closingTime = $scheduledAt->copy()->startOfDay()->setTimeFromTimeString(
-            config('appointments.clinic_hours.closes_at', '17:00'),
-        );
-        $appointmentEndsAt = $scheduledAt->copy()->addMinutes($durationMinutes);
-
-        if ($scheduledAt->lt($openingTime) || $appointmentEndsAt->gt($closingTime)) {
+        if ($decision->reason === 'outside_clinic_hours' || $endsAt->lte($scheduledAt)) {
             throw ValidationException::withMessages([
                 'scheduled_at' => ['The appointment must fit within clinic hours.'],
             ]);
@@ -73,22 +72,15 @@ class ScheduleAppointment
         ?User $optometrist,
         ?Appointment $ignoreAppointment,
     ): void {
-        $appointmentEndsAt = $scheduledAt->copy()->addMinutes($durationMinutes);
+        $decision = $this->evaluateAppointmentAvailability->handle(
+            startsAt: $scheduledAt,
+            visitReason: new VisitReason(['duration_minutes' => $durationMinutes]),
+            optometrist: $optometrist,
+            ignoreAppointment: $ignoreAppointment,
+            enforceFuture: false,
+        );
 
-        $conflictingAppointments = Appointment::query()
-            ->whereHas('status', fn ($query) => $query->whereNotIn('name', ['cancelled', 'no_show']))
-            ->when($ignoreAppointment, fn ($query) => $query->whereKeyNot($ignoreAppointment->id))
-            ->where('scheduled_at', '<', $appointmentEndsAt)
-            ->whereRaw(
-                'DATE_ADD(scheduled_at, INTERVAL COALESCE((SELECT duration_minutes FROM visit_reasons WHERE visit_reasons.id = appointments.visit_reason_id), 30) MINUTE) > ?',
-                [$scheduledAt],
-            );
-
-        $hasConflict = $optometrist
-            ? $conflictingAppointments->where('optometrist_id', $optometrist->id)->exists()
-            : $conflictingAppointments->count() >= max(1, User::query()->optometrists()->count());
-
-        if ($hasConflict) {
+        if (! $decision->available) {
             throw ValidationException::withMessages([
                 'scheduled_at' => ['This time slot is not available. Please choose another time.'],
             ]);
