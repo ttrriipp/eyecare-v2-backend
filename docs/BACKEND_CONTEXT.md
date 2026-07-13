@@ -438,6 +438,21 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 }
 ```
 
+**PATCH /appointments/{appointment}/contact-note — customer appointment contact notes**
+
+- Auth: Sanctum customer auth required.
+- Scope: only the authenticated customer’s own appointment.
+- Editable statuses: `pending`, `confirmed`.
+- Body:
+  ```json
+  { "contact_notes": "Please call before arrival." }
+  ```
+- Validation: `contact_notes` must be present, nullable, string, max 1000 characters.
+- Clearing: `null`, empty string, or whitespace-only values clear the note and store `null`.
+- Ignored fields: `staff_notes`, status, schedule, visit reason, customer, source, provider assignment, and all unrelated appointment fields are not accepted for mutation by this endpoint.
+- Response: existing appointment resource shape, with status and unrelated fields preserved.
+- Errors: unauthenticated requests return `401`; another customer’s appointment returns `403`; ineligible statuses and validation failures return `422`.
+
 **GET /orders** (paginated):
 ```json
 {

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\CreateScheduledAppointment;
 use App\Actions\Appointments\RescheduleAppointment;
+use App\Actions\Appointments\UpdateAppointmentContactNote;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RescheduleAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
+use App\Http\Requests\Api\UpdateAppointmentContactNoteRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\User;
@@ -103,6 +105,21 @@ class AppointmentController extends Controller
             ->body("{$appointment->customer->name} cancelled appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->warning()
             ->sendToDatabase($staff);
+
+        return response()->json([
+            'data' => AppointmentResource::make($appointment),
+        ]);
+    }
+
+    public function updateContactNote(
+        UpdateAppointmentContactNoteRequest $request,
+        Appointment $appointment,
+        UpdateAppointmentContactNote $updateAppointmentContactNote,
+    ): JsonResponse {
+        $appointment = $updateAppointmentContactNote->handle(
+            appointment: $appointment,
+            contactNotes: $request->validated('contact_notes'),
+        );
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),
