@@ -2,21 +2,25 @@
 
 namespace App\Actions\Appointments;
 
+use App\Models\Appointment;
 use App\Models\User;
 use App\Models\VisitReason;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 
 class ListAvailableAppointmentSlots
 {
-    public function __construct(private readonly ScheduleAppointment $scheduleAppointment) {}
+    public function __construct(private readonly EvaluateAppointmentAvailability $evaluateAppointmentAvailability) {}
 
     /**
-     * @return array<int, CarbonInterface>
+     * @return array<int, AppointmentAvailabilityDecision>
      */
-    public function handle(CarbonInterface $date, VisitReason $visitReason, ?User $optometrist = null): array
-    {
+    public function handle(
+        CarbonInterface $date,
+        VisitReason $visitReason,
+        ?User $optometrist = null,
+        ?Appointment $ignoreAppointment = null,
+    ): array {
         $slot = Carbon::parse(
             $date->format('Y-m-d').' '.config('appointments.clinic_hours.opens_at', '09:00'),
             config('app.timezone'),
@@ -26,19 +30,25 @@ class ListAvailableAppointmentSlots
             config('app.timezone'),
         );
         $intervalMinutes = config('appointments.clinic_hours.slot_interval_minutes', 15);
-        $availableSlots = [];
+        $closedWeekdays = config('appointments.clinic_hours.closed_weekdays', [0]);
+        $slots = [];
+
+        if (in_array($slot->dayOfWeek, $closedWeekdays, true)) {
+            return [];
+        }
 
         while ($slot->copy()->addMinutes($visitReason->duration_minutes)->lte($closingTime)) {
-            try {
-                $this->scheduleAppointment->handle($slot, $visitReason, $optometrist);
-                $availableSlots[] = $slot->copy();
-            } catch (ValidationException) {
-                // Unavailable candidates are omitted from the response.
-            }
+            $slots[] = $this->evaluateAppointmentAvailability->handle(
+                startsAt: $slot,
+                visitReason: $visitReason,
+                optometrist: $optometrist,
+                ignoreAppointment: $ignoreAppointment,
+                enforceFuture: true,
+            );
 
             $slot->addMinutes($intervalMinutes);
         }
 
-        return $availableSlots;
+        return $slots;
     }
 }

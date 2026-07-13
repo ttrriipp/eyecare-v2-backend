@@ -129,7 +129,7 @@ test('availability without an optometrist uses clinic provider capacity', functi
         fn (array $slot): string => Carbon::parse($slot['starts_at'])->format('H:i'),
     );
 
-    expect($slotsByTime->get('10:00.available'))->toBeTrue();
+    expect(data_get($slotsByTime->get('10:00'), 'available'))->toBeTrue();
 });
 
 test('availability requires authentication and valid query input', function () {
