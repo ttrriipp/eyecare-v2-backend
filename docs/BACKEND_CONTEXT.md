@@ -292,7 +292,7 @@ POST   /logout
 
 GET    /appointments            Customer's own appointments
 POST   /appointments            Book appointment (source mobile_app, status pending, optional optometrist_id; central scheduling rules apply)
-GET    /appointments/availability  Available 15-minute slots for date + visit_reason_id, optionally optometrist_id
+GET    /appointments/availability  Availability grid for date + visit_reason_id, optionally optometrist_id and appointment_id for reschedule self-exclusion
 GET    /appointments/{id}
 GET    /visit-reasons           List all visit reasons (id, name, duration_minutes)
 GET    /brands                  List all brands (id, name) — use for product filter UI
@@ -333,6 +333,39 @@ PATCH  /staff/orders/{id}/status
 ---
 
 ## API Response Examples (for Android)
+
+**GET /appointments/availability?date=2026-07-13&visit_reason_id=1:**
+```json
+{
+  "data": {
+    "date": "2026-07-13",
+    "timezone": "Asia/Manila",
+    "interval_minutes": 15,
+    "visit_reason_id": 1,
+    "visit_duration_minutes": 30,
+    "optometrist_id": null,
+    "appointment_id": null,
+    "day_status": "open",
+    "generated_at": "2026-07-13T08:12:04+08:00",
+    "slots": [
+      {
+        "starts_at": "2026-07-13T09:00:00+08:00",
+        "ends_at": "2026-07-13T09:30:00+08:00",
+        "available": true,
+        "reason": null
+      },
+      {
+        "starts_at": "2026-07-13T09:15:00+08:00",
+        "ends_at": "2026-07-13T09:45:00+08:00",
+        "available": false,
+        "reason": "capacity_reached"
+      }
+    ]
+  }
+}
+```
+
+Availability is customer-authenticated and returns all generated starts that fit before clinic close. Closed days return `day_status = "closed"` and `slots = []`. Same-day elapsed starts remain in the grid with `available = false` and `reason = "elapsed"`. Booking and rescheduling are still authoritative; if a selected slot becomes stale, the mutation returns HTTP 422 with `code = "SLOT_UNAVAILABLE"`, conventional `errors.scheduled_at`, and a safe `availability` refresh context.
 
 **POST /register** and **POST /login** → returns:
 ```json
@@ -497,9 +530,12 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 | Action | Location | Does |
 |---|---|---|
 | `UpdateAppointmentStatus` | `app/Actions/Appointments/` | Validates transition, updates status, creates SMS record, fires audit log |
-| `ScheduleAppointment` | `app/Actions/Appointments/` | Enforces clinic hours, closed days, visit duration, provider overlap, and unassigned-provider clinic capacity |
-| `ListAvailableAppointmentSlots` | `app/Actions/Appointments/` | Builds available 15-minute slots for a date/visit reason and optional optometrist |
-| `RescheduleAppointment` | `app/Actions/Appointments/` | Validates a replacement slot, changes `scheduled_at` without a rescheduled status, sends notifications, and audits old/new times |
+| `EvaluateAppointmentAvailability` | `app/Actions/Appointments/` | Shared availability decision engine for preview, booking, staff create, and reschedule. Uses visit durations, half-open overlap checks, provider capacity, and in-memory peak concurrency across each candidate interval. |
+| `ScheduleAppointment` | `app/Actions/Appointments/` | Enforces clinic hours, closed days, visit duration, provider overlap, clinic capacity, and optional customer grid alignment. |
+| `ListAvailableAppointmentSlots` | `app/Actions/Appointments/` | Builds 15-minute slot decisions for a date/visit reason and optional optometrist or reschedule appointment context. Loads blockers once per request. |
+| `CreateScheduledAppointment` | `app/Actions/Appointments/` | Customer booking path: locks the clinic date, reruns availability, creates a pending mobile appointment, and returns `SLOT_UNAVAILABLE` for stale capacity conflicts. |
+| `LockAppointmentScheduleDate` | `app/Actions/Appointments/` | Acquires a database-backed `FOR UPDATE` lock on `appointment_schedule_locks.schedule_date` inside scheduling transactions. |
+| `RescheduleAppointment` | `app/Actions/Appointments/` | Locks affected clinic dates, validates a replacement slot, changes `scheduled_at` without a rescheduled status, sends notifications, and audits old/new times. |
 | `CreateWalkInAppointment` | `app/Actions/Appointments/` | Creates today's walk-in as arrived with check-in time, staff owner, and optional optometrist |
 | `UpdateOrderStatus` | `app/Actions/Orders/` | Validates transition. `requested → confirmed` is a plain status change. `confirmed → processing` checks prescription gate, checks lens gate, deducts inventory, generates/attaches billing, fires audit log. Cancellation from `processing`/`ready_for_pickup` restores inventory and auto-voids the billing only if it isn't shared with another active order. |
 | `GenerateBillingForOrder` | `app/Actions/Billing/` | Called when an order reaches `processing`. Attaches to a pre-linked billing (`order.billing_id`) if set, otherwise calls GetOrCreateBilling then AddOrderItemsToBilling. |
@@ -540,7 +576,10 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 - **Conversations:** One persistent conversation per customer. Context links (Appointment, Order, Product) attach per-message via `message_context_links` polymorphic table. `messages.read_at` tracks when a message was read. `GET /conversations` returns `unread_count` (messages from the other party with null `read_at`). Customers mark messages read via `POST /conversations/{id}/messages/read`.
 - **Appointment source:** `source` records how the booking entered the clinic: `mobile_app`, `walk_in`, `phone_call`, `messenger`, or `staff_created`. It supports operations/reporting and does not change lifecycle permissions by itself.
 - **Optometrist capability and assignment:** Optometrists remain staff/admin users marked with `users.is_optometrist`; no separate role or provider table is required for this clinic. `appointments.optometrist_id` is the only manual appointment assignment field. Staff/admin handling is recorded automatically through `created_by` and `checked_in_by`, not through a manual operational-owner field.
-- **Clinic scheduling rules:** `config/appointments.php` currently defines 09:00-17:00, Sunday closed, and 15-minute slot intervals. These are configuration values, not controller/UI hardcoding. `ScheduleAppointment` requires the full visit-reason duration to fit clinic hours. The same optometrist cannot overlap; different optometrists may work concurrently. An unassigned appointment uses the number of marked optometrists as clinic capacity, falling back to one. `cancelled` and `no_show` appointments do not consume capacity.
+- **Clinic scheduling rules:** `config/appointments.php` currently defines 09:00-17:00, Sunday closed, and 15-minute slot intervals. These are configuration values, not controller/UI hardcoding. `ScheduleAppointment` requires the full visit-reason duration to fit clinic hours. The same optometrist cannot overlap; different optometrists may work concurrently. Unassigned appointments consume one shared clinic-capacity unit. Capacity is based on marked optometrists, falling back to one, and is evaluated by peak concurrent usage across the proposed interval rather than by a raw count of all appointments touching the range. `cancelled`, `no_show`, and soft-deleted appointments do not consume capacity; pending, confirmed, arrived, and completed records do.
+- **Availability API:** `GET /appointments/availability` takes `date`, `visit_reason_id`, optional eligible `optometrist_id`, and optional owned `appointment_id` for reschedule self-exclusion. It returns clinic timezone metadata, visit duration, generation interval, day status, and slot states. Timestamps include an explicit offset. Candidates that overrun closing are not generated.
+- **Scheduling concurrency:** Customer booking, customer/staff rescheduling, and staff scheduled creation recheck availability inside database transactions after acquiring `appointment_schedule_locks` rows with `FOR UPDATE`. Reschedules lock old and target clinic dates in sorted order. Availability reads are snapshots only and never reserve a slot.
+- **Customer grid alignment:** Android/customer booking and customer rescheduling must use configured 15-minute starts. Staff create/reschedule continues to support exact-minute times.
 - **`scheduled_at` is not directly editable on the appointment edit form:** All date changes use `RescheduleAppointment`, which applies the central scheduler and records SMS, database notification, and audit side effects. Rescheduling is an action, not a lifecycle state.
 - **Unlimited customer reschedule:** There is no hard cap on reschedules, but only `pending` and `confirmed` appointments are eligible. A customer-initiated reschedule returns to `pending`; a staff-initiated reschedule preserves the current eligible status.
 - **AR assets:** `ar_asset_reference` stores the storage path to the uploaded asset file. Staff uploads transparent PNG overlays or 3D models (.glb, .gltf, .obj) via FileUpload on the variant edit form (only visible on frame variants with `ar_eligible` enabled). When `ar_eligible` is true, the asset is required — cannot save without uploading. Max 10MB. Files stored at `storage/app/public/ar-assets/`. No biometric data, face geometry, or facial landmarks are stored. Android accesses via `{APP_URL}/storage/{ar_asset_reference}`. The API returns the relative path (e.g. `ar-assets/abc123.glb`) — Android must prepend the base URL.
@@ -594,6 +633,7 @@ Use `GET /visit-reasons` to get brand and category IDs for filter dropdowns. Bra
 | `docs/specs/order-improvements-spec.md` | Complete — label change, walk-in sale, inline payment |
 | `docs/specs/product-order-billing-rework-spec.md` | Complete — 20 tasks across 5 phases: Lens Category rename, product type simplification (frame/lens/general), order flow rework (admin orders start at confirmed, gates/inventory/billing moved to processing), billing rework (OR# removed, notes added, manual creation, pre-linked billing, Bill Service removed) |
 | `docs/specs/appointment-workflow-improvements.md` | Complete — source/provider scheduling, walk-in queue, six-state lifecycle, availability API, reminders |
+| `docs/specs/appointment-availability-api-spec.md` | Complete — backend availability grid contract, shared evaluator, transactional booking/reschedule locks, stale-slot errors |
 
 ---
 
