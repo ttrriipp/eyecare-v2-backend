@@ -155,6 +155,35 @@ test('booking is rejected when slot conflicts within 30 minutes', function () {
         ->assertJsonValidationErrors('scheduled_at');
 });
 
+test('booking stale availability returns a structured slot unavailable response', function () {
+    $customer = User::factory()->customer()->create();
+    $otherCustomer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointmentDate = now()->next('Monday')->setTime(10, 0);
+
+    Appointment::factory()->create([
+        'customer_id' => $otherCustomer->id,
+        'appointment_status_id' => $confirmed->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => $appointmentDate,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/appointments', [
+            'visit_reason_id' => $visitReason->id,
+            'scheduled_at' => $appointmentDate->toIso8601String(),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonPath('code', 'SLOT_UNAVAILABLE')
+        ->assertJsonPath('availability.date', $appointmentDate->toDateString())
+        ->assertJsonPath('availability.visit_reason_id', $visitReason->id)
+        ->assertJsonPath('availability.optometrist_id', null)
+        ->assertJsonValidationErrors('scheduled_at');
+
+    expect(Appointment::query()->where('customer_id', $customer->id)->count())->toBe(0);
+});
+
 test('booking is allowed when slot is outside 30 minute window', function () {
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create();

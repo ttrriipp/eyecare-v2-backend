@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\CreateScheduledAppointment;
 use App\Actions\Appointments\RescheduleAppointment;
-use App\Actions\Appointments\ScheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RescheduleAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
-use App\Models\AppointmentStatus;
 use App\Models\User;
 use App\Models\VisitReason;
 use Filament\Actions\Action;
@@ -34,30 +33,21 @@ class AppointmentController extends Controller
         return AppointmentResource::collection($appointments);
     }
 
-    public function store(StoreAppointmentRequest $request, ScheduleAppointment $scheduleAppointment): JsonResponse
+    public function store(StoreAppointmentRequest $request, CreateScheduledAppointment $createScheduledAppointment): JsonResponse
     {
-        $pendingStatus = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
         $visitReason = VisitReason::query()->findOrFail($request->validated('visit_reason_id'));
         $optometrist = $request->filled('optometrist_id')
             ? User::query()->findOrFail($request->validated('optometrist_id'))
             : null;
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone'));
 
-        $scheduleAppointment->handle(
-            scheduledAt: $scheduledAt,
+        $appointment = $createScheduledAppointment->handle(
+            customer: $request->user(),
             visitReason: $visitReason,
+            scheduledAt: $scheduledAt,
             optometrist: $optometrist,
+            contactNotes: $request->validated('contact_notes'),
         );
-
-        $appointment = Appointment::query()->create([
-            ...$request->validated(),
-            'customer_id' => $request->user()->id,
-            'appointment_status_id' => $pendingStatus->id,
-            'source' => 'mobile_app',
-            'scheduled_at' => $scheduledAt,
-        ]);
-
-        $appointment->load(['visitReason', 'status', 'customer', 'optometrist']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
