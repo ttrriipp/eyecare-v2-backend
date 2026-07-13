@@ -17,10 +17,11 @@ class ScheduleAppointment
         VisitReason $visitReason,
         ?User $optometrist = null,
         ?Appointment $ignoreAppointment = null,
+        bool $enforceGrid = false,
     ): void {
         $this->validateOptometrist($optometrist);
         $this->validateClinicHours($scheduledAt, $visitReason->duration_minutes);
-        $this->validateAvailability($scheduledAt, $visitReason->duration_minutes, $optometrist, $ignoreAppointment);
+        $this->validateAvailability($scheduledAt, $visitReason->duration_minutes, $optometrist, $ignoreAppointment, $enforceGrid);
     }
 
     private function validateOptometrist(?User $optometrist): void
@@ -71,6 +72,7 @@ class ScheduleAppointment
         int $durationMinutes,
         ?User $optometrist,
         ?Appointment $ignoreAppointment,
+        bool $enforceGrid,
     ): void {
         $decision = $this->evaluateAppointmentAvailability->handle(
             startsAt: $scheduledAt,
@@ -78,12 +80,21 @@ class ScheduleAppointment
             optometrist: $optometrist,
             ignoreAppointment: $ignoreAppointment,
             enforceFuture: false,
+            enforceGrid: $enforceGrid,
         );
 
         if (! $decision->available) {
             throw ValidationException::withMessages([
-                'scheduled_at' => ['This time slot is not available. Please choose another time.'],
+                'scheduled_at' => [$this->messageForReason($decision->reason)],
             ]);
         }
+    }
+
+    private function messageForReason(?string $reason): string
+    {
+        return match ($reason) {
+            'outside_slot_grid' => 'Please choose one of the available appointment times.',
+            default => 'This time slot is not available. Please choose another time.',
+        };
     }
 }

@@ -70,7 +70,7 @@ test('customer can reschedule a pending appointment more than once', function ()
 
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/reschedule", [
-            'scheduled_at' => now()->addDays(6)->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->setHour(10)->setMinute(0)->setSecond(0)->toDateTimeString(),
         ])
         ->assertOk()
         ->assertJsonPath('data.status', 'pending');
@@ -227,6 +227,44 @@ test('reschedule is rejected when the new slot conflicts with another appointmen
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors('scheduled_at');
+});
+
+test('reschedule stale availability returns a structured slot unavailable response without side effects', function () {
+    $customer = User::factory()->customer()->create();
+    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $originalDate = now()->next('Monday')->setTime(9, 0);
+    $targetDate = now()->next('Tuesday')->setTime(10, 0);
+
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_status_id' => $pending->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => $originalDate,
+    ]);
+
+    Appointment::factory()->create([
+        'appointment_status_id' => $confirmed->id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => $targetDate,
+    ]);
+
+    $this->actingAs($customer)
+        ->postJson("/api/appointments/{$appointment->id}/reschedule", [
+            'scheduled_at' => $targetDate->toIso8601String(),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonPath('code', 'SLOT_UNAVAILABLE')
+        ->assertJsonPath('availability.date', $targetDate->toDateString())
+        ->assertJsonPath('availability.visit_reason_id', $visitReason->id)
+        ->assertJsonPath('availability.optometrist_id', null)
+        ->assertJsonPath('availability.appointment_id', $appointment->id)
+        ->assertJsonValidationErrors('scheduled_at');
+
+    expect($appointment->refresh()->scheduled_at->format('Y-m-d H:i:s'))->toBe($originalDate->format('Y-m-d H:i:s'))
+        ->and(SmsNotification::query()->where('appointment_id', $appointment->id)->count())->toBe(0)
+        ->and(AuditLog::query()->where('subject_id', $appointment->id)->where('action', 'appointment.rescheduled')->count())->toBe(0);
 });
 
 test('reschedule does not conflict with the appointments own original slot', function () {
