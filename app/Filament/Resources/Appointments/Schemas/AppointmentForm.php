@@ -6,11 +6,12 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Role;
 use App\Models\User;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -72,19 +73,30 @@ class AppointmentForm
                                 ->required()
                                 ->disabledOn('edit')
                                 ->dehydrated(),
-                            DateTimePicker::make('scheduled_at')
-                                ->label('Appointment date and time')
+                            DatePicker::make('scheduled_at')
+                                ->label('Appointment date')
                                 ->required()
                                 ->native(false)
-                                ->seconds(false)
-                                ->minutesStep(30)
-                                ->displayFormat('M d, Y g:i A')
-                                ->format('Y-m-d h:i A')
-                                ->prefixIcon('heroicon-o-calendar-days')
-                                ->minDate(now())
+                                ->displayFormat('M d, Y')
+                                ->placeholder('Choose an appointment date')
+                                ->suffixIcon('heroicon-o-calendar-days')
+                                ->minDate(today())
                                 ->disabledOn('edit')
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after:now' : ''),
+                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : ''),
+                            TimePicker::make('appointment_time')
+                                ->label('Appointment time')
+                                ->required(fn (string $operation): bool => $operation === 'create')
+                                ->seconds(false)
+                                ->minutesStep(1)
+                                ->format('H:i')
+                                ->afterStateHydrated(function (TimePicker $component, ?Appointment $record): void {
+                                    if ($record) {
+                                        $component->state($record->scheduled_at->format('H:i'));
+                                    }
+                                })
+                                ->disabledOn('edit')
+                                ->dehydrated(fn (string $operation): bool => $operation === 'create'),
                             ToggleButtons::make('appointment_status_id')
                                 ->label('Status')
                                 ->options(function (?Appointment $record): array {

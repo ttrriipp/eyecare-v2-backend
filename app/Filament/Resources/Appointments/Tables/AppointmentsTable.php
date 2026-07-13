@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Appointments\Tables;
 
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
+use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -13,7 +14,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -21,7 +22,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -80,7 +80,7 @@ class AppointmentsTable
                     })
                     ->toggleable(),
                 TextColumn::make('scheduled_at')
-                    ->dateTime()
+                    ->dateTime('M j, Y g:i A')
                     ->sortable(),
                 TextColumn::make('contact_notes')
                     ->limit(40)
@@ -144,23 +144,30 @@ class AppointmentsTable
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed'], true))
                         ->schema([
-                            DateTimePicker::make('scheduled_at')
-                                ->label('New appointment date and time')
+                            DatePicker::make('scheduled_at')
+                                ->label('New appointment date')
                                 ->required()
                                 ->native(false)
+                                ->displayFormat('M d, Y')
+                                ->placeholder('Choose a new appointment date')
+                                ->suffixIcon('heroicon-o-calendar-days')
+                                ->minDate(today())
+                                ->afterOrEqual('today'),
+                            TimePicker::make('appointment_time')
+                                ->label('New appointment time')
+                                ->required()
                                 ->seconds(false)
-                                ->minutesStep(30)
-                                ->displayFormat('M d, Y g:i A')
-                                ->format('Y-m-d h:i A')
-                                ->prefixIcon('heroicon-o-calendar-days')
-                                ->minDate(now())
-                                ->after('now'),
+                                ->minutesStep(1)
+                                ->format('H:i'),
                         ])
                         ->action(function (Appointment $record, array $data): void {
                             try {
                                 app(RescheduleAppointment::class)->handle(
                                     appointment: $record,
-                                    scheduledAt: Carbon::parse($data['scheduled_at']),
+                                    scheduledAt: AppointmentTime::combine(
+                                        $data['scheduled_at'],
+                                        $data['appointment_time'],
+                                    ),
                                     customerInitiated: false,
                                 );
                                 Notification::make()->title('Appointment rescheduled')->success()->send();

@@ -92,7 +92,8 @@ test('create appointment page prefills scheduled_at from the query string', func
 
     Livewire::withQueryParams(['scheduled_at' => '2026-07-15 14:00:00'])
         ->test(CreateAppointment::class)
-        ->assertSet('data.scheduled_at', '2026-07-15 14:00:00');
+        ->assertSet('data.scheduled_at', '2026-07-15')
+        ->assertSet('data.appointment_time', '14:00');
 });
 
 // ─── Reschedule validation (drag guard) ─────────────────────────────────────────

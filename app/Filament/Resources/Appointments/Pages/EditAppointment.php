@@ -5,14 +5,15 @@ namespace App\Filament\Resources\Appointments\Pages;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 class EditAppointment extends EditRecord
@@ -69,17 +70,21 @@ class EditAppointment extends EditRecord
                     true,
                 ))
                 ->schema([
-                    DateTimePicker::make('scheduled_at')
-                        ->label('New appointment date and time')
+                    DatePicker::make('scheduled_at')
+                        ->label('New appointment date')
                         ->required()
                         ->native(false)
+                        ->displayFormat('M d, Y')
+                        ->placeholder('Choose a new appointment date')
+                        ->suffixIcon('heroicon-o-calendar-days')
+                        ->minDate(today())
+                        ->afterOrEqual('today'),
+                    TimePicker::make('appointment_time')
+                        ->label('New appointment time')
+                        ->required()
                         ->seconds(false)
-                        ->minutesStep(30)
-                        ->displayFormat('M d, Y g:i A')
-                        ->format('Y-m-d h:i A')
-                        ->prefixIcon('heroicon-o-calendar-days')
-                        ->minDate(now())
-                        ->after('now'),
+                        ->minutesStep(1)
+                        ->format('H:i'),
                 ])
                 ->action(function (array $data): void {
                     /** @var Appointment $appointment */
@@ -87,7 +92,10 @@ class EditAppointment extends EditRecord
                     try {
                         app(RescheduleAppointment::class)->handle(
                             appointment: $appointment,
-                            scheduledAt: Carbon::parse($data['scheduled_at']),
+                            scheduledAt: AppointmentTime::combine(
+                                $data['scheduled_at'],
+                                $data['appointment_time'],
+                            ),
                             customerInitiated: false,
                         );
                         Notification::make()->title('Appointment rescheduled')->success()->send();

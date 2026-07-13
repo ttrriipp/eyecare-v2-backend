@@ -13,7 +13,8 @@ use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\TimePicker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -55,6 +56,18 @@ test('appointment table displays and searches appointment numbers', function () 
         ->searchTable('SEARCH')
         ->assertCanSeeTableRecords([$matchingAppointment])
         ->assertCanNotSeeTableRecords([$otherAppointment]);
+});
+
+test('appointment table displays scheduled time in 12-hour format', function () {
+    $staff = User::factory()->staff()->create();
+    Appointment::factory()->create([
+        'scheduled_at' => '2026-07-13 14:30:00',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertSee('Jul 13, 2026 2:30 PM');
 });
 
 test('appointment table can filter by status and scheduled date', function () {
@@ -237,12 +250,15 @@ test('reschedule action keeps status and changes date while creating SMS', funct
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
-    $newDate = now()->addWeek()->setHour(10)->setMinute(0)->toDateTimeString();
+    $newDate = now()->next('Monday')->setTime(10, 0)->toDateTimeString();
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->callAction('reschedule', ['scheduled_at' => $newDate])
+        ->callAction('reschedule', [
+            'scheduled_at' => Carbon::parse($newDate)->toDateString(),
+            'appointment_time' => '10:00',
+        ])
         ->assertNotified();
 
     $fresh = $appointment->fresh();
@@ -276,6 +292,23 @@ test('scheduled_at cannot be changed via a plain edit form save', function () {
     $fresh = $appointment->fresh();
     expect($fresh->scheduled_at->format('Y-m-d H:i'))->toBe($originalDate->format('Y-m-d H:i'))
         ->and($fresh->status->name)->toBe('confirmed');
+});
+
+test('appointment edit form shows the scheduled time with an explicit meridiem', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => now()->addWeek()->setTime(14, 30),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSet('data.appointment_time', '14:30')
+        ->assertFormFieldExists(
+            'appointment_time',
+            checkFieldUsing: fn (TimePicker $field): bool => $field->isDisabled()
+                && $field->isNative(),
+        );
 });
 
 test('complete action transitions arrived appointment to completed', function () {
@@ -364,6 +397,7 @@ test('staff can create an appointment for a customer', function () {
     $customer = User::factory()->customer()->create();
     $visitReason = VisitReason::factory()->create();
     $optometrist = User::factory()->optometrist()->create();
+    $scheduledDate = now()->next('Monday');
 
     $this->actingAs($staff);
 
@@ -371,7 +405,8 @@ test('staff can create an appointment for a customer', function () {
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
+            'scheduled_at' => $scheduledDate->toDateString(),
+            'appointment_time' => '10:17',
             'source' => 'phone_call',
             'optometrist_id' => $optometrist->id,
         ])
@@ -387,9 +422,12 @@ test('staff can create an appointment for a customer', function () {
         'optometrist_id' => $optometrist->id,
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
     ]);
+
+    expect(Appointment::query()->latest('id')->firstOrFail()->scheduled_at->format('Y-m-d g:i A'))
+        ->toBe($scheduledDate->format('Y-m-d').' 10:17 AM');
 });
 
-test('appointment create form uses a staff friendly date time picker', function () {
+test('appointment create form uses separate date and explicit meridiem time fields', function () {
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff);
@@ -397,12 +435,18 @@ test('appointment create form uses a staff friendly date time picker', function 
     Livewire::test(CreateAppointment::class)
         ->assertFormFieldExists(
             'scheduled_at',
-            checkFieldUsing: fn (DateTimePicker $field): bool => $field->getLabel() === 'Appointment date and time'
-                && $field->getMinutesStep() === 30
-                && $field->getDisplayFormat() === 'M d, Y g:i A'
-                && $field->getFormat() === 'Y-m-d h:i A'
-                && ! $field->hasSeconds()
+            checkFieldUsing: fn (DatePicker $field): bool => $field->getLabel() === 'Appointment date'
+                && $field->getPlaceholder() === 'Choose an appointment date'
+                && $field->getSuffixIcon() === 'heroicon-o-calendar-days'
                 && ! $field->isNative(),
+        )
+        ->assertFormFieldExists(
+            'appointment_time',
+            checkFieldUsing: fn (TimePicker $field): bool => $field->getLabel() === 'Appointment time'
+                && $field->isNative()
+                && $field->getMinutesStep() === 1
+                && ! $field->hasSeconds()
+                && $field->getFormat() === 'H:i',
         );
 });
 
@@ -417,7 +461,8 @@ test('appointment create form rejects staff and admin accounts as patients', fun
         ->fillForm([
             'customer_id' => $nonPatient->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->toDateString(),
+            'appointment_time' => '10:00',
             'source' => 'phone_call',
         ])
         ->call('create')
@@ -438,7 +483,8 @@ test('appointment create form rejects a customer as assigned optometrist', funct
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->toDateString(),
+            'appointment_time' => '10:00',
             'optometrist_id' => $customer->id,
         ])
         ->call('create')
@@ -456,7 +502,8 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->fillForm([
             'customer_id' => $walkIn->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
+            'scheduled_at' => now()->next('Monday')->toDateString(),
+            'appointment_time' => '10:00',
         ])
         ->call('create')
         ->assertNotified()
@@ -532,12 +579,15 @@ test('reschedule row action changes appointment date without changing status', f
     $staff = User::factory()->staff()->create();
     $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
-    $newDate = now()->addWeek()->setHour(10)->setMinute(0)->toDateTimeString();
+    $newDate = now()->next('Monday')->setTime(10, 0)->toDateTimeString();
 
     $this->actingAs($staff);
 
     Livewire::test(ListAppointments::class)
-        ->callTableAction('reschedule', $appointment, ['scheduled_at' => $newDate])
+        ->callTableAction('reschedule', $appointment, [
+            'scheduled_at' => Carbon::parse($newDate)->toDateString(),
+            'appointment_time' => '10:00',
+        ])
         ->assertNotified();
 
     $fresh = $appointment->fresh();
@@ -574,7 +624,8 @@ test('appointment create form rejects past scheduled_at', function () {
         ->fillForm([
             'customer_id' => $customer->id,
             'visit_reason_id' => $visitReason->id,
-            'scheduled_at' => now()->subDay()->toDateTimeString(),
+            'scheduled_at' => now()->subDay()->toDateString(),
+            'appointment_time' => '10:00',
         ])
         ->call('create')
         ->assertHasFormErrors(['scheduled_at']);
