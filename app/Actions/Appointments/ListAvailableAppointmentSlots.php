@@ -37,6 +37,13 @@ class ListAvailableAppointmentSlots
             return [];
         }
 
+        $blockingAppointments = $this->evaluateAppointmentAvailability->blockingAppointmentsBetween(
+            startsAt: $slot,
+            endsAt: $closingTime,
+            ignoreAppointment: $ignoreAppointment,
+        );
+        $capacity = $this->evaluateAppointmentAvailability->eligibleOptometristCapacity();
+
         while ($slot->copy()->addMinutes($visitReason->duration_minutes)->lte($closingTime)) {
             $slots[] = $this->evaluateAppointmentAvailability->handle(
                 startsAt: $slot,
@@ -44,6 +51,8 @@ class ListAvailableAppointmentSlots
                 optometrist: $optometrist,
                 ignoreAppointment: $ignoreAppointment,
                 enforceFuture: true,
+                blockingAppointments: $blockingAppointments,
+                capacity: $capacity,
             );
 
             $slot->addMinutes($intervalMinutes);

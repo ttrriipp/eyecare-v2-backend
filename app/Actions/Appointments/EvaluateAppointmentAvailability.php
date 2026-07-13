@@ -18,6 +18,8 @@ class EvaluateAppointmentAvailability
         ?Appointment $ignoreAppointment = null,
         bool $enforceFuture = true,
         bool $enforceGrid = false,
+        ?Collection $blockingAppointments = null,
+        ?int $capacity = null,
     ): AppointmentAvailabilityDecision {
         $clinicStartsAt = $startsAt->copy()->setTimezone(config('app.timezone'));
         $endsAt = $clinicStartsAt->copy()->addMinutes($visitReason->duration_minutes);
@@ -38,8 +40,9 @@ class EvaluateAppointmentAvailability
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'outside_slot_grid');
         }
 
-        $appointments = $this->overlappingAppointments($clinicStartsAt, $endsAt, $ignoreAppointment);
-        $capacity = max(1, User::query()->optometrists()->count());
+        $appointments = $blockingAppointments
+            ?? $this->blockingAppointmentsBetween($clinicStartsAt, $endsAt, $ignoreAppointment);
+        $capacity ??= $this->eligibleOptometristCapacity();
 
         if ($this->wouldExceedCapacity($clinicStartsAt, $endsAt, $appointments, $capacity, $optometrist)) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'capacity_reached');
@@ -82,7 +85,15 @@ class EvaluateAppointmentAvailability
     /**
      * @return Collection<int, Appointment>
      */
-    private function overlappingAppointments(
+    public function eligibleOptometristCapacity(): int
+    {
+        return max(1, User::query()->optometrists()->count());
+    }
+
+    /**
+     * @return Collection<int, Appointment>
+     */
+    public function blockingAppointmentsBetween(
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
         ?Appointment $ignoreAppointment,

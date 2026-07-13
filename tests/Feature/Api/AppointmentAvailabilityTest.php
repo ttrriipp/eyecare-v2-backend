@@ -7,6 +7,7 @@ use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -282,4 +283,30 @@ test('availability can exclude the appointment being rescheduled', function () {
         'available' => true,
         'reason' => null,
     ]);
+});
+
+test('availability uses a bounded number of database queries for generated slots', function () {
+    Appointment::factory()->count(5)->sequence(
+        ['scheduled_at' => '2026-07-13 09:00:00'],
+        ['scheduled_at' => '2026-07-13 10:00:00'],
+        ['scheduled_at' => '2026-07-13 11:00:00'],
+        ['scheduled_at' => '2026-07-13 12:00:00'],
+        ['scheduled_at' => '2026-07-13 13:00:00'],
+    )->create([
+        'optometrist_id' => $this->optometrist->id,
+        'visit_reason_id' => $this->visitReason->id,
+    ]);
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+
+    $this->actingAs($this->customer, 'sanctum')->getJson('/api/appointments/availability?'.http_build_query([
+        'date' => '2026-07-13',
+        'visit_reason_id' => $this->visitReason->id,
+    ]))->assertOk();
+
+    $queryCount = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    expect($queryCount)->toBeLessThanOrEqual(12);
 });
