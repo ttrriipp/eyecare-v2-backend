@@ -70,7 +70,16 @@
                 </div>
 
                 {{-- Messages --}}
-                <div wire:poll.5s class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" id="chat-messages" data-chat-scroll-region="messages">
+                <div
+                    wire:poll.5s
+                    wire:key="conversation-messages-{{ $this->selectedConversation->id }}"
+                    x-data
+                    x-init="$nextTick(() => requestAnimationFrame(() => { $el.scrollTop = $el.scrollHeight }))"
+                    class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
+                    id="chat-messages"
+                    data-chat-scroll-region="messages"
+                    data-scroll-to-latest-on-init
+                >
                     @forelse ($this->messages ?? [] as $message)
                         @php
                             $isStaff = $message->sender?->role?->name !== 'customer';

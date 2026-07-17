@@ -70,6 +70,26 @@ test('selecting a conversation loads its messages', function () {
         ->assertSee('Hello from customer.');
 });
 
+test('selected conversations initialize at the latest message', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    Message::factory()->count(5)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $conversation->customer_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain("wire:key=\"conversation-messages-{$conversation->id}\"")
+        ->toContain('data-scroll-to-latest-on-init')
+        ->toContain('$el.scrollTop = $el.scrollHeight');
+});
+
 test('image attachments are displayed in the chat', function () {
     $staff = User::factory()->staff()->create();
     $conversation = Conversation::factory()->create();
