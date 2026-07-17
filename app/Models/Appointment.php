@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'completed_at',
     'contact_notes',
     'staff_notes',
+    'last_reschedule_reason',
 ])]
 class Appointment extends Model implements Eventable
 {

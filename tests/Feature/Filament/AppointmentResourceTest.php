@@ -258,6 +258,7 @@ test('reschedule action keeps status and changes date while creating SMS', funct
         ->callAction('reschedule', [
             'scheduled_at' => Carbon::parse($newDate)->toDateString(),
             'appointment_time' => '10:00',
+            'reschedule_reason' => 'Doctor unavailable',
         ])
         ->assertNotified();
 
@@ -265,12 +266,28 @@ test('reschedule action keeps status and changes date while creating SMS', funct
     expect($fresh->status->name)->toBe('confirmed')
         ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
             Carbon::parse($newDate)->format('Y-m-d H:i')
-        );
+        )
+        ->and($fresh->last_reschedule_reason)->toBe('Doctor unavailable');
 
     $this->assertDatabaseHas(SmsNotification::class, [
         'appointment_id' => $appointment->id,
         'event' => 'appointment_rescheduled',
     ]);
+});
+
+test('reschedule header action requires a reason', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->callAction('reschedule', [
+            'scheduled_at' => now()->next('Monday')->toDateString(),
+            'appointment_time' => '10:00',
+        ])
+        ->assertHasFormErrors(['reschedule_reason' => 'required']);
 });
 
 test('scheduled_at cannot be changed via a plain edit form save', function () {
@@ -419,6 +436,7 @@ test('staff can create an appointment for a customer', function () {
         'customer_id' => $customer->id,
         'visit_reason_id' => $visitReason->id,
         'source' => 'phone_call',
+        'created_by' => $staff->id,
         'optometrist_id' => $optometrist->id,
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'confirmed')->value('id'),
     ]);
@@ -512,6 +530,8 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
 
     $this->assertDatabaseHas(Appointment::class, [
         'customer_id' => $walkIn->id,
+        'source' => 'staff_created',
+        'created_by' => $staff->id,
     ]);
 
     expect($walkIn->email)->toBeNull()
@@ -543,6 +563,11 @@ test('WalkIn staff can add a patient to the queue', function () {
         'source' => 'walk_in',
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
     ]);
+
+    $appointment = Appointment::query()->whereBelongsTo($patient, 'customer')->firstOrFail();
+
+    Livewire::test(ListAppointments::class)
+        ->assertTableColumnFormattedStateSet('source', 'Walk-in', record: $appointment);
 });
 
 test('WalkIn queue filter shows only todays waiting patients', function () {
@@ -573,6 +598,32 @@ test('WalkIn queue filter shows only todays waiting patients', function () {
         ->assertCanNotSeeTableRecords([$scheduled, $finished]);
 });
 
+test('WalkIn queue filter shows todays waiting patients even after another status tab was active', function () {
+    $staff = User::factory()->staff()->create();
+    $arrived = AppointmentStatus::query()->where('name', 'arrived')->firstOrFail();
+    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+
+    $waiting = Appointment::factory()->create([
+        'source' => 'walk_in',
+        'appointment_status_id' => $arrived->id,
+        'scheduled_at' => now(),
+    ]);
+
+    $confirmedAppointment = Appointment::factory()->create([
+        'source' => 'staff_created',
+        'appointment_status_id' => $confirmed->id,
+        'scheduled_at' => now(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->set('activeTab', 'confirmed')
+        ->filterTable('walk_in_queue', true)
+        ->assertCanSeeTableRecords([$waiting])
+        ->assertCanNotSeeTableRecords([$confirmedAppointment]);
+});
+
 test('reschedule row action changes appointment date without changing status', function () {
     Http::fake();
 
@@ -587,6 +638,7 @@ test('reschedule row action changes appointment date without changing status', f
         ->callTableAction('reschedule', $appointment, [
             'scheduled_at' => Carbon::parse($newDate)->toDateString(),
             'appointment_time' => '10:00',
+            'reschedule_reason' => 'Clinic schedule conflict',
         ])
         ->assertNotified();
 
@@ -594,12 +646,28 @@ test('reschedule row action changes appointment date without changing status', f
     expect($fresh->status->name)->toBe('confirmed')
         ->and($fresh->scheduled_at->format('Y-m-d H:i'))->toBe(
             Carbon::parse($newDate)->format('Y-m-d H:i')
-        );
+        )
+        ->and($fresh->last_reschedule_reason)->toBe('Clinic schedule conflict');
 
     $this->assertDatabaseHas(SmsNotification::class, [
         'appointment_id' => $appointment->id,
         'event' => 'appointment_rescheduled',
     ]);
+});
+
+test('reschedule row action requires a reason', function () {
+    $staff = User::factory()->staff()->create();
+    $confirmedStatus = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $appointment = Appointment::factory()->create(['appointment_status_id' => $confirmedStatus->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('reschedule', $appointment, [
+            'scheduled_at' => now()->next('Monday')->toDateString(),
+            'appointment_time' => '10:00',
+        ])
+        ->assertHasFormErrors(['reschedule_reason' => 'required']);
 });
 
 test('reschedule row action is hidden for cancelled and completed appointments', function (string $statusName) {

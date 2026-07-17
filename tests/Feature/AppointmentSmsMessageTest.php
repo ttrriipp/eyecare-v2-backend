@@ -46,7 +46,7 @@ it('builds a cancellation message containing the scheduled date', function () {
 });
 
 it('builds a reschedule message containing the new scheduled date', function () {
-    $newDate = now()->addDays(5)->setHour(10)->setMinute(0);
+    $newDate = now()->next('Monday')->setHour(10)->setMinute(0);
     $appointment = Appointment::factory()->create();
 
     app(RescheduleAppointment::class)->handle($appointment, $newDate, customerInitiated: true);
@@ -56,6 +56,24 @@ it('builds a reschedule message containing the new scheduled date', function () 
     expect($sms->event)->toBe('appointment_rescheduled')
         ->and($sms->message)->toContain($newDate->toDateTimeString())
         ->and($sms->message)->toContain('rescheduled');
+});
+
+it('builds a staff reschedule message containing the reason', function () {
+    $newDate = now()->next('Monday')->setHour(10)->setMinute(0);
+    $appointment = Appointment::factory()->create();
+
+    app(RescheduleAppointment::class)->handle(
+        appointment: $appointment,
+        scheduledAt: $newDate,
+        customerInitiated: false,
+        rescheduleReason: 'Doctor unavailable',
+    );
+
+    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->firstOrFail();
+
+    expect($sms->event)->toBe('appointment_rescheduled')
+        ->and($sms->message)->toContain($newDate->toDateTimeString())
+        ->and($sms->message)->toContain('Doctor unavailable');
 });
 
 it('does not create an sms record for arrival or completion', function () {

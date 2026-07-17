@@ -10,6 +10,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -85,6 +86,11 @@ class EditAppointment extends EditRecord
                         ->seconds(false)
                         ->minutesStep(1)
                         ->format('H:i'),
+                    Textarea::make('reschedule_reason')
+                        ->label('Reason')
+                        ->required()
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
                     /** @var Appointment $appointment */
@@ -97,6 +103,7 @@ class EditAppointment extends EditRecord
                                 $data['appointment_time'],
                             ),
                             customerInitiated: false,
+                            rescheduleReason: $data['reschedule_reason'],
                         );
                         Notification::make()->title('Appointment rescheduled')->success()->send();
                         $this->refreshFormData(['appointment_status_id', 'scheduled_at']);

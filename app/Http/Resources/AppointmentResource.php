@@ -26,6 +26,7 @@ class AppointmentResource extends JsonResource
             'scheduled_at' => $this->scheduled_at->toISOString(),
             'contact_notes' => $this->contact_notes,
             'staff_notes' => $this->staff_notes,
+            'last_reschedule_reason' => $this->last_reschedule_reason,
             'source' => $this->source,
             'assigned_optometrist' => $this->optometrist ? ['id' => $this->optometrist->id, 'name' => $this->optometrist->name] : null,
         ];

@@ -69,14 +69,14 @@ class VariantsRelationManager extends RelationManager
             Toggle::make('is_active')
                 ->label('Visibility')
                 ->helperText(
-                    fn (bool $state): string => $state
+                    fn(bool $state): string => $state
                         ? 'This variant is available to customers.'
                         : 'This variant will be hidden from all sales channels.'
                 )
                 ->default(true),
             Toggle::make('ar_eligible')
                 ->live()
-                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
+                ->visible(fn(): bool => $this->getOwnerRecord()->product_type === 'frame'),
             FileUpload::make('ar_asset_reference')
                 ->label('AR Asset (PNG or 3D Model)')
                 ->disk('public')
@@ -86,8 +86,8 @@ class VariantsRelationManager extends RelationManager
                 ->helperText('Accepted: .png, .glb, .gltf, .obj')
                 ->rules(['nullable', 'file', 'extensions:png,glb,gltf,obj'])
                 ->helperText('PNG overlay or 3D model (.glb, .gltf, .obj)')
-                ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
-                ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
+                ->required(fn(Get $get): bool => (bool) $get('ar_eligible'))
+                ->visible(fn(Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
                 ->columnSpanFull(),
             FileUpload::make('images')
@@ -95,6 +95,7 @@ class VariantsRelationManager extends RelationManager
                 ->directory('variants')
                 ->visibility('public')
                 ->image()
+                ->imageEditor()
                 ->multiple()
                 ->reorderable()
                 ->appendFiles()
@@ -107,11 +108,11 @@ class VariantsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class]))
+            ->modifyQueryUsing(fn(Builder $query) => $query->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
                 ImageColumn::make('images')
                     ->label('Image')
-                    ->state(fn ($record): ?string => collect($record->images)->first())
+                    ->state(fn($record): ?string => collect($record->images)->first())
                     ->disk('public')
                     ->square()
                     ->size(40),
@@ -136,7 +137,7 @@ class VariantsRelationManager extends RelationManager
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('gray')
-                    ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
+                    ->visible(fn(): bool => $this->getOwnerRecord()->product_type === 'frame'),
                 TextColumn::make('stock_quantity')
                     ->label('Qty')
                     ->sortable(),
@@ -156,11 +157,11 @@ class VariantsRelationManager extends RelationManager
                     EditAction::make()
                         ->color('info'),
                     Action::make('toggleVisibility')
-                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
-                        ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
-                        ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
-                        ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
-                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
+                        ->label(fn($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->icon(fn($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
+                        ->color(fn($record): string => $record->is_active ? 'warning' : 'success')
+                        ->action(fn($record) => $record->update(['is_active' => ! $record->is_active]))
+                        ->successNotificationTitle(fn($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
@@ -182,12 +183,12 @@ class VariantsRelationManager extends RelationManager
                                 ->prefix('₱')
                                 ->helperText('Internal only — not shown to customers.'),
                         ])
-                        ->fillForm(fn ($record): array => [
+                        ->fillForm(fn($record): array => [
                             'price' => $record->price,
                             'compare_at_price' => $record->compare_at_price,
                             'cost_price' => $record->cost_price,
                         ])
-                        ->action(fn (array $data, $record) => $record->update([
+                        ->action(fn(array $data, $record) => $record->update([
                             'price' => $data['price'],
                             'compare_at_price' => $data['compare_at_price'],
                             'cost_price' => $data['cost_price'],
@@ -208,7 +209,7 @@ class VariantsRelationManager extends RelationManager
                                 ->live(),
                             TextInput::make('quantity')
                                 ->label(
-                                    fn (FormGet $get): string => $get('type') === 'restock'
+                                    fn(FormGet $get): string => $get('type') === 'restock'
                                         ? 'Units to add'
                                         : 'Units to remove'
                                 )
@@ -270,7 +271,7 @@ class VariantsRelationManager extends RelationManager
                         }),
                     RestoreAction::make()
                         ->label('Restore')
-                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                        ->visible(fn($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                     DeleteAction::make()
                         ->label('Archive')
                         ->icon('heroicon-o-archive-box')
@@ -279,7 +280,7 @@ class VariantsRelationManager extends RelationManager
                         ->modalDescription('This will hide the variant from active lists. It can be restored later from the "Show Archived" filter.')
                         ->modalSubmitActionLabel('Archive')
                         ->color('danger')
-                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                        ->visible(fn($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ]);
     }

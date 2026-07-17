@@ -14,6 +14,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -159,6 +160,11 @@ class AppointmentsTable
                                 ->seconds(false)
                                 ->minutesStep(1)
                                 ->format('H:i'),
+                            Textarea::make('reschedule_reason')
+                                ->label('Reason')
+                                ->required()
+                                ->maxLength(1000)
+                                ->columnSpanFull(),
                         ])
                         ->action(function (Appointment $record, array $data): void {
                             try {
@@ -169,6 +175,7 @@ class AppointmentsTable
                                         $data['appointment_time'],
                                     ),
                                     customerInitiated: false,
+                                    rescheduleReason: $data['reschedule_reason'],
                                 );
                                 Notification::make()->title('Appointment rescheduled')->success()->send();
                             } catch (ValidationException $e) {

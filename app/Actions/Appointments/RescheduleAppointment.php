@@ -25,6 +25,7 @@ class RescheduleAppointment
         Appointment $appointment,
         CarbonInterface $scheduledAt,
         bool $customerInitiated,
+        ?string $rescheduleReason = null,
     ): Appointment {
         if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
             throw ValidationException::withMessages([
@@ -32,9 +33,17 @@ class RescheduleAppointment
             ]);
         }
 
+        $rescheduleReason = filled($rescheduleReason) ? trim($rescheduleReason) : null;
+
+        if (! $customerInitiated && $rescheduleReason === null) {
+            throw ValidationException::withMessages([
+                'reschedule_reason' => ['A reschedule reason is required.'],
+            ]);
+        }
+
         $appointment->loadMissing(['visitReason', 'optometrist', 'customer']);
 
-        return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated): Appointment {
+        return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {
@@ -56,20 +65,24 @@ class RescheduleAppointment
                 $attributes['appointment_status_id'] = AppointmentStatus::query()
                     ->where('name', 'pending')
                     ->value('id');
+                $attributes['last_reschedule_reason'] = null;
+            } else {
+                $attributes['last_reschedule_reason'] = $rescheduleReason;
             }
 
             $appointment->update($attributes);
             $appointment->load(['customer', 'visitReason', 'status', 'optometrist']);
 
-            $this->createSmsNotification($appointment);
+            $this->createSmsNotification($appointment, $rescheduleReason);
             $appointment->customer->notify(new AppointmentRescheduled($appointment));
             $this->createAuditLog->handle(
                 subject: $appointment,
                 action: 'appointment.rescheduled',
-                metadata: [
+                metadata: array_filter([
                     'from' => $previousScheduledAt,
                     'to' => $appointment->scheduled_at->toDateTimeString(),
-                ],
+                    'reason' => $rescheduleReason,
+                ], fn ($value): bool => $value !== null),
             );
 
             return $appointment->fresh(['customer', 'visitReason', 'status', 'optometrist']);
@@ -118,14 +131,20 @@ class RescheduleAppointment
         ], 422));
     }
 
-    private function createSmsNotification(Appointment $appointment): void
+    private function createSmsNotification(Appointment $appointment, ?string $rescheduleReason): void
     {
+        $message = "Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.";
+
+        if ($rescheduleReason !== null) {
+            $message .= " Reason: {$rescheduleReason}.";
+        }
+
         SmsNotification::query()->create([
             'appointment_id' => $appointment->id,
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
             'recipient' => $appointment->customer->phone ?? $appointment->customer->email,
-            'message' => "Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
+            'message' => $message,
         ]);
     }
 }
