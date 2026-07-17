@@ -40,10 +40,17 @@ class ProductFactory extends Factory
         ]);
     }
 
-    public function general(): static
+    public function contactLens(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'product_type' => 'general',
+            'product_type' => 'contact_lens',
+        ]);
+    }
+
+    public function accessory(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'product_type' => 'accessory',
         ]);
     }
 }

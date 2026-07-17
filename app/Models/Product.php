@@ -27,6 +27,21 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use HasFactory, SoftDeletes;
 
+    /** @var array<string, string> */
+    public const array TYPE_OPTIONS = [
+        'frame' => 'Frame',
+        'lens' => 'Lens',
+        'contact_lens' => 'Contact Lens',
+        'accessory' => 'Accessory',
+    ];
+
+    /** @var list<string> */
+    public const array DIRECTLY_ORDERABLE_TYPES = [
+        'frame',
+        'contact_lens',
+        'accessory',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $product): void {

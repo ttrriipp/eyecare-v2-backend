@@ -155,10 +155,12 @@ test('product_variants table has attributes column not dimensions', function () 
         ->and($columns)->not->toContain('dimensions');
 });
 
-test('product_type accepts general value', function () {
-    $product = Product::factory()->general()->create();
+test('product_type accepts contact lens and accessory values', function () {
+    $contactLens = Product::factory()->contactLens()->create();
+    $accessory = Product::factory()->accessory()->create();
 
-    expect($product->product_type)->toBe('general');
+    expect($contactLens->product_type)->toBe('contact_lens')
+        ->and($accessory->product_type)->toBe('accessory');
 });
 
 test('lens products can be linked to a lens category', function () {
