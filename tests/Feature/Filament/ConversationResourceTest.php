@@ -88,6 +88,7 @@ test('image attachments are displayed in the chat', function () {
         ->toContain('data-message-image-attachment')
         ->toContain("/attachments/{$attachment->id}/preview")
         ->toContain('alt="customer-screenshot.jpg"')
+        ->toContain('class="inline-block max-w-full align-top"')
         ->not->toContain('data-message-body');
 });
 

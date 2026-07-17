@@ -127,7 +127,7 @@
                                                     href="{{ route('attachments.preview', $attachment) }}"
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    class="block"
+                                                    class="inline-block max-w-full align-top"
                                                     data-message-image-attachment
                                                 >
                                                     <img
