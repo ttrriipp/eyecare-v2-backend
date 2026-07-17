@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -42,7 +43,7 @@ class StoreOrderRequest extends FormRequest
                         $query->select('id')
                             ->from('products')
                             ->where('is_active', true)
-                            ->whereIn('product_type', ['frame', 'general']);
+                            ->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES);
                     }),
             ],
             'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],

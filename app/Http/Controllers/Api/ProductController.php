@@ -15,7 +15,7 @@ class ProductController extends Controller
     {
         $query = Product::query()
             ->where('is_active', true)
-            ->whereIn('product_type', ['frame', 'general'])
+            ->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES)
             ->with([
                 'brand',
                 'category',
@@ -88,7 +88,7 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        abort_unless($product->is_active && in_array($product->product_type, ['frame', 'general'], true), 404);
+        abort_unless($product->is_active && in_array($product->product_type, Product::DIRECTLY_ORDERABLE_TYPES, true), 404);
 
         $product->load([
             'brand',

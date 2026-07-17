@@ -232,6 +232,28 @@ test('order requests reject lens-type products as direct order line items', func
         ->assertJsonValidationErrors(['items.0.product_variant_id']);
 });
 
+test('order requests accept contact lens and accessory products as direct order line items', function () {
+    $customer = User::factory()->customer()->create();
+    $contactLensVariant = ProductVariant::factory()
+        ->for(Product::factory()->contactLens())
+        ->create(['is_active' => true]);
+    $accessoryVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['is_active' => true]);
+
+    foreach ([$contactLensVariant, $accessoryVariant] as $variant) {
+        $this->actingAs($customer, 'sanctum')
+            ->postJson('/api/orders', [
+                'is_non_prescription' => true,
+                'items' => [
+                    ['product_variant_id' => $variant->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.items.0.product_variant_id', $variant->id);
+    }
+});
+
 test('order requests require items and non prescription flag', function () {
     $customer = User::factory()->customer()->create();
 

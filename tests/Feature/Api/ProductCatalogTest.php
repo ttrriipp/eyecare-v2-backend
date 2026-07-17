@@ -24,12 +24,14 @@ test('authenticated customers can list active products', function () {
         ->and($productIds)->not->toContain(Product::query()->where('name', 'Inactive Frame')->value('id'));
 });
 
-test('product listing includes general products and excludes lens products', function () {
+test('product listing includes directly orderable types and excludes lens and legacy general products', function () {
     $customer = User::factory()->customer()->create();
 
     $frame = Product::factory()->create(['name' => 'Listed Frame']);
-    $general = Product::factory()->general()->create(['name' => 'Listed Solution']);
+    $contactLens = Product::factory()->contactLens()->create(['name' => 'Listed Contact Lens']);
+    $accessory = Product::factory()->accessory()->create(['name' => 'Listed Solution']);
     $lens = Product::factory()->create(['name' => 'Hidden Lens', 'product_type' => 'lens']);
+    $legacyGeneral = Product::factory()->create(['name' => 'Legacy General', 'product_type' => 'general']);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->getJson('/api/products');
@@ -39,23 +41,36 @@ test('product listing includes general products and excludes lens products', fun
     $productIds = collect($response->json('data'))->pluck('id')->all();
 
     expect($productIds)->toContain($frame->id)
-        ->and($productIds)->toContain($general->id)
-        ->and($productIds)->not->toContain($lens->id);
+        ->and($productIds)->toContain($contactLens->id)
+        ->and($productIds)->toContain($accessory->id)
+        ->and($productIds)->not->toContain($lens->id)
+        ->and($productIds)->not->toContain($legacyGeneral->id);
 });
 
-test('general product detail is accessible, lens product detail returns 404', function () {
+test('contact lens and accessory details are accessible while lens and legacy general return 404', function () {
     $customer = User::factory()->customer()->create();
 
-    $general = Product::factory()->general()->create();
+    $contactLens = Product::factory()->contactLens()->create();
+    $accessory = Product::factory()->accessory()->create();
     $lens = Product::factory()->create(['product_type' => 'lens']);
+    $legacyGeneral = Product::factory()->create(['product_type' => 'general']);
 
     $this->actingAs($customer, 'sanctum')
-        ->getJson("/api/products/{$general->id}")
+        ->getJson("/api/products/{$contactLens->id}")
         ->assertSuccessful()
-        ->assertJsonPath('data.product_type', 'general');
+        ->assertJsonPath('data.product_type', 'contact_lens');
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$accessory->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.product_type', 'accessory');
 
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/products/{$lens->id}")
+        ->assertNotFound();
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/products/{$legacyGeneral->id}")
         ->assertNotFound();
 });
 
@@ -127,23 +142,25 @@ test('unauthenticated users cannot access product catalog endpoints', function (
     $this->getJson("/api/products/{$product->id}")->assertUnauthorized();
 });
 
-test('mobile api returns frame and general products, excludes lens', function () {
+test('mobile api returns frame contact lens and accessory products and excludes lens', function () {
     $customer = User::factory()->customer()->create();
 
     $frame = Product::factory()->create(['product_type' => 'frame']);
     $lens = Product::factory()->create(['product_type' => 'lens']);
-    $general = Product::factory()->general()->create();
+    $contactLens = Product::factory()->contactLens()->create();
+    $accessory = Product::factory()->accessory()->create();
 
     $response = $this->actingAs($customer, 'sanctum')->getJson('/api/products');
 
     $productIds = collect($response->json('data'))->pluck('id')->all();
 
     expect($productIds)->toContain($frame->id)
-        ->and($productIds)->toContain($general->id)
+        ->and($productIds)->toContain($contactLens->id)
+        ->and($productIds)->toContain($accessory->id)
         ->and($productIds)->not->toContain($lens->id);
 });
 
-test('mobile api returns 404 for non-frame product detail', function () {
+test('mobile api returns 404 for optical lens product detail', function () {
     $customer = User::factory()->customer()->create();
     $lens = Product::factory()->create(['product_type' => 'lens']);
 
