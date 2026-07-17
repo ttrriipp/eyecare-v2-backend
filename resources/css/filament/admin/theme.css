@@ -18,6 +18,17 @@
     overflow: hidden;
 }
 
+.fi-page.fi-conversation-chat-page .fi-page-header-main-ctn,
+.fi-page.fi-conversation-chat-page .fi-page-main,
+.fi-page.fi-conversation-chat-page .fi-page-content {
+    min-height: 0;
+}
+
+.fi-page.fi-conversation-chat-page .fi-page-main {
+    flex: 1 1 0%;
+    height: auto;
+}
+
 /* Subtle, on-brand "today" highlight (the package default is undefined here, so it
    falls back to a noisy library default). Keep it quiet in both modes. */
 .ec {
