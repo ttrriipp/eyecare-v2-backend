@@ -104,10 +104,26 @@
                                     </div>
                                 @endif
 
-                                {{-- Attachment metadata --}}
+                                {{-- Attachments --}}
                                 @if ($message->attachments->isNotEmpty())
-                                    <div class="mt-1.5 space-y-1">
+                                    <div class="mt-2 space-y-2">
                                         @foreach ($message->attachments as $attachment)
+                                            @if (str_starts_with($attachment->mime_type, 'image/'))
+                                                <a
+                                                    href="{{ route('attachments.preview', $attachment) }}"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="block"
+                                                    data-message-image-attachment
+                                                >
+                                                    <img
+                                                        src="{{ route('attachments.preview', $attachment) }}"
+                                                        alt="{{ $attachment->original_name }}"
+                                                        loading="lazy"
+                                                        class="max-h-80 max-w-full rounded-lg border border-gray-200 object-contain dark:border-white/10"
+                                                    >
+                                                </a>
+                                            @endif
                                             <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                                                 <x-heroicon-o-paper-clip class="h-3.5 w-3.5 shrink-0" />
                                                 <span>{{ $attachment->original_name }}</span>

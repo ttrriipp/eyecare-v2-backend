@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MessageAttachmentPreviewController;
 use App\Models\Billing;
 use App\Models\Prescription;
 use App\Services\PdfService;
@@ -22,8 +23,11 @@ Route::get('/health', function () {
     }
 });
 
-// ── PDF downloads (admin panel — must be authenticated staff/admin) ──────────
+// ── Admin panel file responses (authenticated staff/admin only) ─────────────
 Route::middleware(['auth', 'web'])->group(function () {
+    Route::get('/attachments/{attachment}/preview', MessageAttachmentPreviewController::class)
+        ->name('attachments.preview');
+
     Route::get('/pdf/prescriptions/{prescription}', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
 
