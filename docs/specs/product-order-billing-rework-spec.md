@@ -1,5 +1,7 @@
 # Spec: Product Taxonomy, Order Flow & Billing Rework
 
+> **Superseded in part:** The three-type product taxonomy in this completed historical specification is superseded by `docs/specs/product-type-expansion-spec.md`. The order-flow and billing decisions remain current.
+
 ## Objective
 
 Rework three interconnected systems to better reflect actual optical clinic operations:

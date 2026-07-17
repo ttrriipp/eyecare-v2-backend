@@ -3,6 +3,8 @@
 Status: Complete — implemented in commit b5133f7
 Phase: Done
 
+> **Taxonomy update:** Product type guidance in this historical refactor is superseded by `docs/specs/product-type-expansion-spec.md`. The product/variant ownership decision remains current.
+
 ## Decision
 
 Removed `price` and `dimensions` from the `products` table. These fields now exist exclusively on `product_variants`.
@@ -33,7 +35,7 @@ An optical clinic never sells "a product" — it sells a specific variant (frame
 
 ## Simple Products (No Dimensions)
 
-For products with no meaningful variation (e.g., lens cleaning kit), staff creates one variant named "Standard" or "Default" with price and stock. Dimensions are left blank — the field is nullable. No special "product type" flag is needed.
+For products with no meaningful variation (e.g., lens cleaning kit), staff creates one variant named "Standard" or "Default" with price and stock. Dimensions are left blank — the field is nullable. The product uses the `accessory` type, but no additional variant structure is needed.
 
 ## Enforcement
 

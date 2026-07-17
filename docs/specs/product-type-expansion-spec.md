@@ -1,7 +1,7 @@
 # Spec: Product Type Expansion
 
-Status: Phases 1-2 approved - awaiting Phase 3 approval
-Phase: Tasks
+Status: Implemented - focused verification complete; unrelated full-suite failures recorded
+Phase: Done
 
 ## Objective
 
@@ -297,14 +297,14 @@ None. The plan follows the approved Phase 1 boundaries.
 
 **Acceptance criteria:**
 
-- [ ] `Product` exposes labels for exactly `frame`, `lens`, `contact_lens`, and `accessory` and an allowlist containing exactly the three directly orderable types.
-- [ ] `ProductFactory` provides `contactLens()` and `accessory()` states and no longer provides `general()`.
-- [ ] A new forward migration passes when no `general` products exist and fails descriptively without mutating data when they do.
+- [x] `Product` exposes labels for exactly `frame`, `lens`, `contact_lens`, and `accessory` and an allowlist containing exactly the three directly orderable types.
+- [x] `ProductFactory` provides `contactLens()` and `accessory()` states and no longer provides `general()`.
+- [x] A new forward migration passes when no `general` products exist and fails descriptively without mutating data when they do.
 
 **Verification:**
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/ProductTypeTest.php tests/Feature/CatalogSchemaTest.php`.
-- [ ] Run `vendor/bin/sail artisan migrate --no-interaction` against the inspected local database after the guard test passes.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/ProductTypeTest.php tests/Feature/CatalogSchemaTest.php`.
+- [x] Run `vendor/bin/sail artisan migrate --no-interaction` against the inspected local database after the guard test passes.
 
 **Dependencies:** None.
 
@@ -320,9 +320,9 @@ None. The plan follows the approved Phase 1 boundaries.
 
 ### Checkpoint 1: Foundation
 
-- [ ] The type-contract and schema tests pass.
-- [ ] The migration guard has been exercised for both safe and blocked states.
-- [ ] No existing product data changed during the migration.
+- [x] The type-contract and schema tests pass.
+- [x] The migration guard has been exercised for both safe and blocked states.
+- [x] No existing product data changed during the migration.
 
 ### Task 2: Expand the Mobile Catalog and Direct Ordering Contract
 
@@ -330,13 +330,13 @@ None. The plan follows the approved Phase 1 boundaries.
 
 **Acceptance criteria:**
 
-- [ ] Catalog list and detail endpoints return active frames, contact lenses, and accessories with their exact stored type values.
-- [ ] Catalog list and detail endpoints continue to hide or reject optical lenses and inactive products.
-- [ ] Mobile order requests accept active frame, contact-lens, and accessory variants and reject optical-lens variants.
+- [x] Catalog list and detail endpoints return active frames, contact lenses, and accessories with their exact stored type values.
+- [x] Catalog list and detail endpoints continue to hide or reject optical lenses and inactive products.
+- [x] Mobile order requests accept active frame, contact-lens, and accessory variants and reject optical-lens variants.
 
 **Verification:**
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/ProductCatalogTest.php tests/Feature/Api/OrderRequestTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/ProductCatalogTest.php tests/Feature/Api/OrderRequestTest.php`.
 
 **Dependencies:** Task 1.
 
@@ -351,9 +351,9 @@ None. The plan follows the approved Phase 1 boundaries.
 
 ### Checkpoint 2: API
 
-- [ ] Product catalog tests pass for all four types.
-- [ ] Mobile order validation tests pass for all directly orderable types and optical-lens rejection.
-- [ ] Existing search, sorting, pagination, stock, and authentication assertions remain green.
+- [x] Product catalog tests pass for all four types.
+- [x] Mobile order validation tests pass for all directly orderable types and optical-lens rejection.
+- [x] Existing search, sorting, pagination, stock, and authentication assertions remain green.
 
 ### Task 3: Expand Filament Product Management
 
@@ -361,14 +361,14 @@ None. The plan follows the approved Phase 1 boundaries.
 
 **Acceptance criteria:**
 
-- [ ] Product creation offers exactly Frame, Lens, Contact Lens, and Accessory.
-- [ ] Product list filtering and all product type badges show the four readable labels with the planned colors.
-- [ ] Lens Category remains lens-only, AR fields remain frame-only, and the RichEditor toolbar change is untouched.
+- [x] Product creation offers exactly Frame, Lens, Contact Lens, and Accessory.
+- [x] Product list filtering and all product type badges show the four readable labels with the planned colors.
+- [x] Lens Category remains lens-only, AR fields remain frame-only, and the RichEditor toolbar change is untouched.
 
 **Verification:**
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/CatalogResourceTest.php`.
-- [ ] Compare `git diff -- app/Filament/Resources/Products/Schemas/ProductForm.php` and confirm the pre-existing RichEditor change remains present.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/CatalogResourceTest.php`.
+- [x] Compare `git diff -- app/Filament/Resources/Products/Schemas/ProductForm.php` and confirm the pre-existing RichEditor change remains present.
 
 **Dependencies:** Task 1.
 
@@ -388,13 +388,13 @@ None. The plan follows the approved Phase 1 boundaries.
 
 **Acceptance criteria:**
 
-- [ ] Create-order and edit-order selectors include active frame, contact-lens, and accessory variants.
-- [ ] The order-items relation manager uses the same allowlist for create and edit actions.
-- [ ] Optical lens variants remain excluded, and existing frame lens-assignment behavior remains green.
+- [x] Create-order and edit-order selectors include active frame, contact-lens, and accessory variants.
+- [x] The order-items relation manager uses the same allowlist for create and edit actions.
+- [x] Optical lens variants remain excluded, and existing frame lens-assignment behavior remains green.
 
 **Verification:**
 
-- [ ] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/OrderResourceTest.php`.
+- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/OrderResourceTest.php`.
 
 **Dependencies:** Task 1.
 
@@ -409,10 +409,10 @@ None. The plan follows the approved Phase 1 boundaries.
 
 ### Checkpoint 3: Filament
 
-- [ ] Catalog resource tests pass.
-- [ ] Order resource tests pass.
-- [ ] Product form type-specific visibility behaves as before for frames and optical lenses.
-- [ ] The unrelated ProductForm RichEditor modification remains intact.
+- [x] Catalog resource tests pass.
+- [x] Order resource tests pass.
+- [x] Product form type-specific visibility behaves as before for frames and optical lenses.
+- [x] The unrelated ProductForm RichEditor modification remains intact.
 
 ### Task 5: Align Documentation and Complete Verification
 
@@ -420,16 +420,16 @@ None. The plan follows the approved Phase 1 boundaries.
 
 **Acceptance criteria:**
 
-- [ ] Current documentation describes the four types and the new catalog/order behavior.
-- [ ] Historical specifications remain available and clearly point to this superseding specification where their taxonomy is outdated.
-- [ ] Active code and tests contain no supported `general` behavior outside the historical consolidation migration and the new legacy-data guard.
+- [x] Current documentation describes the four types and the new catalog/order behavior.
+- [x] Historical specifications remain available and clearly point to this superseding specification where their taxonomy is outdated.
+- [x] Active code and tests contain no supported `general` behavior outside the historical consolidation migration and the new legacy-data guard.
 
 **Verification:**
 
-- [ ] Run `rg -n "general" app database/factories database/seeders tests docs/BACKEND_CONTEXT.md` and review every remaining match.
-- [ ] Run `vendor/bin/sail bin pint --dirty --format agent`.
-- [ ] Re-run the focused tests listed in Tasks 1-4.
-- [ ] Run `vendor/bin/sail artisan test --compact`.
+- [x] Run `rg -n "general" app database/factories database/seeders tests docs/BACKEND_CONTEXT.md` and review every remaining match.
+- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
+- [x] Re-run the focused tests listed in Tasks 1-4.
+- [x] Run `vendor/bin/sail artisan test --compact`.
 
 **Dependencies:** Tasks 1-4.
 
@@ -444,12 +444,22 @@ None. The plan follows the approved Phase 1 boundaries.
 
 ### Final Checkpoint
 
-- [ ] All specification success criteria are satisfied.
-- [ ] The legacy-data guard passes on the inspected database.
-- [ ] Focused and full Pest suites pass.
-- [ ] Pint has formatted all modified PHP files.
-- [ ] No unrelated worktree changes were reverted or overwritten.
-- [ ] The specification status is `Complete` and its phase is `Done`.
+- [ ] All specification success criteria are satisfied; the repository-wide suite has unrelated appointment failures detailed below.
+- [x] The legacy-data guard passes on the inspected database.
+- [x] Focused product-type Pest suite passes.
+- [ ] Full Pest suite passes; two unrelated appointment tests fail consistently.
+- [x] Pint has formatted all modified PHP files.
+- [x] No unrelated worktree changes were reverted or overwritten.
+- [x] The specification status accurately records implementation and verification exceptions.
+
+### Verification Results
+
+- Focused product-type suite: 81 tests passed, 309 assertions, 0 failures.
+- Full suite: 672 tests executed, 669 passed, 1 failure, and 2 errors.
+- The booking deadlock error passed when isolated and was transient.
+- `AppointmentStaffAuditTest` consistently expects a Filament notification that is not sent by the current appointment flow.
+- `CalendarInteractivityTest` consistently calls rescheduling without the now-required reason and receives the expected validation exception.
+- Neither persistent failure executes product-type code or touches files changed by this feature. They were not modified because appointment behavior is outside this specification.
 
 ### Phase 3 Open Questions
 
