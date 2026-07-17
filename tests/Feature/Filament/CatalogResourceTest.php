@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -29,6 +30,39 @@ test('staff and admin users can list products', function (string $factoryState) 
     'admin' => ['admin'],
     'staff' => ['staff'],
 ]);
+
+test('product form offers the four supported product types', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateProduct::class)
+        ->assertFormFieldExists(
+            'product_type',
+            checkFieldUsing: fn (Select $field): bool => $field->getOptions() === Product::TYPE_OPTIONS,
+        );
+});
+
+test('products can be filtered by each supported product type', function (string $productType) {
+    $staff = User::factory()->staff()->create();
+    $matchingProduct = Product::factory()->create(['product_type' => $productType]);
+    $otherProducts = collect(Product::TYPE_OPTIONS)
+        ->keys()
+        ->reject(fn (string $type): bool => $type === $productType)
+        ->map(fn (string $type): Product => Product::factory()->create(['product_type' => $type]));
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListProducts::class)
+        ->filterTable('product_type', $productType)
+        ->assertCanSeeTableRecords([$matchingProduct])
+        ->assertCanNotSeeTableRecords($otherProducts)
+        ->assertTableColumnFormattedStateSet(
+            'product_type',
+            Product::TYPE_OPTIONS[$productType],
+            $matchingProduct,
+        );
+})->with(array_keys(Product::TYPE_OPTIONS));
 
 test('staff can create and edit products with variants', function () {
     $staff = User::factory()->staff()->create();

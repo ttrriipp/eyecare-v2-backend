@@ -28,16 +28,12 @@ class ProductsRelationManager extends RelationManager
                 TextColumn::make('product_type')
                     ->label('Type')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'frame' => 'Frame',
-                        'lens' => 'Lens',
-                        'general' => 'General',
-                        default => $state,
-                    })
+                    ->formatStateUsing(fn (string $state): string => Product::TYPE_OPTIONS[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
                         'frame' => 'info',
                         'lens' => 'success',
-                        'general' => 'gray',
+                        'contact_lens' => 'warning',
+                        'accessory' => 'gray',
                         default => 'gray',
                     }),
                 IconColumn::make('is_active')->label('Visible')->boolean(),

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
@@ -29,11 +30,7 @@ class ProductForm
                         ->schema([
                             Select::make('product_type')
                                 ->label('Product Type')
-                                ->options([
-                                    'frame' => 'Frame',
-                                    'lens' => 'Lens',
-                                    'general' => 'General',
-                                ])
+                                ->options(Product::TYPE_OPTIONS)
                                 ->default('frame')
                                 ->required()
                                 ->live()
