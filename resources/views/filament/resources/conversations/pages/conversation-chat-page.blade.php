@@ -72,7 +72,16 @@
                 {{-- Messages --}}
                 <div wire:poll.5s class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" id="chat-messages" data-chat-scroll-region="messages">
                     @forelse ($this->messages ?? [] as $message)
-                        @php $isStaff = $message->sender?->role?->name !== 'customer'; @endphp
+                        @php
+                            $isStaff = $message->sender?->role?->name !== 'customer';
+                            $hasImageAttachment = $message->attachments->contains(
+                                fn (\App\Models\MessageAttachment $attachment): bool => str_starts_with($attachment->mime_type, 'image/'),
+                            );
+                            $isAttachmentPlaceholder = \Illuminate\Support\Str::of($message->body)
+                                ->trim()
+                                ->lower()
+                                ->exactly('attachment');
+                        @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[70%]">
                                 <div class="flex items-baseline gap-2 {{ $isStaff ? 'flex-row-reverse' : '' }}">
@@ -83,13 +92,18 @@
                                         {{ $message->created_at->format('M j, g:i a') }}
                                     </span>
                                 </div>
-                                <div class="mt-1 rounded-2xl px-4 py-2.5 text-sm
-                                    {{ $isStaff
-                                        ? 'rounded-tr-sm bg-primary-600 text-white dark:bg-primary-500'
-                                        : 'rounded-tl-sm bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-100'
-                                    }}">
-                                    {{ $message->body }}
-                                </div>
+                                @unless ($hasImageAttachment && $isAttachmentPlaceholder)
+                                    <div
+                                        class="mt-1 rounded-2xl px-4 py-2.5 text-sm
+                                            {{ $isStaff
+                                                ? 'rounded-tr-sm bg-primary-600 text-white dark:bg-primary-500'
+                                                : 'rounded-tl-sm bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-100'
+                                            }}"
+                                        data-message-body
+                                    >
+                                        {{ $message->body }}
+                                    </div>
+                                @endunless
 
                                 {{-- Context link badges --}}
                                 @if ($message->contextLinks->isNotEmpty())

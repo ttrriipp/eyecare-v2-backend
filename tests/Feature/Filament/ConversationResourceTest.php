@@ -70,6 +70,7 @@ test('image attachments are displayed in the chat', function () {
     $message = Message::factory()->create([
         'conversation_id' => $conversation->id,
         'sender_id' => $conversation->customer_id,
+        'body' => 'Attachment',
     ]);
     $attachment = MessageAttachment::factory()->create([
         'message_id' => $message->id,
@@ -86,7 +87,29 @@ test('image attachments are displayed in the chat', function () {
     expect($html)
         ->toContain('data-message-image-attachment')
         ->toContain("/attachments/{$attachment->id}/preview")
-        ->toContain('alt="customer-screenshot.jpg"');
+        ->toContain('alt="customer-screenshot.jpg"')
+        ->not->toContain('data-message-body');
+});
+
+test('image attachments keep meaningful message captions', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $conversation->customer_id,
+        'body' => 'Here is my payment screenshot.',
+    ]);
+    MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'mime_type' => 'image/jpeg',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->assertSeeHtml('data-message-body')
+        ->assertSee('Here is my payment screenshot.');
 });
 
 test('staff can preview a private image attachment inline', function () {
