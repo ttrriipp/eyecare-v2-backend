@@ -1,8 +1,8 @@
-<x-filament-panels::page>
-    <div class="flex h-[calc(100vh-12rem)] gap-4 overflow-hidden">
+<x-filament-panels::page full-height>
+    <div class="flex h-full min-h-0 gap-4 overflow-hidden" data-chat-layout>
 
         {{-- Conversation list --}}
-        <aside class="w-72 shrink-0 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        <aside class="flex min-h-0 w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
             <div class="border-b border-gray-200 px-4 py-3 dark:border-white/10">
                 <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
                     All Conversations
@@ -17,7 +17,7 @@
                     No conversations yet.
                 </div>
             @else
-                <ul role="list" class="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-white/5">
+                <ul role="list" class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto dark:divide-white/5" data-chat-scroll-region="conversations">
                     @foreach ($this->conversations as $conversation)
                         <li>
                             <button
@@ -48,7 +48,7 @@
         </aside>
 
         {{-- Chat panel --}}
-        <div class="flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
 
             @if ($this->selectedConversation === null)
                 {{-- Empty state --}}
@@ -70,7 +70,7 @@
                 </div>
 
                 {{-- Messages --}}
-                <div wire:poll.5s class="flex-1 overflow-y-auto px-5 py-4 space-y-4" id="chat-messages">
+                <div wire:poll.5s class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4" id="chat-messages" data-chat-scroll-region="messages">
                     @forelse ($this->messages ?? [] as $message)
                         @php $isStaff = $message->sender?->role?->name !== 'customer'; @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">

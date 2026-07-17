@@ -27,6 +27,24 @@ test('chat page lists all conversations', function () {
         ->assertSee(Conversation::first()->customer->name);
 });
 
+test('chat page confines scrolling to the conversation and message sections', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain('fi-height-full')
+        ->toContain('data-chat-layout')
+        ->toContain('data-chat-scroll-region="conversations"')
+        ->toContain('data-chat-scroll-region="messages"')
+        ->not->toContain('h-[calc(100vh-12rem)]');
+});
+
 test('selecting a conversation loads its messages', function () {
     $staff = User::factory()->staff()->create();
     $conversation = Conversation::factory()->create();
