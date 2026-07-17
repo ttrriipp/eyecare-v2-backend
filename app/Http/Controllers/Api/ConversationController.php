@@ -15,6 +15,7 @@ use App\Models\Product;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -68,7 +69,7 @@ class ConversationController extends Controller
         ]);
 
         foreach ($request->validated('contexts', []) as $context) {
-            $contextable = $this->resolveContextable($context['type'], $context['id']);
+            $contextable = $this->resolveContextable($context['type'], $context['id'], $request->user());
             if ($contextable !== null) {
                 $message->contextLinks()->create([
                     'contextable_type' => $contextable::class,
@@ -142,11 +143,21 @@ class ConversationController extends Controller
         return true;
     }
 
-    private function resolveContextable(string $type, int $id): Appointment|Order|Product|null
+    private function resolveContextable(string $type, int $id, User $user): Appointment|Order|Product|null
     {
         return match ($type) {
-            'appointment' => Appointment::find($id),
-            'order' => Order::find($id),
+            'appointment' => Appointment::query()
+                ->when(
+                    $user->role->name === 'customer',
+                    fn (Builder $query): Builder => $query->where('customer_id', $user->id),
+                )
+                ->find($id),
+            'order' => Order::query()
+                ->when(
+                    $user->role->name === 'customer',
+                    fn (Builder $query): Builder => $query->where('customer_id', $user->id),
+                )
+                ->find($id),
             'product' => Product::find($id),
             default => null,
         };

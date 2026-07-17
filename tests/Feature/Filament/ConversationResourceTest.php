@@ -1,10 +1,15 @@
 <?php
 
+use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Conversations\Pages\ConversationChatPage;
+use App\Filament\Resources\Orders\OrderResource;
+use App\Models\Appointment;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Models\Order;
 use App\Models\User;
+use App\Models\VisitReason;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -140,6 +145,96 @@ test('image attachments keep meaningful message captions', function () {
         ->call('selectConversation', $conversation->id)
         ->assertSeeHtml('data-message-body')
         ->assertSee('Here is my payment screenshot.');
+});
+
+test('appointment context is shown as a clickable card without the generated summary body', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    $visitReason = VisitReason::factory()->create(['name' => 'Follow-up']);
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $conversation->customer_id,
+        'visit_reason_id' => $visitReason->id,
+        'scheduled_at' => '2026-07-14 14:30:00',
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $conversation->customer_id,
+        'body' => '📅 Appointment: Follow-up — 2026-07-14',
+    ]);
+    $message->contextLinks()->create([
+        'contextable_type' => Appointment::class,
+        'contextable_id' => $appointment->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain('data-message-context-card="appointment"')
+        ->toContain(AppointmentResource::getUrl('edit', ['record' => $appointment]))
+        ->toContain($appointment->appointment_number)
+        ->toContain('Follow-up')
+        ->toContain('Jul 14, 2026')
+        ->not->toContain('data-message-body');
+});
+
+test('order context is shown as a clickable card without the generated summary body', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    $order = Order::factory()->create([
+        'customer_id' => $conversation->customer_id,
+        'total_amount' => 2499.50,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $conversation->customer_id,
+        'body' => "📦 Order #{$order->order_number}",
+    ]);
+    $message->contextLinks()->create([
+        'contextable_type' => Order::class,
+        'contextable_id' => $order->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain('data-message-context-card="order"')
+        ->toContain(OrderResource::getUrl('edit', ['record' => $order]))
+        ->toContain($order->order_number)
+        ->toContain('₱2,499.50')
+        ->not->toContain('data-message-body');
+});
+
+test('context cards keep meaningful message captions', function () {
+    $staff = User::factory()->staff()->create();
+    $conversation = Conversation::factory()->create();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $conversation->customer_id,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $conversation->customer_id,
+        'body' => 'Can you check this appointment for me?',
+    ]);
+    $message->contextLinks()->create([
+        'contextable_type' => Appointment::class,
+        'contextable_id' => $appointment->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ConversationChatPage::class)
+        ->call('selectConversation', $conversation->id)
+        ->assertSeeHtml('data-message-context-card="appointment"')
+        ->assertSeeHtml('data-message-body')
+        ->assertSee('Can you check this appointment for me?');
 });
 
 test('staff can preview a private image attachment inline', function () {

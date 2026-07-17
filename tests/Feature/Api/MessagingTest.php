@@ -157,6 +157,52 @@ test('customer can send a message with order context link', function () {
     ]);
 });
 
+test('customer cannot link another customers appointment', function () {
+    $customer = User::factory()->customer()->create();
+    $otherCustomer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->create(['customer_id' => $otherCustomer->id]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'About this appointment.',
+            'contexts' => [
+                ['type' => 'appointment', 'id' => $appointment->id],
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.contexts', []);
+
+    $this->assertDatabaseMissing('message_context_links', [
+        'message_id' => $response->json('data.id'),
+        'contextable_type' => Appointment::class,
+        'contextable_id' => $appointment->id,
+    ]);
+});
+
+test('customer cannot link another customers order', function () {
+    $customer = User::factory()->customer()->create();
+    $otherCustomer = User::factory()->customer()->create();
+    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $order = Order::factory()->create(['customer_id' => $otherCustomer->id]);
+
+    $response = $this->actingAs($customer, 'sanctum')
+        ->postJson("/api/conversations/{$conversation->id}/messages", [
+            'body' => 'About this order.',
+            'contexts' => [
+                ['type' => 'order', 'id' => $order->id],
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.contexts', []);
+
+    $this->assertDatabaseMissing('message_context_links', [
+        'message_id' => $response->json('data.id'),
+        'contextable_type' => Order::class,
+        'contextable_id' => $order->id,
+    ]);
+});
+
 test('GET messages returns context links on each message', function () {
     $customer = User::factory()->customer()->create();
     $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
