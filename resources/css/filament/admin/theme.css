@@ -12,6 +12,12 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+/* Keep the conversation workspace within the viewport below the fixed topbar. */
+.fi-page.fi-conversation-chat-page {
+    height: calc(100dvh - 4rem);
+    overflow: hidden;
+}
+
 /* Subtle, on-brand "today" highlight (the package default is undefined here, so it
    falls back to a noisy library default). Keep it quiet in both modes. */
 .ec {

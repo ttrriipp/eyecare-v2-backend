@@ -41,10 +41,16 @@ test('chat page confines scrolling to the conversation and message sections', fu
 
     expect($html)
         ->toContain('fi-height-full')
+        ->toContain('fi-conversation-chat-page')
         ->toContain('data-chat-layout')
         ->toContain('data-chat-scroll-region="conversations"')
         ->toContain('data-chat-scroll-region="messages"')
         ->not->toContain('h-[calc(100vh-12rem)]');
+
+    expect(file_get_contents(resource_path('css/filament/admin/theme.css')))
+        ->toContain('.fi-page.fi-conversation-chat-page')
+        ->toContain('height: calc(100dvh - 4rem)')
+        ->toContain('overflow: hidden');
 });
 
 test('selecting a conversation loads its messages', function () {

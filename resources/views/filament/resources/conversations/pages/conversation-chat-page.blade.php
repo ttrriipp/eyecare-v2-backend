@@ -1,4 +1,4 @@
-<x-filament-panels::page full-height>
+<x-filament-panels::page full-height class="fi-conversation-chat-page">
     <div class="flex h-full min-h-0 gap-4 overflow-hidden" data-chat-layout>
 
         {{-- Conversation list --}}
