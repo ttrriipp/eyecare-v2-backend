@@ -7,6 +7,7 @@ use App\Models\Billing;
 use App\Models\Order;
 use App\Models\OrderStatus;
 use App\Models\Prescription;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Role;
 use App\Models\User;
@@ -139,7 +140,7 @@ class CreateOrder extends CreateRecord
                                     ->options(fn () => ProductVariant::query()
                                         ->with('product')
                                         ->where('is_active', true)
-                                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
+                                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES))
                                         ->get()
                                         ->mapWithKeys(fn ($v) => [
                                             $v->id => $v->stock_quantity > 0

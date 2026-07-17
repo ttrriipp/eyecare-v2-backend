@@ -17,6 +17,8 @@ use Database\Seeders\OrderStatusSeeder;
 use Database\Seeders\PaymentMethodSeeder;
 use Database\Seeders\PaymentStatusSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Select;
+use Filament\Tables\Columns\SelectColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -264,20 +266,65 @@ test('staff can create an order for a walk-in customer (no email or password)', 
         ->and($walkIn->password)->toBeNull();
 });
 
-test('create order form excludes lens type products from the product selector', function () {
-    $lensCategory = LensCategory::factory()->create();
-    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_category_id' => $lensCategory->id]);
-    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
-    $frameVariant = ProductVariant::factory()->create();
+test('create order form offers exactly the directly orderable product variants', function () {
+    $staff = User::factory()->staff()->create();
+    [$includedVariantIds, $excludedVariantIds] = createProductVariantsForOrderSelectorTest();
 
-    $selectableIds = ProductVariant::query()
-        ->with('product')
-        ->where('is_active', true)
-        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
-        ->pluck('id');
+    $this->actingAs($staff);
 
-    expect($selectableIds)->toContain($frameVariant->id)
-        ->and($selectableIds)->not->toContain($lensVariant->id);
+    $component = Livewire::test(CreateOrder::class);
+    $field = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn ($field): bool => $field->getName() === 'product_variant_id');
+
+    expect($field)->toBeInstanceOf(Select::class);
+
+    assertOrderSelectorOptions($field->getOptions(), $includedVariantIds, $excludedVariantIds);
+});
+
+test('edit order form offers exactly the directly orderable product variants', function () {
+    $staff = User::factory()->staff()->create();
+    $order = Order::factory()->create();
+    [$includedVariantIds, $excludedVariantIds] = createProductVariantsForOrderSelectorTest();
+    $variant = ProductVariant::query()->with('product')->findOrFail($includedVariantIds[0]);
+    $order->items()->create([
+        'product_variant_id' => $variant->id,
+        'product_id' => $variant->product_id,
+        'product_name' => $variant->product->name,
+        'variant_name' => $variant->name,
+        'variant_sku' => $variant->sku,
+        'unit_price' => $variant->price,
+        'quantity' => 1,
+        'subtotal' => $variant->price,
+        'is_frame' => true,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()]);
+    $field = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn ($field): bool => $field->getName() === 'product_variant_id');
+
+    expect($field)->toBeInstanceOf(Select::class);
+
+    assertOrderSelectorOptions($field->getOptions(), $includedVariantIds, $excludedVariantIds);
+});
+
+test('order items relation manager offers exactly the directly orderable product variants', function () {
+    $staff = User::factory()->staff()->create();
+    $order = Order::factory()->create();
+    [$includedVariantIds, $excludedVariantIds] = createProductVariantsForOrderSelectorTest();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ItemsRelationManager::class, [
+        'ownerRecord' => $order,
+        'pageClass' => EditOrder::class,
+    ]);
+    $column = $component->instance()->getTable()->getColumn('product_variant_id');
+
+    expect($column)->toBeInstanceOf(SelectColumn::class);
+
+    assertOrderSelectorOptions($column->getOptions(), $includedVariantIds, $excludedVariantIds);
 });
 
 test('staff can assign a lens product variant to an order item while confirmed', function () {
@@ -449,22 +496,22 @@ test('edit order page renders successfully for a confirmed order with a frame it
         ->assertSuccessful();
 });
 
-test('edit order page renders successfully for a general (non-frame) item', function () {
+test('edit order page renders successfully for directly orderable non-frame items', function (string $factoryState) {
     $staff = User::factory()->staff()->create();
     $confirmedStatus = OrderStatus::query()->where('name', 'confirmed')->firstOrFail();
-    $generalProduct = Product::factory()->create(['product_type' => 'general']);
-    $generalVariant = ProductVariant::factory()->for($generalProduct)->create();
+    $product = Product::factory()->{$factoryState}()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
 
     $order = Order::factory()->create(['order_status_id' => $confirmedStatus->id]);
     $order->items()->create([
-        'product_variant_id' => $generalVariant->id,
-        'product_id' => $generalProduct->id,
-        'product_name' => $generalProduct->name,
-        'variant_name' => $generalVariant->name,
-        'variant_sku' => $generalVariant->sku,
-        'unit_price' => $generalVariant->price,
+        'product_variant_id' => $variant->id,
+        'product_id' => $product->id,
+        'product_name' => $product->name,
+        'variant_name' => $variant->name,
+        'variant_sku' => $variant->sku,
+        'unit_price' => $variant->price,
         'quantity' => 1,
-        'subtotal' => $generalVariant->price,
+        'subtotal' => $variant->price,
         'is_frame' => false,
     ]);
 
@@ -472,4 +519,43 @@ test('edit order page renders successfully for a general (non-frame) item', func
 
     Livewire::test(EditOrder::class, ['record' => $order->getRouteKey()])
         ->assertSuccessful();
-});
+})->with(['contactLens', 'accessory']);
+
+/**
+ * @return array{list<int>, list<int>}
+ */
+function createProductVariantsForOrderSelectorTest(): array
+{
+    $frameVariant = ProductVariant::factory()->create(['is_active' => true]);
+    $contactLensVariant = ProductVariant::factory()
+        ->for(Product::factory()->contactLens())
+        ->create(['is_active' => true]);
+    $accessoryVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['is_active' => true]);
+    $lensVariant = ProductVariant::factory()
+        ->for(Product::factory()->create(['product_type' => 'lens']))
+        ->create(['is_active' => true]);
+    $legacyGeneralVariant = ProductVariant::factory()
+        ->for(Product::factory()->create(['product_type' => 'general']))
+        ->create(['is_active' => true]);
+
+    return [
+        [$frameVariant->id, $contactLensVariant->id, $accessoryVariant->id],
+        [$lensVariant->id, $legacyGeneralVariant->id],
+    ];
+}
+
+/**
+ * @param  array<int|string, string>  $options
+ * @param  list<int>  $includedVariantIds
+ * @param  list<int>  $excludedVariantIds
+ */
+function assertOrderSelectorOptions(array $options, array $includedVariantIds, array $excludedVariantIds): void
+{
+    $optionIds = array_map('intval', array_keys($options));
+
+    expect($optionIds)
+        ->toContain(...$includedVariantIds)
+        ->not->toContain(...$excludedVariantIds);
+}

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Orders\RelationManagers;
 
 use App\Models\LensCategory;
 use App\Models\OrderItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -33,7 +34,7 @@ class ItemsRelationManager extends RelationManager
                 ->options(fn () => ProductVariant::query()
                     ->with('product')
                     ->where('is_active', true)
-                    ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
+                    ->whereHas('product', fn ($q) => $q->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES))
                     ->get()
                     ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name} (₱{$v->price})"])
                     ->toArray()
@@ -77,7 +78,7 @@ class ItemsRelationManager extends RelationManager
                     ->options(fn () => ProductVariant::query()
                         ->with('product')
                         ->where('is_active', true)
-                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', ['frame', 'general']))
+                        ->whereHas('product', fn ($q) => $q->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES))
                         ->get()
                         ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} — {$v->name}"])
                         ->toArray()
