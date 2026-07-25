@@ -6,6 +6,7 @@ use App\Actions\Billing\GenerateBillingForOrder;
 use App\Actions\Billing\RecalculateBillingBalance;
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Actions\Orders\UpdateOrderStatus;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AuditLog;
 use App\Models\Billing;
@@ -285,4 +286,24 @@ test('every order status transition creates an audit log entry', function () {
     expect($logs)->toHaveCount(4)
         ->and($logs->pluck('metadata')->map(fn ($m) => $m['to']))
         ->toContain('confirmed', 'processing', 'ready_for_pickup', 'completed');
+});
+
+test('CreateAuditLog accepts AuditEvent enum', function () {
+    $staff = User::factory()->staff()->create();
+    Auth::login($staff);
+
+    $appointment = Appointment::factory()->create();
+
+    app(CreateAuditLog::class)->handle(
+        subject: $appointment,
+        action: AuditEvent::AppointmentConfirmed,
+        metadata: ['from' => 'pending', 'to' => 'confirmed'],
+    );
+
+    $this->assertDatabaseHas(AuditLog::class, [
+        'actor_id' => $staff->id,
+        'subject_type' => $appointment->getMorphClass(),
+        'subject_id' => $appointment->id,
+        'action' => 'appointment.confirmed',
+    ]);
 });

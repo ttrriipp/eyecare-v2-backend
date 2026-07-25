@@ -203,10 +203,10 @@ notice version accepted by patient accounts.
 
 **Acceptance criteria:**
 
-- [ ] Sensitive read, print, clinical, financial, moderation, and role events
+- [x] Sensitive read, print, clinical, financial, moderation, and role events
       use canonical event names.
-- [ ] Audit metadata never copies clinical narrative or decrypted values.
-- [ ] Patient-account notice version and acknowledgement time are retained.
+- [x] Audit metadata never copies clinical narrative or decrypted values.
+- [x] Patient-account notice version and acknowledgement time are retained.
 
 **Verification:**
 
@@ -225,11 +225,11 @@ vendor/bin/sail artisan test --compact tests/Feature/AuditLogRecordingTest.php t
 
 ### Checkpoint 1: Patient foundation
 
-- [ ] Tasks 01–06 focused tests pass.
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed` succeeds.
-- [ ] Staff can create an account-less patient.
-- [ ] A linked patient account cannot access another patient.
-- [ ] The spec, plan, and implemented patient boundary agree.
+- [x] Tasks 01–06 focused tests pass.
+- [x] `vendor/bin/sail artisan migrate:fresh --seed` succeeds.
+- [x] Staff can create an account-less patient.
+- [x] A linked patient account cannot access another patient.
+- [x] The spec, plan, and implemented patient boundary agree.
 
 ## Milestone 2: Clinic Schedules and Appointments
 

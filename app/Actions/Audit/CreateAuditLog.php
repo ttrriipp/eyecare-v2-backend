@@ -2,6 +2,7 @@
 
 namespace App\Actions\Audit;
 
+use App\Enums\AuditEvent;
 use App\Models\AuditLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +16,7 @@ class CreateAuditLog
      */
     public function handle(
         Model $subject,
-        string $action,
+        AuditEvent|string $action,
         ?array $metadata = null,
         ?int $actorId = null,
     ): AuditLog {
@@ -23,7 +24,7 @@ class CreateAuditLog
             'actor_id' => $actorId ?? Auth::id(),
             'subject_type' => $subject->getMorphClass(),
             'subject_id' => $subject->getKey(),
-            'action' => $action,
+            'action' => $action instanceof AuditEvent ? $action->value : $action,
             'metadata' => $metadata,
         ]);
     }
