@@ -524,10 +524,10 @@ vendor/bin/sail artisan test --compact tests/Feature/Encounters/PhysicalChartTes
 
 ### Checkpoint 3: Clinical records
 
-- [ ] Tasks 11–16 focused suites pass.
-- [ ] Scheduled and walk-in patients complete the same clinical flow.
-- [ ] Receptionist clinical-finalization attempts are denied.
-- [ ] Print, chart access, finalization, and amendment are audited.
+- [x] Tasks 11–16 focused suites pass.
+- [x] Scheduled and walk-in patients complete the same clinical flow.
+- [x] Receptionist clinical-finalization attempts are denied.
+- [x] Print, chart access, finalization, and amendment are audited.
 
 ## Milestone 4: Frame Catalog and Fitting Reservations
 
