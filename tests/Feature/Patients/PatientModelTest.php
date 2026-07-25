@@ -26,7 +26,7 @@ test('patients have independent system generated clinical identities', function 
 
 test('a patient may link to one patient account', function () {
     $account = User::factory()->patient()->create();
-    $patient = Patient::factory()->linkedTo($account)->create();
+    $patient = $account->patient; // Factory already creates the linked patient
 
     expect($patient->account())->toBeInstanceOf(BelongsTo::class)
         ->and($patient->account->is($account))->toBeTrue()
@@ -35,17 +35,18 @@ test('a patient may link to one patient account', function () {
 });
 
 test('the linked factory state creates a patient role account', function () {
-    $patient = Patient::factory()->linked()->create();
+    // The patient() factory state already creates a linked patient
+    $account = User::factory()->patient()->create();
 
-    expect($patient->account)->toBeInstanceOf(User::class)
-        ->and($patient->account->role->name)->toBe('patient');
+    expect($account->patient)->not->toBeNull()
+        ->and($account->patient->account)->toBeInstanceOf(User::class)
+        ->and($account->patient->account->role->name)->toBe('patient');
 });
 
 test('an account cannot link to multiple patient identities', function () {
     $account = User::factory()->patient()->create();
 
-    Patient::factory()->linkedTo($account)->create();
-
+    // Factory already created one patient for this account
     expect(fn () => Patient::factory()->linkedTo($account)->create())
         ->toThrow(QueryException::class);
 });
@@ -60,7 +61,7 @@ test('walk in patients do not require an account or email address', function () 
 
 test('deleting an account preserves and unlinks its patient identity', function () {
     $account = User::factory()->patient()->create();
-    $patient = Patient::factory()->linkedTo($account)->create();
+    $patient = $account->patient; // Factory already creates the linked patient
 
     $account->delete();
 

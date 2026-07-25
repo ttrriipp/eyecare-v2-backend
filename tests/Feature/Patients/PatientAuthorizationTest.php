@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,7 +12,7 @@ beforeEach(function () {
 
 test('a patient can view their own profile', function () {
     $user = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($user)->create([
+    $user->patient->update([
         'full_name' => 'Jane Doe',
         'date_of_birth' => '1990-05-15',
         'gender' => 'female',
@@ -31,7 +30,6 @@ test('a patient can view their own profile', function () {
 
 test('a patient can update their own profile', function () {
     $user = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($user)->create();
 
     $this->actingAs($user)
         ->patchJson('/api/patient/profile', [
@@ -58,12 +56,10 @@ test('a patient can update their own profile', function () {
 });
 
 test('a patient cannot view another patient profile', function () {
-    // The endpoint returns only the authenticated user's own patient record.
-    // Patient A's request returns their own data, never Patient B's.
     $userA = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($userA)->create(['full_name' => 'Patient A']);
+    $userA->patient->update(['full_name' => 'Patient A']);
     $userB = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($userB)->create(['full_name' => 'Patient B']);
+    $userB->patient->update(['full_name' => 'Patient B']);
 
     $this->actingAs($userA)
         ->getJson('/api/patient/profile')
@@ -73,11 +69,10 @@ test('a patient cannot view another patient profile', function () {
 });
 
 test('a patient cannot update another patient profile', function () {
-    // The endpoint updates only the authenticated user's own patient record.
     $userA = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($userA)->create(['full_name' => 'Patient A']);
+    $userA->patient->update(['full_name' => 'Patient A']);
     $userB = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($userB)->create(['full_name' => 'Patient B']);
+    $userB->patient->update(['full_name' => 'Patient B']);
 
     $this->actingAs($userA)
         ->patchJson('/api/patient/profile', ['full_name' => 'Updated A'])
@@ -94,7 +89,6 @@ test('unauthenticated request to patient profile returns 401', function () {
 
 test('patient profile update rejects invalid gender', function () {
     $user = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($user)->create();
 
     $this->actingAs($user)
         ->patchJson('/api/patient/profile', ['gender' => 'invalid'])
@@ -104,7 +98,6 @@ test('patient profile update rejects invalid gender', function () {
 
 test('patient profile update requires at least one field', function () {
     $user = User::factory()->patient()->create();
-    Patient::factory()->linkedTo($user)->create();
 
     $this->actingAs($user)
         ->patchJson('/api/patient/profile', [])

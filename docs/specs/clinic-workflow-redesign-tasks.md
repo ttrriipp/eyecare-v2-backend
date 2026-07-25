@@ -649,10 +649,10 @@ vendor/bin/sail artisan route:list --path=api --except-vendor
 
 ### Checkpoint 4: Reservations
 
-- [ ] Tasks 17–20 focused suites pass.
-- [ ] Appointment-to-reservation and release journeys pass.
-- [ ] Route scan proves no patient checkout or order creation.
-- [ ] Full Pest suite and `vendor/bin/sail npm run build` pass.
+- [x] Tasks 17–20 focused suites pass.
+- [x] Appointment-to-reservation and release journeys pass.
+- [x] Route scan proves no patient checkout or order creation.
+- [x] Full Pest suite and `vendor/bin/sail npm run build` pass.
 
 ## Milestone 5: Quotations, Job Orders, and Inventory
 
