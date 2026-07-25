@@ -19,6 +19,8 @@ class PrepareFrameReservation
         }
 
         return DB::transaction(function () use ($reservation): FrameReservation {
+            $reservation->load('items');
+
             // Allocate stock for each item under a row lock
             foreach ($reservation->items as $item) {
                 $variant = ProductVariant::query()
