@@ -139,8 +139,8 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/AuthTest.php tests/Feat
 ### Checkpoint 1A: Patient identity and onboarding
 
 - [x] Tasks 01–03 focused tests pass.
-- [ ] Linked and account-less patient factories are valid.
-- [ ] Registration rolls back cleanly on patient-creation failure.
+- [x] Linked and account-less patient factories are valid.
+- [x] Registration rolls back cleanly on patient-creation failure.
 
 ### Task 04: Enforce patient-record authorization
 
