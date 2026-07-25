@@ -599,9 +599,9 @@ allocation/release actions.
 
 **Acceptance criteria:**
 
-- [ ] Patient reservation limits and ownership are enforced.
-- [ ] Prepared reservations allocate reversibly under a row lock.
-- [ ] Cancellation, expiry, and no-show release allocation idempotently.
+- [x] Patient reservation limits and ownership are enforced.
+- [x] Prepared reservations allocate reversibly under a row lock.
+- [x] Cancellation, expiry, and no-show release allocation idempotently.
 
 **Verification:**
 

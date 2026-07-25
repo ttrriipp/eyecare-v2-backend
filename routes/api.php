@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FrameController;
+use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
@@ -78,4 +79,8 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::get('frames', [FrameController::class, 'index']);
     Route::get('frames/{product}', [FrameController::class, 'show']);
+
+    Route::get('frame-reservations', [FrameReservationController::class, 'index']);
+    Route::post('frame-reservations', [FrameReservationController::class, 'store']);
+    Route::post('frame-reservations/{reservation}/cancel', [FrameReservationController::class, 'cancel']);
 });
