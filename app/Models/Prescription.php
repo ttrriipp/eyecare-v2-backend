@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'customer_id',
+    'patient_id',
+    'encounter_id',
     'appointment_id',
     'previous_prescription_id',
     'created_by',
@@ -38,11 +39,19 @@ class Prescription extends Model
     use HasFactory, SoftDeletes;
 
     /**
-     * @return BelongsTo<User, $this>
+     * @return BelongsTo<Patient, $this>
      */
-    public function customer(): BelongsTo
+    public function patient(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(Patient::class);
+    }
+
+    /**
+     * @return BelongsTo<Encounter, $this>
+     */
+    public function encounter(): BelongsTo
+    {
+        return $this->belongsTo(Encounter::class);
     }
 
     /**
@@ -64,14 +73,12 @@ class Prescription extends Model
     /**
      * @return BelongsTo<User, $this>
      */
-    public function createdBy(): BelongsTo
+    public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
     /**
-     * Sensitive health data is encrypted at rest (DPA compliance).
-     *
      * @return array<string, string>
      */
     protected function casts(): array

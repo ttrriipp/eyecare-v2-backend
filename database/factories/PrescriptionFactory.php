@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,10 +23,11 @@ class PrescriptionFactory extends Factory
         $prescribedAt = fake()->dateTimeBetween('-1 year', 'now');
 
         return [
-            'customer_id' => User::factory()->customer(),
+            'patient_id' => Patient::factory(),
+            'encounter_id' => null,
             'appointment_id' => null,
             'previous_prescription_id' => null,
-            'created_by' => User::factory()->staff(),
+            'created_by' => User::factory()->optometrist(),
             'od_sphere' => fake()->randomFloat(2, -6, 2),
             'od_cylinder' => fake()->randomFloat(2, -2, 0),
             'od_axis' => fake()->numberBetween(1, 180),
@@ -42,5 +45,14 @@ class PrescriptionFactory extends Factory
             'expires_at' => fake()->dateTimeBetween($prescribedAt, '+2 years'),
             'notes' => fake()->optional()->sentence(),
         ];
+    }
+
+    public function linkedToEncounter(Encounter $encounter): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'patient_id' => $encounter->patient_id,
+            'encounter_id' => $encounter->id,
+            'appointment_id' => $encounter->appointment_id,
+        ]);
     }
 }

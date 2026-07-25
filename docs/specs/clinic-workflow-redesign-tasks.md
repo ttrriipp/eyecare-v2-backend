@@ -446,9 +446,9 @@ clinical authorship to optometrists, and preserve finalized revisions.
 
 **Acceptance criteria:**
 
-- [ ] Only an optometrist can finalize a prescription.
-- [ ] Finalized values are encrypted and cannot be edited in place.
-- [ ] Amendments reference the prior prescription and retain actor/time/reason.
+- [x] Only an optometrist can finalize a prescription.
+- [x] Finalized values are encrypted and cannot be edited in place.
+- [x] Amendments reference the prior prescription and retain actor/time/reason.
 
 **Verification:**
 

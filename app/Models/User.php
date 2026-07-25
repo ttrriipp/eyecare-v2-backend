@@ -74,11 +74,18 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * @return HasMany<Prescription, $this>
+     * @return HasManyThrough<Prescription, Patient, $this>
      */
-    public function prescriptions(): HasMany
+    public function prescriptions(): HasManyThrough
     {
-        return $this->hasMany(Prescription::class, 'customer_id');
+        return $this->hasManyThrough(
+            Prescription::class,
+            Patient::class,
+            'id',
+            'patient_id',
+            'id',
+            'user_id',
+        );
     }
 
     /**
