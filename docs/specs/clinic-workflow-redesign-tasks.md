@@ -898,9 +898,9 @@ Billing code and receipts in bounded batches.
 
 **Acceptance criteria:**
 
-- [ ] Staff can record permitted payments, corrections, and dispensing.
-- [ ] Patients see safe invoice/payment status only.
-- [ ] Internal print is clearly a system copy of the physical booklet entry,
+- [x] Staff can record permitted payments, corrections, and dispensing.
+- [x] Patients see safe invoice/payment status only.
+- [x] Internal print is clearly a system copy of the physical booklet entry,
       and legacy Billing resources/actions/models/routes/tests are removed.
 
 **Verification:**
