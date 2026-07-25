@@ -871,9 +871,9 @@ number atomically when a job is ready.
 
 **Acceptance criteria:**
 
-- [ ] Only a ready job order may be dispensed.
-- [ ] Dispensing records actor/time, physical number, and approved balance terms.
-- [ ] Any failure rolls back dispensing and invoice issuance.
+- [x] Only a ready job order may be dispensed.
+- [x] Dispensing records actor/time, physical number, and approved balance terms.
+- [x] Any failure rolls back dispensing and invoice issuance.
 
 **Verification:**
 
