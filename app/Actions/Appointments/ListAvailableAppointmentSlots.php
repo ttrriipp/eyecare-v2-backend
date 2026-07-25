@@ -21,21 +21,22 @@ class ListAvailableAppointmentSlots
         ?User $optometrist = null,
         ?Appointment $ignoreAppointment = null,
     ): array {
+        $schedule = ClinicSchedule::forDate($date);
+
+        if ($schedule->isClosed) {
+            return [];
+        }
+
         $slot = Carbon::parse(
-            $date->format('Y-m-d').' '.config('appointments.clinic_hours.opens_at', '09:00'),
+            $date->format('Y-m-d').' '.$schedule->openTime,
             config('app.timezone'),
         );
         $closingTime = Carbon::parse(
-            $date->format('Y-m-d').' '.config('appointments.clinic_hours.closes_at', '17:00'),
+            $date->format('Y-m-d').' '.$schedule->closeTime,
             config('app.timezone'),
         );
-        $intervalMinutes = config('appointments.clinic_hours.slot_interval_minutes', 15);
-        $closedWeekdays = config('appointments.clinic_hours.closed_weekdays', [0]);
+        $intervalMinutes = $schedule->slotIntervalMinutes;
         $slots = [];
-
-        if (in_array($slot->dayOfWeek, $closedWeekdays, true)) {
-            return [];
-        }
 
         $blockingAppointments = $this->evaluateAppointmentAvailability->blockingAppointmentsBetween(
             startsAt: $slot,
@@ -53,6 +54,7 @@ class ListAvailableAppointmentSlots
                 enforceFuture: true,
                 blockingAppointments: $blockingAppointments,
                 capacity: $capacity,
+                schedule: $schedule,
             );
 
             $slot->addMinutes($intervalMinutes);

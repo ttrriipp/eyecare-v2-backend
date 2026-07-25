@@ -20,7 +20,10 @@ class EvaluateAppointmentAvailability
         bool $enforceGrid = false,
         ?Collection $blockingAppointments = null,
         ?int $capacity = null,
+        ?ClinicSchedule $schedule = null,
     ): AppointmentAvailabilityDecision {
+        $schedule ??= ClinicSchedule::forDate($startsAt);
+
         $clinicStartsAt = $startsAt->copy()->setTimezone(config('app.timezone'));
         $endsAt = $clinicStartsAt->copy()->addMinutes($visitReason->duration_minutes);
 
@@ -28,15 +31,15 @@ class EvaluateAppointmentAvailability
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'elapsed');
         }
 
-        if ($this->isClosed($clinicStartsAt)) {
+        if ($schedule->isClosed) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'clinic_closed');
         }
 
-        if (! $this->fitsClinicHours($clinicStartsAt, $endsAt)) {
+        if (! $this->fitsClinicHours($clinicStartsAt, $endsAt, $schedule)) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'outside_clinic_hours');
         }
 
-        if ($enforceGrid && ! $this->isOnSlotBoundary($clinicStartsAt)) {
+        if ($enforceGrid && ! $this->isOnSlotBoundary($clinicStartsAt, $schedule)) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'outside_slot_grid');
         }
 
@@ -51,35 +54,19 @@ class EvaluateAppointmentAvailability
         return AppointmentAvailabilityDecision::available($clinicStartsAt, $endsAt);
     }
 
-    private function isClosed(CarbonInterface $startsAt): bool
+    private function fitsClinicHours(CarbonInterface $startsAt, CarbonInterface $endsAt, ClinicSchedule $schedule): bool
     {
-        return in_array(
-            $startsAt->dayOfWeek,
-            config('appointments.clinic_hours.closed_weekdays', [0]),
-            true,
-        );
-    }
-
-    private function fitsClinicHours(CarbonInterface $startsAt, CarbonInterface $endsAt): bool
-    {
-        $openingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
-            config('appointments.clinic_hours.opens_at', '09:00'),
-        );
-        $closingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
-            config('appointments.clinic_hours.closes_at', '17:00'),
-        );
+        $openingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString($schedule->openTime);
+        $closingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString($schedule->closeTime);
 
         return $startsAt->gte($openingTime) && $endsAt->lte($closingTime);
     }
 
-    private function isOnSlotBoundary(CarbonInterface $startsAt): bool
+    private function isOnSlotBoundary(CarbonInterface $startsAt, ClinicSchedule $schedule): bool
     {
-        $openingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
-            config('appointments.clinic_hours.opens_at', '09:00'),
-        );
-        $intervalMinutes = (int) config('appointments.clinic_hours.slot_interval_minutes', 15);
+        $openingTime = $startsAt->copy()->startOfDay()->setTimeFromTimeString($schedule->openTime);
 
-        return $openingTime->diffInMinutes($startsAt, false) % $intervalMinutes === 0;
+        return $openingTime->diffInMinutes($startsAt, false) % $schedule->slotIntervalMinutes === 0;
     }
 
     /**

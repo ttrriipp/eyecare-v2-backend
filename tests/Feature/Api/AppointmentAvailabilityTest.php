@@ -2,9 +2,12 @@
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\ClinicHour;
+use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\ClinicHoursSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -309,4 +312,54 @@ test('availability uses a bounded number of database queries for generated slots
     DB::disableQueryLog();
 
     expect($queryCount)->toBeLessThanOrEqual(12);
+});
+
+test('clinic hours from database override config values', function () {
+    // Seed clinic hours with custom times for Monday (weekday 1)
+    $this->seed(ClinicHoursSeeder::class);
+
+    // Override Monday to 10:00-15:00
+    ClinicHour::query()
+        ->where('weekday', 1)
+        ->update(['open_time' => '10:00', 'close_time' => '15:00']);
+
+    // 2026-07-13 is a Monday
+    $this->actingAs($this->customer, 'sanctum')->getJson('/api/appointments/availability?'.http_build_query([
+        'date' => '2026-07-13',
+        'visit_reason_id' => $this->visitReason->id,
+    ]))->assertOk()
+        ->assertJsonPath('data.day_status', 'open')
+        ->assertJsonFragment([
+            'starts_at' => '2026-07-13T10:00:00+08:00',
+            'available' => true,
+        ]);
+});
+
+test('schedule override with clinic closure returns empty slots', function () {
+    ScheduleOverride::factory()->clinicClosed()->create([
+        'override_date' => '2026-07-13',
+    ]);
+
+    $this->actingAs($this->customer, 'sanctum')->getJson('/api/appointments/availability?'.http_build_query([
+        'date' => '2026-07-13',
+        'visit_reason_id' => $this->visitReason->id,
+    ]))->assertOk()
+        ->assertJsonPath('data.day_status', 'closed')
+        ->assertJsonPath('data.slots', []);
+});
+
+test('schedule override with early closing limits available slots', function () {
+    ScheduleOverride::factory()->earlyClose('12:00')->create([
+        'override_date' => '2026-07-13',
+    ]);
+
+    $response = $this->actingAs($this->customer, 'sanctum')->getJson('/api/appointments/availability?'.http_build_query([
+        'date' => '2026-07-13',
+        'visit_reason_id' => $this->visitReason->id,
+    ]))->assertOk();
+
+    // Last slot should end by 12:00
+    $slots = $response->json('data.slots');
+    $lastSlot = end($slots);
+    expect($lastSlot['ends_at'])->toBe('2026-07-13T12:00:00+08:00');
 });

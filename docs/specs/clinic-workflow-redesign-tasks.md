@@ -298,9 +298,9 @@ hours, overrides, provider capacity, visit duration, and bookings.
 
 **Acceptance criteria:**
 
-- [ ] Slots outside effective clinic/provider availability are unavailable.
-- [ ] Capacity reflects available optometrists, not a hard-coded number.
-- [ ] Early closure and absence cases return stable reason codes.
+- [x] Slots outside effective clinic/provider availability are unavailable.
+- [x] Capacity reflects available optometrists, not a hard-coded number.
+- [x] Early closure and absence cases return stable reason codes.
 
 **Verification:**
 

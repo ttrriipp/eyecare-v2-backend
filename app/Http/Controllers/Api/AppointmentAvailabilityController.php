@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\ClinicSchedule;
 use App\Actions\Appointments\ListAvailableAppointmentSlots;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\AppointmentAvailabilityRequest;
@@ -25,6 +26,7 @@ class AppointmentAvailabilityController extends Controller
             ? Appointment::query()->findOrFail($request->validated('appointment_id'))
             : null;
         $date = Carbon::createFromFormat('Y-m-d', $request->validated('date'), config('app.timezone'));
+        $schedule = ClinicSchedule::forDate($date);
 
         $slots = $listAvailableAppointmentSlots->handle(
             date: $date,
@@ -37,12 +39,12 @@ class AppointmentAvailabilityController extends Controller
             'data' => [
                 'date' => $date->toDateString(),
                 'timezone' => config('app.timezone'),
-                'interval_minutes' => (int) config('appointments.clinic_hours.slot_interval_minutes', 15),
+                'interval_minutes' => $schedule->slotIntervalMinutes,
                 'visit_reason_id' => $visitReason->id,
                 'visit_duration_minutes' => $visitReason->duration_minutes,
                 'optometrist_id' => $optometrist?->id,
                 'appointment_id' => $appointment?->id,
-                'day_status' => $this->dayStatus($date),
+                'day_status' => $schedule->isClosed ? 'closed' : 'open',
                 'generated_at' => now(config('app.timezone'))->toIso8601String(),
                 'slots' => collect($slots)
                     ->map(fn ($slot): array => [
@@ -55,14 +57,5 @@ class AppointmentAvailabilityController extends Controller
                     ->all(),
             ],
         ]);
-    }
-
-    private function dayStatus(Carbon $date): string
-    {
-        return in_array(
-            $date->dayOfWeek,
-            config('appointments.clinic_hours.closed_weekdays', [0]),
-            true,
-        ) ? 'closed' : 'open';
     }
 }
