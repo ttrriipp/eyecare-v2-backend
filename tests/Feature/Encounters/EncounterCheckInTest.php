@@ -2,9 +2,11 @@
 
 use App\Actions\Encounters\CheckInAppointment;
 use App\Enums\EncounterStatus;
+use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Encounter;
+use App\Models\PatientIntake;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -90,4 +92,32 @@ test('encounter factory produces valid records', function () {
         ->and($inProgress->started_at)->not->toBeNull()
         ->and($completed->status)->toBe(EncounterStatus::Completed)
         ->and($completed->completed_at)->not->toBeNull();
+});
+
+test('check-in snapshots the verified intake on the encounter', function () {
+    $appointment = Appointment::factory()->create();
+    $staff = User::factory()->staff()->create();
+    $this->actingAs($staff);
+
+    // Create a verified intake for this patient/appointment
+    $intake = PatientIntake::factory()->verified()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => IntakeStatus::Verified,
+    ]);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+
+    expect($encounter->patient_intake_id)->toBe($intake->id)
+        ->and($encounter->intake->id)->toBe($intake->id);
+});
+
+test('check-in works without a verified intake', function () {
+    $appointment = Appointment::factory()->create();
+    $staff = User::factory()->staff()->create();
+    $this->actingAs($staff);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+
+    expect($encounter->patient_intake_id)->toBeNull();
 });

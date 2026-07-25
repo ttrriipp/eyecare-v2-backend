@@ -3,9 +3,11 @@
 namespace App\Actions\Encounters;
 
 use App\Enums\EncounterStatus;
+use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Encounter;
+use App\Models\PatientIntake;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -31,10 +33,21 @@ class CheckInAppointment
                 'checked_in_by' => auth()->id(),
             ]);
 
-            // Create encounter linked to the appointment
+            // Snapshot the verified intake for this encounter
+            $verifiedIntake = PatientIntake::query()
+                ->where('patient_id', $appointment->patient_id)
+                ->where('status', IntakeStatus::Verified)
+                ->when($appointment->id, fn ($query) => $query
+                    ->where('appointment_id', $appointment->id)
+                    ->orWhereNull('appointment_id'))
+                ->latest('verified_at')
+                ->first();
+
+            // Create encounter linked to the appointment and intake
             $encounter = Encounter::query()->create([
                 'patient_id' => $appointment->patient_id,
                 'appointment_id' => $appointment->id,
+                'patient_intake_id' => $verifiedIntake?->id,
                 'status' => EncounterStatus::Waiting,
             ]);
 
