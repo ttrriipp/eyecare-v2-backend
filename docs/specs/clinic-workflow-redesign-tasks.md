@@ -240,9 +240,9 @@ hours defaulted to 09:00–17:00 every day.
 
 **Acceptance criteria:**
 
-- [ ] Each weekday has an enabled/open/close record.
-- [ ] Defaults seed all seven days as 09:00–17:00.
-- [ ] Invalid or overlapping clinic hours are rejected.
+- [x] Each weekday has an enabled/open/close record.
+- [x] Defaults seed all seven days as 09:00–17:00.
+- [x] Invalid or overlapping clinic hours are rejected.
 
 **Verification:**
 
