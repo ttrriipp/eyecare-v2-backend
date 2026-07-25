@@ -748,10 +748,10 @@ accepted quotation revision.
 
 **Acceptance criteria:**
 
-- [ ] Patient/API callers cannot create job orders.
-- [ ] Job order snapshots patient, encounter/prescription, frame/lens details,
+- [x] Patient/API callers cannot create job orders.
+- [x] Job order snapshots patient, encounter/prescription, frame/lens details,
       accepted price, and the required finalized prescription.
-- [ ] Duplicate creation from the same accepted revision is prevented.
+- [x] Duplicate creation from the same accepted revision is prevented.
 
 **Verification:**
 
