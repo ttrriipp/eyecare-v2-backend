@@ -690,9 +690,9 @@ explicit actions, with in-person decisions recorded by staff.
 
 **Acceptance criteria:**
 
-- [ ] Only valid state transitions succeed.
-- [ ] Acceptance identifies revision, recorder, patient decision, and time.
-- [ ] Accepted quotations cannot be silently revised.
+- [x] Only valid state transitions succeed.
+- [x] Acceptance identifies revision, recorder, patient decision, and time.
+- [x] Accepted quotations cannot be silently revised.
 
 **Verification:**
 
