@@ -32,8 +32,7 @@ class ReorderReport extends Page
     public function getItems(): Collection
     {
         return ProductVariant::query()
-            ->where('low_stock_threshold', '>', 0)
-            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+            ->needsReorder()
             ->with('product:id,name,brand_id', 'product.brand:id,name,supplier_contact')
             ->get()
             ->map(fn (ProductVariant $v) => [
@@ -43,10 +42,25 @@ class ReorderReport extends Page
                 'sku' => $v->sku,
                 'stock' => $v->stock_quantity,
                 'threshold' => $v->low_stock_threshold,
-                'deficit' => $v->low_stock_threshold - $v->stock_quantity,
+                'target' => $v->replenishmentTarget(),
+                'suggested_reorder_quantity' => $v->suggestedReorderQuantity(),
                 'supplier' => $v->product?->brand?->supplier_contact ?? '—',
             ])
-            ->sortByDesc('deficit')
+            ->sort(function (array $first, array $second): int {
+                if ($first['suggested_reorder_quantity'] === $second['suggested_reorder_quantity']) {
+                    return $first['sku'] <=> $second['sku'];
+                }
+
+                if ($first['suggested_reorder_quantity'] === null) {
+                    return 1;
+                }
+
+                if ($second['suggested_reorder_quantity'] === null) {
+                    return -1;
+                }
+
+                return $second['suggested_reorder_quantity'] <=> $first['suggested_reorder_quantity'];
+            })
             ->values();
     }
 
@@ -56,9 +70,18 @@ class ReorderReport extends Page
 
         return response()->streamDownload(function () use ($items): void {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Product', 'Variant', 'SKU', 'Stock', 'Threshold', 'Deficit', 'Supplier Contact']);
+            fputcsv($handle, ['Product', 'Variant', 'SKU', 'Stock', 'Threshold', 'Target', 'Suggested Reorder', 'Supplier Contact']);
             foreach ($items as $item) {
-                fputcsv($handle, array_values($item));
+                fputcsv($handle, [
+                    $item['product'],
+                    $item['variant'],
+                    $item['sku'],
+                    $item['stock'],
+                    $item['threshold'],
+                    $item['target'],
+                    $item['suggested_reorder_quantity'],
+                    $item['supplier'],
+                ]);
             }
             fclose($handle);
         }, 'reorder_report_'.now()->format('Y_m_d').'.csv', ['Content-Type' => 'text/csv']);

@@ -42,12 +42,12 @@ class ProductForm
                                 ->relationship('lensCategory', 'name')
                                 ->searchable()
                                 ->preload()
-                                ->visible(fn(Get $get): bool => $get('product_type') === 'lens'),
+                                ->visible(fn (Get $get): bool => $get('product_type') === 'lens'),
                             TextInput::make('name')
                                 ->required()
                                 ->maxLength(255)
                                 ->live(onBlur: true)
-                                ->afterStateUpdated(fn(Set $set, ?string $state) => $set(
+                                ->afterStateUpdated(fn (Set $set, ?string $state) => $set(
                                     'slug',
                                     Str::slug($state ?? ''),
                                 )),
@@ -59,10 +59,7 @@ class ProductForm
                                 ->dehydrated(),
                             RichEditor::make('description')
                                 ->toolbarButtons([
-                                    ['bold', 'italic', 'underline', 'strike'],
-                                    ['h2', 'h3'],
                                     ['bulletList', 'orderedList'],
-                                    ['blockquote'],
                                     ['undo', 'redo'],
                                 ])
                                 ->columnSpanFull(),
@@ -93,7 +90,7 @@ class ProductForm
                             Toggle::make('is_active')
                                 ->label('Visibility')
                                 ->helperText(
-                                    fn(bool $state): string => $state
+                                    fn (bool $state): string => $state
                                         ? 'This product is visible to customers.'
                                         : 'This product will be hidden from all sales channels.'
                                 )
@@ -154,20 +151,28 @@ class ProductForm
                                 ->numeric()
                                 ->minValue(0)
                                 ->default(0),
+                            TextInput::make('target_stock_level')
+                                ->label('Target Stock Level')
+                                ->helperText('Optional. When set, restock suggestions replenish inventory to this level.')
+                                ->nullable()
+                                ->integer()
+                                ->minValue(0)
+                                ->gte('low_stock_threshold')
+                                ->default(null),
                             Toggle::make('is_active')
                                 ->label('Visibility')
                                 ->helperText(
-                                    fn(bool $state): string => $state
+                                    fn (bool $state): string => $state
                                         ? 'This variant is available to customers.'
                                         : 'This variant will be hidden from all sales channels.'
                                 )
                                 ->default(true),
                             Toggle::make('ar_eligible')->live()
-                                ->visible(fn(Get $get): bool => $get('../../product_type') === 'frame'),
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
                             TextInput::make('ar_asset_reference')
                                 ->maxLength(255)
-                                ->required(fn(Get $get): bool => (bool) $get('ar_eligible'))
-                                ->visible(fn(Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
+                                ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
                             KeyValue::make('attributes')->columnSpanFull(),
                             FileUpload::make('images')
                                 ->disk('public')

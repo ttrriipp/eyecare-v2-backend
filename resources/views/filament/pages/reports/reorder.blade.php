@@ -36,7 +36,8 @@
                             <th class="fi-ta-header-cell px-3 py-3.5 text-start text-sm font-semibold text-gray-950 dark:text-white">Supplier Contact</th>
                             <th class="fi-ta-header-cell px-3 py-3.5 text-end text-sm font-semibold text-gray-950 dark:text-white">Stock</th>
                             <th class="fi-ta-header-cell px-3 py-3.5 text-end text-sm font-semibold text-gray-950 dark:text-white">Threshold</th>
-                            <th class="fi-ta-header-cell px-3 py-3.5 sm:last-of-type:pe-6 text-end text-sm font-semibold text-gray-950 dark:text-white">Deficit</th>
+                            <th class="fi-ta-header-cell px-3 py-3.5 text-end text-sm font-semibold text-gray-950 dark:text-white">Target</th>
+                            <th class="fi-ta-header-cell px-3 py-3.5 sm:last-of-type:pe-6 text-end text-sm font-semibold text-gray-950 dark:text-white">Suggested reorder</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200 whitespace-nowrap dark:divide-white/5">
@@ -53,7 +54,8 @@
                                 <td class="fi-ta-cell px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $item['supplier'] }}</td>
                                 <td class="fi-ta-cell px-3 py-4 text-end text-sm font-medium {{ $item['stock'] === 0 ? 'text-danger-600 dark:text-danger-400' : 'text-gray-950 dark:text-white' }}">{{ $item['stock'] }}</td>
                                 <td class="fi-ta-cell px-3 py-4 text-end text-sm text-gray-500 dark:text-gray-400">{{ $item['threshold'] }}</td>
-                                <td class="fi-ta-cell px-3 py-4 sm:last-of-type:pe-6 text-end text-sm font-semibold text-danger-600 dark:text-danger-400">-{{ $item['deficit'] }}</td>
+                                <td class="fi-ta-cell px-3 py-4 text-end text-sm text-gray-500 dark:text-gray-400">{{ $item['target'] ?? '—' }}</td>
+                                <td class="fi-ta-cell px-3 py-4 sm:last-of-type:pe-6 text-end text-sm font-semibold text-warning-600 dark:text-warning-400">{{ $item['suggested_reorder_quantity'] ?? '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
