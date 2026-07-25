@@ -626,9 +626,9 @@ creation entry points and their obsolete tests.
 
 **Acceptance criteria:**
 
-- [ ] Staff can prepare, reject, expire, and release reservations.
-- [ ] Patients cannot create orders/job orders through any route.
-- [ ] Direct-order API controllers/requests/routes/tests are removed after
+- [x] Staff can prepare, reject, expire, and release reservations.
+- [x] Patients cannot create orders/job orders through any route.
+- [x] Direct-order API controllers/requests/routes/tests are removed after
       reservation coverage passes.
 
 **Verification:**
