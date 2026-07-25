@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PatientProfileController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\StaffAppointmentController;
 use App\Http\Controllers\Api\StaffOrderController;
 use App\Http\Middleware\EnsureUserIsStaff;
@@ -83,4 +84,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::get('frame-reservations', [FrameReservationController::class, 'index']);
     Route::post('frame-reservations', [FrameReservationController::class, 'store']);
     Route::post('frame-reservations/{reservation}/cancel', [FrameReservationController::class, 'cancel']);
+
+    Route::get('quotations', [QuotationController::class, 'index']);
+    Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
 });

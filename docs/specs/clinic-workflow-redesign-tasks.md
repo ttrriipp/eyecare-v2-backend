@@ -716,9 +716,9 @@ status/detail API.
 
 **Acceptance criteria:**
 
-- [ ] Clinic users build and record decisions from encounter/reservation context.
-- [ ] Patients see only their quotation snapshot/status.
-- [ ] Mobile cannot accept, alter, or create quotations.
+- [x] Clinic users build and record decisions from encounter/reservation context.
+- [x] Patients see only their quotation snapshot/status.
+- [x] Mobile cannot accept, alter, or create quotations.
 
 **Verification:**
 
