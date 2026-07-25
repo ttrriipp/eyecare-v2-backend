@@ -26,8 +26,12 @@ class AppointmentController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null, 404);
+
         $appointments = Appointment::query()
-            ->where('customer_id', $request->user()->id)
+            ->where('patient_id', $patient->id)
             ->with(['visitReason', 'status', 'optometrist'])
             ->latest('scheduled_at')
             ->get();
@@ -37,6 +41,10 @@ class AppointmentController extends Controller
 
     public function store(StoreAppointmentRequest $request, CreateScheduledAppointment $createScheduledAppointment): JsonResponse
     {
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null, 422, 'No patient record linked to this account.');
+
         $visitReason = VisitReason::query()->findOrFail($request->validated('visit_reason_id'));
         $optometrist = $request->filled('optometrist_id')
             ? User::query()->findOrFail($request->validated('optometrist_id'))
@@ -44,7 +52,7 @@ class AppointmentController extends Controller
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone'));
 
         $appointment = $createScheduledAppointment->handle(
-            customer: $request->user(),
+            patient: $patient,
             visitReason: $visitReason,
             scheduledAt: $scheduledAt,
             optometrist: $optometrist,
@@ -57,7 +65,7 @@ class AppointmentController extends Controller
 
         Notification::make()
             ->title('New Appointment Booked')
-            ->body("{$appointment->customer->name} booked appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->body("{$appointment->patient->full_name} booked appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->actions([
                 Action::make('view')
                     ->label('View')
@@ -73,7 +81,9 @@ class AppointmentController extends Controller
 
     public function show(Request $request, Appointment $appointment): JsonResponse
     {
-        abort_unless($appointment->customer_id === $request->user()->id, 404);
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null && $appointment->patient_id === $patient->id, 404);
 
         $appointment->load(['visitReason', 'status', 'optometrist']);
 
@@ -84,7 +94,9 @@ class AppointmentController extends Controller
 
     public function cancel(Request $request, Appointment $appointment): JsonResponse
     {
-        abort_unless($appointment->customer_id === $request->user()->id, 403);
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null && $appointment->patient_id === $patient->id, 403);
 
         if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
             throw ValidationException::withMessages([
@@ -94,15 +106,15 @@ class AppointmentController extends Controller
 
         app(UpdateAppointmentStatus::class)->handle($appointment, 'cancelled');
 
-        $appointment->load(['visitReason', 'status', 'customer']);
+        $appointment->load(['visitReason', 'status', 'patient']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()
-            ->title('Appointment Cancelled by Customer')
-            ->body("{$appointment->customer->name} cancelled appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->title('Appointment Cancelled by Patient')
+            ->body("{$appointment->patient->full_name} cancelled appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->warning()
             ->sendToDatabase($staff);
 
@@ -144,8 +156,8 @@ class AppointmentController extends Controller
             ->get();
 
         Notification::make()
-            ->title('Appointment Rescheduled by Customer')
-            ->body("{$appointment->customer->name} rescheduled appointment {$appointment->appointment_number} from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
+            ->title('Appointment Rescheduled by Patient')
+            ->body("{$appointment->patient->full_name} rescheduled appointment {$appointment->appointment_number} from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
             ->actions([
                 Action::make('view')
                     ->label('View')

@@ -4,7 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
-use App\Models\User;
+use App\Models\Patient;
 use App\Models\VisitReason;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -21,7 +21,7 @@ class AppointmentFactory extends Factory
     public function definition(): array
     {
         return [
-            'customer_id' => User::factory()->customer(),
+            'patient_id' => Patient::factory(),
             'created_by' => null,
             'optometrist_id' => null,
             'source' => 'staff_created',

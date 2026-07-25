@@ -31,7 +31,7 @@ test('it creates reminders for tomorrow confirmed appointments', function () {
     $customer = User::factory()->customer()->create(['phone' => '09171234567']);
 
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmedId,
         'scheduled_at' => today()->addDay()->setTime(10, 0),
     ]);
@@ -49,7 +49,7 @@ test('it skips appointments that are not confirmed', function () {
     $customer = User::factory()->customer()->create(['phone' => '09170000000']);
 
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pendingId,
         'scheduled_at' => today()->addDay()->setTime(14, 0),
     ]);
@@ -65,14 +65,14 @@ test('it skips appointments not scheduled for tomorrow', function () {
 
     // Today's appointment — should not get a reminder
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmedId,
         'scheduled_at' => today()->setTime(15, 0),
     ]);
 
     // Day-after-tomorrow — should not get a reminder
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmedId,
         'scheduled_at' => today()->addDays(2)->setTime(9, 0),
     ]);
@@ -87,7 +87,7 @@ test('it is idempotent — does not create duplicate reminders', function () {
     $customer = User::factory()->customer()->create(['phone' => '09171112222']);
 
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmedId,
         'scheduled_at' => today()->addDay()->setTime(11, 30),
     ]);
@@ -103,7 +103,7 @@ test('it skips customers without a phone number', function () {
     $customer = User::factory()->customer()->create(['phone' => null]);
 
     Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmedId,
         'scheduled_at' => today()->addDay()->setTime(9, 0),
     ]);

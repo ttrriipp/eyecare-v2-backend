@@ -107,7 +107,7 @@ test('no visits yet filter shows only patients without appointments', function (
     $patientWithVisit = Patient::factory()->linked()->create();
     $patientWithoutVisit = Patient::factory()->create();
 
-    Appointment::factory()->create(['customer_id' => $patientWithVisit->user_id]);
+    Appointment::factory()->create(['patient_id' => $patientWithVisit->id]);
 
     $this->actingAs($staff);
 

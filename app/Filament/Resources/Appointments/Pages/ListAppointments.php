@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Appointments\Pages;
 use App\Actions\Appointments\CreateWalkInAppointment;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Widgets\AppointmentStatsWidget;
-use App\Models\Role;
+use App\Models\Patient;
 use App\Models\User;
 use App\Models\VisitReason;
 use Filament\Actions\Action;
@@ -34,25 +34,17 @@ class ListAppointments extends ListRecords
                 ->icon('heroicon-o-user-plus')
                 ->color('warning')
                 ->schema([
-                    Select::make('customer_id')
+                    Select::make('patient_id')
                         ->label('Patient')
-                        ->relationship('customer', 'name', fn (Builder $query) => $query->whereHas(
-                            'role',
-                            fn (Builder $roleQuery) => $roleQuery->where('name', 'patient'),
-                        ))
+                        ->relationship('patient', 'full_name')
                         ->required()
                         ->searchable()
                         ->preload()
                         ->createOptionForm([
-                            TextInput::make('name')->required(),
+                            TextInput::make('full_name')->required(),
                             TextInput::make('phone')->required()->tel(),
                         ])
-                        ->createOptionUsing(fn (array $data): int => User::query()->create([
-                            ...$data,
-                            'role_id' => Role::query()->where('name', 'patient')->value('id'),
-                            'email' => null,
-                            'password' => null,
-                        ])->getKey()),
+                        ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
                     Select::make('visit_reason_id')
                         ->label('Visit reason')
                         ->options(fn () => VisitReason::query()->orderBy('name')->pluck('name', 'id'))
@@ -72,7 +64,7 @@ class ListAppointments extends ListRecords
                 ])
                 ->action(function (array $data): void {
                     app(CreateWalkInAppointment::class)->handle(
-                        customer: User::query()->findOrFail($data['customer_id']),
+                        patient: Patient::query()->findOrFail($data['patient_id']),
                         visitReason: VisitReason::query()->findOrFail($data['visit_reason_id']),
                         staff: auth()->user(),
                         optometrist: filled($data['optometrist_id'] ?? null)

@@ -34,18 +34,18 @@ class AppointmentForm
                                 ->dehydrated(false)
                                 ->hiddenOn('create')
                                 ->columnSpanFull(),
-                            Select::make('customer_id')
+                            Select::make('patient_id')
                                 ->label('Patient')
-                                ->relationship('customer', 'name', fn ($query) => $query->patients())
+                                ->relationship('patient', 'full_name')
                                 ->required()
                                 ->searchable()
                                 ->preload()
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->createOptionForm([
-                                    TextInput::make('name')->required(),
+                                    TextInput::make('full_name')->required(),
                                     TextInput::make('phone')->required()->tel(),
-                                    TextInput::make('email')->email()->nullable(),
+                                    TextInput::make('contact_email')->email()->nullable(),
                                 ])
                                 ->createOptionUsing(function (array $data): int {
                                     return User::create([

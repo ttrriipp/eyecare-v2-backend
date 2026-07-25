@@ -20,7 +20,7 @@ beforeEach(function () {
 test('customer can cancel their own pending appointment', function () {
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id, 'appointment_status_id' => $pending->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id, 'appointment_status_id' => $pending->id]);
 
     $response = $this->actingAs($customer)->postJson("/api/appointments/{$appointment->id}/cancel");
 
@@ -33,7 +33,7 @@ test('customer can cancel their own pending appointment', function () {
 test('customer can cancel their own confirmed appointment', function () {
     $customer = User::factory()->customer()->create();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id, 'appointment_status_id' => $confirmed->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id, 'appointment_status_id' => $confirmed->id]);
 
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/cancel")
@@ -44,7 +44,7 @@ test('customer can cancel their own confirmed appointment', function () {
 test('cancellation creates an sms notification record', function () {
     $customer = User::factory()->customer()->create(['phone' => '09171234567']);
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id, 'appointment_status_id' => $pending->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id, 'appointment_status_id' => $pending->id]);
 
     $this->actingAs($customer)->postJson("/api/appointments/{$appointment->id}/cancel");
 
@@ -58,7 +58,7 @@ test('customer cannot cancel another customers appointment', function () {
     $customer = User::factory()->customer()->create();
     $other = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
-    $appointment = Appointment::factory()->create(['customer_id' => $other->id, 'appointment_status_id' => $pending->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $other->patient->id, 'appointment_status_id' => $pending->id]);
 
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/cancel")
@@ -68,7 +68,7 @@ test('customer cannot cancel another customers appointment', function () {
 test('customer cannot cancel a completed appointment', function () {
     $customer = User::factory()->customer()->create();
     $completed = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id, 'appointment_status_id' => $completed->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id, 'appointment_status_id' => $completed->id]);
 
     $this->actingAs($customer)
         ->postJson("/api/appointments/{$appointment->id}/cancel")

@@ -66,7 +66,7 @@ test('customer cancelling an appointment creates a warning notification', functi
     $pendingId = AppointmentStatus::query()->where('name', 'pending')->value('id');
 
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pendingId,
     ]);
 
@@ -83,7 +83,7 @@ test('customer cancelling an order creates a warning notification', function () 
     $requestedId = OrderStatus::query()->where('name', 'requested')->value('id');
 
     $order = Order::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'order_status_id' => $requestedId,
     ]);
 

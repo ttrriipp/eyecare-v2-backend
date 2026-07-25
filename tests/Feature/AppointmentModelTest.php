@@ -2,6 +2,7 @@
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\Patient;
 use App\Models\User;
 use App\Models\VisitReason;
 use Database\Seeders\VisitReasonSeeder;
@@ -17,7 +18,7 @@ test('appointment factory creates valid records with required attributes', funct
         'staff_notes' => 'Needs dilation.',
     ]);
 
-    expect($appointment->customer_id)->not->toBeNull()
+    expect($appointment->patient_id)->not->toBeNull()
         ->and($appointment->visit_reason_id)->not->toBeNull()
         ->and($appointment->appointment_status_id)->not->toBeNull()
         ->and($appointment->source)->toBe('staff_created')
@@ -27,7 +28,7 @@ test('appointment factory creates valid records with required attributes', funct
         ->and($appointment->scheduled_at)->not->toBeNull()
         ->and($appointment->contact_notes)->toBe('Please call before arrival.')
         ->and($appointment->staff_notes)->toBe('Needs dilation.')
-        ->and($appointment->customer)->toBeInstanceOf(User::class)
+        ->and($appointment->patient)->toBeInstanceOf(Patient::class)
         ->and($appointment->visitReason)->toBeInstanceOf(VisitReason::class)
         ->and($appointment->status)->toBeInstanceOf(AppointmentStatus::class);
 });
@@ -35,7 +36,7 @@ test('appointment factory creates valid records with required attributes', funct
 test('appointment relationships are typed', function () {
     $appointment = new Appointment;
 
-    expect($appointment->customer())->toBeInstanceOf(BelongsTo::class)
+    expect($appointment->patient())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->optometrist())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->visitReason())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->status())->toBeInstanceOf(BelongsTo::class)

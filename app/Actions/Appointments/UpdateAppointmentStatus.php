@@ -68,11 +68,11 @@ class UpdateAppointmentStatus
         }
 
         $appointment->update($attributes);
-        $appointment->load(['customer', 'visitReason', 'status']);
+        $appointment->load(['patient', 'visitReason', 'status']);
 
         if (array_key_exists($statusName, self::SMS_EVENTS)) {
             $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
-            $appointment->customer->notify(new AppointmentStatusChanged($appointment));
+            $appointment->patient->account?->notify(new AppointmentStatusChanged($appointment));
         }
 
         app(CreateAuditLog::class)->handle(
@@ -92,7 +92,7 @@ class UpdateAppointmentStatus
             'appointment_id' => $appointment->id,
             'notification_status_id' => $queuedStatus->id,
             'event' => $event,
-            'recipient' => $appointment->customer->phone ?? $appointment->customer->email,
+            'recipient' => $appointment->patient->phone ?? $appointment->patient->contact_email,
             'message' => $this->buildMessage($appointment, $event),
         ]);
     }

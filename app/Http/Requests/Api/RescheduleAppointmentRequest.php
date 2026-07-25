@@ -13,7 +13,7 @@ class RescheduleAppointmentRequest extends FormRequest
         /** @var Appointment $appointment */
         $appointment = $this->route('appointment');
 
-        return $appointment->customer_id === $this->user()?->id;
+        return $appointment->patient_id === $this->user()?->patient?->id;
     }
 
     /**

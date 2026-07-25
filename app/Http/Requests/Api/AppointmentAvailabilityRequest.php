@@ -26,7 +26,7 @@ class AppointmentAvailabilityRequest extends FormRequest
             'visit_reason_id' => ['required', 'integer', Rule::exists('visit_reasons', 'id')],
             'optometrist_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where(
-                fn ($query) => $query->where('customer_id', $this->user()?->id),
+                fn ($query) => $query->where('patient_id', $this->user()?->patient?->id),
             )],
         ];
     }
@@ -63,7 +63,7 @@ class AppointmentAvailabilityRequest extends FormRequest
 
         $appointment = Appointment::query()
             ->with(['status:id,name'])
-            ->where('customer_id', $this->user()?->id)
+            ->where('patient_id', $this->user()?->patient?->id)
             ->find($this->integer('appointment_id'));
 
         if ($appointment === null) {

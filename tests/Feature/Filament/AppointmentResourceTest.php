@@ -420,7 +420,7 @@ test('staff can create an appointment for a customer', function () {
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'visit_reason_id' => $visitReason->id,
             'scheduled_at' => $scheduledDate->toDateString(),
             'appointment_time' => '10:17',
@@ -433,7 +433,7 @@ test('staff can create an appointment for a customer', function () {
         ->assertRedirect();
 
     $this->assertDatabaseHas(Appointment::class, [
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'visit_reason_id' => $visitReason->id,
         'source' => 'phone_call',
         'created_by' => $staff->id,
@@ -468,27 +468,22 @@ test('appointment create form uses separate date and explicit meridiem time fiel
         );
 });
 
-test('appointment create form rejects staff and admin accounts as patients', function (string $factoryState) {
+test('appointment create form requires a valid patient', function () {
     $staff = User::factory()->staff()->create();
-    $nonPatient = User::factory()->{$factoryState}()->create();
     $visitReason = VisitReason::factory()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $nonPatient->id,
+            'patient_id' => 9999,
             'visit_reason_id' => $visitReason->id,
             'scheduled_at' => now()->next('Monday')->toDateString(),
             'appointment_time' => '10:00',
-            'source' => 'phone_call',
         ])
         ->call('create')
-        ->assertHasFormErrors(['customer_id']);
-})->with([
-    'admin' => ['admin'],
-    'staff' => ['staff'],
-]);
+        ->assertHasFormErrors(['patient_id']);
+});
 
 test('appointment create form rejects a customer as assigned optometrist', function () {
     $staff = User::factory()->staff()->create();
@@ -499,7 +494,7 @@ test('appointment create form rejects a customer as assigned optometrist', funct
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'visit_reason_id' => $visitReason->id,
             'scheduled_at' => now()->next('Monday')->toDateString(),
             'appointment_time' => '10:00',
@@ -518,7 +513,7 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $walkIn->id,
+            'patient_id' => $walkIn->patient->id,
             'visit_reason_id' => $visitReason->id,
             'scheduled_at' => now()->next('Monday')->toDateString(),
             'appointment_time' => '10:00',
@@ -529,7 +524,7 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
         ->assertRedirect();
 
     $this->assertDatabaseHas(Appointment::class, [
-        'customer_id' => $walkIn->id,
+        'patient_id' => $walkIn->patient->id,
         'source' => 'staff_created',
         'created_by' => $staff->id,
     ]);
@@ -540,7 +535,7 @@ test('staff can create an appointment for a walk-in customer (no email or passwo
 
 test('WalkIn staff can add a patient to the queue', function () {
     $staff = User::factory()->staff()->create();
-    $patient = User::factory()->walkIn()->create(['phone' => '09171234569']);
+    $walkInUser = User::factory()->walkIn()->create(['phone' => '09171234569']);
     $visitReason = VisitReason::factory()->create();
     $optometrist = User::factory()->optometrist()->create();
 
@@ -548,14 +543,14 @@ test('WalkIn staff can add a patient to the queue', function () {
 
     Livewire::test(ListAppointments::class)
         ->callAction('addWalkIn', [
-            'customer_id' => $patient->id,
+            'patient_id' => $walkInUser->patient->id,
             'visit_reason_id' => $visitReason->id,
             'optometrist_id' => $optometrist->id,
         ])
         ->assertNotified();
 
     $this->assertDatabaseHas(Appointment::class, [
-        'customer_id' => $patient->id,
+        'patient_id' => $walkInUser->patient->id,
         'visit_reason_id' => $visitReason->id,
         'optometrist_id' => $optometrist->id,
         'created_by' => $staff->id,
@@ -564,7 +559,7 @@ test('WalkIn staff can add a patient to the queue', function () {
         'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
     ]);
 
-    $appointment = Appointment::query()->whereBelongsTo($patient, 'customer')->firstOrFail();
+    $appointment = Appointment::query()->whereBelongsTo($walkInUser->patient, 'patient')->firstOrFail();
 
     Livewire::test(ListAppointments::class)
         ->assertTableColumnFormattedStateSet('source', 'Walk-in', record: $appointment);
@@ -690,7 +685,7 @@ test('appointment create form rejects past scheduled_at', function () {
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'visit_reason_id' => $visitReason->id,
             'scheduled_at' => now()->subDay()->toDateString(),
             'appointment_time' => '10:00',
@@ -705,7 +700,7 @@ test('appointment edit page shows linked billings via relation manager', functio
 
     $issuedStatus = BillingStatus::query()->firstOrCreate(['name' => 'issued']);
     $billing = Billing::factory()->create([
-        'customer_id' => $appointment->customer_id,
+        'customer_id' => $appointment->patient_id,
         'appointment_id' => $appointment->id,
         'billing_status_id' => $issuedStatus->id,
     ]);

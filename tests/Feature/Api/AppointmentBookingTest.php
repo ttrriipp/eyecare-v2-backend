@@ -36,7 +36,7 @@ test('authenticated customers can create pending appointments', function () {
     expect(str_starts_with($response->json('data.appointment_number'), 'APT-'))->toBeTrue();
 
     $this->assertDatabaseHas(Appointment::class, [
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'visit_reason_id' => $visitReason->id,
         'source' => 'mobile_app',
         'optometrist_id' => $optometrist->id,
@@ -68,11 +68,11 @@ test('customers can list only their own appointments', function () {
     $otherCustomer = User::factory()->customer()->create();
 
     $ownAppointments = Appointment::factory()->count(2)->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
     ]);
 
     Appointment::factory()->create([
-        'customer_id' => $otherCustomer->id,
+        'patient_id' => $otherCustomer->patient->id,
     ]);
 
     $response = $this->actingAs($customer, 'sanctum')
@@ -92,7 +92,7 @@ test('customers can list only their own appointments', function () {
 test('customers can view only their own appointment', function () {
     $customer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
     ]);
 
     $this->actingAs($customer, 'sanctum')
@@ -163,7 +163,7 @@ test('booking stale availability returns a structured slot unavailable response'
     $appointmentDate = now()->next('Monday')->setTime(10, 0);
 
     Appointment::factory()->create([
-        'customer_id' => $otherCustomer->id,
+        'patient_id' => $otherCustomer->patient->id,
         'appointment_status_id' => $confirmed->id,
         'visit_reason_id' => $visitReason->id,
         'scheduled_at' => $appointmentDate,
@@ -181,7 +181,7 @@ test('booking stale availability returns a structured slot unavailable response'
         ->assertJsonPath('availability.optometrist_id', null)
         ->assertJsonValidationErrors('scheduled_at');
 
-    expect(Appointment::query()->where('customer_id', $customer->id)->count())->toBe(0);
+    expect(Appointment::query()->where('patient_id', $customer->id)->count())->toBe(0);
 });
 
 test('booking is allowed when slot is outside 30 minute window', function () {

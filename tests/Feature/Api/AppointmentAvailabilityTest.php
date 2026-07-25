@@ -262,7 +262,7 @@ test('availability validates optometrist eligibility instead of returning an emp
 
 test('availability can exclude the appointment being rescheduled', function () {
     $appointment = Appointment::factory()->create([
-        'customer_id' => $this->customer->id,
+        'patient_id' => $this->customer->patient->id,
         'optometrist_id' => $this->optometrist->id,
         'visit_reason_id' => $this->visitReason->id,
         'scheduled_at' => '2026-07-13 10:00:00',

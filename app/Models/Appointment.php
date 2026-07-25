@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'appointment_number',
-    'customer_id',
+    'patient_id',
     'created_by',
     'optometrist_id',
     'source',
@@ -69,8 +69,8 @@ class Appointment extends Model implements Eventable
             default => '#6b7280',
         };
 
-        $title = $this->customer?->name ?? 'Appointment';
-        $phone = $this->customer?->phone;
+        $title = $this->patient?->full_name ?? 'Appointment';
+        $phone = $this->patient?->phone;
         $reason = $this->visitReason?->name;
 
         if ($phone) {
@@ -89,11 +89,11 @@ class Appointment extends Model implements Eventable
     }
 
     /**
-     * @return BelongsTo<User, $this>
+     * @return BelongsTo<Patient, $this>
      */
-    public function customer(): BelongsTo
+    public function patient(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(Patient::class);
     }
 
     /**

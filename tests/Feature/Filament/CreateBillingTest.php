@@ -22,7 +22,7 @@ test('staff can create a standalone billing', function () {
 
     Livewire::test(CreateBilling::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'notes' => 'Standalone consultation fee.',
         ])
         ->call('create')
@@ -31,7 +31,7 @@ test('staff can create a standalone billing', function () {
         ->assertRedirect();
 
     $this->assertDatabaseHas(Billing::class, [
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'notes' => 'Standalone consultation fee.',
         'order_id' => null,
         'subtotal' => '0.00',
@@ -47,20 +47,20 @@ test('staff can create a standalone billing', function () {
 test('staff can create a standalone billing linked to an appointment', function () {
     $staff = User::factory()->staff()->create();
     $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($staff);
 
     Livewire::test(CreateBilling::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'appointment_id' => $appointment->id,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
     $this->assertDatabaseHas(Billing::class, [
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_id' => $appointment->id,
     ]);
 });

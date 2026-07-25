@@ -18,6 +18,7 @@ class StoreConversationRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->user()?->id;
+        $patientId = $this->user()?->patient?->id;
 
         return [
             'subject' => ['nullable', 'string', 'max:255'],
@@ -25,7 +26,7 @@ class StoreConversationRequest extends FormRequest
             'appointment_id' => [
                 'nullable',
                 'integer',
-                "exists:appointments,id,customer_id,{$userId}",
+                "exists:appointments,id,patient_id,{$patientId}",
             ],
             'order_id' => [
                 'nullable',

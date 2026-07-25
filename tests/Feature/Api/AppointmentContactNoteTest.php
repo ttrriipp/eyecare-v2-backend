@@ -17,7 +17,7 @@ test('customers can update contact notes on their own pending appointment', func
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'contact_notes' => 'Original note',
     ]);
@@ -42,7 +42,7 @@ test('customers can update contact notes on their own confirmed appointment', fu
     $customer = User::factory()->customer()->create();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmed->id,
         'contact_notes' => 'Original note',
     ]);
@@ -62,7 +62,7 @@ test('customers can update contact notes on their own confirmed appointment', fu
 test('customers can clear contact notes', function (?string $contactNotes) {
     $customer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'contact_notes' => 'Please call me.',
     ]);
 
@@ -84,7 +84,7 @@ test('customers cannot update contact notes on ineligible appointment statuses',
     $customer = User::factory()->customer()->create();
     $appointmentStatus = AppointmentStatus::query()->where('name', $status)->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $appointmentStatus->id,
         'contact_notes' => 'Original note',
     ]);
@@ -108,7 +108,7 @@ test('customers cannot update contact notes on another customers appointment', f
     $customer = User::factory()->customer()->create();
     $otherCustomer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $otherCustomer->id,
+        'patient_id' => $otherCustomer->patient->id,
         'contact_notes' => 'Other customer note',
     ]);
 
@@ -124,7 +124,7 @@ test('customers cannot update contact notes on another customers appointment', f
 test('contact notes must not exceed the appointment column limit', function () {
     $customer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'contact_notes' => 'Original note',
     ]);
 
@@ -150,7 +150,7 @@ test('contact note update ignores unrelated and staff only appointment fields', 
     $scheduledAt = now()->next('Monday')->setTime(10, 0, 0);
 
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'optometrist_id' => $originalOptometrist->id,
         'source' => 'mobile_app',
         'visit_reason_id' => $originalVisitReason->id,
@@ -168,7 +168,7 @@ test('contact note update ignores unrelated and staff only appointment fields', 
             'status' => 'confirmed',
             'scheduled_at' => now()->next('Tuesday')->setTime(11, 0, 0)->toDateTimeString(),
             'visit_reason_id' => $otherVisitReason->id,
-            'customer_id' => $otherCustomer->id,
+            'patient_id' => $otherCustomer->patient->id,
             'source' => 'walk_in',
             'optometrist_id' => $otherOptometrist->id,
         ])
@@ -184,7 +184,7 @@ test('contact note update ignores unrelated and staff only appointment fields', 
         ->and($appointment->appointment_status_id)->toBe($pending->id)
         ->and($appointment->scheduled_at->format('Y-m-d H:i:s'))->toBe($scheduledAt->format('Y-m-d H:i:s'))
         ->and($appointment->visit_reason_id)->toBe($originalVisitReason->id)
-        ->and($appointment->customer_id)->toBe($customer->id)
+        ->and($appointment->patient_id)->toBe($customer->patient->id)
         ->and($appointment->source)->toBe('mobile_app')
         ->and($appointment->optometrist_id)->toBe($originalOptometrist->id);
 });

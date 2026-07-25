@@ -149,7 +149,7 @@ class ConversationController extends Controller
             'appointment' => Appointment::query()
                 ->when(
                     $user->role->name === 'patient',
-                    fn (Builder $query): Builder => $query->where('customer_id', $user->id),
+                    fn (Builder $query): Builder => $query->where('patient_id', $user->patient?->id),
                 )
                 ->find($id),
             'order' => Order::query()

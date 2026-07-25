@@ -76,7 +76,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     protected function getEvents(FetchInfo $info): Builder|array
     {
         return Appointment::query()
-            ->with(['customer', 'status', 'visitReason', 'createdBy', 'checkedInBy', 'optometrist'])
+            ->with(['patient', 'status', 'visitReason', 'createdBy', 'checkedInBy', 'optometrist'])
             ->whereDate('scheduled_at', '>=', $info->start)
             ->whereDate('scheduled_at', '<=', $info->end);
     }
@@ -91,7 +91,7 @@ class AppointmentCalendarWidget extends CalendarWidget
             return;
         }
 
-        $event->loadMissing(['customer', 'visitReason', 'status']);
+        $event->loadMissing(['patient', 'visitReason', 'status']);
 
         $this->mountAction('viewAppointment', [
             'appointmentId' => $event->getKey(),
@@ -101,7 +101,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     public function viewAppointmentAction(): Action
     {
         return Action::make('viewAppointment')
-            ->modalHeading(fn (array $arguments): string => $this->getAppointmentForAction($arguments)->customer?->name ?? 'Appointment')
+            ->modalHeading(fn (array $arguments): string => $this->getAppointmentForAction($arguments)->patient?->full_name ?? 'Appointment')
             ->modalWidth('md')
             ->schema(function (array $arguments): array {
                 $appointment = $this->getAppointmentForAction($arguments);
@@ -110,7 +110,7 @@ class AppointmentCalendarWidget extends CalendarWidget
                     Grid::make(2)->schema([
                         Placeholder::make('phone')
                             ->label('Phone')
-                            ->content($appointment->customer?->phone ?? '—'),
+                            ->content($appointment->patient?->phone ?? '—'),
                         Placeholder::make('status')
                             ->label('Status')
                             ->content(ucfirst($appointment->status?->name ?? 'unknown')),
@@ -149,7 +149,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     private function getAppointmentForAction(array $arguments): Appointment
     {
         return Appointment::query()
-            ->with(['customer', 'visitReason', 'status', 'createdBy', 'checkedInBy', 'optometrist'])
+            ->with(['patient', 'visitReason', 'status', 'createdBy', 'checkedInBy', 'optometrist'])
             ->findOrFail($arguments['appointmentId']);
     }
 

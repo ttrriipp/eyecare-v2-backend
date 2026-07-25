@@ -18,13 +18,13 @@ test('GET /conversations creates and returns single conversation for customer', 
     $response->assertSuccessful()
         ->assertJsonPath('data.customer_id', $customer->id);
 
-    $this->assertDatabaseHas(Conversation::class, ['customer_id' => $customer->id]);
+    $this->assertDatabaseHas(Conversation::class, ['patient_id' => $customer->patient->id]);
     expect(Conversation::where('customer_id', $customer->id)->count())->toBe(1);
 });
 
 test('GET /conversations returns existing conversation without creating a new one', function () {
     $customer = User::factory()->customer()->create();
-    $existing = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $existing = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->getJson('/api/conversations')
@@ -48,7 +48,7 @@ test('unauthenticated users cannot access conversation endpoints', function () {
 
 test('customers can send a message to their own conversation', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -77,7 +77,7 @@ test('customers cannot send a message to another customers conversation', functi
 
 test('customers can view messages in their own conversation', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
     Message::factory()->count(3)->create(['conversation_id' => $conversation->id, 'sender_id' => $customer->id]);
 
     $this->actingAs($customer, 'sanctum')
@@ -105,7 +105,7 @@ test('staff can view and reply to any conversation', function () {
 
 test('message body is required when sending a message', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [])
@@ -115,8 +115,8 @@ test('message body is required when sending a message', function () {
 
 test('customer can send a message with appointment context link', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -137,8 +137,8 @@ test('customer can send a message with appointment context link', function () {
 
 test('customer can send a message with order context link', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
-    $order = Order::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
+    $order = Order::factory()->create(['patient_id' => $customer->patient->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -160,8 +160,8 @@ test('customer can send a message with order context link', function () {
 test('customer cannot link another customers appointment', function () {
     $customer = User::factory()->customer()->create();
     $otherCustomer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
-    $appointment = Appointment::factory()->create(['customer_id' => $otherCustomer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $otherCustomer->patient->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -183,8 +183,8 @@ test('customer cannot link another customers appointment', function () {
 test('customer cannot link another customers order', function () {
     $customer = User::factory()->customer()->create();
     $otherCustomer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
-    $order = Order::factory()->create(['customer_id' => $otherCustomer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
+    $order = Order::factory()->create(['patient_id' => $otherCustomer->patient->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -205,8 +205,8 @@ test('customer cannot link another customers order', function () {
 
 test('GET messages returns context links on each message', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id]);
 
     $message = Message::factory()->create([
         'conversation_id' => $conversation->id,
@@ -228,7 +228,7 @@ test('GET messages returns context links on each message', function () {
 
 test('contexts type must be valid', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson("/api/conversations/{$conversation->id}/messages", [
@@ -244,7 +244,7 @@ test('contexts type must be valid', function () {
 test('GET /conversations includes unread_count', function () {
     $customer = User::factory()->customer()->create();
     $staff = User::factory()->staff()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     // Staff sends 2 messages (unread by customer)
     Message::factory()->count(2)->create([
@@ -262,7 +262,7 @@ test('GET /conversations includes unread_count', function () {
 test('POST /conversations/{id}/messages/read marks unread messages as read', function () {
     $customer = User::factory()->customer()->create();
     $staff = User::factory()->staff()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $messages = Message::factory()->count(3)->create([
         'conversation_id' => $conversation->id,
@@ -282,7 +282,7 @@ test('POST /conversations/{id}/messages/read marks unread messages as read', fun
 
 test('messages sent by self are not marked by mark-read', function () {
     $customer = User::factory()->customer()->create();
-    $conversation = Conversation::factory()->create(['customer_id' => $customer->id]);
+    $conversation = Conversation::factory()->create(['patient_id' => $customer->patient->id]);
 
     $ownMessage = Message::factory()->create([
         'conversation_id' => $conversation->id,

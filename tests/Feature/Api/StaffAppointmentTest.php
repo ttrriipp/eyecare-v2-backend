@@ -104,7 +104,7 @@ test('rescheduled is not accepted as an appointment status', function () {
 test('customers cannot update appointment status through staff endpoint', function () {
     $customer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
     ]);
 
     $this->actingAs($customer, 'sanctum')

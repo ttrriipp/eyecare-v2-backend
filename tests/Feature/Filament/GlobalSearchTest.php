@@ -39,7 +39,7 @@ test('orders resource is globally searchable by order number', function () {
 
 test('appointments resource is globally searchable by customer name', function () {
     $customer = User::factory()->customer()->create(['name' => 'Juan Reyes']);
-    Appointment::factory()->create(['customer_id' => $customer->id]);
+    Appointment::factory()->create(['patient_id' => $customer->patient->id]);
 
     $results = AppointmentResource::getGlobalSearchResults('Juan')->collect();
 

@@ -43,7 +43,7 @@ class AppointmentsTable
                     ->label('Number')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('customer.name')
+                TextColumn::make('patient.full_name')
                     ->label('Patient')
                     ->searchable(),
                 TextColumn::make('visitReason.name')

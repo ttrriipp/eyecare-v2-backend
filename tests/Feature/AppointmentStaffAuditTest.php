@@ -59,7 +59,7 @@ test('appointment records the staff member who checks in the patient', function 
 test('appointment API response does not expose manual staff assignment', function () {
     $customer = User::factory()->customer()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
     ]);
 
     $this->actingAs($customer, 'sanctum')
@@ -72,7 +72,7 @@ test('appointment API response includes source and assigned optometrist', functi
     $customer = User::factory()->customer()->create();
     $optometrist = User::factory()->optometrist()->create();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'source' => 'phone_call',
         'optometrist_id' => $optometrist->id,
     ]);
@@ -96,7 +96,7 @@ test('staff-created appointments automatically record the booking user', functio
 
     Livewire::test(CreateAppointment::class)
         ->fillForm([
-            'customer_id' => $customer->id,
+            'patient_id' => $customer->patient->id,
             'visit_reason_id' => $visitReason->id,
             'source' => 'staff_created',
             'scheduled_at' => now()->next('Monday')->setTime(10, 0)->toDateTimeString(),
@@ -106,7 +106,7 @@ test('staff-created appointments automatically record the booking user', functio
         ->assertHasNoFormErrors()
         ->assertRedirect();
 
-    $appointment = Appointment::query()->where('customer_id', $customer->id)->firstOrFail();
+    $appointment = Appointment::query()->where('patient_id', $customer->id)->firstOrFail();
 
     expect($appointment->created_by)->toBe($staff->id);
 });

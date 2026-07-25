@@ -17,7 +17,7 @@ beforeEach(function () {
 
 test('customers can submit feedback for a completed appointment', function () {
     $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->completed()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->completed()->create(['patient_id' => $customer->patient->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson('/api/feedback', [
@@ -31,7 +31,7 @@ test('customers can submit feedback for a completed appointment', function () {
         ->assertJsonPath('data.comment', 'Great service!');
 
     $this->assertDatabaseHas(Feedback::class, [
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_id' => $appointment->id,
         'rating' => 5,
     ]);
@@ -39,7 +39,7 @@ test('customers can submit feedback for a completed appointment', function () {
 
 test('customers can submit feedback for a completed order', function () {
     $customer = User::factory()->customer()->create();
-    $order = Order::factory()->completed()->create(['customer_id' => $customer->id]);
+    $order = Order::factory()->completed()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/feedback', [
@@ -52,7 +52,7 @@ test('customers can submit feedback for a completed order', function () {
 
 test('feedback is rejected for a non-completed appointment', function () {
     $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/feedback', [
@@ -65,7 +65,7 @@ test('feedback is rejected for a non-completed appointment', function () {
 
 test('feedback is rejected for a non-completed order', function () {
     $customer = User::factory()->customer()->create();
-    $order = Order::factory()->create(['customer_id' => $customer->id]);
+    $order = Order::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/feedback', [
@@ -91,7 +91,7 @@ test('customers cannot submit feedback for another customers appointment', funct
 
 test('feedback requires a rating between 1 and 5', function () {
     $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->completed()->create(['customer_id' => $customer->id]);
+    $appointment = Appointment::factory()->completed()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/feedback', [
@@ -119,7 +119,7 @@ test('customers can list only their own feedback', function () {
     $customer = User::factory()->customer()->create();
     $otherCustomer = User::factory()->customer()->create();
 
-    $ownFeedback = Feedback::factory()->count(2)->create(['customer_id' => $customer->id]);
+    $ownFeedback = Feedback::factory()->count(2)->create(['patient_id' => $customer->patient->id]);
     Feedback::factory()->create(['customer_id' => $otherCustomer->id]);
 
     $response = $this->actingAs($customer, 'sanctum')
@@ -133,7 +133,7 @@ test('customers can list only their own feedback', function () {
 
 test('customers can view their own feedback', function () {
     $customer = User::factory()->customer()->create();
-    $feedback = Feedback::factory()->create(['customer_id' => $customer->id]);
+    $feedback = Feedback::factory()->create(['patient_id' => $customer->patient->id]);
 
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/feedback/{$feedback->id}")

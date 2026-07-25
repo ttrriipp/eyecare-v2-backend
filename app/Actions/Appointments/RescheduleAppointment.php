@@ -41,7 +41,7 @@ class RescheduleAppointment
             ]);
         }
 
-        $appointment->loadMissing(['visitReason', 'optometrist', 'customer']);
+        $appointment->loadMissing(['visitReason', 'optometrist', 'patient']);
 
         return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
@@ -71,10 +71,10 @@ class RescheduleAppointment
             }
 
             $appointment->update($attributes);
-            $appointment->load(['customer', 'visitReason', 'status', 'optometrist']);
+            $appointment->load(['patient', 'visitReason', 'status', 'optometrist']);
 
             $this->createSmsNotification($appointment, $rescheduleReason);
-            $appointment->customer->notify(new AppointmentRescheduled($appointment));
+            $appointment->patient->account?->notify(new AppointmentRescheduled($appointment));
             $this->createAuditLog->handle(
                 subject: $appointment,
                 action: 'appointment.rescheduled',
@@ -85,7 +85,7 @@ class RescheduleAppointment
                 ], fn ($value): bool => $value !== null),
             );
 
-            return $appointment->fresh(['customer', 'visitReason', 'status', 'optometrist']);
+            return $appointment->fresh(['patient', 'visitReason', 'status', 'optometrist']);
         }, attempts: 3);
     }
 
@@ -143,7 +143,7 @@ class RescheduleAppointment
             'appointment_id' => $appointment->id,
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
-            'recipient' => $appointment->customer->phone ?? $appointment->customer->email,
+            'recipient' => $appointment->patient->phone ?? $appointment->patient->contact_email,
             'message' => $message,
         ]);
     }

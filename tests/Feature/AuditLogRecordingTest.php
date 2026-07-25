@@ -160,7 +160,7 @@ test('payment record triggers billing balance recalculation audit log', function
 test('feedback submission creates an audit log', function () {
     $customer = User::factory()->customer()->create();
 
-    $feedback = Feedback::factory()->create(['customer_id' => $customer->id]);
+    $feedback = Feedback::factory()->create(['patient_id' => $customer->patient->id]);
 
     app(CreateAuditLog::class)->handle(
         subject: $feedback,

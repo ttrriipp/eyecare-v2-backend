@@ -325,9 +325,9 @@ choose time only, while clinic users assign/reassign an available optometrist.
 
 **Acceptance criteria:**
 
-- [ ] Scheduled and walk-in records reference Patient.
-- [ ] Patient requests cannot submit `optometrist_id`.
-- [ ] Assignment/reassignment checks availability and audits the actor.
+- [x] Scheduled and walk-in records reference Patient.
+- [x] Patient requests cannot submit `optometrist_id`.
+- [x] Assignment/reassignment checks availability and audits the actor.
 
 **Verification:**
 

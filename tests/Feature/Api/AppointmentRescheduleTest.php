@@ -24,7 +24,7 @@ test('customer can reschedule their own pending appointment', function () {
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'scheduled_at' => now()->addDays(2),
     ]);
@@ -46,7 +46,7 @@ test('customer can reschedule their own confirmed appointment', function () {
     $customer = User::factory()->customer()->create();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmed->id,
         'scheduled_at' => now()->addDays(2),
     ]);
@@ -63,7 +63,7 @@ test('customer can reschedule a pending appointment more than once', function ()
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'scheduled_at' => now()->addDays(2),
     ]);
@@ -135,7 +135,7 @@ test('customer reschedule does not set a staff reschedule reason', function () {
     $customer = User::factory()->customer()->create();
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmed->id,
         'scheduled_at' => now()->addDays(2),
     ]);
@@ -154,7 +154,7 @@ test('customer appointment response includes latest staff reschedule reason', fu
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'last_reschedule_reason' => 'Doctor unavailable',
     ]);
@@ -169,7 +169,7 @@ test('reschedule creates an sms notification record', function () {
     $customer = User::factory()->customer()->create(['phone' => '09171234567']);
     $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $confirmed->id,
         'scheduled_at' => now()->addDays(2),
     ]);
@@ -189,7 +189,7 @@ test('reschedule audit records the old and new scheduled times', function () {
     $oldTime = now()->addDays(2)->setHour(10)->setMinute(0)->setSecond(0);
     $newTime = now()->next('Monday')->setHour(11)->setMinute(0)->setSecond(0);
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'scheduled_at' => $oldTime,
     ]);
 
@@ -242,7 +242,7 @@ test('customer cannot reschedule a completed appointment', function () {
     $customer = User::factory()->customer()->create();
     $completed = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $completed->id,
     ]);
 
@@ -257,7 +257,7 @@ test('customer cannot reschedule a cancelled appointment', function () {
     $customer = User::factory()->customer()->create();
     $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $cancelled->id,
     ]);
 
@@ -273,7 +273,7 @@ test('customer cannot reschedule another customers appointment', function () {
     $other = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $other->id,
+        'patient_id' => $other->patient->id,
         'appointment_status_id' => $pending->id,
     ]);
 
@@ -288,7 +288,7 @@ test('reschedule rejects a past date', function () {
     $customer = User::factory()->customer()->create();
     $pending = AppointmentStatus::query()->where('name', 'pending')->firstOrFail();
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
     ]);
 
@@ -309,7 +309,7 @@ test('reschedule is rejected when the new slot conflicts with another appointmen
     $targetDate = now()->next('Tuesday');
 
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'visit_reason_id' => $visitReason->id,
         'scheduled_at' => $originalDate->copy()->setTime(9, 0),
@@ -339,7 +339,7 @@ test('reschedule stale availability returns a structured slot unavailable respon
     $targetDate = now()->next('Tuesday')->setTime(10, 0);
 
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'visit_reason_id' => $visitReason->id,
         'scheduled_at' => $originalDate,
@@ -375,7 +375,7 @@ test('reschedule does not conflict with the appointments own original slot', fun
     $appointmentDate = now()->next('Monday');
 
     $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
+        'patient_id' => $customer->patient->id,
         'appointment_status_id' => $pending->id,
         'visit_reason_id' => $visitReason->id,
         'scheduled_at' => $appointmentDate->copy()->setTime(9, 0),

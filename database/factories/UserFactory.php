@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -65,7 +66,12 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'role_id' => $this->fixedRoleId('patient'),
-        ]);
+        ])->afterCreating(function (User $user): void {
+            if ($user->patient === null) {
+                Patient::factory()->create(['user_id' => $user->id]);
+            }
+            $user->load('patient');
+        });
     }
 
     /**
@@ -94,7 +100,12 @@ class UserFactory extends Factory
             'password' => null,
             'remember_token' => null,
             'role_id' => $this->fixedRoleId('patient'),
-        ]);
+        ])->afterCreating(function (User $user): void {
+            if ($user->patient === null) {
+                Patient::factory()->walkIn()->create(['user_id' => $user->id]);
+            }
+            $user->load('patient');
+        });
     }
 
     private function fixedRoleId(string $name): int

@@ -4,6 +4,7 @@ namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\Patient;
 use App\Models\User;
 use App\Models\VisitReason;
 use Carbon\CarbonInterface;
@@ -19,13 +20,13 @@ class CreateScheduledAppointment
     ) {}
 
     public function handle(
-        User $customer,
+        Patient $patient,
         VisitReason $visitReason,
         CarbonInterface $scheduledAt,
         ?User $optometrist = null,
         ?string $contactNotes = null,
     ): Appointment {
-        return DB::transaction(function () use ($customer, $visitReason, $scheduledAt, $optometrist, $contactNotes): Appointment {
+        return DB::transaction(function () use ($patient, $visitReason, $scheduledAt, $optometrist, $contactNotes): Appointment {
             $this->lockAppointmentScheduleDate->handle($scheduledAt);
             $this->validateOptometrist($optometrist);
 
@@ -42,7 +43,7 @@ class CreateScheduledAppointment
             }
 
             $appointment = Appointment::query()->create([
-                'customer_id' => $customer->id,
+                'patient_id' => $patient->id,
                 'visit_reason_id' => $visitReason->id,
                 'optometrist_id' => $optometrist?->id,
                 'appointment_status_id' => AppointmentStatus::query()->where('name', 'pending')->value('id'),
@@ -51,7 +52,7 @@ class CreateScheduledAppointment
                 'contact_notes' => $contactNotes,
             ]);
 
-            return $appointment->fresh(['visitReason', 'status', 'customer', 'optometrist']);
+            return $appointment->fresh(['visitReason', 'status', 'patient', 'optometrist']);
         }, attempts: 3);
     }
 

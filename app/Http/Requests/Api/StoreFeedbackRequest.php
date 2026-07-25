@@ -21,6 +21,7 @@ class StoreFeedbackRequest extends FormRequest
     public function rules(): array
     {
         $userId = $this->user()?->id;
+        $patientId = $this->user()?->patient?->id;
 
         $completedAppointmentStatusId = AppointmentStatus::query()
             ->where('name', 'completed')
@@ -36,7 +37,7 @@ class StoreFeedbackRequest extends FormRequest
                 'nullable',
                 'integer',
                 Rule::exists('appointments', 'id')
-                    ->where('customer_id', $userId)
+                    ->where('patient_id', $patientId)
                     ->where('appointment_status_id', $completedAppointmentStatusId),
             ],
             'order_id' => [
