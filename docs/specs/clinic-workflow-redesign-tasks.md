@@ -287,9 +287,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Appointments/ProviderAvaila
 
 ### Checkpoint 2A: Schedule sources
 
-- [ ] Tasks 07–08 focused tests pass.
-- [ ] Seven-day clinic defaults and two provider schedules seed correctly.
-- [ ] Invalid/overlapping schedule rules are rejected.
+- [x] Tasks 07–08 focused tests pass.
+- [x] Seven-day clinic defaults and two provider schedules seed correctly.
+- [x] Invalid/overlapping schedule rules are rejected.
 
 ### Task 09: Evaluate appointment availability from stored schedules
 
