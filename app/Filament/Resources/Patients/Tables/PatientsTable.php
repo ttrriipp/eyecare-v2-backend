@@ -19,7 +19,7 @@ class PatientsTable
                 ->addSelect([
                     'last_visit' => Appointment::query()
                         ->select('scheduled_at')
-                        ->whereColumn('customer_id', 'patients.user_id')
+                        ->whereColumn('patient_id', 'patients.id')
                         ->latest('scheduled_at')
                         ->limit(1),
                 ])
