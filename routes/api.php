@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
@@ -71,4 +72,10 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
         Route::patch('orders/{order}/status', [StaffOrderController::class, 'updateStatus']);
     });
+});
+
+// Versioned patient API (/api/v1)
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
+    Route::get('frames', [FrameController::class, 'index']);
+    Route::get('frames/{product}', [FrameController::class, 'show']);
 });

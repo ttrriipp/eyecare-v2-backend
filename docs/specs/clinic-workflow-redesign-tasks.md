@@ -538,10 +538,10 @@ to active frames and fitting-safe fields.
 
 **Acceptance criteria:**
 
-- [ ] `/api/v1/frames` returns frames only.
-- [ ] Accessories, costs, exact inventory counts, and internal fields are
+- [x] `/api/v1/frames` returns frames only.
+- [x] Accessories, costs, exact inventory counts, and internal fields are
       absent.
-- [ ] Old unversioned direct-order routes are not exposed.
+- [x] Old unversioned direct-order routes are not exposed.
 
 **Verification:**
 
