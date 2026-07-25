@@ -435,9 +435,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterCheckIn
 
 ### Checkpoint 3A: Intake and encounter creation
 
-- [ ] Tasks 11–13 focused tests pass.
-- [ ] Verified intake is snapshotted at check-in.
-- [ ] Concurrent check-in cannot create duplicate encounters.
+- [x] Tasks 11–13 focused tests pass.
+- [x] Verified intake is snapshotted at check-in.
+- [x] Concurrent check-in cannot create duplicate encounters.
 
 ### Task 14: Finalize and amend encounter prescriptions
 
