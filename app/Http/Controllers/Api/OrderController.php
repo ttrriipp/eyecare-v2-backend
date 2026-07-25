@@ -73,7 +73,7 @@ class OrderController extends Controller
             $order = Order::query()->create([
                 'order_number' => 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(6)),
                 'customer_id' => $request->user()->id,
-                'appointment_id' => $request->validated('appointment_id'),
+                'appointment_id' => null,
                 'is_non_prescription' => $request->boolean('is_non_prescription'),
                 'order_status_id' => $requestedStatus->id,
                 'subtotal' => $subtotal,

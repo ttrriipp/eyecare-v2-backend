@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -13,14 +15,7 @@ class ProductController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = Product::query()
-            ->where('is_active', true)
-            ->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES)
-            ->with([
-                'brand',
-                'category',
-                'variants' => fn ($q) => $q->where('is_active', true),
-            ]);
+        $query = $this->mobileCatalogQuery();
 
         // Search by name or description
         $query->when(
@@ -49,7 +44,9 @@ class ProductController extends Controller
             $request->filled('min_price'),
             fn ($q) => $q->whereHas(
                 'variants',
-                fn ($v) => $v->where('price', '>=', $request->input('min_price'))
+                fn (Builder $variantQuery): Builder => $variantQuery
+                    ->visibleInMobileCatalog()
+                    ->where('price', '>=', $request->input('min_price'))
             )
         );
 
@@ -58,7 +55,9 @@ class ProductController extends Controller
             $request->filled('max_price'),
             fn ($q) => $q->whereHas(
                 'variants',
-                fn ($v) => $v->where('price', '<=', $request->input('max_price'))
+                fn (Builder $variantQuery): Builder => $variantQuery
+                    ->visibleInMobileCatalog()
+                    ->where('price', '<=', $request->input('max_price'))
             )
         );
 
@@ -67,16 +66,28 @@ class ProductController extends Controller
             $request->boolean('in_stock'),
             fn ($q) => $q->whereHas(
                 'variants',
-                fn ($v) => $v->where('stock_quantity', '>', 0)
+                fn (Builder $variantQuery): Builder => $variantQuery
+                    ->visibleInMobileCatalog()
+                    ->where('stock_quantity', '>', 0)
             )
         );
 
         // Sorting
         $sort = $request->input('sort', 'name');
 
+        if (in_array($sort, ['price_asc', 'price_desc'], true)) {
+            $query->withMin(
+                [
+                    'variants as mobile_catalog_min_price' => fn (Builder $variantQuery): Builder => $variantQuery
+                        ->visibleInMobileCatalog(),
+                ],
+                'price',
+            );
+        }
+
         match ($sort) {
-            'price_asc' => $query->orderByRaw('(SELECT MIN(price) FROM product_variants WHERE product_variants.product_id = products.id) ASC'),
-            'price_desc' => $query->orderByRaw('(SELECT MIN(price) FROM product_variants WHERE product_variants.product_id = products.id) DESC'),
+            'price_asc' => $query->orderBy('mobile_catalog_min_price'),
+            'price_desc' => $query->orderByDesc('mobile_catalog_min_price'),
             'newest' => $query->latest(),
             default => $query->orderBy('name'),
         };
@@ -88,16 +99,26 @@ class ProductController extends Controller
 
     public function show(Product $product): JsonResponse
     {
-        abort_unless($product->is_active && in_array($product->product_type, Product::DIRECTLY_ORDERABLE_TYPES, true), 404);
-
-        $product->load([
-            'brand',
-            'category',
-            'variants' => fn ($query) => $query->where('is_active', true),
-        ]);
+        $catalogProduct = $this->mobileCatalogQuery()
+            ->whereKey($product->getKey())
+            ->firstOrFail();
 
         return response()->json([
-            'data' => ProductResource::make($product),
+            'data' => ProductResource::make($catalogProduct),
         ]);
+    }
+
+    /**
+     * @return Builder<Product>
+     */
+    private function mobileCatalogQuery(): Builder
+    {
+        return Product::query()
+            ->visibleInMobileCatalog()
+            ->with([
+                'brand',
+                'category',
+                'variants' => fn (HasMany $variantQuery): HasMany => $variantQuery->visibleInMobileCatalog(),
+            ]);
     }
 }

@@ -25,14 +25,8 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'appointment_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('appointments', 'id')->where(
-                    fn ($query) => $query->where('customer_id', $this->user()->id),
-                ),
-            ],
-            'is_non_prescription' => ['required', 'boolean'],
+            'appointment_id' => ['prohibited'],
+            'is_non_prescription' => ['required', 'boolean:strict', 'accepted'],
             'items' => ['required', 'array', 'min:1', 'max:20'],
             'items.*.product_variant_id' => [
                 'required',
@@ -43,11 +37,11 @@ class StoreOrderRequest extends FormRequest
                         $query->select('id')
                             ->from('products')
                             ->where('is_active', true)
-                            ->whereIn('product_type', Product::DIRECTLY_ORDERABLE_TYPES);
+                            ->whereIn('product_type', Product::CUSTOMER_ORDERABLE_TYPES);
                     }),
             ],
-            'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
-            'items.*.lens_type_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.lens_category_id' => ['prohibited'],
+            'items.*.lens_type_id' => ['prohibited'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],
         ];
     }
