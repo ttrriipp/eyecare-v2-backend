@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PatientProfileController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StaffAppointmentController;
@@ -25,6 +26,9 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::get('/user', [AuthController::class, 'user']);
     Route::patch('/user', [AuthController::class, 'update']);
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    Route::get('patient/profile', [PatientProfileController::class, 'show']);
+    Route::patch('patient/profile', [PatientProfileController::class, 'update']);
 
     Route::get('appointments/availability', AppointmentAvailabilityController::class);
     Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);

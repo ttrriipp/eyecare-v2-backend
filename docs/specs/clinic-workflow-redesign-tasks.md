@@ -149,10 +149,10 @@ queries, including negative cross-patient tests.
 
 **Acceptance criteria:**
 
-- [ ] A patient account may view/update only its linked non-clinical profile.
-- [ ] Clinic users receive only the access allowed by the role/capability
+- [x] A patient account may view/update only its linked non-clinical profile.
+- [x] Clinic users receive only the access allowed by the role/capability
       matrix.
-- [ ] Changing a route identifier cannot expose another patient.
+- [x] Changing a route identifier cannot expose another patient.
 
 **Verification:**
 
