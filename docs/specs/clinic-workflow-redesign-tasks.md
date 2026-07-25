@@ -347,10 +347,10 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/AppointmentBookingTest.
 
 ### Checkpoint 2: Scheduling
 
-- [ ] Tasks 07–10 focused suites pass.
-- [ ] Patient booking, walk-in, early close, absence, and reassignment pass.
-- [ ] An override reports affected appointments without cancelling them.
-- [ ] Filament schedule management is authorized for admin/optometrist users.
+- [x] Tasks 07–10 focused suites pass.
+- [x] Patient booking, walk-in, early close, absence, and reassignment pass.
+- [x] An override reports affected appointments without cancelling them.
+- [x] Filament schedule management is authorized for admin/optometrist users.
 
 ## Milestone 3: Intake, Encounters, Prescriptions, and Printing
 
