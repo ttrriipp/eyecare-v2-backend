@@ -387,9 +387,9 @@ verify it at check-in without granting clinical authorship.
 
 **Acceptance criteria:**
 
-- [ ] Patient writes are limited to owned, pre-check-in intake.
-- [ ] Verification records verifier/time and locks the submitted snapshot.
-- [ ] Non-optometrist verification does not authorize clinical findings.
+- [x] Patient writes are limited to owned, pre-check-in intake.
+- [x] Verification records verifier/time and locks the submitted snapshot.
+- [x] Non-optometrist verification does not authorize clinical findings.
 
 **Verification:**
 
