@@ -473,10 +473,10 @@ encounter notes, and prescription finalization.
 
 **Acceptance criteria:**
 
-- [ ] Optometrists see the relevant visit context in one workflow.
-- [ ] Receptionists may see intake/check-in state but not clinical authoring
+- [x] Optometrists see the relevant visit context in one workflow.
+- [x] Receptionists may see intake/check-in state but not clinical authoring
       controls.
-- [ ] Custom actions explicitly authorize and use lifecycle actions.
+- [x] Custom actions explicitly authorize and use lifecycle actions.
 
 **Verification:**
 
