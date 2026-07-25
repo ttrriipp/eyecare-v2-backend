@@ -69,9 +69,6 @@ class EvaluateAppointmentAvailability
         return $openingTime->diffInMinutes($startsAt, false) % $schedule->slotIntervalMinutes === 0;
     }
 
-    /**
-     * @return Collection<int, Appointment>
-     */
     public function eligibleOptometristCapacity(): int
     {
         return max(1, User::query()->optometrists()->count());
