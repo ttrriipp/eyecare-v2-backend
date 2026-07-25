@@ -588,9 +588,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Reservations/FrameReservati
 
 ### Checkpoint 4A: Catalog and reservation records
 
-- [ ] Tasks 17–18 focused tests pass.
-- [ ] `/api/v1` catalog contains frames only.
-- [ ] Reservation records require an eligible appointment and active frame.
+- [x] Tasks 17–18 focused tests pass.
+- [x] `/api/v1` catalog contains frames only.
+- [x] Reservation records require an eligible appointment and active frame.
 
 ### Task 19: Reserve and release frames safely
 
