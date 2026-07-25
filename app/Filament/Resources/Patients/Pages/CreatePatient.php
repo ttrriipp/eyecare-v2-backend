@@ -12,7 +12,7 @@ class CreatePatient extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['role_id'] = Role::query()->where('name', 'customer')->value('id');
+        $data['role_id'] = Role::query()->where('name', 'patient')->value('id');
 
         return $data;
     }

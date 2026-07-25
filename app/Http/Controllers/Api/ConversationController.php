@@ -31,7 +31,7 @@ class ConversationController extends Controller
     public function show(Request $request): JsonResource
     {
         $user = $request->user();
-        abort_unless($user->role->name === 'customer', 403);
+        abort_unless($user->role->name === 'patient', 403);
 
         $conversation = Conversation::query()->firstOrCreate(['customer_id' => $user->id]);
 
@@ -92,8 +92,8 @@ class ConversationController extends Controller
 
         $message->load(['attachments', 'contextLinks']);
 
-        // Only notify staff when the sender is a customer
-        if ($request->user()->role->name === 'customer') {
+        // Only notify staff when the sender is a patient
+        if ($request->user()->role->name === 'patient') {
             $this->notifyStaffOfMessage($conversation, $message);
         }
 
@@ -136,7 +136,7 @@ class ConversationController extends Controller
 
     private function canAccessConversation(User $user, Conversation $conversation): bool
     {
-        if ($user->role->name === 'customer') {
+        if ($user->role->name === 'patient') {
             return $conversation->customer_id === $user->id;
         }
 
@@ -148,13 +148,13 @@ class ConversationController extends Controller
         return match ($type) {
             'appointment' => Appointment::query()
                 ->when(
-                    $user->role->name === 'customer',
+                    $user->role->name === 'patient',
                     fn (Builder $query): Builder => $query->where('customer_id', $user->id),
                 )
                 ->find($id),
             'order' => Order::query()
                 ->when(
-                    $user->role->name === 'customer',
+                    $user->role->name === 'patient',
                     fn (Builder $query): Builder => $query->where('customer_id', $user->id),
                 )
                 ->find($id),

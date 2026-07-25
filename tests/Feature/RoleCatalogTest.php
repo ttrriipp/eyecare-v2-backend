@@ -14,16 +14,16 @@ test('roles are seeded idempotently', function () {
     $this->seed(RoleSeeder::class);
 
     expect(Role::query()->pluck('name')->all())
-        ->toEqualCanonicalizing(['admin', 'staff', 'customer'])
+        ->toEqualCanonicalizing(['admin', 'staff', 'patient'])
         ->and(Role::query()->count())->toBe(3);
 });
 
 test('users belong to one typed role', function () {
-    $user = User::factory()->customer()->create();
+    $user = User::factory()->patient()->create();
 
     expect($user->role())->toBeInstanceOf(BelongsTo::class)
         ->and($user->role)->toBeInstanceOf(Role::class)
-        ->and($user->role->name)->toBe('customer')
+        ->and($user->role->name)->toBe('patient')
         ->and((new Role)->users())->toBeInstanceOf(HasMany::class);
 });
 
@@ -34,5 +34,24 @@ test('user factories can create users for each fixed role', function (string $fa
 })->with([
     'admin' => ['admin', 'admin'],
     'staff' => ['staff', 'staff'],
-    'customer' => ['customer', 'customer'],
+    'patient' => ['patient', 'patient'],
 ]);
+
+test('legacy customer factory state resolves to the patient role during migration', function () {
+    $user = User::factory()->customer()->create();
+
+    expect($user->role->name)->toBe('patient')
+        ->and(Role::query()->where('name', 'customer')->doesntExist())->toBeTrue();
+});
+
+test('role seeding migrates the legacy customer role without losing users', function () {
+    $legacyCustomerRole = Role::factory()->create(['name' => 'customer']);
+    $user = User::factory()->create(['role_id' => $legacyCustomerRole->id]);
+
+    $this->seed(RoleSeeder::class);
+
+    expect($user->fresh()->role->name)->toBe('patient')
+        ->and(Role::query()->pluck('name')->all())
+        ->toEqualCanonicalizing(['admin', 'staff', 'patient'])
+        ->and(Role::query()->count())->toBe(3);
+});

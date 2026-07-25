@@ -34,12 +34,12 @@ test('demo staff account is created with correct role', function () {
         ->and(Hash::check('password', $user->password))->toBeTrue();
 });
 
-test('demo customer account is created with correct role', function () {
+test('demo patient account is created with correct role', function () {
     $this->seed(DemoUserSeeder::class);
 
     $user = User::query()->where('email', 'customer@eyecare.test')->firstOrFail();
 
-    expect($user->role->name)->toBe('customer')
+    expect($user->role->name)->toBe('patient')
         ->and(Hash::check('password', $user->password))->toBeTrue();
 });
 

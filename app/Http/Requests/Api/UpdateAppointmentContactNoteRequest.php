@@ -13,7 +13,7 @@ class UpdateAppointmentContactNoteRequest extends FormRequest
         /** @var Appointment $appointment */
         $appointment = $this->route('appointment');
 
-        return $this->user()?->role->name === 'customer'
+        return $this->user()?->role->name === 'patient'
             && $appointment->customer_id === $this->user()?->id;
     }
 

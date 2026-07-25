@@ -36,7 +36,7 @@ class DemoUserSeeder extends Seeder
                 'name' => 'Demo Customer',
                 'email' => 'customer@eyecare.test',
                 'phone' => '09170000003',
-                'role' => 'customer',
+                'role' => 'patient',
             ],
         ];
 

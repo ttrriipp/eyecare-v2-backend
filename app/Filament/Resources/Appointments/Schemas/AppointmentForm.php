@@ -53,7 +53,7 @@ class AppointmentForm
                                         'phone' => $data['phone'],
                                         'email' => $data['email'] ?? null,
                                         'password' => null,
-                                        'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                                        'role_id' => Role::query()->where('name', 'patient')->value('id'),
                                     ])->getKey();
                                 })
                                 ->columnSpanFull(),

@@ -59,17 +59,17 @@ test('user table identifies optometrists', function () {
 
 test('table can be filtered by role', function () {
     $staffRole = Role::where('name', 'staff')->first();
-    $customerRole = Role::where('name', 'customer')->first();
+    $patientRole = Role::where('name', 'patient')->first();
 
     $staff = User::factory()->staff()->create();
-    $customer = User::factory()->customer()->create();
+    $patient = User::factory()->patient()->create();
 
     $this->actingAs($this->admin);
 
     Livewire::test(ListUsers::class)
         ->filterTable('role', $staffRole->id)
         ->assertCanSeeTableRecords([$staff])
-        ->assertCanNotSeeTableRecords([$customer]);
+        ->assertCanNotSeeTableRecords([$patient]);
 });
 
 // ─── Create ───────────────────────────────────────────────────────────────────

@@ -16,11 +16,11 @@ class AuthController extends Controller
 {
     public function register(RegisterCustomerRequest $request): JsonResponse
     {
-        $customerRole = Role::query()->where('name', 'customer')->firstOrFail();
+        $patientRole = Role::query()->where('name', 'patient')->firstOrFail();
 
         $user = User::query()->create([
             ...$request->safe()->only(['name', 'email', 'phone', 'password']),
-            'role_id' => $customerRole->id,
+            'role_id' => $patientRole->id,
         ]);
 
         $user->load('role');

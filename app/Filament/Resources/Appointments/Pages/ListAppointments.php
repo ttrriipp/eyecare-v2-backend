@@ -38,7 +38,7 @@ class ListAppointments extends ListRecords
                         ->label('Patient')
                         ->relationship('customer', 'name', fn (Builder $query) => $query->whereHas(
                             'role',
-                            fn (Builder $roleQuery) => $roleQuery->where('name', 'customer'),
+                            fn (Builder $roleQuery) => $roleQuery->where('name', 'patient'),
                         ))
                         ->required()
                         ->searchable()
@@ -49,7 +49,7 @@ class ListAppointments extends ListRecords
                         ])
                         ->createOptionUsing(fn (array $data): int => User::query()->create([
                             ...$data,
-                            'role_id' => Role::query()->where('name', 'customer')->value('id'),
+                            'role_id' => Role::query()->where('name', 'patient')->value('id'),
                             'email' => null,
                             'password' => null,
                         ])->getKey()),

@@ -31,6 +31,35 @@ test('isAdmin returns false for staff role', function () {
     expect($staff->isAdmin())->toBeFalse();
 });
 
+test('optometrist capability requires the flag and an eligible clinic role', function (
+    string $factoryState,
+    bool $isOptometrist,
+    bool $expected,
+) {
+    $user = User::factory()->{$factoryState}()->create([
+        'is_optometrist' => $isOptometrist,
+    ]);
+
+    expect($user->hasOptometristCapability())->toBe($expected);
+})->with([
+    'flagged admin' => ['admin', true, true],
+    'unflagged admin' => ['admin', false, false],
+    'flagged staff' => ['staff', true, true],
+    'unflagged staff' => ['staff', false, false],
+    'flagged patient' => ['patient', true, false],
+    'unflagged patient' => ['patient', false, false],
+]);
+
+test('optometrist scope returns only users with effective optometrist capability', function () {
+    $adminOptometrist = User::factory()->admin()->create(['is_optometrist' => true]);
+    $staffOptometrist = User::factory()->staff()->create(['is_optometrist' => true]);
+    User::factory()->patient()->create(['is_optometrist' => true]);
+    User::factory()->staff()->create(['is_optometrist' => false]);
+
+    expect(User::query()->optometrists()->pluck('id')->all())
+        ->toEqualCanonicalizing([$adminOptometrist->id, $staffOptometrist->id]);
+});
+
 // --- Admin-only resources: staff gets 403 ---
 
 test('staff cannot access admin-only resources', function (string $url) {

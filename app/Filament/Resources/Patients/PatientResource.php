@@ -44,11 +44,11 @@ class PatientResource extends Resource
         return ['name', 'phone', 'email'];
     }
 
-    // Scope all queries to customer-role users only
+    // Scope all queries to patient-role users only
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereHas('role', fn (Builder $q) => $q->where('name', 'customer'));
+            ->whereHas('role', fn (Builder $q) => $q->where('name', 'patient'));
     }
 
     public static function form(Schema $schema): Schema

@@ -36,6 +36,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->role->name === 'admin';
     }
 
+    public function hasOptometristCapability(): bool
+    {
+        return $this->is_optometrist
+            && in_array($this->role->name, ['admin', 'staff'], true);
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         if ($panel->getId() !== 'admin') {
@@ -54,7 +60,7 @@ class User extends Authenticatable implements FilamentUser
 
     public function scopePatients(Builder $query): Builder
     {
-        return $query->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'customer'));
+        return $query->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'patient'));
     }
 
     /**

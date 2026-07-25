@@ -31,7 +31,7 @@ class UserFactory extends Factory
             'phone' => fake()->numerify('09#########'),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'role_id' => $this->fixedRoleId('customer'),
+            'role_id' => $this->fixedRoleId('patient'),
             'is_optometrist' => false,
             'remember_token' => Str::random(10),
         ];
@@ -61,11 +61,19 @@ class UserFactory extends Factory
         ]);
     }
 
-    public function customer(): static
+    public function patient(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'role_id' => $this->fixedRoleId('customer'),
+            'role_id' => $this->fixedRoleId('patient'),
         ]);
+    }
+
+    /**
+     * Temporary compatibility state for legacy tests pending direct-order removal.
+     */
+    public function customer(): static
+    {
+        return $this->patient();
     }
 
     public function optometrist(): static
@@ -76,7 +84,7 @@ class UserFactory extends Factory
     }
 
     /**
-     * Walk-in customer: name + phone only, no email, no password. Cannot log in to the API.
+     * Walk-in patient: name + phone only, no email, no password. Cannot log in to the API.
      */
     public function walkIn(): static
     {
@@ -85,7 +93,7 @@ class UserFactory extends Factory
             'email_verified_at' => null,
             'password' => null,
             'remember_token' => null,
-            'role_id' => $this->fixedRoleId('customer'),
+            'role_id' => $this->fixedRoleId('patient'),
         ]);
     }
 

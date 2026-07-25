@@ -17,7 +17,7 @@ class CreateWalkInAppointment
         ?User $optometrist = null,
         ?string $contactNotes = null,
     ): Appointment {
-        if ($customer->role->name !== 'customer') {
+        if ($customer->role->name !== 'patient') {
             throw ValidationException::withMessages([
                 'customer_id' => ['The selected user is not a patient.'],
             ]);

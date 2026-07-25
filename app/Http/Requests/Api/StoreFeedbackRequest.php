@@ -12,7 +12,7 @@ class StoreFeedbackRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role->name === 'customer';
+        return $this->user()?->role->name === 'patient';
     }
 
     /**

@@ -3,7 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class RoleSeeder extends Seeder
 {
@@ -12,9 +14,28 @@ class RoleSeeder extends Seeder
      */
     public function run(): void
     {
-        collect(['admin', 'staff', 'customer'])
-            ->each(fn (string $name) => Role::query()->firstOrCreate([
-                'name' => $name,
-            ]));
+        DB::transaction(function (): void {
+            $legacyCustomerRole = Role::query()
+                ->where('name', 'customer')
+                ->first();
+            $patientRole = Role::query()
+                ->where('name', 'patient')
+                ->first();
+
+            if ($legacyCustomerRole !== null && $patientRole === null) {
+                $legacyCustomerRole->update(['name' => 'patient']);
+            } elseif ($legacyCustomerRole !== null && $patientRole !== null) {
+                User::query()
+                    ->whereBelongsTo($legacyCustomerRole, 'role')
+                    ->update(['role_id' => $patientRole->getKey()]);
+
+                $legacyCustomerRole->delete();
+            }
+
+            collect(['admin', 'staff', 'patient'])
+                ->each(fn (string $name) => Role::query()->firstOrCreate([
+                    'name' => $name,
+                ]));
+        });
     }
 }

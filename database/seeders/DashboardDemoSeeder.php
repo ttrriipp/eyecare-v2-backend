@@ -150,10 +150,10 @@ class DashboardDemoSeeder extends Seeder
      */
     private function customerPool(int $minimum): array
     {
-        $customerRoleId = Role::query()->where('name', 'customer')->value('id');
+        $patientRoleId = Role::query()->where('name', 'patient')->value('id');
 
         $existing = User::query()
-            ->when($customerRoleId, fn ($query) => $query->where('role_id', $customerRoleId))
+            ->when($patientRoleId, fn ($query) => $query->where('role_id', $patientRoleId))
             ->pluck('id')
             ->all();
 

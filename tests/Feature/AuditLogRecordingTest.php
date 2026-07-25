@@ -232,8 +232,8 @@ test('user role change creates an audit log', function () {
     Auth::login($admin);
 
     $user = User::factory()->staff()->create();
-    $customerRole = Role::query()->where('name', 'customer')->firstOrFail();
-    $user->update(['role_id' => $customerRole->id]);
+    $patientRole = Role::query()->where('name', 'patient')->firstOrFail();
+    $user->update(['role_id' => $patientRole->id]);
 
     $this->assertDatabaseHas(AuditLog::class, [
         'subject_id' => $user->id,

@@ -10,9 +10,9 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('customers can register and receive an api token', function () {
+test('patients can register and receive an api token', function () {
     $response = $this->postJson('/api/register', [
-        'name' => 'Jane Customer',
+        'name' => 'Jane Patient',
         'email' => 'jane@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
@@ -31,10 +31,10 @@ test('customers can register and receive an api token', function () {
     ]);
 
     expect(User::query()->where('email', 'jane@example.com')->first()->role->name)
-        ->toBe('customer');
+        ->toBe('patient');
 });
 
-test('customers can log in and receive an api token', function () {
+test('patients can log in and receive an api token', function () {
     User::factory()->customer()->create([
         'email' => 'login@example.com',
         'password' => 'password123',
@@ -54,7 +54,7 @@ test('customers can log in and receive an api token', function () {
         ]);
 });
 
-test('authenticated customers can fetch their profile', function () {
+test('authenticated patients can fetch their profile', function () {
     $user = User::factory()->customer()->create();
 
     $this->actingAs($user, 'sanctum')
@@ -62,10 +62,10 @@ test('authenticated customers can fetch their profile', function () {
         ->assertSuccessful()
         ->assertJsonPath('data.id', $user->id)
         ->assertJsonPath('data.email', $user->email)
-        ->assertJsonPath('data.role', 'customer');
+        ->assertJsonPath('data.role', 'patient');
 });
 
-test('authenticated customers can log out', function () {
+test('authenticated patients can log out', function () {
     $user = User::factory()->customer()->create();
     $token = $user->createToken('mobile')->plainTextToken;
 
@@ -95,7 +95,7 @@ test('registration rejects duplicate email', function () {
     ]);
 
     $this->postJson('/api/register', [
-        'name' => 'Another Customer',
+        'name' => 'Another Patient',
         'email' => 'existing@example.com',
         'password' => 'password123',
         'password_confirmation' => 'password123',
