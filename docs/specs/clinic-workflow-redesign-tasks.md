@@ -414,9 +414,9 @@ appointment is checked in.
 
 **Acceptance criteria:**
 
-- [ ] Check-in creates exactly one encounter for the appointment.
-- [ ] Cancelled/no-show appointments cannot create encounters.
-- [ ] Failure rolls back both status and encounter creation.
+- [x] Check-in creates exactly one encounter for the appointment.
+- [x] Cancelled/no-show appointments cannot create encounters.
+- [x] Failure rolls back both status and encounter creation.
 
 **Verification:**
 
