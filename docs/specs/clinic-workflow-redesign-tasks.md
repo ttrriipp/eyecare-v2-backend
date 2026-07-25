@@ -566,9 +566,9 @@ orders.
 
 **Acceptance criteria:**
 
-- [ ] Reservation belongs to Patient and an eligible upcoming appointment.
-- [ ] Items reference active frame variants only.
-- [ ] Requested, prepared, cancelled, expired, and converted states are
+- [x] Reservation belongs to Patient and an eligible upcoming appointment.
+- [x] Items reference active frame variants only.
+- [x] Requested, prepared, cancelled, expired, and converted states are
       constrained.
 
 **Verification:**
