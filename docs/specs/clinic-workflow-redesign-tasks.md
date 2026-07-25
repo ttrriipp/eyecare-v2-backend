@@ -361,9 +361,9 @@ complaints, histories, allergies, and medications in a dedicated intake.
 
 **Acceptance criteria:**
 
-- [ ] Intake belongs to Patient and may optionally belong to an appointment.
-- [ ] Clinical narrative fields use encrypted text storage.
-- [ ] Draft, submitted, and verified states are constrained.
+- [x] Intake belongs to Patient and may optionally belong to an appointment.
+- [x] Clinical narrative fields use encrypted text storage.
+- [x] Draft, submitted, and verified states are constrained.
 
 **Verification:**
 
