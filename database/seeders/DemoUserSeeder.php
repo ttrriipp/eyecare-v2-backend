@@ -2,10 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Demo accounts for local development and defense demonstration.
@@ -43,7 +45,7 @@ class DemoUserSeeder extends Seeder
         foreach ($accounts as $account) {
             $role = Role::query()->where('name', $account['role'])->firstOrFail();
 
-            User::query()->firstOrCreate(
+            $user = User::query()->firstOrCreate(
                 ['email' => $account['email']],
                 [
                     'name' => $account['name'],
@@ -53,6 +55,16 @@ class DemoUserSeeder extends Seeder
                     'email_verified_at' => now(),
                 ],
             );
+
+            if ($account['role'] === 'patient' && $user->patient === null) {
+                Patient::query()->create([
+                    'user_id' => $user->id,
+                    'patient_number' => 'PAT-'.Str::ulid(),
+                    'full_name' => $account['name'],
+                    'phone' => $account['phone'],
+                    'contact_email' => $account['email'],
+                ]);
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             InventoryMovementTypeSeeder::class,
             DiscountTypeSeeder::class,
             CatalogSeeder::class,
+            ClinicHoursSeeder::class,
             ServiceSeeder::class,
             DemoUserSeeder::class,
             ClinicWorkflowSeeder::class,

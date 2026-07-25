@@ -68,7 +68,7 @@ class ClinicWorkflowSeeder extends Seeder
         $visitReason = VisitReason::query()->where('name', 'Eye Exam')->firstOrFail();
 
         return Appointment::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'visit_reason_id' => $visitReason->id],
+            ['patient_id' => $customer->patient->id, 'visit_reason_id' => $visitReason->id],
             [
                 'appointment_number' => Appointment::generateAppointmentNumber(),
                 'created_by' => $staff->id,
@@ -263,7 +263,7 @@ class ClinicWorkflowSeeder extends Seeder
         }
 
         $appointment = Appointment::query()
-            ->where('customer_id', $customer->id)
+            ->where('patient_id', $customer->patient->id)
             ->with('status')
             ->latest()
             ->first();
@@ -326,7 +326,7 @@ class ClinicWorkflowSeeder extends Seeder
 
         // Seed a completed appointment for feedback (separate from the upcoming one)
         $completedAppointment = Appointment::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'appointment_status_id' => $completedStatus->id],
+            ['patient_id' => $customer->patient->id, 'appointment_status_id' => $completedStatus->id],
             [
                 'appointment_number' => Appointment::generateAppointmentNumber(),
                 'visit_reason_id' => VisitReason::query()->where('name', 'Follow-up')->firstOrFail()->id,
