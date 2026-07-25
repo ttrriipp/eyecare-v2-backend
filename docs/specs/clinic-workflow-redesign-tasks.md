@@ -266,9 +266,9 @@ provider closures/shortened hours.
 
 **Acceptance criteria:**
 
-- [ ] Only optometrist-capable accounts can own provider availability.
-- [ ] Date overrides support closure, early closing, and provider absence.
-- [ ] Conflicting rules are rejected deterministically.
+- [x] Only optometrist-capable accounts can own provider availability.
+- [x] Date overrides support closure, early closing, and provider absence.
+- [x] Conflicting rules are rejected deterministically.
 
 **Verification:**
 
