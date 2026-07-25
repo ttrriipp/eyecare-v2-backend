@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class UpdatePatientProfileRequest extends FormRequest
 {
@@ -26,5 +27,14 @@ class UpdatePatientProfileRequest extends FormRequest
             'contact_email' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if (! array_intersect(array_keys($this->all()), ['full_name', 'date_of_birth', 'occupation', 'address', 'gender', 'contact_email', 'phone'])) {
+                $validator->errors()->add('general', 'At least one patient field is required.');
+            }
+        });
     }
 }

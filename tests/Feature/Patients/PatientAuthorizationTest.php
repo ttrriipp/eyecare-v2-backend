@@ -101,3 +101,13 @@ test('patient profile update rejects invalid gender', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['gender']);
 });
+
+test('patient profile update requires at least one field', function () {
+    $user = User::factory()->patient()->create();
+    Patient::factory()->linkedTo($user)->create();
+
+    $this->actingAs($user)
+        ->patchJson('/api/patient/profile', [])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['general']);
+});
