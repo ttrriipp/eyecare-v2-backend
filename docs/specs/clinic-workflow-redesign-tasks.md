@@ -811,10 +811,10 @@ separating internal reference from physical Service Invoice number.
 
 **Acceptance criteria:**
 
-- [ ] Invoice items/tax/discount totals are immutable snapshots.
-- [ ] Official physical number is nullable until dispensing and unique when
+- [x] Invoice items/tax/discount totals are immutable snapshots.
+- [x] Official physical number is nullable until dispensing and unique when
       recorded.
-- [ ] Payments form an attributable append-only ledger.
+- [x] Payments form an attributable append-only ledger.
 
 **Verification:**
 
