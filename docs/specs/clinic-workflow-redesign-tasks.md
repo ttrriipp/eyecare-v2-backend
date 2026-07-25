@@ -797,10 +797,10 @@ vendor/bin/sail artisan test --compact tests/Feature/JobOrders/JobOrderInventory
 
 ### Checkpoint 5: Quotations and job orders
 
-- [ ] Tasks 21–25 focused suites pass.
-- [ ] Prescription-to-accepted-quotation-to-job-order journey passes.
-- [ ] Reservation conversion/cancellation keeps inventory correct.
-- [ ] No active legacy Order route, navigation item, or model consumer remains.
+- [x] Tasks 21–25 focused suites pass.
+- [x] Prescription-to-accepted-quotation-to-job-order journey passes.
+- [x] Reservation conversion/cancellation keeps inventory correct.
+- [x] No active legacy Order route, navigation item, or model consumer remains.
 
 ## Milestone 6: Invoices, Payments, and Dispensing
 

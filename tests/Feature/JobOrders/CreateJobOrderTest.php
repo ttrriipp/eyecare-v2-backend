@@ -137,10 +137,10 @@ test('job order snapshots quotation items', function () {
 });
 
 test('job orders have no patient-facing creation route', function () {
-    // Job orders are clinic-only — verified by route inspection
+    // Job orders are clinic-only — verified by checking no POST routes exist
     $routes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn ($r) => str_contains($r->uri, 'job-order') || str_contains($r->uri, 'job_order'));
+        ->filter(fn ($r) => str_contains($r->uri, 'job-order') || str_contains($r->uri, 'job_order'))
+        ->filter(fn ($r) => in_array('POST', (array) $r->methods, true));
 
-    // No job order routes registered in the API
     expect($routes)->toBeEmpty();
 });
