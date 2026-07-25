@@ -19,7 +19,7 @@ class PrescriptionsTable
     {
         return $table
             ->columns([
-                TextColumn::make('customer.name')
+                TextColumn::make('patient.full_name')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('prescribed_at')

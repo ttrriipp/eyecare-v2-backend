@@ -125,7 +125,7 @@ class EditPrescription extends EditRecord
         $record = $this->getRecord();
 
         return Prescription::query()
-            ->where('customer_id', $record->customer_id)
+            ->where('patient_id', $record->patient_id)
             ->where('id', '!=', $record->id)
             ->orderByDesc('prescribed_at')
             ->first();

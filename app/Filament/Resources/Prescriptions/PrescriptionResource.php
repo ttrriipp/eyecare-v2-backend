@@ -37,12 +37,12 @@ class PrescriptionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['customer', 'createdBy']);
+        return parent::getEloquentQuery()->with(['patient', 'author']);
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withTrashed()->with(['customer', 'createdBy']);
+        return parent::getEloquentQuery()->withTrashed()->with(['patient', 'author']);
     }
 
     public static function getRelations(): array

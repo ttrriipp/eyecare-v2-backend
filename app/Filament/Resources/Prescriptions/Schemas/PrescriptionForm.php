@@ -3,8 +3,7 @@
 namespace App\Filament\Resources\Prescriptions\Schemas;
 
 use App\Models\Appointment;
-use App\Models\Role;
-use App\Models\User;
+use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -24,42 +23,27 @@ class PrescriptionForm
             ->columns(1)
             ->components([
                 Section::make('Patient Information')->schema([
-                    Select::make('customer_id')
+                    Select::make('patient_id')
                         ->label('Patient')
-                        ->relationship(
-                            'customer',
-                            'name',
-                            fn (Builder $query): Builder => $query->whereHas(
-                                'role',
-                                fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'patient'),
-                            ),
-                        )
+                        ->relationship('patient', 'full_name')
                         ->required()
                         ->searchable()
                         ->preload()
                         ->live()
                         ->createOptionForm([
-                            TextInput::make('name')->required(),
+                            TextInput::make('full_name')->required(),
                             TextInput::make('phone')->required()->tel(),
-                            TextInput::make('email')->email()->nullable(),
+                            TextInput::make('contact_email')->email()->nullable(),
                         ])
-                        ->createOptionUsing(function (array $data): int {
-                            return User::create([
-                                'name' => $data['name'],
-                                'phone' => $data['phone'],
-                                'email' => $data['email'] ?? null,
-                                'password' => null,
-                                'role_id' => Role::query()->where('name', 'patient')->value('id'),
-                            ])->getKey();
-                        }),
+                        ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
                     Select::make('appointment_id')
                         ->relationship(
                             'appointment',
                             'id',
                             fn (Builder $query, Get $get): Builder => $query
                                 ->when(
-                                    filled($get('customer_id')),
-                                    fn (Builder $appointmentQuery): Builder => $appointmentQuery->where('customer_id', $get('customer_id')),
+                                    filled($get('patient_id')),
+                                    fn (Builder $appointmentQuery): Builder => $appointmentQuery->where('patient_id', $get('patient_id')),
                                 ),
                         )
                         ->getOptionLabelFromRecordUsing(

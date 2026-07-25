@@ -29,7 +29,7 @@ class CreatePrescription extends CreateRecord
 
             if ($source) {
                 $this->form->fill([
-                    'customer_id' => $source->customer_id,
+                    'patient_id' => $source->patient_id,
                     'od_sphere' => $source->od_sphere,
                     'od_cylinder' => $source->od_cylinder,
                     'od_axis' => $source->od_axis,
