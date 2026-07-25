@@ -737,9 +737,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Filament/QuotationResourceT
 
 ### Checkpoint 5A: Quotations
 
-- [ ] Tasks 21–23 focused tests pass.
-- [ ] Presented/accepted revisions remain immutable.
-- [ ] Patient API is read-only for quotations.
+- [x] Tasks 21–23 focused tests pass.
+- [x] Presented/accepted revisions remain immutable.
+- [x] Patient API is read-only for quotations.
 
 ### Task 24: Create job orders from accepted quotations
 
