@@ -10,17 +10,16 @@ use App\Filament\Resources\Patients\RelationManagers\OrdersRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
 use App\Filament\Resources\Patients\Schemas\PatientForm;
 use App\Filament\Resources\Patients\Tables\PatientsTable;
-use App\Models\User;
+use App\Models\Patient;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class PatientResource extends Resource
 {
-    protected static ?string $model = User::class;
+    protected static ?string $model = Patient::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
@@ -34,21 +33,14 @@ class PatientResource extends Resource
 
     protected static bool $isGloballySearchable = true;
 
-    protected static ?string $recordTitleAttribute = 'name';
+    protected static ?string $recordTitleAttribute = 'full_name';
 
     /**
      * @return array<int, string>
      */
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'phone', 'email'];
-    }
-
-    // Scope all queries to patient-role users only
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->whereHas('role', fn (Builder $q) => $q->where('name', 'patient'));
+        return ['full_name', 'phone', 'contact_email', 'patient_number'];
     }
 
     public static function form(Schema $schema): Schema

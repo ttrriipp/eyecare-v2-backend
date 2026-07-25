@@ -1,9 +1,11 @@
 <?php
 
+use App\Filament\Resources\Patients\Pages\CreatePatient;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\Pages\ListPatients;
 use App\Models\Appointment;
 use App\Models\Order;
+use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -12,7 +14,7 @@ uses(RefreshDatabase::class);
 
 test('staff can list patients', function () {
     $staff = User::factory()->staff()->create();
-    $patients = User::factory()->customer()->count(3)->create();
+    $patients = Patient::factory()->count(3)->create();
 
     $this->actingAs($staff);
 
@@ -20,29 +22,29 @@ test('staff can list patients', function () {
         ->assertCanSeeTableRecords($patients);
 });
 
-test('patient list only shows customer-role users', function () {
+test('patient list only shows patient records', function () {
     $staff = User::factory()->staff()->create();
-    $customer = User::factory()->customer()->create();
+    $patient = Patient::factory()->create();
     $anotherStaff = User::factory()->staff()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(ListPatients::class)
-        ->assertCanSeeTableRecords([$customer])
-        ->assertCanNotSeeTableRecords([$anotherStaff]);
+        ->assertCanSeeTableRecords([$patient])
+        ->assertCanNotSeeTableRecords([$anotherStaff->patient]);
 });
 
-test('customers cannot access the patients resource', function () {
-    $customer = User::factory()->customer()->create();
+test('patients cannot access the patients resource', function () {
+    $patient = User::factory()->patient()->create();
 
-    $this->actingAs($customer);
+    $this->actingAs($patient);
 
     $this->get('/admin/patients')->assertForbidden();
 });
 
 test('staff can view a patient profile', function () {
     $staff = User::factory()->staff()->create();
-    $patient = User::factory()->customer()->create();
+    $patient = Patient::factory()->create();
 
     $this->actingAs($staff);
 
@@ -50,23 +52,45 @@ test('staff can view a patient profile', function () {
         ->assertSuccessful();
 });
 
+test('staff can create an account-less patient', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreatePatient::class)
+        ->fillForm([
+            'full_name' => 'New Walk-in Patient',
+            'phone' => '09171234567',
+            'gender' => 'female',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $this->assertDatabaseHas('patients', [
+        'full_name' => 'New Walk-in Patient',
+        'phone' => '09171234567',
+        'gender' => 'female',
+        'user_id' => null,
+    ]);
+});
+
 test('staff can update patient name and phone', function () {
     $staff = User::factory()->staff()->create();
-    $patient = User::factory()->customer()->create();
+    $patient = Patient::factory()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(EditPatient::class, ['record' => $patient->getRouteKey()])
-        ->fillForm(['name' => 'Updated Name', 'phone' => '09171234567'])
+        ->fillForm(['full_name' => 'Updated Name', 'phone' => '09171234567'])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect($patient->fresh()->name)->toBe('Updated Name');
+    expect($patient->fresh()->full_name)->toBe('Updated Name');
 });
 
 test('staff can update patient address', function () {
     $staff = User::factory()->staff()->create();
-    $patient = User::factory()->customer()->create();
+    $patient = Patient::factory()->create();
 
     $this->actingAs($staff);
 
@@ -80,10 +104,10 @@ test('staff can update patient address', function () {
 
 test('no visits yet filter shows only patients without appointments', function () {
     $staff = User::factory()->staff()->create();
-    $patientWithVisit = User::factory()->customer()->create();
-    $patientWithoutVisit = User::factory()->customer()->create();
+    $patientWithVisit = Patient::factory()->linked()->create();
+    $patientWithoutVisit = Patient::factory()->create();
 
-    Appointment::factory()->create(['customer_id' => $patientWithVisit->id]);
+    Appointment::factory()->create(['customer_id' => $patientWithVisit->user_id]);
 
     $this->actingAs($staff);
 
@@ -95,15 +119,15 @@ test('no visits yet filter shows only patients without appointments', function (
 
 test('patient table shows correct orders count and last visit date', function () {
     $staff = User::factory()->staff()->create();
-    $patient = User::factory()->customer()->create();
+    $patient = Patient::factory()->linked()->create();
 
-    Order::factory()->count(2)->create(['customer_id' => $patient->id]);
+    Order::factory()->count(2)->create(['customer_id' => $patient->user_id]);
     Appointment::factory()->create([
-        'customer_id' => $patient->id,
+        'customer_id' => $patient->user_id,
         'scheduled_at' => now()->subDays(10),
     ]);
     $latestAppointment = Appointment::factory()->create([
-        'customer_id' => $patient->id,
+        'customer_id' => $patient->user_id,
         'scheduled_at' => now()->subDay(),
     ]);
 

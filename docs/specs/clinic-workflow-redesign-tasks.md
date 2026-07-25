@@ -176,9 +176,9 @@ role users to independent patient records.
 
 **Acceptance criteria:**
 
-- [ ] Staff can create an account-less patient.
-- [ ] Patient search, view, and edit use Patient fields.
-- [ ] Account linking is optional and authorization is policy-backed.
+- [x] Staff can create an account-less patient.
+- [x] Patient search, view, and edit use Patient fields.
+- [x] Account linking is optional and authorization is policy-backed.
 
 **Verification:**
 

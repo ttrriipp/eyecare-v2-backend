@@ -19,19 +19,25 @@ class PatientsTable
                 ->addSelect([
                     'last_visit' => Appointment::query()
                         ->select('scheduled_at')
-                        ->whereColumn('customer_id', 'users.id')
+                        ->whereColumn('customer_id', 'patients.user_id')
                         ->latest('scheduled_at')
                         ->limit(1),
                 ])
                 ->withCasts(['last_visit' => 'datetime']))
             ->columns([
-                TextColumn::make('name')
+                TextColumn::make('patient_number')
+                    ->label('Patient #')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('full_name')
+                    ->label('Name')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('phone')
                     ->searchable()
                     ->placeholder('—'),
-                TextColumn::make('email')
+                TextColumn::make('contact_email')
+                    ->label('Email')
                     ->searchable()
                     ->placeholder('Walk-in'),
                 TextColumn::make('date_of_birth')
@@ -59,6 +65,6 @@ class PatientsTable
             ->recordActions([
                 EditAction::make()->label('Edit'),
             ])
-            ->defaultSort('name');
+            ->defaultSort('full_name');
     }
 }
