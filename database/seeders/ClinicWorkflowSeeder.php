@@ -83,7 +83,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedPrescription(User $customer, Appointment $appointment, User $staff): Prescription
     {
         return Prescription::query()->firstOrCreate(
-            ['customer_id' => $customer->id, 'appointment_id' => $appointment->id],
+            ['patient_id' => $customer->patient->id, 'appointment_id' => $appointment->id],
             [
                 'od_sphere' => -1.75,
                 'od_cylinder' => -0.50,
