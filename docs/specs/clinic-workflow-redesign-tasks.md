@@ -860,9 +860,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Invoices/PaymentLifecycleTe
 
 ### Checkpoint 6A: Invoice and payment ledger
 
-- [ ] Tasks 26–27 focused tests pass.
-- [ ] Deposits, installments, corrections, and derived balances are consistent.
-- [ ] Physical Service Invoice number remains unset before dispensing.
+- [x] Tasks 26–27 focused tests pass.
+- [x] Deposits, installments, corrections, and derived balances are consistent.
+- [x] Physical Service Invoice number remains unset before dispensing.
 
 ### Task 28: Issue the physical invoice record at dispensing
 
