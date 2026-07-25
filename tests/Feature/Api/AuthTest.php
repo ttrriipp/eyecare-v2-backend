@@ -22,16 +22,18 @@ test('patients can register and receive an api token', function () {
         ->assertJsonStructure([
             'data' => [
                 'token',
-                'user' => ['id', 'name', 'email', 'role'],
+                'user' => ['id', 'patient_number', 'name', 'email', 'phone', 'role'],
             ],
         ]);
 
-    $this->assertDatabaseHas(User::class, [
-        'email' => 'jane@example.com',
-    ]);
+    $user = User::query()->where('email', 'jane@example.com')->first();
+    expect($user)->not->toBeNull()
+        ->and($user->role->name)->toBe('patient');
 
-    expect(User::query()->where('email', 'jane@example.com')->first()->role->name)
-        ->toBe('patient');
+    $this->assertDatabaseHas('patients', [
+        'user_id' => $user->id,
+        'full_name' => 'Jane Patient',
+    ]);
 });
 
 test('patients can log in and receive an api token', function () {

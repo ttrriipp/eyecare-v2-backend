@@ -116,10 +116,10 @@ one transaction while keeping staff-created account-less patients possible.
 
 **Acceptance criteria:**
 
-- [ ] Mobile registration creates one patient-role account and one linked
+- [x] Mobile registration creates one patient-role account and one linked
       patient.
-- [ ] Failed patient creation rolls back account creation.
-- [ ] The response contains only the patient-safe account/profile contract.
+- [x] Failed patient creation rolls back account creation.
+- [x] The response contains only the patient-safe account/profile contract.
 
 **Verification:**
 
@@ -138,7 +138,7 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/AuthTest.php tests/Feat
 
 ### Checkpoint 1A: Patient identity and onboarding
 
-- [ ] Tasks 01–03 focused tests pass.
+- [x] Tasks 01–03 focused tests pass.
 - [ ] Linked and account-less patient factories are valid.
 - [ ] Registration rolls back cleanly on patient-creation failure.
 
