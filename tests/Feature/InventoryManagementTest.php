@@ -52,6 +52,56 @@ test('staff can restock a variant via the variants relation manager', function (
     ]);
 });
 
+test('restocking beyond the target stock level succeeds with a warning', function () {
+    $staff = User::factory()->staff()->create();
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 5,
+        'low_stock_threshold' => 3,
+        'target_stock_level' => 10,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->callAction(
+            TestAction::make('adjustStock')->table($variant),
+            ['type' => 'restock', 'quantity' => 10],
+        )
+        ->assertHasNoErrors()
+        ->assertNotified('Stock exceeds target');
+
+    expect($variant->fresh()->stock_quantity)->toBe(15);
+});
+
+test('restocking without a configured target does not show an over-target warning', function () {
+    $staff = User::factory()->staff()->create();
+    $product = Product::factory()->create();
+    $variant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 5,
+        'target_stock_level' => null,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(
+        VariantsRelationManager::class,
+        ['ownerRecord' => $product, 'pageClass' => EditProduct::class]
+    )
+        ->callAction(
+            TestAction::make('adjustStock')->table($variant),
+            ['type' => 'restock', 'quantity' => 10],
+        )
+        ->assertHasNoErrors()
+        ->assertNotified('Stock updated')
+        ->assertNotNotified('Stock exceeds target');
+
+    expect($variant->fresh()->stock_quantity)->toBe(15);
+});
+
 test('staff receives a notification when variant stock drops to or below low_stock_threshold', function () {
     $staff = User::factory()->staff()->create();
     User::factory()->admin()->create();

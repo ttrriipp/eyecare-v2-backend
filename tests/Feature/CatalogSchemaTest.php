@@ -26,6 +26,7 @@ test('product factory creates valid catalog records with required attributes', f
         'attributes' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
         'stock_quantity' => 12,
         'low_stock_threshold' => 3,
+        'target_stock_level' => 10,
         'ar_eligible' => true,
         'ar_asset_reference' => 'frames/demo-classic.glb',
     ]);
@@ -35,6 +36,7 @@ test('product factory creates valid catalog records with required attributes', f
         ->and($variant->product->is($product))->toBeTrue()
         ->and($variant->stock_quantity)->toBe(12)
         ->and($variant->low_stock_threshold)->toBe(3)
+        ->and($variant->target_stock_level)->toBe(10)
         ->and($variant->ar_asset_reference)->toBe('frames/demo-classic.glb');
 });
 
@@ -52,9 +54,25 @@ test('variant ar metadata columns exclude biometric fields', function () {
         ->and($columns)->not->toContain('face_geometry', 'facial_landmarks', 'biometric_identifier', 'ar_analytics');
 });
 
-test('catalog seeder creates demo frame products and lens categories idempotently', function () {
+test('catalog seeder creates mobile ready accessories frame products and lens categories idempotently', function () {
     $this->seed(CatalogSeeder::class);
     $this->seed(CatalogSeeder::class);
+
+    $accessories = Product::query()
+        ->where('product_type', 'accessory')
+        ->with(['category', 'variants'])
+        ->orderBy('slug')
+        ->get();
+    $accessoryVariants = $accessories
+        ->flatMap->variants
+        ->sortBy('sku')
+        ->values();
+    $accessoriesBySlug = $accessories->keyBy('slug');
+    $lensCleaningKit = $accessoriesBySlug['lens-cleaning-kit'];
+    $classicRectangleFrame = Product::query()
+        ->where('slug', 'classic-rectangle-frame')
+        ->with('variants')
+        ->firstOrFail();
 
     expect(LensCategory::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
@@ -62,6 +80,50 @@ test('catalog seeder creates demo frame products and lens categories idempotentl
             'Progressive',
             'Bifocal',
         ])
+        ->and($accessories->pluck('slug')->all())
+        ->toBe([
+            'hard-shell-glasses-case',
+            'lens-cleaning-kit',
+            'microfiber-cleaning-cloth',
+        ])
+        ->and($accessories->every(
+            fn (Product $product): bool => $product->is_active
+                && $product->category->name === 'Accessories'
+                && $product->images === []
+                && $product->variants->isNotEmpty()
+                && $product->variants->every(
+                    fn (ProductVariant $variant): bool => $variant->is_active
+                        && $variant->images === [],
+                ),
+        ))->toBeTrue()
+        ->and($lensCleaningKit->variants->sortBy('sku')->pluck('name', 'sku')->all())
+        ->toBe([
+            'LCK-STD-001' => 'Standard',
+            'LCK-TRV-001' => 'Travel Size',
+        ])
+        ->and($accessoriesBySlug['hard-shell-glasses-case']->variants->pluck('name')->all())
+        ->toBe(['Standard'])
+        ->and($accessoriesBySlug['microfiber-cleaning-cloth']->variants->pluck('name')->all())
+        ->toBe(['Standard'])
+        ->and($accessoryVariants->pluck('sku')->all())
+        ->toBe(['HSC-STD-001', 'LCK-STD-001', 'LCK-TRV-001', 'MCC-STD-001'])
+        ->and($accessoryVariants->pluck('target_stock_level')->all())
+        ->toBe([20, 30, 24, 50])
+        ->and(ProductVariant::query()->where('sku', 'LCK-TRV-001')->whereBelongsTo($lensCleaningKit)->count())
+        ->toBe(1)
+        ->and($classicRectangleFrame->variants->sortBy('sku')->pluck('name', 'sku')->all())
+        ->toBe([
+            'CRF-BLK-001' => 'Matte Black',
+            'CRF-TRT-001' => 'Tortoise',
+        ])
+        ->and($classicRectangleFrame->variants->every(
+            fn (ProductVariant $variant): bool => $variant->is_active
+                && $variant->ar_eligible
+                && $variant->ar_asset_reference !== null,
+        ))->toBeTrue()
+        ->and(ProductVariant::query()->where('sku', 'CRF-TRT-001')->whereBelongsTo($classicRectangleFrame)->count())
+        ->toBe(1)
+        ->and(Product::query()->visibleInMobileCatalog()->where('product_type', 'accessory')->count())->toBe(3)
         ->and(Product::query()->where('is_active', true)->count())->toBeGreaterThanOrEqual(2)
         ->and(ProductVariant::query()->where('ar_eligible', true)->count())->toBeGreaterThanOrEqual(1);
 });
@@ -119,6 +181,16 @@ test('product_variants table has compare_at_price and cost_price columns', funct
     expect($columns)->toContain('compare_at_price', 'cost_price');
 });
 
+test('product variant target stock level is nullable', function () {
+    $columns = Schema::getColumnListing('product_variants');
+    $variant = ProductVariant::factory()->create([
+        'target_stock_level' => null,
+    ]);
+
+    expect($columns)->toContain('target_stock_level')
+        ->and($variant->target_stock_level)->toBeNull();
+});
+
 test('variant compare_at_price and cost_price are nullable', function () {
     $variant = ProductVariant::factory()->create([
         'compare_at_price' => null,
@@ -131,7 +203,7 @@ test('variant compare_at_price and cost_price are nullable', function () {
 
 test('api returns compare_at_price but not cost_price', function () {
     $customer = User::factory()->customer()->create();
-    $product = Product::factory()->create();
+    $product = Product::factory()->accessory()->create();
     ProductVariant::factory()->for($product)->create([
         'price' => '1999.00',
         'compare_at_price' => '2500.00',
@@ -220,7 +292,7 @@ test('variant attributes stores contact lens metadata', function () {
 
 test('api returns attributes in variant response', function () {
     $customer = User::factory()->customer()->create();
-    $product = Product::factory()->create();
+    $product = Product::factory()->accessory()->create();
     ProductVariant::factory()->for($product)->create([
         'attributes' => ['eye_size' => 52, 'bridge' => 18],
         'is_active' => true,

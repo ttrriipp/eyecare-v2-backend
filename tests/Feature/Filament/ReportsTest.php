@@ -142,14 +142,34 @@ test('reorder report shows items below threshold', function () {
     $variant = ProductVariant::factory()->create([
         'stock_quantity' => 2,
         'low_stock_threshold' => 10,
+        'target_stock_level' => 15,
     ]);
 
     $page = Livewire::test(ReorderReport::class);
     $items = $page->instance()->getItems();
 
     expect($items)->toHaveCount(1)
-        ->and($items->first()['deficit'])->toBe(8)
+        ->and($items->first()['target'])->toBe(15)
+        ->and($items->first()['suggested_reorder_quantity'])->toBe(13)
         ->and($items->first()['sku'])->toBe($variant->sku);
+
+    $page->assertSee('Suggested reorder')
+        ->assertSee('13');
+});
+
+test('reorder report leaves the suggestion unconfigured when no target is set', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    ProductVariant::factory()->create([
+        'stock_quantity' => 2,
+        'low_stock_threshold' => 10,
+        'target_stock_level' => null,
+    ]);
+
+    $item = Livewire::test(ReorderReport::class)->instance()->getItems()->first();
+
+    expect($item['target'])->toBeNull()
+        ->and($item['suggested_reorder_quantity'])->toBeNull();
 });
 
 test('reorder report excludes items above threshold', function () {

@@ -85,6 +85,7 @@ test('staff can create and edit products with variants', function () {
                     'price' => 189.99,
                     'stock_quantity' => 4,
                     'low_stock_threshold' => 5,
+                    'target_stock_level' => 12,
                     'is_active' => true,
                     'ar_eligible' => true,
                     'ar_asset_reference' => 'frames/aviator-silver.glb',
@@ -98,7 +99,8 @@ test('staff can create and edit products with variants', function () {
     $product = Product::query()->where('slug', 'aviator-frame')->first();
 
     expect($product)->not->toBeNull()
-        ->and($product->variants)->toHaveCount(1);
+        ->and($product->variants)->toHaveCount(1)
+        ->and($product->variants->first()->target_stock_level)->toBe(12);
 
     Livewire::test(EditProduct::class, ['record' => $product->getRouteKey()])
         ->fillForm([
@@ -109,6 +111,69 @@ test('staff can create and edit products with variants', function () {
         ->assertHasNoFormErrors();
 
     expect($product->fresh()->name)->toBe('Aviator Frame Updated');
+});
+
+test('variant target stock level must be at least its low stock threshold', function () {
+    $staff = User::factory()->staff()->create();
+    $brand = Brand::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateProduct::class)
+        ->fillForm([
+            'brand_id' => $brand->id,
+            'name' => 'Invalid Stock Target',
+            'slug' => 'invalid-stock-target',
+            'is_active' => true,
+            'variants' => [
+                [
+                    'name' => 'Default',
+                    'sku' => 'INVALID-TARGET-001',
+                    'price' => 100,
+                    'stock_quantity' => 4,
+                    'low_stock_threshold' => 5,
+                    'target_stock_level' => 4,
+                    'is_active' => true,
+                ],
+            ],
+        ])
+        ->call('create')
+        ->assertHasFormErrors([
+            'variants.0.target_stock_level' => 'gte',
+        ])
+        ->assertNotNotified();
+});
+
+test('staff can create a variant without a target stock level', function () {
+    $staff = User::factory()->staff()->create();
+    $brand = Brand::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateProduct::class)
+        ->fillForm([
+            'brand_id' => $brand->id,
+            'name' => 'Unconfigured Stock Target',
+            'slug' => 'unconfigured-stock-target',
+            'is_active' => true,
+            'variants' => [
+                [
+                    'name' => 'Default',
+                    'sku' => 'NO-TARGET-001',
+                    'price' => 100,
+                    'stock_quantity' => 4,
+                    'low_stock_threshold' => 5,
+                    'is_active' => true,
+                ],
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified();
+
+    $variant = ProductVariant::query()->where('sku', 'NO-TARGET-001')->firstOrFail();
+
+    expect($variant->target_stock_level)->toBeNull();
 });
 
 test('product table shows total variant quantity', function () {
@@ -161,7 +226,7 @@ test('products table image column returns accessible url for stored image path',
     $staff = User::factory()->staff()->create();
     Storage::fake('public');
 
-    $product = Product::factory()->create([
+    $product = Product::factory()->accessory()->create([
         'images' => ['products/test-frame.jpg'],
     ]);
 

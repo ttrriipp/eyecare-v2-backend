@@ -15,8 +15,12 @@ beforeEach(function () {
 
 // ─── Backwards compatibility ──────────────────────────────────────────────────
 
-test('GET /products without params returns all active frames paginated', function () {
-    Product::factory()->count(3)->create(['product_type' => 'frame', 'is_active' => true]);
+test('GET /products without params returns all visible mobile catalog products paginated', function () {
+    Product::factory()
+        ->accessory()
+        ->has(ProductVariant::factory(), 'variants')
+        ->count(3)
+        ->create(['is_active' => true]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products')
@@ -27,27 +31,31 @@ test('GET /products without params returns all active frames paginated', functio
 // ─── Search ───────────────────────────────────────────────────────────────────
 
 test('search param filters by product name', function () {
-    Product::factory()->create(['name' => 'Classic Rectangle', 'product_type' => 'frame', 'is_active' => true]);
-    Product::factory()->create(['name' => 'Aviator Frame', 'product_type' => 'frame', 'is_active' => true]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Classic Case',
+        'is_active' => true,
+    ]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Cleaning Cloth',
+        'is_active' => true,
+    ]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?search=classic')
         ->assertOk()
         ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.name', 'Classic Rectangle');
+        ->assertJsonPath('data.0.name', 'Classic Case');
 });
 
 test('search param filters by product description', function () {
-    Product::factory()->create([
-        'name' => 'Frame A',
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Accessory A',
         'description' => 'lightweight titanium',
-        'product_type' => 'frame',
         'is_active' => true,
     ]);
-    Product::factory()->create([
-        'name' => 'Frame B',
-        'description' => 'acetate frame',
-        'product_type' => 'frame',
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Accessory B',
+        'description' => 'soft cleaning cloth',
         'is_active' => true,
     ]);
 
@@ -63,8 +71,14 @@ test('brand param filters by brand', function () {
     $brand = Brand::factory()->create();
     $otherBrand = Brand::factory()->create();
 
-    Product::factory()->create(['brand_id' => $brand->id, 'product_type' => 'frame', 'is_active' => true]);
-    Product::factory()->create(['brand_id' => $otherBrand->id, 'product_type' => 'frame', 'is_active' => true]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'brand_id' => $brand->id,
+        'is_active' => true,
+    ]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'brand_id' => $otherBrand->id,
+        'is_active' => true,
+    ]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson("/api/products?brand={$brand->id}")
@@ -77,8 +91,11 @@ test('brand param filters by brand', function () {
 test('category param filters by category', function () {
     $category = ProductCategory::factory()->create();
 
-    Product::factory()->create(['category_id' => $category->id, 'product_type' => 'frame', 'is_active' => true]);
-    Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'category_id' => $category->id,
+        'is_active' => true,
+    ]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create(['is_active' => true]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson("/api/products?category={$category->id}")
@@ -89,11 +106,12 @@ test('category param filters by category', function () {
 // ─── Price range ──────────────────────────────────────────────────────────────
 
 test('min_price param filters products with a variant at or above the price', function () {
-    $cheapProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $cheapProduct->id, 'price' => 50]);
+    $cheapProduct = Product::factory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($cheapProduct)->arEligible()->create(['price' => 50]);
+    ProductVariant::factory()->for($cheapProduct)->create(['price' => 500]);
 
-    $expensiveProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $expensiveProduct->id, 'price' => 500]);
+    $expensiveProduct = Product::factory()->accessory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($expensiveProduct)->create(['price' => 500]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?min_price=200')
@@ -103,11 +121,12 @@ test('min_price param filters products with a variant at or above the price', fu
 });
 
 test('max_price param filters products with a variant at or below the price', function () {
-    $cheapProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $cheapProduct->id, 'price' => 50]);
+    $cheapProduct = Product::factory()->accessory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($cheapProduct)->create(['price' => 50]);
 
-    $expensiveProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $expensiveProduct->id, 'price' => 500]);
+    $expensiveProduct = Product::factory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($expensiveProduct)->arEligible()->create(['price' => 500]);
+    ProductVariant::factory()->for($expensiveProduct)->create(['price' => 50]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?max_price=100')
@@ -119,11 +138,12 @@ test('max_price param filters products with a variant at or below the price', fu
 // ─── In-stock filter ──────────────────────────────────────────────────────────
 
 test('in_stock param returns only products with stock', function () {
-    $inStockProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $inStockProduct->id, 'stock_quantity' => 5]);
+    $inStockProduct = Product::factory()->accessory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($inStockProduct)->create(['stock_quantity' => 5]);
 
-    $outOfStockProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $outOfStockProduct->id, 'stock_quantity' => 0]);
+    $outOfStockProduct = Product::factory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($outOfStockProduct)->arEligible()->create(['stock_quantity' => 0]);
+    ProductVariant::factory()->for($outOfStockProduct)->create(['stock_quantity' => 5]);
 
     $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?in_stock=true')
@@ -135,19 +155,31 @@ test('in_stock param returns only products with stock', function () {
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
 test('sort=name orders products alphabetically', function () {
-    Product::factory()->create(['name' => 'Zebra Frame', 'product_type' => 'frame', 'is_active' => true]);
-    Product::factory()->create(['name' => 'Alpha Frame', 'product_type' => 'frame', 'is_active' => true]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Zebra Case',
+        'is_active' => true,
+    ]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'name' => 'Alpha Cloth',
+        'is_active' => true,
+    ]);
 
     $response = $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?sort=name')
         ->assertOk();
 
-    expect($response->json('data.0.name'))->toBe('Alpha Frame');
+    expect($response->json('data.0.name'))->toBe('Alpha Cloth');
 });
 
 test('sort=newest orders products by creation date descending', function () {
-    $old = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'created_at' => now()->subDays(5)]);
-    $new = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'created_at' => now()]);
+    Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'is_active' => true,
+        'created_at' => now()->subDays(5),
+    ]);
+    $new = Product::factory()->accessory()->has(ProductVariant::factory(), 'variants')->create([
+        'is_active' => true,
+        'created_at' => now(),
+    ]);
 
     $response = $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?sort=newest')
@@ -157,11 +189,12 @@ test('sort=newest orders products by creation date descending', function () {
 });
 
 test('sort=price_asc orders by cheapest variant first', function () {
-    $expensiveProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $expensiveProduct->id, 'price' => 500]);
+    $expensiveProduct = Product::factory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($expensiveProduct)->arEligible()->create(['price' => 500]);
+    ProductVariant::factory()->for($expensiveProduct)->create(['price' => 10]);
 
-    $cheapProduct = Product::factory()->create(['product_type' => 'frame', 'is_active' => true]);
-    ProductVariant::factory()->create(['product_id' => $cheapProduct->id, 'price' => 50]);
+    $cheapProduct = Product::factory()->accessory()->create(['is_active' => true]);
+    ProductVariant::factory()->for($cheapProduct)->create(['price' => 50]);
 
     $response = $this->actingAs($this->customer, 'sanctum')
         ->getJson('/api/products?sort=price_asc')
@@ -175,17 +208,15 @@ test('sort=price_asc orders by cheapest variant first', function () {
 test('multiple filters combine correctly', function () {
     $brand = Brand::factory()->create();
 
-    $match = Product::factory()->create([
-        'name' => 'Classic Lens',
+    $match = Product::factory()->accessory()->create([
+        'name' => 'Classic Case',
         'brand_id' => $brand->id,
-        'product_type' => 'frame',
         'is_active' => true,
     ]);
     ProductVariant::factory()->create(['product_id' => $match->id, 'stock_quantity' => 5]);
 
-    $noMatch = Product::factory()->create([
-        'name' => 'Classic Frame',
-        'product_type' => 'frame',
+    $noMatch = Product::factory()->accessory()->create([
+        'name' => 'Classic Cloth',
         'is_active' => true,
     ]);
     ProductVariant::factory()->create(['product_id' => $noMatch->id, 'stock_quantity' => 0]);

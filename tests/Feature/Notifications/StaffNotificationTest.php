@@ -2,7 +2,6 @@
 
 use App\Models\Appointment;
 use App\Models\Conversation;
-use App\Models\LensCategory;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -56,16 +55,15 @@ test('new booking notification has correct type and action url', function () {
 test('all staff and admin are notified when a customer submits an order', function () {
     $product = Product::factory()
         ->has(ProductVariant::factory()->count(1), 'variants')
+        ->accessory()
         ->create();
     $variant = $product->variants->first();
-    $lensType = LensCategory::factory()->create();
 
     $this->actingAs($this->customer, 'sanctum')
         ->postJson('/api/orders', [
             'is_non_prescription' => true,
             'items' => [[
                 'product_variant_id' => $variant->id,
-                'lens_type_id' => $lensType->id,
                 'quantity' => 1,
             ]],
         ])

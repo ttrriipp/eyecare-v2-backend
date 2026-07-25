@@ -17,34 +17,26 @@ beforeEach(function () {
     $this->seed(OrderStatusSeeder::class);
 });
 
-test('customers can submit order requests with item snapshots and lens type selection', function () {
+test('customers can submit accessory order requests with item snapshots', function () {
     $customer = User::factory()->customer()->create();
-    $appointment = Appointment::factory()->create([
-        'customer_id' => $customer->id,
-    ]);
-    $product = Product::factory()->create([
-        'name' => 'Aviator Frame',
+    $product = Product::factory()->accessory()->create([
+        'name' => 'Cleaning Kit',
         'is_active' => true,
     ]);
     $variant = ProductVariant::factory()->for($product)->create([
-        'name' => 'Silver',
-        'sku' => 'AVF-SLV-001',
+        'name' => 'Standard',
+        'sku' => 'KIT-STD-001',
         'price' => 189.99,
         'is_active' => true,
-    ]);
-    $lensType = LensCategory::factory()->create([
-        'name' => 'Single Vision',
-        'price' => null,
     ]);
 
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
-            'appointment_id' => $appointment->id,
-            'is_non_prescription' => false,
+            'appointment_id' => null,
+            'is_non_prescription' => true,
             'items' => [
                 [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType->id,
                     'quantity' => 1,
                 ],
             ],
@@ -52,38 +44,64 @@ test('customers can submit order requests with item snapshots and lens type sele
 
     $response->assertCreated()
         ->assertJsonPath('data.status', 'requested')
-        ->assertJsonPath('data.is_non_prescription', false)
-        ->assertJsonPath('data.appointment_id', $appointment->id)
-        ->assertJsonPath('data.items.0.product_name', 'Aviator Frame')
-        ->assertJsonPath('data.items.0.variant_name', 'Silver')
-        ->assertJsonPath('data.items.0.lens_type_name', 'Single Vision')
+        ->assertJsonPath('data.is_non_prescription', true)
+        ->assertJsonPath('data.appointment_id', null)
+        ->assertJsonPath('data.items.0.product_name', 'Cleaning Kit')
+        ->assertJsonPath('data.items.0.variant_name', 'Standard')
+        ->assertJsonPath('data.items.0.lens_type_name', null)
         ->assertJsonPath('data.items.0.unit_price', '189.99')
         ->assertJsonPath('data.total_amount', '189.99');
 
     $this->assertDatabaseHas(Order::class, [
         'customer_id' => $customer->id,
-        'appointment_id' => $appointment->id,
-        'is_non_prescription' => false,
+        'appointment_id' => null,
+        'is_non_prescription' => true,
         'total_amount' => '189.99',
         'order_status_id' => OrderStatus::query()->where('name', 'requested')->value('id'),
     ]);
 
     $this->assertDatabaseHas(OrderItem::class, [
         'product_variant_id' => $variant->id,
-        'lens_category_id' => $lensType->id,
-        'product_name' => 'Aviator Frame',
-        'variant_name' => 'Silver',
-        'lens_category_name' => 'Single Vision',
+        'lens_category_id' => null,
+        'product_name' => 'Cleaning Kit',
+        'variant_name' => 'Standard',
+        'lens_category_name' => null,
         'unit_price' => '189.99',
         'quantity' => 1,
         'subtotal' => '189.99',
     ]);
 });
 
+test('customer order requests reject a supplied appointment id', function () {
+    $customer = User::factory()->customer()->create();
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+    ]);
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create();
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'appointment_id' => $appointment->id,
+            'is_non_prescription' => true,
+            'items' => [
+                [
+                    'product_variant_id' => $variant->id,
+                    'quantity' => 1,
+                ],
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_id']);
+
+    expect(Order::query()->where('customer_id', $customer->id)->exists())->toBeFalse();
+});
+
 test('order items keep catalog snapshots after product data changes', function () {
     $customer = User::factory()->customer()->create();
-    $product = Product::factory()->create([
-        'name' => 'Original Frame',
+    $product = Product::factory()->accessory()->create([
+        'name' => 'Original Accessory',
         'is_active' => true,
     ]);
     $variant = ProductVariant::factory()->for($product)->create([
@@ -91,18 +109,12 @@ test('order items keep catalog snapshots after product data changes', function (
         'price' => 120.00,
         'is_active' => true,
     ]);
-    $lensType = LensCategory::factory()->create([
-        'name' => 'progressive',
-        'price' => null,
-    ]);
-
     $response = $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
             'is_non_prescription' => true,
             'items' => [
                 [
                     'product_variant_id' => $variant->id,
-                    'lens_type_id' => $lensType->id,
                     'quantity' => 2,
                 ],
             ],
@@ -110,16 +122,15 @@ test('order items keep catalog snapshots after product data changes', function (
 
     $orderId = $response->json('data.id');
 
-    $product->update(['name' => 'Renamed Frame']);
+    $product->update(['name' => 'Renamed Accessory']);
     $variant->update(['name' => 'Renamed Variant', 'price' => 999.99]);
-    $lensType->update(['name' => 'photochromic']);
 
     $this->actingAs($customer, 'sanctum')
         ->getJson("/api/orders/{$orderId}")
         ->assertSuccessful()
-        ->assertJsonPath('data.items.0.product_name', 'Original Frame')
+        ->assertJsonPath('data.items.0.product_name', 'Original Accessory')
         ->assertJsonPath('data.items.0.variant_name', 'Original Variant')
-        ->assertJsonPath('data.items.0.lens_type_name', 'progressive')
+        ->assertJsonPath('data.items.0.lens_type_name', null)
         ->assertJsonPath('data.items.0.unit_price', '120.00')
         ->assertJsonPath('data.items.0.subtotal', '240.00')
         ->assertJsonPath('data.total_amount', '240.00');
@@ -149,28 +160,60 @@ test('customers can list only their own orders', function () {
         ->and($orderIds)->toHaveCount(2);
 });
 
-test('order requests reject invalid variants lens types and appointment ownership', function () {
+test('customers can still read historical frame orders', function () {
     $customer = User::factory()->customer()->create();
-    $otherAppointment = Appointment::factory()->create();
-    $inactiveProduct = Product::factory()->create(['is_active' => false]);
+    $appointment = Appointment::factory()->create([
+        'customer_id' => $customer->id,
+    ]);
+    $order = Order::factory()->create([
+        'customer_id' => $customer->id,
+        'appointment_id' => $appointment->id,
+    ]);
+    $frameVariant = ProductVariant::factory()->for(Product::factory())->create();
+
+    OrderItem::factory()->create([
+        'order_id' => $order->id,
+        'product_variant_id' => $frameVariant->id,
+        'product_id' => $frameVariant->product_id,
+        'product_name' => 'Historical Frame',
+        'variant_name' => $frameVariant->name,
+        'variant_sku' => $frameVariant->sku,
+        'lens_category_id' => null,
+        'lens_category_name' => null,
+    ]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson("/api/orders/{$order->id}")
+        ->assertOk()
+        ->assertJsonPath('data.appointment_id', $appointment->id)
+        ->assertJsonPath('data.items.0.product_name', 'Historical Frame');
+
+    $this->actingAs($customer, 'sanctum')
+        ->getJson('/api/orders')
+        ->assertOk()
+        ->assertJsonPath('data.0.appointment_id', $appointment->id);
+});
+
+test('order requests reject invalid variants', function () {
+    $customer = User::factory()->customer()->create();
+    $inactiveProduct = Product::factory()->accessory()->create(['is_active' => false]);
     $inactiveVariant = ProductVariant::factory()->for($inactiveProduct)->create(['is_active' => true]);
-    $disabledVariant = ProductVariant::factory()->create(['is_active' => false]);
-    $validVariant = ProductVariant::factory()->create(['is_active' => true]);
+    $disabledVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['is_active' => false]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
-            'appointment_id' => $otherAppointment->id,
             'is_non_prescription' => true,
             'items' => [
                 [
                     'product_variant_id' => 99999,
-                    'lens_type_id' => 99999,
                     'quantity' => 1,
                 ],
             ],
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['appointment_id', 'items.0.product_variant_id', 'items.0.lens_type_id']);
+        ->assertJsonValidationErrors(['items.0.product_variant_id']);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
@@ -178,7 +221,6 @@ test('order requests reject invalid variants lens types and appointment ownershi
             'items' => [
                 [
                     'product_variant_id' => $inactiveVariant->id,
-                    'lens_type_id' => LensCategory::factory()->create()->id,
                     'quantity' => 1,
                 ],
             ],
@@ -192,67 +234,85 @@ test('order requests reject invalid variants lens types and appointment ownershi
             'items' => [
                 [
                     'product_variant_id' => $disabledVariant->id,
-                    'lens_type_id' => LensCategory::factory()->create()->id,
                     'quantity' => 1,
                 ],
             ],
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['items.0.product_variant_id']);
+});
+
+test('order requests reject non accessory products', function (string $productType) {
+    $customer = User::factory()->customer()->create();
+    $product = Product::factory()->create(['product_type' => $productType]);
+    $variant = ProductVariant::factory()->for($product)->create(['is_active' => true]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'is_non_prescription' => true,
+            'items' => [
+                ['product_variant_id' => $variant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['items.0.product_variant_id']);
+})->with(['frame', 'lens', 'contact_lens', 'general']);
+
+test('order requests accept accessory products', function () {
+    $customer = User::factory()->customer()->create();
+    $accessoryVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['is_active' => true]);
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'is_non_prescription' => true,
+            'items' => [
+                ['product_variant_id' => $accessoryVariant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.items.0.product_variant_id', $accessoryVariant->id);
+});
+
+test('order requests require is non prescription to be true', function () {
+    $customer = User::factory()->customer()->create();
+    $accessoryVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create();
+
+    $this->actingAs($customer, 'sanctum')
+        ->postJson('/api/orders', [
+            'is_non_prescription' => false,
+            'items' => [
+                ['product_variant_id' => $accessoryVariant->id, 'quantity' => 1],
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['is_non_prescription']);
+});
+
+test('order requests prohibit lens category fields', function (string $lensCategoryField) {
+    $customer = User::factory()->customer()->create();
+    $lensCategory = LensCategory::factory()->create();
+    $accessoryVariant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create();
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
             'is_non_prescription' => true,
             'items' => [
                 [
-                    'product_variant_id' => $validVariant->id,
-                    'lens_type_id' => 99999,
+                    'product_variant_id' => $accessoryVariant->id,
+                    $lensCategoryField => $lensCategory->id,
                     'quantity' => 1,
                 ],
             ],
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['items.0.lens_type_id']);
-});
-
-test('order requests reject lens-type products as direct order line items', function () {
-    $customer = User::factory()->customer()->create();
-    $lensCategory = LensCategory::factory()->create();
-    $lensProduct = Product::factory()->create(['product_type' => 'lens', 'lens_category_id' => $lensCategory->id]);
-    $lensVariant = ProductVariant::factory()->for($lensProduct)->create(['is_active' => true]);
-
-    $this->actingAs($customer, 'sanctum')
-        ->postJson('/api/orders', [
-            'is_non_prescription' => true,
-            'items' => [
-                ['product_variant_id' => $lensVariant->id, 'quantity' => 1],
-            ],
-        ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['items.0.product_variant_id']);
-});
-
-test('order requests accept contact lens and accessory products as direct order line items', function () {
-    $customer = User::factory()->customer()->create();
-    $contactLensVariant = ProductVariant::factory()
-        ->for(Product::factory()->contactLens())
-        ->create(['is_active' => true]);
-    $accessoryVariant = ProductVariant::factory()
-        ->for(Product::factory()->accessory())
-        ->create(['is_active' => true]);
-
-    foreach ([$contactLensVariant, $accessoryVariant] as $variant) {
-        $this->actingAs($customer, 'sanctum')
-            ->postJson('/api/orders', [
-                'is_non_prescription' => true,
-                'items' => [
-                    ['product_variant_id' => $variant->id, 'quantity' => 1],
-                ],
-            ])
-            ->assertCreated()
-            ->assertJsonPath('data.items.0.product_variant_id', $variant->id);
-    }
-});
+        ->assertJsonValidationErrors(["items.0.{$lensCategoryField}"]);
+})->with(['lens_category_id', 'lens_type_id']);
 
 test('order requests require items and non prescription flag', function () {
     $customer = User::factory()->customer()->create();
@@ -270,7 +330,7 @@ test('order endpoints require authentication', function () {
 
 test('order item response includes product and variant image urls', function () {
     $customer = User::factory()->customer()->create();
-    $product = Product::factory()->create([
+    $product = Product::factory()->accessory()->create([
         'is_active' => true,
         'images' => ['products/hero.jpg'],
     ]);
@@ -278,13 +338,11 @@ test('order item response includes product and variant image urls', function () 
         'is_active' => true,
         'images' => ['variants/color.jpg'],
     ]);
-    $lensType = LensCategory::factory()->create(['price' => null]);
-
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
             'is_non_prescription' => true,
             'items' => [
-                ['product_variant_id' => $variant->id, 'lens_type_id' => $lensType->id, 'quantity' => 1],
+                ['product_variant_id' => $variant->id, 'quantity' => 1],
             ],
         ]);
 

@@ -4,6 +4,7 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Order;
 use App\Models\OrderStatus;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Models\VisitReason;
@@ -43,7 +44,9 @@ test('booking an appointment creates a notification for staff', function () {
 
 test('placing an order creates a notification for staff', function () {
     $customer = User::factory()->customer()->create();
-    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['stock_quantity' => 10]);
 
     $this->actingAs($customer, 'sanctum')
         ->postJson('/api/orders', [
