@@ -501,10 +501,10 @@ autorefractor paper result, and add authorized A5/A4 print routes.
 
 **Acceptance criteria:**
 
-- [ ] Chart checkout/return/relocation/copy events are attributable.
-- [ ] Health Record renders A5 landscape and Prescription A5 portrait, with A4
+- [x] Chart checkout/return/relocation/copy events are attributable.
+- [x] Health Record renders A5 landscape and Prescription A5 portrait, with A4
       fallback styles.
-- [ ] Raw autorefractor output is not uploaded, only paper presence is tracked,
+- [x] Raw autorefractor output is not uploaded, only paper presence is tracked,
       and prescription `CX` remains neutral until the clinic approves its
       binding.
 
