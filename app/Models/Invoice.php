@@ -96,7 +96,7 @@ class Invoice extends Model
      */
     public function recalculateBalance(): void
     {
-        $amountPaid = $this->payments()->sum('amount');
+        $amountPaid = $this->payments()->where('status', 'posted')->sum('amount');
         $balanceDue = max($this->total - $amountPaid, 0);
 
         $status = match (true) {

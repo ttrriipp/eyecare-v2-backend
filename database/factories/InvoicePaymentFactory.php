@@ -26,6 +26,7 @@ class InvoicePaymentFactory extends Factory
             'reference_number' => null,
             'recorded_by' => User::factory()->staff(),
             'recorded_at' => now(),
+            'status' => 'posted',
             'notes' => null,
         ];
     }

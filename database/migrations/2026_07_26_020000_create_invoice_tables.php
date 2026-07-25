@@ -52,6 +52,7 @@ return new class extends Migration
             $table->decimal('amount', 12, 2);
             $table->string('payment_method', 32)->default('cash');
             $table->string('reference_number', 100)->nullable();
+            $table->string('status', 16)->default('posted');
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('recorded_at')->useCurrent();
             $table->text('notes')->nullable();

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'recorded_by',
     'recorded_at',
     'notes',
+    'status',
 ])]
 class InvoicePayment extends Model
 {
@@ -43,6 +44,7 @@ class InvoicePayment extends Model
     {
         return [
             'recorded_at' => 'datetime',
+            'status' => 'string',
         ];
     }
 }

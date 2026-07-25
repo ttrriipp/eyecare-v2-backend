@@ -838,9 +838,9 @@ derive paid/balance values from ledger history.
 
 **Acceptance criteria:**
 
-- [ ] Deposits may be recorded before dispensing.
-- [ ] Overpayment/invalid reversal is rejected under a row lock.
-- [ ] Corrections preserve the original payment and actor/reason.
+- [x] Deposits may be recorded before dispensing.
+- [x] Overpayment/invalid reversal is rejected under a row lock.
+- [x] Corrections preserve the original payment and actor/reason.
 
 **Verification:**
 
