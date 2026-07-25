@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'attributes',
     'stock_quantity',
     'low_stock_threshold',
+    'target_stock_level',
     'ar_eligible',
     'ar_asset_reference',
     'images',
@@ -44,6 +46,74 @@ class ProductVariant extends Model
         $sequence = self::query()->withTrashed()->count() + 1;
 
         return sprintf('VAR-%06d', $sequence);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeActive(Builder $query): void
+    {
+        $query->where('is_active', true);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeArReady(Builder $query): void
+    {
+        $query
+            ->active()
+            ->where('ar_eligible', true)
+            ->whereNotNull('ar_asset_reference');
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeNeedsReorder(Builder $query): void
+    {
+        $query
+            ->where('low_stock_threshold', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
+    }
+
+    public function replenishmentTarget(): ?int
+    {
+        return $this->target_stock_level;
+    }
+
+    public function suggestedReorderQuantity(): ?int
+    {
+        if ($this->target_stock_level === null) {
+            return null;
+        }
+
+        return max($this->replenishmentTarget() - $this->stock_quantity, 0);
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeVisibleInMobileCatalog(Builder $query): void
+    {
+        $query
+            ->active()
+            ->where(fn (Builder $variantQuery): Builder => $variantQuery
+                ->whereHas(
+                    'product',
+                    fn (Builder $productQuery): Builder => $productQuery
+                        ->where('is_active', true)
+                        ->where('product_type', 'accessory'),
+                )
+                ->orWhere(fn (Builder $frameVariantQuery): Builder => $frameVariantQuery
+                    ->where('ar_eligible', true)
+                    ->whereNotNull('ar_asset_reference')
+                    ->whereHas(
+                        'product',
+                        fn (Builder $productQuery): Builder => $productQuery
+                            ->where('is_active', true)
+                            ->where('product_type', 'frame'),
+                    )));
     }
 
     /**
@@ -75,6 +145,7 @@ class ProductVariant extends Model
             'attributes' => 'array',
             'stock_quantity' => 'integer',
             'low_stock_threshold' => 'integer',
+            'target_stock_level' => 'integer',
             'ar_eligible' => 'boolean',
             'images' => 'array',
         ];

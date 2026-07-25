@@ -29,6 +29,7 @@ class ProductVariantFactory extends Factory
             ],
             'stock_quantity' => fake()->numberBetween(0, 25),
             'low_stock_threshold' => 3,
+            'target_stock_level' => null,
             'ar_eligible' => false,
             'ar_asset_reference' => null,
         ];

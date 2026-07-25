@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +43,11 @@ class Product extends Model
         'accessory',
     ];
 
+    /** @var list<string> */
+    public const array CUSTOMER_ORDERABLE_TYPES = [
+        'accessory',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $product): void {
@@ -63,6 +69,28 @@ class Product extends Model
         }
 
         return $slug;
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeVisibleInMobileCatalog(Builder $query): void
+    {
+        $query
+            ->where('is_active', true)
+            ->where(fn (Builder $productQuery): Builder => $productQuery
+                ->where(fn (Builder $accessoryQuery): Builder => $accessoryQuery
+                    ->where('product_type', 'accessory')
+                    ->whereHas(
+                        'variants',
+                        fn (Builder $variantQuery): Builder => $variantQuery->active(),
+                    ))
+                ->orWhere(fn (Builder $frameQuery): Builder => $frameQuery
+                    ->where('product_type', 'frame')
+                    ->whereHas(
+                        'variants',
+                        fn (Builder $variantQuery): Builder => $variantQuery->arReady(),
+                    )));
     }
 
     /**
