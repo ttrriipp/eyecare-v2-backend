@@ -663,10 +663,10 @@ totals.
 
 **Acceptance criteria:**
 
-- [ ] Each revision snapshots descriptions, quantities, prices, discounts, and
+- [x] Each revision snapshots descriptions, quantities, prices, discounts, and
       totals.
-- [ ] Recalculating creates a revision instead of rewriting a presented one.
-- [ ] Totals are deterministic and covered by calculation tests.
+- [x] Recalculating creates a revision instead of rewriting a presented one.
+- [x] Totals are deterministic and covered by calculation tests.
 
 **Verification:**
 
