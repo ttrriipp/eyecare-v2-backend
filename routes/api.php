@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameReservationController;
+use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
@@ -87,4 +88,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
 
     Route::get('quotations', [QuotationController::class, 'index']);
     Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
+
+    Route::get('job-orders', [JobOrderController::class, 'index']);
+    Route::get('job-orders/{job_order}', [JobOrderController::class, 'show']);
 });

@@ -775,9 +775,9 @@ authorized status/cancellation operations, and retire the old Order surface.
 
 **Acceptance criteria:**
 
-- [ ] Inventory commitment/reversal is transactional and idempotent.
-- [ ] Staff panel and patient API expose role-appropriate job-order operations.
-- [ ] Old Order actions/resources/models/tests are removed in bounded batches.
+- [x] Inventory commitment/reversal is transactional and idempotent.
+- [x] Staff panel and patient API expose role-appropriate job-order operations.
+- [x] Old Order actions/resources/models/tests are removed in bounded batches.
 
 **Verification:**
 
