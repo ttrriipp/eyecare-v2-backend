@@ -4,7 +4,8 @@
         "codex",
         "cursor",
         "gemini",
-        "kiro"
+        "kiro",
+        "opencode"
     ],
     "cloud": false,
     "guidelines": true,
