@@ -46,16 +46,13 @@ class AppointmentController extends Controller
         abort_unless($patient !== null, 422, 'No patient record linked to this account.');
 
         $visitReason = VisitReason::query()->findOrFail($request->validated('visit_reason_id'));
-        $optometrist = $request->filled('optometrist_id')
-            ? User::query()->findOrFail($request->validated('optometrist_id'))
-            : null;
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone'));
 
         $appointment = $createScheduledAppointment->handle(
             patient: $patient,
             visitReason: $visitReason,
             scheduledAt: $scheduledAt,
-            optometrist: $optometrist,
+            optometrist: null, // Clinic-controlled assignment
             contactNotes: $request->validated('contact_notes'),
         );
 

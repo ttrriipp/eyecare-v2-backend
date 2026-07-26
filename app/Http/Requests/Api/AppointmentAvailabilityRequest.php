@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Api;
 
 use App\Models\Appointment;
-use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -24,7 +23,6 @@ class AppointmentAvailabilityRequest extends FormRequest
         return [
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'visit_reason_id' => ['required', 'integer', Rule::exists('visit_reasons', 'id')],
-            'optometrist_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where(
                 fn ($query) => $query->where('patient_id', $this->user()?->patient?->id),
             )],
@@ -34,25 +32,8 @@ class AppointmentAvailabilityRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $this->validateOptometrist($validator);
             $this->validateRescheduleContext($validator);
         });
-    }
-
-    private function validateOptometrist(Validator $validator): void
-    {
-        if (! $this->filled('optometrist_id')) {
-            return;
-        }
-
-        $isEligible = User::query()
-            ->optometrists()
-            ->whereKey($this->integer('optometrist_id'))
-            ->exists();
-
-        if (! $isEligible) {
-            $validator->errors()->add('optometrist_id', 'The selected user is not an optometrist.');
-        }
     }
 
     private function validateRescheduleContext(Validator $validator): void
@@ -76,10 +57,6 @@ class AppointmentAvailabilityRequest extends FormRequest
 
         if ((int) $this->input('visit_reason_id') !== $appointment->visit_reason_id) {
             $validator->errors()->add('visit_reason_id', 'The visit reason must match the appointment being rescheduled.');
-        }
-
-        if ($this->filled('optometrist_id') && (int) $this->input('optometrist_id') !== $appointment->optometrist_id) {
-            $validator->errors()->add('optometrist_id', 'The optometrist must match the appointment being rescheduled.');
         }
     }
 }

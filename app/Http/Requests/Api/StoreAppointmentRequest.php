@@ -20,7 +20,6 @@ class StoreAppointmentRequest extends FormRequest
     {
         return [
             'visit_reason_id' => ['required', 'integer', Rule::exists('visit_reasons', 'id')],
-            'optometrist_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'scheduled_at' => ['required', 'date', 'after:now'],
             'contact_notes' => ['nullable', 'string', 'max:1000'],
         ];

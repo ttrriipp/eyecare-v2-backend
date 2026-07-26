@@ -100,9 +100,9 @@ clinic-controlled.
 
 **Acceptance criteria:**
 
-- [ ] A slot exists only when at least one optometrist covers its full duration.
-- [ ] Absence or shortened availability removes only the affected capacity.
-- [ ] Patient requests and responses contain no preferred-provider selection.
+- [x] A slot exists only when at least one optometrist covers its full duration.
+- [x] Absence or shortened availability removes only the affected capacity.
+- [x] Patient requests and responses contain no preferred-provider selection.
 
 **Verification:** Run clinic-hours, provider-availability, appointment
 availability, and concurrency tests.

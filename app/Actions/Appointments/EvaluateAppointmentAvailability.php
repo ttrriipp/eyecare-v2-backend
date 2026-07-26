@@ -3,6 +3,8 @@
 namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
+use App\Models\ProviderHour;
+use App\Models\ScheduleOverride;
 use App\Models\User;
 use App\Models\VisitReason;
 use Carbon\CarbonInterface;
@@ -69,9 +71,37 @@ class EvaluateAppointmentAvailability
         return $openingTime->diffInMinutes($startsAt, false) % $schedule->slotIntervalMinutes === 0;
     }
 
-    public function eligibleOptometristCapacity(): int
+    /**
+     * Count optometrists available for the given date, considering provider hours and absences.
+     */
+    public function eligibleOptometristCapacity(?CarbonInterface $date = null): int
     {
-        return max(1, User::query()->optometrists()->count());
+        if ($date === null) {
+            return max(1, User::query()->optometrists()->count());
+        }
+
+        $weekday = $date->dayOfWeek;
+        $dateString = $date->toDateString();
+
+        // Get optometrists with provider hours for this weekday
+        $optometristsWithHours = ProviderHour::query()
+            ->where('weekday', $weekday)
+            ->where('enabled', true)
+            ->pluck('user_id')
+            ->toArray();
+
+        // Get optometrists with provider absences for this date
+        $absentOptometrists = ScheduleOverride::query()
+            ->where('override_date', $dateString)
+            ->where('type', ScheduleOverride::TYPE_PROVIDER_ABSENCE)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->toArray();
+
+        // Count available optometrists: has hours for this weekday AND no absence
+        $availableCount = count(array_diff($optometristsWithHours, $absentOptometrists));
+
+        return max(1, $availableCount);
     }
 
     /**
