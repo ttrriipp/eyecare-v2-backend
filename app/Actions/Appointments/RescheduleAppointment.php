@@ -41,7 +41,7 @@ class RescheduleAppointment
             ]);
         }
 
-        $appointment->loadMissing(['visitReason', 'optometrist', 'patient']);
+        $appointment->loadMissing(['appointmentType', 'optometrist', 'patient']);
 
         return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
@@ -49,7 +49,7 @@ class RescheduleAppointment
             try {
                 $this->scheduleAppointment->handle(
                     scheduledAt: $scheduledAt,
-                    visitReason: $appointment->visitReason,
+                    durationMinutes: $appointment->duration_minutes,
                     optometrist: $appointment->optometrist,
                     ignoreAppointment: $appointment,
                     enforceGrid: $customerInitiated,
@@ -71,7 +71,7 @@ class RescheduleAppointment
             }
 
             $appointment->update($attributes);
-            $appointment->load(['patient', 'visitReason', 'status', 'optometrist']);
+            $appointment->load(['patient', 'appointmentType', 'status', 'optometrist']);
 
             $this->createSmsNotification($appointment, $rescheduleReason);
             $appointment->patient->account?->notify(new AppointmentRescheduled($appointment));
@@ -85,7 +85,7 @@ class RescheduleAppointment
                 ], fn ($value): bool => $value !== null),
             );
 
-            return $appointment->fresh(['patient', 'visitReason', 'status', 'optometrist']);
+            return $appointment->fresh(['patient', 'appointmentType', 'status', 'optometrist']);
         }, attempts: 3);
     }
 
@@ -124,7 +124,7 @@ class RescheduleAppointment
             ],
             'availability' => [
                 'date' => $scheduledAt->copy()->setTimezone(config('app.timezone'))->toDateString(),
-                'visit_reason_id' => $appointment->visit_reason_id,
+                'appointment_type_id' => $appointment->appointment_type_id,
                 'optometrist_id' => $appointment->optometrist_id,
                 'appointment_id' => $appointment->id,
             ],

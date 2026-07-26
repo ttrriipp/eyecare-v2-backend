@@ -4,7 +4,6 @@ namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
 use App\Models\User;
-use App\Models\VisitReason;
 use Carbon\CarbonInterface;
 use Illuminate\Validation\ValidationException;
 
@@ -14,14 +13,14 @@ class ScheduleAppointment
 
     public function handle(
         CarbonInterface $scheduledAt,
-        VisitReason $visitReason,
+        int $durationMinutes,
         ?User $optometrist = null,
         ?Appointment $ignoreAppointment = null,
         bool $enforceGrid = false,
     ): void {
         $this->validateOptometrist($optometrist);
-        $this->validateClinicHours($scheduledAt, $visitReason->duration_minutes);
-        $this->validateAvailability($scheduledAt, $visitReason->duration_minutes, $optometrist, $ignoreAppointment, $enforceGrid);
+        $this->validateClinicHours($scheduledAt, $durationMinutes);
+        $this->validateAvailability($scheduledAt, $durationMinutes, $optometrist, $ignoreAppointment, $enforceGrid);
     }
 
     private function validateOptometrist(?User $optometrist): void
@@ -44,7 +43,7 @@ class ScheduleAppointment
         $endsAt = $scheduledAt->copy()->addMinutes($durationMinutes);
         $decision = $this->evaluateAppointmentAvailability->handle(
             startsAt: $scheduledAt,
-            visitReason: new VisitReason(['duration_minutes' => $durationMinutes]),
+            durationMinutes: $durationMinutes,
             enforceFuture: true,
         );
 
@@ -76,7 +75,7 @@ class ScheduleAppointment
     ): void {
         $decision = $this->evaluateAppointmentAvailability->handle(
             startsAt: $scheduledAt,
-            visitReason: new VisitReason(['duration_minutes' => $durationMinutes]),
+            durationMinutes: $durationMinutes,
             optometrist: $optometrist,
             ignoreAppointment: $ignoreAppointment,
             enforceFuture: false,

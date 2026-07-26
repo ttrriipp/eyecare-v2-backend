@@ -21,7 +21,9 @@ class AppointmentResource extends JsonResource
         return [
             'id' => $this->id,
             'appointment_number' => $this->appointment_number,
-            'visit_reason' => $this->visitReason->name,
+            'appointment_type' => $this->appointmentType?->name,
+            'duration_minutes' => $this->duration_minutes,
+            'referring_source' => $this->referring_source,
             'status' => $this->status->name,
             'scheduled_at' => $this->scheduled_at->toISOString(),
             'contact_notes' => $this->contact_notes,

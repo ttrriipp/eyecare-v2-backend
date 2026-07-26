@@ -4,9 +4,9 @@ namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Patient;
 use App\Models\User;
-use App\Models\VisitReason;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -21,30 +21,33 @@ class CreateScheduledAppointment
 
     public function handle(
         Patient $patient,
-        VisitReason $visitReason,
+        AppointmentType $appointmentType,
         CarbonInterface $scheduledAt,
         ?User $optometrist = null,
         ?string $contactNotes = null,
+        ?string $referringSource = null,
     ): Appointment {
-        return DB::transaction(function () use ($patient, $visitReason, $scheduledAt, $optometrist, $contactNotes): Appointment {
+        return DB::transaction(function () use ($patient, $appointmentType, $scheduledAt, $optometrist, $contactNotes, $referringSource): Appointment {
             $this->lockAppointmentScheduleDate->handle($scheduledAt);
             $this->validateOptometrist($optometrist);
 
             $decision = $this->evaluateAppointmentAvailability->handle(
                 startsAt: $scheduledAt,
-                visitReason: $visitReason,
+                durationMinutes: $appointmentType->duration_minutes,
                 optometrist: $optometrist,
                 enforceFuture: true,
                 enforceGrid: true,
             );
 
             if (! $decision->available) {
-                $this->throwForUnavailableDecision($decision, $visitReason, $optometrist);
+                $this->throwForUnavailableDecision($decision, $appointmentType, $optometrist);
             }
 
             $appointment = Appointment::query()->create([
                 'patient_id' => $patient->id,
-                'visit_reason_id' => $visitReason->id,
+                'appointment_type_id' => $appointmentType->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
+                'referring_source' => $referringSource,
                 'optometrist_id' => $optometrist?->id,
                 'appointment_status_id' => AppointmentStatus::query()->where('name', 'pending')->value('id'),
                 'source' => 'mobile_app',
@@ -52,7 +55,7 @@ class CreateScheduledAppointment
                 'contact_notes' => $contactNotes,
             ]);
 
-            return $appointment->fresh(['visitReason', 'status', 'patient', 'optometrist']);
+            return $appointment->fresh(['appointmentType', 'status', 'patient', 'optometrist']);
         }, attempts: 3);
     }
 
@@ -73,7 +76,7 @@ class CreateScheduledAppointment
 
     private function throwForUnavailableDecision(
         AppointmentAvailabilityDecision $decision,
-        VisitReason $visitReason,
+        AppointmentType $appointmentType,
         ?User $optometrist,
     ): never {
         if ($decision->reason === 'capacity_reached') {
@@ -87,7 +90,7 @@ class CreateScheduledAppointment
                 ],
                 'availability' => [
                     'date' => $decision->startsAt->toDateString(),
-                    'visit_reason_id' => $visitReason->id,
+                    'appointment_type_id' => $appointmentType->id,
                     'optometrist_id' => $optometrist?->id,
                     'appointment_id' => null,
                 ],

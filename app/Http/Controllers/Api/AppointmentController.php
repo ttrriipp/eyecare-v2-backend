@@ -12,8 +12,8 @@ use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Requests\Api\UpdateAppointmentContactNoteRequest;
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
+use App\Models\AppointmentType;
 use App\Models\User;
-use App\Models\VisitReason;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +32,7 @@ class AppointmentController extends Controller
 
         $appointments = Appointment::query()
             ->where('patient_id', $patient->id)
-            ->with(['visitReason', 'status', 'optometrist'])
+            ->with(['appointmentType', 'status', 'optometrist'])
             ->latest('scheduled_at')
             ->paginate($request->integer('per_page', 15));
 
@@ -45,15 +45,16 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null, 422, 'No patient record linked to this account.');
 
-        $visitReason = VisitReason::query()->findOrFail($request->validated('visit_reason_id'));
+        $appointmentType = AppointmentType::query()->findOrFail($request->validated('appointment_type_id'));
         $scheduledAt = Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone'));
 
         $appointment = $createScheduledAppointment->handle(
             patient: $patient,
-            visitReason: $visitReason,
+            appointmentType: $appointmentType,
             scheduledAt: $scheduledAt,
-            optometrist: null, // Clinic-controlled assignment
+            optometrist: null,
             contactNotes: $request->validated('contact_notes'),
+            referringSource: $request->validated('referring_source'),
         );
 
         $staff = User::query()
@@ -82,7 +83,7 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 404);
 
-        $appointment->load(['visitReason', 'status', 'optometrist']);
+        $appointment->load(['appointmentType', 'status', 'optometrist']);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),
@@ -103,7 +104,7 @@ class AppointmentController extends Controller
 
         app(UpdateAppointmentStatus::class)->handle($appointment, 'cancelled');
 
-        $appointment->load(['visitReason', 'status', 'patient']);
+        $appointment->load(['appointmentType', 'status', 'patient']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
