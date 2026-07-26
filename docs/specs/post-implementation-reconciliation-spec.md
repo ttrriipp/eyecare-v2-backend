@@ -113,16 +113,29 @@ The only seeded Appointment Types are:
 - Routine Check-up
 - Referral
 
-Each Appointment Type owns its duration, active state, and referral rule.
-Appointments store a required `appointment_type_id`; Referral requires
+Each Appointment Type owns its default duration, active state, and referral
+rule. Appointments store a required `appointment_type_id` and a required
+`duration_minutes` snapshot copied from the type at booking; Referral requires
 `referring_source`. Availability, booking, rescheduling, walk-ins, overlap
 queries, Filament forms, seed data, factories, API resources, and tests use
-Appointment Type duration.
+the Appointment snapshot. Changing an Appointment Type's default duration
+affects future bookings only.
+
+Patients cannot change duration. Optometrists/admins configure Appointment Type
+defaults. Initial seeded values remain provisional until the clinic confirms
+its operational timing:
+
+- New Patient: 30 minutes
+- Follow-up: 15 minutes
+- Routine Check-up: 30 minutes
+- Referral: 30 minutes
 
 After the cutover:
 
 - `visit_reasons` and `appointments.visit_reason_id` do not exist;
 - no `VisitReason` model, resource, factory, seeder, route, or test remains;
+- each Appointment retains the duration that was booked even if its
+  Appointment Type default later changes;
 - Patient Intake keeps a system-owned Appointment Type snapshot for the
   printed/physical health record, but the patient cannot edit it.
 
@@ -198,7 +211,7 @@ The confirmation screen shows:
 - Appointment Type;
 - referral source when applicable;
 - date and time;
-- expected duration;
+- expected duration from the Appointment snapshot;
 - clinic address; and
 - a reminder that booking is for an eye consultation, not a product order.
 
@@ -630,33 +643,35 @@ After consolidation:
 6. Appointment Type is the only appointment classification and scheduling
    duration source.
 7. Referral requires a referring source in API and Filament workflows.
-8. `visit_reasons`, `visit_reason_id`, and all VisitReason application files
+8. Every Appointment stores its booked duration snapshot, and later
+   Appointment Type edits affect future bookings only.
+9. `visit_reasons`, `visit_reason_id`, and all VisitReason application files
    are absent.
-9. The approved Services decision is implemented with no disconnected admin
+10. The approved Services decision is implemented with no disconnected admin
    feature.
-10. Invoice payment methods/statuses have one validated canonical contract and
+11. Invoice payment methods/statuses have one validated canonical contract and
     no orphan lookup schema.
-11. Inventory has no legacy Order dependency and retains exact idempotent
+12. Inventory has no legacy Order dependency and retains exact idempotent
     allocation history.
-12. The exact approved patient API method/URI set passes as a complete equality
+13. The exact approved patient API method/URI set passes as a complete equality
     assertion.
-13. Patient API routes expose no direct order, checkout, payment mutation,
+14. Patient API routes expose no direct order, checkout, payment mutation,
     staff-only action, internal note, cost, or stock quantity.
-14. Every patient-owned resource has positive ownership and negative
+15. Every patient-owned resource has positive ownership and negative
     cross-patient tests.
-15. Retained appointment, clinical, communication, notification, catalog,
+16. Retained appointment, clinical, communication, notification, catalog,
     inventory, finance, Filament, privacy, and security behavior has restored
     regression coverage.
-16. `vendor/bin/sail artisan migrate:fresh --seed --no-interaction` succeeds
+17. `vendor/bin/sail artisan migrate:fresh --seed --no-interaction` succeeds
     using only canonical seed data.
-17. The full Pest suite, Pint, and production asset build pass.
-18. Real optometrist and receptionist browser journeys pass.
-19. Non-sensitive backup and restore validation passes.
-20. Static scans find no unintended customer/direct-order/Billing/VisitReason
+18. The full Pest suite, Pint, and production asset build pass.
+19. Real optometrist and receptionist browser journeys pass.
+20. Non-sensitive backup and restore validation passes.
+21. Static scans find no unintended customer/direct-order/Billing/VisitReason
     implementation vocabulary.
-21. `BACKEND_CONTEXT.md`, route inventory, schema inventory, Task 40, and
+22. `BACKEND_CONTEXT.md`, route inventory, schema inventory, Task 40, and
     release checkpoints match executed evidence.
-22. Android integration and production/privacy governance remain explicitly
+23. Android integration and production/privacy governance remain explicitly
     separate from backend technical completion.
 
 ## Resolved Decisions
@@ -674,6 +689,8 @@ recommendations:
 5. Replace Visit Reason completely with Appointment Type.
 6. Prompt mobile patients to complete the secure pre-visit Patient Health
    Record after booking without making it a condition for reserving the slot.
+7. Store an Appointment duration snapshot copied from the selected Appointment
+   Type so later configuration changes do not rewrite historical schedules.
 
 ## Phase 1 Approval Gate
 
