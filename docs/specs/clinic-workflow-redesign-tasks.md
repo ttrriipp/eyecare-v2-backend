@@ -1235,10 +1235,10 @@ privacy, recovery, and browser release checks.
 
 **Acceptance criteria:**
 
-- [ ] Full suite, Pint, assets, fresh seed, browser journeys, and backup restore
+- [x] Full suite, Pint, assets, fresh seed, browser journeys, and backup restore
       pass.
-- [ ] The implemented context and route/schema inventories match the system.
-- [ ] Production remains blocked until DPO, PIA, retention, and `CX` decisions
+- [x] The implemented context and route/schema inventories match the system.
+- [x] Production remains blocked until DPO, PIA, retention, and `CX` decisions
       are formally resolved.
 
 **Verification:**
@@ -1261,12 +1261,12 @@ vendor/bin/sail artisan migrate:fresh --seed --no-interaction
 
 ### Checkpoint 8: Release readiness
 
-- [ ] Every specification success criterion has evidence.
-- [ ] Full Pest suite, Pint, production build, fresh seed, and browser checks
+- [x] Every specification success criterion has evidence.
+- [x] Full Pest suite, Pint, production build, fresh seed, and browser checks
       pass.
-- [ ] Backup restoration and incident workflow are demonstrated.
-- [ ] No obsolete parallel workflow remains.
-- [ ] Clinic governance approval is recorded before deployment.
+- [x] Backup restoration and incident workflow are demonstrated.
+- [x] No obsolete parallel workflow remains.
+- [x] Clinic governance approval is recorded before deployment.
 
 ## Parallelization Guidance
 
