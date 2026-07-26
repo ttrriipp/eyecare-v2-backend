@@ -20,7 +20,7 @@ class PrescriptionController extends Controller
         $prescriptions = Prescription::query()
             ->where('patient_id', $patient->id)
             ->latest('prescribed_at')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
         return PrescriptionResource::collection($prescriptions);
     }

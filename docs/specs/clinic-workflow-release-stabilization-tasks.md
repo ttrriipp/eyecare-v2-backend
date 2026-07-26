@@ -538,9 +538,9 @@ Job Order, and Invoice reads to the approved patient-safe contract.
 
 **Acceptance criteria:**
 
-- [ ] Frame reservations require an eligible owned appointment.
-- [ ] Commercial/clinical resources are read-only and linked-patient scoped.
-- [ ] Lists are paginated and expose no costs, stock counts, or clinic-only
+- [x] Frame reservations require an eligible owned appointment.
+- [x] Commercial/clinical resources are read-only and linked-patient scoped.
+- [x] Lists are paginated and expose no costs, stock counts, or clinic-only
       mutations.
 
 **Verification:** Run V1 frame, reservation, prescription, quotation, Job Order,
