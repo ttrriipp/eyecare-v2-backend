@@ -582,10 +582,10 @@ patient route.
 
 **Acceptance criteria:**
 
-- [ ] Every approved `/api/v1` route is present exactly once.
-- [ ] Unversioned patient resources and Order/Billing/checkout routes are
+- [x] Every approved `/api/v1` route is present exactly once.
+- [x] Unversioned patient resources and Order/Billing/checkout routes are
       absent.
-- [ ] Staff-only mutations are outside the patient route group.
+- [x] Staff-only mutations are outside the patient route group.
 
 **Verification:** Run the exact route-contract test and inspect
 `vendor/bin/sail artisan route:list --except-vendor --path=api`.
