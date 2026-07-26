@@ -364,10 +364,10 @@ report/widget, resource test.
 
 ### Checkpoint C
 
-- [ ] Requested, prepared, released, converted, committed, reversed, and
+- [x] Requested, prepared, released, converted, committed, reversed, and
       dispensed paths match the approved stock behavior.
-- [ ] Repeated and concurrent transitions change stock once.
-- [ ] Catalog/reservation/inventory/Job Order focused suites pass.
+- [x] Repeated and concurrent transitions change stock once.
+- [x] Catalog/reservation/inventory/Job Order focused suites pass.
 
 ## Phase D: Clean Legacy Cutover
 
