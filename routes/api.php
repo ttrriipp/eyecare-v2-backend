@@ -12,14 +12,12 @@ use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\NotificationController;
-use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PatientProfileController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\StaffAppointmentController;
-use App\Http\Controllers\Api\StaffOrderController;
 use App\Http\Middleware\EnsureUserIsStaff;
 use App\Models\Brand;
 use App\Models\ProductCategory;
@@ -53,8 +51,6 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::get('categories', fn () => response()->json(['data' => ProductCategory::orderBy('name')->get(['id', 'name'])]));
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
-    Route::apiResource('orders', OrderController::class)->only(['index', 'store', 'show']);
-    Route::post('orders/{order}/cancel', [OrderController::class, 'cancel']);
     Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
     Route::get('billing/{billing}/pdf', [BillingController::class, 'receipt'])->name('billing.pdf');
 
@@ -75,7 +71,6 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
 
     Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
-        Route::patch('orders/{order}/status', [StaffOrderController::class, 'updateStatus']);
     });
 });
 
