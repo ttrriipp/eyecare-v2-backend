@@ -19,7 +19,6 @@ class FeedbackFactory extends Factory
         return [
             'patient_id' => Patient::factory(),
             'appointment_id' => null,
-            'order_id' => null,
             'rating' => fake()->numberBetween(1, 5),
             'comment' => fake()->optional()->sentence(),
             'staff_reply' => null,

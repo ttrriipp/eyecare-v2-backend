@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'patient_id',
     'appointment_id',
-    'order_id',
     'rating',
     'comment',
     'staff_reply',
@@ -38,14 +37,6 @@ class Feedback extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
-    }
-
-    /**
-     * @return BelongsTo<Order, $this>
-     */
-    public function order(): BelongsTo
-    {
-        return $this->belongsTo(Order::class);
     }
 
     /**
