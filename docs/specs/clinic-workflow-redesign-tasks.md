@@ -960,9 +960,9 @@ authenticated linked patient and retain rating revisions.
 
 **Acceptance criteria:**
 
-- [ ] Eligibility derives from dispensing, not merely appointment/order state.
-- [ ] One current rating per patient/dispensed frame is enforced.
-- [ ] Edits append attributable revisions.
+- [x] Eligibility derives from dispensing, not merely appointment/order state.
+- [x] One current rating per patient/dispensed frame is enforced.
+- [x] Edits append attributable revisions.
 
 **Verification:**
 
