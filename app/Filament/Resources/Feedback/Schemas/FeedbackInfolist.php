@@ -19,7 +19,7 @@ class FeedbackInfolist
                         ->columnSpan(2)
                         ->columns(2)
                         ->schema([
-                            TextEntry::make('customer.name')
+                            TextEntry::make('patient.full_name')
                                 ->label('Patient'),
                             TextEntry::make('rating')
                                 ->label('Rating')
@@ -29,12 +29,8 @@ class FeedbackInfolist
                                     $state === 3 => 'warning',
                                     default => 'danger',
                                 }),
-                            TextEntry::make('appointment.id')
+                            TextEntry::make('appointment.appointment_number')
                                 ->label('Appointment')
-                                ->default('—')
-                                ->formatStateUsing(fn ($state) => $state ? "#{$state}" : '—'),
-                            TextEntry::make('order.order_number')
-                                ->label('Order')
                                 ->default('—'),
                             TextEntry::make('comment')
                                 ->label('Comment')

@@ -19,7 +19,6 @@ class FeedbackResource extends JsonResource
         return [
             'id' => $this->id,
             'appointment_id' => $this->appointment_id,
-            'order_id' => $this->order_id,
             'rating' => $this->rating,
             'comment' => $this->comment,
         ];

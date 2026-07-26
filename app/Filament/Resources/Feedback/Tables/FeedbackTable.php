@@ -16,20 +16,15 @@ class FeedbackTable
     {
         return $table
             ->columns([
-                TextColumn::make('customer.name')
-                    ->label('Customer')
+                TextColumn::make('patient.full_name')
+                    ->label('Patient')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('rating')
                     ->label('Rating')
                     ->sortable(),
-                TextColumn::make('appointment.id')
+                TextColumn::make('appointment.appointment_number')
                     ->label('Appointment')
-                    ->default('—')
-                    ->formatStateUsing(fn ($state) => $state ? "#{$state}" : '—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('order.order_number')
-                    ->label('Order')
                     ->default('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('comment')
