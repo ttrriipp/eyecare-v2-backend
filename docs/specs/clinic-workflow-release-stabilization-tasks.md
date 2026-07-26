@@ -378,11 +378,11 @@ then retire the authorized dirty legacy Billing test.
 
 **Acceptance criteria:**
 
-- [ ] Job Order, Invoice, append-only payment/correction, and dispensing tests
+- [x] Job Order, Invoice, append-only payment/correction, and dispensing tests
       cover every retained rule.
-- [ ] The modified `GetOrCreateBillingTest.php` is deleted with its obsolete
+- [x] The modified `GetOrCreateBillingTest.php` is deleted with its obsolete
       test only after replacement coverage passes.
-- [ ] No user change outside that authorized file is removed.
+- [x] No user change outside that authorized file is removed.
 
 **Verification:** Run Job Order, Invoice, payment, dispensing, and inventory
 integration suites before and after the exact deletion.
