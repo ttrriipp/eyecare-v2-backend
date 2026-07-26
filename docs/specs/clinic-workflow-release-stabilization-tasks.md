@@ -495,10 +495,10 @@ cancellation without preferred-provider or internal-note leakage.
 
 **Acceptance criteria:**
 
-- [ ] Lists are paginated and every appointment is linked-patient scoped.
-- [ ] Patient resources exclude internal notes, actor IDs, and provider
+- [x] Lists are paginated and every appointment is linked-patient scoped.
+- [x] Patient resources exclude internal notes, actor IDs, and provider
       capacity details.
-- [ ] Cross-patient substitution returns the consistent hidden-resource error.
+- [x] Cross-patient substitution returns the consistent hidden-resource error.
 
 **Verification:** Run versioned appointment contract, availability, lifecycle,
 privacy, and pagination tests.

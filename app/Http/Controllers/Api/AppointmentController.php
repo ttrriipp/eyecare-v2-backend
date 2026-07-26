@@ -34,7 +34,7 @@ class AppointmentController extends Controller
             ->where('patient_id', $patient->id)
             ->with(['visitReason', 'status', 'optometrist'])
             ->latest('scheduled_at')
-            ->get();
+            ->paginate($request->integer('per_page', 15));
 
         return AppointmentResource::collection($appointments);
     }
