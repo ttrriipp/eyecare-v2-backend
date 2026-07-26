@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'appointment_number',
     'patient_id',
+    'appointment_type_id',
+    'referring_source',
     'created_by',
     'optometrist_id',
     'source',
@@ -126,6 +128,14 @@ class Appointment extends Model implements Eventable
     public function visitReason(): BelongsTo
     {
         return $this->belongsTo(VisitReason::class);
+    }
+
+    /**
+     * @return BelongsTo<AppointmentType, $this>
+     */
+    public function appointmentType(): BelongsTo
+    {
+        return $this->belongsTo(AppointmentType::class);
     }
 
     /**

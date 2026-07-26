@@ -22,6 +22,8 @@ class AppointmentFactory extends Factory
     {
         return [
             'patient_id' => Patient::factory(),
+            'appointment_type_id' => null,
+            'referring_source' => null,
             'created_by' => null,
             'optometrist_id' => null,
             'source' => 'staff_created',
