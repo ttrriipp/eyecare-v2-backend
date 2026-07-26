@@ -1109,11 +1109,11 @@ bounded batches.
 
 **Acceptance criteria:**
 
-- [ ] Seeds cover two optometrists, receptionist work, linked/unlinked patients,
+- [x] Seeds cover two optometrists, receptionist work, linked/unlinked patients,
       scheduling, clinical, reservation, commercial, dispensing, complaint, and
       rating flows.
-- [ ] `migrate:fresh --seed` succeeds without patient-created orders.
-- [ ] Route/model/schema/text scans find no unintended legacy surface.
+- [x] `migrate:fresh --seed` succeeds without patient-created orders.
+- [x] Route/model/schema/text scans find no unintended legacy surface.
 
 **Verification:**
 

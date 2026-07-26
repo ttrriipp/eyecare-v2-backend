@@ -10,61 +10,78 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * Demo accounts for local development and defense demonstration.
+ * Demo accounts for local development.
  *
  * Credentials:
- *   Admin   — admin@eyecare.test   / password
- *   Staff   — staff@eyecare.test   / password
- *   Customer — customer@eyecare.test / password
+ *   Admin (optometrist) — admin@eyecare.test / password
+ *   Staff (optometrist) — staff@eyecare.test / password
+ *   Patient (linked)    — customer@eyecare.test / password
+ *   Patient (walk-in)   — no account
  */
 class DemoUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $accounts = [
+        // Admin optometrist
+        $admin = User::query()->firstOrCreate(
+            ['email' => 'admin@eyecare.test'],
             [
-                'name' => 'Demo Admin',
-                'email' => 'admin@eyecare.test',
+                'name' => 'Dr. Maria Santos',
                 'phone' => '09170000001',
-                'role' => 'admin',
+                'password' => Hash::make('password'),
+                'role_id' => Role::query()->where('name', 'admin')->value('id'),
+                'is_optometrist' => true,
+                'email_verified_at' => now(),
             ],
+        );
+
+        // Staff optometrist
+        $staff = User::query()->firstOrCreate(
+            ['email' => 'staff@eyecare.test'],
             [
-                'name' => 'Demo Staff',
-                'email' => 'staff@eyecare.test',
+                'name' => 'Dr. Juan dela Cruz',
                 'phone' => '09170000002',
-                'role' => 'staff',
+                'password' => Hash::make('password'),
+                'role_id' => Role::query()->where('name', 'staff')->value('id'),
+                'is_optometrist' => true,
+                'email_verified_at' => now(),
             ],
+        );
+
+        // Linked patient
+        $patientUser = User::query()->firstOrCreate(
+            ['email' => 'customer@eyecare.test'],
             [
-                'name' => 'Demo Customer',
-                'email' => 'customer@eyecare.test',
+                'name' => 'Ana Reyes',
                 'phone' => '09170000003',
-                'role' => 'patient',
+                'password' => Hash::make('password'),
+                'role_id' => Role::query()->where('name', 'patient')->value('id'),
+                'email_verified_at' => now(),
             ],
-        ];
+        );
 
-        foreach ($accounts as $account) {
-            $role = Role::query()->where('name', $account['role'])->firstOrFail();
+        if ($patientUser->patient === null) {
+            Patient::query()->create([
+                'user_id' => $patientUser->id,
+                'patient_number' => 'PAT-'.Str::ulid(),
+                'full_name' => 'Ana Reyes',
+                'phone' => '09170000003',
+                'contact_email' => 'customer@eyecare.test',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+            ]);
+        }
 
-            $user = User::query()->firstOrCreate(
-                ['email' => $account['email']],
-                [
-                    'name' => $account['name'],
-                    'phone' => $account['phone'],
-                    'password' => Hash::make('password'),
-                    'role_id' => $role->id,
-                    'email_verified_at' => now(),
-                ],
-            );
-
-            if ($account['role'] === 'patient' && $user->patient === null) {
-                Patient::query()->create([
-                    'user_id' => $user->id,
-                    'patient_number' => 'PAT-'.Str::ulid(),
-                    'full_name' => $account['name'],
-                    'phone' => $account['phone'],
-                    'contact_email' => $account['email'],
-                ]);
-            }
+        // Walk-in patient (no account)
+        if (Patient::query()->where('full_name', 'Pedro Cruz')->doesntExist()) {
+            Patient::query()->create([
+                'patient_number' => 'PAT-'.Str::ulid(),
+                'full_name' => 'Pedro Cruz',
+                'phone' => '09170000004',
+                'date_of_birth' => '1985-08-20',
+                'gender' => 'male',
+            ]);
         }
     }
 }
