@@ -1146,10 +1146,10 @@ retention duties.
 
 **Acceptance criteria:**
 
-- [ ] Request type, identity verification, handler, disposition, and timestamps
+- [x] Request type, identity verification, handler, disposition, and timestamps
       are attributable.
-- [ ] Only authorized administrators/DPO designees can process requests.
-- [ ] Clinical/financial history cannot be silently deleted through the request
+- [x] Only authorized administrators/DPO designees can process requests.
+- [x] Clinical/financial history cannot be silently deleted through the request
       workflow.
 
 **Verification:**
