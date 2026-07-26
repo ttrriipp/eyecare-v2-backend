@@ -4,7 +4,6 @@ namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
 use App\Models\User;
-use App\Models\VisitReason;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 
@@ -17,7 +16,7 @@ class ListAvailableAppointmentSlots
      */
     public function handle(
         CarbonInterface $date,
-        VisitReason $visitReason,
+        int $durationMinutes,
         ?User $optometrist = null,
         ?Appointment $ignoreAppointment = null,
     ): array {
@@ -45,10 +44,10 @@ class ListAvailableAppointmentSlots
         );
         $capacity = $this->evaluateAppointmentAvailability->eligibleOptometristCapacity($date);
 
-        while ($slot->copy()->addMinutes($visitReason->duration_minutes)->lte($closingTime)) {
+        while ($slot->copy()->addMinutes($durationMinutes)->lte($closingTime)) {
             $slots[] = $this->evaluateAppointmentAvailability->handle(
                 startsAt: $slot,
-                visitReason: $visitReason,
+                durationMinutes: $durationMinutes,
                 optometrist: $optometrist,
                 ignoreAppointment: $ignoreAppointment,
                 enforceFuture: true,

@@ -7,8 +7,8 @@ use App\Actions\Appointments\ListAvailableAppointmentSlots;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\AppointmentAvailabilityRequest;
 use App\Models\Appointment;
+use App\Models\AppointmentType;
 use App\Models\User;
-use App\Models\VisitReason;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 
@@ -18,7 +18,7 @@ class AppointmentAvailabilityController extends Controller
         AppointmentAvailabilityRequest $request,
         ListAvailableAppointmentSlots $listAvailableAppointmentSlots,
     ): JsonResponse {
-        $visitReason = VisitReason::query()->findOrFail($request->validated('visit_reason_id'));
+        $appointmentType = AppointmentType::query()->findOrFail($request->validated('appointment_type_id'));
         $optometrist = $request->filled('optometrist_id')
             ? User::query()->findOrFail($request->validated('optometrist_id'))
             : null;
@@ -30,7 +30,7 @@ class AppointmentAvailabilityController extends Controller
 
         $slots = $listAvailableAppointmentSlots->handle(
             date: $date,
-            visitReason: $visitReason,
+            durationMinutes: $appointmentType->duration_minutes,
             optometrist: $optometrist,
             ignoreAppointment: $appointment,
         );
@@ -40,8 +40,8 @@ class AppointmentAvailabilityController extends Controller
                 'date' => $date->toDateString(),
                 'timezone' => config('app.timezone'),
                 'interval_minutes' => $schedule->slotIntervalMinutes,
-                'visit_reason_id' => $visitReason->id,
-                'visit_duration_minutes' => $visitReason->duration_minutes,
+                'appointment_type_id' => $appointmentType->id,
+                'visit_duration_minutes' => $appointmentType->duration_minutes,
                 'optometrist_id' => $optometrist?->id,
                 'appointment_id' => $appointment?->id,
                 'day_status' => $schedule->isClosed ? 'closed' : 'open',

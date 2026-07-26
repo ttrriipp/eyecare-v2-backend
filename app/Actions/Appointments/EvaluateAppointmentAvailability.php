@@ -6,7 +6,6 @@ use App\Models\Appointment;
 use App\Models\ProviderHour;
 use App\Models\ScheduleOverride;
 use App\Models\User;
-use App\Models\VisitReason;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -15,7 +14,7 @@ class EvaluateAppointmentAvailability
 {
     public function handle(
         CarbonInterface $startsAt,
-        VisitReason $visitReason,
+        int $durationMinutes,
         ?User $optometrist = null,
         ?Appointment $ignoreAppointment = null,
         bool $enforceFuture = true,
@@ -27,7 +26,7 @@ class EvaluateAppointmentAvailability
         $schedule ??= ClinicSchedule::forDate($startsAt);
 
         $clinicStartsAt = $startsAt->copy()->setTimezone(config('app.timezone'));
-        $endsAt = $clinicStartsAt->copy()->addMinutes($visitReason->duration_minutes);
+        $endsAt = $clinicStartsAt->copy()->addMinutes($durationMinutes);
 
         if ($enforceFuture && ! $clinicStartsAt->isFuture()) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'elapsed');
@@ -113,13 +112,13 @@ class EvaluateAppointmentAvailability
         ?Appointment $ignoreAppointment,
     ): Collection {
         return Appointment::query()
-            ->select(['id', 'optometrist_id', 'visit_reason_id', 'appointment_status_id', 'scheduled_at'])
-            ->with(['visitReason:id,duration_minutes', 'status:id,name'])
+            ->select(['id', 'optometrist_id', 'duration_minutes', 'appointment_status_id', 'scheduled_at'])
+            ->with(['status:id,name'])
             ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', ['cancelled', 'no_show']))
             ->when($ignoreAppointment, fn (Builder $query): Builder => $query->whereKeyNot($ignoreAppointment->id))
             ->where('scheduled_at', '<', $endsAt)
             ->whereRaw(
-                'DATE_ADD(scheduled_at, INTERVAL COALESCE((SELECT duration_minutes FROM visit_reasons WHERE visit_reasons.id = appointments.visit_reason_id), 30) MINUTE) > ?',
+                'DATE_ADD(scheduled_at, INTERVAL COALESCE(duration_minutes, 30) MINUTE) > ?',
                 [$startsAt],
             )
             ->get();
@@ -140,7 +139,7 @@ class EvaluateAppointmentAvailability
         $appointments->each(function (Appointment $appointment) use ($boundaries, $startsAt, $endsAt): void {
             $appointmentStartsAt = $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'));
             $appointmentEndsAt = $appointmentStartsAt->copy()->addMinutes(
-                $appointment->visitReason?->duration_minutes ?? 30,
+                $appointment->duration_minutes ?? 30,
             );
 
             if ($appointmentStartsAt->between($startsAt, $endsAt, false)) {
@@ -190,7 +189,7 @@ class EvaluateAppointmentAvailability
     ): bool {
         $appointmentStartsAt = $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'));
         $appointmentEndsAt = $appointmentStartsAt->copy()->addMinutes(
-            $appointment->visitReason?->duration_minutes ?? 30,
+            $appointment->duration_minutes ?? 30,
         );
 
         return $appointmentStartsAt->lt($segmentEndsAt) && $appointmentEndsAt->gt($segmentStartsAt);

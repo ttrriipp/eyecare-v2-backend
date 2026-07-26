@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use App\Models\Appointment;
+use App\Models\AppointmentType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,7 @@ class AppointmentAvailabilityRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
-            'visit_reason_id' => ['required', 'integer', Rule::exists('visit_reasons', 'id')],
+            'appointment_type_id' => ['required', 'integer', Rule::exists('appointment_types', 'id')],
             'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where(
                 fn ($query) => $query->where('patient_id', $this->user()?->patient?->id),
             )],
@@ -55,8 +56,10 @@ class AppointmentAvailabilityRequest extends FormRequest
             $validator->errors()->add('appointment_id', 'This appointment cannot be rescheduled.');
         }
 
-        if ((int) $this->input('visit_reason_id') !== $appointment->visit_reason_id) {
-            $validator->errors()->add('visit_reason_id', 'The visit reason must match the appointment being rescheduled.');
+        $appointmentType = AppointmentType::query()->find($this->integer('appointment_type_id'));
+
+        if ($appointmentType !== null && $appointmentType->duration_minutes !== $appointment->duration_minutes) {
+            $validator->errors()->add('appointment_type_id', 'The appointment type duration must match the appointment being rescheduled.');
         }
     }
 }
