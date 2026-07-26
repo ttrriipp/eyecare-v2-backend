@@ -20,7 +20,6 @@ use App\Http\Controllers\Api\StaffAppointmentController;
 use App\Http\Middleware\EnsureUserIsStaff;
 use App\Models\Brand;
 use App\Models\ProductCategory;
-use App\Models\VisitReason;
 use Illuminate\Support\Facades\Route;
 
 // Public auth routes (versioned)
@@ -49,7 +48,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::patch('appointments/{appointment}/contact-note', [AppointmentController::class, 'updateContactNote']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
-    Route::get('visit-reasons', fn () => response()->json(['data' => VisitReason::all(['id', 'name', 'duration_minutes'])]));
     Route::get('brands', fn () => response()->json(['data' => Brand::orderBy('name')->get(['id', 'name'])]));
     Route::get('categories', fn () => response()->json(['data' => ProductCategory::orderBy('name')->get(['id', 'name'])]));
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);

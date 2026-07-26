@@ -75,7 +75,7 @@ class Appointment extends Model implements Eventable
 
         $title = $this->patient?->full_name ?? 'Appointment';
         $phone = $this->patient?->phone;
-        $reason = $this->visitReason?->name;
+        $reason = $this->appointmentType?->name;
 
         if ($phone) {
             $title .= " · {$phone}";
