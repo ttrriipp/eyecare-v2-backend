@@ -20,8 +20,6 @@ class DatabaseSeeder extends Seeder
             AppointmentTypeSeeder::class,
             AppointmentStatusSeeder::class,
             NotificationStatusSeeder::class,
-            PaymentStatusSeeder::class,
-            PaymentMethodSeeder::class,
             InventoryMovementTypeSeeder::class,
             CatalogSeeder::class,
             ClinicHoursSeeder::class,
