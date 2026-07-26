@@ -87,11 +87,16 @@ is recorded.
 
 ### Phase C: Supporting Catalog Cleanup
 
-- [ ] Task 18: Introduce the canonical payment-method value contract
-- [ ] Task 19: Remove legacy Payment models and factories
-- [ ] Task 20: Remove legacy Payment actions and seeders
-- [ ] Task 21: Remove Services Filament UI
-- [ ] Task 22: Remove Services domain files
+- [x] Task 18: Introduce the canonical payment-method value contract
+      (`04ad9bc`)
+- [x] Task 19: Remove legacy Payment models and factories
+      (`2670548`)
+- [x] Task 20: Remove legacy Payment actions and seeders
+      (`ed9ad2d`)
+- [x] Task 21: Remove Services Filament UI
+      (`c3093eb`)
+- [x] Task 22: Remove Services domain files
+      (`97a1572`)
 
 ### Phase D: Exact Patient API
 
@@ -481,9 +486,9 @@ absent; line-item snapshots still accept service descriptions.
 
 ### Checkpoint C
 
-- [ ] Invoice Payment accepts only approved values and remains append-only.
-- [ ] Legacy payment lookup application files are absent.
-- [ ] Services has no application/UI consumer.
+- [x] Invoice Payment accepts only approved values and remains append-only.
+- [x] Legacy payment lookup application files are absent.
+- [x] Services has no application/UI consumer.
 
 ## Phase D: Exact Patient API
 
