@@ -1097,9 +1097,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Security/PanelMfaTest.php
 
 ### Checkpoint 8A: Integrated access contracts
 
-- [ ] Tasks 33–35 focused tests pass.
-- [ ] Optometrist/receptionist panel permissions are distinct.
-- [ ] `/api/v1`, notifications, and production MFA gates are locked.
+- [x] Tasks 33–35 focused tests pass.
+- [x] Optometrist/receptionist panel permissions are distinct.
+- [x] `/api/v1`, notifications, and production MFA gates are locked.
 
 ### Task 36: Replace seed data and remove remaining legacy surface
 
