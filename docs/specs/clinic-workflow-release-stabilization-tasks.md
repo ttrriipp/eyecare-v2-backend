@@ -474,9 +474,9 @@ operations under the sole versioned patient contract.
 
 **Acceptance criteria:**
 
-- [ ] `/api/v1` auth/profile responses are stable and patient-safe.
-- [ ] Missing patient linkage has a consistent machine-readable error.
-- [ ] Replaced unversioned auth/profile routes are absent.
+- [x] `/api/v1` auth/profile responses are stable and patient-safe.
+- [x] Missing patient linkage has a consistent machine-readable error.
+- [x] Replaced unversioned auth/profile routes are absent.
 
 **Verification:** Run versioned auth/profile contract and negative ownership
 tests.

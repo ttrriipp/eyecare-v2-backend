@@ -3,7 +3,6 @@
 use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FrameController;
@@ -24,13 +23,17 @@ use App\Models\ProductCategory;
 use App\Models\VisitReason;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:login');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+// Public auth routes (versioned)
+Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+});
 
-Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
-    Route::get('/user', [AuthController::class, 'user']);
-    Route::patch('/user', [AuthController::class, 'update']);
-    Route::post('/logout', [AuthController::class, 'logout']);
+// Authenticated versioned patient API
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('me', [AuthController::class, 'user']);
+    Route::patch('me', [AuthController::class, 'update']);
 
     Route::get('patient/profile', [PatientProfileController::class, 'show']);
     Route::patch('patient/profile', [PatientProfileController::class, 'update']);
@@ -51,6 +54,25 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::get('categories', fn () => response()->json(['data' => ProductCategory::orderBy('name')->get(['id', 'name'])]));
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
+
+    Route::get('frames', [FrameController::class, 'index']);
+    Route::get('frames/{product}', [FrameController::class, 'show']);
+
+    Route::get('frame-reservations', [FrameReservationController::class, 'index']);
+    Route::post('frame-reservations', [FrameReservationController::class, 'store']);
+    Route::post('frame-reservations/{reservation}/cancel', [FrameReservationController::class, 'cancel']);
+
+    Route::post('ratings', [FrameRatingController::class, 'store']);
+
+    Route::get('quotations', [QuotationController::class, 'index']);
+    Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
+
+    Route::get('job-orders', [JobOrderController::class, 'index']);
+    Route::get('job-orders/{job_order}', [JobOrderController::class, 'show']);
+
+    Route::get('invoices', [InvoiceController::class, 'index']);
+    Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
+
     Route::get('conversations', [ConversationController::class, 'show']);
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'indexMessages']);
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage']);
@@ -69,25 +91,4 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
         Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
     });
-});
-
-// Versioned patient API (/api/v1)
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
-    Route::get('frames', [FrameController::class, 'index']);
-    Route::get('frames/{product}', [FrameController::class, 'show']);
-
-    Route::get('frame-reservations', [FrameReservationController::class, 'index']);
-    Route::post('frame-reservations', [FrameReservationController::class, 'store']);
-    Route::post('frame-reservations/{reservation}/cancel', [FrameReservationController::class, 'cancel']);
-
-    Route::post('ratings', [FrameRatingController::class, 'store']);
-
-    Route::get('quotations', [QuotationController::class, 'index']);
-    Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
-
-    Route::get('job-orders', [JobOrderController::class, 'index']);
-    Route::get('job-orders/{job_order}', [JobOrderController::class, 'show']);
-
-    Route::get('invoices', [InvoiceController::class, 'index']);
-    Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
 });
