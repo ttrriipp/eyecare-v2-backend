@@ -1076,10 +1076,10 @@ recovery codes, requiring it for production panel access.
 
 **Acceptance criteria:**
 
-- [ ] Production configuration denies panel access when MFA is not configured
+- [x] Production configuration denies panel access when MFA is not configured
       and satisfied.
-- [ ] Development/testing behavior remains explicit and testable.
-- [ ] MFA failure never falls back to a less secure authentication path.
+- [x] Development/testing behavior remains explicit and testable.
+- [x] MFA failure never falls back to a less secure authentication path.
 
 **Verification:**
 

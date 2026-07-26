@@ -7,6 +7,7 @@ use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Filament\Widgets\TodaysScheduleWidget;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -41,6 +42,9 @@ class AdminPanelProvider extends PanelProvider
             ->defaultAvatarProvider(BrandAvatarProvider::class)
             ->databaseNotifications()
             ->globalSearchResourceOptIn()
+            ->multiFactorAuthentication([
+                AppAuthentication::make(),
+            ], isRequired: app()->isProduction())
             ->colors([
                 'primary' => Color::hex('#4F8DD7'),
                 'gray' => Color::Slate,
