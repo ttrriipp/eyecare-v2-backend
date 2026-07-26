@@ -1009,10 +1009,10 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameRatingTest.php 
 
 ### Checkpoint 7: Complaints and ratings
 
-- [ ] Tasks 30–32 focused suites pass.
-- [ ] Complaint restart preserves all original history.
-- [ ] Verified rating aggregates include moderated stars correctly.
-- [ ] Cross-patient and staff-manipulation negative tests pass.
+- [x] Tasks 30–32 focused suites pass.
+- [x] Complaint restart preserves all original history.
+- [x] Verified rating aggregates include moderated stars correctly.
+- [x] Cross-patient and staff-manipulation negative tests pass.
 
 ## Milestone 8: Integration, Seeds, Privacy, and Release Gate
 
