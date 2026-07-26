@@ -231,9 +231,9 @@ through Patient and delivering through the optional linked account.
 
 **Acceptance criteria:**
 
-- [ ] Cross-patient identifiers reveal no feedback, conversation, or attachment.
-- [ ] Internal moderation data and clinic-only notes are never patient-visible.
-- [ ] No retained query uses the obsolete customer relationship.
+- [x] Cross-patient identifiers reveal no feedback, conversation, or attachment.
+- [x] Internal moderation data and clinic-only notes are never patient-visible.
+- [x] No retained query uses the obsolete customer relationship.
 
 **Verification:** Run feedback, conversation, attachment, and negative
 ownership tests.

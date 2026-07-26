@@ -15,8 +15,12 @@ class FeedbackController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null, 404);
+
         $feedback = Feedback::query()
-            ->where('customer_id', $request->user()->id)
+            ->where('patient_id', $patient->id)
             ->latest()
             ->get();
 
@@ -25,16 +29,22 @@ class FeedbackController extends Controller
 
     public function show(Request $request, Feedback $feedback): JsonResponse
     {
-        abort_unless($feedback->customer_id === $request->user()->id, 404);
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null && $feedback->patient_id === $patient->id, 404);
 
         return response()->json(['data' => FeedbackResource::make($feedback)]);
     }
 
     public function store(StoreFeedbackRequest $request): JsonResponse
     {
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null, 422, 'No patient record linked to this account.');
+
         $feedback = Feedback::query()->create([
             ...$request->validated(),
-            'customer_id' => $request->user()->id,
+            'patient_id' => $patient->id,
         ]);
 
         app(CreateAuditLog::class)->handle(

@@ -30,10 +30,10 @@ class ConversationController extends Controller
      */
     public function show(Request $request): JsonResource
     {
-        $user = $request->user();
-        abort_unless($user->role->name === 'patient', 403);
+        $patient = $request->user()->patient;
+        abort_unless($patient !== null, 403);
 
-        $conversation = Conversation::query()->firstOrCreate(['customer_id' => $user->id]);
+        $conversation = Conversation::query()->firstOrCreate(['patient_id' => $patient->id]);
 
         return ConversationResource::make($conversation);
     }
@@ -137,7 +137,7 @@ class ConversationController extends Controller
     private function canAccessConversation(User $user, Conversation $conversation): bool
     {
         if ($user->role->name === 'patient') {
-            return $conversation->customer_id === $user->id;
+            return $conversation->patient_id === $user->patient?->id;
         }
 
         return true;

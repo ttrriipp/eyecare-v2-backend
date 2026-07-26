@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Feedback;
-use App\Models\User;
+use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +17,7 @@ class FeedbackFactory extends Factory
     public function definition(): array
     {
         return [
-            'customer_id' => User::factory()->customer(),
+            'patient_id' => Patient::factory(),
             'appointment_id' => null,
             'order_id' => null,
             'rating' => fake()->numberBetween(1, 5),

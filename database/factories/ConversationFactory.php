@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Conversation;
-use App\Models\User;
+use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +17,7 @@ class ConversationFactory extends Factory
     public function definition(): array
     {
         return [
-            'customer_id' => User::factory()->customer(),
+            'patient_id' => Patient::factory(),
         ];
     }
 }

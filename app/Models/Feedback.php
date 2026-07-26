@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'customer_id',
+    'patient_id',
     'appointment_id',
     'order_id',
     'rating',
@@ -25,11 +25,11 @@ class Feedback extends Model
     use HasFactory, SoftDeletes;
 
     /**
-     * @return BelongsTo<User, $this>
+     * @return BelongsTo<Patient, $this>
      */
-    public function customer(): BelongsTo
+    public function patient(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'customer_id');
+        return $this->belongsTo(Patient::class);
     }
 
     /**
