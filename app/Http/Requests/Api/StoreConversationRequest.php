@@ -31,7 +31,7 @@ class StoreConversationRequest extends FormRequest
             'order_id' => [
                 'nullable',
                 'integer',
-                "exists:orders,id,customer_id,{$userId}",
+                "exists:job_orders,id",
             ],
         ];
     }

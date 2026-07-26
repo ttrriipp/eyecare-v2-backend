@@ -91,6 +91,14 @@ class Patient extends Model
     }
 
     /**
+     * @return HasMany<JobOrder, $this>
+     */
+    public function jobOrders(): HasMany
+    {
+        return $this->hasMany(JobOrder::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

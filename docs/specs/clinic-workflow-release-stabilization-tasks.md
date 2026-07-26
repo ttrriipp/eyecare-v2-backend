@@ -443,10 +443,10 @@ clinic scenario.
 
 **Acceptance criteria:**
 
-- [ ] Fresh schema contains Job Orders, Invoices, and Invoice Payments but no
+- [x] Fresh schema contains Job Orders, Invoices, and Invoice Payments but no
       legacy Order/Billing tables.
-- [ ] No active schema or application contract contains `customer_id`.
-- [ ] `migrate:fresh --seed` succeeds with coherent optometrist, receptionist,
+- [x] No active schema or application contract contains `customer_id`.
+- [x] `migrate:fresh --seed` succeeds with coherent optometrist, receptionist,
       linked-patient, account-less-patient, and workflow data.
 
 **Verification:** Run the real fresh migration/seed command and focused model

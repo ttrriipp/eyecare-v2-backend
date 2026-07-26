@@ -43,9 +43,7 @@ class StoreFeedbackRequest extends FormRequest
             'order_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('orders', 'id')
-                    ->where('customer_id', $userId)
-                    ->where('order_status_id', $completedOrderStatusId),
+                Rule::exists('job_orders', 'id'),
             ],
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['nullable', 'string', 'max:2000'],

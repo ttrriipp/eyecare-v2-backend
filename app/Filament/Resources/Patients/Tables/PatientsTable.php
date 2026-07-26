@@ -15,7 +15,7 @@ class PatientsTable
     {
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query
-                ->withCount('orders')
+                ->withCount('jobOrders')
                 ->addSelect([
                     'last_visit' => Appointment::query()
                         ->select('scheduled_at')
@@ -53,8 +53,8 @@ class PatientsTable
                     ->date('M j, Y')
                     ->placeholder('—')
                     ->sortable(),
-                TextColumn::make('orders_count')
-                    ->label('Orders')
+                TextColumn::make('job_orders_count')
+                    ->label('Job Orders')
                     ->sortable(),
             ])
             ->filters([
