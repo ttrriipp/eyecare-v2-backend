@@ -122,9 +122,9 @@ waiting Encounter.
 
 **Acceptance criteria:**
 
-- [ ] Status-only arrival cannot bypass Encounter creation.
-- [ ] Cross-patient or appointment-less intake records cannot be selected.
-- [ ] Repeated/concurrent check-in creates one Encounter and one audit event.
+- [x] Status-only arrival cannot bypass Encounter creation.
+- [x] Cross-patient or appointment-less intake records cannot be selected.
+- [x] Repeated/concurrent check-in creates one Encounter and one audit event.
 
 **Verification:** Run appointment check-in, walk-in, intake-isolation, rollback,
 and concurrency tests.

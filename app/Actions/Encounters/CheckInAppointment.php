@@ -2,6 +2,8 @@
 
 namespace App\Actions\Encounters;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\IntakeStatus;
 use App\Models\Appointment;
@@ -22,12 +24,25 @@ class CheckInAppointment
         }
 
         return DB::transaction(function () use ($appointment): Encounter {
+            // Lock the appointment row to prevent concurrent check-ins
+            $lockedAppointment = Appointment::query()
+                ->whereKey($appointment->id)
+                ->lockForUpdate()
+                ->first();
+
+            // Re-validate after lock
+            if (! in_array($lockedAppointment->status->name, ['pending', 'confirmed'], true)) {
+                throw ValidationException::withMessages([
+                    'appointment' => ['This appointment has already been processed.'],
+                ]);
+            }
+
             // Update appointment status to arrived
             $arrivedStatus = AppointmentStatus::query()
                 ->where('name', 'arrived')
                 ->firstOrFail();
 
-            $appointment->update([
+            $lockedAppointment->update([
                 'appointment_status_id' => $arrivedStatus->id,
                 'checked_in_at' => now(),
                 'checked_in_by' => auth()->id(),
@@ -35,21 +50,31 @@ class CheckInAppointment
 
             // Snapshot the verified intake for this encounter
             $verifiedIntake = PatientIntake::query()
-                ->where('patient_id', $appointment->patient_id)
+                ->where('patient_id', $lockedAppointment->patient_id)
                 ->where('status', IntakeStatus::Verified)
-                ->when($appointment->id, fn ($query) => $query
-                    ->where('appointment_id', $appointment->id)
+                ->when($lockedAppointment->id, fn ($query) => $query
+                    ->where('appointment_id', $lockedAppointment->id)
                     ->orWhereNull('appointment_id'))
                 ->latest('verified_at')
                 ->first();
 
             // Create encounter linked to the appointment and intake
             $encounter = Encounter::query()->create([
-                'patient_id' => $appointment->patient_id,
-                'appointment_id' => $appointment->id,
+                'patient_id' => $lockedAppointment->patient_id,
+                'appointment_id' => $lockedAppointment->id,
                 'patient_intake_id' => $verifiedIntake?->id,
                 'status' => EncounterStatus::Waiting,
             ]);
+
+            // Audit the check-in event
+            app(CreateAuditLog::class)->handle(
+                subject: $encounter,
+                action: AuditEvent::AppointmentCheckedIn->value,
+                metadata: [
+                    'appointment_id' => $lockedAppointment->id,
+                    'patient_id' => $lockedAppointment->patient_id,
+                ],
+            );
 
             return $encounter;
         });
