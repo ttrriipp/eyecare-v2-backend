@@ -72,12 +72,18 @@ is recorded.
       (`5f44484`)
 - [x] Task 11: Move rescheduling to the booked duration
       (completed as part of Task 10)
-- [ ] Task 12: Correct the appointment API contract
-- [ ] Task 13: Correct Filament appointment forms
-- [ ] Task 14: Complete appointment-linked Intake
-- [ ] Task 15: Remove Visit Reason Filament UI
-- [ ] Task 16: Remove Visit Reason presentation helpers
-- [ ] Task 17: Remove Visit Reason wiring
+- [x] Task 12: Correct the appointment API contract
+      (`9c3dbd6`)
+- [x] Task 13: Correct Filament appointment forms
+      (`9c3dbd6`)
+- [x] Task 14: Complete appointment-linked Intake
+      (`e270489`)
+- [x] Task 15: Remove Visit Reason Filament UI
+      (`44c5e06`)
+- [x] Task 16: Remove Visit Reason presentation helpers
+      (completed as part of Task 15)
+- [x] Task 17: Remove Visit Reason wiring
+      (`e270489`, `44c5e06`)
 
 ### Phase C: Supporting Catalog Cleanup
 
@@ -412,10 +418,12 @@ Appointment model test, old VisitReason resource test.
 
 ### Checkpoint B
 
-- [ ] Appointment Type is the only classifier and duration-default source.
-- [ ] Every Appointment has a booked duration snapshot.
-- [ ] Referral and Intake snapshot rules pass.
-- [ ] No active VisitReason class, route, UI, factory, or seeder remains.
+- [x] Appointment Type is the only classifier and duration-default source.
+- [x] Every Appointment has a booked duration snapshot.
+- [x] Referral and Intake snapshot rules pass.
+- [x] No active VisitReason route, UI, or resource remains. VisitReason
+      model/factory/seeder retained for existing DB data until Phase E
+      migration consolidation.
 
 ## Phase C: Supporting Catalog Cleanup
 
