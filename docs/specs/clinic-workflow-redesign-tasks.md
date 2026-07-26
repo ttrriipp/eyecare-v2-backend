@@ -1050,9 +1050,9 @@ rate limits.
 
 **Acceptance criteria:**
 
-- [ ] Route contract contains only approved patient-mobile operations.
-- [ ] Notifications/messages contain no internal notes or clinical narrative.
-- [ ] Ownership and rate-limit tests cover every patient-facing mutation.
+- [x] Route contract contains only approved patient-mobile operations.
+- [x] Notifications/messages contain no internal notes or clinical narrative.
+- [x] Ownership and rate-limit tests cover every patient-facing mutation.
 
 **Verification:**
 
