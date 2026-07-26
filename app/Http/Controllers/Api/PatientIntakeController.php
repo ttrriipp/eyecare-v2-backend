@@ -67,9 +67,11 @@ class PatientIntakeController extends Controller
             ]);
         }
 
+        $wasCreated = $intake->wasRecentlyCreated;
+
         return response()->json([
             'data' => PatientIntakeResource::make($intake->fresh()),
-        ], $intake->wasRecentlyCreated ? 201 : 200);
+        ], $wasCreated ? 201 : 200);
     }
 
     public function submit(Request $request, Appointment $appointment): JsonResponse
