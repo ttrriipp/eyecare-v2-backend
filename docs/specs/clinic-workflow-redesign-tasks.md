@@ -934,9 +934,9 @@ new appointment/encounter without changing history.
 
 **Acceptance criteria:**
 
-- [ ] Complaint belongs to Patient and original job/dispensing context.
-- [ ] Authorized staff can create/link the new visit.
-- [ ] Original encounter, prescription, job order, and invoice stay unchanged.
+- [x] Complaint belongs to Patient and original job/dispensing context.
+- [x] Authorized staff can create/link the new visit.
+- [x] Original encounter, prescription, job order, and invoice stay unchanged.
 
 **Verification:**
 
