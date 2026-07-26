@@ -920,10 +920,10 @@ vendor/bin/sail artisan test --compact tests/Feature/Filament/InvoiceResourceTes
 
 ### Checkpoint 6: Invoices and dispensing
 
-- [ ] Tasks 26–29 focused suites pass.
-- [ ] Deposit-to-dispensing-to-installment journey passes.
-- [ ] Balance and correction integrity tests pass.
-- [ ] Full Pest suite, fresh seeded rebuild, and production asset build pass.
+- [x] Tasks 26–29 focused suites pass.
+- [x] Deposit-to-dispensing-to-installment journey passes.
+- [x] Balance and correction integrity tests pass.
+- [x] Full Pest suite, fresh seeded rebuild, and production asset build pass.
 
 ## Milestone 7: Complaints and Transparent Ratings
 
