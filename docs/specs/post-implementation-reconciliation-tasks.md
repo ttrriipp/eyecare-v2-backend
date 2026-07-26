@@ -49,12 +49,18 @@ is recorded.
 
 - [x] Task 1: Reopen release claims and freeze the test-recovery map
       (`c8521b8`)
-- [ ] Task 2: Repair core Patient relationships
-- [ ] Task 3: Remove legacy SMS relationships
-- [ ] Task 4: Cut printing over to Invoice
-- [ ] Task 5: Repair daily summary and dashboard demo data
-- [ ] Task 6: Repair canonical conversation contexts
-- [ ] Task 7: Repair Feedback presentation and ownership
+- [x] Task 2: Repair core Patient relationships
+      (`2c79ccf`)
+- [x] Task 3: Remove legacy SMS relationships
+      (`630309f`)
+- [x] Task 4: Cut printing over to Invoice
+      (`d7994bf`)
+- [x] Task 5: Repair daily summary and dashboard demo data
+      (`659f9b9`)
+- [x] Task 6: Repair canonical conversation contexts
+      (`d0581ca`)
+- [x] Task 7: Repair Feedback presentation and ownership
+      (`e276de1`, `3c10938`)
 
 ### Phase B: Appointment Type Completion
 
@@ -271,10 +277,10 @@ one focused test.
 
 ### Checkpoint A
 
-- [ ] No registered route/resource resolves a missing legacy class.
-- [ ] Core relationship, print, summary, SMS, conversation, and feedback tests
+- [x] No registered route/resource resolves a missing legacy class.
+- [x] Core relationship, print, summary, SMS, conversation, and feedback tests
       pass.
-- [ ] Static scans find no active Order/Billing/customer consumer in repaired
+- [x] Static scans find no active Order/Billing/customer consumer in repaired
       areas.
 
 ## Phase B: Appointment Type Completion
