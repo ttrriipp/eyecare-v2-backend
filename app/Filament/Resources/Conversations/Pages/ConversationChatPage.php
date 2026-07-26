@@ -5,8 +5,8 @@ namespace App\Filament\Resources\Conversations\Pages;
 use App\Filament\Resources\Conversations\ConversationResource;
 use App\Models\Appointment;
 use App\Models\Conversation;
+use App\Models\JobOrder;
 use App\Models\Message;
-use App\Models\Order;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -59,7 +59,7 @@ class ConversationChatPage extends Page
     public function conversations(): Collection
     {
         return Conversation::query()
-            ->with('customer')
+            ->with('patient')
             ->withCount('messages')
             ->latest()
             ->get();
@@ -82,8 +82,8 @@ class ConversationChatPage extends Page
                 'attachments',
                 'contextLinks.contextable' => function (MorphTo $morphTo): void {
                     $morphTo->morphWith([
-                        Appointment::class => ['visitReason', 'status'],
-                        Order::class => ['status'],
+                        Appointment::class => ['appointmentType', 'status'],
+                        JobOrder::class => ['status'],
                     ]);
                 },
             ])
@@ -98,6 +98,6 @@ class ConversationChatPage extends Page
             return null;
         }
 
-        return Conversation::with('customer')->find($this->selectedConversationId);
+        return Conversation::with('patient')->find($this->selectedConversationId);
     }
 }
