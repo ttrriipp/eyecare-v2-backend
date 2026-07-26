@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\MessageAttachmentPreviewController;
-use App\Models\Billing;
 use App\Models\Prescription;
 use App\Services\PdfService;
 use Filament\Facades\Filament;
@@ -39,18 +38,4 @@ Route::middleware(['auth', 'web'])->group(function () {
 
         return $pdf->prescriptionCard($prescription);
     })->name('pdf.prescription.card');
-
-    Route::get('/pdf/billings/{billing}', function (Billing $billing, PdfService $pdf) {
-        abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
-
-        return $pdf->billingReceipt($billing);
-    })->name('pdf.billing');
-
-    Route::get('/thermal/billings/{billing}', function (Billing $billing) {
-        abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
-
-        $billing->loadMissing(['customer', 'items', 'payments.status', 'payments.paymentMethod', 'discountType', 'status']);
-
-        return view('thermal.billing-receipt', ['billing' => $billing]);
-    })->name('thermal.billing');
 });

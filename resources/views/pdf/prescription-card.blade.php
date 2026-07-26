@@ -41,7 +41,7 @@
     </div>
 
     <div class="patient">
-        <div class="patient-name">{{ $prescription->customer?->name ?? '—' }}</div>
+        <div class="patient-name">{{ $prescription->patient?->full_name ?? '—' }}</div>
         <div class="patient-meta">
             Prescribed: {{ $prescription->prescribed_at?->format('M j, Y') ?? '—' }}
             @if($prescription->expires_at)

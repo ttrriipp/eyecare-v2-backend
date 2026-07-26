@@ -59,7 +59,7 @@
     <div class="patient-section">
         <div>
             <div class="field-label">Patient</div>
-            <div class="field-value">{{ $prescription->customer?->name ?? '—' }}</div>
+            <div class="field-value">{{ $prescription->patient?->full_name ?? '—' }}</div>
         </div>
         <div>
             <div class="field-label">Date Prescribed</div>
@@ -67,7 +67,7 @@
         </div>
         <div>
             <div class="field-label">Prescribed By</div>
-            <div class="field-value">{{ $prescription->createdBy?->name ?? '—' }}</div>
+            <div class="field-value">{{ $prescription->author?->name ?? '—' }}</div>
         </div>
     </div>
 
@@ -130,7 +130,7 @@
         <div class="signature-area">
             <div class="signature-box">
                 <div class="signature-line"></div>
-                <div class="signature-name">{{ $prescription->createdBy?->name ?? 'Attending Optometrist' }}</div>
+                <div class="signature-name">{{ $prescription->author?->name ?? 'Attending Optometrist' }}</div>
                 <div class="signature-title">Optometrist / Prescribing Staff</div>
             </div>
         </div>
