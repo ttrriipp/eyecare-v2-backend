@@ -64,8 +64,8 @@ schema, route, or legacy file was changed.
 
 ### Checkpoint A
 
-- [ ] No implementation or deletion occurred before the manifest was reviewed.
-- [ ] Every planned removal has a replacement or an explicitly removed rule.
+- [x] No implementation or deletion occurred before the manifest was reviewed.
+- [x] Every planned removal has a replacement or an explicitly removed rule.
 
 ## Phase B: Canonical Appointment and Clinical Workflow
 
