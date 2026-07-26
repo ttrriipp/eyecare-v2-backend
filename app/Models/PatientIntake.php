@@ -14,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'patient_id',
     'appointment_id',
     'status',
-    'appointment_type',
     'full_name',
     'date_of_birth',
     'gender',

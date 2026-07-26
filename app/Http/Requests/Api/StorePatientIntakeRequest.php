@@ -21,7 +21,6 @@ class StorePatientIntakeRequest extends FormRequest
     {
         return [
             'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
-            'appointment_type' => ['nullable', 'string', 'max:255'],
             'full_name' => ['sometimes', 'string', 'max:255'],
             'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
             'gender' => ['sometimes', 'nullable', 'string', 'in:male,female,other'],

@@ -79,7 +79,7 @@ and booking-time duration snapshots.
 
 - [x] Seeded types are New Patient, Follow-up, Routine Check-up, and Referral.
 - [x] Referral requires a referring person/source.
-- [ ] Intake receives a system-owned type snapshot rather than editable free
+- [x] Intake receives a system-owned type snapshot rather than editable free
       text.
 
 **Verification:** Run focused appointment-type model, validation, migration,

@@ -37,10 +37,18 @@ class PatientIntakeController extends Controller
 
         $data = $request->validated();
 
+        // Snapshot appointment type from linked appointment if present
+        $appointmentType = null;
+        if (! empty($data['appointment_id'])) {
+            $appointment = \App\Models\Appointment::find($data['appointment_id']);
+            $appointmentType = $appointment?->appointmentType?->name;
+        }
+
         $intake = PatientIntake::query()->create([
             ...$data,
             'patient_id' => $patient->id,
             'status' => IntakeStatus::Draft,
+            'appointment_type' => $appointmentType,
             'full_name' => $data['full_name'] ?? $patient->full_name,
             'phone' => $data['phone'] ?? $patient->phone,
             'email' => $data['email'] ?? $patient->contact_email,
