@@ -144,10 +144,10 @@ capability hierarchy.
 
 **Acceptance criteria:**
 
-- [ ] The modal shows patient, type, intake readiness, health-record link, and
+- [x] The modal shows patient, type, intake readiness, health-record link, and
       clinic-controlled optometrist assignment.
-- [ ] Optometrists can perform receptionist operations.
-- [ ] Receptionists cannot start/complete Encounters or author prescriptions.
+- [x] Optometrists can perform receptionist operations.
+- [x] Receptionists cannot start/complete Encounters or author prescriptions.
 
 **Verification:** Run Filament appointment/encounter action and policy tests.
 

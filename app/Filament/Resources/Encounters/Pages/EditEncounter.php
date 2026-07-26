@@ -18,7 +18,8 @@ class EditEncounter extends EditRecord
                 ->label('Start Encounter')
                 ->icon('heroicon-o-play')
                 ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Waiting)
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Waiting
+                    && auth()->user()?->hasOptometristCapability() === true)
                 ->requiresConfirmation()
                 ->action(function (): void {
                     $this->record->update([
@@ -32,7 +33,8 @@ class EditEncounter extends EditRecord
                 ->label('Complete Encounter')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress)
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
+                    && auth()->user()?->hasOptometristCapability() === true)
                 ->requiresConfirmation()
                 ->action(function (): void {
                     $this->record->update([

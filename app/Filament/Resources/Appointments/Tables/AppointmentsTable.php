@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Appointments\Tables;
 
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentStatus;
+use App\Actions\Encounters\CheckInAppointment;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use Filament\Actions\Action;
@@ -33,7 +34,6 @@ class AppointmentsTable
     {
         $advanceLabels = [
             'pending' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
-            'confirmed' => ['label' => 'Mark Arrived', 'icon' => 'heroicon-o-user', 'color' => 'warning', 'next' => 'arrived'],
             'arrived' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'completed'],
         ];
 
@@ -137,6 +137,21 @@ class AppointmentsTable
                             } catch (ValidationException $e) {
                                 $message = collect($e->errors())->flatten()->first() ?? 'Cannot advance appointment.';
                                 Notification::make()->title('Cannot advance appointment')->body($message)->danger()->send();
+                            }
+                        }),
+                    Action::make('checkIn')
+                        ->label('Check In')
+                        ->icon('heroicon-o-arrow-right-start-on-rectangle')
+                        ->color('warning')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'confirmed')
+                        ->requiresConfirmation()
+                        ->action(function (Appointment $record): void {
+                            try {
+                                app(CheckInAppointment::class)->handle($record);
+                                Notification::make()->title('Patient checked in — encounter created')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot check in patient.';
+                                Notification::make()->title('Cannot check in')->body($message)->danger()->send();
                             }
                         }),
                     Action::make('reschedule')
