@@ -57,8 +57,9 @@ class AppointmentForm
                                     ])->getKey();
                                 })
                                 ->columnSpanFull(),
-                            Select::make('visit_reason_id')
-                                ->relationship('visitReason', 'name')
+                            Select::make('appointment_type_id')
+                                ->label('Appointment Type')
+                                ->relationship('appointmentType', 'name')
                                 ->required()
                                 ->disabledOn('edit')
                                 ->dehydrated(),

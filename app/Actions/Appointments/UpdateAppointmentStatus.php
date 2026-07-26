@@ -68,7 +68,7 @@ class UpdateAppointmentStatus
         }
 
         $appointment->update($attributes);
-        $appointment->load(['patient', 'visitReason', 'status']);
+        $appointment->load(['patient', 'appointmentType', 'status']);
 
         if (array_key_exists($statusName, self::SMS_EVENTS)) {
             $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
@@ -81,7 +81,7 @@ class UpdateAppointmentStatus
             metadata: ['from' => $currentStatus, 'to' => $statusName],
         );
 
-        return $appointment->fresh(['visitReason', 'status']);
+        return $appointment->fresh(['appointmentType', 'status']);
     }
 
     private function createSmsNotification(Appointment $appointment, string $event): void

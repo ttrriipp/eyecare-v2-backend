@@ -8,8 +8,8 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\User;
-use App\Models\VisitReason;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -56,6 +56,9 @@ class CreateAppointment extends CreateRecord
             ->where('name', 'confirmed')
             ->value('id');
 
+        $appointmentType = AppointmentType::query()->findOrFail($data['appointment_type_id']);
+        $data['duration_minutes'] = $appointmentType->duration_minutes;
+
         return $data;
     }
 
@@ -69,7 +72,7 @@ class CreateAppointment extends CreateRecord
 
             app(ScheduleAppointment::class)->handle(
                 scheduledAt: $data['scheduled_at'],
-                visitReason: VisitReason::query()->findOrFail($data['visit_reason_id']),
+                durationMinutes: $data['duration_minutes'],
                 optometrist: filled($data['optometrist_id'] ?? null)
                     ? User::query()->findOrFail($data['optometrist_id'])
                     : null,

@@ -21,6 +21,6 @@ class UpdateAppointmentContactNote
             'contact_notes' => $normalizedContactNotes === '' ? null : $normalizedContactNotes,
         ]);
 
-        return $appointment->fresh(['visitReason', 'status', 'optometrist']);
+        return $appointment->fresh(['appointmentType', 'status', 'optometrist']);
     }
 }

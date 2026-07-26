@@ -114,15 +114,15 @@ class AppointmentCalendarWidget extends CalendarWidget
                         Placeholder::make('status')
                             ->label('Status')
                             ->content(ucfirst($appointment->status?->name ?? 'unknown')),
-                        Placeholder::make('visit_reason')
-                            ->label('Visit Reason')
-                            ->content($appointment->visitReason?->name ?? '—'),
+                        Placeholder::make('appointment_type')
+                            ->label('Appointment Type')
+                            ->content($appointment->appointmentType?->name ?? '—'),
                         Placeholder::make('time')
                             ->label('Time')
                             ->content($appointment->scheduled_at->format('M j, Y · g:i A')),
                         Placeholder::make('duration')
                             ->label('Duration')
-                            ->content(($appointment->visitReason?->duration_minutes ?? 30).' minutes'),
+                            ->content(($appointment->duration_minutes ?? 30).' minutes'),
                         Placeholder::make('created_by')
                             ->label('Booked By')
                             ->content($appointment->createdBy?->name ?? 'System / patient'),

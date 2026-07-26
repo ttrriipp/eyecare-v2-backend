@@ -18,7 +18,7 @@ class HealthRecord extends Page
     public function mount(Request $request, int|string $record): void
     {
         $this->appointment = Appointment::query()
-            ->with(['patient', 'appointmentType', 'visitReason', 'status', 'optometrist', 'encounters'])
+            ->with(['patient', 'appointmentType', 'status', 'optometrist', 'encounters'])
             ->findOrFail($record);
     }
 
@@ -45,7 +45,6 @@ class HealthRecord extends Page
                 'appointment_number' => $appointment->appointment_number,
                 'appointment_type' => $appointment->appointmentType?->name ?? '—',
                 'referring_source' => $appointment->referring_source ?? '—',
-                'visit_reason' => $appointment->visitReason?->name ?? '—',
                 'scheduled_at' => $appointment->scheduled_at?->format('M d, Y g:i A') ?? '—',
                 'status' => $appointment->status?->name ?? '—',
                 'optometrist' => $appointment->optometrist?->name ?? 'Unassigned',

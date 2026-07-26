@@ -5,9 +5,9 @@ namespace App\Filament\Resources\Appointments\Pages;
 use App\Actions\Appointments\CreateWalkInAppointment;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Widgets\AppointmentStatsWidget;
+use App\Models\AppointmentType;
 use App\Models\Patient;
 use App\Models\User;
-use App\Models\VisitReason;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Forms\Components\Select;
@@ -45,9 +45,9 @@ class ListAppointments extends ListRecords
                             TextInput::make('phone')->required()->tel(),
                         ])
                         ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
-                    Select::make('visit_reason_id')
-                        ->label('Visit reason')
-                        ->options(fn () => VisitReason::query()->orderBy('name')->pluck('name', 'id'))
+                    Select::make('appointment_type_id')
+                        ->label('Appointment Type')
+                        ->options(fn () => AppointmentType::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id'))
                         ->required()
                         ->searchable()
                         ->preload(),
@@ -65,7 +65,7 @@ class ListAppointments extends ListRecords
                 ->action(function (array $data): void {
                     app(CreateWalkInAppointment::class)->handle(
                         patient: Patient::query()->findOrFail($data['patient_id']),
-                        visitReason: VisitReason::query()->findOrFail($data['visit_reason_id']),
+                        appointmentType: AppointmentType::query()->findOrFail($data['appointment_type_id']),
                         staff: auth()->user(),
                         optometrist: filled($data['optometrist_id'] ?? null)
                             ? User::query()->findOrFail($data['optometrist_id'])
