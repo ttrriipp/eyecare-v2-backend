@@ -64,10 +64,14 @@ is recorded.
 
 ### Phase B: Appointment Type Completion
 
-- [ ] Task 8: Add the booked duration snapshot
-- [ ] Task 9: Move availability evaluation to Appointment Type
-- [ ] Task 10: Move appointment creation to Appointment Type
-- [ ] Task 11: Move rescheduling to the booked duration
+- [x] Task 8: Add the booked duration snapshot
+      (`85ff848`)
+- [x] Task 9: Move availability evaluation to Appointment Type
+      (`46fc0e1`)
+- [x] Task 10: Move appointment creation to Appointment Type
+      (`5f44484`)
+- [x] Task 11: Move rescheduling to the booked duration
+      (completed as part of Task 10)
 - [ ] Task 12: Correct the appointment API contract
 - [ ] Task 13: Correct Filament appointment forms
 - [ ] Task 14: Complete appointment-linked Intake
