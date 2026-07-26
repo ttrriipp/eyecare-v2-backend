@@ -100,12 +100,18 @@ is recorded.
 
 ### Phase D: Exact Patient API
 
-- [ ] Task 23: Normalize authentication and `/me`
-- [ ] Task 24: Normalize Appointment and Intake routes
-- [ ] Task 25: Normalize Conversation and attachment routes
-- [ ] Task 26: Normalize Feedback and rating routes
-- [ ] Task 27: Remove extra catalog and notification routes
-- [ ] Task 28: Lock the full route equality contract
+- [x] Task 23: Normalize authentication and `/me`
+      (`bb98308`)
+- [x] Task 24: Normalize Appointment and Intake routes
+      (`03436a4`)
+- [x] Task 25: Normalize Conversation and attachment routes
+      (`03436a4`)
+- [x] Task 26: Normalize Feedback and rating routes
+      (`03436a4`)
+- [x] Task 27: Remove extra catalog and notification routes
+      (`03436a4`)
+- [x] Task 28: Lock the full route equality contract
+      (`ebb75ff`)
 
 ### Phase E: Canonical Migration History
 
@@ -570,9 +576,9 @@ route-only obsolete classes discovered by the final scan.
 
 ### Checkpoint D
 
-- [ ] The patient route set is exact.
-- [ ] Cross-patient isolation passes for every resource.
-- [ ] No patient Order, checkout, Job Order/Invoice creation, or payment
+- [x] The patient route set is exact (35 routes match approved contract).
+- [x] Cross-patient isolation passes for every resource.
+- [x] No patient Order, checkout, Job Order/Invoice creation, or payment
       mutation exists.
 
 ## Phase E: Canonical Migration History
