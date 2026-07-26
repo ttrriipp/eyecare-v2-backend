@@ -560,9 +560,9 @@ verified-purchase frame rating flows without inappropriate public content.
 
 **Acceptance criteria:**
 
-- [ ] Conversation and attachment access is patient-scoped.
-- [ ] Feedback remains private and ratings require a dispensed eligible frame.
-- [ ] Moderation prevents inappropriate comments from public display.
+- [x] Conversation and attachment access is patient-scoped.
+- [x] Feedback remains private and ratings require a dispensed eligible frame.
+- [x] Moderation prevents inappropriate comments from public display.
 
 **Verification:** Run V1 conversation, feedback, rating eligibility,
 moderation, and isolation tests.
