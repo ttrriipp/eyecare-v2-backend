@@ -115,14 +115,14 @@ is recorded.
 
 ### Phase E: Canonical Migration History
 
-- [ ] Task 29: Retire legacy commerce migrations batch 1
-- [ ] Task 30: Retire legacy commerce migrations batch 2
-- [ ] Task 31: Retire legacy commerce migrations batch 3
-- [ ] Task 32: Retire legacy commerce migrations batch 4
-- [ ] Task 33: Retire legacy commerce migrations batch 5
-- [ ] Task 34: Retire legacy commerce migrations batch 6
-- [ ] Task 35: Consolidate Appointment Type and supporting schema
-- [ ] Task 36: Consolidate Patient transition migrations
+- [x] Task 29: Retire legacy commerce migrations batch 1
+      (`4147c27`)
+- [x] Task 30-34: Retire remaining legacy commerce migrations
+      (`b0c2d3a`)
+- [x] Task 35: Consolidate Appointment Type and supporting schema
+      (`b5280c5`)
+- [x] Task 36: Consolidate Patient transition migrations
+      (`b5280c5`)
 
 ### Phase F: Seed, Acceptance, and Release Evidence
 
@@ -672,9 +672,9 @@ touching them.
 
 ### Checkpoint E
 
-- [ ] Fresh migration creates only canonical schema.
-- [ ] No migration creates a legacy structure merely to remove it later.
-- [ ] Foreign keys, indexes, defaults, and nullability match application code.
+- [x] Fresh migration creates only canonical schema.
+- [x] No migration creates a legacy structure merely to remove it later.
+- [x] Foreign keys, indexes, defaults, and nullability match application code.
 
 ## Phase F: Seed, Acceptance, and Release Evidence
 
