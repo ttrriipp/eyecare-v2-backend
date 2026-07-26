@@ -164,14 +164,6 @@ class Appointment extends Model implements Eventable
     }
 
     /**
-     * @return HasMany<Billing, $this>
-     */
-    public function billings(): HasMany
-    {
-        return $this->hasMany(Billing::class);
-    }
-
-    /**
      * Whether a non-cancelled appointment overlaps with the given time range.
      *
      * Uses the existing appointment's visit reason duration for its end time,

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -45,18 +44,11 @@ class Patient extends Model
     }
 
     /**
-     * @return HasManyThrough<Prescription, User, $this>
+     * @return HasMany<Prescription, $this>
      */
-    public function prescriptions(): HasManyThrough
+    public function prescriptions(): HasMany
     {
-        return $this->hasManyThrough(
-            Prescription::class,
-            User::class,
-            'id',
-            'customer_id',
-            'user_id',
-            'id',
-        );
+        return $this->hasMany(Prescription::class);
     }
 
     /**
@@ -65,21 +57,6 @@ class Patient extends Model
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);
-    }
-
-    /**
-     * @return HasManyThrough<Order, User, $this>
-     */
-    public function orders(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            Order::class,
-            User::class,
-            'id',
-            'customer_id',
-            'user_id',
-            'id',
-        );
     }
 
     /**

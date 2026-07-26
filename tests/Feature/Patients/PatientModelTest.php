@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Appointment;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,4 +77,30 @@ test('patients may be archived without deleting their clinical identity', functi
     $patient->delete();
 
     $this->assertSoftDeleted($patient);
+});
+
+test('patient prescriptions use patient_id directly', function () {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+
+    expect($patient->prescriptions)->toHaveCount(1)
+        ->and($patient->prescriptions->first()->is($prescription))->toBeTrue();
+});
+
+test('user does not have an orders relationship', function () {
+    $user = new User;
+
+    expect(method_exists($user, 'orders'))->toBeFalse();
+});
+
+test('patient does not have an orders relationship', function () {
+    $patient = new Patient;
+
+    expect(method_exists($patient, 'orders'))->toBeFalse();
+});
+
+test('appointment does not have a billings relationship', function () {
+    $appointment = new Appointment;
+
+    expect(method_exists($appointment, 'billings'))->toBeFalse();
 });
