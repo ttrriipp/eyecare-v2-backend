@@ -28,14 +28,14 @@
                             >
                                 <div class="flex items-center justify-between gap-2">
                                     <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                                        {{ $conversation->customer?->name ?? 'Unknown' }}
+                                        {{ $conversation->patient?->full_name ?? 'Unknown' }}
                                     </span>
                                     <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
                                         {{ $conversation->messages_count }}
                                     </span>
                                 </div>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                                    {{ $conversation->customer?->email ?? '—' }}
+                                    {{ $conversation->patient?->contact_email ?? '—' }}
                                 </p>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                                     Started {{ $conversation->created_at->diffForHumans() }}
@@ -61,10 +61,10 @@
                 <div class="flex items-center gap-3 border-b border-gray-200 px-5 py-3 dark:border-white/10">
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-                            {{ $this->selectedConversation->customer?->name ?? 'Unknown' }}
+                            {{ $this->selectedConversation->patient?->full_name ?? 'Unknown' }}
                         </p>
                         <p class="text-xs text-gray-400 dark:text-gray-500">
-                            {{ $this->selectedConversation->customer?->email ?? '—' }}
+                            {{ $this->selectedConversation->patient?->contact_email ?? '—' }}
                         </p>
                     </div>
                 </div>
@@ -82,7 +82,7 @@
                 >
                     @forelse ($this->messages ?? [] as $message)
                         @php
-                            $isStaff = $message->sender?->role?->name !== 'customer';
+                            $isStaff = $message->sender?->role?->name !== 'patient';
                             $hasImageAttachment = $message->attachments->contains(
                                 fn (\App\Models\MessageAttachment $attachment): bool => str_starts_with($attachment->mime_type, 'image/'),
                             );
@@ -93,11 +93,11 @@
                             $hasAppointmentContext = $message->contextLinks->contains(
                                 fn (\App\Models\MessageContextLink $link): bool => $link->contextable_type === \App\Models\Appointment::class,
                             );
-                            $hasOrderContext = $message->contextLinks->contains(
-                                fn (\App\Models\MessageContextLink $link): bool => $link->contextable_type === \App\Models\Order::class,
+                            $hasJobOrderContext = $message->contextLinks->contains(
+                                fn (\App\Models\MessageContextLink $link): bool => $link->contextable_type === \App\Models\JobOrder::class,
                             );
                             $isGeneratedContextSummary = ($hasAppointmentContext && preg_match('/^📅 Appointment: .+ — \d{4}-\d{2}-\d{2}$/u', trim($message->body)) === 1)
-                                || ($hasOrderContext && preg_match('/^📦 Order #\S+$/u', trim($message->body)) === 1);
+                                || ($hasJobOrderContext && preg_match('/^📦 Job Order #\S+$/u', trim($message->body)) === 1);
                         @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[70%]">
@@ -140,7 +140,7 @@
                                                     <span class="min-w-0 flex-1">
                                                         <span class="block text-xs font-medium text-gray-500 dark:text-gray-400">Appointment</span>
                                                         <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                            {{ $context->visitReason?->name ?? $context->appointment_number }}
+                                                            {{ $context->appointmentType?->name ?? $context->appointment_number }}
                                                         </span>
                                                         <span class="block truncate text-xs text-gray-500 dark:text-gray-400">
                                                             {{ $context->appointment_number }} · {{ $context->scheduled_at->format('M j, Y · g:i a') }}
@@ -148,22 +148,22 @@
                                                     </span>
                                                     <x-heroicon-o-chevron-right class="size-4 shrink-0 text-gray-400 transition group-hover:text-primary-500" />
                                                 </a>
-                                            @elseif ($context instanceof \App\Models\Order && \App\Filament\Resources\Orders\OrderResource::canEdit($context))
+                                            @elseif ($context instanceof \App\Models\JobOrder)
                                                 <a
-                                                    href="{{ \App\Filament\Resources\Orders\OrderResource::getUrl('edit', ['record' => $context]) }}"
+                                                    href="/admin/job-orders/{{ $context->id }}/edit"
                                                     class="group flex w-full max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-primary-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-white/10"
-                                                    data-message-context-card="order"
+                                                    data-message-context-card="job-order"
                                                 >
                                                     <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-                                                        <x-heroicon-o-shopping-bag class="size-5" />
+                                                        <x-heroicon-o-clipboard-document-check class="size-5" />
                                                     </span>
                                                     <span class="min-w-0 flex-1">
-                                                        <span class="block text-xs font-medium text-gray-500 dark:text-gray-400">Order</span>
+                                                        <span class="block text-xs font-medium text-gray-500 dark:text-gray-400">Job Order</span>
                                                         <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                            {{ $context->order_number }}
+                                                            {{ $context->job_order_number }}
                                                         </span>
                                                         <span class="block truncate text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ str($context->status?->name ?? 'Unknown')->replace('_', ' ')->title() }} · ₱{{ number_format((float) $context->total_amount, 2) }}
+                                                            {{ str($context->status->value ?? 'Unknown')->replace('_', ' ')->title() }} · ₱{{ number_format((float) $context->total_amount, 2) }}
                                                         </span>
                                                     </span>
                                                     <x-heroicon-o-chevron-right class="size-4 shrink-0 text-gray-400 transition group-hover:text-primary-500" />

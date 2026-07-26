@@ -8,9 +8,9 @@ use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Appointment;
 use App\Models\Conversation;
+use App\Models\JobOrder;
 use App\Models\Message;
 use App\Models\MessageAttachment;
-use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ConversationController extends Controller
 {
     /**
-     * GET /conversations — returns (or creates) the customer's single conversation.
+     * GET /conversations — returns (or creates) the patient's single conversation.
      */
     public function show(Request $request): JsonResource
     {
@@ -143,7 +143,7 @@ class ConversationController extends Controller
         return true;
     }
 
-    private function resolveContextable(string $type, int $id, User $user): Appointment|Order|Product|null
+    private function resolveContextable(string $type, int $id, User $user): Appointment|JobOrder|Product|null
     {
         return match ($type) {
             'appointment' => Appointment::query()
@@ -152,10 +152,10 @@ class ConversationController extends Controller
                     fn (Builder $query): Builder => $query->where('patient_id', $user->patient?->id),
                 )
                 ->find($id),
-            'order' => Order::query()
+            'job_order' => JobOrder::query()
                 ->when(
                     $user->role->name === 'patient',
-                    fn (Builder $query): Builder => $query->where('customer_id', $user->id),
+                    fn (Builder $query): Builder => $query->where('patient_id', $user->patient?->id),
                 )
                 ->find($id),
             'product' => Product::find($id),
