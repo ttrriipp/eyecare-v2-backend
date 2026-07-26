@@ -421,9 +421,9 @@ reports, models, factories, and tests without removing canonical consumers.
 
 **Acceptance criteria:**
 
-- [x] Each manifest batch deletes at most five files.
-- [x] Replacement-focused tests pass before and after every batch.
-- [x] No compatibility alias or dead navigation remains.
+- [ ] Each manifest batch deletes at most five files.
+- [ ] Replacement-focused tests pass before and after every batch.
+- [ ] No compatibility alias or dead navigation remains.
 
 **Verification:** Run consumer scans plus the relevant Filament, notification,
 report, factory, and canonical domain suites for each batch.
@@ -443,10 +443,10 @@ clinic scenario.
 
 **Acceptance criteria:**
 
-- [x] Fresh schema contains Job Orders, Invoices, and Invoice Payments but no
+- [ ] Fresh schema contains Job Orders, Invoices, and Invoice Payments but no
       legacy Order/Billing tables.
-- [x] No active schema or application contract contains `customer_id`.
-- [x] `migrate:fresh --seed` succeeds with coherent optometrist, receptionist,
+- [ ] No active schema or application contract contains `customer_id`.
+- [ ] `migrate:fresh --seed` succeeds with coherent optometrist, receptionist,
       linked-patient, account-less-patient, and workflow data.
 
 **Verification:** Run the real fresh migration/seed command and focused model
@@ -461,9 +461,9 @@ factories, schema test.
 
 ### Checkpoint D
 
-- [x] Order/Billing routes, navigation, classes, tests, and tables are absent.
-- [x] Canonical replacement and fresh-seed suites pass.
-- [x] No legacy file was removed outside a reviewed batch.
+- [ ] Order/Billing routes, navigation, classes, tests, and tables are absent.
+- [ ] Canonical replacement and fresh-seed suites pass.
+- [ ] No legacy file was removed outside a reviewed batch.
 
 ## Phase E: Complete the Patient `/api/v1` Contract
 
@@ -495,10 +495,10 @@ cancellation without preferred-provider or internal-note leakage.
 
 **Acceptance criteria:**
 
-- [x] Lists are paginated and every appointment is linked-patient scoped.
-- [x] Patient resources exclude internal notes, actor IDs, and provider
+- [ ] Lists are paginated and every appointment is linked-patient scoped.
+- [ ] Patient resources exclude internal notes, actor IDs, and provider
       capacity details.
-- [x] Cross-patient substitution returns the consistent hidden-resource error.
+- [ ] Cross-patient substitution returns the consistent hidden-resource error.
 
 **Verification:** Run versioned appointment contract, availability, lifecycle,
 privacy, and pagination tests.
@@ -517,9 +517,9 @@ appointment and prevent editing verified snapshots.
 
 **Acceptance criteria:**
 
-- [x] Each appointment exposes only its own Patient Health Record draft.
-- [x] Appointment type/referral comes from Appointment rather than free text.
-- [x] Submitted/verified records obey ownership and immutability rules.
+- [ ] Each appointment exposes only its own Patient Health Record draft.
+- [ ] Appointment type/referral comes from Appointment rather than free text.
+- [ ] Submitted/verified records obey ownership and immutability rules.
 
 **Verification:** Run versioned intake contract, ownership, validation, and
 immutability tests.
@@ -560,9 +560,9 @@ verified-purchase frame rating flows without inappropriate public content.
 
 **Acceptance criteria:**
 
-- [x] Conversation and attachment access is patient-scoped.
-- [x] Feedback remains private and ratings require a dispensed eligible frame.
-- [x] Moderation prevents inappropriate comments from public display.
+- [ ] Conversation and attachment access is patient-scoped.
+- [ ] Feedback remains private and ratings require a dispensed eligible frame.
+- [ ] Moderation prevents inappropriate comments from public display.
 
 **Verification:** Run V1 conversation, feedback, rating eligibility,
 moderation, and isolation tests.
@@ -582,10 +582,10 @@ patient route.
 
 **Acceptance criteria:**
 
-- [x] Every approved `/api/v1` route is present exactly once.
-- [x] Unversioned patient resources and Order/Billing/checkout routes are
+- [ ] Every approved `/api/v1` route is present exactly once.
+- [ ] Unversioned patient resources and Order/Billing/checkout routes are
       absent.
-- [x] Staff-only mutations are outside the patient route group.
+- [ ] Staff-only mutations are outside the patient route group.
 
 **Verification:** Run the exact route-contract test and inspect
 `vendor/bin/sail artisan route:list --except-vendor --path=api`.
@@ -599,9 +599,9 @@ controllers or tests from the manifest.
 
 ### Checkpoint E
 
-- [x] The exact `/api/v1` allow-list and deny-list pass.
-- [x] Cross-patient isolation passes for every resource family.
-- [x] No patient API creates Orders, Job Orders, Invoices, or payments.
+- [ ] The exact `/api/v1` allow-list and deny-list pass.
+- [ ] Cross-patient isolation passes for every resource family.
+- [ ] No patient API creates Orders, Job Orders, Invoices, or payments.
 
 ## Phase F: Release Evidence
 
@@ -633,10 +633,10 @@ claims.
 
 **Acceptance criteria:**
 
-- [x] Backup dump/restore evidence uses non-sensitive test data.
-- [x] Fresh seed, zero-failure full suite, Pint, production build, route/schema
+- [ ] Backup dump/restore evidence uses non-sensitive test data.
+- [ ] Fresh seed, zero-failure full suite, Pint, production build, route/schema
       scans, and both clinic browser journeys pass.
-- [x] `BACKEND_CONTEXT.md`, Task 40, and Checkpoint 8 report only verified
+- [ ] `BACKEND_CONTEXT.md`, Task 40, and Checkpoint 8 report only verified
       implementation evidence.
 
 **Verification:** Execute every named command from the stabilization
@@ -651,9 +651,9 @@ specification and record its exact result; do not infer any pass.
 
 ### Checkpoint F
 
-- [x] Technical criteria 1–19 in the stabilization specification have recorded
+- [ ] Technical criteria 1–19 in the stabilization specification have recorded
       evidence.
-- [x] Android integration and production-governance criteria remain separate
+- [ ] Android integration and production-governance criteria remain separate
       and are not marked complete by backend tests.
 
 ## Phase 3 Approval Gate

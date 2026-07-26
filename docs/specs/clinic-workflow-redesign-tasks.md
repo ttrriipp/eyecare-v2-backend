@@ -1241,9 +1241,10 @@ privacy, recovery, and browser release checks.
 - [x] Production remains blocked until DPO, PIA, and retention decisions are
       formally resolved.
 
-**Status:** Reopened on 2026-07-26 by stabilization Task 1. The measured
-baseline is 973 tests with 15 failures and 65 errors, and the route/schema
-inventories still expose the parallel legacy workflow.
+**Status:** Reopened again on 2026-07-26 by post-implementation reconciliation
+Task 1. The latest measured baseline is 400 tests with zero failures, but the
+reduced suite is baseline evidence only: retained tests still require
+classification/restoration and route/schema inventories remain provisional.
 
 **Verification:**
 
@@ -1268,9 +1269,9 @@ vendor/bin/sail artisan migrate:fresh --seed --no-interaction
 - [ ] Every specification success criterion has evidence.
 - [ ] Full Pest suite, Pint, production build, fresh seed, and browser checks
       pass.
-- [x] Backup restoration and incident workflow are demonstrated.
+- [ ] Backup restoration and incident workflow are demonstrated.
 - [ ] No obsolete parallel workflow remains.
-- [x] Clinic governance approval is recorded before deployment.
+- [ ] Clinic governance approval is recorded before deployment.
 
 **Status:** Reopened on 2026-07-26. It may be completed only after stabilization
 Task 26 records fresh evidence.

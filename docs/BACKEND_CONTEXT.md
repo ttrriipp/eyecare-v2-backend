@@ -2,7 +2,11 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Verified against implementation on 2026-07-27.** 400 Pest tests, zero failures.
+> **Reconciliation in progress as of 2026-07-26.** The most recent baseline is
+> 400 Pest tests with zero failures, but that reduced suite does not prove
+> release readiness because retained coverage and several runtime consumers
+> are still being reconciled. Treat the schema, route, and workflow inventories
+> below as provisional until reconciliation Task 40 records fresh evidence.
 
 ---
 
