@@ -1201,10 +1201,10 @@ for breach assessment and response coordination.
 
 **Acceptance criteria:**
 
-- [ ] Incident discovery, scope, handler, decisions, actions, and closure are
+- [x] Incident discovery, scope, handler, decisions, actions, and closure are
       retained.
-- [ ] Incident details are access-controlled and audited.
-- [ ] The workflow records decisions without auto-reporting externally.
+- [x] Incident details are access-controlled and audited.
+- [x] The workflow records decisions without auto-reporting externally.
 
 **Verification:**
 
