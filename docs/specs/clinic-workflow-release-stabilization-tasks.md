@@ -189,9 +189,9 @@ audited.
 
 **Acceptance criteria:**
 
-- [ ] Patient factories never create duplicate clinical identities.
-- [ ] Appointment notifications reach the linked account when present.
-- [ ] Staff rescheduling requires and preserves a patient-readable reason.
+- [x] Patient factories never create duplicate clinical identities.
+- [x] Appointment notifications reach the linked account when present.
+- [x] Staff rescheduling requires and preserves a patient-readable reason.
 
 **Verification:** Run patient factory, appointment notification, and
 rescheduling tests.
