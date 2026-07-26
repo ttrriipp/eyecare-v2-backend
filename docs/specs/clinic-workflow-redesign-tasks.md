@@ -1134,9 +1134,9 @@ vendor/bin/sail artisan route:list --except-vendor
 
 ### Checkpoint 8B: Canonical rebuild
 
-- [ ] Task 36 seeder and fresh-rebuild tests pass.
-- [ ] Route, model, schema, and terminology scans show no obsolete workflow.
-- [ ] The fictional seed demonstrates the approved end-to-end clinic journey.
+- [x] Task 36 seeder and fresh-rebuild tests pass.
+- [x] Route, model, schema, and terminology scans show no obsolete workflow.
+- [x] The fictional seed demonstrates the approved end-to-end clinic journey.
 
 ### Task 37: Handle privacy-rights requests
 
