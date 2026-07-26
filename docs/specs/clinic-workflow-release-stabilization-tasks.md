@@ -651,9 +651,9 @@ specification and record its exact result; do not infer any pass.
 
 ### Checkpoint F
 
-- [ ] Technical criteria 1–19 in the stabilization specification have recorded
+- [x] Technical criteria 1–19 in the stabilization specification have recorded
       evidence.
-- [ ] Android integration and production-governance criteria remain separate
+- [x] Android integration and production-governance criteria remain separate
       and are not marked complete by backend tests.
 
 ## Phase 3 Approval Gate
