@@ -51,9 +51,6 @@ Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::get('categories', fn () => response()->json(['data' => ProductCategory::orderBy('name')->get(['id', 'name'])]));
     Route::apiResource('products', ProductController::class)->only(['index', 'show']);
     Route::apiResource('prescriptions', PrescriptionController::class)->only(['index', 'show']);
-    Route::get('billing/{billing}', [BillingController::class, 'show'])->name('billing.show');
-    Route::get('billing/{billing}/pdf', [BillingController::class, 'receipt'])->name('billing.pdf');
-
     Route::get('conversations', [ConversationController::class, 'show']);
     Route::get('conversations/{conversation}/messages', [ConversationController::class, 'indexMessages']);
     Route::post('conversations/{conversation}/messages', [ConversationController::class, 'storeMessage']);
