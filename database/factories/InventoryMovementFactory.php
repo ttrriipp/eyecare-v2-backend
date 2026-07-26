@@ -4,7 +4,7 @@ namespace Database\Factories;
 
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
-use App\Models\Order;
+use App\Models\JobOrder;
 use App\Models\ProductVariant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -22,7 +22,8 @@ class InventoryMovementFactory extends Factory
     {
         return [
             'product_variant_id' => ProductVariant::factory(),
-            'order_id' => null,
+            'reservation_id' => null,
+            'job_order_id' => null,
             'inventory_movement_type_id' => InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'manual_adjustment'])->id,
             'quantity_change' => fake()->numberBetween(-10, 10),
@@ -31,22 +32,22 @@ class InventoryMovementFactory extends Factory
     }
 
     /**
-     * Create a commitment movement (deduction) linked to an order.
+     * Create a commitment movement linked to a job order.
      */
-    public function commitment(Order $order): static
+    public function commitment(JobOrder $jobOrder): static
     {
         return $this->state(fn (array $attributes): array => [
-            'order_id' => $order->id,
+            'job_order_id' => $jobOrder->id,
             'quantity_change' => -fake()->numberBetween(1, 5),
             'inventory_movement_type_id' => InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_commitment'])->id,
         ]);
     }
 
-    public function reversal(Order $order): static
+    public function reversal(JobOrder $jobOrder): static
     {
         return $this->state(fn (array $attributes): array => [
-            'order_id' => $order->id,
+            'job_order_id' => $jobOrder->id,
             'quantity_change' => fake()->numberBetween(1, 5),
             'inventory_movement_type_id' => InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_reversal'])->id,

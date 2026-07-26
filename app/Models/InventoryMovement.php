@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'product_variant_id',
-    'order_id',
+    'reservation_id',
+    'job_order_id',
     'inventory_movement_type_id',
     'quantity_change',
     'previous_stock',
@@ -32,11 +33,19 @@ class InventoryMovement extends Model
     }
 
     /**
-     * @return BelongsTo<Order, $this>
+     * @return BelongsTo<FrameReservation, $this>
      */
-    public function order(): BelongsTo
+    public function reservation(): BelongsTo
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(FrameReservation::class);
+    }
+
+    /**
+     * @return BelongsTo<JobOrder, $this>
+     */
+    public function jobOrder(): BelongsTo
+    {
+        return $this->belongsTo(JobOrder::class);
     }
 
     /**

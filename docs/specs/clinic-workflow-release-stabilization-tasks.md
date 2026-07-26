@@ -284,10 +284,10 @@ commitments and replace legacy Order movement attribution.
 
 **Acceptance criteria:**
 
-- [ ] Movement source, actor, quantity, and before/after availability are
+- [x] Movement source, actor, quantity, and before/after availability are
       attributable.
-- [ ] Allocation/commitment ownership determines whether reversal is legal.
-- [ ] Legacy `inventory_movements.order_id` has no canonical consumer.
+- [x] Allocation/commitment ownership determines whether reversal is legal.
+- [x] Legacy `inventory_movements.order_id` has no canonical consumer.
 
 **Verification:** Run migration, relationship, movement-integrity, and archived
 variant history tests.
