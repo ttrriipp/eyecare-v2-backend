@@ -68,3 +68,16 @@ test('sms:process command reports no pending when queue is empty', function () {
         ->expectsOutput('No queued SMS notifications.')
         ->assertSuccessful();
 });
+
+test('sms notification does not have an order relationship', function () {
+    $sms = new SmsNotification;
+
+    expect(method_exists($sms, 'order'))->toBeFalse();
+});
+
+test('sms notification only references appointment', function () {
+    $sms = SmsNotification::factory()->create();
+
+    expect($sms->appointment)->not->toBeNull()
+        ->and($sms->order_id)->toBeNull();
+});

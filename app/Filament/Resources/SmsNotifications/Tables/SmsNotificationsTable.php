@@ -59,10 +59,6 @@ class SmsNotificationsTable
                         'appointment_confirmed' => 'Appointment Confirmed',
                         'appointment_rescheduled' => 'Appointment Rescheduled',
                         'appointment_cancelled' => 'Appointment Cancelled',
-                        'order_confirmed' => 'Order Confirmed',
-                        'order_ready' => 'Order Ready',
-                        'order_completed' => 'Order Completed',
-                        'order_cancelled' => 'Order Cancelled',
                     ]),
             ])
             ->recordActions([
