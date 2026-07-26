@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('billing_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('payment_status_id')->constrained();
+            $table->unsignedBigInteger('billing_id');
+            $table->unsignedBigInteger('payment_status_id');
             $table->decimal('amount', 10, 2);
             $table->string('method')->nullable();
             $table->string('reference_number')->nullable();

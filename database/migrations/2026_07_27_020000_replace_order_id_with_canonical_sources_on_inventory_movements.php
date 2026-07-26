@@ -14,7 +14,6 @@ return new class extends Migration
         });
 
         Schema::table('inventory_movements', function (Blueprint $table): void {
-            $table->dropForeign(['order_id']);
             $table->dropColumn('order_id');
         });
     }
@@ -22,7 +21,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('inventory_movements', function (Blueprint $table): void {
-            $table->foreignId('order_id')->nullable()->after('product_variant_id');
+            $table->unsignedBigInteger('order_id')->nullable()->after('product_variant_id');
         });
 
         Schema::table('inventory_movements', function (Blueprint $table): void {

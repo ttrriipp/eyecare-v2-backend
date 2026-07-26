@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('customer_id')->constrained('users');
             $table->foreignId('staff_id')->nullable()->constrained('users');
             $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('order_id')->nullable();
             $table->string('subject')->nullable();
             $table->timestamps();
         });

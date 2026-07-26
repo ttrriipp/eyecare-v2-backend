@@ -12,8 +12,6 @@ return new class extends Migration
         'prescriptions',
         'products',
         'product_variants',
-        'orders',
-        'billings',
         'conversations',
         'feedback',
     ];

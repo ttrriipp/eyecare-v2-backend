@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->constrained('users');
             $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('order_id')->nullable();
             $table->unsignedTinyInteger('rating');
             $table->text('comment')->nullable();
             $table->text('staff_reply')->nullable();

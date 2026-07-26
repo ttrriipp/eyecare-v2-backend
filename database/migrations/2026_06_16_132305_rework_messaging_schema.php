@@ -12,7 +12,6 @@ return new class extends Migration
         Schema::table('conversations', function (Blueprint $table) {
             $table->dropForeign(['staff_id']);
             $table->dropForeign(['appointment_id']);
-            $table->dropForeign(['order_id']);
             $table->dropColumn(['staff_id', 'appointment_id', 'order_id', 'subject']);
         });
 
@@ -40,7 +39,7 @@ return new class extends Migration
             $table->dropUnique(['customer_id']);
             $table->foreignId('staff_id')->nullable()->constrained('users');
             $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('order_id')->nullable();
             $table->string('subject')->nullable();
         });
     }
