@@ -16,10 +16,6 @@
                     <div class="font-medium">{{ $appointmentData['appointment_type'] }}</div>
                 </div>
                 <div>
-                    <div class="text-sm text-gray-500">Visit Reason</div>
-                    <div class="font-medium">{{ $appointmentData['visit_reason'] }}</div>
-                </div>
-                <div>
                     <div class="text-sm text-gray-500">Scheduled</div>
                     <div class="font-medium">{{ $appointmentData['scheduled_at'] }}</div>
                 </div>

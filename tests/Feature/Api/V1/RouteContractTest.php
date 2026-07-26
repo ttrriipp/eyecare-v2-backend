@@ -47,7 +47,6 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/products/{product}',
         'GET|HEAD api/v1/quotations',
         'GET|HEAD api/v1/quotations/{quotation}',
-        'GET|HEAD api/v1/visit-reasons',
         'PATCH api/v1/appointments/{appointment}/contact-note',
         'PATCH api/v1/me',
         'PATCH api/v1/patient/intakes/{intake}',
