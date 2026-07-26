@@ -247,10 +247,10 @@ resource, focused test.
 
 ### Checkpoint B
 
-- [ ] Appointment type, availability, intake, check-in, and Encounter handoff
+- [x] Appointment type, availability, intake, check-in, and Encounter handoff
       pass together.
-- [ ] The combined Patient Health Record passes both role journeys.
-- [ ] The retained patient/clinical focused suites contain no legacy customer
+- [x] The combined Patient Health Record passes both role journeys.
+- [x] The retained patient/clinical focused suites contain no legacy customer
       dependency.
 
 ## Phase C: Canonical Catalog and Inventory
