@@ -36,18 +36,6 @@ class Product extends Model
         'accessory' => 'Accessory',
     ];
 
-    /** @var list<string> */
-    public const array DIRECTLY_ORDERABLE_TYPES = [
-        'frame',
-        'contact_lens',
-        'accessory',
-    ];
-
-    /** @var list<string> */
-    public const array CUSTOMER_ORDERABLE_TYPES = [
-        'accessory',
-    ];
-
     protected static function booted(): void
     {
         static::creating(function (self $product): void {
@@ -72,25 +60,17 @@ class Product extends Model
     }
 
     /**
-     * @param  Builder<self>  $query
+     * Mobile catalog: active frames only with at least one AR-ready variant.
      */
     public function scopeVisibleInMobileCatalog(Builder $query): void
     {
         $query
             ->where('is_active', true)
-            ->where(fn (Builder $productQuery): Builder => $productQuery
-                ->where(fn (Builder $accessoryQuery): Builder => $accessoryQuery
-                    ->where('product_type', 'accessory')
-                    ->whereHas(
-                        'variants',
-                        fn (Builder $variantQuery): Builder => $variantQuery->active(),
-                    ))
-                ->orWhere(fn (Builder $frameQuery): Builder => $frameQuery
-                    ->where('product_type', 'frame')
-                    ->whereHas(
-                        'variants',
-                        fn (Builder $variantQuery): Builder => $variantQuery->arReady(),
-                    )));
+            ->where('product_type', 'frame')
+            ->whereHas(
+                'variants',
+                fn (Builder $variantQuery): Builder => $variantQuery->arReady(),
+            );
     }
 
     /**

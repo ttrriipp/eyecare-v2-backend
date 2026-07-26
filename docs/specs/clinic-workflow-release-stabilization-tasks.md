@@ -263,9 +263,9 @@ configuration.
 
 **Acceptance criteria:**
 
-- [ ] Mobile catalog scopes return active frames only.
-- [ ] Accessories, lenses, supplier costs, and stock counts are absent.
-- [ ] Direct-order constants, tracking flags, and category pivots are absent.
+- [x] Mobile catalog scopes return active frames only.
+- [x] Accessories, lenses, supplier costs, and stock counts are absent.
+- [x] Direct-order constants, tracking flags, and category pivots are absent.
 
 **Verification:** Run product taxonomy, frame API, variant, and authorization
 tests.
