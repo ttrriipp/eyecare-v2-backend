@@ -16,6 +16,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'rating',
     'comment',
     'current_revision_id',
+    'is_hidden',
+    'moderation_reason',
+    'moderated_by',
+    'moderated_at',
 ])]
 class FrameRating extends Model
 {
@@ -68,6 +72,8 @@ class FrameRating extends Model
     {
         return [
             'rating' => 'integer',
+            'is_hidden' => 'boolean',
+            'moderated_at' => 'datetime',
         ];
     }
 }

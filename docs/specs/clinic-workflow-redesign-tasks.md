@@ -986,10 +986,10 @@ inappropriate text without manipulating star aggregates.
 
 **Acceptance criteria:**
 
-- [ ] Hidden comments retain their star in aggregate/distribution results.
-- [ ] Moderation records reason, actor, and timestamps; clinic users cannot edit
+- [x] Hidden comments retain their star in aggregate/distribution results.
+- [x] Moderation records reason, actor, and timestamps; clinic users cannot edit
       rating values.
-- [ ] Patient and Filament surfaces enforce policy and privacy boundaries.
+- [x] Patient and Filament surfaces enforce policy and privacy boundaries.
 
 **Verification:**
 

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FrameController;
+use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JobOrderController;
@@ -86,6 +87,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::get('frame-reservations', [FrameReservationController::class, 'index']);
     Route::post('frame-reservations', [FrameReservationController::class, 'store']);
     Route::post('frame-reservations/{reservation}/cancel', [FrameReservationController::class, 'cancel']);
+
+    Route::post('ratings', [FrameRatingController::class, 'store']);
 
     Route::get('quotations', [QuotationController::class, 'index']);
     Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
