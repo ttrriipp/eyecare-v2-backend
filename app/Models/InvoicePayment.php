@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -43,6 +44,7 @@ class InvoicePayment extends Model
     protected function casts(): array
     {
         return [
+            'payment_method' => PaymentMethod::class,
             'recorded_at' => 'datetime',
             'status' => 'string',
         ];

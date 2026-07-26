@@ -2,6 +2,7 @@
 
 namespace App\Actions\Invoices;
 
+use App\Enums\PaymentMethod;
 use App\Models\Invoice;
 use App\Models\InvoicePayment;
 use App\Models\User;
@@ -16,7 +17,7 @@ class RecordInvoicePayment
     public function handle(
         Invoice $invoice,
         float $amount,
-        string $paymentMethod,
+        PaymentMethod $paymentMethod,
         User $recorder,
         ?string $referenceNumber = null,
         ?string $notes = null,

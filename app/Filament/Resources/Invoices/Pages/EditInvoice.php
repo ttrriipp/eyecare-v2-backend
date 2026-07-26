@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Invoices\Pages;
 
 use App\Actions\Invoices\RecordInvoicePayment;
 use App\Enums\InvoiceStatus;
+use App\Enums\PaymentMethod;
 use App\Filament\Resources\Invoices\InvoiceResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -35,13 +36,7 @@ class EditInvoice extends EditRecord
                         ->prefix('PHP'),
                     Select::make('payment_method')
                         ->label('Method')
-                        ->options([
-                            'cash' => 'Cash',
-                            'gcash' => 'GCash',
-                            'bank_transfer' => 'Bank Transfer',
-                            'credit_card' => 'Credit Card',
-                            'check' => 'Check',
-                        ])
+                        ->options(PaymentMethod::class)
                         ->required(),
                     TextInput::make('reference_number')
                         ->label('Reference #')
@@ -54,7 +49,7 @@ class EditInvoice extends EditRecord
                     app(RecordInvoicePayment::class)->handle(
                         invoice: $this->record,
                         amount: (float) $data['amount'],
-                        paymentMethod: $data['payment_method'],
+                        paymentMethod: PaymentMethod::from($data['payment_method']),
                         recorder: auth()->user(),
                         referenceNumber: $data['reference_number'] ?? null,
                         notes: $data['notes'] ?? null,

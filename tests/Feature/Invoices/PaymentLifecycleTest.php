@@ -3,6 +3,7 @@
 use App\Actions\Invoices\CorrectInvoicePayment;
 use App\Actions\Invoices\RecordInvoicePayment;
 use App\Enums\InvoiceStatus;
+use App\Enums\PaymentMethod;
 use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +22,7 @@ test('deposits may be recorded before dispensing', function () {
     $payment = app(RecordInvoicePayment::class)->handle(
         invoice: $invoice,
         amount: 2000,
-        paymentMethod: 'cash',
+        paymentMethod: PaymentMethod::Cash,
         recorder: $staff,
     );
 
@@ -42,9 +43,9 @@ test('multiple installments accumulate correctly', function () {
         'status' => InvoiceStatus::Issued,
     ]);
 
-    app(RecordInvoicePayment::class)->handle($invoice, 3000, 'cash', $staff);
-    app(RecordInvoicePayment::class)->handle($invoice, 3000, 'gcash', $staff);
-    app(RecordInvoicePayment::class)->handle($invoice, 4000, 'bank_transfer', $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 3000, PaymentMethod::Cash, $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 3000, PaymentMethod::GCash, $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 4000, PaymentMethod::BankTransfer, $staff);
 
     $invoice->refresh();
     expect((float) $invoice->amount_paid)->toBe(10000.0)
@@ -61,9 +62,7 @@ test('overpayment is rejected under row lock', function () {
         'status' => InvoiceStatus::Issued,
     ]);
 
-    // This should succeed — overpayment is allowed (clinic may accept overpayment)
-    // but balance_due should be 0, not negative
-    app(RecordInvoicePayment::class)->handle($invoice, 6000, 'cash', $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 6000, PaymentMethod::Cash, $staff);
 
     $invoice->refresh();
     expect((float) $invoice->amount_paid)->toBe(6000.0)
@@ -75,14 +74,14 @@ test('rejection of zero or negative payment', function () {
     $staff = User::factory()->staff()->create();
     $invoice = Invoice::factory()->create();
 
-    app(RecordInvoicePayment::class)->handle($invoice, 0, 'cash', $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 0, PaymentMethod::Cash, $staff);
 })->throws(ValidationException::class);
 
 test('rejection of payment on voided invoice', function () {
     $staff = User::factory()->staff()->create();
     $invoice = Invoice::factory()->create(['status' => InvoiceStatus::Voided]);
 
-    app(RecordInvoicePayment::class)->handle($invoice, 1000, 'cash', $staff);
+    app(RecordInvoicePayment::class)->handle($invoice, 1000, PaymentMethod::Cash, $staff);
 })->throws(ValidationException::class);
 
 test('correction preserves original payment and records actor and reason', function () {
@@ -94,7 +93,7 @@ test('correction preserves original payment and records actor and reason', funct
         'status' => InvoiceStatus::Issued,
     ]);
 
-    $original = app(RecordInvoicePayment::class)->handle($invoice, 2000, 'cash', $staff);
+    $original = app(RecordInvoicePayment::class)->handle($invoice, 2000, PaymentMethod::Cash, $staff);
 
     $correction = app(CorrectInvoicePayment::class)->handle(
         originalPayment: $original,
@@ -103,16 +102,13 @@ test('correction preserves original payment and records actor and reason', funct
         reason: 'Entered wrong amount',
     );
 
-    // Original is preserved with VOIDED note
     $original->refresh();
     expect($original->notes)->toContain('VOIDED: Entered wrong amount');
 
-    // Replacement has the corrected amount
     expect((float) $correction->amount)->toBe(2500.0)
         ->and($correction->recorded_by)->toBe($admin->id)
         ->and($correction->notes)->toContain('Correction of payment');
 
-    // Invoice balance recalculated
     $invoice->refresh();
     expect((float) $invoice->amount_paid)->toBe(2500.0)
         ->and((float) $invoice->balance_due)->toBe(2500.0);
@@ -121,7 +117,7 @@ test('correction preserves original payment and records actor and reason', funct
 test('correction rejects zero amount', function () {
     $staff = User::factory()->staff()->create();
     $invoice = Invoice::factory()->create(['total' => 5000, 'balance_due' => 5000]);
-    $payment = app(RecordInvoicePayment::class)->handle($invoice, 2000, 'cash', $staff);
+    $payment = app(RecordInvoicePayment::class)->handle($invoice, 2000, PaymentMethod::Cash, $staff);
 
     app(CorrectInvoicePayment::class)->handle($payment, 0, $staff, 'test');
 })->throws(ValidationException::class);
@@ -129,7 +125,7 @@ test('correction rejects zero amount', function () {
 test('correction rejects on voided invoice', function () {
     $staff = User::factory()->staff()->create();
     $invoice = Invoice::factory()->create(['total' => 5000, 'balance_due' => 5000]);
-    $payment = app(RecordInvoicePayment::class)->handle($invoice, 2000, 'cash', $staff);
+    $payment = app(RecordInvoicePayment::class)->handle($invoice, 2000, PaymentMethod::Cash, $staff);
 
     $invoice->update(['status' => InvoiceStatus::Voided]);
 
