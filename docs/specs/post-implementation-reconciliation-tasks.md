@@ -4,7 +4,7 @@
 
 Approved by the project owner on 2026-07-26 after revision with the
 planning-and-task-breakdown process. Phase 4 is authorized to execute one task
-at a time, beginning with Task 1.
+at a time. Task 1 is complete; Task 2 awaits authorization.
 
 ## Execution Rules
 
@@ -39,6 +39,70 @@ release/test truth
 Migration consolidation is intentionally late. The application and its tests
 must stop consuming a legacy structure before that structure is removed from
 the undeployed migration history.
+
+## Progress Tracker
+
+A task is checked only after its acceptance criteria pass and its atomic commit
+is recorded.
+
+### Phase A: Truthful Coverage and Dangling Consumers
+
+- [x] Task 1: Reopen release claims and freeze the test-recovery map
+      (`c8521b8`)
+- [ ] Task 2: Repair core Patient relationships
+- [ ] Task 3: Remove legacy SMS relationships
+- [ ] Task 4: Cut printing over to Invoice
+- [ ] Task 5: Repair daily summary and dashboard demo data
+- [ ] Task 6: Repair canonical conversation contexts
+- [ ] Task 7: Repair Feedback presentation and ownership
+
+### Phase B: Appointment Type Completion
+
+- [ ] Task 8: Add the booked duration snapshot
+- [ ] Task 9: Move availability evaluation to Appointment Type
+- [ ] Task 10: Move appointment creation to Appointment Type
+- [ ] Task 11: Move rescheduling to the booked duration
+- [ ] Task 12: Correct the appointment API contract
+- [ ] Task 13: Correct Filament appointment forms
+- [ ] Task 14: Complete appointment-linked Intake
+- [ ] Task 15: Remove Visit Reason Filament UI
+- [ ] Task 16: Remove Visit Reason presentation helpers
+- [ ] Task 17: Remove Visit Reason wiring
+
+### Phase C: Supporting Catalog Cleanup
+
+- [ ] Task 18: Introduce the canonical payment-method value contract
+- [ ] Task 19: Remove legacy Payment models and factories
+- [ ] Task 20: Remove legacy Payment actions and seeders
+- [ ] Task 21: Remove Services Filament UI
+- [ ] Task 22: Remove Services domain files
+
+### Phase D: Exact Patient API
+
+- [ ] Task 23: Normalize authentication and `/me`
+- [ ] Task 24: Normalize Appointment and Intake routes
+- [ ] Task 25: Normalize Conversation and attachment routes
+- [ ] Task 26: Normalize Feedback and rating routes
+- [ ] Task 27: Remove extra catalog and notification routes
+- [ ] Task 28: Lock the full route equality contract
+
+### Phase E: Canonical Migration History
+
+- [ ] Task 29: Retire legacy commerce migrations batch 1
+- [ ] Task 30: Retire legacy commerce migrations batch 2
+- [ ] Task 31: Retire legacy commerce migrations batch 3
+- [ ] Task 32: Retire legacy commerce migrations batch 4
+- [ ] Task 33: Retire legacy commerce migrations batch 5
+- [ ] Task 34: Retire legacy commerce migrations batch 6
+- [ ] Task 35: Consolidate Appointment Type and supporting schema
+- [ ] Task 36: Consolidate Patient transition migrations
+
+### Phase F: Seed, Acceptance, and Release Evidence
+
+- [ ] Task 37: Rebuild canonical seed data
+- [ ] Task 38: Restore complete clinic acceptance journeys
+- [ ] Task 39: Restore retained release-critical coverage
+- [ ] Task 40: Execute final technical release evidence
 
 ## Task Index
 
