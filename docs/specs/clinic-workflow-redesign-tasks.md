@@ -1175,9 +1175,9 @@ without inventing retention periods or enabling automatic deletion.
 
 **Acceptance criteria:**
 
-- [ ] Retention categories and review dates are configurable.
-- [ ] Legal holds prevent disposal eligibility.
-- [ ] Automatic purge remains disabled until an approved clinic schedule exists.
+- [x] Retention categories and review dates are configurable.
+- [x] Legal holds prevent disposal eligibility.
+- [x] Automatic purge remains disabled until an approved clinic schedule exists.
 
 **Verification:**
 
