@@ -12,7 +12,6 @@ use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PatientIntakeController;
-use App\Http\Controllers\Api\PatientProfileController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\QuotationController;
@@ -33,9 +32,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('me', [AuthController::class, 'user']);
     Route::patch('me', [AuthController::class, 'update']);
-
-    Route::get('patient/profile', [PatientProfileController::class, 'show']);
-    Route::patch('patient/profile', [PatientProfileController::class, 'update']);
 
     Route::get('patient/intakes', [PatientIntakeController::class, 'index']);
     Route::post('patient/intakes', [PatientIntakeController::class, 'store']);

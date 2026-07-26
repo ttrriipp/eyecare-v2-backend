@@ -5,9 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterPatientRequest;
-use App\Http\Requests\Api\UpdateProfileRequest;
+use App\Http\Requests\Api\UpdateMeRequest;
 use App\Http\Resources\PatientProfileResource;
-use App\Http\Resources\UserResource;
 use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
@@ -55,12 +54,12 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $user = $request->authenticate();
-        $user->load('role');
+        $user->load('role', 'patient');
 
         return response()->json([
             'data' => [
                 'token' => $user->createToken('mobile')->plainTextToken,
-                'user' => UserResource::make($user),
+                'user' => PatientProfileResource::make($user),
             ],
         ]);
     }
@@ -68,10 +67,10 @@ class AuthController extends Controller
     public function user(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->load('role');
+        $user->load('role', 'patient');
 
         return response()->json([
-            'data' => UserResource::make($user),
+            'data' => PatientProfileResource::make($user),
         ]);
     }
 
@@ -82,14 +81,31 @@ class AuthController extends Controller
         return response()->json();
     }
 
-    public function update(UpdateProfileRequest $request): JsonResponse
+    public function update(UpdateMeRequest $request): JsonResponse
     {
         $user = $request->user();
-        $user->update($request->validated());
-        $user->load('role');
+        $validated = $request->validated();
+
+        // Separate account fields from patient fields
+        $accountFields = array_intersect_key($validated, array_flip(['name', 'email', 'phone', 'address']));
+        $patientFields = array_intersect_key($validated, array_flip([
+            'full_name', 'date_of_birth', 'occupation', 'gender', 'contact_email',
+        ]));
+
+        DB::transaction(function () use ($user, $accountFields, $patientFields): void {
+            if ($accountFields !== []) {
+                $user->update($accountFields);
+            }
+
+            if ($patientFields !== [] && $user->patient !== null) {
+                $user->patient->update($patientFields);
+            }
+        });
+
+        $user->load('role', 'patient');
 
         return response()->json([
-            'data' => UserResource::make($user),
+            'data' => PatientProfileResource::make($user),
         ]);
     }
 }
