@@ -3,6 +3,8 @@
 namespace App\Actions\JobOrders;
 
 use App\Enums\JobOrderStatus;
+use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +51,7 @@ class UpdateJobOrderStatus
 
             $jobOrder->update($attributes);
 
-            // Reverse inventory on cancellation if order was committed
+            // Reverse inventory on cancellation
             if ($newStatus === JobOrderStatus::Cancelled) {
                 $this->reverseInventory($jobOrder);
             }
@@ -58,17 +60,68 @@ class UpdateJobOrderStatus
         });
     }
 
+    /**
+     * Reverse only recorded, unreversed commitments once.
+     */
     private function reverseInventory(JobOrder $jobOrder): void
     {
+        $reversalType = InventoryMovementType::query()
+            ->firstOrCreate(['name' => 'order_reversal']);
+
+        $commitmentType = InventoryMovementType::query()
+            ->where('name', 'order_commitment')
+            ->first();
+
+        if ($commitmentType === null) {
+            return;
+        }
+
         foreach ($jobOrder->items as $item) {
             if ($item->product_variant_id === null) {
                 continue;
             }
 
-            ProductVariant::query()
+            // Find unreversed commitments for this variant/job order
+            $committedQty = InventoryMovement::query()
+                ->where('job_order_id', $jobOrder->id)
+                ->where('product_variant_id', $item->product_variant_id)
+                ->where('inventory_movement_type_id', $commitmentType->id)
+                ->sum('quantity_change');
+
+            $reversedQty = InventoryMovement::query()
+                ->where('job_order_id', $jobOrder->id)
+                ->where('product_variant_id', $item->product_variant_id)
+                ->where('inventory_movement_type_id', $reversalType->id)
+                ->sum('quantity_change');
+
+            $netCommitment = abs($committedQty) - abs($reversedQty);
+
+            if ($netCommitment <= 0) {
+                continue; // Already fully reversed
+            }
+
+            $variant = ProductVariant::query()
                 ->whereKey($item->product_variant_id)
                 ->lockForUpdate()
-                ->increment('stock_quantity', $item->quantity);
+                ->first();
+
+            if ($variant === null) {
+                continue;
+            }
+
+            $previousStock = $variant->stock_quantity;
+            $variant->increment('stock_quantity', $netCommitment);
+
+            InventoryMovement::query()->create([
+                'product_variant_id' => $variant->id,
+                'job_order_id' => $jobOrder->id,
+                'inventory_movement_type_id' => $reversalType->id,
+                'quantity_change' => $netCommitment,
+                'previous_stock' => $previousStock,
+                'new_stock' => $variant->fresh()->stock_quantity,
+                'created_by' => auth()->id(),
+                'notes' => "Reversal for cancelled job order #{$jobOrder->job_order_number}",
+            ]);
         }
     }
 }

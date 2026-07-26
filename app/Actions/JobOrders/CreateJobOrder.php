@@ -4,8 +4,11 @@ namespace App\Actions\JobOrders;
 
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
+use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +43,7 @@ class CreateJobOrder
             ]);
         }
 
-        return DB::transaction(function () use ($quotation, $latestRevision): JobOrder {
+        return DB::transaction(function () use ($quotation, $latestRevision, $creator): JobOrder {
             $jobOrder = JobOrder::query()->create([
                 'patient_id' => $quotation->patient_id,
                 'encounter_id' => $quotation->encounter_id,
@@ -50,7 +53,10 @@ class CreateJobOrder
                 'total_amount' => $latestRevision->total,
             ]);
 
-            // Snapshot items from the quotation revision
+            $commitmentType = InventoryMovementType::query()
+                ->firstOrCreate(['name' => 'order_commitment']);
+
+            // Snapshot items and commit inventory
             foreach ($latestRevision->items as $item) {
                 JobOrderItem::query()->create([
                     'job_order_id' => $jobOrder->id,
@@ -61,6 +67,34 @@ class CreateJobOrder
                     'product_variant_id' => $item->product_variant_id,
                     'lens_category_id' => $item->lens_category_id,
                 ]);
+
+                // Commit stock for stock-managed items
+                if ($item->product_variant_id !== null) {
+                    $variant = ProductVariant::query()
+                        ->whereKey($item->product_variant_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($variant === null || $variant->stock_quantity < $item->quantity) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Insufficient stock for variant {$item->product_variant_id}."],
+                        ]);
+                    }
+
+                    $previousStock = $variant->stock_quantity;
+                    $variant->decrement('stock_quantity', $item->quantity);
+
+                    InventoryMovement::query()->create([
+                        'product_variant_id' => $variant->id,
+                        'job_order_id' => $jobOrder->id,
+                        'inventory_movement_type_id' => $commitmentType->id,
+                        'quantity_change' => -$item->quantity,
+                        'previous_stock' => $previousStock,
+                        'new_stock' => $variant->fresh()->stock_quantity,
+                        'created_by' => $creator->id,
+                        'notes' => "Commitment for job order #{$jobOrder->job_order_number}",
+                    ]);
+                }
             }
 
             return $jobOrder->load('items');

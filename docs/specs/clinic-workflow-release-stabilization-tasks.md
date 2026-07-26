@@ -327,9 +327,9 @@ the same transaction that creates the clinic Job Order.
 
 **Acceptance criteria:**
 
-- [ ] Reservation conversion never deducts the frame twice.
-- [ ] Any unavailable item rolls back the whole Job Order and movements.
-- [ ] Cancellation reverses only recorded, unreversed commitments once.
+- [x] Reservation conversion never deducts the frame twice.
+- [x] Any unavailable item rolls back the whole Job Order and movements.
+- [x] Cancellation reverses only recorded, unreversed commitments once.
 
 **Verification:** Run conversion, multi-item rollback, cancellation, and
 concurrency tests.
