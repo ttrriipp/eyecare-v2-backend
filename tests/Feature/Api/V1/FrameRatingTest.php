@@ -16,7 +16,7 @@ test('patient can submit a frame rating', function () {
     $variant = ProductVariant::factory()->create();
 
     $this->actingAs($user)
-        ->postJson('/api/v1/ratings', [
+        ->postJson('/api/v1/job-order-items/1/rating', [
             'product_variant_id' => $variant->id,
             'rating' => 5,
             'comment' => 'Excellent frame!',
@@ -30,7 +30,7 @@ test('rating requires valid variant', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
-        ->postJson('/api/v1/ratings', [
+        ->postJson('/api/v1/job-order-items/1/rating', [
             'product_variant_id' => 9999,
             'rating' => 5,
         ])
@@ -43,7 +43,7 @@ test('rating must be between 1 and 5', function () {
     $variant = ProductVariant::factory()->create();
 
     $this->actingAs($user)
-        ->postJson('/api/v1/ratings', [
+        ->postJson('/api/v1/job-order-items/1/rating', [
             'product_variant_id' => $variant->id,
             'rating' => 6,
         ])
@@ -52,5 +52,5 @@ test('rating must be between 1 and 5', function () {
 });
 
 test('rating requires authentication', function () {
-    $this->postJson('/api/v1/ratings', [])->assertUnauthorized();
+    $this->postJson('/api/v1/job-order-items/1/rating', [])->assertUnauthorized();
 });

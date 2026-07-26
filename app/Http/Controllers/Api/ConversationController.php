@@ -38,30 +38,26 @@ class ConversationController extends Controller
         return ConversationResource::make($conversation);
     }
 
-    public function markRead(Request $request, Conversation $conversation): JsonResponse
+    /**
+     * GET /conversations/messages — list messages in the patient's conversation.
+     */
+    public function indexMessages(Request $request): AnonymousResourceCollection
     {
-        abort_unless($this->canAccessConversation($request->user(), $conversation), 403);
-
-        $marked = $conversation->messages()
-            ->where('sender_id', '!=', $request->user()->id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
-
-        return response()->json(['data' => ['marked' => $marked]]);
-    }
-
-    public function indexMessages(Request $request, Conversation $conversation): AnonymousResourceCollection
-    {
-        abort_unless($this->canAccessConversation($request->user(), $conversation), 404);
+        $conversation = $this->resolveConversation($request->user());
+        abort_unless($conversation !== null, 404);
 
         $messages = $conversation->messages()->with(['attachments', 'contextLinks'])->oldest()->get();
 
         return MessageResource::collection($messages);
     }
 
-    public function storeMessage(StoreMessageRequest $request, Conversation $conversation): JsonResponse
+    /**
+     * POST /conversations/messages — send a message in the patient's conversation.
+     */
+    public function storeMessage(StoreMessageRequest $request): JsonResponse
     {
-        abort_unless($this->canAccessConversation($request->user(), $conversation), 404);
+        $conversation = $this->resolveConversation($request->user());
+        abort_unless($conversation !== null, 404);
 
         $message = $conversation->messages()->create([
             'sender_id' => $request->user()->id,
@@ -92,7 +88,6 @@ class ConversationController extends Controller
 
         $message->load(['attachments', 'contextLinks']);
 
-        // Only notify staff when the sender is a patient
         if ($request->user()->role->name === 'patient') {
             $this->notifyStaffOfMessage($conversation, $message);
         }
@@ -114,6 +109,17 @@ class ConversationController extends Controller
             $attachment->original_name,
             ['Content-Type' => $attachment->mime_type],
         );
+    }
+
+    private function resolveConversation(User $user): ?Conversation
+    {
+        $patient = $user->patient;
+
+        if ($patient === null) {
+            return null;
+        }
+
+        return Conversation::query()->firstOrCreate(['patient_id' => $patient->id]);
     }
 
     private function notifyStaffOfMessage(Conversation $conversation, Message $message): void

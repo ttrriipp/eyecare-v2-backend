@@ -19,16 +19,14 @@ test('every approved v1 route is present exactly once', function () {
         ->all();
 
     $expected = [
+        'GET|HEAD api/v1/appointment-availability',
+        'GET|HEAD api/v1/appointment-types',
         'GET|HEAD api/v1/appointments',
-        'GET|HEAD api/v1/appointments/availability',
         'GET|HEAD api/v1/appointments/{appointment}',
+        'GET|HEAD api/v1/appointments/{appointment}/intake',
         'GET|HEAD api/v1/attachments/{attachment}',
-        'GET|HEAD api/v1/brands',
-        'GET|HEAD api/v1/categories',
         'GET|HEAD api/v1/conversations',
-        'GET|HEAD api/v1/conversations/{conversation}/messages',
-        'GET|HEAD api/v1/feedback',
-        'GET|HEAD api/v1/feedback/{feedback}',
+        'GET|HEAD api/v1/conversations/messages',
         'GET|HEAD api/v1/frame-reservations',
         'GET|HEAD api/v1/frames',
         'GET|HEAD api/v1/frames/{product}',
@@ -37,38 +35,25 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/job-orders',
         'GET|HEAD api/v1/job-orders/{job_order}',
         'GET|HEAD api/v1/me',
-        'GET|HEAD api/v1/notifications',
-        'GET|HEAD api/v1/notifications/unread-count',
-        'GET|HEAD api/v1/patient/intakes',
-        'GET|HEAD api/v1/patient/profile',
         'GET|HEAD api/v1/prescriptions',
         'GET|HEAD api/v1/prescriptions/{prescription}',
-        'GET|HEAD api/v1/products',
-        'GET|HEAD api/v1/products/{product}',
         'GET|HEAD api/v1/quotations',
         'GET|HEAD api/v1/quotations/{quotation}',
-        'PATCH api/v1/appointments/{appointment}/contact-note',
         'PATCH api/v1/me',
-        'PATCH api/v1/patient/intakes/{intake}',
-        'PATCH api/v1/patient/profile',
         'PATCH api/v1/staff/appointments/{appointment}/status',
         'POST api/v1/appointments',
         'POST api/v1/appointments/{appointment}/cancel',
+        'POST api/v1/appointments/{appointment}/intake/submit',
         'POST api/v1/appointments/{appointment}/reschedule',
-        'POST api/v1/conversations/{conversation}/messages',
-        'POST api/v1/conversations/{conversation}/messages/read',
+        'POST api/v1/conversations/messages',
         'POST api/v1/feedback',
         'POST api/v1/frame-reservations',
         'POST api/v1/frame-reservations/{reservation}/cancel',
+        'POST api/v1/job-order-items/{item}/rating',
         'POST api/v1/login',
         'POST api/v1/logout',
-        'POST api/v1/notifications/mark-all-read',
-        'POST api/v1/notifications/{notification}/mark-read',
-        'POST api/v1/patient/intakes',
-        'POST api/v1/patient/intakes/{intake}/submit',
-        'POST api/v1/patient/intakes/{intake}/verify',
-        'POST api/v1/ratings',
         'POST api/v1/register',
+        'PUT api/v1/appointments/{appointment}/intake',
     ];
 
     expect($v1Routes)->toBe($expected);
@@ -79,7 +64,6 @@ test('unversioned patient routes are absent', function () {
         ->pluck('uri')
         ->toArray();
 
-    // These old unversioned routes should not exist
     expect($routes)->not->toContain('api/register')
         ->and($routes)->not->toContain('api/login')
         ->and($routes)->not->toContain('api/user')
@@ -102,6 +86,5 @@ test('staff-only mutations are outside patient route group', function () {
         ->pluck('uri')
         ->toArray();
 
-    // Staff routes exist but are separate
     expect($staffRoutes)->toContain('api/v1/staff/appointments/{appointment}/status');
 });
