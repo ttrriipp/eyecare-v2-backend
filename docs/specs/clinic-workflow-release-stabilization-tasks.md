@@ -461,9 +461,9 @@ factories, schema test.
 
 ### Checkpoint D
 
-- [ ] Order/Billing routes, navigation, classes, tests, and tables are absent.
-- [ ] Canonical replacement and fresh-seed suites pass.
-- [ ] No legacy file was removed outside a reviewed batch.
+- [x] Order/Billing routes, navigation, classes, tests, and tables are absent.
+- [x] Canonical replacement and fresh-seed suites pass.
+- [x] No legacy file was removed outside a reviewed batch.
 
 ## Phase E: Complete the Patient `/api/v1` Contract
 
