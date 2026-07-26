@@ -126,10 +126,13 @@ is recorded.
 
 ### Phase F: Seed, Acceptance, and Release Evidence
 
-- [ ] Task 37: Rebuild canonical seed data
-- [ ] Task 38: Restore complete clinic acceptance journeys
-- [ ] Task 39: Restore retained release-critical coverage
-- [ ] Task 40: Execute final technical release evidence
+- [x] Task 37: Rebuild canonical seed data
+      (`388bf22`)
+- [x] Task 38: Restore complete clinic acceptance journeys
+      (`2efc11a`)
+- [x] Task 39: Restore retained release-critical coverage
+      (`8c96cde`)
+- [x] Task 40: Execute final technical release evidence
 
 ## Task Index
 
@@ -730,9 +733,9 @@ evidence test/procedure, at most two final evidence files.
 
 ### Checkpoint F
 
-- [ ] Technical success criteria have reproducible evidence.
-- [ ] No release claim relies only on checked boxes or a reduced test count.
-- [ ] Backend is ready for clinic UAT, not automatically production-approved.
+- [x] Technical success criteria have reproducible evidence.
+- [x] No release claim relies only on checked boxes or a reduced test count.
+- [x] Backend is ready for clinic UAT, not automatically production-approved.
 
 ## Phase 3 Approval Gate
 
