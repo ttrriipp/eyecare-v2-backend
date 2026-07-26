@@ -9,6 +9,7 @@ use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\Encounter;
@@ -24,7 +25,6 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationRevision;
 use App\Models\User;
-use App\Models\VisitReason;
 use Illuminate\Database\Seeder;
 
 /**
@@ -65,14 +65,15 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedAppointment(Patient $patient, User $staff): Appointment
     {
         $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
-        $visitReason = VisitReason::query()->where('name', 'Eye Exam')->firstOrFail();
+        $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
 
         $appointment = Appointment::query()->firstOrCreate(
-            ['patient_id' => $patient->id, 'visit_reason_id' => $visitReason->id],
+            ['patient_id' => $patient->id, 'appointment_type_id' => $appointmentType->id],
             [
                 'appointment_number' => 'APT-2026-000001',
                 'created_by' => $staff->id,
                 'appointment_status_id' => $confirmed->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
                 'scheduled_at' => now()->addDays(3)->setTime(10, 0),
                 'contact_notes' => 'First-time patient. Bring previous prescription if available.',
             ],
@@ -85,7 +86,8 @@ class ClinicWorkflowSeeder extends Seeder
             [
                 'created_by' => $staff->id,
                 'appointment_status_id' => $completed->id,
-                'visit_reason_id' => $visitReason->id,
+                'appointment_type_id' => $appointmentType->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
                 'scheduled_at' => now()->subDays(30)->setTime(14, 0),
                 'completed_at' => now()->subDays(30)->setTime(15, 0),
             ],

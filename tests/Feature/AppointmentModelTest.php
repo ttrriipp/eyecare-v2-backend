@@ -2,10 +2,10 @@
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Patient;
 use App\Models\User;
-use App\Models\VisitReason;
-use Database\Seeders\VisitReasonSeeder;
+use Database\Seeders\AppointmentTypeSeeder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,7 +19,8 @@ test('appointment factory creates valid records with required attributes', funct
     ]);
 
     expect($appointment->patient_id)->not->toBeNull()
-        ->and($appointment->visit_reason_id)->not->toBeNull()
+        ->and($appointment->appointment_type_id)->not->toBeNull()
+        ->and($appointment->duration_minutes)->not->toBeNull()
         ->and($appointment->appointment_status_id)->not->toBeNull()
         ->and($appointment->source)->toBe('staff_created')
         ->and($appointment->optometrist_id)->toBeNull()
@@ -29,7 +30,7 @@ test('appointment factory creates valid records with required attributes', funct
         ->and($appointment->contact_notes)->toBe('Please call before arrival.')
         ->and($appointment->staff_notes)->toBe('Needs dilation.')
         ->and($appointment->patient)->toBeInstanceOf(Patient::class)
-        ->and($appointment->visitReason)->toBeInstanceOf(VisitReason::class)
+        ->and($appointment->appointmentType)->toBeInstanceOf(AppointmentType::class)
         ->and($appointment->status)->toBeInstanceOf(AppointmentStatus::class);
 });
 
@@ -38,9 +39,9 @@ test('appointment relationships are typed', function () {
 
     expect($appointment->patient())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->optometrist())->toBeInstanceOf(BelongsTo::class)
-        ->and($appointment->visitReason())->toBeInstanceOf(BelongsTo::class)
+        ->and($appointment->appointmentType())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->status())->toBeInstanceOf(BelongsTo::class)
-        ->and((new VisitReason)->appointments())->toBeInstanceOf(HasMany::class);
+        ->and((new AppointmentType)->appointments())->toBeInstanceOf(HasMany::class);
 });
 
 test('appointment workflow timestamps and optometrist capability use native casts', function () {
@@ -59,16 +60,16 @@ test('appointment workflow timestamps and optometrist capability use native cast
         ->and($appointment->completed_at)->toBeInstanceOf(DateTimeInterface::class);
 });
 
-test('visit reasons are seeded idempotently', function () {
-    $this->seed(VisitReasonSeeder::class);
-    $this->seed(VisitReasonSeeder::class);
+test('appointment types are seeded idempotently', function () {
+    $this->seed(AppointmentTypeSeeder::class);
+    $this->seed(AppointmentTypeSeeder::class);
 
-    expect(VisitReason::query()->pluck('name')->all())
+    expect(AppointmentType::query()->pluck('name')->all())
         ->toEqualCanonicalizing([
-            'Contact Lens Fitting',
-            'Eye Exam',
             'Follow-up',
-            'Prescription Check',
+            'New Patient',
+            'Referral',
+            'Routine Check-up',
         ])
-        ->and(VisitReason::query()->count())->toBe(4);
+        ->and(AppointmentType::query()->count())->toBe(4);
 });

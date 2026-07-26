@@ -12,6 +12,7 @@ use App\Enums\InvoiceStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
+use App\Models\AppointmentType;
 use App\Models\Encounter;
 use App\Models\Invoice;
 use App\Models\JobOrder;
@@ -21,7 +22,6 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\QuotationRevision;
 use App\Models\User;
-use App\Models\VisitReason;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\ClinicHoursSeeder;
@@ -38,20 +38,18 @@ beforeEach(function () {
 });
 
 test('scheduled patient journey: appointment through dispensing', function () {
-    // Setup
     $patient = Patient::factory()->create();
     $optometrist = User::factory()->optometrist()->create();
     $staff = User::factory()->staff()->create();
-    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->first();
 
-    // 1. Book appointment
     $appointment = Appointment::factory()->create([
         'patient_id' => $patient->id,
-        'visit_reason_id' => $visitReason->id,
+        'appointment_type_id' => $appointmentType->id,
+        'duration_minutes' => $appointmentType->duration_minutes,
         'scheduled_at' => now()->addDay(),
     ]);
 
-    // 2. Check-in creates encounter
     $this->actingAs($staff);
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
@@ -59,7 +57,6 @@ test('scheduled patient journey: appointment through dispensing', function () {
         ->and($encounter->patient_id)->toBe($patient->id)
         ->and($appointment->fresh()->status->name)->toBe('arrived');
 
-    // 3. Optometrist finalizes prescription
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
@@ -74,7 +71,6 @@ test('scheduled patient journey: appointment through dispensing', function () {
     expect($prescription->patient_id)->toBe($patient->id)
         ->and($prescription->encounter_id)->toBe($encounter->id);
 
-    // 4. Create and present quotation
     $quotation = Quotation::factory()->create([
         'patient_id' => $patient->id,
         'encounter_id' => $encounter->id,
@@ -95,21 +91,17 @@ test('scheduled patient journey: appointment through dispensing', function () {
     app(PresentQuotation::class)->handle($quotation, $staff);
     expect($quotation->fresh()->status)->toBe(QuotationStatus::Presented);
 
-    // 5. Accept quotation
     app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $staff);
     expect($quotation->fresh()->status)->toBe(QuotationStatus::Accepted);
 
-    // 6. Create job order
     $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);
     expect($jobOrder->status)->toBe(JobOrderStatus::Queued)
         ->and($jobOrder->patient_id)->toBe($patient->id);
 
-    // 7. Advance to ready
     app(UpdateJobOrderStatus::class)->handle($jobOrder, 'in_progress');
     app(UpdateJobOrderStatus::class)->handle($jobOrder->fresh(), 'ready_for_dispensing');
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::ReadyForDispensing);
 
-    // 8. Dispense
     $dispensingEvent = app(DispenseJobOrder::class)->handle(
         jobOrder: $jobOrder->fresh(),
         dispenser: $staff,
@@ -124,17 +116,16 @@ test('scheduled patient journey: appointment through dispensing', function () {
 test('walk-in patient journey: registration through encounter', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
-    $visitReason = VisitReason::factory()->create(['duration_minutes' => 30]);
+    $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->first();
 
-    // Walk-in creates same-day appointment
     $appointment = Appointment::factory()->create([
         'patient_id' => $patient->id,
-        'visit_reason_id' => $visitReason->id,
+        'appointment_type_id' => $appointmentType->id,
+        'duration_minutes' => $appointmentType->duration_minutes,
         'source' => 'walk_in',
         'scheduled_at' => now(),
     ]);
 
-    // Check-in
     $this->actingAs($staff);
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
@@ -146,7 +137,6 @@ test('patient isolation: cannot access another patients records', function () {
     $userA = User::factory()->patient()->create();
     $userB = User::factory()->patient()->create();
 
-    // Create records for patient B
     $appointmentB = Appointment::factory()->create(['patient_id' => $userB->patient->id]);
     $prescriptionB = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
     $quotationB = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
@@ -155,7 +145,6 @@ test('patient isolation: cannot access another patients records', function () {
 
     $this->actingAs($userA);
 
-    // All should return not-found or forbidden
     $this->getJson("/api/v1/appointments/{$appointmentB->id}")->assertNotFound();
     $this->getJson("/api/v1/prescriptions/{$prescriptionB->id}")->assertNotFound();
     $this->getJson("/api/v1/quotations/{$quotationB->id}")->assertNotFound();
@@ -167,6 +156,5 @@ test('receptionist capability boundary', function () {
     $staff = User::factory()->staff()->create(['is_optometrist' => false]);
     $encounter = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
 
-    // Receptionist cannot start encounter
     expect($staff->hasOptometristCapability())->toBeFalse();
 });

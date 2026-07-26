@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('patients', function (Blueprint $table) {
@@ -25,13 +22,19 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
+
+        // Add patient_id FK to appointments now that patients table exists
+        Schema::table('appointments', function (Blueprint $table): void {
+            $table->foreign('patient_id')->references('id')->on('patients')->cascadeOnDelete();
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        Schema::table('appointments', function (Blueprint $table): void {
+            $table->dropForeign(['patient_id']);
+        });
+
         Schema::dropIfExists('patients');
     }
 };

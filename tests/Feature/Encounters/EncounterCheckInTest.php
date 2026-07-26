@@ -8,10 +8,15 @@ use App\Models\AppointmentStatus;
 use App\Models\Encounter;
 use App\Models\PatientIntake;
 use App\Models\User;
+use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->seed(AppointmentStatusSeeder::class);
+});
 
 test('check-in creates exactly one encounter for the appointment', function () {
     $appointment = Appointment::factory()->create();

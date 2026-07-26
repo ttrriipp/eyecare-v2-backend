@@ -4,8 +4,8 @@ namespace Database\Factories;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Patient;
-use App\Models\VisitReason;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,12 +22,12 @@ class AppointmentFactory extends Factory
     {
         return [
             'patient_id' => Patient::factory(),
-            'appointment_type_id' => null,
+            'appointment_type_id' => AppointmentType::factory(),
+            'duration_minutes' => 30,
             'referring_source' => null,
             'created_by' => null,
             'optometrist_id' => null,
             'source' => 'staff_created',
-            'visit_reason_id' => VisitReason::factory(),
             'appointment_status_id' => $this->pendingStatusId(),
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),
             'checked_in_at' => null,
