@@ -87,3 +87,36 @@ test('referral appointment can store referring source', function () {
 
     expect($appointment->referring_source)->toBe('Dr. Garcia - City Hospital');
 });
+
+test('appointment stores a booked duration snapshot from appointment type', function () {
+    $this->seed(AppointmentTypeSeeder::class);
+    $patient = Patient::factory()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->first();
+
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
+    ]);
+
+    expect($appointment->duration_minutes)->toBe(30);
+});
+
+test('changing appointment type default does not alter existing appointments', function () {
+    $this->seed(AppointmentTypeSeeder::class);
+    $patient = Patient::factory()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->first();
+
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
+    ]);
+
+    expect($appointment->duration_minutes)->toBe(30);
+
+    $type->update(['duration_minutes' => 45]);
+
+    expect($appointment->fresh()->duration_minutes)->toBe(30)
+        ->and($type->fresh()->duration_minutes)->toBe(45);
+});

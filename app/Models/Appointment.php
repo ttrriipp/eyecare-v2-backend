@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'appointment_number',
     'patient_id',
     'appointment_type_id',
+    'duration_minutes',
     'referring_source',
     'created_by',
     'optometrist_id',
@@ -87,7 +88,7 @@ class Appointment extends Model implements Eventable
         return CalendarEvent::make($this)
             ->title($title)
             ->start($this->scheduled_at)
-            ->end($this->scheduled_at->addMinutes($this->visitReason?->duration_minutes ?? 30))
+            ->end($this->scheduled_at->addMinutes($this->duration_minutes ?? 30))
             ->backgroundColor($color);
     }
 
@@ -166,8 +167,8 @@ class Appointment extends Model implements Eventable
     /**
      * Whether a non-cancelled appointment overlaps with the given time range.
      *
-     * Uses the existing appointment's visit reason duration for its end time,
-     * and the provided $durationMinutes for the proposed slot's end time.
+     * Uses the existing appointment's booked duration_minutes snapshot for its
+     * end time, and the provided $durationMinutes for the proposed slot's end time.
      *
      * @param  int  $durationMinutes  Duration of the proposed appointment.
      * @param  int|null  $ignoreId  An appointment id to exclude (e.g. the one being rescheduled).
@@ -183,7 +184,7 @@ class Appointment extends Model implements Eventable
             // Overlap: existing_start < proposed_end AND proposed_start < existing_end
             ->where('scheduled_at', '<', $proposedEnd)
             ->whereRaw(
-                'DATE_ADD(scheduled_at, INTERVAL COALESCE((SELECT duration_minutes FROM visit_reasons WHERE visit_reasons.id = appointments.visit_reason_id), 30) MINUTE) > ?',
+                'DATE_ADD(scheduled_at, INTERVAL COALESCE(duration_minutes, 30) MINUTE) > ?',
                 [$proposedStart],
             )
             ->exists();
