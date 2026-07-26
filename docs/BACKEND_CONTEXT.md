@@ -1,6 +1,14 @@
 # POCMS Backend — Context Document
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
+>
+> **Stabilization warning (2026-07-26):** This document still describes the
+> superseded customer/Order/Billing workflow in several sections and is not a
+> release-ready account of the current target system. The measured baseline is
+> 973 tests with 15 failures and 65 errors. Use the approved clinic workflow
+> stabilization specification and its Task 1 manifest for implementation
+> decisions until Task 26 rewrites this document from verified route and schema
+> evidence.
 
 ---
 

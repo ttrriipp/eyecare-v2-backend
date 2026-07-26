@@ -72,6 +72,15 @@ while a receptionist may perform non-clinical operational work.
     fully replaced; no production-data backfill is required.
 20. The physical patient folder contains the custom Patient Health Record, the
     finalized prescription, and the autorefractor machine's paper result.
+21. The web panel presents the clinic's Patient Health Record as one cohesive
+    workspace containing appointment type, referral source when applicable,
+    patient information, complaints, and medical history. The workspace
+    composes Appointment and Intake data without merging their persistence.
+22. Preferred-optometrist requests are excluded from the initial redesign.
+    Patients choose a clinic slot, and the clinic controls the actual
+    optometrist assignment.
+23. Optometrist-capable admin/staff users inherit the receptionist's normal
+    operational capabilities in addition to their clinical capabilities.
 
 ## Objective
 
@@ -351,6 +360,15 @@ Check-in changes the appointment to `arrived` and creates the encounter
 transactionally. Completing the encounter completes the appointment. A
 cancelled or no-show appointment never creates an encounter.
 
+The primary Filament entry point is `Appointments -> Today's Queue -> Check In`,
+with the same action available in the Appointment detail header. It is shown
+only for an eligible pending or confirmed appointment. Its confirmation modal
+shows the patient, appointment type, verified-intake status, a link to the
+combined Patient Health Record, and the clinic-controlled optometrist
+assignment. A successful action moves the appointment to `arrived`, creates
+exactly one waiting Encounter, and exposes `Open Encounter`. The generic
+`Mark Arrived` status mutation must not remain as a bypass.
+
 ### Clinic and Provider Availability
 
 Scheduling requires database-managed configuration for:
@@ -407,6 +425,27 @@ the historical snapshot.
 Sensitive history fields must use encrypted storage columns. Because encrypted
 values are not queryable, the system must not promise full-text search across
 complaints or medical history.
+
+#### Combined Patient Health Record Workspace
+
+The Filament panel provides one Patient Health Record workspace matching the
+clinic's familiar paper record. It composes:
+
+- appointment type and the referring person/source when applicable from the
+  Appointment;
+- the patient demographic snapshot from the Intake;
+- chief complaint, ocular and surgical history, medical history, allergies,
+  and medications from the Intake.
+
+This is a presentation boundary, not a denormalized database record.
+Appointment, Intake, and Encounter remain separate domain models. The workspace
+must not duplicate appointment type as independently editable free text.
+
+Optometrist-capable users can view the complete Patient Health Record and
+navigate to the related Encounter and Prescription. Non-optometrist staff may
+access patient-supplied intake only when needed to collect or verify the form;
+they cannot see or author optometrist-only findings, prescription values, or
+amendments. Access and changes to sensitive intake data are audited.
 
 ### Encounters
 
@@ -803,7 +842,8 @@ The mobile app must not:
 This redesign is intentionally incompatible with the current customer-ordering
 contract. The system is not deployed, so no compatibility window or second
 live API is required. Introduce `/api/v1` as the single stable patient API and
-update the Android client in the same implementation program.
+update the separate Android client in a later product-integration program
+before release. The Android repository location is not yet known.
 
 Target resource surface:
 
@@ -932,11 +972,10 @@ Layout:
 5. Bottom-right practitioner signature, printed optometrist name, license
    number, and stamp area.
 
-`CX` must remain a neutral printed label until an optometrist confirms its
-clinical meaning. The implementation must not silently map it to cylinder,
-axis, or a composed value. The canonical digital prescription may retain
-separate standard fields, but the print binding for `CX` is blocked until that
-mapping is approved.
+The clinic confirmed on 2026-07-26 that `CX` means cylinder. The prescription
+print therefore binds the O.D. and O.S. `CX` cells to their corresponding
+cylinder values. Axis remains a separate value when used and must not be
+combined into `CX`.
 
 ### Invoice Copy
 
@@ -1143,7 +1182,7 @@ numbers, and messages must be clearly fictional and reserved for development.
 ### API Replacement
 
 1. Define and test the `/api/v1` patient contract.
-2. Update the Android client contract in lockstep.
+2. Update the separate Android client contract before product release.
 3. Remove direct patient-order creation and cancellation routes.
 4. Remove old order-request validation, notifications, tests, and documentation
    only after replacement reservation/job-order flows are covered.
@@ -1420,11 +1459,9 @@ programmatically demonstrated:
 These do not change the approved domain direction, but the relevant
 implementation or production-launch slice cannot close until each is answered.
 
-1. Does the prescription form's `CX` label mean cylinder, axis, a combined
-   cylinder/axis notation, or another clinic-specific value?
-2. Who will serve as the clinic's Data Protection Officer and own privacy
+1. Who will serve as the clinic's Data Protection Officer and own privacy
    requests, incident decisions, and NPC coordination?
-3. What retention periods and lawful bases will the clinic approve for each
+2. What retention periods and lawful bases will the clinic approve for each
    category of health, appointment, financial, communication, audit, backup,
    and physical-folder data?
 
@@ -1451,5 +1488,4 @@ Before moving to implementation planning:
 - [x] Patient/account separation and fresh-seed direction are approved.
 - [x] Invoice boundary with the physical booklet is approved.
 - [x] Success criteria are considered testable and complete.
-- [x] Remaining print-layout and privacy-governance questions are assigned for
-      clinic follow-up.
+- [x] Remaining privacy-governance questions are assigned for clinic follow-up.

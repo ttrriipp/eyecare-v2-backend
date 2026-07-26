@@ -232,8 +232,8 @@ Checkpoint:
 - route and text scans find no unintended customer/direct-order/legacy-billing
   surface;
 - privacy, authorization, audit, backup/restore, and launch checklists pass;
-- DPO identity, PIA approval, retention schedule, and unresolved optical-field
-  terminology are resolved before production deployment.
+- DPO identity, PIA approval, and the retention schedule are resolved before
+  production deployment.
 
 ## Verification Cadence
 

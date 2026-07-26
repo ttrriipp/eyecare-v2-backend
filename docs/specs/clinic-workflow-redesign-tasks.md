@@ -505,8 +505,8 @@ autorefractor paper result, and add authorized A5/A4 print routes.
 - [x] Health Record renders A5 landscape and Prescription A5 portrait, with A4
       fallback styles.
 - [x] Raw autorefractor output is not uploaded, only paper presence is tracked,
-      and prescription `CX` remains neutral until the clinic approves its
-      binding.
+      and prescription `CX` binds to the corresponding cylinder value while
+      keeping axis separate.
 
 **Verification:**
 
@@ -1235,11 +1235,15 @@ privacy, recovery, and browser release checks.
 
 **Acceptance criteria:**
 
-- [x] Full suite, Pint, assets, fresh seed, browser journeys, and backup restore
+- [ ] Full suite, Pint, assets, fresh seed, browser journeys, and backup restore
       pass.
-- [x] The implemented context and route/schema inventories match the system.
-- [x] Production remains blocked until DPO, PIA, retention, and `CX` decisions
-      are formally resolved.
+- [ ] The implemented context and route/schema inventories match the system.
+- [x] Production remains blocked until DPO, PIA, and retention decisions are
+      formally resolved.
+
+**Status:** Reopened on 2026-07-26 by stabilization Task 1. The measured
+baseline is 973 tests with 15 failures and 65 errors, and the route/schema
+inventories still expose the parallel legacy workflow.
 
 **Verification:**
 
@@ -1261,12 +1265,15 @@ vendor/bin/sail artisan migrate:fresh --seed --no-interaction
 
 ### Checkpoint 8: Release readiness
 
-- [x] Every specification success criterion has evidence.
-- [x] Full Pest suite, Pint, production build, fresh seed, and browser checks
+- [ ] Every specification success criterion has evidence.
+- [ ] Full Pest suite, Pint, production build, fresh seed, and browser checks
       pass.
 - [x] Backup restoration and incident workflow are demonstrated.
-- [x] No obsolete parallel workflow remains.
+- [ ] No obsolete parallel workflow remains.
 - [x] Clinic governance approval is recorded before deployment.
+
+**Status:** Reopened on 2026-07-26. It may be completed only after stabilization
+Task 26 records fresh evidence.
 
 ## Parallelization Guidance
 
