@@ -421,9 +421,9 @@ reports, models, factories, and tests without removing canonical consumers.
 
 **Acceptance criteria:**
 
-- [ ] Each manifest batch deletes at most five files.
-- [ ] Replacement-focused tests pass before and after every batch.
-- [ ] No compatibility alias or dead navigation remains.
+- [x] Each manifest batch deletes at most five files.
+- [x] Replacement-focused tests pass before and after every batch.
+- [x] No compatibility alias or dead navigation remains.
 
 **Verification:** Run consumer scans plus the relevant Filament, notification,
 report, factory, and canonical domain suites for each batch.
