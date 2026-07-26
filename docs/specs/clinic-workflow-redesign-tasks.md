@@ -1023,10 +1023,10 @@ fulfillment work while hiding optometrist-only controls from receptionists.
 
 **Acceptance criteria:**
 
-- [ ] Dashboard prioritizes appointments, encounters, quotations, job orders,
+- [x] Dashboard prioritizes appointments, encounters, quotations, job orders,
       dispensing, and exceptions.
-- [ ] Receptionist navigation/actions match non-clinical permissions.
-- [ ] Obsolete Order/Billing/Feedback navigation and reports are gone.
+- [x] Receptionist navigation/actions match non-clinical permissions.
+- [x] Obsolete Order/Billing/Feedback navigation and reports are gone.
 
 **Verification:**
 

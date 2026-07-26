@@ -26,6 +26,8 @@ class InvoiceResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);

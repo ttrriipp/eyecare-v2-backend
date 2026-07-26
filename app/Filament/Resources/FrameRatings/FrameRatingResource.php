@@ -26,6 +26,8 @@ class FrameRatingResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Communication';
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);

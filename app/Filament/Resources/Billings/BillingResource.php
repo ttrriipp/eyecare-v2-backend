@@ -27,7 +27,7 @@ class BillingResource extends Resource
 
     protected static ?int $navigationSort = 11;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
+    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     public static function getEloquentQuery(): Builder
     {

@@ -5,8 +5,8 @@ namespace App\Providers\Filament;
 use App\Filament\AvatarProviders\BrandAvatarProvider;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\AppointmentsChartWidget;
-use App\Filament\Widgets\RecentFeedbackWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
+use App\Filament\Widgets\TodaysScheduleWidget;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -48,8 +48,9 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->navigationGroups([
-                'Orders & Billing',
-                'Products & Inventory',
+                'Patients & Clinical',
+                'Fulfillment & Finance',
+                'Catalog & Inventory',
                 'Communication',
                 'Reports',
                 'Administration',
@@ -61,8 +62,8 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 StatsOverviewWidget::class,
+                TodaysScheduleWidget::class,
                 AppointmentsChartWidget::class,
-                RecentFeedbackWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

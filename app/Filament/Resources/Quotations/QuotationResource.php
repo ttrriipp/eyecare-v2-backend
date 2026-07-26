@@ -26,6 +26,8 @@ class QuotationResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);

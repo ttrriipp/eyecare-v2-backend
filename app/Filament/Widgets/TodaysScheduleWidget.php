@@ -2,8 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\JobOrderStatus;
 use App\Models\Appointment;
-use App\Models\Order;
+use App\Models\JobOrder;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -16,14 +17,14 @@ class TodaysScheduleWidget extends TableWidget
 
     public function getHeading(): string
     {
-        $pickupCount = Order::query()
-            ->whereHas('status', fn ($q) => $q->where('name', 'ready_for_pickup'))
+        $readyCount = JobOrder::query()
+            ->where('status', JobOrderStatus::ReadyForDispensing)
             ->count();
 
         $heading = "Today's Schedule";
 
-        if ($pickupCount > 0) {
-            $heading .= " · {$pickupCount} order".($pickupCount > 1 ? 's' : '').' ready for pickup';
+        if ($readyCount > 0) {
+            $heading .= " · {$readyCount} job order".($readyCount > 1 ? 's' : '').' ready for dispensing';
         }
 
         return $heading;
@@ -34,7 +35,7 @@ class TodaysScheduleWidget extends TableWidget
         return $table
             ->query(
                 Appointment::query()
-                    ->with(['customer', 'visitReason', 'status'])
+                    ->with(['patient', 'visitReason', 'status'])
                     ->whereDate('scheduled_at', today())
                     ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived']))
                     ->orderBy('scheduled_at')
@@ -45,9 +46,9 @@ class TodaysScheduleWidget extends TableWidget
                 TextColumn::make('scheduled_at')
                     ->label('Time')
                     ->time('g:i A'),
-                TextColumn::make('customer.name')
+                TextColumn::make('patient.full_name')
                     ->label('Patient'),
-                TextColumn::make('customer.phone')
+                TextColumn::make('patient.phone')
                     ->label('Phone')
                     ->default('—'),
                 TextColumn::make('visitReason.name')

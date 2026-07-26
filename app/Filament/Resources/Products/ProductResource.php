@@ -27,7 +27,7 @@ class ProductResource extends Resource
 
     protected static ?int $navigationSort = 20;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Products & Inventory';
+    protected static string|UnitEnum|null $navigationGroup = 'Catalog & Inventory';
 
     protected static bool $isGloballySearchable = true;
 

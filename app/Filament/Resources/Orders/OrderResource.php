@@ -26,7 +26,7 @@ class OrderResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Orders & Billing';
+    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     protected static bool $isGloballySearchable = true;
 
