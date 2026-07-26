@@ -599,9 +599,9 @@ controllers or tests from the manifest.
 
 ### Checkpoint E
 
-- [ ] The exact `/api/v1` allow-list and deny-list pass.
-- [ ] Cross-patient isolation passes for every resource family.
-- [ ] No patient API creates Orders, Job Orders, Invoices, or payments.
+- [x] The exact `/api/v1` allow-list and deny-list pass.
+- [x] Cross-patient isolation passes for every resource family.
+- [x] No patient API creates Orders, Job Orders, Invoices, or payments.
 
 ## Phase F: Release Evidence
 
