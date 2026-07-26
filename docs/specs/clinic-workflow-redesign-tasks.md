@@ -1224,9 +1224,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Privacy/PrivacyIncidentTest
 
 ### Checkpoint 8C: Privacy governance workflows
 
-- [ ] Tasks 37–39 focused tests pass.
-- [ ] Rights, retention/hold, and incident records are policy-protected.
-- [ ] No automatic purge or external breach notification is enabled.
+- [x] Tasks 37–39 focused tests pass.
+- [x] Rights, retention/hold, and incident records are policy-protected.
+- [x] No automatic purge or external breach notification is enabled.
 
 ### Task 40: Complete release validation
 
