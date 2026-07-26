@@ -517,9 +517,9 @@ appointment and prevent editing verified snapshots.
 
 **Acceptance criteria:**
 
-- [ ] Each appointment exposes only its own Patient Health Record draft.
-- [ ] Appointment type/referral comes from Appointment rather than free text.
-- [ ] Submitted/verified records obey ownership and immutability rules.
+- [x] Each appointment exposes only its own Patient Health Record draft.
+- [x] Appointment type/referral comes from Appointment rather than free text.
+- [x] Submitted/verified records obey ownership and immutability rules.
 
 **Verification:** Run versioned intake contract, ownership, validation, and
 immutability tests.

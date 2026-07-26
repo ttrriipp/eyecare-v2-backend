@@ -57,8 +57,8 @@ class PatientIntakeController extends Controller
 
         abort_unless($patient !== null && $intake->patient_id === $patient->id, 403);
 
-        if ($intake->status === IntakeStatus::Verified) {
-            return response()->json(['message' => 'Verified intakes cannot be edited.'], 422);
+        if ($intake->status !== IntakeStatus::Draft) {
+            return response()->json(['message' => 'Only draft intakes can be edited.'], 422);
         }
 
         $intake->update($request->validated());
