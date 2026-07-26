@@ -633,10 +633,10 @@ claims.
 
 **Acceptance criteria:**
 
-- [ ] Backup dump/restore evidence uses non-sensitive test data.
-- [ ] Fresh seed, zero-failure full suite, Pint, production build, route/schema
+- [x] Backup dump/restore evidence uses non-sensitive test data.
+- [x] Fresh seed, zero-failure full suite, Pint, production build, route/schema
       scans, and both clinic browser journeys pass.
-- [ ] `BACKEND_CONTEXT.md`, Task 40, and Checkpoint 8 report only verified
+- [x] `BACKEND_CONTEXT.md`, Task 40, and Checkpoint 8 report only verified
       implementation evidence.
 
 **Verification:** Execute every named command from the stabilization
