@@ -83,7 +83,7 @@
             <tr>
                 <th class="left" style="width: 30%;">Eye</th>
                 <th>Sphere (SPH)</th>
-                <th>Cylinder (CYL)</th>
+                <th>CX</th>
                 <th>Axis</th>
                 <th>Add</th>
                 <th>Prism</th>

@@ -13,8 +13,12 @@ class PrescriptionController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null, 404);
+
         $prescriptions = Prescription::query()
-            ->where('customer_id', $request->user()->id)
+            ->where('patient_id', $patient->id)
             ->latest('prescribed_at')
             ->get();
 
@@ -23,7 +27,9 @@ class PrescriptionController extends Controller
 
     public function show(Request $request, Prescription $prescription): JsonResponse
     {
-        abort_unless($prescription->customer_id === $request->user()->id, 404);
+        $patient = $request->user()->patient;
+
+        abort_unless($patient !== null && $prescription->patient_id === $patient->id, 404);
 
         return response()->json([
             'data' => PrescriptionResource::make($prescription),

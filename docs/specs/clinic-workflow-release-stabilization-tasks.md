@@ -210,9 +210,9 @@ bind printed `CX` to cylinder while retaining axis separately.
 
 **Acceptance criteria:**
 
-- [ ] No retained prescription query uses `customer_id`.
-- [ ] Only optometrist-capable users finalize or amend prescriptions.
-- [ ] Print tests prove OD/OS `CX` uses cylinder, not axis.
+- [x] No retained prescription query uses `customer_id`.
+- [x] Only optometrist-capable users finalize or amend prescriptions.
+- [x] Print tests prove OD/OS `CX` uses cylinder, not axis.
 
 **Verification:** Run prescription lifecycle, authorization, and PDF/print
 tests.
