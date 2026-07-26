@@ -612,9 +612,9 @@ journey, patient isolation, and receptionist/optometrist capability boundaries.
 
 **Acceptance criteria:**
 
-- [ ] Both journeys cover appointment through dispensing.
-- [ ] Check In creates the Encounter and the combined health record is used.
-- [ ] Patient and receptionist negative authorization assertions pass.
+- [x] Both journeys cover appointment through dispensing.
+- [x] Check In creates the Encounter and the combined health record is used.
+- [x] Patient and receptionist negative authorization assertions pass.
 
 **Verification:** Run focused end-to-end and privacy/capability feature suites.
 
