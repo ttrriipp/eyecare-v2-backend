@@ -53,13 +53,13 @@ class InventoryMovementsTable
                     ->label('By')
                     ->placeholder('System')
                     ->toggleable(),
-                TextColumn::make('order.order_number')
-                    ->label('Order')
+                TextColumn::make('jobOrder.job_order_number')
+                    ->label('Job Order')
                     ->placeholder('—')
-                    ->url(fn (InventoryMovement $record): ?string => $record->order_id
-                        ? route('filament.admin.resources.orders.edit', $record->order_id)
-                        : null
-                    )
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('reservation.id')
+                    ->label('Reservation')
+                    ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('notes')
                     ->label('Notes')

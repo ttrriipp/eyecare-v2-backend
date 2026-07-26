@@ -348,9 +348,9 @@ replenishment UI while using reservation/Job Order terminology and sources.
 
 **Acceptance criteria:**
 
-- [ ] Movement history links only canonical sources.
-- [ ] Available/allocated/physical quantities are labelled unambiguously.
-- [ ] Adjustment and low-stock behavior continues to pass.
+- [x] Movement history links only canonical sources.
+- [x] Available/allocated/physical quantities are labelled unambiguously.
+- [x] Adjustment and low-stock behavior continues to pass.
 
 **Verification:** Run Filament inventory, adjustment, movement-history, and
 low-stock tests.
