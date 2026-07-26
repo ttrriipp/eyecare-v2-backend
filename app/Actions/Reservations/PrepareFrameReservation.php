@@ -4,6 +4,8 @@ namespace App\Actions\Reservations;
 
 use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
+use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +23,9 @@ class PrepareFrameReservation
         return DB::transaction(function () use ($reservation): FrameReservation {
             $reservation->load('items');
 
+            $allocationType = InventoryMovementType::query()
+                ->firstOrCreate(['name' => 'reservation_allocation']);
+
             // Allocate stock for each item under a row lock
             foreach ($reservation->items as $item) {
                 $variant = ProductVariant::query()
@@ -34,7 +39,20 @@ class PrepareFrameReservation
                     ]);
                 }
 
+                $previousStock = $variant->stock_quantity;
                 $variant->decrement('stock_quantity');
+
+                // Record inventory movement
+                InventoryMovement::query()->create([
+                    'product_variant_id' => $variant->id,
+                    'reservation_id' => $reservation->id,
+                    'inventory_movement_type_id' => $allocationType->id,
+                    'quantity_change' => -1,
+                    'previous_stock' => $previousStock,
+                    'new_stock' => $variant->fresh()->stock_quantity,
+                    'created_by' => auth()->id(),
+                    'notes' => "Allocation for reservation #{$reservation->id}",
+                ]);
             }
 
             $reservation->update(['status' => ReservationStatus::Prepared]);

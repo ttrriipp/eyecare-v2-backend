@@ -306,9 +306,9 @@ reservations allocate/release stock exactly once.
 
 **Acceptance criteria:**
 
-- [ ] Preparation locks records and creates one allocation per selected frame.
-- [ ] Cancellation, expiry, appointment cancellation, and no-show release once.
-- [ ] The scheduled expiry command is idempotent and respects clinic closing.
+- [x] Preparation locks records and creates one allocation per selected frame.
+- [x] Cancellation, expiry, appointment cancellation, and no-show release once.
+- [x] The scheduled expiry command is idempotent and respects clinic closing.
 
 **Verification:** Run reservation lifecycle, scheduler, rollback, and concurrent
 request tests.
