@@ -401,9 +401,9 @@ and their exclusive controllers/requests/tests using the Task 1 batch manifest.
 
 **Acceptance criteria:**
 
-- [ ] No Order, checkout, or purchase route remains.
-- [ ] Each deletion batch contains at most five exact files.
-- [ ] Route and consumer scans are clean after every batch.
+- [x] No Order, checkout, or purchase route remains.
+- [x] Each deletion batch contains at most five exact files.
+- [x] Route and consumer scans are clean after every batch.
 
 **Verification:** Run the exact route contract and affected API suites after
 each batch.
