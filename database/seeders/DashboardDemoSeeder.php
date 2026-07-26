@@ -4,14 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
-use App\Models\Billing;
-use App\Models\BillingStatus;
-use App\Models\Payment;
-use App\Models\PaymentMethod;
-use App\Models\PaymentStatus;
-use App\Models\Role;
+use App\Models\AppointmentType;
+use App\Models\Invoice;
+use App\Models\InvoicePayment;
+use App\Models\Patient;
 use App\Models\User;
-use App\Models\VisitReason;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 
@@ -25,8 +22,8 @@ use Illuminate\Support\Carbon;
  *   vendor/bin/sail artisan db:seed --class=DashboardDemoSeeder
  *
  * Idempotent: re-running skips records it has already created. Prerequisites
- * (statuses, visit reasons, payment methods, a staff user) come from the base
- * seeders, so run `db:seed` first if the database is empty.
+ * (statuses, appointment types, a staff user) come from the base seeders, so
+ * run `db:seed` first if the database is empty.
  */
 class DashboardDemoSeeder extends Seeder
 {
@@ -47,18 +44,17 @@ class DashboardDemoSeeder extends Seeder
         }
 
         $statusIds = AppointmentStatus::query()->pluck('id', 'name');
-        $visitReasonIds = VisitReason::query()->pluck('id')->all();
+        $appointmentTypeIds = AppointmentType::query()->pluck('id')->all();
 
-        if ($statusIds->isEmpty() || $visitReasonIds === []) {
+        if ($statusIds->isEmpty() || $appointmentTypeIds === []) {
             return;
         }
 
-        $customerIds = $this->customerPool(12);
+        $patientIds = $this->patientPool(12);
         $staffId = User::query()
             ->whereHas('role', fn ($query) => $query->where('name', 'staff'))
             ->value('id');
 
-        // 30 days of history through a week of upcoming bookings.
         for ($offset = -30; $offset <= 7; $offset++) {
             $date = today()->addDays($offset);
             $count = $date->isWeekend() ? fake()->numberBetween(0, 3) : fake()->numberBetween(3, 8);
@@ -68,9 +64,9 @@ class DashboardDemoSeeder extends Seeder
 
                 Appointment::query()->create([
                     'appointment_number' => Appointment::generateAppointmentNumber(),
-                    'customer_id' => fake()->randomElement($customerIds),
+                    'patient_id' => fake()->randomElement($patientIds),
                     'created_by' => $staffId,
-                    'visit_reason_id' => fake()->randomElement($visitReasonIds),
+                    'appointment_type_id' => fake()->randomElement($appointmentTypeIds),
                     'appointment_status_id' => $statusIds[$statusName] ?? $statusIds->first(),
                     'scheduled_at' => $date->copy()->setTime(
                         fake()->numberBetween(9, 16),
@@ -97,22 +93,21 @@ class DashboardDemoSeeder extends Seeder
 
     private function seedRevenue(): void
     {
-        if (Payment::query()->where('reference_number', 'like', self::PAYMENT_REFERENCE_PREFIX.'%')->exists()) {
+        if (InvoicePayment::query()->where('reference_number', 'like', self::PAYMENT_REFERENCE_PREFIX.'%')->exists()) {
             return;
         }
 
-        $paidStatusId = BillingStatus::query()->where('name', 'paid')->value('id');
-        $postedStatusId = PaymentStatus::query()->where('name', 'posted')->value('id');
-        $paymentMethodId = PaymentMethod::query()->value('id');
+        $patientIds = $this->patientPool(12);
+        $staffId = User::query()
+            ->whereHas('role', fn ($query) => $query->where('name', 'staff'))
+            ->value('id');
 
-        if (! $paidStatusId || ! $postedStatusId || ! $paymentMethodId) {
+        if (! $staffId) {
             return;
         }
 
-        $customerIds = $this->customerPool(12);
         $sequence = 1;
 
-        // Two months of sales so "this month vs last month" reads meaningfully.
         for ($offset = -60; $offset <= 0; $offset++) {
             $date = today()->addDays($offset);
             $sales = $date->isWeekend() ? fake()->numberBetween(0, 2) : fake()->numberBetween(1, 4);
@@ -121,23 +116,24 @@ class DashboardDemoSeeder extends Seeder
                 $amount = (float) fake()->randomElement([600, 850, 1200, 1500, 1800, 2500, 3200, 4500]);
                 $paidAt = $date->copy()->setTime(fake()->numberBetween(9, 17), fake()->randomElement([0, 30]));
 
-                $billing = Billing::query()->create([
-                    'customer_id' => fake()->randomElement($customerIds),
-                    'billing_status_id' => $paidStatusId,
+                $invoice = Invoice::query()->create([
+                    'patient_id' => fake()->randomElement($patientIds),
+                    'status' => 'paid',
                     'subtotal' => $amount,
-                    'total_amount' => $amount,
+                    'total' => $amount,
                     'amount_paid' => $amount,
                     'balance_due' => 0,
                     'issued_at' => $paidAt,
                 ]);
 
-                Payment::query()->create([
-                    'billing_id' => $billing->id,
-                    'payment_status_id' => $postedStatusId,
-                    'payment_method_id' => $paymentMethodId,
+                InvoicePayment::query()->create([
+                    'invoice_id' => $invoice->id,
+                    'status' => 'posted',
+                    'payment_method' => fake()->randomElement(['Cash', 'GCash', 'Bank Transfer']),
                     'amount' => $amount,
                     'reference_number' => self::PAYMENT_REFERENCE_PREFIX.str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
-                    'paid_at' => $paidAt,
+                    'recorded_by' => $staffId,
+                    'recorded_at' => $paidAt,
                 ]);
 
                 $sequence++;
@@ -148,22 +144,16 @@ class DashboardDemoSeeder extends Seeder
     /**
      * @return list<int>
      */
-    private function customerPool(int $minimum): array
+    private function patientPool(int $minimum): array
     {
-        $patientRoleId = Role::query()->where('name', 'patient')->value('id');
-
-        $existing = User::query()
-            ->when($patientRoleId, fn ($query) => $query->where('role_id', $patientRoleId))
-            ->pluck('id')
-            ->all();
+        $existing = Patient::query()->pluck('id')->all();
 
         if (count($existing) >= $minimum) {
             return $existing;
         }
 
-        $created = User::factory()
+        $created = Patient::factory()
             ->count($minimum - count($existing))
-            ->customer()
             ->create()
             ->pluck('id')
             ->all();

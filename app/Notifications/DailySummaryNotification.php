@@ -13,8 +13,8 @@ class DailySummaryNotification extends Notification
     public function __construct(
         public int $completedAppointments,
         public string $revenue,
-        public int $newOrders,
-        public int $pendingOrders,
+        public int $newJobOrders,
+        public int $pendingJobOrders,
     ) {}
 
     /** @return list<string> */
@@ -31,11 +31,11 @@ class DailySummaryNotification extends Notification
             ->iconColor('primary')
             ->title('Daily Clinic Summary')
             ->body(sprintf(
-                "Appointments completed: %d\nRevenue collected: ₱%s\nNew orders: %d\nPending orders: %d",
+                "Appointments completed: %d\nRevenue collected: ₱%s\nNew job orders: %d\nPending job orders: %d",
                 $this->completedAppointments,
                 number_format((float) $this->revenue, 2),
-                $this->newOrders,
-                $this->pendingOrders,
+                $this->newJobOrders,
+                $this->pendingJobOrders,
             ))
             ->getDatabaseMessage();
     }
