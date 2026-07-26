@@ -166,10 +166,10 @@ underlying records.
 
 **Acceptance criteria:**
 
-- [ ] Optometrists see the complete Patient Health Record and related clinical
+- [x] Optometrists see the complete Patient Health Record and related clinical
       navigation.
-- [ ] Receptionist access is limited to collection/verification needs.
-- [ ] Clinical findings and prescriptions remain separately capability-gated.
+- [x] Receptionist access is limited to collection/verification needs.
+- [x] Clinical findings and prescriptions remain separately capability-gated.
 
 **Verification:** Run optometrist and receptionist Livewire tests for every
 displayed/hidden section.

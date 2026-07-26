@@ -61,6 +61,11 @@ class EditAppointment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('healthRecord')
+                ->label('Health Record')
+                ->icon('heroicon-o-document-text')
+                ->color('info')
+                ->url(fn (): string => AppointmentResource::getUrl('health-record', ['record' => $this->getRecord()])),
             Action::make('reschedule')
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')

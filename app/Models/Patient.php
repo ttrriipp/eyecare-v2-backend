@@ -83,6 +83,14 @@ class Patient extends Model
     }
 
     /**
+     * @return HasMany<PatientIntake, $this>
+     */
+    public function intakes(): HasMany
+    {
+        return $this->hasMany(PatientIntake::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

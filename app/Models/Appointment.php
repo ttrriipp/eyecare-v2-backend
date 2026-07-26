@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -136,6 +137,22 @@ class Appointment extends Model implements Eventable
     public function appointmentType(): BelongsTo
     {
         return $this->belongsTo(AppointmentType::class);
+    }
+
+    /**
+     * @return HasOne<PatientIntake, $this>
+     */
+    public function intake(): HasOne
+    {
+        return $this->hasOne(PatientIntake::class);
+    }
+
+    /**
+     * @return HasMany<Encounter, $this>
+     */
+    public function encounters(): HasMany
+    {
+        return $this->hasMany(Encounter::class);
     }
 
     /**
