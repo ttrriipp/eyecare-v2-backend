@@ -132,7 +132,7 @@ class EditAppointment extends EditRecord
                 $record->update($data);
             }
 
-            return $record->fresh(['visitReason', 'status', 'patient', 'optometrist']);
+            return $record->fresh(['appointmentType', 'status', 'patient', 'optometrist']);
         }
 
         $record->update($data);

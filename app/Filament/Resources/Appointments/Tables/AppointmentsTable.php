@@ -46,8 +46,8 @@ class AppointmentsTable
                 TextColumn::make('patient.full_name')
                     ->label('Patient')
                     ->searchable(),
-                TextColumn::make('visitReason.name')
-                    ->label('Visit reason'),
+                TextColumn::make('appointmentType.name')
+                    ->label('Appointment Type'),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()
