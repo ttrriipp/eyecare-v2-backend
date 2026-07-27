@@ -8,15 +8,16 @@ use App\Models\ClinicHour;
 use App\Models\ProviderHour;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
 
@@ -116,28 +117,6 @@ class Availability extends Page
         ];
     }
 
-    public function getClinicHours(): array
-    {
-        $result = [];
-        foreach ($this->getWeekdays() as $day => $name) {
-            $hour = $this->clinicHours[$day] ?? ['enabled' => true, 'open_time' => '09:00', 'close_time' => '17:00'];
-            $result[$day] = array_merge($hour, ['name' => $name]);
-        }
-
-        return $result;
-    }
-
-    public function getProviderHours(): array
-    {
-        $result = [];
-        foreach ($this->getWeekdays() as $day => $name) {
-            $hour = $this->providerHours[$day] ?? ['enabled' => false, 'start_time' => '09:00', 'end_time' => '17:00'];
-            $result[$day] = array_merge($hour, ['name' => $name]);
-        }
-
-        return $result;
-    }
-
     public function getOptometrists(): array
     {
         return User::query()
@@ -147,19 +126,16 @@ class Availability extends Page
             ->toArray();
     }
 
-    public function getClinicHoursForm(Form $form): Form
+    public function content(Schema $schema): Schema
     {
         $weekdays = $this->getWeekdays();
 
-        return $form->schema([
+        return $schema->components([
             Section::make('Clinic Hours')
                 ->description('Set the clinic\'s operating hours for each day of the week.')
                 ->schema(array_map(fn (int $day, string $name) => Grid::make(4)->schema([
                     Toggle::make("clinicHours.{$day}.enabled")
-                        ->label($name)
-                        ->afterStateUpdated(function ($state) use ($day) {
-                            $this->clinicHours[$day]['enabled'] = $state;
-                        }),
+                        ->label($name),
                     TimePicker::make("clinicHours.{$day}.open_time")
                         ->label('Open')
                         ->seconds(false)
@@ -169,41 +145,45 @@ class Availability extends Page
                         ->label('Close')
                         ->seconds(false)
                         ->visible(fn () => $this->clinicHours[$day]['enabled'] ?? true),
-                ]), array_keys($weekdays), $weekdays)),
-        ]);
-    }
-
-    public function getProviderHoursForm(Form $form): Form
-    {
-        $weekdays = $this->getWeekdays();
-
-        return $form->schema([
-            Select::make('selectedOptometristId')
-                ->label('Optometrist')
-                ->options($this->getOptometrists())
-                ->searchable()
-                ->preload()
-                ->live()
-                ->afterStateUpdated(fn () => $this->loadProviderHours()),
-            Section::make('Provider Hours')
-                ->description('Set individual optometrist availability. Hours must fit within clinic hours.')
-                ->schema(array_map(fn (int $day, string $name) => Grid::make(4)->schema([
-                    Toggle::make("providerHours.{$day}.enabled")
-                        ->label($name)
-                        ->afterStateUpdated(function ($state) use ($day) {
-                            $this->providerHours[$day]['enabled'] = $state;
-                        }),
-                    TimePicker::make("providerHours.{$day}.start_time")
-                        ->label('Start')
-                        ->seconds(false)
-                        ->visible(fn () => $this->providerHours[$day]['enabled'] ?? false),
-                    Placeholder::make("provider_hours_spacer_{$day}")->label(''),
-                    TimePicker::make("providerHours.{$day}.end_time")
-                        ->label('End')
-                        ->seconds(false)
-                        ->visible(fn () => $this->providerHours[$day]['enabled'] ?? false),
                 ]), array_keys($weekdays), $weekdays))
-                ->visible(fn () => filled($this->selectedOptometristId)),
+                ->footer([
+                    Action::make('saveClinicHours')
+                        ->label('Save Clinic Hours')
+                        ->action('saveClinicHours'),
+                ]),
+
+            Section::make('Optometrist Hours')
+                ->description('Set individual optometrist availability. Hours must fit within clinic hours.')
+                ->schema([
+                    Select::make('selectedOptometristId')
+                        ->label('Optometrist')
+                        ->options($this->getOptometrists())
+                        ->searchable()
+                        ->preload()
+                        ->live()
+                        ->afterStateUpdated(fn () => $this->loadProviderHours()),
+                    Grid::make(4)->schema(
+                        collect($weekdays)->flatMap(fn (string $name, int $day) => [
+                            Toggle::make("providerHours.{$day}.enabled")
+                                ->label($name),
+                            TimePicker::make("providerHours.{$day}.start_time")
+                                ->label('Start')
+                                ->seconds(false)
+                                ->visible(fn () => $this->providerHours[$day]['enabled'] ?? false),
+                            Placeholder::make("provider_hours_spacer_{$day}")->label(''),
+                            TimePicker::make("providerHours.{$day}.end_time")
+                                ->label('End')
+                                ->seconds(false)
+                                ->visible(fn () => $this->providerHours[$day]['enabled'] ?? false),
+                        ])->toArray(),
+                    ),
+                ])
+                ->visible(fn () => filled($this->selectedOptometristId))
+                ->footer([
+                    Action::make('saveProviderHours')
+                        ->label('Save Provider Hours')
+                        ->action('saveProviderHours'),
+                ]),
         ]);
     }
 
