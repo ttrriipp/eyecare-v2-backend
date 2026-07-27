@@ -15,6 +15,7 @@ beforeEach(function () {
     Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(AppointmentStatusSeeder::class);
     $this->optometrist = User::factory()->optometrist()->create();
+    // Provider hours are automatically created by the optometrist factory state
 });
 
 afterEach(fn () => Carbon::setTestNow());

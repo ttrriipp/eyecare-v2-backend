@@ -42,7 +42,7 @@ class ListAvailableAppointmentSlots
             endsAt: $closingTime,
             ignoreAppointment: $ignoreAppointment,
         );
-        $capacity = $this->evaluateAppointmentAvailability->eligibleOptometristCapacity($date);
+        $capacity = $this->evaluateAppointmentAvailability->eligibleOptometristCapacity($slot, $closingTime);
 
         while ($slot->copy()->addMinutes($durationMinutes)->lte($closingTime)) {
             $slots[] = $this->evaluateAppointmentAvailability->handle(

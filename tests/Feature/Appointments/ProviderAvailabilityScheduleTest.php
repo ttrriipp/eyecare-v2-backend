@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Appointments\EvaluateAppointmentAvailability;
-use App\Models\ProviderHour;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -23,22 +22,7 @@ beforeEach(function () {
 test('slot exists only when at least one optometrist covers its duration', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
-
-    ProviderHour::factory()->create([
-        'user_id' => $opt1->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '17:00',
-        'enabled' => true,
-    ]);
-
-    ProviderHour::factory()->create([
-        'user_id' => $opt2->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '17:00',
-        'enabled' => true,
-    ]);
+    // Provider hours are automatically created by the optometrist factory state
 
     $date = Carbon::now()->next('monday');
 
@@ -51,24 +35,9 @@ test('slot exists only when at least one optometrist covers its duration', funct
 test('absence removes only the affected capacity', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
+    // Provider hours are automatically created by the optometrist factory state
 
     $date = Carbon::now()->next('monday');
-
-    ProviderHour::factory()->create([
-        'user_id' => $opt1->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '17:00',
-        'enabled' => true,
-    ]);
-
-    ProviderHour::factory()->create([
-        'user_id' => $opt2->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '17:00',
-        'enabled' => true,
-    ]);
 
     ScheduleOverride::factory()->create([
         'user_id' => $opt2->id,
@@ -85,24 +54,12 @@ test('absence removes only the affected capacity', function () {
 test('shortened provider availability removes only affected capacity', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
+    // Provider hours are automatically created by the optometrist factory state
 
     $date = Carbon::now()->next('monday');
 
-    ProviderHour::factory()->create([
-        'user_id' => $opt1->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '17:00',
-        'enabled' => true,
-    ]);
-
-    ProviderHour::factory()->create([
-        'user_id' => $opt2->id,
-        'weekday' => 1,
-        'start_time' => '09:00',
-        'end_time' => '12:00',
-        'enabled' => true,
-    ]);
+    // Override opt2's provider hours to end at 12:00
+    $opt2->providerHours()->where('weekday', 1)->update(['end_time' => '12:00']);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
     $capacity = $evaluator->eligibleOptometristCapacity($date);

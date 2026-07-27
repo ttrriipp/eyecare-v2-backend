@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ScheduleOverrideType;
 use App\Models\ProviderHour;
 use App\Models\ScheduleOverride;
 use App\Models\User;
@@ -12,12 +13,8 @@ test('only optometrist-capable accounts can own provider hours', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = User::factory()->patient()->create();
 
-    $hour = ProviderHour::factory()->create([
-        'user_id' => $optometrist->id,
-        'weekday' => 1,
-    ]);
-
-    expect($hour->user->id)->toBe($optometrist->id);
+    // Optometrist already has provider hours created by the factory
+    expect($optometrist->providerHours()->count())->toBe(7);
 
     // Patient can technically have a row created (enforcement is at the
     // action/policy level, not the model). This test documents the raw model
@@ -33,11 +30,8 @@ test('only optometrist-capable accounts can own provider hours', function () {
 test('provider hours have unique weekday per user', function () {
     $optometrist = User::factory()->optometrist()->create();
 
-    ProviderHour::factory()->create([
-        'user_id' => $optometrist->id,
-        'weekday' => 1,
-    ]);
-
+    // Optometrist already has provider hours for all weekdays
+    // Trying to create another for the same weekday should fail
     ProviderHour::factory()->create([
         'user_id' => $optometrist->id,
         'weekday' => 1,
@@ -49,7 +43,7 @@ test('schedule override supports clinic closure', function () {
         'override_date' => '2026-08-01',
     ]);
 
-    expect($override->type)->toBe('closed')
+    expect($override->type)->toBe(ScheduleOverrideType::Closed)
         ->and($override->user_id)->toBeNull()
         ->and($override->override_date->toDateString())->toBe('2026-08-01');
 });
@@ -59,7 +53,7 @@ test('schedule override supports early closing', function () {
         'override_date' => '2026-08-05',
     ]);
 
-    expect($override->type)->toBe('early_close')
+    expect($override->type)->toBe(ScheduleOverrideType::EarlyClose)
         ->and($override->start_time->format('H:i'))->toBe('14:00')
         ->and($override->user_id)->toBeNull();
 });
@@ -71,7 +65,7 @@ test('schedule override supports provider absence', function () {
         ->providerAbsence($optometrist)
         ->create(['override_date' => '2026-08-10']);
 
-    expect($override->type)->toBe('provider_absence')
+    expect($override->type)->toBe(ScheduleOverrideType::ProviderAbsence)
         ->and($override->user_id)->toBe($optometrist->id);
 });
 

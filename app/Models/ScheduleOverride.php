@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ScheduleOverrideType;
 use Database\Factories\ScheduleOverrideFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -56,6 +57,7 @@ class ScheduleOverride extends Model
             'override_date' => 'date',
             'start_time' => 'datetime:H:i',
             'end_time' => 'datetime:H:i',
+            'type' => ScheduleOverrideType::class,
         ];
     }
 }
