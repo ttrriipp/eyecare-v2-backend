@@ -38,22 +38,22 @@ class EncounterForm
             Section::make('Patient Information')->columns(2)->schema([
                 Placeholder::make('patient_name')
                     ->label('Patient')
-                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                    ->content(fn (Encounter $record): string => $record->intake?->full_name ?? $record->patient?->full_name ?? '—'),
                 Placeholder::make('patient_phone')
                     ->label('Phone')
-                    ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                    ->content(fn (Encounter $record): string => $record->intake?->phone ?? $record->patient?->phone ?? '—'),
                 Placeholder::make('patient_dob')
                     ->label('Date of Birth')
-                    ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+                    ->content(fn (Encounter $record): string => $record->intake?->date_of_birth?->format('M d, Y') ?? $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
                 Placeholder::make('patient_gender')
                     ->label('Gender')
-                    ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                    ->content(fn (Encounter $record): string => Str::headline($record->intake?->gender ?? $record->patient?->gender ?? '—')),
                 Placeholder::make('patient_occupation')
                     ->label('Occupation')
-                    ->content(fn (Encounter $record): string => $record->patient?->occupation ?? '—'),
+                    ->content(fn (Encounter $record): string => $record->intake?->occupation ?? $record->patient?->occupation ?? '—'),
                 Placeholder::make('patient_address')
                     ->label('Address')
-                    ->content(fn (Encounter $record): string => $record->patient?->address ?? '—'),
+                    ->content(fn (Encounter $record): string => $record->intake?->address ?? $record->patient?->address ?? '—'),
                 Placeholder::make('appointment_date')
                     ->label('Appointment')
                     ->content(fn (Encounter $record): string => $record->appointment?->scheduled_at?->format('M d, Y g:i A') ?? '—'),
