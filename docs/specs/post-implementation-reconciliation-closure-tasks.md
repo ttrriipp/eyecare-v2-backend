@@ -2,9 +2,9 @@
 
 ## Status
 
-Approved by the project owner on 2026-07-27. Phase 3 is complete. Phase 4 is
-authorized for Phase A, Tasks 1–5 and Checkpoint A. Work must stop before
-Task 6 unless the project owner authorizes the next phase.
+Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
+portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Work is paused
+before Task 6 until the project owner authorizes the next phase.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -46,10 +46,14 @@ before expanding its scope. Deletions remain replacement-first.
 ### Phase A: Truth and Appointment Type
 
 - [x] Task 1: Reopen contradicted claims
-- [ ] Task 2: Lock Appointment Type regressions with populated records
-- [ ] Task 3: Cut core Appointment screens over to Appointment Type
-- [ ] Task 4: Cut schedule widgets over to Appointment Type
-- [ ] Task 5: Delete the replaced Visit Reason domain
+- [x] Task 2: Lock Appointment Type regressions with populated records
+      (`7dd2f78`, `b270545`, `4e872d0`)
+- [x] Task 3: Cut core Appointment screens over to Appointment Type
+      (`7dd2f78`, `b270545`)
+- [x] Task 4: Cut schedule widgets over to Appointment Type
+      (`4e872d0`)
+- [x] Task 5: Delete the replaced Visit Reason domain
+      (`ed19a27`)
 
 ### Phase B: Dead Support and Canonical Schema
 
@@ -108,14 +112,15 @@ views still depend on Visit Reason.
 
 **Acceptance criteria:**
 
-- [ ] Appointment model coverage requires the `appointmentType` relationship.
-- [ ] Staff table/edit coverage uses a populated Appointment Type record.
-- [ ] Widget coverage cannot pass because a legacy relationship is empty.
+- [x] Appointment model coverage requires the `appointmentType` relationship.
+- [x] Staff table/edit coverage uses a populated Appointment Type record.
+- [x] Widget coverage cannot pass because a legacy relationship is empty.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/AppointmentModelTest.php`
-- [ ] Focused Appointment Filament tests fail for only the audited mismatch.
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/AppointmentModelTest.php`
+- [x] Focused Appointment Filament tests failed for only the audited mismatch
+      before Tasks 3–4 made them pass.
 
 **Dependencies:** Task 1.
 
@@ -131,15 +136,15 @@ Appointment presentation.
 
 **Acceptance criteria:**
 
-- [ ] Appointment has no `visit_reason_id` fillable field or `visitReason()`.
-- [ ] Edit, table, and Patient relation views use `appointmentType`.
-- [ ] Labels consistently say “Appointment Type.”
+- [x] Appointment has no `visit_reason_id` fillable field or `visitReason()`.
+- [x] Edit, table, and Patient relation views use `appointmentType`.
+- [x] Labels consistently say “Appointment Type.”
 
 **Verification:**
 
-- [ ] Task 2 model and Appointment resource tests pass.
-- [ ] `rg -n "visitReason|visit_reason_id" app/Models/Appointment.php app/Filament/Resources`
-- [ ] Pint passes for changed PHP.
+- [x] Task 2 model and Appointment resource tests pass.
+- [x] `rg -n "visitReason|visit_reason_id" app/Models/Appointment.php app/Filament/Resources`
+- [x] Pint passes for changed PHP.
 
 **Dependencies:** Task 2.
 
@@ -155,15 +160,15 @@ payloads.
 
 **Acceptance criteria:**
 
-- [ ] Today’s Schedule displays populated Appointment Type names.
-- [ ] Calendar events and actions load only `appointmentType`.
-- [ ] Duration-aware scheduling behavior remains unchanged.
+- [x] Today’s Schedule displays populated Appointment Type names.
+- [x] Calendar events and actions load only `appointmentType`.
+- [x] Duration-aware scheduling behavior remains unchanged.
 
 **Verification:**
 
-- [ ] Focused dashboard and calendar tests pass.
-- [ ] Appointment scheduling tests pass.
-- [ ] Pint passes for changed PHP.
+- [x] Focused dashboard and calendar tests pass.
+- [x] Appointment scheduling tests pass.
+- [x] Pint passes for changed PHP.
 
 **Dependencies:** Task 3.
 
@@ -179,15 +184,16 @@ runtime consumers have replacements.
 
 **Acceptance criteria:**
 
-- [ ] VisitReason model, factory, and seeder are deleted.
-- [ ] DatabaseSeeder does not call VisitReasonSeeder.
-- [ ] Canonical seeding and Appointment tests pass.
+- [x] VisitReason model, factory, and seeder are deleted.
+- [x] DatabaseSeeder does not call VisitReasonSeeder.
+- [x] Canonical seeding and Appointment tests pass.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Seeders`
-- [ ] `rg -n "visit_reason|VisitReason" app database routes tests`
-- [ ] Pint passes for changed PHP.
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Seeders`
+- [x] `rg -n "visit_reason|VisitReason" app database routes tests` returns only
+      intentional negative regression assertions.
+- [x] Pint passes for changed PHP.
 
 **Dependencies:** Tasks 3–4.
 
@@ -198,10 +204,13 @@ CanonicalSeederTest.
 
 ## Checkpoint A
 
-- [ ] Tasks 1–5 have passing focused tests and atomic commits.
-- [ ] No executable Visit Reason reference remains.
-- [ ] Appointment Type, referral, duration, and intake behavior still pass.
-- [ ] The application is runnable before schema consolidation.
+- [x] Tasks 1–5 have passing focused tests and atomic commits.
+- [x] No executable Visit Reason reference remains.
+- [x] Appointment Type, referral, duration, and intake behavior still pass.
+- [x] The application is runnable before schema consolidation.
+
+Phase A evidence: the focused checkpoint passed 143 tests and 413 assertions;
+the final full regression passed 424 tests and 1,071 assertions.
 
 ## Task 6: Remove Dead Order Test-Data Support
 

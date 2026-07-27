@@ -75,19 +75,16 @@ is recorded.
       (completed as part of Task 10)
 - [x] Task 12: Correct the appointment API contract
       (`9c3dbd6`)
-- [ ] Task 13: Correct Filament appointment forms
-      (`9c3dbd6`)
+- [x] Task 13: Correct Filament appointment forms
+      (`9c3dbd6`, closure: `b270545`)
 - [x] Task 14: Complete appointment-linked Intake
       (`e270489`)
 - [x] Task 15: Remove Visit Reason Filament UI
       (`44c5e06`)
-- [ ] Task 16: Remove Visit Reason presentation helpers
-      (completed as part of Task 15)
-- [ ] Task 17: Remove Visit Reason wiring
-      (`e270489`, `44c5e06`)
-
-      Reopened: active Appointment and Filament consumers still reference
-      Visit Reason.
+- [x] Task 16: Remove Visit Reason presentation helpers
+      (completed as part of Task 15; closure: `4e872d0`)
+- [x] Task 17: Remove Visit Reason wiring
+      (`e270489`, `44c5e06`; closure: `7dd2f78`, `ed19a27`)
 
 ### Phase C: Supporting Catalog Cleanup
 
@@ -445,14 +442,13 @@ Appointment model test, old VisitReason resource test.
 
 ### Checkpoint B
 
-- [ ] Appointment Type is the only classifier and duration-default source.
-- [ ] Every Appointment has a booked duration snapshot.
-- [ ] Referral and Intake snapshot rules pass.
-- [ ] No active VisitReason route, UI, or resource remains. VisitReason
-      model/factory/seeder retained for existing DB data until Phase E
-      migration consolidation.
+- [x] Appointment Type is the only classifier and duration-default source.
+- [x] Every Appointment has a booked duration snapshot.
+- [x] Referral and Intake snapshot rules pass.
+- [x] No active VisitReason route, UI, resource, model, factory, or seeder
+      remains.
 
-Reopened because active Visit Reason consumers contradict this checkpoint.
+Reclosed by closure Phase A after 143 focused tests and 413 assertions passed.
 
 ## Phase C: Supporting Catalog Cleanup
 
