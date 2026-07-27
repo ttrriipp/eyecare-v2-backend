@@ -38,7 +38,6 @@ class AppointmentForm
                                 ->live()
                                 ->inline()
                                 ->hiddenOn('edit')
-                                ->dehydrated(false)
                                 ->columnSpanFull(),
 
                             // New Patient fields
