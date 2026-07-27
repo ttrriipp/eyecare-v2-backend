@@ -66,7 +66,7 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 11: Create Feedback canonically
 - [x] Task 11A: Create Inventory Movements canonically
 - [x] Task 11B: Remove SMS Notification legacy Order linkage
-- [ ] Task 11C: Remove stale Billing and Conversation legacy UI/API references
+- [x] Task 11C: Remove stale Billing and Conversation legacy UI/API references
 
 ### Phase C: Exact Patient API
 
@@ -482,17 +482,19 @@ Conversation Order links, and legacy Conversation context fields.
 
 **Acceptance criteria:**
 
-- [ ] AppointmentResource no longer references `BillingsRelationManager`.
-- [ ] Conversation table no longer references customer, subject, appointment,
+- [x] AppointmentResource no longer references `BillingsRelationManager`.
+- [x] Conversation table no longer references customer, subject, appointment,
       or order relationships/columns.
-- [ ] Patient Conversation request no longer accepts `order_id`.
+- [x] Patient Conversation request no longer accepts `order_id`.
 
 **Verification:**
 
-- [ ] Focused Filament Conversation/Appointment and messaging tests pass.
-- [ ] Static scans find no stale Billing relation manager or Conversation
+- [x] Focused Filament Conversation/Appointment and messaging tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php tests/Feature/LegacyRuntimeReferenceTest.php tests/Feature/ConversationTest.php tests/Feature/Api/V1/MessagingFeedbackRatingTest.php`
+      passed 10 tests and 25 assertions.
+- [x] Static scans find no stale Billing relation manager or Conversation
       `order_id` request/table reference.
-- [ ] Pint passes.
+- [x] Pint passes.
 
 **Dependencies:** Task 11B.
 

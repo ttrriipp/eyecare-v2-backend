@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
@@ -30,4 +31,8 @@ test('appointment table shows the populated appointment type', function () {
         ->assertSee('Routine Vision Review')
         ->assertSee('Appointment Type')
         ->assertDontSee('Visit reason');
+});
+
+test('appointment resource has no billing relation manager', function () {
+    expect(AppointmentResource::getRelations())->toBeEmpty();
 });
