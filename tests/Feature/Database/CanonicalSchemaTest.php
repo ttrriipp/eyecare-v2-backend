@@ -223,3 +223,26 @@ test('feedback database columns and foreign keys match canonical constraints', f
         ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
         ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
 });
+
+test('inventory movements are created with canonical reservation and job order links', function () {
+    $migration = file_get_contents(database_path('migrations/2026_06_10_033127_create_inventory_movements_table.php'));
+
+    expect($migration)->toContain("foreignId('reservation_id')->nullable()")
+        ->and($migration)->toContain("foreignId('job_order_id')->nullable()")
+        ->and($migration)->not->toContain("unsignedBigInteger('order_id')")
+        ->and(file_exists(database_path('migrations/2026_07_27_020000_replace_order_id_with_canonical_sources_on_inventory_movements.php')))->toBeFalse();
+});
+
+test('inventory movement database columns match canonical constraints', function () {
+    $columns = collect(DB::select("
+        SELECT COLUMN_NAME, IS_NULLABLE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'inventory_movements'
+            AND COLUMN_NAME IN ('order_id', 'reservation_id', 'job_order_id')
+    "))->keyBy('COLUMN_NAME');
+
+    expect($columns)->not->toHaveKey('order_id')
+        ->and($columns['reservation_id']->IS_NULLABLE)->toBe('YES')
+        ->and($columns['job_order_id']->IS_NULLABLE)->toBe('YES');
+});

@@ -4,7 +4,8 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–11 are complete. Checkpoint B is under verification.
+started; Tasks 6–11 are complete. Checkpoint B verification found additional
+legacy references, so Tasks 11A–11C were added before Checkpoint B can close.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -63,6 +64,9 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 9: Create Prescriptions canonically
 - [x] Task 10: Create Conversations canonically
 - [x] Task 11: Create Feedback canonically
+- [x] Task 11A: Create Inventory Movements canonically
+- [ ] Task 11B: Remove SMS Notification legacy Order linkage
+- [ ] Task 11C: Remove stale Billing and Conversation legacy UI/API references
 
 ### Phase C: Exact Patient API
 
@@ -400,11 +404,94 @@ canonical-schema test.
 
 ## Checkpoint B
 
-- [ ] Tasks 6–11 have passing focused tests and atomic commits.
+- [ ] Tasks 6–11C have passing focused tests and atomic commits.
 - [ ] Fresh migration and seed pass.
 - [ ] Canonical foreign keys, indexes, and nullability are inspected.
 - [ ] No final migration creates a legacy identity or commerce structure only
       to remove it later.
+
+## Task 11A: Create Inventory Movements Canonically
+
+**Description:** Fold the `order_id` replacement into Inventory Movement
+creation.
+
+**Acceptance criteria:**
+
+- [x] Inventory Movements are created with `reservation_id` and
+      `job_order_id` directly.
+- [x] Inventory Movement creation contains no `order_id`.
+- [x] The superseded Inventory Movement transition migration is deleted.
+
+**Verification:**
+
+- [x] Canonical-schema, inventory, and Job Order inventory tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/Inventory tests/Feature/JobOrders/JobOrderInventoryTest.php tests/Feature/JobOrders/JobOrderInventoryAtomicTest.php tests/Feature/Filament/InventoryResourceTest.php tests/Feature/Filament/InventoryMovementResourceTest.php`
+      passed 33 tests and 119 assertions.
+- [x] Fresh migrate/seed passes:
+      `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`.
+- [x] Migration scans find no Inventory Movement `order_id`:
+      `rg -n "unsignedBigInteger\\('order_id'\\)|replace_order_id_with_canonical_sources_on_inventory_movements" database/migrations/2026_06_10_033127_create_inventory_movements_table.php database/migrations tests/Feature/Database/CanonicalSchemaTest.php`
+      returned only intended test assertions and the SMS Notification
+      reference tracked by Task 11B.
+- [x] Boost schema inspection confirmed `inventory_movements` has
+      `reservation_id` and `job_order_id` and no `order_id`.
+
+**Dependencies:** Task 11.
+
+**Likely files:** Inventory Movement creation migration, Inventory transition
+migration, canonical-schema test.
+
+**Scope:** Small, three files.
+
+## Task 11B: Remove SMS Notification Legacy Order Linkage
+
+**Description:** Remove the unused `order_id` column from SMS Notification
+migrations while preserving failure-reason behavior.
+
+**Acceptance criteria:**
+
+- [ ] SMS Notifications never create `order_id`.
+- [ ] `failure_reason` and nullable Appointment behavior remain.
+- [ ] SMS processing tests remain green.
+
+**Verification:**
+
+- [ ] Canonical-schema and SMS tests pass.
+- [ ] Fresh migrate/seed passes.
+- [ ] Migration scans find no SMS Notification `order_id`.
+
+**Dependencies:** Task 11A.
+
+**Likely files:** SMS creation/additive migration, SmsProcessingTest or
+canonical-schema test.
+
+**Scope:** Small, two to three files.
+
+## Task 11C: Remove Stale Billing and Conversation Legacy UI/API References
+
+**Description:** Remove remaining runtime references to removed Billing,
+Conversation Order links, and legacy Conversation context fields.
+
+**Acceptance criteria:**
+
+- [ ] AppointmentResource no longer references `BillingsRelationManager`.
+- [ ] Conversation table no longer references customer, subject, appointment,
+      or order relationships/columns.
+- [ ] Patient Conversation request no longer accepts `order_id`.
+
+**Verification:**
+
+- [ ] Focused Filament Conversation/Appointment and messaging tests pass.
+- [ ] Static scans find no stale Billing relation manager or Conversation
+      `order_id` request/table reference.
+- [ ] Pint passes.
+
+**Dependencies:** Task 11B.
+
+**Likely files:** AppointmentResource, ConversationsTable,
+StoreConversationRequest, focused tests if required.
+
+**Scope:** Small, three to four files.
 
 ## Task 12: Enforce the Approved 34-Route Equality Contract
 
