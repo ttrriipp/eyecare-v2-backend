@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend commit:** `4045d48` (2026-07-27)
+> **Backend commit:** `ebd1e2e` (2026-07-27)
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
