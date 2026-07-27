@@ -65,7 +65,7 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 10: Create Conversations canonically
 - [x] Task 11: Create Feedback canonically
 - [x] Task 11A: Create Inventory Movements canonically
-- [ ] Task 11B: Remove SMS Notification legacy Order linkage
+- [x] Task 11B: Remove SMS Notification legacy Order linkage
 - [ ] Task 11C: Remove stale Billing and Conversation legacy UI/API references
 
 ### Phase C: Exact Patient API
@@ -450,15 +450,23 @@ migrations while preserving failure-reason behavior.
 
 **Acceptance criteria:**
 
-- [ ] SMS Notifications never create `order_id`.
-- [ ] `failure_reason` and nullable Appointment behavior remain.
-- [ ] SMS processing tests remain green.
+- [x] SMS Notifications never create `order_id`.
+- [x] `failure_reason` and nullable Appointment behavior remain.
+- [x] SMS processing tests remain green.
 
 **Verification:**
 
-- [ ] Canonical-schema and SMS tests pass.
-- [ ] Fresh migrate/seed passes.
-- [ ] Migration scans find no SMS Notification `order_id`.
+- [x] Canonical-schema and SMS tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/SmsProcessingTest.php tests/Feature/Filament/SmsNotificationResourceTest.php`
+      passed 23 tests and 100 assertions.
+- [x] Fresh migrate/seed passes:
+      `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`.
+- [x] Migration scans find no SMS Notification `order_id`:
+      `rg -n "order_id" database/migrations/2026_06_06_021117_create_sms_notifications_table.php database/migrations/2026_06_28_061836_add_failure_reason_and_order_id_to_sms_notifications.php tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/SmsProcessingTest.php app/Models/SmsNotification.php database/factories/SmsNotificationFactory.php`
+      returned only intended negative assertions and canonical
+      `job_order_id` references.
+- [x] Boost schema inspection confirmed `sms_notifications` has nullable
+      `appointment_id`, nullable `failure_reason`, and no `order_id`.
 
 **Dependencies:** Task 11A.
 

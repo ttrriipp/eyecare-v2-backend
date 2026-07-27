@@ -79,5 +79,5 @@ test('sms notification only references appointment', function () {
     $sms = SmsNotification::factory()->create();
 
     expect($sms->appointment)->not->toBeNull()
-        ->and($sms->order_id)->toBeNull();
+        ->and($sms->getAttributes())->not->toHaveKey('order_id');
 });
