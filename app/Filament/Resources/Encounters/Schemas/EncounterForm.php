@@ -11,6 +11,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class EncounterForm
 {
@@ -38,9 +39,27 @@ class EncounterForm
                 Placeholder::make('patient_name')
                     ->label('Patient')
                     ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                Placeholder::make('patient_phone')
+                    ->label('Phone')
+                    ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                Placeholder::make('patient_dob')
+                    ->label('Date of Birth')
+                    ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+                Placeholder::make('patient_gender')
+                    ->label('Gender')
+                    ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                Placeholder::make('patient_occupation')
+                    ->label('Occupation')
+                    ->content(fn (Encounter $record): string => $record->patient?->occupation ?? '—'),
+                Placeholder::make('patient_address')
+                    ->label('Address')
+                    ->content(fn (Encounter $record): string => $record->patient?->address ?? '—'),
                 Placeholder::make('appointment_date')
                     ->label('Appointment')
                     ->content(fn (Encounter $record): string => $record->appointment?->scheduled_at?->format('M d, Y g:i A') ?? '—'),
+                Placeholder::make('appointment_type')
+                    ->label('Appointment Type')
+                    ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
             ]),
             Section::make('Intake Summary')->schema([
                 TextInput::make('intake.chief_complaint')
