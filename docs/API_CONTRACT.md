@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend commit:** `ebd1e2e` (2026-07-27)
+> **Backend commit:** `579b964` (2026-07-27)
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -221,7 +221,7 @@ Returns time slots for a given date and appointment type.
 
 **Validation (with `appointment_id`):**
 - Appointment must belong to the authenticated patient.
-- Appointment must be in `pending` or `confirmed` status.
+- Appointment must be in `scheduled` or `checked_in` status.
 - `appointment_type_id` duration must match the existing appointment's duration.
 
 ---
@@ -244,7 +244,7 @@ Paginated list of the patient's appointments.
       "appointment_type": "New Patient",
       "duration_minutes": 30,
       "referring_source": null,
-      "status": "confirmed",
+      "status": "scheduled",
       "scheduled_at": "2026-07-28T10:00:00+08:00",
       "contact_notes": "Please call before arrival",
       "last_reschedule_reason": null,
@@ -260,7 +260,7 @@ Paginated list of the patient's appointments.
 **Notes:**
 - `staff_notes` is NOT exposed to patients.
 - `assigned_optometrist` contains only `name` (no `id`).
-- `status` values: `pending`, `confirmed`, `arrived`, `completed`, `no_show`, `cancelled`.
+- `status` values: `scheduled`, `checked_in`, `fulfilled`, `cancelled`, `no_show`.
 - `source` values: `mobile`, `walk_in`, `manual`.
 - `contact_notes` is nullable.
 
@@ -268,7 +268,7 @@ Paginated list of the patient's appointments.
 
 ### POST `/appointments`
 
-Creates a new appointment. Source is automatically set to `mobile`. Status starts as `pending`.
+Creates a new appointment. Source is automatically set to `mobile`. Status starts as `scheduled`.
 
 **Request:**
 ```json
@@ -310,7 +310,7 @@ Returns a single appointment (must belong to authenticated patient).
 
 ### POST `/appointments/{id}/cancel`
 
-Cancels an appointment. Only `pending` or `confirmed` appointments can be cancelled.
+Cancels an appointment. Only `scheduled` or `checked_in` appointments can be cancelled.
 
 **Response (200):**
 ```json
@@ -349,7 +349,7 @@ Reschedules an appointment to a new time.
 }
 ```
 
-**Validation:** Appointment must belong to the patient and be in `pending` or `confirmed` status.
+**Validation:** Appointment must belong to the patient and be in `scheduled` status.
 
 ---
 
@@ -1074,7 +1074,7 @@ Submits feedback for a completed appointment.
 **Request:**
 ```json
 {
-  "appointment_id": "integer (required, exists:appointments,id — must be patient's, status must be completed)",
+  "appointment_id": "integer (required, exists:appointments,id — must be patient's, status must be fulfilled)",
   "rating": "integer (required, min:1, max:5)",
   "comment": "string (nullable, max:2000)"
 }
