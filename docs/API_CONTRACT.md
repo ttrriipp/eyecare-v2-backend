@@ -572,12 +572,39 @@ Creates a new frame reservation.
 {
   "data": {
     "id": 1,
-    "patient_id": 1,
+    "appointment_id": null,
     "status": "requested",
-    "items": [ ... ]
+    "expires_at": null,
+    "created_at": "2026-07-27T10:00:00+08:00",
+    "items": [
+      {
+        "id": 1,
+        "product_variant_id": 42,
+        "variant": {
+          "id": 42,
+          "name": "Black / 52mm",
+          "sku": "RB-CR-BLK-52",
+          "price": "4500.00",
+          "compare_at_price": null,
+          "attributes": { "color": "black", "size": "52mm" },
+          "images": [],
+          "product": {
+            "id": 7,
+            "name": "Classic Rectangle",
+            "slug": "classic-rectangle",
+            "description": "Timeless frame design",
+            "product_type": "frame",
+            "brand": "Ray-Ban",
+            "category": "Full Rim"
+          }
+        }
+      }
+    ]
   }
 }
 ```
+
+Uses the same `FrameReservationResource` as GET — same field set, same exclusions.
 
 ---
 
@@ -588,9 +615,24 @@ Cancels a reservation. Only `requested` or `prepared` reservations can be cancel
 **Response (200):**
 ```json
 {
-  "data": { /* reservation with status: "cancelled" */ }
+  "data": {
+    "id": 1,
+    "appointment_id": null,
+    "status": "cancelled",
+    "expires_at": null,
+    "created_at": "2026-07-27T10:00:00+08:00",
+    "items": [
+      {
+        "id": 1,
+        "product_variant_id": 42,
+        "variant": { "...same sanitized structure as GET..." }
+      }
+    ]
+  }
 }
 ```
+
+Uses the same `FrameReservationResource` as GET — same field set, same exclusions.
 
 **Error (422):** `"This reservation cannot be cancelled."` if status is beyond `prepared`.
 

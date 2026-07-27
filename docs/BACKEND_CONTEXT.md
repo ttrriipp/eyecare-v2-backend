@@ -231,7 +231,7 @@ POST   /api/v1/feedback
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-The approved patient-mobile contract contains exactly 34 routes. All list endpoints are paginated. All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
+The approved patient-mobile contract contains exactly 34 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
 
 ---
 
