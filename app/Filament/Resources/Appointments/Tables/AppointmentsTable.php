@@ -7,6 +7,7 @@ use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
@@ -15,6 +16,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
@@ -73,11 +75,12 @@ class AppointmentsTable
                     ->label('Source')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'mobile_app' => 'Mobile app',
+                        'mobile', 'mobile_app' => 'Mobile app',
                         'walk_in' => 'Walk-in',
+                        'manual' => 'Admin panel',
                         'phone_call' => 'Phone call',
                         'messenger' => 'Messenger',
-                        default => 'In person',
+                        default => Str::headline($state),
                     })
                     ->toggleable(),
                 TextColumn::make('scheduled_at')
@@ -120,6 +123,23 @@ class AppointmentsTable
                 ActionGroup::make([
                     EditAction::make()
                         ->color('gray'),
+                    Action::make('assign')
+                        ->label('Assign')
+                        ->icon('heroicon-o-user-plus')
+                        ->color('info')
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true))
+                        ->schema([
+                            Select::make('optometrist_id')
+                                ->label('Optometrist')
+                                ->options(fn () => User::query()->optometrists()->orderBy('name')->pluck('name', 'id'))
+                                ->required()
+                                ->searchable()
+                                ->preload(),
+                        ])
+                        ->action(function (Appointment $record, array $data): void {
+                            $record->update(['optometrist_id' => $data['optometrist_id']]);
+                            Notification::make()->title('Optometrist assigned')->success()->send();
+                        }),
                     Action::make('advance')
                         ->label(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['label'] ?? '')
                         ->icon(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['icon'] ?? 'heroicon-o-arrow-right')

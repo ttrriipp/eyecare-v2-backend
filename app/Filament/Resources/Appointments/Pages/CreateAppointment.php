@@ -68,18 +68,37 @@ class CreateAppointment extends CreateRecord
             }
         }
 
-        $data['scheduled_at'] = AppointmentTime::combine(
-            $data['scheduled_at'],
-            $data['appointment_time'],
-        );
-        unset($data['appointment_time']);
-
-        $data['appointment_status_id'] = AppointmentStatus::query()
-            ->where('name', 'confirmed')
-            ->value('id');
+        $isWalkIn = ($data['is_walk_in'] ?? null) === 'walk_in';
+        unset($data['is_walk_in']);
 
         $appointmentType = AppointmentType::query()->findOrFail($data['appointment_type_id']);
         $data['duration_minutes'] = $appointmentType->duration_minutes;
+
+        if ($isWalkIn) {
+            $data['source'] = 'walk_in';
+            $data['scheduled_at'] = now();
+            $data['appointment_status_id'] = AppointmentStatus::query()
+                ->where('name', 'arrived')
+                ->value('id');
+            $data['checked_in_at'] = now();
+            $data['checked_in_by'] = auth()->id();
+            unset($data['appointment_time']);
+        } else {
+            $data['source'] = 'manual';
+
+            if (filled($data['scheduled_at'] ?? null) && filled($data['appointment_time'] ?? null)) {
+                $data['scheduled_at'] = AppointmentTime::combine(
+                    $data['scheduled_at'],
+                    $data['appointment_time'],
+                );
+            }
+
+            unset($data['appointment_time']);
+
+            $data['appointment_status_id'] = AppointmentStatus::query()
+                ->where('name', 'confirmed')
+                ->value('id');
+        }
 
         return $data;
     }
@@ -89,16 +108,22 @@ class CreateAppointment extends CreateRecord
      */
     protected function handleRecordCreation(array $data): Model
     {
-        return DB::transaction(function () use ($data): Appointment {
-            app(LockAppointmentScheduleDate::class)->handle($data['scheduled_at']);
+        // Defensive: ensure scheduled_at is always set
+        $data['scheduled_at'] ??= now();
 
-            app(ScheduleAppointment::class)->handle(
-                scheduledAt: $data['scheduled_at'],
-                durationMinutes: $data['duration_minutes'],
-                optometrist: filled($data['optometrist_id'] ?? null)
-                    ? User::query()->findOrFail($data['optometrist_id'])
-                    : null,
-            );
+        return DB::transaction(function () use ($data): Appointment {
+            // Walk-ins are immediate — skip schedule locking and conflict checks
+            if (empty($data['checked_in_at'])) {
+                app(LockAppointmentScheduleDate::class)->handle($data['scheduled_at']);
+
+                app(ScheduleAppointment::class)->handle(
+                    scheduledAt: $data['scheduled_at'],
+                    durationMinutes: $data['duration_minutes'],
+                    optometrist: filled($data['optometrist_id'] ?? null)
+                        ? User::query()->findOrFail($data['optometrist_id'])
+                        : null,
+                );
+            }
 
             return Appointment::query()->create($data);
         }, attempts: 3);

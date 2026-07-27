@@ -27,7 +27,7 @@ class AppointmentFactory extends Factory
             'referring_source' => null,
             'created_by' => null,
             'optometrist_id' => null,
-            'source' => 'staff_created',
+            'source' => 'manual',
             'appointment_status_id' => $this->pendingStatusId(),
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),
             'checked_in_at' => null,

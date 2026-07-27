@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('referring_source')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('optometrist_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('source')->default('staff_created');
+            $table->string('source')->default('manual');
             $table->foreignId('appointment_status_id')->constrained();
             $table->dateTime('scheduled_at');
             $table->dateTime('checked_in_at')->nullable();

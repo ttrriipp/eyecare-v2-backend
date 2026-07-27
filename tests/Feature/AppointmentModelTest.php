@@ -22,7 +22,7 @@ test('appointment factory creates valid records with required attributes', funct
         ->and($appointment->appointment_type_id)->not->toBeNull()
         ->and($appointment->duration_minutes)->not->toBeNull()
         ->and($appointment->appointment_status_id)->not->toBeNull()
-        ->and($appointment->source)->toBe('staff_created')
+        ->and($appointment->source)->toBe('manual')
         ->and($appointment->optometrist_id)->toBeNull()
         ->and($appointment->checked_in_at)->toBeNull()
         ->and($appointment->completed_at)->toBeNull()

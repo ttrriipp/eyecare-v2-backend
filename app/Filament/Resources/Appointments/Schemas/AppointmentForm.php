@@ -4,10 +4,10 @@ namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -29,7 +29,7 @@ class AppointmentForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Patient')
                         ->schema([
-                            Radio::make('patient_mode')
+                            ToggleButtons::make('patient_mode')
                                 ->options([
                                     'new' => 'New Patient',
                                     'existing' => 'Existing Patient',
@@ -95,10 +95,37 @@ class AppointmentForm
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
                                 ->searchable()
                                 ->preload()
+                                ->live()
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing')
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->columnSpanFull(),
+
+                            // Existing Patient details
+                            Placeholder::make('existing_patient_phone')
+                                ->label('Phone')
+                                ->content(fn (Get $get): string => Patient::find($get('patient_id'))?->phone ?? '—')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
+                            Placeholder::make('existing_patient_email')
+                                ->label('Email')
+                                ->content(fn (Get $get): string => Patient::find($get('patient_id'))?->contact_email ?? '—')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
+                            Placeholder::make('existing_patient_dob')
+                                ->label('Date of Birth')
+                                ->content(fn (Get $get): string => Patient::find($get('patient_id'))?->date_of_birth?->format('M d, Y') ?? '—')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
+                            Placeholder::make('existing_patient_gender')
+                                ->label('Gender')
+                                ->content(fn (Get $get): string => Str::headline(Patient::find($get('patient_id'))?->gender ?? '—'))
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
+                            Placeholder::make('existing_patient_occupation')
+                                ->label('Occupation')
+                                ->content(fn (Get $get): string => Patient::find($get('patient_id'))?->occupation ?? '—')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
+                            Placeholder::make('existing_patient_address')
+                                ->label('Address')
+                                ->content(fn (Get $get): string => Patient::find($get('patient_id'))?->address ?? '—')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing' || blank($get('patient_id'))),
                         ])
                         ->columns(2),
 
@@ -110,26 +137,33 @@ class AppointmentForm
                                 ->dehydrated(false)
                                 ->hiddenOn('create')
                                 ->columnSpanFull(),
+                            ToggleButtons::make('is_walk_in')
+                                ->label('Visit Type')
+                                ->options([
+                                    'scheduled' => 'Scheduled',
+                                    'walk_in' => 'Walk-in',
+                                ])
+                                ->default('scheduled')
+                                ->live()
+                                ->inline()
+                                ->hiddenOn('edit'),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
                                 ->relationship('appointmentType', 'name')
                                 ->required()
+                                ->live()
                                 ->disabledOn('edit')
                                 ->dehydrated(),
-                            Select::make('source')
-                                ->label('Booking source')
-                                ->options([
-                                    'staff_created' => 'In person',
-                                    'phone_call' => 'Phone call',
-                                    'messenger' => 'Messenger',
-                                ])
-                                ->default('staff_created')
-                                ->required()
+                            TextInput::make('referring_source')
+                                ->label('Referring Source')
+                                ->placeholder('Name of referring doctor or clinic')
+                                ->visible(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
                                 ->disabledOn('edit')
-                                ->dehydrated(),
+                                ->dehydrated()
+                                ->columnSpanFull(),
                             DatePicker::make('scheduled_at')
                                 ->label('Appointment date')
-                                ->required()
+                                ->required(fn (Get $get): bool => $get('is_walk_in') !== 'walk_in')
                                 ->native(false)
                                 ->displayFormat('M d, Y')
                                 ->placeholder('Choose an appointment date')
@@ -137,10 +171,11 @@ class AppointmentForm
                                 ->minDate(today())
                                 ->disabledOn('edit')
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
-                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : ''),
+                                ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : '')
+                                ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
                             TimePicker::make('appointment_time')
                                 ->label('Appointment time')
-                                ->required(fn (string $operation): bool => $operation === 'create')
+                                ->required(fn (string $operation, Get $get): bool => $operation === 'create' && $get('is_walk_in') !== 'walk_in')
                                 ->seconds(false)
                                 ->minutesStep(1)
                                 ->format('H:i')
@@ -150,7 +185,11 @@ class AppointmentForm
                                     }
                                 })
                                 ->disabledOn('edit')
-                                ->dehydrated(fn (string $operation): bool => $operation === 'create'),
+                                ->dehydrated(fn (string $operation): bool => $operation === 'create')
+                                ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
+                            Textarea::make('staff_notes')
+                                ->label('Notes')
+                                ->columnSpanFull(),
                             ToggleButtons::make('appointment_status_id')
                                 ->label('Status')
                                 ->options(function (?Appointment $record): array {
@@ -199,16 +238,6 @@ class AppointmentForm
                                 ->columnSpanFull(),
                         ])
                         ->columns(2),
-
-                    Section::make('Notes')
-                        ->schema([
-                            Textarea::make('contact_notes')
-                                ->disabledOn('edit')
-                                ->dehydrated()
-                                ->columnSpanFull(),
-                            Textarea::make('staff_notes')
-                                ->columnSpanFull(),
-                        ]),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────

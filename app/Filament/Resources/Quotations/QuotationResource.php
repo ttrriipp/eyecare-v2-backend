@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Quotations;
 
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
+use App\Filament\Resources\Quotations\Schemas\QuotationForm;
 use App\Filament\Resources\Quotations\Tables\QuotationsTable;
 use App\Models\Quotation;
 use BackedEnum;
@@ -11,6 +12,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class QuotationResource extends Resource
 {
@@ -26,11 +29,11 @@ class QuotationResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        return QuotationForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -49,5 +52,11 @@ class QuotationResource extends Resource
             'index' => ListQuotations::route('/'),
             'edit' => EditQuotation::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['patient', 'latestRevision', 'latestRevision.items', 'latestRevision.presentedBy', 'latestRevision.acceptedBy']);
     }
 }

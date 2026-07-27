@@ -2,18 +2,9 @@
 
 namespace App\Filament\Resources\Appointments\Pages;
 
-use App\Actions\Appointments\CreateWalkInAppointment;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Widgets\AppointmentStatsWidget;
-use App\Models\AppointmentType;
-use App\Models\Patient;
-use App\Models\User;
-use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,52 +20,6 @@ class ListAppointments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('addWalkIn')
-                ->label('Add Walk-in')
-                ->icon('heroicon-o-user-plus')
-                ->color('warning')
-                ->schema([
-                    Select::make('patient_id')
-                        ->label('Patient')
-                        ->relationship('patient', 'full_name')
-                        ->required()
-                        ->searchable()
-                        ->preload()
-                        ->createOptionForm([
-                            TextInput::make('full_name')->required(),
-                            TextInput::make('phone')->required()->tel(),
-                        ])
-                        ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
-                    Select::make('appointment_type_id')
-                        ->label('Appointment Type')
-                        ->options(fn () => AppointmentType::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id'))
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('name')->pluck('name', 'id'))
-                        ->nullable()
-                        ->searchable()
-                        ->preload()
-                        ->placeholder('Assign later'),
-                    Textarea::make('contact_notes')
-                        ->label('Notes')
-                        ->maxLength(1000),
-                ])
-                ->action(function (array $data): void {
-                    app(CreateWalkInAppointment::class)->handle(
-                        patient: Patient::query()->findOrFail($data['patient_id']),
-                        appointmentType: AppointmentType::query()->findOrFail($data['appointment_type_id']),
-                        staff: auth()->user(),
-                        optometrist: filled($data['optometrist_id'] ?? null)
-                            ? User::query()->findOrFail($data['optometrist_id'])
-                            : null,
-                        contactNotes: $data['contact_notes'] ?? null,
-                    );
-
-                    Notification::make()->title('Walk-in added to queue')->success()->send();
-                }),
             CreateAction::make(),
         ];
     }

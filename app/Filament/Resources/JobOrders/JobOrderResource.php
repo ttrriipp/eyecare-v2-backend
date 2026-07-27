@@ -4,6 +4,7 @@ namespace App\Filament\Resources\JobOrders;
 
 use App\Filament\Resources\JobOrders\Pages\EditJobOrder;
 use App\Filament\Resources\JobOrders\Pages\ListJobOrders;
+use App\Filament\Resources\JobOrders\Schemas\JobOrderForm;
 use App\Filament\Resources\JobOrders\Tables\JobOrdersTable;
 use App\Models\JobOrder;
 use BackedEnum;
@@ -11,6 +12,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class JobOrderResource extends Resource
 {
@@ -26,11 +29,11 @@ class JobOrderResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        return JobOrderForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -49,5 +52,11 @@ class JobOrderResource extends Resource
             'index' => ListJobOrders::route('/'),
             'edit' => EditJobOrder::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['patient', 'items', 'encounter', 'prescription', 'quotationRevision']);
     }
 }

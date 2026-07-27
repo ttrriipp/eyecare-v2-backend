@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Invoices;
 
 use App\Filament\Resources\Invoices\Pages\EditInvoice;
 use App\Filament\Resources\Invoices\Pages\ListInvoices;
+use App\Filament\Resources\Invoices\Schemas\InvoiceForm;
 use App\Filament\Resources\Invoices\Tables\InvoicesTable;
 use App\Models\Invoice;
 use BackedEnum;
@@ -11,6 +12,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class InvoiceResource extends Resource
 {
@@ -26,11 +29,11 @@ class InvoiceResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        return InvoiceForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -49,5 +52,11 @@ class InvoiceResource extends Resource
             'index' => ListInvoices::route('/'),
             'edit' => EditInvoice::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['patient', 'items', 'payments']);
     }
 }
