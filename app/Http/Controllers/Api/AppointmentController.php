@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\CreateScheduledAppointment;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentContactNote;
-use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\RescheduleAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
@@ -32,7 +32,7 @@ class AppointmentController extends Controller
 
         $appointments = Appointment::query()
             ->where('patient_id', $patient->id)
-            ->with(['appointmentType', 'status', 'optometrist'])
+            ->with(['appointmentType', 'status', 'optometrist', 'latestReschedule'])
             ->latest('scheduled_at')
             ->paginate($request->integer('per_page', 15));
 
@@ -83,7 +83,7 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 404);
 
-        $appointment->load(['appointmentType', 'status', 'optometrist']);
+        $appointment->load(['appointmentType', 'status', 'optometrist', 'latestReschedule']);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),
@@ -96,15 +96,19 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 403);
 
-        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
-            throw ValidationException::withMessages([
-                'appointment' => ['This appointment cannot be cancelled.'],
-            ]);
+        try {
+            app(CancelAppointment::class)->handle(
+                appointment: $appointment,
+                initiator: 'patient',
+                actor: $request->user(),
+                reasonCategory: $request->input('reason_category'),
+                reasonDetails: $request->input('reason_details'),
+            );
+        } catch (ValidationException $e) {
+            throw $e;
         }
 
-        app(UpdateAppointmentStatus::class)->handle($appointment, 'cancelled');
-
-        $appointment->load(['appointmentType', 'status', 'patient']);
+        $appointment->load(['appointmentType', 'status', 'patient', 'latestReschedule']);
 
         $staff = User::query()
             ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
@@ -147,6 +151,8 @@ class AppointmentController extends Controller
             appointment: $appointment,
             scheduledAt: Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone')),
             customerInitiated: true,
+            rescheduleReason: $request->input('reason_details'),
+            reasonCategory: $request->input('reason_category'),
         );
 
         $staff = User::query()
@@ -164,6 +170,8 @@ class AppointmentController extends Controller
             ])
             ->warning()
             ->sendToDatabase($staff);
+
+        $appointment->load('latestReschedule');
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),
