@@ -17,6 +17,20 @@ class EditEncounter extends EditRecord
 {
     protected static string $resource = EncounterResource::class;
 
+    public function getTitle(): string
+    {
+        return "Edit {$this->record->encounter_number}";
+    }
+
+    public function getBreadcrumbs(): array
+    {
+        return [
+            '/admin/encounters' => 'Encounters',
+            $this->record->encounter_number,
+            'Edit',
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [

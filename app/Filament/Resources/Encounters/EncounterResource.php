@@ -25,6 +25,8 @@ class EncounterResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Encounters';
 
+    protected static ?string $recordTitleAttribute = 'encounter_number';
+
     protected static ?int $navigationSort = 2;
 
     protected static string|NITENUM|null $NAVIGATIONGROUP = 'Patients & Clinical';
