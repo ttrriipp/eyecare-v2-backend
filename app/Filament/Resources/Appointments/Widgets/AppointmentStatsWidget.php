@@ -35,7 +35,7 @@ class AppointmentStatsWidget extends BaseWidget
 
         $upcomingCount = Appointment::query()
             ->where('scheduled_at', '>=', now())
-            ->whereHas('status', fn ($q) => $q->whereNotIn('name', ['completed', 'cancelled']))
+            ->whereHas('status', fn ($q) => $q->whereNotIn('name', ['fulfilled', 'completed', 'cancelled']))
             ->count();
 
         $todayCount = Appointment::query()
