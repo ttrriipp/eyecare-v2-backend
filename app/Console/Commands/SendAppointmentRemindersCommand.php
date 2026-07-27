@@ -11,7 +11,7 @@ class SendAppointmentRemindersCommand extends Command
 {
     protected $signature = 'appointments:send-reminders';
 
-    protected $description = 'Send SMS reminders for tomorrow\'s confirmed appointments';
+    protected $description = 'Send SMS reminders for tomorrow\'s scheduled appointments';
 
     public function handle(): int
     {
@@ -26,8 +26,8 @@ class SendAppointmentRemindersCommand extends Command
         $tomorrow = today()->addDay();
 
         $appointments = Appointment::query()
-            ->with('customer')
-            ->whereHas('status', fn ($query) => $query->where('name', 'confirmed'))
+            ->with('patient')
+            ->whereHas('status', fn ($query) => $query->where('name', 'scheduled'))
             ->whereDate('scheduled_at', $tomorrow)
             ->get();
 
@@ -41,7 +41,7 @@ class SendAppointmentRemindersCommand extends Command
         $created = 0;
 
         foreach ($appointments as $appointment) {
-            $phone = $appointment->customer?->phone;
+            $phone = $appointment->patient?->phone;
 
             if (! $phone) {
                 continue;

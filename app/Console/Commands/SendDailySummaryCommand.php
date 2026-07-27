@@ -19,7 +19,7 @@ class SendDailySummaryCommand extends Command
     public function handle(): int
     {
         $completedAppointments = Appointment::query()
-            ->whereHas('status', fn ($q) => $q->where('name', 'completed'))
+            ->whereHas('status', fn ($q) => $q->where('name', 'fulfilled'))
             ->whereDate('updated_at', today())
             ->count();
 
