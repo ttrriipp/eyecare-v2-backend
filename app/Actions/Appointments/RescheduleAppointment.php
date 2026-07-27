@@ -4,6 +4,7 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Models\Appointment;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
@@ -26,6 +27,7 @@ class RescheduleAppointment
         CarbonInterface $scheduledAt,
         bool $customerInitiated,
         ?string $rescheduleReason = null,
+        ?string $reasonCategory = null,
     ): Appointment {
         if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
             throw ValidationException::withMessages([
@@ -35,15 +37,23 @@ class RescheduleAppointment
 
         $rescheduleReason = filled($rescheduleReason) ? trim($rescheduleReason) : null;
 
-        if (! $customerInitiated && $rescheduleReason === null) {
+        // Staff rescheduling requires a reason category
+        if (! $customerInitiated && blank($reasonCategory)) {
             throw ValidationException::withMessages([
-                'reschedule_reason' => ['A reschedule reason is required.'],
+                'reason_category' => ['A reason category is required for clinic-initiated rescheduling.'],
+            ]);
+        }
+
+        // 'other' requires details
+        if ($reasonCategory === 'other' && blank($rescheduleReason)) {
+            throw ValidationException::withMessages([
+                'reschedule_reason' => ['Please provide details when selecting "other" as the reason.'],
             ]);
         }
 
         $appointment->loadMissing(['appointmentType', 'optometrist', 'patient']);
 
-        return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason): Appointment {
+        return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {
@@ -68,6 +78,19 @@ class RescheduleAppointment
             }
 
             $appointment->update($attributes);
+
+            // Create immutable reschedule history
+            AppointmentReschedule::query()->create([
+                'appointment_id' => $appointment->id,
+                'previous_scheduled_at' => $previousScheduledAt,
+                'new_scheduled_at' => $appointment->fresh()->scheduled_at,
+                'initiated_by' => $customerInitiated ? 'patient' : 'clinic',
+                'actor_id' => auth()->id(),
+                'reason_category' => $reasonCategory,
+                'reason_details' => $rescheduleReason,
+                'rescheduled_at' => now(),
+            ]);
+
             $appointment->load(['patient', 'appointmentType', 'status', 'optometrist']);
 
             $this->createSmsNotification($appointment, $rescheduleReason);
@@ -78,6 +101,7 @@ class RescheduleAppointment
                 metadata: array_filter([
                     'from' => $previousScheduledAt,
                     'to' => $appointment->scheduled_at->toDateTimeString(),
+                    'reason_category' => $reasonCategory,
                     'reason' => $rescheduleReason,
                 ], fn ($value): bool => $value !== null),
             );
