@@ -15,6 +15,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Url;
 
 class CreateAppointment extends CreateRecord
@@ -116,13 +117,22 @@ class CreateAppointment extends CreateRecord
             if (empty($data['checked_in_at'])) {
                 app(LockAppointmentScheduleDate::class)->handle($data['scheduled_at']);
 
-                app(ScheduleAppointment::class)->handle(
-                    scheduledAt: $data['scheduled_at'],
-                    durationMinutes: $data['duration_minutes'],
-                    optometrist: filled($data['optometrist_id'] ?? null)
-                        ? User::query()->findOrFail($data['optometrist_id'])
-                        : null,
-                );
+                try {
+                    app(ScheduleAppointment::class)->handle(
+                        scheduledAt: $data['scheduled_at'],
+                        durationMinutes: $data['duration_minutes'],
+                        optometrist: filled($data['optometrist_id'] ?? null)
+                            ? User::query()->findOrFail($data['optometrist_id'])
+                            : null,
+                    );
+                } catch (ValidationException $e) {
+                    // Remap error keys for Filament form (scheduled_at → data.scheduled_at)
+                    $remapped = [];
+                    foreach ($e->errors() as $key => $messages) {
+                        $remapped["data.{$key}"] = $messages;
+                    }
+                    throw ValidationException::withMessages($remapped);
+                }
             }
 
             return Appointment::query()->create($data);

@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             CatalogSeeder::class,
             ClinicHoursSeeder::class,
             DemoUserSeeder::class,
+            ProviderHoursSeeder::class,
             ClinicWorkflowSeeder::class,
         ]);
     }
