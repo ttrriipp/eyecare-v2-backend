@@ -81,11 +81,11 @@ test('canonical seed data creates complete clinic workflow', function () {
 test('seed data has no legacy model references', function () {
     $this->seed(DatabaseSeeder::class);
 
-    // Verify no visit_reasons table exists
-    expect(Schema::hasTable('visit_reasons'))->toBeFalse();
-
-    // Verify no orders/billings tables exist
-    expect(Schema::hasTable('orders'))->toBeFalse()
+    expect(class_exists('App\\Models\\VisitReason'))->toBeFalse()
+        ->and(class_exists('Database\\Factories\\VisitReasonFactory'))->toBeFalse()
+        ->and(class_exists('Database\\Seeders\\VisitReasonSeeder'))->toBeFalse()
+        ->and(Schema::hasTable('visit_reasons'))->toBeFalse()
+        ->and(Schema::hasTable('orders'))->toBeFalse()
         ->and(Schema::hasTable('billings'))->toBeFalse()
         ->and(Schema::hasTable('payments'))->toBeFalse();
 });
