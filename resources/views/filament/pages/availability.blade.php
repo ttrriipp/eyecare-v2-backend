@@ -1,3 +1,3 @@
 <x-filament-panels::page>
-    <x-filament::schema-component />
+    {{ $this->content }}
 </x-filament-panels::page>
