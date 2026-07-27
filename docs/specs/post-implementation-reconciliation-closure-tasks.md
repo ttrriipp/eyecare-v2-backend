@@ -3,8 +3,8 @@
 ## Status
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
-portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Work is paused
-before Task 6 until the project owner authorizes the next phase.
+portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
+started; Tasks 6–7 are complete and work continues with Task 8.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -57,8 +57,8 @@ before expanding its scope. Deletions remain replacement-first.
 
 ### Phase B: Dead Support and Canonical Schema
 
-- [ ] Task 6: Remove dead Order test-data support
-- [ ] Task 7: Remove dead Billing test-data support
+- [x] Task 6: Remove dead Order test-data support
+- [x] Task 7: Remove dead Billing test-data support
 - [ ] Task 8: Create Patients and Appointments canonically
 - [ ] Task 9: Create Prescriptions canonically
 - [ ] Task 10: Create Conversations canonically
@@ -219,14 +219,17 @@ aggregate without changing canonical Job Orders.
 
 **Acceptance criteria:**
 
-- [ ] Order, OrderItem, and OrderStatus factories are deleted.
-- [ ] OrderStatusSeeder is deleted and no longer invoked.
-- [ ] Job Order, inventory, and canonical seeder tests remain green.
+- [x] Order, OrderItem, and OrderStatus factories are deleted.
+- [x] OrderStatusSeeder is deleted and no longer invoked.
+- [x] Job Order, inventory, and canonical seeder tests remain green.
 
 **Verification:**
 
-- [ ] Focused Job Order, inventory, and seeder tests pass.
-- [ ] Static scans find no missing Order model import.
+- [x] Focused Job Order, inventory, and seeder tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Seeders tests/Feature/Invoices tests/Feature/PrintingTest.php tests/Feature/Filament/InvoiceResourceTest.php tests/Feature/Api/V1/InvoiceTest.php tests/Feature/JobOrders tests/Feature/Inventory tests/Feature/Filament/JobOrderResourceTest.php tests/Feature/Filament/InventoryResourceTest.php tests/Feature/Filament/InventoryMovementResourceTest.php tests/Feature/Api/V1/JobOrderTest.php`
+      passed 88 tests and 236 assertions.
+- [x] Static scans find no missing Order model import:
+      `rg -n -F "App\\Models\\Order" app database tests routes --glob "*.php"`.
 
 **Dependencies:** Task 5.
 
@@ -242,14 +245,17 @@ structures without changing canonical Invoices.
 
 **Acceptance criteria:**
 
-- [ ] Billing, BillingItem, and BillingStatus factories are deleted.
-- [ ] BillingStatusSeeder is deleted and no longer invoked.
-- [ ] Invoice, payment, print, and canonical seeder tests remain green.
+- [x] Billing, BillingItem, and BillingStatus factories are deleted.
+- [x] BillingStatusSeeder is deleted and no longer invoked.
+- [x] Invoice, payment, print, and canonical seeder tests remain green.
 
 **Verification:**
 
-- [ ] Focused Invoice, payment, print, and seeder tests pass.
-- [ ] Static scans find no missing Billing model import.
+- [x] Focused Invoice, payment, print, and seeder tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Seeders tests/Feature/Invoices tests/Feature/PrintingTest.php tests/Feature/Filament/InvoiceResourceTest.php tests/Feature/Api/V1/InvoiceTest.php tests/Feature/JobOrders tests/Feature/Inventory tests/Feature/Filament/JobOrderResourceTest.php tests/Feature/Filament/InventoryResourceTest.php tests/Feature/Filament/InventoryMovementResourceTest.php tests/Feature/Api/V1/JobOrderTest.php`
+      passed 88 tests and 236 assertions.
+- [x] Static scans find no missing Billing model import:
+      `rg -n -F "App\\Models\\Billing" app database tests routes --glob "*.php"`.
 
 **Dependencies:** Task 6.
 
