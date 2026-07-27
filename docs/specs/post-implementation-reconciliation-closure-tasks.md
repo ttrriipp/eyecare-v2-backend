@@ -4,7 +4,7 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–10 are complete and work continues with Task 11.
+started; Tasks 6–11 are complete. Checkpoint B is under verification.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -62,7 +62,7 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 8: Create Patients and Appointments canonically
 - [x] Task 9: Create Prescriptions canonically
 - [x] Task 10: Create Conversations canonically
-- [ ] Task 11: Create Feedback canonically
+- [x] Task 11: Create Feedback canonically
 
 ### Phase C: Exact Patient API
 
@@ -373,15 +373,23 @@ now-empty Patient transition migration.
 
 **Acceptance criteria:**
 
-- [ ] Feedback is created directly with `patient_id`.
-- [ ] Feedback creation contains no `customer_id` or `order_id`.
-- [ ] The superseded Patient transition migration is deleted.
+- [x] Feedback is created directly with `patient_id`.
+- [x] Feedback creation contains no `customer_id` or `order_id`.
+- [x] The superseded Patient transition migration is deleted.
 
 **Verification:**
 
-- [ ] Canonical-schema, Feedback, and moderation tests pass.
-- [ ] Fresh migrate/seed passes.
-- [ ] Migration scans find no Feedback legacy ownership.
+- [x] Canonical-schema, Feedback, and moderation tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/FeedbackTest.php tests/Feature/Api/V1/MessagingFeedbackRatingTest.php tests/Feature/Ratings/FrameRatingModerationTest.php tests/Feature/Ratings/VerifiedFrameRatingTest.php`
+      passed 27 tests and 111 assertions.
+- [x] Fresh migrate/seed passes:
+      `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`.
+- [x] Migration scans find no Feedback legacy ownership:
+      `rg -n "customer_id|order_id|2026_07_27_010000_migrate_feedback_conversations_to_patient_id" database/migrations/2026_06_11_004047_create_feedback_table.php database/migrations tests/Feature/Database/CanonicalSchemaTest.php`
+      returned only intended test assertions and unrelated non-Feedback
+      references.
+- [x] Boost schema inspection confirmed `feedback.patient_id` references
+      Patients with cascade delete and no `customer_id` or `order_id` column.
 
 **Dependencies:** Task 10.
 

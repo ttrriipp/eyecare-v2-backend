@@ -13,9 +13,8 @@ return new class extends Migration
     {
         Schema::create('feedback', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('users');
+            $table->foreignId('patient_id')->nullable()->constrained()->cascadeOnDelete();
             $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedBigInteger('order_id')->nullable();
             $table->unsignedTinyInteger('rating');
             $table->text('comment')->nullable();
             $table->text('staff_reply')->nullable();

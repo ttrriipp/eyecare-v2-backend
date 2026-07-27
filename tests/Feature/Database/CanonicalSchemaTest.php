@@ -126,7 +126,6 @@ test('prescription database columns and foreign keys match canonical constraints
 test('conversations are created with a canonical patient owner only', function () {
     $createMigration = file_get_contents(database_path('migrations/2026_06_10_134402_create_conversations_table.php'));
     $reworkMigration = file_get_contents(database_path('migrations/2026_06_16_132305_rework_messaging_schema.php'));
-    $patientTransition = file_get_contents(database_path('migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php'));
 
     expect($createMigration)->toContain("foreignId('patient_id')->unique()->constrained()->cascadeOnDelete()")
         ->and($createMigration)->not->toContain('customer_id')
@@ -137,7 +136,7 @@ test('conversations are created with a canonical patient owner only', function (
         ->and($reworkMigration)->toContain("Schema::create('message_context_links'")
         ->and($reworkMigration)->not->toContain("Schema::table('conversations'")
         ->and($reworkMigration)->not->toContain('customer_id')
-        ->and($patientTransition)->not->toContain('conversations');
+        ->and(file_exists(database_path('migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php')))->toBeFalse();
 });
 
 test('conversation database columns and indexes match canonical constraints', function () {
@@ -182,6 +181,45 @@ test('conversation database columns and indexes match canonical constraints', fu
     expect($columns)->not->toHaveKeys(['customer_id', 'staff_id', 'appointment_id', 'order_id', 'subject'])
         ->and($columns['patient_id']->IS_NULLABLE)->toBe('NO')
         ->and($indexes->contains(fn (object $index): bool => (int) $index->NON_UNIQUE === 0))->toBeTrue()
+        ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
+        ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
+});
+
+test('feedback is created with canonical patient ownership only', function () {
+    $migration = file_get_contents(database_path('migrations/2026_06_11_004047_create_feedback_table.php'));
+
+    expect($migration)->toContain("foreignId('patient_id')->nullable()->constrained()->cascadeOnDelete()")
+        ->and($migration)->not->toContain('customer_id')
+        ->and($migration)->not->toContain('order_id')
+        ->and(file_exists(database_path('migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php')))->toBeFalse();
+});
+
+test('feedback database columns and foreign keys match canonical constraints', function () {
+    $columns = collect(DB::select("
+        SELECT COLUMN_NAME, IS_NULLABLE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'feedback'
+            AND COLUMN_NAME IN ('customer_id', 'order_id', 'patient_id')
+    "))->keyBy('COLUMN_NAME');
+
+    $foreignKeys = collect(DB::select("
+        SELECT
+            KEY_COLUMN_USAGE.COLUMN_NAME,
+            KEY_COLUMN_USAGE.REFERENCED_TABLE_NAME,
+            REFERENTIAL_CONSTRAINTS.DELETE_RULE
+        FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            ON KEY_COLUMN_USAGE.CONSTRAINT_SCHEMA = REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA
+            AND KEY_COLUMN_USAGE.CONSTRAINT_NAME = REFERENTIAL_CONSTRAINTS.CONSTRAINT_NAME
+            AND KEY_COLUMN_USAGE.TABLE_NAME = REFERENTIAL_CONSTRAINTS.TABLE_NAME
+        WHERE REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA = DATABASE()
+            AND REFERENTIAL_CONSTRAINTS.TABLE_NAME = 'feedback'
+            AND KEY_COLUMN_USAGE.COLUMN_NAME = 'patient_id'
+    "))->keyBy('COLUMN_NAME');
+
+    expect($columns)->not->toHaveKeys(['customer_id', 'order_id'])
+        ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
         ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
         ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
 });
