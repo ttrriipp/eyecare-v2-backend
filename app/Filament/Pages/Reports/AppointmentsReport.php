@@ -34,13 +34,13 @@ class AppointmentsReport extends BaseReport
             ->when($this->dateUntil, fn ($q) => $q->whereDate('scheduled_at', '<=', $this->dateUntil));
 
         $total = (clone $query)->count();
-        $completed = (clone $query)->whereHas('status', fn ($q) => $q->where('name', 'completed'))->count();
-        $rate = $total > 0 ? round(($completed / $total) * 100) : 0;
+        $fulfilled = (clone $query)->whereHas('status', fn ($q) => $q->where('name', 'fulfilled'))->count();
+        $rate = $total > 0 ? round(($fulfilled / $total) * 100) : 0;
 
         return [
             Stat::make('Total appointments', number_format($total)),
-            Stat::make('Completed', number_format($completed))->color('success'),
-            Stat::make('Completion rate', $rate.'%')->color($rate >= 70 ? 'success' : 'warning'),
+            Stat::make('Fulfilled', number_format($fulfilled))->color('success'),
+            Stat::make('Fulfillment rate', $rate.'%')->color($rate >= 70 ? 'success' : 'warning'),
         ];
     }
 

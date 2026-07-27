@@ -21,8 +21,8 @@ class StoreFeedbackRequest extends FormRequest
     {
         $patientId = $this->user()?->patient?->id;
 
-        $completedAppointmentStatusId = AppointmentStatus::query()
-            ->where('name', 'completed')
+        $fulfilledAppointmentStatusId = AppointmentStatus::query()
+            ->where('name', 'fulfilled')
             ->value('id');
 
         return [
@@ -31,7 +31,7 @@ class StoreFeedbackRequest extends FormRequest
                 'integer',
                 Rule::exists('appointments', 'id')
                     ->where('patient_id', $patientId)
-                    ->where('appointment_status_id', $completedAppointmentStatusId),
+                    ->where('appointment_status_id', $fulfilledAppointmentStatusId),
             ],
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['nullable', 'string', 'max:2000'],
