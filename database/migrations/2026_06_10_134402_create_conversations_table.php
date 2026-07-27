@@ -13,11 +13,7 @@ return new class extends Migration
     {
         Schema::create('conversations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained('users');
-            $table->foreignId('staff_id')->nullable()->constrained('users');
-            $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedBigInteger('order_id')->nullable();
-            $table->string('subject')->nullable();
+            $table->foreignId('patient_id')->unique()->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }

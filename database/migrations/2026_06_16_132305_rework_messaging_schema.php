@@ -8,18 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Drop FK columns from conversations (context now lives on individual messages)
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->dropForeign(['staff_id']);
-            $table->dropForeign(['appointment_id']);
-            $table->dropColumn(['staff_id', 'appointment_id', 'order_id', 'subject']);
-        });
-
-        // Enforce one conversation per customer
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->unique('customer_id');
-        });
-
         // Per-message context links (polymorphic)
         Schema::create('message_context_links', function (Blueprint $table) {
             $table->id();
@@ -34,13 +22,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('message_context_links');
-
-        Schema::table('conversations', function (Blueprint $table) {
-            $table->dropUnique(['customer_id']);
-            $table->foreignId('staff_id')->nullable()->constrained('users');
-            $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
-            $table->unsignedBigInteger('order_id')->nullable();
-            $table->string('subject')->nullable();
-        });
     }
 };

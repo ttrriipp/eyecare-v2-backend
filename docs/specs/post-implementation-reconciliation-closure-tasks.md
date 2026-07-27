@@ -4,7 +4,7 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–9 are complete and work continues with Task 10.
+started; Tasks 6–10 are complete and work continues with Task 11.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -61,7 +61,7 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 7: Remove dead Billing test-data support
 - [x] Task 8: Create Patients and Appointments canonically
 - [x] Task 9: Create Prescriptions canonically
-- [ ] Task 10: Create Conversations canonically
+- [x] Task 10: Create Conversations canonically
 - [ ] Task 11: Create Feedback canonically
 
 ### Phase C: Exact Patient API
@@ -340,16 +340,24 @@ messaging rework migration to canonical structures only.
 
 **Acceptance criteria:**
 
-- [ ] Conversations are created with unique `patient_id`.
-- [ ] Conversation creation never introduces customer, staff, Appointment,
+- [x] Conversations are created with unique `patient_id`.
+- [x] Conversation creation never introduces customer, staff, Appointment,
       Order, or subject columns.
-- [ ] Message context links are still created without a legacy drop sequence.
+- [x] Message context links are still created without a legacy drop sequence.
 
 **Verification:**
 
-- [ ] Canonical-schema and Conversation tests pass.
-- [ ] Fresh migrate/seed passes.
-- [ ] Migration scans find no Conversation `customer_id` or `order_id`.
+- [x] Canonical-schema and Conversation tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/ConversationTest.php tests/Feature/Api/V1/MessagingFeedbackRatingTest.php tests/Feature/Api/V1/RouteContractTest.php`
+      passed 17 tests and 75 assertions.
+- [x] Fresh migrate/seed passes:
+      `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`.
+- [x] Migration scans find no Conversation `customer_id` or `order_id`:
+      `rg -n "customer_id|staff_id|appointment_id|order_id|subject|Schema::table\\('conversations'" database/migrations/2026_06_10_134402_create_conversations_table.php database/migrations/2026_06_16_132305_rework_messaging_schema.php database/migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php tests/Feature/Database/CanonicalSchemaTest.php`
+      returned only intended test assertions and Feedback transition
+      references for Task 11.
+- [x] Boost schema inspection confirmed non-null unique
+      `conversations.patient_id` with Patient cascade delete.
 
 **Dependencies:** Task 9.
 

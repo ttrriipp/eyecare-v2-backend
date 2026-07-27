@@ -20,16 +20,6 @@ return new class extends Migration
             $table->dropColumn('customer_id');
         });
 
-        Schema::table('conversations', function (Blueprint $table): void {
-            $table->foreignId('patient_id')->nullable()->after('id')->constrained()->cascadeOnDelete();
-        });
-
-        DB::statement('UPDATE conversations SET patient_id = (SELECT patients.id FROM patients WHERE patients.user_id = conversations.customer_id)');
-
-        Schema::table('conversations', function (Blueprint $table): void {
-            $table->dropForeign(['customer_id']);
-            $table->dropColumn('customer_id');
-        });
     }
 
     public function down(): void
@@ -42,12 +32,5 @@ return new class extends Migration
             $table->dropColumn('patient_id');
         });
 
-        Schema::table('conversations', function (Blueprint $table): void {
-            $table->foreignId('customer_id')->nullable()->constrained('users')->nullOnDelete();
-        });
-        Schema::table('conversations', function (Blueprint $table): void {
-            $table->dropForeign(['patient_id']);
-            $table->dropColumn('patient_id');
-        });
     }
 };
