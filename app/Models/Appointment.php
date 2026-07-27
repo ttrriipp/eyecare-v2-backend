@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'created_by',
     'optometrist_id',
     'source',
-    'visit_reason_id',
     'appointment_status_id',
     'scheduled_at',
     'checked_in_at',
@@ -122,14 +121,6 @@ class Appointment extends Model implements Eventable
     public function optometrist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'optometrist_id');
-    }
-
-    /**
-     * @return BelongsTo<VisitReason, $this>
-     */
-    public function visitReason(): BelongsTo
-    {
-        return $this->belongsTo(VisitReason::class);
     }
 
     /**

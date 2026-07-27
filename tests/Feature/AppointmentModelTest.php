@@ -41,6 +41,7 @@ test('appointment relationships are typed', function () {
         ->and($appointment->optometrist())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->appointmentType())->toBeInstanceOf(BelongsTo::class)
         ->and($appointment->status())->toBeInstanceOf(BelongsTo::class)
+        ->and(method_exists($appointment, 'visitReason'))->toBeFalse()
         ->and((new AppointmentType)->appointments())->toBeInstanceOf(HasMany::class);
 });
 
