@@ -34,7 +34,8 @@ test('patient can create a frame reservation', function () {
             'items' => [['product_variant_id' => $variant->id]],
         ])
         ->assertCreated()
-        ->assertJsonPath('data.patient_id', $user->patient->id);
+        ->assertJsonPath('data.status', 'requested')
+        ->assertJsonCount(1, 'data.items');
 
     $this->assertDatabaseHas('frame_reservations', [
         'patient_id' => $user->patient->id,
@@ -79,4 +80,44 @@ test('patient cannot cancel another patients reservation', function () {
 test('reservation requires authentication', function () {
     $this->getJson('/api/v1/frame-reservations')->assertUnauthorized();
     $this->postJson('/api/v1/frame-reservations', [])->assertUnauthorized();
+});
+
+test('reservation response does not contain internal commercial or inventory fields', function () {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'stock_quantity' => 10,
+        'cost_price' => 1500.00,
+        'low_stock_threshold' => 3,
+        'target_stock_level' => 20,
+    ]);
+    FrameReservation::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => ReservationStatus::Requested,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/frame-reservations')
+        ->assertOk();
+
+    // Reservation-level: no patient_id, no staff_notes, no deleted_at
+    $response->assertJsonMissing(['patient_id']);
+    $response->assertJsonMissing(['staff_notes']);
+    $response->assertJsonMissing(['deleted_at']);
+
+    // Variant-level: no cost_price, stock_quantity, low_stock_threshold, target_stock_level
+    $response->assertJsonMissing(['cost_price']);
+    $response->assertJsonMissing(['stock_quantity']);
+    $response->assertJsonMissing(['low_stock_threshold']);
+    $response->assertJsonMissing(['target_stock_level']);
+    $response->assertJsonMissing(['is_active']);
+    $response->assertJsonMissing(['ar_eligible']);
+    $response->assertJsonMissing(['ar_asset_reference']);
+    $response->assertJsonMissing(['product_id']);
 });

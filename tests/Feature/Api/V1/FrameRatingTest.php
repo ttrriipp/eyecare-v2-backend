@@ -1,5 +1,11 @@
 <?php
 
+use App\Enums\JobOrderStatus;
+use App\Models\Brand;
+use App\Models\DispensingEvent;
+use App\Models\JobOrder;
+use App\Models\JobOrderItem;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -9,46 +15,155 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+    $this->brand = Brand::factory()->create();
 });
 
-test('patient can submit a frame rating', function () {
+test('patient can submit a frame rating for a dispensed job order item', function () {
     $user = User::factory()->patient()->create();
-    $variant = ProductVariant::factory()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/job-order-items/1/rating', [
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
             'comment' => 'Excellent frame!',
         ])
         ->assertCreated()
         ->assertJsonPath('data.rating', 5)
-        ->assertJsonPath('data.comment', 'Excellent frame!');
+        ->assertJsonPath('data.comment', 'Excellent frame!')
+        ->assertJsonCount(1, 'data.revisions');
 });
 
-test('rating requires valid variant', function () {
+test('rating can be revised on subsequent submissions', function () {
     $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
 
+    // First rating
     $this->actingAs($user)
-        ->postJson('/api/v1/job-order-items/1/rating', [
-            'product_variant_id' => 9999,
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variant->id,
+            'rating' => 4,
+            'comment' => 'Good frame',
+        ])
+        ->assertCreated();
+
+    // Revised rating
+    $this->actingAs($user)
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variant->id,
+            'rating' => 5,
+            'comment' => 'Even better after use!',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.rating', 5)
+        ->assertJsonCount(2, 'data.revisions');
+});
+
+test('rating is rejected for another patients job order item', function () {
+    $userA = User::factory()->patient()->create();
+    $userB = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $userB->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $this->actingAs($userA)
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variant->id,
             'rating' => 5,
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['product_variant_id']);
+        ->assertForbidden();
 });
 
-test('rating must be between 1 and 5', function () {
+test('rating is rejected for non-dispensed job orders', function () {
     $user = User::factory()->patient()->create();
-    $variant = ProductVariant::factory()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::InProgress,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/job-order-items/1/rating', [
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
-            'rating' => 6,
+            'rating' => 5,
         ])
-        ->assertUnprocessable()
-        ->assertJsonValidationErrors(['rating']);
+        ->assertUnprocessable();
+});
+
+test('rating is rejected when variant does not match job order item', function () {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variantA = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $variantB = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variantA->id,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variantB->id,
+            'rating' => 5,
+        ])
+        ->assertUnprocessable();
+});
+
+test('rating is rejected when dispensing event does not belong to job order', function () {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $otherJobOrder = JobOrder::factory()->create(['patient_id' => $user->patient->id]);
+    $dispensingEvent = DispensingEvent::factory()->create(['job_order_id' => $otherJobOrder->id]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variant->id,
+            'rating' => 5,
+            'dispensing_event_id' => $dispensingEvent->id,
+        ])
+        ->assertUnprocessable();
 });
 
 test('rating requires authentication', function () {

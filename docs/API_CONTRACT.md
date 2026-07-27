@@ -507,54 +507,30 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
   "data": [
     {
       "id": 1,
-      "patient_id": 1,
       "appointment_id": 1,
       "status": "requested",
-      "staff_notes": null,
       "expires_at": "2026-08-03T10:00:00+08:00",
       "created_at": "2026-07-27T10:00:00+08:00",
-      "updated_at": "2026-07-27T10:00:00+08:00",
-      "deleted_at": null,
       "items": [
         {
           "id": 1,
-          "frame_reservation_id": 1,
           "product_variant_id": 42,
-          "created_at": "2026-07-27T10:00:00+08:00",
-          "updated_at": "2026-07-27T10:00:00+08:00",
           "variant": {
             "id": 42,
-            "product_id": 7,
             "name": "Black / 52mm",
             "sku": "RB-CR-BLK-52",
-            "is_active": true,
             "price": "4500.00",
             "compare_at_price": null,
-            "cost_price": "2000.00",
             "attributes": { "color": "black", "size": "52mm" },
-            "stock_quantity": 10,
-            "low_stock_threshold": 5,
-            "target_stock_level": 20,
-            "ar_eligible": true,
-            "ar_asset_reference": "rb-cr-blk-52.usdz",
             "images": [],
-            "created_at": "2026-07-27T10:00:00+08:00",
-            "updated_at": "2026-07-27T10:00:00+08:00",
-            "deleted_at": null,
             "product": {
               "id": 7,
-              "brand_id": 1,
-              "category_id": 2,
-              "lens_category_id": null,
               "name": "Classic Rectangle",
               "slug": "classic-rectangle",
               "description": "Timeless frame design",
-              "is_active": true,
               "product_type": "frame",
-              "images": [],
-              "created_at": "2026-07-27T10:00:00+08:00",
-              "updated_at": "2026-07-27T10:00:00+08:00",
-              "deleted_at": null
+              "brand": "Ray-Ban",
+              "category": "Full Rim"
             }
           }
         }
@@ -566,8 +542,9 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 
 **Notes:**
 - Response is a plain array wrapper (`data: [...]`), no `links` or `meta` pagination envelope.
-- `variant` includes internal fields (`cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`) — these are NOT filtered like in the frames catalog endpoint.
-- `product` is nested inside each variant.
+- Sanitized via `FrameReservationResource`. Excludes: `patient_id`, `staff_notes`, `deleted_at`, `updated_at`, `frame_reservation_id`.
+- Variant excludes: `cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`, `is_active`, `ar_eligible`, `ar_asset_reference`, `product_id`, `deleted_at`, timestamps.
+- Product excludes: `brand_id`, `category_id`, `lens_category_id`, `is_active`, `images`, `deleted_at`, timestamps. `brand` and `category` are string names, not objects.
 - `status` values: `requested`, `prepared`, `tried_on`, `converted`, `released`, `cancelled`.
 
 ---
@@ -1093,10 +1070,11 @@ Submits or revises a rating for a frame variant linked to a job order item.
 }
 ```
 
-**Eligibility:**
-- The endpoint does NOT enforce dispensing eligibility server-side. The `SaveFrameRating` action assumes the caller has determined the patient is eligible.
-- The intended eligibility path is: patient has a `dispensed` job order containing an item with a matching `product_variant_id`.
-- `dispensing_event_id` is optional and only meaningful on initial creation (ignored on revisions).
+**Eligibility (server-enforced):**
+- The job-order item (`{item}` in the URL) must belong to the authenticated patient.
+- The job order must have `status = dispensed`.
+- `product_variant_id` in the request body must match the job-order item's `product_variant_id`.
+- If `dispensing_event_id` is supplied, it must belong to the same job order.
 - One rating per patient per variant — subsequent calls append a revision.
 
 **Response (201):**
@@ -1219,7 +1197,7 @@ Attachments are uploaded as `multipart/form-data` with field name `attachment`. 
 Feedback targets `appointment_id` only (must be a completed appointment belonging to the patient). The `order_id` field does not exist — orders are retired.
 
 ### Job-order-item rating eligibility
-Ratings are submitted via `POST /job-order-items/{item}/rating`. The endpoint creates a new rating or appends a revision (one rating per patient per variant). The server does NOT enforce dispensing eligibility — it trusts the client. The intended contract is: the patient should have a dispensed job order with the given item. Moderated (hidden) ratings are preserved in DB. `dispensing_event_id` is optional and only used on first creation.
+Ratings are submitted via `POST /job-order-items/{item}/rating`. Server-enforced authorization: the job-order item must belong to the authenticated patient, the job order must be `dispensed`, the `product_variant_id` must match the item, and `dispensing_event_id` (if supplied) must belong to the same job order. One rating per patient per variant — subsequent calls append a revision. Moderated (hidden) ratings are preserved in DB.
 
 ---
 
@@ -1241,7 +1219,7 @@ The following old mobile features/routes are **intentionally retired** and do no
 
 ---
 
-## Appendix: Complete Route List (35 routes)
+## Appendix: Complete Route List (34 routes)
 
 ```
 POST   /api/v1/register
