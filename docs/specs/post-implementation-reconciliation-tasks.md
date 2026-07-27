@@ -2,9 +2,10 @@
 
 ## Status
 
-Approved by the project owner on 2026-07-26 after revision with the
-planning-and-task-breakdown process. Phase 4 is authorized to execute one task
-at a time. Task 1 is complete; Task 2 awaits authorization.
+Superseded for closure execution by
+`post-implementation-reconciliation-closure-tasks.md`. The 2026-07-27 closure
+audit reopened the contradicted claims below while preserving their original
+implementation commit references.
 
 ## Execution Rules
 
@@ -74,16 +75,19 @@ is recorded.
       (completed as part of Task 10)
 - [x] Task 12: Correct the appointment API contract
       (`9c3dbd6`)
-- [x] Task 13: Correct Filament appointment forms
+- [ ] Task 13: Correct Filament appointment forms
       (`9c3dbd6`)
 - [x] Task 14: Complete appointment-linked Intake
       (`e270489`)
 - [x] Task 15: Remove Visit Reason Filament UI
       (`44c5e06`)
-- [x] Task 16: Remove Visit Reason presentation helpers
+- [ ] Task 16: Remove Visit Reason presentation helpers
       (completed as part of Task 15)
-- [x] Task 17: Remove Visit Reason wiring
+- [ ] Task 17: Remove Visit Reason wiring
       (`e270489`, `44c5e06`)
+
+      Reopened: active Appointment and Filament consumers still reference
+      Visit Reason.
 
 ### Phase C: Supporting Catalog Cleanup
 
@@ -102,16 +106,19 @@ is recorded.
 
 - [x] Task 23: Normalize authentication and `/me`
       (`bb98308`)
-- [x] Task 24: Normalize Appointment and Intake routes
+- [ ] Task 24: Normalize Appointment and Intake routes
       (`03436a4`)
-- [x] Task 25: Normalize Conversation and attachment routes
+- [ ] Task 25: Normalize Conversation and attachment routes
       (`03436a4`)
-- [x] Task 26: Normalize Feedback and rating routes
+- [ ] Task 26: Normalize Feedback and rating routes
       (`03436a4`)
-- [x] Task 27: Remove extra catalog and notification routes
+- [ ] Task 27: Remove extra catalog and notification routes
       (`03436a4`)
-- [x] Task 28: Lock the full route equality contract
+- [ ] Task 28: Lock the full route equality contract
       (`ebb75ff`)
+
+      Reopened: the implemented equality fixture contains 35 routes and
+      contradicts the approved singular 34-route patient contract.
 
 ### Phase E: Canonical Migration History
 
@@ -119,10 +126,13 @@ is recorded.
       (`4147c27`)
 - [x] Task 30-34: Retire remaining legacy commerce migrations
       (`b0c2d3a`)
-- [x] Task 35: Consolidate Appointment Type and supporting schema
+- [ ] Task 35: Consolidate Appointment Type and supporting schema
       (`b5280c5`)
-- [x] Task 36: Consolidate Patient transition migrations
+- [ ] Task 36: Consolidate Patient transition migrations
       (`b5280c5`)
+
+      Reopened: final structures still depend on nullable and transitional
+      development migrations.
 
 ### Phase F: Seed, Acceptance, and Release Evidence
 
@@ -130,9 +140,12 @@ is recorded.
       (`388bf22`)
 - [x] Task 38: Restore complete clinic acceptance journeys
       (`2efc11a`)
-- [x] Task 39: Restore retained release-critical coverage
+- [ ] Task 39: Restore retained release-critical coverage
       (`8c96cde`)
-- [x] Task 40: Execute final technical release evidence
+- [ ] Task 40: Execute final technical release evidence
+
+      Reopened: recovery gates, browser/build/restore evidence, and verified
+      backend context remain incomplete.
 
 ## Task Index
 
@@ -432,12 +445,14 @@ Appointment model test, old VisitReason resource test.
 
 ### Checkpoint B
 
-- [x] Appointment Type is the only classifier and duration-default source.
-- [x] Every Appointment has a booked duration snapshot.
-- [x] Referral and Intake snapshot rules pass.
-- [x] No active VisitReason route, UI, or resource remains. VisitReason
+- [ ] Appointment Type is the only classifier and duration-default source.
+- [ ] Every Appointment has a booked duration snapshot.
+- [ ] Referral and Intake snapshot rules pass.
+- [ ] No active VisitReason route, UI, or resource remains. VisitReason
       model/factory/seeder retained for existing DB data until Phase E
       migration consolidation.
+
+Reopened because active Visit Reason consumers contradict this checkpoint.
 
 ## Phase C: Supporting Catalog Cleanup
 
@@ -579,10 +594,13 @@ route-only obsolete classes discovered by the final scan.
 
 ### Checkpoint D
 
-- [x] The patient route set is exact (35 routes match approved contract).
-- [x] Cross-patient isolation passes for every resource.
-- [x] No patient Order, checkout, Job Order/Invoice creation, or payment
+- [ ] The patient route set is exact (35 routes match approved contract).
+- [ ] Cross-patient isolation passes for every resource.
+- [ ] No patient Order, checkout, Job Order/Invoice creation, or payment
       mutation exists.
+
+Reopened because the checked 35-route fixture is not the approved 34-route
+contract and retained isolation coverage is not fully mapped.
 
 ## Phase E: Canonical Migration History
 
@@ -675,9 +693,12 @@ touching them.
 
 ### Checkpoint E
 
-- [x] Fresh migration creates only canonical schema.
-- [x] No migration creates a legacy structure merely to remove it later.
-- [x] Foreign keys, indexes, defaults, and nullability match application code.
+- [ ] Fresh migration creates only canonical schema.
+- [ ] No migration creates a legacy structure merely to remove it later.
+- [ ] Foreign keys, indexes, defaults, and nullability match application code.
+
+Reopened because transitional ownership migrations and nullable required
+Appointment fields remain.
 
 ## Phase F: Seed, Acceptance, and Release Evidence
 
@@ -733,9 +754,12 @@ evidence test/procedure, at most two final evidence files.
 
 ### Checkpoint F
 
-- [x] Technical success criteria have reproducible evidence.
-- [x] No release claim relies only on checked boxes or a reduced test count.
-- [x] Backend is ready for clinic UAT, not automatically production-approved.
+- [ ] Technical success criteria have reproducible evidence.
+- [ ] No release claim relies only on checked boxes or a reduced test count.
+- [ ] Backend is ready for clinic UAT, not automatically production-approved.
+
+Reopened because browser, build, restore, recovery-map, and context evidence
+was not recorded.
 
 ## Phase 3 Approval Gate
 

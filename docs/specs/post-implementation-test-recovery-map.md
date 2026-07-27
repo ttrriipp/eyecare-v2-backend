@@ -2,9 +2,9 @@
 
 ## Status
 
-Frozen by reconciliation Task 1 on 2026-07-26. This map compares deleted test
-files between baseline commit `a0cf085` and the approved reconciliation branch.
-The current 400-test, zero-failure run is a baseline only; it is not release
+Reopened by closure Task 1 on 2026-07-27. This map compares deleted test files
+between baseline commit `a0cf085` and the approved reconciliation branch. The
+audited 422-test, 1,058-assertion result is a baseline only; it is not release
 evidence until every retained row below has passing equal-or-stronger coverage.
 
 ## Classification Rules
@@ -105,4 +105,4 @@ evidence until every retained row below has passing equal-or-stronger coverage.
 - [ ] Every restore-required row points to passing equal-or-stronger coverage.
 - [ ] The full retained-behavior recovery gate is complete.
 
-The last two gates remain open for reconciliation Tasks 2–39.
+The last two gates remain open for closure Tasks 14–18.

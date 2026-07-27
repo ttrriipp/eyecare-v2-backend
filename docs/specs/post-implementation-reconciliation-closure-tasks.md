@@ -45,7 +45,7 @@ before expanding its scope. Deletions remain replacement-first.
 
 ### Phase A: Truth and Appointment Type
 
-- [ ] Task 1: Reopen contradicted claims
+- [x] Task 1: Reopen contradicted claims
 - [ ] Task 2: Lock Appointment Type regressions with populated records
 - [ ] Task 3: Cut core Appointment screens over to Appointment Type
 - [ ] Task 4: Cut schedule widgets over to Appointment Type
@@ -86,14 +86,14 @@ before expanding its scope. Deletions remain replacement-first.
 
 **Acceptance criteria:**
 
-- [ ] Tasks 13, 16–17, 24–28, 35–36, and 39–40 are marked open.
-- [ ] Checkpoints B, D, E, and F are reopened where evidence is contradicted.
-- [ ] Prior commit references remain intact with concise reopening reasons.
+- [x] Tasks 13, 16–17, 24–28, 35–36, and 39–40 are marked open.
+- [x] Checkpoints B, D, E, and F are reopened where evidence is contradicted.
+- [x] Prior commit references remain intact with concise reopening reasons.
 
 **Verification:**
 
-- [ ] `git diff --check`
-- [ ] Reopened claims match the closure specification audit baseline.
+- [x] `git diff --check`
+- [x] Reopened claims match the closure specification audit baseline.
 
 **Dependencies:** None.
 
