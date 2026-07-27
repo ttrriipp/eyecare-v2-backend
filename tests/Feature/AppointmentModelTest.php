@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
@@ -31,8 +32,50 @@ test('appointment factory creates valid records with required attributes', funct
         ->and($appointment->staff_notes)->toBe('Needs dilation.')
         ->and($appointment->patient)->toBeInstanceOf(Patient::class)
         ->and($appointment->appointmentType)->toBeInstanceOf(AppointmentType::class)
-        ->and($appointment->status)->toBeInstanceOf(AppointmentStatus::class);
+        ->and($appointment->status)->toBeInstanceOf(AppointmentStatus::class)
+        ->and($appointment->status->name)->toBe(AppointmentStatusName::Scheduled->value);
 });
+
+test('appointment status vocabulary has canonical labels and colors', function () {
+    expect(array_column(AppointmentStatusName::cases(), 'value'))->toBe([
+        'scheduled',
+        'checked_in',
+        'fulfilled',
+        'cancelled',
+        'no_show',
+    ])->and(array_map(
+        fn (AppointmentStatusName $status): string => $status->getLabel(),
+        AppointmentStatusName::cases(),
+    ))->toBe([
+        'Scheduled',
+        'Checked In',
+        'Fulfilled',
+        'Cancelled',
+        'No-show',
+    ])->and(array_map(
+        fn (AppointmentStatusName $status): string => $status->getColor(),
+        AppointmentStatusName::cases(),
+    ))->toBe([
+        'info',
+        'warning',
+        'success',
+        'danger',
+        'gray',
+    ]);
+});
+
+test('appointment factory provides explicit terminal states', function (
+    string $factoryState,
+    string $expectedStatus,
+) {
+    $appointment = Appointment::factory()->{$factoryState}()->create();
+
+    expect($appointment->status->name)->toBe($expectedStatus);
+})->with([
+    'fulfilled' => ['fulfilled', 'fulfilled'],
+    'cancelled' => ['cancelled', 'cancelled'],
+    'no-show' => ['noShow', 'no_show'],
+]);
 
 test('appointment relationships are typed', function () {
     $appointment = new Appointment;

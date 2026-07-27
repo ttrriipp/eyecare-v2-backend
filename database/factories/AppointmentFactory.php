@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
@@ -28,7 +29,7 @@ class AppointmentFactory extends Factory
             'created_by' => null,
             'optometrist_id' => null,
             'source' => 'manual',
-            'appointment_status_id' => $this->pendingStatusId(),
+            'appointment_status_id' => $this->statusId(AppointmentStatusName::Scheduled),
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),
             'checked_in_at' => null,
             'checked_in_by' => null,
@@ -38,19 +39,31 @@ class AppointmentFactory extends Factory
         ];
     }
 
-    private function pendingStatusId(): int
-    {
-        return AppointmentStatus::query()->firstOrCreate([
-            'name' => 'pending',
-        ])->id;
-    }
-
-    public function completed(): static
+    public function fulfilled(): static
     {
         return $this->state(fn () => [
-            'appointment_status_id' => AppointmentStatus::query()->firstOrCreate([
-                'name' => 'completed',
-            ])->id,
+            'appointment_status_id' => $this->statusId(AppointmentStatusName::Fulfilled),
         ]);
+    }
+
+    public function cancelled(): static
+    {
+        return $this->state(fn () => [
+            'appointment_status_id' => $this->statusId(AppointmentStatusName::Cancelled),
+        ]);
+    }
+
+    public function noShow(): static
+    {
+        return $this->state(fn () => [
+            'appointment_status_id' => $this->statusId(AppointmentStatusName::NoShow),
+        ]);
+    }
+
+    private function statusId(AppointmentStatusName $status): int
+    {
+        return AppointmentStatus::query()->firstOrCreate([
+            'name' => $status->value,
+        ])->id;
     }
 }

@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
+use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\Encounter;
 use App\Models\Invoice;
@@ -9,6 +11,7 @@ use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -66,6 +69,28 @@ test('canonical seed data creates appointments with duration snapshots', functio
         expect($appointment->duration_minutes)->not->toBeNull()
             ->and($appointment->duration_minutes)->toBe($appointment->appointmentType->duration_minutes);
     });
+});
+
+test('appointment statuses are seeded canonically without pruning the transition bridge', function () {
+    AppointmentStatus::query()->create(['name' => 'transition_bridge']);
+
+    $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(AppointmentStatusSeeder::class);
+
+    $statusNames = AppointmentStatus::query()->pluck('name');
+
+    expect($statusNames->all())
+        ->toContain(...array_map(
+            fn (AppointmentStatusName $status): string => $status->value,
+            AppointmentStatusName::cases(),
+        ))
+        ->toContain(...AppointmentStatusName::transitionBridgeValues())
+        ->and($statusNames)->toContain('transition_bridge')
+        ->and(
+            AppointmentStatus::query()
+                ->whereIn('name', array_column(AppointmentStatusName::cases(), 'value'))
+                ->count(),
+        )->toBe(count(AppointmentStatusName::cases()));
 });
 
 test('canonical seed data creates complete clinic workflow', function () {

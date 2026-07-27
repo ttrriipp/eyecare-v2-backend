@@ -2,39 +2,29 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AppointmentStatusName;
 use App\Models\AppointmentStatus;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class AppointmentStatusSeeder extends Seeder
 {
     /**
-     * Run the database seeds.
+     * Seed the canonical statuses without pruning transitional lookup rows.
+     *
+     * Non-canonical rows remain temporarily so consumers can migrate
+     * incrementally. Task 21 removes that transition bridge.
      */
     public function run(): void
     {
-        $approvedStatuses = collect([
-            'pending',
-            'confirmed',
-            'arrived',
-            'completed',
-            'no_show',
-            'cancelled',
-        ]);
+        $canonicalStatusNames = array_map(
+            fn (AppointmentStatusName $status): string => $status->value,
+            AppointmentStatusName::cases(),
+        );
 
-        $approvedStatuses->each(fn (string $name) => AppointmentStatus::query()->firstOrCreate([
-            'name' => $name,
-        ]));
-
-        $pendingStatusId = AppointmentStatus::query()->where('name', 'pending')->value('id');
-        $rescheduledStatusId = AppointmentStatus::query()->where('name', 'rescheduled')->value('id');
-
-        if ($rescheduledStatusId !== null) {
-            DB::table('appointments')
-                ->where('appointment_status_id', $rescheduledStatusId)
-                ->update(['appointment_status_id' => $pendingStatusId]);
-
-            AppointmentStatus::query()->whereKey($rescheduledStatusId)->delete();
+        foreach ([...$canonicalStatusNames, ...AppointmentStatusName::transitionBridgeValues()] as $statusName) {
+            AppointmentStatus::query()->firstOrCreate([
+                'name' => $statusName,
+            ]);
         }
     }
 }
