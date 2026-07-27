@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Prescriptions;
 
-use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
 use App\Filament\Resources\Prescriptions\Pages\EditPrescription;
 use App\Filament\Resources\Prescriptions\Pages\ListPrescriptions;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
@@ -54,7 +53,6 @@ class PrescriptionResource extends Resource
     {
         return [
             'index' => ListPrescriptions::route('/'),
-            'create' => CreatePrescription::route('/create'),
             'edit' => EditPrescription::route('/{record}/edit'),
         ];
     }
