@@ -29,12 +29,29 @@ return new class extends Migration
             $table->string('source')->default('manual');
             $table->foreignId('appointment_status_id')->constrained();
             $table->dateTime('scheduled_at');
+
+            // Check-in
             $table->dateTime('checked_in_at')->nullable();
             $table->foreignId('checked_in_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->dateTime('completed_at')->nullable();
+
+            // Fulfillment (replaces completed_at)
+            $table->dateTime('fulfilled_at')->nullable();
+
+            // Cancellation metadata
+            $table->string('cancelled_by')->nullable(); // 'patient' or 'clinic'
+            $table->foreignId('cancelled_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('cancellation_reason_category')->nullable();
+            $table->text('cancellation_reason_details')->nullable();
+            $table->dateTime('cancelled_at')->nullable();
+
+            // No-show metadata
+            $table->foreignId('no_show_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->dateTime('no_show_at')->nullable();
+
+            // Notes
             $table->text('contact_notes')->nullable();
             $table->text('staff_notes')->nullable();
-            $table->string('last_reschedule_reason')->nullable();
+
             $table->timestamps();
             $table->softDeletes();
         });

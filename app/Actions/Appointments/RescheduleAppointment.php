@@ -27,7 +27,7 @@ class RescheduleAppointment
         bool $customerInitiated,
         ?string $rescheduleReason = null,
     ): Appointment {
-        if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
+        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
             throw ValidationException::withMessages([
                 'appointment' => ['This appointment cannot be rescheduled.'],
             ]);
@@ -63,11 +63,8 @@ class RescheduleAppointment
 
             if ($customerInitiated) {
                 $attributes['appointment_status_id'] = AppointmentStatus::query()
-                    ->where('name', 'pending')
+                    ->where('name', 'scheduled')
                     ->value('id');
-                $attributes['last_reschedule_reason'] = null;
-            } else {
-                $attributes['last_reschedule_reason'] = $rescheduleReason;
             }
 
             $appointment->update($attributes);

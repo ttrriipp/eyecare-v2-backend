@@ -26,10 +26,30 @@ class AppointmentResource extends JsonResource
             'referring_source' => $this->referring_source,
             'status' => $this->status->name,
             'scheduled_at' => $this->scheduled_at->toISOString(),
+            'checked_in_at' => $this->checked_in_at?->toISOString(),
+            'fulfilled_at' => $this->fulfilled_at?->toISOString(),
             'contact_notes' => $this->contact_notes,
-            'last_reschedule_reason' => $this->last_reschedule_reason,
             'source' => $this->source,
             'assigned_optometrist' => $this->optometrist ? ['name' => $this->optometrist->name] : null,
+            'latest_reschedule' => $this->whenLoaded('latestReschedule') && $this->latestReschedule
+                ? [
+                    'previous_scheduled_at' => $this->latestReschedule->previous_scheduled_at->toISOString(),
+                    'new_scheduled_at' => $this->latestReschedule->new_scheduled_at->toISOString(),
+                    'initiated_by' => $this->latestReschedule->initiated_by,
+                    'reason_category' => $this->latestReschedule->reason_category,
+                    'reason_details' => $this->latestReschedule->reason_details,
+                    'rescheduled_at' => $this->latestReschedule->rescheduled_at->toISOString(),
+                ]
+                : null,
+            'cancellation' => $this->cancelled_at
+                ? [
+                    'initiated_by' => $this->cancelled_by,
+                    'reason_category' => $this->cancellation_reason_category,
+                    'reason_details' => $this->cancellation_reason_details,
+                    'cancelled_at' => $this->cancelled_at->toISOString(),
+                ]
+                : null,
+            'no_show_at' => $this->no_show_at?->toISOString(),
         ];
     }
 }

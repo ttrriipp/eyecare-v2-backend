@@ -26,7 +26,9 @@ test('appointment factory creates valid records with required attributes', funct
         ->and($appointment->source)->toBe('manual')
         ->and($appointment->optometrist_id)->toBeNull()
         ->and($appointment->checked_in_at)->toBeNull()
-        ->and($appointment->completed_at)->toBeNull()
+        ->and($appointment->fulfilled_at)->toBeNull()
+        ->and($appointment->cancelled_at)->toBeNull()
+        ->and($appointment->no_show_at)->toBeNull()
         ->and($appointment->scheduled_at)->not->toBeNull()
         ->and($appointment->contact_notes)->toBe('Please call before arrival.')
         ->and($appointment->staff_notes)->toBe('Needs dilation.')
@@ -95,13 +97,13 @@ test('appointment workflow timestamps and optometrist capability use native cast
     $appointment = Appointment::factory()->create([
         'optometrist_id' => $optometrist->id,
         'checked_in_at' => now()->subMinutes(20),
-        'completed_at' => now(),
+        'fulfilled_at' => now(),
     ]);
 
     expect($optometrist->is_optometrist)->toBeTrue()
         ->and($appointment->optometrist->is($optometrist))->toBeTrue()
         ->and($appointment->checked_in_at)->toBeInstanceOf(DateTimeInterface::class)
-        ->and($appointment->completed_at)->toBeInstanceOf(DateTimeInterface::class);
+        ->and($appointment->fulfilled_at)->toBeInstanceOf(DateTimeInterface::class);
 });
 
 test('appointment types are seeded idempotently', function () {

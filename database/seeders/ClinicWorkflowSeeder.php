@@ -64,7 +64,7 @@ class ClinicWorkflowSeeder extends Seeder
 
     private function seedAppointment(Patient $patient, User $staff): Appointment
     {
-        $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+        $scheduled = AppointmentStatus::query()->where('name', 'scheduled')->firstOrFail();
         $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
 
         $appointment = Appointment::query()->firstOrCreate(
@@ -72,24 +72,24 @@ class ClinicWorkflowSeeder extends Seeder
             [
                 'appointment_number' => 'APT-2026-000001',
                 'created_by' => $staff->id,
-                'appointment_status_id' => $confirmed->id,
+                'appointment_status_id' => $scheduled->id,
                 'duration_minutes' => $appointmentType->duration_minutes,
                 'scheduled_at' => now()->addDays(3)->setTime(10, 0),
                 'contact_notes' => 'First-time patient. Bring previous prescription if available.',
             ],
         );
 
-        // Create a completed appointment for history
-        $completed = AppointmentStatus::query()->where('name', 'completed')->firstOrFail();
+        // Create a fulfilled appointment for history
+        $fulfilled = AppointmentStatus::query()->where('name', 'fulfilled')->firstOrFail();
         Appointment::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'appointment_number' => 'APT-2026-000002'],
             [
                 'created_by' => $staff->id,
-                'appointment_status_id' => $completed->id,
+                'appointment_status_id' => $fulfilled->id,
                 'appointment_type_id' => $appointmentType->id,
                 'duration_minutes' => $appointmentType->duration_minutes,
                 'scheduled_at' => now()->subDays(30)->setTime(14, 0),
-                'completed_at' => now()->subDays(30)->setTime(15, 0),
+                'fulfilled_at' => now()->subDays(30)->setTime(15, 0),
             ],
         );
 

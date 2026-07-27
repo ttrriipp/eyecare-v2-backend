@@ -52,7 +52,7 @@ class AppointmentAvailabilityRequest extends FormRequest
             return;
         }
 
-        if (! in_array($appointment->status?->name, ['pending', 'confirmed'], true)) {
+        if (! in_array($appointment->status?->name, ['pending', 'confirmed', 'scheduled'], true)) {
             $validator->errors()->add('appointment_id', 'This appointment cannot be rescheduled.');
         }
 

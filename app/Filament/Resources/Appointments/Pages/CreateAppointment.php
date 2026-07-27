@@ -79,6 +79,8 @@ class CreateAppointment extends CreateRecord
             $data['scheduled_at'] = now();
             $data['appointment_status_id'] = AppointmentStatus::query()
                 ->where('name', 'arrived')
+                ->first()?->id ?? AppointmentStatus::query()
+                ->where('name', 'checked_in')
                 ->value('id');
             $data['checked_in_at'] = now();
             $data['checked_in_by'] = auth()->id();
@@ -96,7 +98,7 @@ class CreateAppointment extends CreateRecord
             unset($data['appointment_time']);
 
             $data['appointment_status_id'] = AppointmentStatus::query()
-                ->where('name', 'confirmed')
+                ->where('name', 'scheduled')
                 ->value('id');
         }
 

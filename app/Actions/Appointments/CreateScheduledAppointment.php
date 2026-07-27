@@ -49,7 +49,7 @@ class CreateScheduledAppointment
                 'duration_minutes' => $appointmentType->duration_minutes,
                 'referring_source' => $referringSource,
                 'optometrist_id' => $optometrist?->id,
-                'appointment_status_id' => AppointmentStatus::query()->where('name', 'pending')->value('id'),
+                'appointment_status_id' => AppointmentStatus::query()->where('name', 'scheduled')->value('id'),
                 'source' => 'mobile',
                 'scheduled_at' => $scheduledAt,
                 'contact_notes' => $contactNotes,

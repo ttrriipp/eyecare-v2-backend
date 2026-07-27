@@ -37,7 +37,7 @@ class TodaysScheduleWidget extends TableWidget
                 Appointment::query()
                     ->with(['patient', 'appointmentType', 'status'])
                     ->whereDate('scheduled_at', today())
-                    ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived']))
+                    ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived', 'scheduled', 'checked_in']))
                     ->orderBy('scheduled_at')
                     ->limit(5)
             )
@@ -60,6 +60,8 @@ class TodaysScheduleWidget extends TableWidget
                         'pending' => 'warning',
                         'confirmed' => 'info',
                         'arrived' => 'warning',
+                        'scheduled' => 'info',
+                        'checked_in' => 'warning',
                         default => 'gray',
                     }),
             ])

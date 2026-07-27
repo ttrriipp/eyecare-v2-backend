@@ -27,10 +27,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'scheduled_at',
     'checked_in_at',
     'checked_in_by',
-    'completed_at',
+    'fulfilled_at',
+    'cancelled_by',
+    'cancelled_by_user_id',
+    'cancellation_reason_category',
+    'cancellation_reason_details',
+    'cancelled_at',
+    'no_show_by',
+    'no_show_at',
     'contact_notes',
     'staff_notes',
-    'last_reschedule_reason',
 ])]
 class Appointment extends Model implements Eventable
 {
@@ -64,9 +70,9 @@ class Appointment extends Model implements Eventable
     public function toCalendarEvent(): CalendarEvent
     {
         $color = match ($this->status?->name) {
-            'confirmed' => '#3b82f6',
-            'arrived' => '#f59e0b',
-            'completed' => '#22c55e',
+            'scheduled' => '#3b82f6',
+            'checked_in' => '#f59e0b',
+            'fulfilled' => '#22c55e',
             'no_show' => '#6b7280',
             'cancelled' => '#ef4444',
             default => '#6b7280',
@@ -148,6 +154,30 @@ class Appointment extends Model implements Eventable
     }
 
     /**
+     * @return HasOne<Encounter, $this>
+     */
+    public function encounter(): HasOne
+    {
+        return $this->hasOne(Encounter::class);
+    }
+
+    /**
+     * @return HasMany<AppointmentReschedule, $this>
+     */
+    public function reschedules(): HasMany
+    {
+        return $this->hasMany(AppointmentReschedule::class)->latest('rescheduled_at');
+    }
+
+    /**
+     * @return HasOne<AppointmentReschedule, $this>
+     */
+    public function latestReschedule(): HasOne
+    {
+        return $this->hasOne(AppointmentReschedule::class)->latestOfMany('rescheduled_at');
+    }
+
+    /**
      * @return BelongsTo<AppointmentStatus, $this>
      */
     public function status(): BelongsTo
@@ -189,7 +219,9 @@ class Appointment extends Model implements Eventable
         return [
             'scheduled_at' => 'datetime',
             'checked_in_at' => 'datetime',
-            'completed_at' => 'datetime',
+            'fulfilled_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'no_show_at' => 'datetime',
         ];
     }
 }

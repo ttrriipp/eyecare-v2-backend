@@ -24,6 +24,10 @@ class UpdateAppointmentStatus
         'cancelled' => [],
         'completed' => [],
         'no_show' => [],
+        // New lifecycle bridge (temporary until Task 7)
+        'scheduled' => ['checked_in', 'cancelled', 'no_show'],
+        'checked_in' => ['fulfilled', 'cancelled'],
+        'fulfilled' => [],
     ];
 
     /**
@@ -58,13 +62,13 @@ class UpdateAppointmentStatus
             $attributes['staff_notes'] = $staffNotes;
         }
 
-        if ($statusName === 'arrived') {
+        if ($statusName === 'arrived' || $statusName === 'checked_in') {
             $attributes['checked_in_at'] = now();
             $attributes['checked_in_by'] = auth()->id();
         }
 
-        if ($statusName === 'completed') {
-            $attributes['completed_at'] = now();
+        if ($statusName === 'completed' || $statusName === 'fulfilled') {
+            $attributes['fulfilled_at'] = now();
         }
 
         $appointment->update($attributes);

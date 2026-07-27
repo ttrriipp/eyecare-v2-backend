@@ -33,7 +33,14 @@ class AppointmentFactory extends Factory
             'scheduled_at' => fake()->dateTimeBetween('+1 day', '+1 month'),
             'checked_in_at' => null,
             'checked_in_by' => null,
-            'completed_at' => null,
+            'fulfilled_at' => null,
+            'cancelled_by' => null,
+            'cancelled_by_user_id' => null,
+            'cancellation_reason_category' => null,
+            'cancellation_reason_details' => null,
+            'cancelled_at' => null,
+            'no_show_by' => null,
+            'no_show_at' => null,
             'contact_notes' => fake()->optional()->sentence(),
             'staff_notes' => null,
         ];
@@ -43,6 +50,7 @@ class AppointmentFactory extends Factory
     {
         return $this->state(fn () => [
             'appointment_status_id' => $this->statusId(AppointmentStatusName::Fulfilled),
+            'fulfilled_at' => now(),
         ]);
     }
 
@@ -50,6 +58,8 @@ class AppointmentFactory extends Factory
     {
         return $this->state(fn () => [
             'appointment_status_id' => $this->statusId(AppointmentStatusName::Cancelled),
+            'cancelled_by' => 'clinic',
+            'cancelled_at' => now(),
         ]);
     }
 
@@ -57,6 +67,7 @@ class AppointmentFactory extends Factory
     {
         return $this->state(fn () => [
             'appointment_status_id' => $this->statusId(AppointmentStatusName::NoShow),
+            'no_show_at' => now(),
         ]);
     }
 

@@ -9,7 +9,7 @@ class UpdateAppointmentContactNote
 {
     public function handle(Appointment $appointment, ?string $contactNotes): Appointment
     {
-        if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
+        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
             throw ValidationException::withMessages([
                 'appointment' => ['This appointment cannot be edited.'],
             ]);

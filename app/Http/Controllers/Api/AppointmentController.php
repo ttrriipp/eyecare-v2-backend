@@ -96,7 +96,7 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 403);
 
-        if (! in_array($appointment->status->name, ['pending', 'confirmed'], true)) {
+        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
             throw ValidationException::withMessages([
                 'appointment' => ['This appointment cannot be cancelled.'],
             ]);

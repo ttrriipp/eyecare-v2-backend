@@ -32,7 +32,7 @@ class CreateWalkInAppointment
             'appointment_type_id' => $appointmentType->id,
             'duration_minutes' => $appointmentType->duration_minutes,
             'referring_source' => $referringSource,
-            'appointment_status_id' => AppointmentStatus::query()->where('name', 'arrived')->value('id'),
+            'appointment_status_id' => AppointmentStatus::query()->where('name', 'checked_in')->value('id'),
             'source' => 'walk_in',
             'scheduled_at' => now(),
             'checked_in_at' => now(),
