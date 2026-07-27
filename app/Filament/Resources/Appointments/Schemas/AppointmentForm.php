@@ -4,8 +4,7 @@ namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
-use App\Models\Role;
-use App\Models\User;
+use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -43,18 +42,36 @@ class AppointmentForm
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->createOptionForm([
-                                    TextInput::make('full_name')->required(),
-                                    TextInput::make('phone')->required()->tel(),
-                                    TextInput::make('contact_email')->email()->nullable(),
+                                    TextInput::make('full_name')
+                                        ->label('Full Name')
+                                        ->required()
+                                        ->columnSpanFull(),
+                                    TextInput::make('phone')
+                                        ->tel()
+                                        ->nullable(),
+                                    TextInput::make('contact_email')
+                                        ->label('Email')
+                                        ->email()
+                                        ->nullable(),
+                                    DatePicker::make('date_of_birth')
+                                        ->label('Date of Birth')
+                                        ->nullable()
+                                        ->maxDate(now()),
+                                    Select::make('gender')
+                                        ->options([
+                                            'male' => 'Male',
+                                            'female' => 'Female',
+                                            'other' => 'Other',
+                                        ])
+                                        ->nullable(),
+                                    TextInput::make('occupation')
+                                        ->nullable(),
+                                    TextInput::make('address')
+                                        ->nullable()
+                                        ->columnSpanFull(),
                                 ])
                                 ->createOptionUsing(function (array $data): int {
-                                    return User::create([
-                                        'name' => $data['name'],
-                                        'phone' => $data['phone'],
-                                        'email' => $data['email'] ?? null,
-                                        'password' => null,
-                                        'role_id' => Role::query()->where('name', 'patient')->value('id'),
-                                    ])->getKey();
+                                    return Patient::create($data)->getKey();
                                 })
                                 ->columnSpanFull(),
                             Select::make('appointment_type_id')
