@@ -221,7 +221,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     {
         $appointment->loadMissing('status');
 
-        if (! in_array($appointment->status?->name, ['pending', 'confirmed'], true)) {
+        if (! in_array($appointment->status?->name, ['scheduled'], true)) {
             Notification::make()
                 ->title('Cannot reschedule')
                 ->body('Completed or cancelled appointments cannot be moved.')

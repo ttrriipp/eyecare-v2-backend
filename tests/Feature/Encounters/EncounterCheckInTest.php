@@ -41,7 +41,7 @@ test('check-in updates appointment status to arrived', function () {
     app(CheckInAppointment::class)->handle($appointment);
 
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('arrived')
+    expect($appointment->status->name)->toBe('checked_in')
         ->and($appointment->checked_in_at)->not->toBeNull()
         ->and($appointment->checked_in_by)->toBe($staff->id);
 });

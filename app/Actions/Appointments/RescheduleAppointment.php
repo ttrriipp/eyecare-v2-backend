@@ -29,7 +29,7 @@ class RescheduleAppointment
         ?string $rescheduleReason = null,
         ?string $reasonCategory = null,
     ): Appointment {
-        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
+        if (! in_array($appointment->status->name, ['scheduled'], true)) {
             throw ValidationException::withMessages([
                 'appointment' => ['This appointment cannot be rescheduled.'],
             ]);

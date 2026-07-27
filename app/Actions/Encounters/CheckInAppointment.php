@@ -17,9 +17,9 @@ class CheckInAppointment
 {
     public function handle(Appointment $appointment): Encounter
     {
-        if (! in_array($appointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
+        if (! in_array($appointment->status->name, ['scheduled'], true)) {
             throw ValidationException::withMessages([
-                'appointment' => ['Only pending, confirmed, or scheduled appointments can be checked in.'],
+                'appointment' => ['Only scheduled appointments can be checked in.'],
             ]);
         }
 
@@ -31,22 +31,16 @@ class CheckInAppointment
                 ->first();
 
             // Re-validate after lock
-            if (! in_array($lockedAppointment->status->name, ['pending', 'confirmed', 'scheduled'], true)) {
+            if (! in_array($lockedAppointment->status->name, ['scheduled'], true)) {
                 throw ValidationException::withMessages([
                     'appointment' => ['This appointment has already been processed.'],
                 ]);
             }
 
-            // Update appointment status to arrived/checked_in
+            // Update appointment status to checked_in
             $arrivedStatus = AppointmentStatus::query()
-                ->where('name', 'arrived')
-                ->first();
-
-            if ($arrivedStatus === null) {
-                $arrivedStatus = AppointmentStatus::query()
-                    ->where('name', 'checked_in')
-                    ->firstOrFail();
-            }
+                ->where('name', 'checked_in')
+                ->firstOrFail();
 
             $lockedAppointment->update([
                 'appointment_status_id' => $arrivedStatus->id,

@@ -168,14 +168,13 @@ class AppointmentForm
                                         return [];
                                     }
 
-                                    $order = ['pending', 'confirmed', 'arrived', 'completed', 'no_show', 'cancelled'];
+                                    $order = ['scheduled', 'checked_in', 'fulfilled', 'no_show', 'cancelled'];
 
                                     $transitions = [
-                                        'pending' => ['confirmed', 'cancelled'],
-                                        'confirmed' => ['arrived', 'no_show', 'cancelled'],
-                                        'arrived' => ['completed', 'cancelled'],
+                                        'scheduled' => ['checked_in', 'cancelled'],
+                                        'checked_in' => ['fulfilled', 'cancelled'],
                                         'cancelled' => [],
-                                        'completed' => [],
+                                        'fulfilled' => [],
                                         'no_show' => [],
                                     ];
 
@@ -194,11 +193,10 @@ class AppointmentForm
                                     $ids = once(fn () => AppointmentStatus::query()->pluck('id', 'name'));
 
                                     return array_filter([
-                                        $ids['pending'] ?? null => 'gray',
-                                        $ids['confirmed'] ?? null => 'info',
-                                        $ids['arrived'] ?? null => 'warning',
-                                        $ids['completed'] ?? null => 'success',
-                                        $ids['no_show'] ?? null => 'warning',
+                                        $ids['scheduled'] ?? null => 'info',
+                                        $ids['checked_in'] ?? null => 'warning',
+                                        $ids['fulfilled'] ?? null => 'success',
+                                        $ids['no_show'] ?? null => 'gray',
                                         $ids['cancelled'] ?? null => 'danger',
                                     ], fn ($k) => $k !== null, ARRAY_FILTER_USE_KEY);
                                 })

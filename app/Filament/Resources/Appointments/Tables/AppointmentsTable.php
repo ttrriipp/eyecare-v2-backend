@@ -35,8 +35,8 @@ class AppointmentsTable
     public static function configure(Table $table): Table
     {
         $advanceLabels = [
-            'pending' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'confirmed'],
-            'arrived' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'completed'],
+            'scheduled' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'checked_in'],
+            'checked_in' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'fulfilled'],
         ];
 
         return $table
@@ -54,10 +54,9 @@ class AppointmentsTable
                     ->label('Status')
                     ->badge()
                     ->color(fn (Appointment $record): string => match ($record->status?->name) {
-                        'pending' => 'gray',
-                        'confirmed' => 'info',
-                        'arrived' => 'warning',
-                        'completed' => 'success',
+                        'scheduled' => 'info',
+                        'checked_in' => 'warning',
+                        'fulfilled' => 'success',
                         'no_show' => 'gray',
                         'cancelled' => 'danger',
                         default => 'gray',
@@ -96,7 +95,7 @@ class AppointmentsTable
                     ->query(fn (Builder $query): Builder => $query
                         ->where('source', 'walk_in')
                         ->whereDate('scheduled_at', today())
-                        ->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'arrived')))
+                        ->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'checked_in')))
                     ->toggle(),
                 SelectFilter::make('optometrist')
                     ->relationship('optometrist', 'name', fn (Builder $query): Builder => $query->optometrists())
@@ -127,7 +126,7 @@ class AppointmentsTable
                         ->label('Assign')
                         ->icon('heroicon-o-user-plus')
                         ->color('info')
-                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true))
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['scheduled', 'checked_in'], true))
                         ->schema([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')
@@ -163,7 +162,7 @@ class AppointmentsTable
                         ->label('Check In')
                         ->icon('heroicon-o-arrow-right-start-on-rectangle')
                         ->color('warning')
-                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'confirmed')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
                             try {
@@ -178,7 +177,7 @@ class AppointmentsTable
                         ->label('Reschedule')
                         ->icon('heroicon-o-calendar-days')
                         ->color('info')
-                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed'], true))
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
                         ->schema([
                             DatePicker::make('scheduled_at')
                                 ->label('New appointment date')
@@ -222,7 +221,7 @@ class AppointmentsTable
                         ->label('Mark No-show')
                         ->icon('heroicon-o-user-minus')
                         ->color('warning')
-                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'confirmed')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
                             app(UpdateAppointmentStatus::class)->handle($record, 'no_show');
@@ -232,7 +231,7 @@ class AppointmentsTable
                         ->label('Cancel Appointment')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true))
+                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['scheduled', 'checked_in'], true))
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
                             try {
@@ -259,14 +258,14 @@ class AppointmentsTable
                             $skipped = 0;
 
                             foreach ($records as $record) {
-                                if ($record->status?->name !== 'pending') {
+                                if ($record->status?->name !== 'scheduled') {
                                     $skipped++;
 
                                     continue;
                                 }
 
                                 try {
-                                    app(UpdateAppointmentStatus::class)->handle($record, 'confirmed');
+                                    app(UpdateAppointmentStatus::class)->handle($record, 'checked_in');
                                     $advanced++;
                                 } catch (\Throwable) {
                                     $skipped++;
@@ -291,7 +290,7 @@ class AppointmentsTable
                             $skipped = 0;
 
                             foreach ($records as $record) {
-                                if (! in_array($record->status?->name, ['pending', 'confirmed', 'arrived'], true)) {
+                                if (! in_array($record->status?->name, ['scheduled', 'checked_in'], true)) {
                                     $skipped++;
 
                                     continue;

@@ -52,7 +52,7 @@ test('status-only arrival cannot bypass encounter creation', function () {
 
     // Verify the appointment status was updated
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('arrived');
+    expect($appointment->status->name)->toBe('checked_in');
 });
 
 test('cancelled appointments cannot create encounters', function () {

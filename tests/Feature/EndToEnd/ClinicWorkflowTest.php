@@ -55,7 +55,7 @@ test('scheduled patient journey: appointment through dispensing', function () {
 
     expect($encounter->status)->toBe(EncounterStatus::Planned)
         ->and($encounter->patient_id)->toBe($patient->id)
-        ->and($appointment->fresh()->status->name)->toBe('arrived');
+        ->and($appointment->fresh()->status->name)->toBe('checked_in');
 
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,

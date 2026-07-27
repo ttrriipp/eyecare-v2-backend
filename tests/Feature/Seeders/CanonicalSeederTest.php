@@ -84,8 +84,6 @@ test('appointment statuses are seeded canonically without pruning the transition
             fn (AppointmentStatusName $status): string => $status->value,
             AppointmentStatusName::cases(),
         ))
-        ->toContain(...AppointmentStatusName::transitionBridgeValues())
-        ->and($statusNames)->toContain('transition_bridge')
         ->and(
             AppointmentStatus::query()
                 ->whereIn('name', array_column(AppointmentStatusName::cases(), 'value'))

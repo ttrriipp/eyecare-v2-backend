@@ -78,8 +78,6 @@ class CreateAppointment extends CreateRecord
             $data['source'] = 'walk_in';
             $data['scheduled_at'] = now();
             $data['appointment_status_id'] = AppointmentStatus::query()
-                ->where('name', 'arrived')
-                ->first()?->id ?? AppointmentStatus::query()
                 ->where('name', 'checked_in')
                 ->value('id');
             $data['checked_in_at'] = now();

@@ -26,7 +26,7 @@ test('check-in action uses CheckInAppointment and creates encounter', function (
     $appointment = Appointment::factory()->create();
 
     // Confirm the appointment first
-    $confirmed = AppointmentStatus::query()->where('name', 'confirmed')->firstOrFail();
+    $confirmed = AppointmentStatus::query()->where('name', 'scheduled')->firstOrFail();
     $appointment->update(['appointment_status_id' => $confirmed->id]);
 
     $this->actingAs($staff);
@@ -36,7 +36,7 @@ test('check-in action uses CheckInAppointment and creates encounter', function (
         ->assertHasNoTableActionErrors();
 
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('arrived');
+    expect($appointment->status->name)->toBe('checked_in');
 
     $this->assertDatabaseHas('encounters', [
         'appointment_id' => $appointment->id,

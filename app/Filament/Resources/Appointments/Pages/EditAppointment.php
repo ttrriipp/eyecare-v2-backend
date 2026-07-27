@@ -72,7 +72,7 @@ class EditAppointment extends EditRecord
                 ->color('warning')
                 ->visible(fn (): bool => in_array(
                     $this->getRecord()->status?->name,
-                    ['pending', 'confirmed'],
+                    ['scheduled'],
                     true,
                 ))
                 ->schema([

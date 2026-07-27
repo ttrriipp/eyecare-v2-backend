@@ -18,16 +18,11 @@ class UpdateAppointmentStatus
      * @var array<string, string[]>
      */
     private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'cancelled'],
-        'confirmed' => ['arrived', 'no_show', 'cancelled'],
-        'arrived' => ['completed', 'cancelled'],
-        'cancelled' => [],
-        'completed' => [],
-        'no_show' => [],
-        // New lifecycle bridge (temporary until Task 7)
         'scheduled' => ['checked_in', 'cancelled', 'no_show'],
         'checked_in' => ['fulfilled', 'cancelled'],
+        'cancelled' => [],
         'fulfilled' => [],
+        'no_show' => [],
     ];
 
     /**

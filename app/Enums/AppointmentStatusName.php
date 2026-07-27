@@ -34,19 +34,4 @@ enum AppointmentStatusName: string implements HasColor, HasLabel
             self::NoShow => 'gray',
         };
     }
-
-    /**
-     * @return list<string>
-     *
-     * @deprecated Remove after all consumers migrate in Task 21.
-     */
-    public static function transitionBridgeValues(): array
-    {
-        return [
-            'pending',
-            'confirmed',
-            'arrived',
-            'completed',
-        ];
-    }
 }

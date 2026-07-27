@@ -9,21 +9,13 @@ use Illuminate\Database\Seeder;
 class AppointmentStatusSeeder extends Seeder
 {
     /**
-     * Seed the canonical statuses without pruning transitional lookup rows.
-     *
-     * Non-canonical rows remain temporarily so consumers can migrate
-     * incrementally. Task 21 removes that transition bridge.
+     * Seed the canonical appointment statuses.
      */
     public function run(): void
     {
-        $canonicalStatusNames = array_map(
-            fn (AppointmentStatusName $status): string => $status->value,
-            AppointmentStatusName::cases(),
-        );
-
-        foreach ([...$canonicalStatusNames, ...AppointmentStatusName::transitionBridgeValues()] as $statusName) {
+        foreach (AppointmentStatusName::cases() as $status) {
             AppointmentStatus::query()->firstOrCreate([
-                'name' => $statusName,
+                'name' => $status->value,
             ]);
         }
     }

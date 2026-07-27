@@ -36,7 +36,7 @@ class ListAppointments extends ListRecords
 
     public function getTabs(): array
     {
-        $statuses = ['pending', 'confirmed', 'arrived', 'completed', 'no_show', 'cancelled'];
+        $statuses = ['scheduled', 'checked_in', 'fulfilled', 'no_show', 'cancelled'];
 
         $tabs = ['all' => Tab::make('All')];
 
