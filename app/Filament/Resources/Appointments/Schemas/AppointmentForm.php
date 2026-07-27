@@ -7,6 +7,7 @@ use App\Models\AppointmentStatus;
 use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -25,6 +27,81 @@ class AppointmentForm
             Grid::make(3)->schema([
                 // ── Main (2/3) ──────────────────────────────────────
                 Grid::make(1)->columnSpan(2)->schema([
+                    Section::make('Patient')
+                        ->schema([
+                            Radio::make('patient_mode')
+                                ->options([
+                                    'new' => 'New Patient',
+                                    'existing' => 'Existing Patient',
+                                ])
+                                ->default('new')
+                                ->live()
+                                ->inline()
+                                ->hiddenOn('edit')
+                                ->dehydrated(false)
+                                ->columnSpanFull(),
+
+                            // New Patient fields
+                            TextInput::make('new_patient_full_name')
+                                ->label('Full Name')
+                                ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false)
+                                ->columnSpanFull(),
+                            TextInput::make('new_patient_phone')
+                                ->label('Phone')
+                                ->tel()
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            TextInput::make('new_patient_contact_email')
+                                ->label('Email')
+                                ->email()
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            DatePicker::make('new_patient_date_of_birth')
+                                ->label('Date of Birth')
+                                ->nullable()
+                                ->maxDate(now())
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            Select::make('new_patient_gender')
+                                ->label('Gender')
+                                ->options([
+                                    'male' => 'Male',
+                                    'female' => 'Female',
+                                    'other' => 'Other',
+                                ])
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            TextInput::make('new_patient_occupation')
+                                ->label('Occupation')
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            TextInput::make('new_patient_address')
+                                ->label('Address')
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false)
+                                ->columnSpanFull(),
+
+                            // Existing Patient select
+                            Select::make('patient_id')
+                                ->label('Patient')
+                                ->relationship('patient', 'full_name')
+                                ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
+                                ->searchable()
+                                ->preload()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'existing')
+                                ->disabledOn('edit')
+                                ->dehydrated()
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2),
+
                     Section::make('Appointment Details')
                         ->schema([
                             TextInput::make('appointment_number')
@@ -32,47 +109,6 @@ class AppointmentForm
                                 ->disabled()
                                 ->dehydrated(false)
                                 ->hiddenOn('create')
-                                ->columnSpanFull(),
-                            Select::make('patient_id')
-                                ->label('Patient')
-                                ->relationship('patient', 'full_name')
-                                ->required()
-                                ->searchable()
-                                ->preload()
-                                ->disabledOn('edit')
-                                ->dehydrated()
-                                ->createOptionForm([
-                                    TextInput::make('full_name')
-                                        ->label('Full Name')
-                                        ->required()
-                                        ->columnSpanFull(),
-                                    TextInput::make('phone')
-                                        ->tel()
-                                        ->nullable(),
-                                    TextInput::make('contact_email')
-                                        ->label('Email')
-                                        ->email()
-                                        ->nullable(),
-                                    DatePicker::make('date_of_birth')
-                                        ->label('Date of Birth')
-                                        ->nullable()
-                                        ->maxDate(now()),
-                                    Select::make('gender')
-                                        ->options([
-                                            'male' => 'Male',
-                                            'female' => 'Female',
-                                            'other' => 'Other',
-                                        ])
-                                        ->nullable(),
-                                    TextInput::make('occupation')
-                                        ->nullable(),
-                                    TextInput::make('address')
-                                        ->nullable()
-                                        ->columnSpanFull(),
-                                ])
-                                ->createOptionUsing(function (array $data): int {
-                                    return Patient::create($data)->getKey();
-                                })
                                 ->columnSpanFull(),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')

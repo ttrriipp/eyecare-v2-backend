@@ -9,6 +9,7 @@ use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\Patient;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -46,6 +47,27 @@ class CreateAppointment extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Create patient from new patient fields if mode is 'new'
+        if (empty($data['patient_id']) && filled($data['new_patient_full_name'] ?? null)) {
+            $patient = Patient::create([
+                'full_name' => $data['new_patient_full_name'],
+                'phone' => $data['new_patient_phone'] ?? null,
+                'contact_email' => $data['new_patient_contact_email'] ?? null,
+                'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
+                'gender' => $data['new_patient_gender'] ?? null,
+                'occupation' => $data['new_patient_occupation'] ?? null,
+                'address' => $data['new_patient_address'] ?? null,
+            ]);
+            $data['patient_id'] = $patient->getKey();
+        }
+
+        // Strip virtual patient fields
+        foreach (array_keys($data) as $key) {
+            if (str_starts_with($key, 'new_patient_') || $key === 'patient_mode') {
+                unset($data[$key]);
+            }
+        }
+
         $data['scheduled_at'] = AppointmentTime::combine(
             $data['scheduled_at'],
             $data['appointment_time'],
