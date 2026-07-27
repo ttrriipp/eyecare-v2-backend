@@ -104,32 +104,100 @@
             </div>
         </x-filament::section>
 
-        {{-- Clinical Findings (optometrist-only) --}}
-        @if(auth()->user()?->hasOptometristCapability())
+        {{-- Clinical Encounter --}}
+        @if($encounterData)
             <x-filament::section>
                 <x-slot name="heading">
-                    Clinical Findings
-                    <span class="text-sm text-gray-400 font-normal ml-2">(Optometrist Only)</span>
+                    Clinical Encounter
                 </x-slot>
 
-                @if(count($encounterData) > 0)
-                    @foreach($encounterData as $encounter)
-                        <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                            <div class="text-sm text-gray-500 mb-2">Encounter #{{ $encounter['encounter_number'] }}</div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <div class="text-sm text-gray-500">Findings</div>
-                                    <div class="font-medium">{{ $encounter['findings'] }}</div>
-                                </div>
-                                <div>
-                                    <div class="text-sm text-gray-500">Remarks</div>
-                                    <div class="font-medium">{{ $encounter['remarks'] }}</div>
-                                </div>
-                            </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-sm text-gray-500">Encounter #</div>
+                        <div class="font-medium">{{ $encounterData['encounter_number'] }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Status</div>
+                        <div class="font-medium">{{ ucfirst(str_replace('_', ' ', $encounterData['status'])) }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Optometrist</div>
+                        <div class="font-medium">{{ $encounterData['optometrist'] }}</div>
+                    </div>
+                </div>
+
+                @if(auth()->user()?->hasOptometristCapability())
+                    <div class="mt-4 space-y-4">
+                        <div>
+                            <div class="text-sm text-gray-500">Findings</div>
+                            <div class="font-medium whitespace-pre-wrap">{{ $encounterData['findings'] }}</div>
                         </div>
-                    @endforeach
-                @else
-                    <div class="text-gray-500">No encounters recorded yet.</div>
+                        <div>
+                            <div class="text-sm text-gray-500">Remarks</div>
+                            <div class="font-medium whitespace-pre-wrap">{{ $encounterData['remarks'] }}</div>
+                        </div>
+                    </div>
+                @endif
+            </x-filament::section>
+        @endif
+
+        {{-- Prescription --}}
+        @if($prescriptionData)
+            <x-filament::section>
+                <x-slot name="heading">
+                    Prescription
+                </x-slot>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b">
+                                <th class="text-left py-2 text-gray-500"></th>
+                                <th class="text-center py-2 text-gray-500">Sphere</th>
+                                <th class="text-center py-2 text-gray-500">Cylinder</th>
+                                <th class="text-center py-2 text-gray-500">Axis</th>
+                                <th class="text-center py-2 text-gray-500">Add</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="py-2 font-medium">OD (Right)</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['od_sphere'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['od_cylinder'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['od_axis'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['od_add'] }}</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="py-2 font-medium">OS (Left)</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['os_sphere'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['os_cylinder'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['os_axis'] }}</td>
+                                <td class="py-2 text-center">{{ $prescriptionData['os_add'] }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <div class="text-sm text-gray-500">PD</div>
+                        <div class="font-medium">{{ $prescriptionData['pd'] }} mm</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Prescribed</div>
+                        <div class="font-medium">{{ $prescriptionData['prescribed_at'] }}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Expires</div>
+                        <div class="font-medium">{{ $prescriptionData['expires_at'] }}</div>
+                    </div>
+                </div>
+
+                @if($prescriptionData['notes'] !== '—')
+                    <div class="mt-4">
+                        <div class="text-sm text-gray-500">Notes</div>
+                        <div class="font-medium whitespace-pre-wrap">{{ $prescriptionData['notes'] }}</div>
+                    </div>
                 @endif
             </x-filament::section>
         @endif

@@ -46,9 +46,26 @@ class EncounterForm
                 TextInput::make('intake.chief_complaint')
                     ->label('Chief Complaint')
                     ->disabled()
+                    ->dehydrated(false)
+                    ->columnSpanFull(),
+                TextInput::make('intake.past_ocular_history')
+                    ->label('Past Ocular History')
+                    ->disabled()
+                    ->dehydrated(false),
+                TextInput::make('intake.past_surgical_history')
+                    ->label('Past Surgical History')
+                    ->disabled()
+                    ->dehydrated(false),
+                TextInput::make('intake.past_medical_history')
+                    ->label('Past Medical History')
+                    ->disabled()
                     ->dehydrated(false),
                 TextInput::make('intake.allergies')
                     ->label('Allergies')
+                    ->disabled()
+                    ->dehydrated(false),
+                TextInput::make('intake.medications')
+                    ->label('Medications')
                     ->disabled()
                     ->dehydrated(false),
             ]),

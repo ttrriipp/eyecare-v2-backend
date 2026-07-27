@@ -39,7 +39,7 @@ test('optometrist sees complete health record with clinical findings', function 
     Livewire::test(HealthRecord::class, ['record' => $appointment->getRouteKey()])
         ->assertSee('Patient Health Record')
         ->assertSee('Blurred vision')
-        ->assertSee('Clinical Findings');
+        ->assertSee('Clinical Encounter');
 });
 
 test('receptionist sees health record without clinical findings', function () {
@@ -48,6 +48,7 @@ test('receptionist sees health record without clinical findings', function () {
     $appointment = Appointment::factory()->create(['patient_id' => $patient->id]);
     $intake = PatientIntake::factory()->create([
         'patient_id' => $patient->id,
+        'appointment_id' => $appointment->id,
         'chief_complaint' => 'Headache',
     ]);
 
@@ -56,7 +57,7 @@ test('receptionist sees health record without clinical findings', function () {
     Livewire::test(HealthRecord::class, ['record' => $appointment->getRouteKey()])
         ->assertSee('Patient Health Record')
         ->assertSee('Headache')
-        ->assertDontSee('Clinical Findings');
+        ->assertDontSee('Clinical Encounter');
 });
 
 test('health record shows appointment type and referral', function () {

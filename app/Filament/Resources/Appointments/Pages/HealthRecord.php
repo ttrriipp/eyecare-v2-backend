@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Models\Appointment;
+use App\Models\Prescription;
 use Filament\Resources\Pages\Page;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,7 @@ class HealthRecord extends Page
     public function mount(Request $request, int|string $record): void
     {
         $this->appointment = Appointment::query()
-            ->with(['patient', 'appointmentType', 'status', 'optometrist', 'encounters'])
+            ->with(['patient', 'appointmentType', 'status', 'optometrist', 'encounter'])
             ->findOrFail($record);
     }
 
@@ -35,10 +36,14 @@ class HealthRecord extends Page
         $appointment = $this->appointment;
         $patient = $appointment->patient;
 
-        // Load intake separately
-        $intake = $patient?->intakes()
-            ->latest('submitted_at')
-            ->first();
+        // Load intake for this specific appointment
+        $intake = $appointment->intake;
+
+        // Load encounter and prescription
+        $encounter = $appointment->encounter;
+        $prescription = $encounter
+            ? Prescription::query()->where('encounter_id', $encounter->id)->first()
+            : null;
 
         return [
             'appointmentData' => [
@@ -65,11 +70,27 @@ class HealthRecord extends Page
                 'allergies' => $intake?->allergies ?? '—',
                 'medications' => $intake?->medications ?? '—',
             ],
-            'encounterData' => $appointment->encounters->map(fn ($encounter) => [
+            'encounterData' => $encounter ? [
                 'encounter_number' => $encounter->encounter_number,
+                'status' => $encounter->status?->value ?? '—',
+                'optometrist' => $encounter->optometrist?->name ?? '—',
                 'findings' => $encounter->findings ?? '—',
                 'remarks' => $encounter->remarks ?? '—',
-            ])->toArray(),
+            ] : null,
+            'prescriptionData' => $prescription ? [
+                'od_sphere' => $prescription->od_sphere ?? '—',
+                'od_cylinder' => $prescription->od_cylinder ?? '—',
+                'od_axis' => $prescription->od_axis ?? '—',
+                'od_add' => $prescription->od_add ?? '—',
+                'os_sphere' => $prescription->os_sphere ?? '—',
+                'os_cylinder' => $prescription->os_cylinder ?? '—',
+                'os_axis' => $prescription->os_axis ?? '—',
+                'os_add' => $prescription->os_add ?? '—',
+                'pd' => $prescription->pd ?? '—',
+                'prescribed_at' => $prescription->prescribed_at?->format('M d, Y') ?? '—',
+                'expires_at' => $prescription->expires_at?->format('M d, Y') ?? '—',
+                'notes' => $prescription->notes ?? '—',
+            ] : null,
         ];
     }
 
