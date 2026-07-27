@@ -19,7 +19,7 @@ test('conversation access is patient-scoped', function () {
 
     // userA has their own conversation, not userB's
     $this->actingAs($userA)
-        ->getJson('/api/v1/conversations/messages')
+        ->getJson('/api/v1/conversation/messages')
         ->assertOk()
         ->assertJsonCount(0, 'data');
 });

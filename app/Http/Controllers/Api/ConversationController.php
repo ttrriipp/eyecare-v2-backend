@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ConversationController extends Controller
 {
     /**
-     * GET /conversations — returns (or creates) the patient's single conversation.
+     * GET /conversation — returns (or creates) the patient's single conversation.
      */
     public function show(Request $request): JsonResource
     {
@@ -39,7 +39,7 @@ class ConversationController extends Controller
     }
 
     /**
-     * GET /conversations/messages — list messages in the patient's conversation.
+     * GET /conversation/messages — list messages in the patient's conversation.
      */
     public function indexMessages(Request $request): AnonymousResourceCollection
     {
@@ -52,7 +52,7 @@ class ConversationController extends Controller
     }
 
     /**
-     * POST /conversations/messages — send a message in the patient's conversation.
+     * POST /conversation/messages — send a message in the patient's conversation.
      */
     public function storeMessage(StoreMessageRequest $request): JsonResponse
     {

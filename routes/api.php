@@ -13,8 +13,6 @@ use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QuotationController;
-use App\Http\Controllers\Api\StaffAppointmentController;
-use App\Http\Middleware\EnsureUserIsStaff;
 use App\Models\AppointmentType;
 use Illuminate\Support\Facades\Route;
 
@@ -44,7 +42,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::post('appointments/{appointment}/intake/submit', [PatientIntakeController::class, 'submit']);
 
     Route::get('frames', [FrameController::class, 'index']);
-    Route::get('frames/{product}', [FrameController::class, 'show']);
+    Route::get('frames/{frame}', [FrameController::class, 'show']);
 
     Route::get('frame-reservations', [FrameReservationController::class, 'index']);
     Route::post('frame-reservations', [FrameReservationController::class, 'store']);
@@ -57,22 +55,18 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
 
     Route::get('job-orders', [JobOrderController::class, 'index']);
-    Route::get('job-orders/{job_order}', [JobOrderController::class, 'show']);
+    Route::get('job-orders/{jobOrder}', [JobOrderController::class, 'show']);
 
     Route::get('invoices', [InvoiceController::class, 'index']);
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
 
-    Route::get('conversations', [ConversationController::class, 'show']);
-    Route::get('conversations/messages', [ConversationController::class, 'indexMessages']);
-    Route::post('conversations/messages', [ConversationController::class, 'storeMessage']);
+    Route::get('conversation', [ConversationController::class, 'show']);
+    Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
+    Route::post('conversation/messages', [ConversationController::class, 'storeMessage']);
 
-    Route::get('attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('attachments.download');
+    Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
     Route::post('feedback', [FeedbackController::class, 'store']);
 
     Route::post('job-order-items/{item}/rating', [FrameRatingController::class, 'store']);
-
-    Route::prefix('staff')->middleware(EnsureUserIsStaff::class)->group(function (): void {
-        Route::patch('appointments/{appointment}/status', [StaffAppointmentController::class, 'updateStatus']);
-    });
 });

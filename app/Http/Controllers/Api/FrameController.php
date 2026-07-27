@@ -53,12 +53,12 @@ class FrameController extends Controller
         );
     }
 
-    public function show(Product $product): JsonResponse
+    public function show(Product $frame): JsonResponse
     {
-        $frame = Product::query()
+        $catalogFrame = Product::query()
             ->where('product_type', 'frame')
             ->where('is_active', true)
-            ->where('id', $product->id)
+            ->where('id', $frame->id)
             ->whereHas('variants', fn ($q) => $q
                 ->where('is_active', true)
                 ->where('ar_eligible', true)
@@ -69,10 +69,10 @@ class FrameController extends Controller
                 ->whereNotNull('ar_asset_reference')])
             ->first();
 
-        abort_if($frame === null, 404);
+        abort_if($catalogFrame === null, 404);
 
         return response()->json([
-            'data' => FrameResource::make($frame),
+            'data' => FrameResource::make($catalogFrame),
         ]);
     }
 }

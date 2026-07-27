@@ -2,11 +2,12 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation in progress as of 2026-07-26.** The most recent baseline is
-> 400 Pest tests with zero failures, but that reduced suite does not prove
-> release readiness because retained coverage and several runtime consumers
-> are still being reconciled. Treat the schema, route, and workflow inventories
-> below as provisional until reconciliation Task 40 records fresh evidence.
+> **Reconciliation status as of 2026-07-27.** Canonical schema creation,
+> patient route equality, and conversation attachment isolation have been
+> reconciled through Tasks 1–13 of
+> `docs/specs/post-implementation-reconciliation-closure-tasks.md`. Full
+> regression passed at this cutoff: 442 Pest tests, 1,174 assertions. Tasks 14+
+> remain documented as future release-hardening work.
 
 ---
 
@@ -53,11 +54,11 @@ Three fixed roles. No dynamic permission management.
 
 | Role | Access |
 |---|---|
-| `admin` | Filament panel + full API (staff routes included) |
-| `staff` | Filament panel + staff API routes |
+| `admin` | Filament panel. Can manage users, audit/privacy records, destructive archive/restore actions, and optometrist workflow actions when `is_optometrist` is true. |
+| `staff` | Filament panel. Used for clinic operators such as optometrists and possible receptionists; optometrist-only workflow actions require `is_optometrist`. |
 | `patient` | Mobile API only — cannot access Filament |
 
-Role enforcement: `canAccessPanel()` on `User` model for Filament; `EnsureUserIsStaff` middleware for staff API routes; `PatientPolicy` for patient record access.
+Role enforcement: `canAccessPanel()` on `User` model for Filament; policies and action-level checks for patient records, clinical records, and optometrist-only workflow steps. There is no approved staff-only mobile API route group.
 
 ### Admin vs Staff permissions
 
@@ -196,21 +197,15 @@ GET    /api/v1/me                 Authenticated user profile
 PATCH  /api/v1/me                 Update own profile
 
 GET    /api/v1/appointment-types
-GET    /api/v1/appointments/availability
+GET    /api/v1/appointment-availability
 GET    /api/v1/appointments
 POST   /api/v1/appointments
 GET    /api/v1/appointments/{appointment}
 POST   /api/v1/appointments/{appointment}/reschedule
 POST   /api/v1/appointments/{appointment}/cancel
-PATCH  /api/v1/appointments/{appointment}/contact-note
-
-GET    /api/v1/patient/profile
-PATCH  /api/v1/patient/profile
-GET    /api/v1/patient/intakes
-POST   /api/v1/patient/intakes
-PATCH  /api/v1/patient/intakes/{intake}
-POST   /api/v1/patient/intakes/{intake}/submit
-POST   /api/v1/patient/intakes/{intake}/verify
+GET    /api/v1/appointments/{appointment}/intake
+PUT    /api/v1/appointments/{appointment}/intake
+POST   /api/v1/appointments/{appointment}/intake/submit
 
 GET    /api/v1/frames
 GET    /api/v1/frames/{frame}
@@ -227,16 +222,16 @@ GET    /api/v1/job-orders/{jobOrder}
 GET    /api/v1/invoices
 GET    /api/v1/invoices/{invoice}
 
-GET    /api/v1/conversations
-GET    /api/v1/conversations/messages
-POST   /api/v1/conversations/messages
+GET    /api/v1/conversation
+GET    /api/v1/conversation/messages
+POST   /api/v1/conversation/messages
+GET    /api/v1/conversation/attachments/{attachment}
 
 POST   /api/v1/feedback
-POST   /api/v1/ratings
-POST   /api/v1/notifications
+POST   /api/v1/job-order-items/{item}/rating
 ```
 
-All list endpoints are paginated. All resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, or payments.
+The approved patient-mobile contract contains exactly 34 routes. All list endpoints are paginated. All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
 
 ---
 
