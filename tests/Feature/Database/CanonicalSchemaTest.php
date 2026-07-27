@@ -73,7 +73,8 @@ test('prescriptions are created with patient ownership and encryption-compatible
         ->and($migration)->toContain("text('notes')->nullable()")
         ->and($migration)->not->toContain('customer_id')
         ->and(file_exists(database_path('migrations/2026_07_25_210000_link_prescriptions_to_encounters.php')))->toBeFalse()
-        ->and(file_exists(database_path('migrations/2026_06_29_212317_encrypt_prescription_sensitive_columns.php')))->toBeFalse();
+        ->and(file_exists(database_path('migrations/2026_06_29_212317_encrypt_prescription_sensitive_columns.php')))->toBeFalse()
+        ->and(file_exists(database_path('migrations/2026_06_29_231703_drop_prescription_uploads_table.php')))->toBeFalse();
 });
 
 test('prescription database columns and foreign keys match canonical constraints', function () {

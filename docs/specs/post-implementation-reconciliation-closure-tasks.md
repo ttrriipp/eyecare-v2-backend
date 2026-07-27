@@ -4,8 +4,8 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–11 are complete. Checkpoint B verification found additional
-legacy references, so Tasks 11A–11C were added before Checkpoint B can close.
+started; Tasks 6–11C and Checkpoint B are complete. Work continues with
+Task 12.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -404,11 +404,17 @@ canonical-schema test.
 
 ## Checkpoint B
 
-- [ ] Tasks 6–11C have passing focused tests and atomic commits.
-- [ ] Fresh migration and seed pass.
-- [ ] Canonical foreign keys, indexes, and nullability are inspected.
-- [ ] No final migration creates a legacy identity or commerce structure only
+- [x] Tasks 6–11C have passing focused tests and atomic commits.
+- [x] Fresh migration and seed pass.
+- [x] Canonical foreign keys, indexes, and nullability are inspected.
+- [x] No final migration creates a legacy identity or commerce structure only
       to remove it later.
+
+Checkpoint B evidence: `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+passed; the focused Phase B checkpoint suite passed 162 tests and 472
+assertions; Boost schema inspection confirmed canonical Patient-owned
+Appointments, Prescriptions, Conversations, Feedback, Inventory Movements, and
+SMS Notifications; static scans returned only intentional negative assertions.
 
 ## Task 11A: Create Inventory Movements Canonically
 
