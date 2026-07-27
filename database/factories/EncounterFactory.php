@@ -26,7 +26,7 @@ class EncounterFactory extends Factory
             'appointment_id' => null,
             'patient_intake_id' => null,
             'optometrist_id' => null,
-            'status' => EncounterStatus::Waiting,
+            'status' => EncounterStatus::Planned,
             'started_at' => null,
             'completed_at' => null,
             'findings' => null,

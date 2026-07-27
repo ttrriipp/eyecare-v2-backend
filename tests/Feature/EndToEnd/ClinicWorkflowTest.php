@@ -53,7 +53,7 @@ test('scheduled patient journey: appointment through dispensing', function () {
     $this->actingAs($staff);
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
-    expect($encounter->status)->toBe(EncounterStatus::Waiting)
+    expect($encounter->status)->toBe(EncounterStatus::Planned)
         ->and($encounter->patient_id)->toBe($patient->id)
         ->and($appointment->fresh()->status->name)->toBe('arrived');
 
@@ -130,7 +130,7 @@ test('walk-in patient journey: registration through encounter', function () {
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
     expect($encounter->patient_id)->toBe($patient->id)
-        ->and($encounter->status)->toBe(EncounterStatus::Waiting);
+        ->and($encounter->status)->toBe(EncounterStatus::Planned);
 });
 
 test('patient isolation: cannot access another patients records', function () {
@@ -154,7 +154,7 @@ test('patient isolation: cannot access another patients records', function () {
 
 test('receptionist capability boundary', function () {
     $staff = User::factory()->staff()->create(['is_optometrist' => false]);
-    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
+    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
 
     expect($staff->hasOptometristCapability())->toBeFalse();
 });

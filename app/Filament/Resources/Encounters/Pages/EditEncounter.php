@@ -18,7 +18,7 @@ class EditEncounter extends EditRecord
                 ->label('Start Encounter')
                 ->icon('heroicon-o-play')
                 ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Waiting
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
                     && auth()->user()?->hasOptometristCapability() === true)
                 ->requiresConfirmation()
                 ->action(function (): void {

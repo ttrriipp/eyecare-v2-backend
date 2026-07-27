@@ -78,7 +78,7 @@ class CheckInAppointment
                 'patient_id' => $lockedAppointment->patient_id,
                 'appointment_id' => $lockedAppointment->id,
                 'patient_intake_id' => $verifiedIntake?->id,
-                'status' => EncounterStatus::Waiting,
+                'status' => EncounterStatus::Planned,
             ]);
 
             // Audit the check-in event

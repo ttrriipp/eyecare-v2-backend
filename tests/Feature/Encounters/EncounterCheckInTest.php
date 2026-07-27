@@ -28,7 +28,7 @@ test('check-in creates exactly one encounter for the appointment', function () {
     expect($encounter)->toBeInstanceOf(Encounter::class)
         ->and($encounter->patient_id)->toBe($appointment->patient_id)
         ->and($encounter->appointment_id)->toBe($appointment->id)
-        ->and($encounter->status)->toBe(EncounterStatus::Waiting);
+        ->and($encounter->status)->toBe(EncounterStatus::Planned);
 
     $this->assertDatabaseCount('encounters', 1);
 });
@@ -95,7 +95,7 @@ test('encounter factory produces valid records', function () {
     $inProgress = Encounter::factory()->inProgress()->create();
     $completed = Encounter::factory()->completed()->create();
 
-    expect($waiting->status)->toBe(EncounterStatus::Waiting)
+    expect($waiting->status)->toBe(EncounterStatus::Planned)
         ->and($waiting->encounter_number)->toStartWith('ENC-')
         ->and($inProgress->status)->toBe(EncounterStatus::InProgress)
         ->and($inProgress->started_at)->not->toBeNull()

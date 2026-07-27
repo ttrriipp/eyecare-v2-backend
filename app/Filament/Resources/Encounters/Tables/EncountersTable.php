@@ -30,13 +30,13 @@ class EncountersTable
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (Encounter $record): string => match ($record->status) {
-                        EncounterStatus::Waiting => 'gray',
+                        EncounterStatus::Planned, EncounterStatus::Waiting => 'gray',
                         EncounterStatus::InProgress => 'warning',
                         EncounterStatus::Completed => 'success',
                         EncounterStatus::Cancelled => 'danger',
                     })
                     ->formatStateUsing(fn (EncounterStatus $state): string => match ($state) {
-                        EncounterStatus::Waiting => 'Waiting',
+                        EncounterStatus::Planned, EncounterStatus::Waiting => 'Planned',
                         EncounterStatus::InProgress => 'In Progress',
                         EncounterStatus::Completed => 'Completed',
                         EncounterStatus::Cancelled => 'Cancelled',

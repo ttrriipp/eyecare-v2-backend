@@ -31,7 +31,7 @@ test('check-in creates exactly one encounter', function () {
     expect($encounter)->toBeInstanceOf(Encounter::class)
         ->and($encounter->patient_id)->toBe($appointment->patient_id)
         ->and($encounter->appointment_id)->toBe($appointment->id)
-        ->and($encounter->status)->toBe(EncounterStatus::Waiting);
+        ->and($encounter->status)->toBe(EncounterStatus::Planned);
 
     $this->assertDatabaseCount('encounters', 1);
 });
@@ -47,7 +47,7 @@ test('status-only arrival cannot bypass encounter creation', function () {
     // Verify the encounter was created
     $this->assertDatabaseHas('encounters', [
         'appointment_id' => $appointment->id,
-        'status' => 'waiting',
+        'status' => 'planned',
     ]);
 
     // Verify the appointment status was updated

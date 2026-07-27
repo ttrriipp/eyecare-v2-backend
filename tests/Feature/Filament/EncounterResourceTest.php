@@ -27,7 +27,7 @@ test('optometrist can view encounter details', function () {
     $patient = Patient::factory()->create();
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
-        'status' => EncounterStatus::Waiting,
+        'status' => EncounterStatus::Planned,
     ]);
 
     $this->actingAs($optometrist);
@@ -38,27 +38,27 @@ test('optometrist can view encounter details', function () {
 
 test('encounter table shows status badges', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $waiting = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
+    $waiting = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
     $inProgress = Encounter::factory()->inProgress()->create();
     $completed = Encounter::factory()->completed()->create();
 
     $this->actingAs($optometrist);
 
     Livewire::test(ListEncounters::class)
-        ->assertTableColumnFormattedStateSet('status', 'Waiting', record: $waiting)
+        ->assertTableColumnFormattedStateSet('status', 'Planned', record: $waiting)
         ->assertTableColumnFormattedStateSet('status', 'In Progress', record: $inProgress)
         ->assertTableColumnFormattedStateSet('status', 'Completed', record: $completed);
 });
 
 test('encounter table can filter by status', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $waiting = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
+    $waiting = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
     $completed = Encounter::factory()->completed()->create();
 
     $this->actingAs($optometrist);
 
     Livewire::test(ListEncounters::class)
-        ->filterTable('status', EncounterStatus::Waiting->value)
+        ->filterTable('status', EncounterStatus::Planned->value)
         ->assertCanSeeTableRecords([$waiting])
         ->assertCanNotSeeTableRecords([$completed]);
 });

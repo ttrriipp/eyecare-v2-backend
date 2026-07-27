@@ -34,7 +34,7 @@ class RestartComplaintWorkflow
             $encounter = Encounter::query()->create([
                 'patient_id' => $complaint->patient_id,
                 'appointment_id' => $newAppointment->id,
-                'status' => EncounterStatus::Waiting,
+                'status' => EncounterStatus::Planned,
             ]);
 
             $complaint->update([

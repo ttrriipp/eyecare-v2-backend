@@ -40,13 +40,13 @@ test('check-in action uses CheckInAppointment and creates encounter', function (
 
     $this->assertDatabaseHas('encounters', [
         'appointment_id' => $appointment->id,
-        'status' => 'waiting',
+        'status' => 'planned',
     ]);
 });
 
 test('optometrist can start and complete encounter', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
+    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
 
     $this->actingAs($optometrist);
 
@@ -61,7 +61,7 @@ test('optometrist can start and complete encounter', function () {
 
 test('receptionist cannot start encounter', function () {
     $staff = User::factory()->staff()->create(['is_optometrist' => false]);
-    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Waiting]);
+    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
 
     $this->actingAs($staff);
 

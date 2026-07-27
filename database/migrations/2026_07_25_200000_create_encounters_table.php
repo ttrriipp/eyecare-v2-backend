@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('appointment_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->foreignId('patient_intake_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('optometrist_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status', 16)->default('waiting');
+            $table->string('status', 16)->default('planned');
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
 
