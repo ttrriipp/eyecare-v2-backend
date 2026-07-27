@@ -35,7 +35,7 @@ class TodaysScheduleWidget extends TableWidget
         return $table
             ->query(
                 Appointment::query()
-                    ->with(['patient', 'visitReason', 'status'])
+                    ->with(['patient', 'appointmentType', 'status'])
                     ->whereDate('scheduled_at', today())
                     ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived']))
                     ->orderBy('scheduled_at')
@@ -51,8 +51,8 @@ class TodaysScheduleWidget extends TableWidget
                 TextColumn::make('patient.phone')
                     ->label('Phone')
                     ->default('—'),
-                TextColumn::make('visitReason.name')
-                    ->label('Visit Reason'),
+                TextColumn::make('appointmentType.name')
+                    ->label('Appointment Type'),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()

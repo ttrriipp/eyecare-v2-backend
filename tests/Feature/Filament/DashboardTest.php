@@ -1,8 +1,11 @@
 <?php
 
+use App\Filament\Resources\Appointments\Widgets\AppointmentCalendarWidget;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Filament\Widgets\TodaysScheduleWidget;
+use App\Models\Appointment;
+use App\Models\AppointmentType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -33,11 +36,40 @@ test('dashboard prioritizes clinical workflow stats', function () {
         ->assertSee('Low Stock Variants');
 });
 
-test('today schedule widget shows patient name not customer', function () {
+test('today schedule widget shows patient and appointment type', function () {
     $admin = User::factory()->admin()->create();
+    $appointmentType = AppointmentType::factory()->create([
+        'name' => 'Comprehensive Eye Examination',
+    ]);
+    $appointment = Appointment::factory()->create([
+        'appointment_type_id' => $appointmentType->id,
+        'scheduled_at' => now()->addHour(),
+    ]);
 
     $this->actingAs($admin);
 
     Livewire::test(TodaysScheduleWidget::class)
-        ->assertSee('Schedule'); // Widget heading contains "Schedule"
+        ->assertCanSeeTableRecords([$appointment])
+        ->assertSee($appointment->patient->full_name)
+        ->assertSee('Comprehensive Eye Examination')
+        ->assertDontSee('Visit Reason');
+});
+
+test('appointment calendar modal shows the populated appointment type', function () {
+    $admin = User::factory()->admin()->create();
+    $appointmentType = AppointmentType::factory()->create([
+        'name' => 'Calendar Eye Assessment',
+    ]);
+    $appointment = Appointment::factory()->create([
+        'appointment_type_id' => $appointmentType->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(AppointmentCalendarWidget::class)
+        ->mountAction('viewAppointment', [
+            'appointmentId' => $appointment->id,
+        ])
+        ->assertMountedActionModalSee('Appointment Type')
+        ->assertMountedActionModalSee('Calendar Eye Assessment');
 });

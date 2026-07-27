@@ -76,7 +76,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     protected function getEvents(FetchInfo $info): Builder|array
     {
         return Appointment::query()
-            ->with(['patient', 'status', 'visitReason', 'createdBy', 'checkedInBy', 'optometrist'])
+            ->with(['patient', 'status', 'appointmentType', 'createdBy', 'checkedInBy', 'optometrist'])
             ->whereDate('scheduled_at', '>=', $info->start)
             ->whereDate('scheduled_at', '<=', $info->end);
     }
@@ -91,7 +91,7 @@ class AppointmentCalendarWidget extends CalendarWidget
             return;
         }
 
-        $event->loadMissing(['patient', 'visitReason', 'status']);
+        $event->loadMissing(['patient', 'appointmentType', 'status']);
 
         $this->mountAction('viewAppointment', [
             'appointmentId' => $event->getKey(),
@@ -149,7 +149,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     private function getAppointmentForAction(array $arguments): Appointment
     {
         return Appointment::query()
-            ->with(['patient', 'visitReason', 'status', 'createdBy', 'checkedInBy', 'optometrist'])
+            ->with(['patient', 'appointmentType', 'status', 'createdBy', 'checkedInBy', 'optometrist'])
             ->findOrFail($arguments['appointmentId']);
     }
 
@@ -231,12 +231,12 @@ class AppointmentCalendarWidget extends CalendarWidget
             return false;
         }
 
-        $appointment->loadMissing(['visitReason', 'optometrist']);
+        $appointment->loadMissing('optometrist');
 
         try {
             app(ScheduleAppointment::class)->handle(
                 scheduledAt: $newStart,
-                visitReason: $appointment->visitReason,
+                durationMinutes: $appointment->duration_minutes,
                 optometrist: $appointment->optometrist,
                 ignoreAppointment: $appointment,
             );
