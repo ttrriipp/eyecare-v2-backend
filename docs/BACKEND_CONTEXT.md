@@ -66,7 +66,7 @@ Use `User::isAdmin()` to check role in Filament. `is_optometrist` is a capabilit
 
 | Area | Staff CAN | Admin only |
 |---|---|---|
-| Appointments | Create, confirm, check-in, reschedule | Cancel bulk |
+| Appointments | Create, check-in, reschedule, cancel, mark no-show | Cancel bulk |
 | Encounters | View | Start/complete (optometrist only) |
 | Prescriptions | View | Finalize/amend (optometrist only) |
 | Quotations | Present, accept/decline | — |
@@ -99,7 +99,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | Table | Values |
 |---|---|
 | `roles` | admin, staff, patient |
-| `appointment_statuses` | pending, confirmed, arrived, completed, no_show, cancelled |
+| `appointment_statuses` | scheduled, checked_in, fulfilled, cancelled, no_show |
 | `appointment_types` | New Patient (30m), Follow-up (15m), Routine Check-up (30m), Referral (30m) |
 | `inventory_movement_types` | restock, manual_adjustment, reservation_allocation, reservation_release, order_commitment, order_reversal, damaged |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
@@ -111,7 +111,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 |---|---|
 | `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `privacy_notice_version`, `privacy_acknowledged_at`. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-ULID), `full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`. Optional `user_id` link to account. |
-| `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `completed_at`, `last_reschedule_reason`. |
+| `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`. |
+| `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (waiting/in_progress/completed/cancelled), encrypted `findings`/`remarks`. |
 | `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, encrypted OD/OS/PD fields, `prescribed_at`, `expires_at`, `notes`, `previous_prescription_id`. |
@@ -151,9 +152,9 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 ## Status Transition Rules
 
-**Appointments:** `pending → confirmed → arrived → completed` (terminal). `cancelled` and `no_show` are terminal from `confirmed` or `arrived`. Check-in creates an Encounter transactionally.
+**Appointments:** `scheduled → checked_in → fulfilled` (terminal). `cancelled` and `no_show` are terminal from `scheduled` or `checked_in`. Check-in creates an Encounter transactionally.
 
-**Encounters:** `waiting → in_progress → completed` (terminal). `cancelled` is terminal. Only optometrists can start/complete.
+**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only optometrists can start/complete.
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Presented revisions are immutable. Accepted quotations can create job orders.
 
