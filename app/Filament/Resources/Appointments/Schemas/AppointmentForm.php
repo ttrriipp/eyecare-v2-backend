@@ -159,7 +159,7 @@ class AppointmentForm
                                 ->relationship('appointmentType', 'name')
                                 ->required()
                                 ->live()
-                                ->disabledOn('edit')
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated(),
                             ToggleButtons::make('appointment_status_id')
                                 ->label('Status')
@@ -210,7 +210,7 @@ class AppointmentForm
                                 ->label('Referring Source')
                                 ->placeholder('Name of referring doctor or clinic')
                                 ->visible(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
-                                ->disabledOn('edit')
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated()
                                 ->columnSpanFull(),
                             DatePicker::make('scheduled_at')
@@ -221,7 +221,7 @@ class AppointmentForm
                                 ->placeholder('Choose an appointment date')
                                 ->suffixIcon('heroicon-o-calendar-days')
                                 ->minDate(today())
-                                ->disabledOn('edit')
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
                                 ->rule(fn (string $operation): string => $operation === 'create' ? 'after_or_equal:today' : '')
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
@@ -236,7 +236,7 @@ class AppointmentForm
                                         $component->state($record->scheduled_at->format('H:i'));
                                     }
                                 })
-                                ->disabledOn('edit')
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated(fn (string $operation): bool => $operation === 'create')
                                 ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in'),
                             Textarea::make('staff_notes')
@@ -255,6 +255,7 @@ class AppointmentForm
                             ->searchable()
                             ->preload()
                             ->nullable()
+                            ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                             ->placeholder('Assign later'),
                     ]),
 
