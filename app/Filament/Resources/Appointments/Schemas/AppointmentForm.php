@@ -152,6 +152,7 @@ class AppointmentForm
                                 ->default('scheduled')
                                 ->live()
                                 ->inline()
+                                ->required()
                                 ->hiddenOn('edit'),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
