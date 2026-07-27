@@ -4,7 +4,7 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–8 are complete and work continues with Task 9.
+started; Tasks 6–9 are complete and work continues with Task 10.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -60,7 +60,7 @@ before expanding its scope. Deletions remain replacement-first.
 - [x] Task 6: Remove dead Order test-data support
 - [x] Task 7: Remove dead Billing test-data support
 - [x] Task 8: Create Patients and Appointments canonically
-- [ ] Task 9: Create Prescriptions canonically
+- [x] Task 9: Create Prescriptions canonically
 - [ ] Task 10: Create Conversations canonically
 - [ ] Task 11: Create Feedback canonically
 
@@ -305,17 +305,26 @@ final columns into Prescription creation.
 
 **Acceptance criteria:**
 
-- [ ] Prescription creation uses `patient_id` and optional `encounter_id`
+- [x] Prescription creation uses `patient_id` and optional `encounter_id`
       directly.
-- [ ] No Prescription migration creates `customer_id`.
-- [ ] Superseded Patient-link and encryption transition migrations are removed
+- [x] No Prescription migration creates `customer_id`.
+- [x] Superseded Patient-link and encryption transition migrations are removed
       only after their final behavior is preserved.
 
 **Verification:**
 
-- [ ] Canonical-schema and Prescription lifecycle tests pass.
-- [ ] Fresh migrate/seed passes.
-- [ ] Migration scans find no Prescription `customer_id`.
+- [x] Canonical-schema and Prescription lifecycle tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/Encounters/PrescriptionLifecycleTest.php tests/Feature/Patients/PatientModelTest.php tests/Feature/Api/V1/WorkflowReadsTest.php tests/Feature/PrintingTest.php`
+      passed 32 tests and 97 assertions.
+- [x] Fresh migrate/seed passes:
+      `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`.
+- [x] Migration scans find no Prescription `customer_id`:
+      `rg -n "customer_id|2026_07_25_210000_link_prescriptions_to_encounters|encrypt_prescription_sensitive_columns" database/migrations/2026_06_09_063305_create_prescriptions_table.php database/migrations tests/Feature/Database/CanonicalSchemaTest.php`
+      returned only intentional test assertions and unrelated Conversation,
+      Feedback, and dropped upload-table rollback references.
+- [x] Boost schema inspection confirmed `prescriptions.patient_id` references
+      Patients with cascade delete, `encounter_id` references Encounters with
+      set-null delete, and encrypted Prescription fields are `text`.
 
 **Dependencies:** Task 8.
 

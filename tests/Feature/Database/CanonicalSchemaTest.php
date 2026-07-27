@@ -61,3 +61,64 @@ test('appointment database columns and foreign keys match canonical constraints'
         ->and($foreignKeys['appointment_type_id']->REFERENCED_TABLE_NAME)->toBe('appointment_types')
         ->and($foreignKeys['appointment_type_id']->DELETE_RULE)->toBe('RESTRICT');
 });
+
+test('prescriptions are created with patient ownership and encryption-compatible columns', function () {
+    $migration = file_get_contents(database_path('migrations/2026_06_09_063305_create_prescriptions_table.php'));
+
+    expect($migration)->toContain("foreignId('patient_id')->nullable()->constrained()->cascadeOnDelete()")
+        ->and($migration)->toContain("foreignId('encounter_id')->nullable()")
+        ->and($migration)->toContain("text('od_sphere')->nullable()")
+        ->and($migration)->toContain("text('os_sphere')->nullable()")
+        ->and($migration)->toContain("text('pd')->nullable()")
+        ->and($migration)->toContain("text('notes')->nullable()")
+        ->and($migration)->not->toContain('customer_id')
+        ->and(file_exists(database_path('migrations/2026_07_25_210000_link_prescriptions_to_encounters.php')))->toBeFalse()
+        ->and(file_exists(database_path('migrations/2026_06_29_212317_encrypt_prescription_sensitive_columns.php')))->toBeFalse();
+});
+
+test('prescription database columns and foreign keys match canonical constraints', function () {
+    $columns = collect(DB::select("
+        SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'prescriptions'
+            AND COLUMN_NAME IN (
+                'customer_id',
+                'patient_id',
+                'encounter_id',
+                'od_sphere',
+                'os_sphere',
+                'pd',
+                'notes',
+                'last_expiry_notified_at'
+            )
+    "))->keyBy('COLUMN_NAME');
+
+    $foreignKeys = collect(DB::select("
+        SELECT
+            KEY_COLUMN_USAGE.COLUMN_NAME,
+            KEY_COLUMN_USAGE.REFERENCED_TABLE_NAME,
+            REFERENTIAL_CONSTRAINTS.DELETE_RULE
+        FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+            ON KEY_COLUMN_USAGE.CONSTRAINT_SCHEMA = REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA
+            AND KEY_COLUMN_USAGE.CONSTRAINT_NAME = REFERENTIAL_CONSTRAINTS.CONSTRAINT_NAME
+            AND KEY_COLUMN_USAGE.TABLE_NAME = REFERENTIAL_CONSTRAINTS.TABLE_NAME
+        WHERE REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA = DATABASE()
+            AND REFERENTIAL_CONSTRAINTS.TABLE_NAME = 'prescriptions'
+            AND KEY_COLUMN_USAGE.COLUMN_NAME IN ('patient_id', 'encounter_id')
+    "))->keyBy('COLUMN_NAME');
+
+    expect($columns)->not->toHaveKey('customer_id')
+        ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
+        ->and($columns['encounter_id']->IS_NULLABLE)->toBe('YES')
+        ->and($columns['od_sphere']->DATA_TYPE)->toBe('text')
+        ->and($columns['os_sphere']->DATA_TYPE)->toBe('text')
+        ->and($columns['pd']->DATA_TYPE)->toBe('text')
+        ->and($columns['notes']->DATA_TYPE)->toBe('text')
+        ->and($columns['last_expiry_notified_at']->IS_NULLABLE)->toBe('YES')
+        ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
+        ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE')
+        ->and($foreignKeys['encounter_id']->REFERENCED_TABLE_NAME)->toBe('encounters')
+        ->and($foreignKeys['encounter_id']->DELETE_RULE)->toBe('SET NULL');
+});
