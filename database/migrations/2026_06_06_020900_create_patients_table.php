@@ -22,19 +22,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
         });
-
-        // Add patient_id FK to appointments now that patients table exists
-        Schema::table('appointments', function (Blueprint $table): void {
-            $table->foreign('patient_id')->references('id')->on('patients')->cascadeOnDelete();
-        });
     }
 
     public function down(): void
     {
-        Schema::table('appointments', function (Blueprint $table): void {
-            $table->dropForeign(['patient_id']);
-        });
-
         Schema::dropIfExists('patients');
     }
 };

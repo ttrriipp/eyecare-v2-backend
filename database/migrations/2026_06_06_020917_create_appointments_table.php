@@ -20,8 +20,8 @@ return new class extends Migration
         Schema::create('appointments', function (Blueprint $table) {
             $table->id();
             $table->string('appointment_number', 50)->unique();
-            $table->unsignedBigInteger('patient_id')->nullable();
-            $table->foreignId('appointment_type_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('patient_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('appointment_type_id')->constrained()->restrictOnDelete();
             $table->unsignedSmallInteger('duration_minutes')->default(30);
             $table->string('referring_source')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();

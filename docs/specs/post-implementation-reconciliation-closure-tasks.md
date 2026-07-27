@@ -4,7 +4,7 @@
 
 Approved by the project owner on 2026-07-27. Phase 3 is complete. The Phase A
 portion of Phase 4, Tasks 1–5 and Checkpoint A, is complete. Phase B has
-started; Tasks 6–7 are complete and work continues with Task 8.
+started; Tasks 6–8 are complete and work continues with Task 9.
 
 These tasks implement the approved closure specification and technical plan.
 
@@ -59,7 +59,7 @@ before expanding its scope. Deletions remain replacement-first.
 
 - [x] Task 6: Remove dead Order test-data support
 - [x] Task 7: Remove dead Billing test-data support
-- [ ] Task 8: Create Patients and Appointments canonically
+- [x] Task 8: Create Patients and Appointments canonically
 - [ ] Task 9: Create Prescriptions canonically
 - [ ] Task 10: Create Conversations canonically
 - [ ] Task 11: Create Feedback canonically
@@ -271,17 +271,25 @@ Appointment migration express its final required relationships directly.
 
 **Acceptance criteria:**
 
-- [ ] Patients exist before Appointments in fresh migration order.
-- [ ] Appointment `patient_id`, `appointment_type_id`, and
+- [x] Patients exist before Appointments in fresh migration order.
+- [x] Appointment `patient_id`, `appointment_type_id`, and
       `duration_minutes` are non-null.
-- [ ] Appointment Type deletion is restrictive and Patient foreign-key
+- [x] Appointment Type deletion is restrictive and Patient foreign-key
       behavior matches the approved lifecycle.
 
 **Verification:**
 
-- [ ] A focused canonical-schema Pest test passes.
-- [ ] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
-- [ ] Foreign-key and nullability inspection matches the specification.
+- [x] A focused canonical-schema Pest test passes:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php`
+      passed 3 tests and 16 assertions.
+- [x] `vendor/bin/sail artisan migrate:fresh --seed --no-interaction`
+- [x] Foreign-key and nullability inspection matches the specification:
+      Boost schema inspection confirmed non-null `patient_id`,
+      `appointment_type_id`, and `duration_minutes`, Patient cascade delete,
+      and Appointment Type restrict delete.
+- [x] Focused Appointment and seeder tests pass:
+      `vendor/bin/sail artisan test --compact tests/Feature/Database/CanonicalSchemaTest.php tests/Feature/AppointmentModelTest.php tests/Feature/AppointmentSchedulingTest.php tests/Feature/Appointments tests/Feature/Seeders`
+      passed 59 tests and 181 assertions.
 
 **Dependencies:** Tasks 5–7.
 
