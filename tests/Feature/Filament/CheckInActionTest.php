@@ -46,13 +46,21 @@ test('check-in action uses CheckInAppointment and creates encounter', function (
 
 test('optometrist can start and complete encounter', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
+    $appointment = Appointment::factory()->create();
+    $checkedIn = AppointmentStatus::query()->where('name', 'checked_in')->firstOrFail();
+    $appointment->update(['appointment_status_id' => $checkedIn->id]);
+    $encounter = Encounter::factory()->create([
+        'status' => EncounterStatus::Planned,
+        'appointment_id' => $appointment->id,
+    ]);
 
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertSee('Start Encounter')
-        ->callAction('startEncounter')
+        ->callAction('startEncounter', [
+            'optometrist_id' => $optometrist->id,
+        ])
         ->assertHasNoActionErrors();
 
     $encounter->refresh();
