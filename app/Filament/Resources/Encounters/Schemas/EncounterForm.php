@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Encounters\Schemas;
 
 use App\Enums\EncounterStatus;
+use App\Models\Encounter;
 use App\Models\User;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -33,14 +35,12 @@ class EncounterForm
                     ->preload(),
             ]),
             Section::make('Patient Information')->columns(2)->schema([
-                TextInput::make('patient.full_name')
+                Placeholder::make('patient_name')
                     ->label('Patient')
-                    ->disabled()
-                    ->dehydrated(false),
-                TextInput::make('appointment.scheduled_at')
+                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                Placeholder::make('appointment_date')
                     ->label('Appointment')
-                    ->disabled()
-                    ->dehydrated(false),
+                    ->content(fn (Encounter $record): string => $record->appointment?->scheduled_at?->format('M d, Y g:i A') ?? '—'),
             ]),
             Section::make('Intake Summary')->schema([
                 TextInput::make('intake.chief_complaint')
