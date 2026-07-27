@@ -48,6 +48,15 @@ class CheckInAppointment
                 'checked_in_by' => auth()->id(),
             ]);
 
+            // Return existing encounter if already checked in
+            $existingEncounter = Encounter::query()
+                ->where('appointment_id', $lockedAppointment->id)
+                ->first();
+
+            if ($existingEncounter !== null) {
+                return $existingEncounter;
+            }
+
             // Snapshot the verified intake for this encounter
             $verifiedIntake = PatientIntake::query()
                 ->where('patient_id', $lockedAppointment->patient_id)

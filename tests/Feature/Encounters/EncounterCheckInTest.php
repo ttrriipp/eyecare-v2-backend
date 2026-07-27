@@ -64,16 +64,20 @@ test('no-show appointments cannot create encounters', function () {
     app(CheckInAppointment::class)->handle($appointment);
 })->throws(ValidationException::class);
 
-test('failure rolls back both status and encounter creation', function () {
+test('check-in returns existing encounter when appointment already has one', function () {
     $appointment = Appointment::factory()->create();
     $staff = User::factory()->staff()->create();
     $this->actingAs($staff);
 
-    // Create an encounter with the same appointment_id to trigger unique constraint
-    Encounter::factory()->create(['appointment_id' => $appointment->id]);
+    // Create an encounter with the same appointment_id to simulate already-checked-in
+    $existingEncounter = Encounter::factory()->create(['appointment_id' => $appointment->id]);
 
-    app(CheckInAppointment::class)->handle($appointment);
-})->throws(Exception::class);
+    // Check-in should return the existing encounter, not throw
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+
+    expect($encounter->id)->toBe($existingEncounter->id);
+    $this->assertDatabaseCount('encounters', 1);
+});
 
 test('concurrent check-in cannot create duplicate encounters', function () {
     $appointment = Appointment::factory()->create();
