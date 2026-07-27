@@ -111,7 +111,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 |---|---|
 | `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `privacy_notice_version`, `privacy_acknowledged_at`. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-ULID), `full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`. Optional `user_id` link to account. |
-| `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source`, `scheduled_at`, `checked_in_at`, `completed_at`, `last_reschedule_reason`. |
+| `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `completed_at`, `last_reschedule_reason`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (waiting/in_progress/completed/cancelled), encrypted `findings`/`remarks`. |
 | `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, encrypted OD/OS/PD fields, `prescribed_at`, `expires_at`, `notes`, `previous_prescription_id`. |
@@ -239,6 +239,8 @@ The approved patient-mobile contract contains exactly 34 routes. All list endpoi
 
 | Action | Location | Does |
 |---|---|---|
+| `CreateScheduledAppointment` | `app/Actions/Appointments/` | Creates appointment from mobile API with availability checks |
+| `CreateWalkInAppointment` | `app/Actions/Appointments/` | Creates walk-in with arrived status, immediate check-in |
 | `CheckInAppointment` | `app/Actions/Encounters/` | Row-locked check-in, snapshot verified intake, create encounter |
 | `FinalizePrescription` | `app/Actions/Prescriptions/` | Optometrist-only, creates prescription with encrypted fields |
 | `PresentQuotation` | `app/Actions/Quotations/` | Marks draft as presented, records presenter/time |
@@ -268,6 +270,11 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 
 ## Important Conventions
 
+- **Appointment source values:** `mobile` (patient books via Android app), `walk_in` (patient physically at clinic), `manual` (staff creates in admin panel). Set automatically — not a user-facing dropdown.
+- **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Referring source appears when appointment type is Referral. Notes is a single staff_notes field.
+- **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (pending/confirmed): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
+- **Prescriptions:** No standalone create. Only created through the appointment → encounter → prescription workflow.
+- **Edit pages:** Quotations, Invoices, and Job Orders have full form schemas showing related items, financial summaries, and timelines.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
 - **Patient address:** Single nullable free-text field. Editable by patient via API and by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
