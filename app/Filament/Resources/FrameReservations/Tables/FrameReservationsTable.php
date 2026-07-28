@@ -22,10 +22,13 @@ class FrameReservationsTable
                     ->label('Patient')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('appointment.scheduled_at')
+                TextColumn::make('appointment.appointment_number')
                     ->label('Appointment')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('appointment.scheduled_at')
+                    ->label('Scheduled')
                     ->dateTime('M j, Y g:i A')
-                    ->placeholder('Walk-in')
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
