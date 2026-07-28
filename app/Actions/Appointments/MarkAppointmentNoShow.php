@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Reservations\CancelReservationsForAppointment;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
@@ -41,6 +42,9 @@ class MarkAppointmentNoShow
                 'no_show_at' => now(),
                 'staff_notes' => $staffNotes ?? $appointment->staff_notes,
             ]);
+
+            // Cancel active frame reservations and release prepared stock
+            app(CancelReservationsForAppointment::class)->handle($appointment);
 
             // Audit
             app(CreateAuditLog::class)->handle(

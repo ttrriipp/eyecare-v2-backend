@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Reservations\CancelReservationsForAppointment;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
@@ -42,7 +43,7 @@ class CancelAppointment
             ]);
         }
 
-        return DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails): Appointment {
+        return DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails, $currentStatus): Appointment {
             $cancelledStatus = AppointmentStatus::query()
                 ->where('name', 'cancelled')
                 ->firstOrFail();
@@ -66,6 +67,9 @@ class CancelAppointment
                     ]);
                 }
             }
+
+            // Cancel active frame reservations and release prepared stock
+            app(CancelReservationsForAppointment::class)->handle($appointment);
 
             // Audit
             app(CreateAuditLog::class)->handle(
