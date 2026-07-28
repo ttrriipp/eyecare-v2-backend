@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-07-28)
+> **Backend version:** Current repository state (2026-07-28) — includes billing record simplification and frame reservation appointment linkage
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -22,7 +22,7 @@
 9. [Prescriptions](#9-prescriptions)
 10. [Quotations](#10-quotations)
 11. [Job Orders](#11-job-orders)
-12. [Invoices](#12-invoices)
+12. [Billing Records](#12-billing-records)
 13. [Conversation](#13-conversation)
 14. [Frame Ratings](#14-frame-ratings)
 15. [Error Responses](#15-error-responses)
@@ -888,9 +888,11 @@ Returns a single job order with items. No API Resource — raw model serializati
 
 **Notes:** `encounter_id`, `prescription_id`, `quotation_revision_id`, `notes`, `started_at`, `ready_at`, `dispensed_at`, `cancelled_at` are all nullable.
 
-### GET `/invoices`
+### GET `/billing-records`
 
-Paginated list with items and posted payments.
+Paginated list with posted payments. Returns the standard `{ data, links, meta }` envelope.
+
+**Query:** `per_page` (default: 15)
 
 **Response (200):**
 ```json
@@ -898,81 +900,71 @@ Paginated list with items and posted payments.
   "data": [
     {
       "id": 1,
-      "invoice_number": "INV-2026-000001",
+      "billing_record_number": "BR-2026-000001",
       "patient_id": 1,
+      "job_order_id": 1,
+      "encounter_id": 1,
       "status": "partially_paid",
-      "total": 8000.00,
+      "total_amount": 8000.00,
       "amount_paid": 5000.00,
       "balance_due": 3000.00,
-      "items": [ ... ],
+      "recorded_by": 1,
+      "recorded_at": "2026-07-27T16:00:00+08:00",
+      "created_at": "2026-07-27T10:00:00+08:00",
+      "updated_at": "2026-07-27T16:00:00+08:00",
+      "deleted_at": null,
       "payments": [
         {
           "id": 1,
+          "billing_record_id": 1,
           "amount": 5000.00,
           "payment_method": "gcash",
           "reference_number": "GC-12345",
-          "status": "posted"
+          "recorded_by": 1,
+          "recorded_at": "2026-07-27T16:00:00+08:00",
+          "notes": null,
+          "status": "posted",
+          "created_at": "2026-07-27T16:00:00+08:00",
+          "updated_at": "2026-07-27T16:00:00+08:00"
         }
       ]
     }
-  ]
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1, "from": 1, "to": 1 }
 }
 ```
 
-**Status values:** `draft`, `issued`, `partially_paid`, `paid`, `voided`.
+**Status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
 
 **Only posted payments are included.** Voided payments are excluded.
 
-### GET `/invoices/{id}`
+### GET `/billing-records/{id}`
 
-Returns a single invoice with items and posted payments. No API Resource — raw model serialization.
+Returns a single billing record with posted payments.
 
 **Response (200):**
 ```json
 {
   "data": {
     "id": 1,
-    "invoice_number": "INV-2026-000001",
-    "official_number": null,
+    "billing_record_number": "BR-2026-000001",
     "patient_id": 1,
     "job_order_id": 1,
     "encounter_id": 1,
     "status": "partially_paid",
-    "sale_type": "retail",
-    "sold_to_name": "Ana Reyes",
-    "registered_name": null,
-    "tin": null,
-    "business_address": null,
-    "subtotal": 8500.00,
-    "discount_amount": 500.00,
-    "tax_amount": 0.00,
-    "total": 8000.00,
+    "total_amount": 8000.00,
     "amount_paid": 5000.00,
     "balance_due": 3000.00,
-    "notes": null,
     "recorded_by": 1,
-    "issued_at": "2026-07-27T15:00:00+08:00",
+    "recorded_at": "2026-07-27T16:00:00+08:00",
     "created_at": "2026-07-27T10:00:00+08:00",
     "updated_at": "2026-07-27T16:00:00+08:00",
     "deleted_at": null,
-    "items": [
-      {
-        "id": 1,
-        "invoice_id": 1,
-        "type": "product",
-        "description": "Classic Rectangle Frame",
-        "quantity": 1,
-        "unit_price": 4500.00,
-        "amount": 4500.00,
-        "job_order_item_id": 1,
-        "created_at": "2026-07-27T10:00:00+08:00",
-        "updated_at": "2026-07-27T10:00:00+08:00"
-      }
-    ],
     "payments": [
       {
         "id": 1,
-        "invoice_id": 1,
+        "billing_record_id": 1,
         "amount": 5000.00,
         "payment_method": "gcash",
         "reference_number": "GC-12345",
@@ -988,7 +980,7 @@ Returns a single invoice with items and posted payments. No API Resource — raw
 }
 ```
 
-**Nullable fields:** `official_number`, `registered_name`, `tin`, `business_address`, `notes`, `job_order_id`, `encounter_id`, `recorded_by`, `issued_at`.
+**Nullable fields:** `encounter_id`, `recorded_by`, `recorded_at`.
 
 ---
 
@@ -1308,8 +1300,8 @@ GET    /api/v1/quotations
 GET    /api/v1/quotations/{quotation}
 GET    /api/v1/job-orders
 GET    /api/v1/job-orders/{jobOrder}
-GET    /api/v1/invoices
-GET    /api/v1/invoices/{invoice}
+GET    /api/v1/billing-records
+GET    /api/v1/billing-records/{billingRecord}
 
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages

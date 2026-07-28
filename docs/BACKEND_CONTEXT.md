@@ -2,12 +2,11 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-07-27.** Canonical schema creation,
-> patient route equality, and conversation attachment isolation have been
-> reconciled through Tasks 1–13 of
-> `docs/specs/post-implementation-reconciliation-closure-tasks.md`. Full
-> regression passed at this cutoff: 442 Pest tests, 1,174 assertions. Tasks 14+
-> remain documented as future release-hardening work.
+> **Reconciliation status as of 2026-07-28.** Canonical schema creation,
+> patient route equality, conversation attachment isolation, billing record
+> simplification, and frame reservation appointment linkage have been
+> reconciled. Full regression passed at this cutoff: 498 Pest tests,
+> 1,462 assertions.
 
 ---
 
@@ -71,7 +70,7 @@ Use `User::isAdmin()` to check role in Filament. `is_optometrist` is a capabilit
 | Prescriptions | View | Finalize/amend (optometrist only) |
 | Quotations | Present, accept/decline | — |
 | Job Orders | Start, mark ready, cancel | — |
-| Invoices | Record payment | Void, correct payment |
+| Billing Records | Record payment | Void, correct payment |
 | Products | Create, edit, manage variants | Delete/restore |
 | Patients | Create, edit | Delete/restore |
 | Users | Hidden | Full CRUD |
@@ -121,10 +120,9 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
 | `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`. |
 | `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
-| `invoices` | `patient_id`, `job_order_id`, `encounter_id`, `official_number` (nullable, unique), `status` (draft/issued/partially_paid/paid/voided), `sale_type`, `sold_to_name`, `subtotal`, `discount_amount`, `tax_amount`, `total`, `amount_paid`, `balance_due`. |
-| `invoice_items` | `type` (product/service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id`. |
-| `invoice_payments` | `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`. |
-| `dispensing_events` | `job_order_id`, `invoice_id`, `dispensed_by`, `recipient_name`, `notes`. |
+| `billing_records` | `patient_id`, `job_order_id` (unique), `encounter_id`, `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `total_amount`, `amount_paid`, `balance_due`, `recorded_by`, `recorded_at`. |
+| `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
+| `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`. |
 | `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
 | `frame_reservation_items` | `product_variant_id`. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
@@ -142,7 +140,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 ### Soft Deletes
 
-These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `Invoice`, `JobOrder`, `Complaint`.
+These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `BillingRecord`, `JobOrder`, `Complaint`.
 
 ---
 
@@ -156,7 +154,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory.
 
-**Invoices:** `draft → issued → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status.
+**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. No BIR/official number. Job order is authoritative for line items.
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
 
@@ -168,7 +166,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 
 **Navigation groups (in order):**
 - Patients & Clinical — Patients, Encounters, Prescriptions, Complaints
-- Fulfillment & Finance — Frame Reservations, Quotations, Job Orders, Invoices
+- Fulfillment & Finance — Frame Reservations, Quotations, Job Orders, Billing Records
 - Catalog & Inventory — Products, Inventory History
 - Communication — Conversations, Frame Ratings
 - Reports — Reorder Report
@@ -216,8 +214,8 @@ GET    /api/v1/quotations
 GET    /api/v1/quotations/{quotation}
 GET    /api/v1/job-orders
 GET    /api/v1/job-orders/{jobOrder}
-GET    /api/v1/invoices
-GET    /api/v1/invoices/{invoice}
+GET    /api/v1/billing-records
+GET    /api/v1/billing-records/{billingRecord}
 
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages
@@ -227,7 +225,7 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-The approved patient-mobile contract contains exactly 33 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
+The approved patient-mobile contract contains exactly 33 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
 
 ---
 
@@ -244,9 +242,10 @@ The approved patient-mobile contract contains exactly 33 routes. List endpoints 
 | `CreateJobOrder` | `app/Actions/JobOrders/` | Creates from accepted quotation, commits inventory atomically |
 | `UpdateJobOrderStatus` | `app/Actions/JobOrders/` | Enforced transitions, timestamps, cancel reverses inventory |
 | `CommitJobOrderInventory` | `app/Actions/JobOrders/` | Row-locked stock decrement with movement records |
-| `RecordInvoicePayment` | `app/Actions/Invoices/` | Row-locked payment recording, recalculates balance |
-| `CorrectInvoicePayment` | `app/Actions/Invoices/` | Voids original, creates replacement, preserves audit |
-| `DispenseJobOrder` | `app/Actions/Invoices/` | Atomic dispensing + invoice issuance |
+| `RecordBillingPayment` | `app/Actions/BillingRecords/` | Row-locked payment recording, recalculates balance, derives status |
+| `CorrectBillingPayment` | `app/Actions/BillingRecords/` | Voids original, creates replacement, preserves audit |
+| `VoidBillingRecord` | `app/Actions/BillingRecords/` | Admin-only void with reason and audit |
+| `DispenseJobOrder` | `app/Actions/BillingRecords/` | Atomic dispensing + billing record creation |
 | `PrepareFrameReservation` | `app/Actions/Reservations/` | Row-locked stock allocation with movement records |
 | `ReleaseFrameReservation` | `app/Actions/Reservations/` | Idempotent stock restoration |
 | `CreateFrameReservation` | `app/Actions/Reservations/` | Appointment eligibility, patient ownership, duplicate-active check, distinct variants, row lock, atomic creation |
@@ -271,7 +270,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Referring source appears when appointment type is Referral. Notes is a single staff_notes field.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
 - **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time.
-- **Edit pages:** Quotations, Invoices, and Job Orders have full form schemas showing related items, financial summaries, and timelines.
+- **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
 - **Patient address:** Single nullable free-text field. Editable by patient via API and by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
