@@ -44,7 +44,10 @@ test('intake form presents the health record in clinical review order', function
             'Reason for visit',
             'Medical history',
             'Safety information',
-        ]);
+        ])
+        ->assertSeeHtml('for="health-record-full-name"')
+        ->assertSeeHtml('id="health-record-full-name"')
+        ->assertDontSeeHtml('wire:model.live=');
 });
 
 test('intake form pre-fills demographics from patient', function () {
