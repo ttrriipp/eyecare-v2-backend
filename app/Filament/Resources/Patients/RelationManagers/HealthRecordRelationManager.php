@@ -11,7 +11,7 @@ class HealthRecordRelationManager extends RelationManager
 {
     protected static string $relationship = 'appointments';
 
-    protected static ?string $title = 'Health Record History';
+    protected static ?string $title = 'Visit History';
 
     public function table(Table $table): Table
     {

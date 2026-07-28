@@ -97,8 +97,8 @@ test('submitted intake is read-only on form page', function () {
     $this->actingAs($staff);
 
     Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
-        ->assertDontSee('Save Draft')
-        ->assertDontSee('Submit Intake');
+        ->assertDontSee('Save for later')
+        ->assertDontSee('Submit for review');
 });
 
 test('verified intake is read-only on form page', function () {
@@ -112,8 +112,8 @@ test('verified intake is read-only on form page', function () {
     $this->actingAs($staff);
 
     Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
-        ->assertDontSee('Save Draft')
-        ->assertDontSee('Submit Intake')
+        ->assertDontSee('Save for later')
+        ->assertDontSee('Submit for review')
         ->assertSee('Verified');
 });
 
@@ -128,7 +128,7 @@ test('optometrist can verify submitted intake', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Verify Intake')
+        ->assertSee('Verify')
         ->call('verify');
 
     $intake = PatientIntake::query()
@@ -150,31 +150,31 @@ test('non-optometrist does not see verify button', function () {
     $this->actingAs($staff);
 
     Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
-        ->assertDontSee('Verify Intake');
+        ->assertDontSee('Verify');
 });
 
-test('edit appointment shows intake status card', function () {
+test('edit appointment shows health record status card', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Patient Intake')
-        ->assertSee('Not Started');
+        ->assertSee('Patient Health Record')
+        ->assertSee('Not started');
 });
 
-test('edit appointment shows complete intake action for absent intake', function () {
+test('edit appointment shows complete health record action for absent intake', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('completeIntake');
+        ->assertActionVisible('completeHealthRecord');
 });
 
-test('edit appointment shows complete intake action for draft', function () {
+test('edit appointment shows complete health record action for draft', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
     PatientIntake::factory()->create([
@@ -185,10 +185,10 @@ test('edit appointment shows complete intake action for draft', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('completeIntake');
+        ->assertActionVisible('completeHealthRecord');
 });
 
-test('edit appointment shows review intake action for submitted', function () {
+test('edit appointment shows review health record action for submitted', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
     PatientIntake::factory()->submitted()->create([
@@ -199,11 +199,11 @@ test('edit appointment shows review intake action for submitted', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('reviewIntake')
-        ->assertActionHidden('completeIntake');
+        ->assertActionVisible('reviewHealthRecord')
+        ->assertActionHidden('completeHealthRecord');
 });
 
-test('edit appointment shows view intake action for verified', function () {
+test('edit appointment shows view health record action for verified', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
     PatientIntake::factory()->verified()->create([
@@ -214,12 +214,12 @@ test('edit appointment shows view intake action for verified', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('viewIntake')
-        ->assertActionHidden('completeIntake')
-        ->assertActionHidden('reviewIntake');
+        ->assertActionVisible('viewHealthRecord')
+        ->assertActionHidden('completeHealthRecord')
+        ->assertActionHidden('reviewHealthRecord');
 });
 
-test('check-in shows warning when no verified intake exists', function () {
+test('check-in shows warning when no verified health record exists', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
@@ -227,16 +227,6 @@ test('check-in shows warning when no verified intake exists', function () {
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertSee('Check In');
-});
-
-test('intake status shows on edit page sidebar', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Patient Intake');
 });
 
 test('intake form loads existing draft data', function () {

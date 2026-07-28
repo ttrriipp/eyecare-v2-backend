@@ -21,6 +21,7 @@ enum AuditEvent: string
 
     case IntakeSubmitted = 'intake.submitted';
     case IntakeVerified = 'intake.verified';
+    case IntakeReturnedForCorrection = 'intake.returned_for_correction';
 
     case QuotationCreated = 'quotation.created';
     case QuotationPresented = 'quotation.presented';

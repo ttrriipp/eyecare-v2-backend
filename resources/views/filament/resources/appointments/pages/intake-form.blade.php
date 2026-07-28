@@ -1,5 +1,5 @@
 <x-filament-panels::page>
-    <div class="space-y-6">
+    <div class="space-y-6" x-data="{ printUrl: '{{ route('appointments.health-record.print', $this->appointment) }}' }">
         {{-- Status Badge --}}
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -242,39 +242,80 @@
         @endif
 
         {{-- Action Buttons --}}
-        @if(!$this->isReadOnly())
-            <div class="flex items-center gap-3 justify-end">
-                <x-filament::button
-                    wire:click="saveDraft"
-                    color="gray"
-                    size="lg"
-                >
-                    Save Draft
-                </x-filament::button>
-
-                <x-filament::button
-                    wire:click="submit"
-                    color="primary"
-                    size="lg"
-                >
-                    Submit Intake
-                </x-filament::button>
+        <div class="flex items-center gap-3 justify-between">
+            {{-- Print (always available when record exists) --}}
+            <div>
+                @if($this->getIntake())
+                    <a
+                        href="{{ route('appointments.health-record.print', $this->appointment) }}"
+                        target="_blank"
+                        class="fi-btn fi-btn-size-md fi-btn-color-gray inline-flex items-center gap-1.5"
+                    >
+                        <svg class="fi-btn-icon h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5 2a2 2 0 00-2 2v1h10V4a2 2 0 00-2-2H5zm6 5V5H5v2h6zm2 1H3v6a2 2 0 002 2h10a2 2 0 002-2V8h-2v5H5V8h8z" clip-rule="evenodd" />
+                        </svg>
+                        Print Patient Health Record
+                    </a>
+                @endif
             </div>
-        @endif
 
-        {{-- Verify Button (for submitted intakes, visible to authorized users) --}}
-        @if($this->getIntakeStatus() === \App\Enums\IntakeStatus::Submitted && auth()->user()?->hasOptometristCapability())
-            <div class="flex items-center gap-3 justify-end">
-                <x-filament::button
-                    wire:click="verify"
-                    color="success"
-                    size="lg"
-                    icon="heroicon-o-check-circle"
-                >
-                    Verify Intake
-                </x-filament::button>
+            <div class="flex items-center gap-3">
+                {{-- Draft / Editable actions --}}
+                @if(!$this->isReadOnly())
+                    <x-filament::button
+                        wire:click="saveDraft"
+                        color="gray"
+                        size="lg"
+                    >
+                        Save for later
+                    </x-filament::button>
+
+                    <x-filament::button
+                        wire:click="submit"
+                        color="primary"
+                        size="lg"
+                    >
+                        Submit for review
+                    </x-filament::button>
+
+                    {{-- Save and verify (optometrist only, on draft) --}}
+                    @if(auth()->user()?->hasOptometristCapability())
+                        <x-filament::button
+                            wire:click="saveAndVerify"
+                            color="success"
+                            size="lg"
+                            icon="heroicon-o-check-circle"
+                        >
+                            Save and verify
+                        </x-filament::button>
+                    @endif
+                @endif
+
+                {{-- Return for correction (submitted, authorized users) --}}
+                @if($this->getIntakeStatus() === \App\Enums\IntakeStatus::Submitted && auth()->user()?->hasOptometristCapability())
+                    <x-filament::button
+                        wire:click="returnForCorrection"
+                        color="warning"
+                        size="lg"
+                        icon="heroicon-o-arrow-uturn-left"
+                    >
+                        Return for correction
+                    </x-filament::button>
+                @endif
+
+                {{-- Verify (submitted, authorized users) --}}
+                @if($this->getIntakeStatus() === \App\Enums\IntakeStatus::Submitted && auth()->user()?->hasOptometristCapability())
+                    <x-filament::button
+                        wire:click="verify"
+                        color="success"
+                        size="lg"
+                        icon="heroicon-o-check-circle"
+                    >
+                        Verify
+                    </x-filament::button>
+                @endif
             </div>
-        @endif
+        </div>
 
         {{-- Submission Info --}}
         @if($this->getIntakeStatus() === \App\Enums\IntakeStatus::Submitted && $this->getIntake())

@@ -101,11 +101,11 @@ class EditEncounter extends EditRecord
                 }),
 
             Action::make('viewHealthRecord')
-                ->label('Health Record')
+                ->label('Patient Health Record')
                 ->icon('heroicon-o-document-text')
                 ->color('info')
                 ->visible(fn (): bool => $this->record->appointment_id !== null)
-                ->url(fn (): string => AppointmentResource::getUrl('health-record', [
+                ->url(fn (): string => AppointmentResource::getUrl('intake-form', [
                     'record' => $this->record->appointment_id,
                 ])),
 

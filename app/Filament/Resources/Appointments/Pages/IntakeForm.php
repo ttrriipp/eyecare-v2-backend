@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\Pages;
 
+use App\Actions\Intakes\ReturnIntakeForCorrection;
 use App\Actions\Intakes\VerifyPatientIntake;
 use App\Enums\IntakeStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
@@ -41,7 +42,7 @@ class IntakeForm extends Page
 
     public function getTitle(): string
     {
-        return 'Patient Intake';
+        return 'Patient Health Record';
     }
 
     public function getIntake(): ?PatientIntake
@@ -74,9 +75,9 @@ class IntakeForm extends Page
     public function getStatusLabel(): string
     {
         return match ($this->getIntakeStatus()) {
-            null => 'Not Started',
-            IntakeStatus::Draft => 'Draft',
-            IntakeStatus::Submitted => 'Submitted',
+            null => 'Not started',
+            IntakeStatus::Draft => 'Incomplete',
+            IntakeStatus::Submitted => 'Needs review',
             IntakeStatus::Verified => 'Verified',
         };
     }
@@ -131,13 +132,19 @@ class IntakeForm extends Page
         $this->save(IntakeStatus::Submitted);
     }
 
+    public function saveAndVerify(): void
+    {
+        $this->save(IntakeStatus::Submitted);
+        $this->verify();
+    }
+
     public function verify(): void
     {
         $intake = $this->getIntake();
 
         if ($intake === null || $intake->status !== IntakeStatus::Submitted) {
             Notification::make()
-                ->title('Only submitted intakes can be verified')
+                ->title('Only submitted records can be verified')
                 ->danger()
                 ->send();
 
@@ -148,7 +155,7 @@ class IntakeForm extends Page
             app(VerifyPatientIntake::class)->handle($intake, auth()->user());
 
             Notification::make()
-                ->title('Intake verified')
+                ->title('Health record verified')
                 ->success()
                 ->send();
 
@@ -156,11 +163,48 @@ class IntakeForm extends Page
             $this->formData = $this->getInitialData();
         } catch (ValidationException $e) {
             Notification::make()
-                ->title('Cannot verify intake')
+                ->title('Cannot verify health record')
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
         }
+    }
+
+    public function returnForCorrection(): void
+    {
+        $intake = $this->getIntake();
+
+        if ($intake === null || $intake->status !== IntakeStatus::Submitted) {
+            Notification::make()
+                ->title('Only submitted records can be returned for correction')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        try {
+            app(ReturnIntakeForCorrection::class)->handle($intake, auth()->user());
+
+            Notification::make()
+                ->title('Health record returned for correction')
+                ->success()
+                ->send();
+
+            $this->appointment->load('intake');
+            $this->formData = $this->getInitialData();
+        } catch (ValidationException $e) {
+            Notification::make()
+                ->title('Cannot return health record')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    public function printRecord(): void
+    {
+        $this->dispatch('print-health-record');
     }
 
     protected function save(IntakeStatus $status): void
@@ -206,7 +250,7 @@ class IntakeForm extends Page
         }
 
         Notification::make()
-            ->title($status === IntakeStatus::Submitted ? 'Intake submitted' : 'Draft saved')
+            ->title($status === IntakeStatus::Submitted ? 'Health record submitted for review' : 'Progress saved')
             ->success()
             ->send();
 

@@ -41,22 +41,22 @@ class EditAppointment extends EditRecord
                     return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
                 }),
 
-            Action::make('completeIntake')
-                ->label('Complete Intake')
+            Action::make('completeHealthRecord')
+                ->label('Complete Patient Health Record')
                 ->icon('heroicon-o-clipboard-document-check')
                 ->color('warning')
                 ->visible(fn (): bool => in_array($this->getIntakeStatus(), [null, IntakeStatus::Draft], true))
                 ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
 
-            Action::make('reviewIntake')
-                ->label('Review Intake')
+            Action::make('reviewHealthRecord')
+                ->label('Review Patient Health Record')
                 ->icon('heroicon-o-clipboard-document-check')
                 ->color('info')
                 ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Submitted)
                 ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
 
-            Action::make('viewIntake')
-                ->label('View Intake')
+            Action::make('viewHealthRecord')
+                ->label('View Patient Health Record')
                 ->icon('heroicon-o-clipboard-document-check')
                 ->color('success')
                 ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Verified)
@@ -71,13 +71,13 @@ class EditAppointment extends EditRecord
                     fn (): bool => $this->getIntakeStatus() !== IntakeStatus::Verified,
                 )
                 ->modalHeading(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'Check in without verified intake?'
+                    ? 'Check in without verified health record?'
                     : 'Confirm Check-in')
                 ->modalDescription(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'This patient does not have a verified intake. You can still check them in for urgent or walk-in situations, but it is recommended to complete and verify the intake first.'
+                    ? 'This patient does not have a verified health record. You can still check them in for urgent or walk-in situations, but it is recommended to complete and verify the health record first.'
                     : 'Patient will be checked in and an encounter will be created.')
                 ->modalSubmitActionLabel(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'Check in without verified intake'
+                    ? 'Check in without verified health record'
                     : 'Check in')
                 ->action(function (): void {
                     try {
@@ -89,12 +89,6 @@ class EditAppointment extends EditRecord
                         Notification::make()->title('Cannot check in')->body($message)->danger()->send();
                     }
                 }),
-
-            Action::make('healthRecord')
-                ->label('Health Record')
-                ->icon('heroicon-o-document-text')
-                ->color('info')
-                ->url(fn (): string => AppointmentResource::getUrl('health-record', ['record' => $this->getRecord()])),
 
             Action::make('reschedule')
                 ->label('Reschedule')

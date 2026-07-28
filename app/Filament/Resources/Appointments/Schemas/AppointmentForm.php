@@ -219,27 +219,27 @@ class AppointmentForm
                             ->placeholder('Assign later'),
                     ]),
 
-                    Section::make('Patient Intake')
+                    Section::make('Patient Health Record')
                         ->hiddenOn('create')
                         ->schema([
                             Placeholder::make('intake_status_display')
                                 ->label('Status')
                                 ->content(function (?Appointment $record): string {
                                     if ($record === null) {
-                                        return 'Not Started';
+                                        return 'Not started';
                                     }
 
                                     $intake = $record->intake;
 
                                     if ($intake === null) {
-                                        return 'Not Started';
+                                        return 'Not started';
                                     }
 
                                     return match ($intake->status) {
-                                        IntakeStatus::Draft => 'Draft',
-                                        IntakeStatus::Submitted => 'Submitted',
+                                        IntakeStatus::Draft => 'Incomplete',
+                                        IntakeStatus::Submitted => 'Needs review',
                                         IntakeStatus::Verified => 'Verified',
-                                        default => 'Not Started',
+                                        default => 'Not started',
                                     };
                                 })
                                 ->view('filament.forms.components.intake-status-badge'),

@@ -51,18 +51,18 @@ class EncounterForm
                         ->label('Optometrist')
                         ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
                     Placeholder::make('intake_status')
-                        ->label('Intake Status')
+                        ->label('Health Record Status')
                         ->content(function (Encounter $record): string {
                             $intake = $record->intake;
                             if ($intake === null) {
-                                return 'Incomplete';
+                                return 'Not started';
                             }
 
                             return match ($intake->status) {
                                 IntakeStatus::Draft => 'Incomplete',
-                                IntakeStatus::Submitted => 'Submitted',
+                                IntakeStatus::Submitted => 'Needs review',
                                 IntakeStatus::Verified => 'Verified',
-                                default => 'Incomplete',
+                                default => 'Not started',
                             };
                         }),
                     Placeholder::make('chief_complaint')
@@ -144,8 +144,8 @@ class EncounterForm
                     ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
             ]),
 
-            // ── Intake Summary (always visible, read-only) ───────
-            Section::make('Intake Summary')->schema([
+            // ── Patient Health Record (always visible, read-only) ─
+            Section::make('Patient Health Record')->schema([
                 Placeholder::make('intake.chief_complaint_display')
                     ->label('Chief Complaint')
                     ->content(fn (Encounter $record): string => $record->intake?->chief_complaint ?? '—')

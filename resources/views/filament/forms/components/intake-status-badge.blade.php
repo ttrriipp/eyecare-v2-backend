@@ -1,7 +1,7 @@
 @php
     $color = match($getState()) {
-        'Draft' => 'warning',
-        'Submitted' => 'info',
+        'Incomplete' => 'warning',
+        'Needs review' => 'info',
         'Verified' => 'success',
         default => 'gray',
     };
