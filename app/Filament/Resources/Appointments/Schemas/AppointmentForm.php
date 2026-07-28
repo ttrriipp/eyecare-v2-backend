@@ -17,6 +17,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class AppointmentForm
@@ -163,8 +164,20 @@ class AppointmentForm
                                 ->dehydrated(),
                             Placeholder::make('current_status')
                                 ->label('Status')
-                                ->content(fn (?Appointment $record): string => $record?->status?->name ? Str::headline($record->status->name) : '—')
-                                ->view('filament.forms.components.appointment-status-badge')
+                                ->content(function (?Appointment $record): HtmlString {
+                                    $label = $record?->status?->name ? Str::headline($record->status->name) : '—';
+
+                                    $color = match ($record?->status?->name) {
+                                        'scheduled' => 'info',
+                                        'checked_in' => 'warning',
+                                        'fulfilled' => 'success',
+                                        'cancelled' => 'danger',
+                                        'no_show' => 'gray',
+                                        default => 'gray',
+                                    };
+
+                                    return new HtmlString("<span class=\"fi-badge fi-badge-size-sm inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
+                                })
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
                                 ->label('Referring Source')
@@ -224,25 +237,24 @@ class AppointmentForm
                         ->schema([
                             Placeholder::make('intake_status_display')
                                 ->label('Status')
-                                ->content(function (?Appointment $record): string {
+                                ->content(function (?Appointment $record): HtmlString {
                                     if ($record === null) {
-                                        return 'Not started';
+                                        return self::intakeBadgeHtml('Not started', 'gray');
                                     }
 
                                     $intake = $record->intake;
 
                                     if ($intake === null) {
-                                        return 'Not started';
+                                        return self::intakeBadgeHtml('Not started', 'gray');
                                     }
 
                                     return match ($intake->status) {
-                                        IntakeStatus::Draft => 'Incomplete',
-                                        IntakeStatus::Submitted => 'Needs review',
-                                        IntakeStatus::Verified => 'Verified',
-                                        default => 'Not started',
+                                        IntakeStatus::Draft => self::intakeBadgeHtml('Incomplete', 'warning'),
+                                        IntakeStatus::Submitted => self::intakeBadgeHtml('Needs review', 'info'),
+                                        IntakeStatus::Verified => self::intakeBadgeHtml('Verified', 'success'),
+                                        default => self::intakeBadgeHtml('Not started', 'gray'),
                                     };
-                                })
-                                ->view('filament.forms.components.intake-status-badge'),
+                                }),
                         ]),
 
                     Section::make('Timeline')
@@ -267,5 +279,10 @@ class AppointmentForm
                 ]),
             ]),
         ]);
+    }
+
+    private static function intakeBadgeHtml(string $label, string $color): HtmlString
+    {
+        return new HtmlString("<span class=\"fi-badge fi-badge-size-sm inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
     }
 }

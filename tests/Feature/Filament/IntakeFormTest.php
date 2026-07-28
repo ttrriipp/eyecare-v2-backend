@@ -30,6 +30,23 @@ test('intake form page is accessible', function () {
         ->assertSuccessful();
 });
 
+test('intake form presents the health record in clinical review order', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
+        ->assertSeeInOrder([
+            'Appointment overview',
+            'Patient information',
+            'Contact details',
+            'Reason for visit',
+            'Medical history',
+            'Safety information',
+        ]);
+});
+
 test('intake form pre-fills demographics from patient', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
