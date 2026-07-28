@@ -4,11 +4,13 @@ namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Actions\Appointments\LockAppointmentScheduleDate;
 use App\Actions\Appointments\ScheduleAppointment;
+use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
@@ -135,7 +137,19 @@ class CreateAppointment extends CreateRecord
                 }
             }
 
-            return Appointment::query()->create($data);
+            $appointment = Appointment::query()->create($data);
+
+            // Create planned encounter for walk-ins
+            if (! empty($data['checked_in_at'])) {
+                Encounter::query()->create([
+                    'patient_id' => $appointment->patient_id,
+                    'appointment_id' => $appointment->id,
+                    'optometrist_id' => $appointment->optometrist_id,
+                    'status' => EncounterStatus::Planned,
+                ]);
+            }
+
+            return $appointment;
         }, attempts: 3);
     }
 }
