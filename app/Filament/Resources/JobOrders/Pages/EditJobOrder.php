@@ -2,11 +2,18 @@
 
 namespace App\Filament\Resources\JobOrders\Pages;
 
+use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\JobOrders\JobOrderResource;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Validation\ValidationException;
 
 class EditJobOrder extends EditRecord
 {
@@ -46,6 +53,55 @@ class EditJobOrder extends EditRecord
                 ->action(function (): void {
                     app(UpdateJobOrderStatus::class)->handle($this->record, 'cancelled');
                     $this->refreshFormData(['status', 'cancelled_at']);
+                }),
+
+            Action::make('dispense')
+                ->label('Dispense')
+                ->icon('heroicon-o-shopping-bag')
+                ->color('success')
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::ReadyForDispensing)
+                ->requiresConfirmation()
+                ->schema([
+                    TextInput::make('recipient_name')
+                        ->label('Recipient Name')
+                        ->nullable()
+                        ->maxLength(255),
+                    Textarea::make('notes')
+                        ->label('Notes')
+                        ->nullable()
+                        ->maxLength(1000),
+                    TextInput::make('initial_payment_amount')
+                        ->label('Initial Payment')
+                        ->numeric()
+                        ->prefix('₱')
+                        ->nullable(),
+                    Select::make('initial_payment_method')
+                        ->label('Payment Method')
+                        ->options([
+                            'cash' => 'Cash',
+                            'gcash' => 'GCash',
+                            'bank_transfer' => 'Bank Transfer',
+                            'card' => 'Card',
+                        ])
+                        ->nullable()
+                        ->visible(fn (Get $get): bool => filled($get('initial_payment_amount'))),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(DispenseJobOrder::class)->handle(
+                            jobOrder: $this->record,
+                            dispenser: auth()->user(),
+                            recipientName: $data['recipient_name'] ?? null,
+                            notes: $data['notes'] ?? null,
+                            initialPaymentAmount: $data['initial_payment_amount'] ?? null,
+                            initialPaymentMethod: $data['initial_payment_method'] ?? null,
+                        );
+
+                        Notification::make()->title('Job order dispensed — billing record created')->success()->send();
+                        $this->refreshFormData(['status', 'dispensed_at']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot dispense')->body($e->getMessage())->danger()->send();
+                    }
                 }),
         ];
     }
