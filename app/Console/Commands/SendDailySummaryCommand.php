@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Appointment;
-use App\Models\InvoicePayment;
+use App\Models\BillingPayment;
 use App\Models\JobOrder;
 use App\Models\User;
 use App\Notifications\DailySummaryNotification;
@@ -23,7 +23,7 @@ class SendDailySummaryCommand extends Command
             ->whereDate('updated_at', today())
             ->count();
 
-        $revenue = InvoicePayment::query()
+        $revenue = BillingPayment::query()
             ->where('status', 'posted')
             ->whereDate('recorded_at', today())
             ->sum('amount');
