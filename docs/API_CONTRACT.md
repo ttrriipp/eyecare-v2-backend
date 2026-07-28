@@ -643,7 +643,7 @@ Uses the same `FrameReservationResource` as GET — same field set, same exclusi
 
 Paginated list of current prescription versions. Superseded versions are
 excluded from the list but remain available by ID for historical access.
-Read-only — patients cannot create prescriptions. `expires_at` is nullable.
+Read-only — patients cannot create prescriptions.
 
 **Response (200):**
 ```json
@@ -654,18 +654,34 @@ Read-only — patients cannot create prescriptions. `expires_at` is nullable.
       "appointment_id": 1,
       "previous_prescription_id": null,
       "is_current": true,
-      "od_sphere": "-2.00",
-      "od_cylinder": "-0.50",
-      "od_axis": 180,
-      "od_add": null,
-      "os_sphere": "-1.75",
-      "os_cylinder": "-0.25",
-      "os_axis": 170,
-      "os_add": null,
-      "pd": "62.0",
-      "prescribed_at": "2026-07-27",
-      "expires_at": "2027-07-27",
-      "notes": null
+      "date": "2026-07-27",
+      "measurements": {
+        "main": {
+          "od": {
+            "value": null,
+            "sphere": "-2.00",
+            "cylinder": "-0.50"
+          },
+          "os": {
+            "value": null,
+            "sphere": "-1.75",
+            "cylinder": "-0.25"
+          }
+        },
+        "add": {
+          "od": {
+            "value": null,
+            "sphere": null,
+            "cylinder": null
+          },
+          "os": {
+            "value": null,
+            "sphere": null,
+            "cylinder": null
+          }
+        }
+      },
+      "remarks": null
     }
   ],
   "links": { ... },

@@ -115,7 +115,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`. |
-| `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, encrypted OD/OS/PD fields, `prescribed_at`, nullable `expires_at`, encrypted `notes`, `previous_prescription_id`, and encrypted `amendment_reason`. |
+| `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`. |
 | `quotation_revisions` | Immutable snapshots with `revision_number`, `subtotal`, `discount_amount`, `total`, `presented_by`, `accepted_by`. |
 | `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
