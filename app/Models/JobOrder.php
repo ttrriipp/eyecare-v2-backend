@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -77,6 +78,14 @@ class JobOrder extends Model
     public function items(): HasMany
     {
         return $this->hasMany(JobOrderItem::class);
+    }
+
+    /**
+     * @return HasOne<BillingRecord, $this>
+     */
+    public function billingRecord(): HasOne
+    {
+        return $this->hasOne(BillingRecord::class);
     }
 
     /**
