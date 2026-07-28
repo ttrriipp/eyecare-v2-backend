@@ -5,10 +5,14 @@ namespace App\Filament\Resources\Encounters\Pages;
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
+use App\Actions\Quotations\CreateQuotation;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
+use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -123,6 +127,60 @@ class EditEncounter extends EditRecord
                 ->visible(fn (): bool => $this->record->prescriptions()->exists())
                 ->url(fn (): string => PrescriptionResource::getUrl('view', [
                     'record' => $this->record->prescriptions()->latest('id')->value('id'),
+                ])),
+
+            Action::make('createQuotation')
+                ->label('Create Quotation')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('success')
+                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
+                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
+                    && $this->record->prescriptions()
+                        ->whereDoesntHave('nextPrescription')
+                        ->exists()
+                    && ! Quotation::query()
+                        ->withTrashed()
+                        ->where('encounter_id', $this->record->id)
+                        ->exists())
+                ->modalHeading('Create Draft Quotation')
+                ->modalDescription('Add the items and estimated prices discussed with the patient.')
+                ->modalSubmitActionLabel('Create Draft')
+                ->modalWidth('7xl')
+                ->schema(QuotationCreationForm::components())
+                ->action(function (array $data): void {
+                    $creator = auth()->user();
+
+                    abort_unless($creator instanceof User, 403);
+
+                    $quotation = app(CreateQuotation::class)->handle(
+                        encounter: $this->record,
+                        creator: $creator,
+                        data: $data,
+                    );
+
+                    Notification::make()
+                        ->title('Draft quotation created')
+                        ->body('Review the quotation, then present it to the patient.')
+                        ->success()
+                        ->send();
+
+                    $this->redirect(QuotationResource::getUrl('edit', [
+                        'record' => $quotation,
+                    ]));
+                }),
+
+            Action::make('viewQuotation')
+                ->label('View Quotation')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('gray')
+                ->visible(fn (): bool => Quotation::query()
+                    ->where('encounter_id', $this->record->id)
+                    ->exists())
+                ->url(fn (): string => QuotationResource::getUrl('edit', [
+                    'record' => Quotation::query()
+                        ->where('encounter_id', $this->record->id)
+                        ->latest('id')
+                        ->value('id'),
                 ])),
 
             Action::make('cancelAppointment')

@@ -28,7 +28,9 @@ test('staff can view a quotation', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->assertSuccessful();
+        ->assertSuccessful()
+        ->assertSee('Patient Notes')
+        ->assertDontSee('Customer Notes');
 });
 
 test('quotation table shows status badges', function () {

@@ -74,7 +74,7 @@ class QuotationForm
                     Section::make('Notes')
                         ->schema([
                             Textarea::make('notes')
-                                ->label('Customer Notes')
+                                ->label('Patient Notes')
                                 ->columnSpanFull(),
                             Textarea::make('internal_notes')
                                 ->label('Internal Notes')

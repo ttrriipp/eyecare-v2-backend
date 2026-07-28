@@ -2,20 +2,19 @@
 
 namespace Database\Seeders;
 
+use App\Enums\BillingRecordStatus;
 use App\Enums\ComplaintStatus;
 use App\Enums\EncounterStatus;
-use App\Enums\InvoiceStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\BillingPayment;
+use App\Models\BillingRecord;
 use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\Encounter;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\InvoicePayment;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Message;
@@ -203,37 +202,25 @@ class ClinicWorkflowSeeder extends Seeder
         return $jobOrder;
     }
 
-    private function seedInvoice(Patient $patient, JobOrder $jobOrder, User $staff): Invoice
+    private function seedInvoice(Patient $patient, JobOrder $jobOrder, User $staff): BillingRecord
     {
-        $invoice = Invoice::query()->firstOrCreate(
+        $billingRecord = BillingRecord::query()->firstOrCreate(
             ['job_order_id' => $jobOrder->id],
             [
-                'invoice_number' => 'INV-2026-000001',
+                'billing_record_number' => 'BR-2026-000001',
                 'patient_id' => $patient->id,
                 'encounter_id' => $jobOrder->encounter_id,
-                'status' => InvoiceStatus::PartiallyPaid,
-                'subtotal' => 7500,
-                'total' => 7500,
+                'status' => BillingRecordStatus::PartiallyPaid,
+                'total_amount' => 7500,
                 'amount_paid' => 3000,
                 'balance_due' => 4500,
-                'sold_to_name' => $patient->full_name,
-                'issued_at' => now(),
                 'recorded_by' => $staff->id,
+                'recorded_at' => now(),
             ],
         );
 
-        InvoiceItem::query()->firstOrCreate(
-            ['invoice_id' => $invoice->id, 'description' => 'Classic Frame — Matte Black'],
-            ['type' => 'product', 'quantity' => 1, 'unit_price' => 2500, 'amount' => 2500],
-        );
-
-        InvoiceItem::query()->firstOrCreate(
-            ['invoice_id' => $invoice->id, 'description' => 'Progressive Lens with AR Coating'],
-            ['type' => 'product', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000],
-        );
-
-        InvoicePayment::query()->firstOrCreate(
-            ['invoice_id' => $invoice->id, 'amount' => 3000],
+        BillingPayment::query()->firstOrCreate(
+            ['billing_record_id' => $billingRecord->id, 'amount' => 3000],
             [
                 'payment_method' => 'cash',
                 'status' => 'posted',
@@ -242,7 +229,7 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
-        return $invoice;
+        return $billingRecord;
     }
 
     private function seedConversation(Patient $patient, User $staff, Appointment $appointment): void

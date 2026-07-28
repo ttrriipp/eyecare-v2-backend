@@ -2,11 +2,12 @@
 
 namespace Database\Seeders;
 
+use App\Enums\BillingRecordStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
-use App\Models\Invoice;
-use App\Models\InvoicePayment;
+use App\Models\BillingPayment;
+use App\Models\BillingRecord;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -81,19 +82,19 @@ class DashboardDemoSeeder extends Seeder
     private function statusForDate(Carbon $date): string
     {
         if ($date->isToday()) {
-            return fake()->randomElement(['confirmed', 'confirmed', 'pending']);
+            return fake()->randomElement(['scheduled', 'scheduled', 'checked_in']);
         }
 
         if ($date->isFuture()) {
-            return fake()->randomElement(['pending', 'confirmed', 'confirmed']);
+            return fake()->randomElement(['scheduled', 'scheduled', 'scheduled']);
         }
 
-        return fake()->randomElement(['completed', 'completed', 'completed', 'confirmed', 'cancelled']);
+        return fake()->randomElement(['fulfilled', 'fulfilled', 'fulfilled', 'scheduled', 'cancelled']);
     }
 
     private function seedRevenue(): void
     {
-        if (InvoicePayment::query()->where('reference_number', 'like', self::PAYMENT_REFERENCE_PREFIX.'%')->exists()) {
+        if (BillingPayment::query()->where('reference_number', 'like', self::PAYMENT_REFERENCE_PREFIX.'%')->exists()) {
             return;
         }
 
@@ -116,20 +117,25 @@ class DashboardDemoSeeder extends Seeder
                 $amount = (float) fake()->randomElement([600, 850, 1200, 1500, 1800, 2500, 3200, 4500]);
                 $paidAt = $date->copy()->setTime(fake()->numberBetween(9, 17), fake()->randomElement([0, 30]));
 
-                $invoice = Invoice::query()->create([
+                $billingRecord = BillingRecord::query()->create([
+                    'billing_record_number' => 'BR-DASH-' . str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
+                    'job_order_id' => \App\Models\JobOrder::factory()->create([
+                        'patient_id' => fake()->randomElement($patientIds),
+                        'status' => \App\Enums\JobOrderStatus::Dispensed,
+                    ])->id,
                     'patient_id' => fake()->randomElement($patientIds),
-                    'status' => 'paid',
-                    'subtotal' => $amount,
-                    'total' => $amount,
+                    'status' => BillingRecordStatus::Paid,
+                    'total_amount' => $amount,
                     'amount_paid' => $amount,
                     'balance_due' => 0,
-                    'issued_at' => $paidAt,
+                    'recorded_by' => $staffId,
+                    'recorded_at' => $paidAt,
                 ]);
 
-                InvoicePayment::query()->create([
-                    'invoice_id' => $invoice->id,
+                BillingPayment::query()->create([
+                    'billing_record_id' => $billingRecord->id,
                     'status' => 'posted',
-                    'payment_method' => fake()->randomElement(['Cash', 'GCash', 'Bank Transfer']),
+                    'payment_method' => fake()->randomElement(['cash', 'gcash', 'bank_transfer']),
                     'amount' => $amount,
                     'reference_number' => self::PAYMENT_REFERENCE_PREFIX.str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
                     'recorded_by' => $staffId,

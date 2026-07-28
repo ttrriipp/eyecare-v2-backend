@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('dispensing_events', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('job_order_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('invoice_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('billing_record_id')->nullable()->constrained('billing_records')->nullOnDelete();
             $table->foreignId('dispensed_by')->constrained('users');
             $table->string('recipient_name')->nullable();
             $table->text('notes')->nullable();
