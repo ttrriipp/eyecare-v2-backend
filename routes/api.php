@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BillingRecordController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
@@ -58,6 +59,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
 
     Route::get('invoices', [InvoiceController::class, 'index']);
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
+
+    Route::get('billing-records', [BillingRecordController::class, 'index']);
+    Route::get('billing-records/{billingRecord}', [BillingRecordController::class, 'show']);
 
     Route::get('conversation', [ConversationController::class, 'show']);
     Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
