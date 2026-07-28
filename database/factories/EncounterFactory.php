@@ -6,7 +6,6 @@ use App\Enums\EncounterStatus;
 use App\Models\Encounter;
 use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Str;
 
 /**
  * @extends Encounter
@@ -21,7 +20,7 @@ class EncounterFactory extends Factory
     public function definition(): array
     {
         return [
-            'encounter_number' => 'ENC-'.Str::ulid(),
+            'encounter_number' => 'ENC-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
             'patient_id' => Patient::factory(),
             'appointment_id' => null,
             'patient_intake_id' => null,

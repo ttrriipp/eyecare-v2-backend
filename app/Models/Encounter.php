@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'encounter_number',
@@ -32,9 +31,20 @@ class Encounter extends Model
     {
         static::creating(function (Encounter $encounter): void {
             if (blank($encounter->encounter_number)) {
-                $encounter->encounter_number = 'ENC-'.Str::ulid();
+                $encounter->encounter_number = self::generateEncounterNumber();
             }
         });
+    }
+
+    public static function generateEncounterNumber(): string
+    {
+        $year = now()->format('Y');
+        $sequence = self::query()
+            ->whereYear('created_at', $year)
+            ->withTrashed()
+            ->count() + 1;
+
+        return sprintf('ENC-%s-%06d', $year, $sequence);
     }
 
     /**
