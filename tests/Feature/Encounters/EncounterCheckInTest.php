@@ -1,14 +1,18 @@
 <?php
 
+use App\Actions\Appointments\CreateWalkInAppointment;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Enums\EncounterStatus;
 use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AppointmentType;
 use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\PatientIntake;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\AppointmentTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -16,6 +20,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(AppointmentTypeSeeder::class);
 });
 
 test('check-in creates exactly one encounter for the appointment', function () {
@@ -129,4 +134,22 @@ test('check-in works without a verified intake', function () {
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
     expect($encounter->patient_intake_id)->toBeNull();
+});
+
+test('walk-in appointment creation creates an encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointmentType = AppointmentType::query()->first();
+
+    $appointment = app(CreateWalkInAppointment::class)->handle(
+        patient: $patient,
+        appointmentType: $appointmentType,
+        staff: $staff,
+    );
+
+    expect($appointment->status->name)->toBe('checked_in')
+        ->and($appointment->encounter)->not->toBeNull()
+        ->and($appointment->encounter->status)->toBe(EncounterStatus::Planned);
+
+    $this->assertDatabaseCount('encounters', 1);
 });
