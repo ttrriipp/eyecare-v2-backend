@@ -11,8 +11,6 @@ class CreatePrescription extends CreateRecord
 {
     protected static string $resource = PrescriptionResource::class;
 
-    public bool $showPrismBase = false;
-
     /**
      * Optional: pre-fill form from an existing prescription's ID (passed via URL).
      * Staff picks "Copy from previous" → redirects here with copyFromId set.
@@ -34,14 +32,10 @@ class CreatePrescription extends CreateRecord
                     'od_cylinder' => $source->od_cylinder,
                     'od_axis' => $source->od_axis,
                     'od_add' => $source->od_add,
-                    'od_prism' => $source->od_prism,
-                    'od_base' => $source->od_base,
                     'os_sphere' => $source->os_sphere,
                     'os_cylinder' => $source->os_cylinder,
                     'os_axis' => $source->os_axis,
                     'os_add' => $source->os_add,
-                    'os_prism' => $source->os_prism,
-                    'os_base' => $source->os_base,
                     'pd' => $source->pd,
                     'notes' => $source->notes,
                 ]);

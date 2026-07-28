@@ -42,7 +42,7 @@
 
 - [ ] `GET /prescriptions` — customer's prescription history
 - [ ] `GET /prescriptions/{id}` — single prescription detail
-- [ ] Display OD/OS fields (sphere, cylinder, axis, add, prism, base), PD, prescribed_at, expires_at
+- [ ] Display OD/OS fields (sphere, cylinder, axis, add), PD, prescribed_at, expires_at
 
 ---
 

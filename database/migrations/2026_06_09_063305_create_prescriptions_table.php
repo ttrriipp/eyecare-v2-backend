@@ -22,14 +22,10 @@ return new class extends Migration
             $table->text('od_cylinder')->nullable();
             $table->text('od_axis')->nullable();
             $table->text('od_add')->nullable();
-            $table->text('od_prism')->nullable();
-            $table->text('od_base')->nullable();
             $table->text('os_sphere')->nullable();
             $table->text('os_cylinder')->nullable();
             $table->text('os_axis')->nullable();
             $table->text('os_add')->nullable();
-            $table->text('os_prism')->nullable();
-            $table->text('os_base')->nullable();
             $table->text('pd')->nullable();
             $table->date('prescribed_at');
             $table->date('expires_at')->nullable();

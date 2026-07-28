@@ -73,6 +73,10 @@ test('prescriptions are created with patient ownership and encryption-compatible
         ->and($migration)->toContain("text('pd')->nullable()")
         ->and($migration)->toContain("text('notes')->nullable()")
         ->and($migration)->not->toContain('customer_id')
+        ->and($migration)->not->toContain('od_prism')
+        ->and($migration)->not->toContain('od_base')
+        ->and($migration)->not->toContain('os_prism')
+        ->and($migration)->not->toContain('os_base')
         ->and(file_exists(database_path('migrations/2026_07_25_210000_link_prescriptions_to_encounters.php')))->toBeFalse()
         ->and(file_exists(database_path('migrations/2026_06_29_212317_encrypt_prescription_sensitive_columns.php')))->toBeFalse()
         ->and(file_exists(database_path('migrations/2026_06_29_231703_drop_prescription_uploads_table.php')))->toBeFalse();
@@ -89,7 +93,11 @@ test('prescription database columns and foreign keys match canonical constraints
                 'patient_id',
                 'encounter_id',
                 'od_sphere',
+                'od_prism',
+                'od_base',
                 'os_sphere',
+                'os_prism',
+                'os_base',
                 'pd',
                 'notes',
                 'last_expiry_notified_at'
@@ -111,7 +119,13 @@ test('prescription database columns and foreign keys match canonical constraints
             AND KEY_COLUMN_USAGE.COLUMN_NAME IN ('patient_id', 'encounter_id')
     "))->keyBy('COLUMN_NAME');
 
-    expect($columns)->not->toHaveKey('customer_id')
+    expect($columns)->not->toHaveKeys([
+        'customer_id',
+        'od_prism',
+        'od_base',
+        'os_prism',
+        'os_base',
+    ])
         ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
         ->and($columns['encounter_id']->IS_NULLABLE)->toBe('YES')
         ->and($columns['od_sphere']->DATA_TYPE)->toBe('text')

@@ -58,7 +58,6 @@
                 <th>CYL</th>
                 <th>Axis</th>
                 <th>Add</th>
-                <th>Prism</th>
             </tr>
         </thead>
         <tbody>
@@ -68,7 +67,6 @@
                 <td>{{ $prescription->od_cylinder ?? '—' }}</td>
                 <td>{{ $prescription->od_axis ?? '—' }}</td>
                 <td>{{ $prescription->od_add ?? '—' }}</td>
-                <td>{{ $prescription->od_prism ?? '—' }}</td>
             </tr>
             <tr>
                 <td class="label">OS (L)</td>
@@ -76,7 +74,6 @@
                 <td>{{ $prescription->os_cylinder ?? '—' }}</td>
                 <td>{{ $prescription->os_axis ?? '—' }}</td>
                 <td>{{ $prescription->os_add ?? '—' }}</td>
-                <td>{{ $prescription->os_prism ?? '—' }}</td>
             </tr>
         </tbody>
     </table>

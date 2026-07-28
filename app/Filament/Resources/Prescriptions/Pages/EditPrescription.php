@@ -19,8 +19,6 @@ class EditPrescription extends EditRecord
 {
     protected static string $resource = PrescriptionResource::class;
 
-    public bool $showPrismBase = false;
-
     public function getSubheading(): string|Htmlable|null
     {
         $record = $this->getRecord();
@@ -69,11 +67,7 @@ class EditPrescription extends EditRecord
                     Placeholder::make('prev_os_cylinder')->label('OS Cyl')->content($previous->os_cylinder ?? '—'),
                     Placeholder::make('prev_os_axis')->label('OS Axis')->content($previous->os_axis ?? '—'),
                     Placeholder::make('prev_od_add')->label('OD Add')->content($previous->od_add ?? '—'),
-                    Placeholder::make('prev_od_prism')->label('OD Prism')->content($previous->od_prism ?? '—'),
-                    Placeholder::make('prev_od_base')->label('OD Base')->content($previous->od_base ?? '—'),
                     Placeholder::make('prev_os_add')->label('OS Add')->content($previous->os_add ?? '—'),
-                    Placeholder::make('prev_os_prism')->label('OS Prism')->content($previous->os_prism ?? '—'),
-                    Placeholder::make('prev_os_base')->label('OS Base')->content($previous->os_base ?? '—'),
                     Placeholder::make('prev_pd')->label('PD')->content($previous->pd ?? '—'),
                     Placeholder::make('prev_notes')->label('Notes')->content($previous->notes ?? '—'),
                 ]),
@@ -104,11 +98,7 @@ class EditPrescription extends EditRecord
                         Placeholder::make('prev_os_cylinder')->label('OS Cyl')->content($previous->os_cylinder ?? '—'),
                         Placeholder::make('prev_os_axis')->label('OS Axis')->content($previous->os_axis ?? '—'),
                         Placeholder::make('prev_od_add')->label('OD Add')->content($previous->od_add ?? '—'),
-                        Placeholder::make('prev_od_prism')->label('OD Prism')->content($previous->od_prism ?? '—'),
-                        Placeholder::make('prev_od_base')->label('OD Base')->content($previous->od_base ?? '—'),
                         Placeholder::make('prev_os_add')->label('OS Add')->content($previous->os_add ?? '—'),
-                        Placeholder::make('prev_os_prism')->label('OS Prism')->content($previous->os_prism ?? '—'),
-                        Placeholder::make('prev_os_base')->label('OS Base')->content($previous->os_base ?? '—'),
                         Placeholder::make('prev_pd')->label('PD')->content($previous->pd ?? '—'),
                         Placeholder::make('prev_notes')->label('Notes')->content($previous->notes ?? '—'),
                     ]),

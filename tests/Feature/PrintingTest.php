@@ -34,6 +34,17 @@ test('prescription pdf uses patient relationship', function () {
         ->and($prescription->patient->full_name)->not->toBeEmpty();
 });
 
+test('prescription print layouts omit unsupported prism and base fields', function () {
+    $prescription = Prescription::factory()->create();
+
+    $fullPrescription = view('pdf.prescription', ['prescription' => $prescription])->render();
+    $prescriptionCard = view('pdf.prescription-card', ['prescription' => $prescription])->render();
+
+    expect($fullPrescription)->not->toContain('<th>Prism</th>')
+        ->and($fullPrescription)->not->toContain('<th>Base</th>')
+        ->and($prescriptionCard)->not->toContain('<th>Prism</th>');
+});
+
 test('prescription print route requires authentication', function () {
     $prescription = Prescription::factory()->create();
 

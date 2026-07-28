@@ -24,6 +24,22 @@ test('prescriptions list is paginated and patient-scoped', function () {
         ->assertJsonPath('meta.total', 5);
 });
 
+test('prescription responses omit unsupported prism and base fields', function () {
+    $user = User::factory()->patient()->create();
+    Prescription::factory()->create(['patient_id' => $user->patient->id]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/prescriptions')
+        ->assertOk();
+
+    expect($response->json('data.0'))->not->toHaveKeys([
+        'od_prism',
+        'od_base',
+        'os_prism',
+        'os_base',
+    ]);
+});
+
 test('quotations list is paginated and patient-scoped', function () {
     $user = User::factory()->patient()->create();
     Quotation::factory()->count(3)->create(['patient_id' => $user->patient->id]);

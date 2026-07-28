@@ -86,8 +86,6 @@
                 <th>CX</th>
                 <th>Axis</th>
                 <th>Add</th>
-                <th>Prism</th>
-                <th>Base</th>
             </tr>
         </thead>
         <tbody>
@@ -97,8 +95,6 @@
                 <td>{{ $prescription->od_cylinder ?? '—' }}</td>
                 <td>{{ $prescription->od_axis ?? '—' }}</td>
                 <td>{{ $prescription->od_add ?? '—' }}</td>
-                <td>{{ $prescription->od_prism ?? '—' }}</td>
-                <td>{{ $prescription->od_base ?? '—' }}</td>
             </tr>
             <tr>
                 <td class="label">OS (Left Eye)</td>
@@ -106,8 +102,6 @@
                 <td>{{ $prescription->os_cylinder ?? '—' }}</td>
                 <td>{{ $prescription->os_axis ?? '—' }}</td>
                 <td>{{ $prescription->os_add ?? '—' }}</td>
-                <td>{{ $prescription->os_prism ?? '—' }}</td>
-                <td>{{ $prescription->os_base ?? '—' }}</td>
             </tr>
         </tbody>
     </table>

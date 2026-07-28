@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Repository HEAD (2026-07-28)
+> **Backend version:** Current repository state (2026-07-28)
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -654,14 +654,10 @@ Paginated list. Read-only — patients cannot create prescriptions.
       "od_cylinder": "-0.50",
       "od_axis": 180,
       "od_add": null,
-      "od_prism": null,
-      "od_base": null,
       "os_sphere": "-1.75",
       "os_cylinder": "-0.25",
       "os_axis": 170,
       "os_add": null,
-      "os_prism": null,
-      "os_base": null,
       "pd": "62.0",
       "prescribed_at": "2026-07-27",
       "expires_at": "2027-07-27",
