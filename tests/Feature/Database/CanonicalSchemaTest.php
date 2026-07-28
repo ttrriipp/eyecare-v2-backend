@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
@@ -186,43 +187,12 @@ test('conversation database columns and indexes match canonical constraints', fu
         ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
 });
 
-test('feedback is created with canonical patient ownership only', function () {
-    $migration = file_get_contents(database_path('migrations/2026_06_11_004047_create_feedback_table.php'));
-
-    expect($migration)->toContain("foreignId('patient_id')->nullable()->constrained()->cascadeOnDelete()")
-        ->and($migration)->not->toContain('customer_id')
-        ->and($migration)->not->toContain('order_id')
-        ->and(file_exists(database_path('migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php')))->toBeFalse();
-});
-
-test('feedback database columns and foreign keys match canonical constraints', function () {
-    $columns = collect(DB::select("
-        SELECT COLUMN_NAME, IS_NULLABLE
-        FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'feedback'
-            AND COLUMN_NAME IN ('customer_id', 'order_id', 'patient_id')
-    "))->keyBy('COLUMN_NAME');
-
-    $foreignKeys = collect(DB::select("
-        SELECT
-            KEY_COLUMN_USAGE.COLUMN_NAME,
-            KEY_COLUMN_USAGE.REFERENCED_TABLE_NAME,
-            REFERENTIAL_CONSTRAINTS.DELETE_RULE
-        FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
-        JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-            ON KEY_COLUMN_USAGE.CONSTRAINT_SCHEMA = REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA
-            AND KEY_COLUMN_USAGE.CONSTRAINT_NAME = REFERENTIAL_CONSTRAINTS.CONSTRAINT_NAME
-            AND KEY_COLUMN_USAGE.TABLE_NAME = REFERENTIAL_CONSTRAINTS.TABLE_NAME
-        WHERE REFERENTIAL_CONSTRAINTS.CONSTRAINT_SCHEMA = DATABASE()
-            AND REFERENTIAL_CONSTRAINTS.TABLE_NAME = 'feedback'
-            AND KEY_COLUMN_USAGE.COLUMN_NAME = 'patient_id'
-    "))->keyBy('COLUMN_NAME');
-
-    expect($columns)->not->toHaveKeys(['customer_id', 'order_id'])
-        ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
-        ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
-        ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
+test('retired tables are absent from the canonical schema', function () {
+    expect(Schema::hasTable('feedback'))->toBeFalse()
+        ->and(Schema::hasTable('physical_chart_events'))->toBeFalse()
+        ->and(Schema::hasTable('retention_policies'))->toBeFalse()
+        ->and(Schema::hasTable('legal_holds'))->toBeFalse()
+        ->and(Schema::hasTable('job_batches'))->toBeFalse();
 });
 
 test('inventory movements are created with canonical reservation and job order links', function () {

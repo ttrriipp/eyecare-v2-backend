@@ -44,9 +44,6 @@ enum AuditEvent: string
     case RatingModerated = 'rating.moderated';
 
     case HealthRecordPrinted = 'health_record.printed';
-    case ChartCheckedOut = 'chart.checked_out';
-    case ChartReturned = 'chart.returned';
-
     case UserCreated = 'user.created';
     case UserRoleChanged = 'user.role_changed';
 
@@ -58,5 +55,4 @@ enum AuditEvent: string
 
     case BillingGenerated = 'billing.generated';
     case BillingBalanceRecalculated = 'billing.balance_recalculated';
-    case FeedbackSubmitted = 'feedback.submitted';
 }

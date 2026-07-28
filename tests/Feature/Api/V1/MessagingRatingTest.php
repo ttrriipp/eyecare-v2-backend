@@ -17,7 +17,7 @@ test('conversation access is patient-scoped', function () {
     $userB = User::factory()->patient()->create();
     Conversation::factory()->create(['patient_id' => $userB->patient->id]);
 
-    // userA has their own conversation, not userB's
+    // The authenticated patient receives only their own conversation.
     $this->actingAs($userA)
         ->getJson('/api/v1/conversation/messages')
         ->assertOk()

@@ -58,7 +58,6 @@ com.eyecare.app/
 │   ├── prescriptions/     # List + detail
 │   ├── billing/           # Billing detail
 │   ├── messaging/         # Chat screen
-│   ├── feedback/          # Submit + history
 │   ├── profile/           # User profile
 │   ├── navigation/        # NavGraph, Routes, BottomNavBar
 │   └── common/            # Shared components + helpers
@@ -156,8 +155,6 @@ GET    /conversations                 → includes unread_count
 GET    /conversations/{id}/messages
 POST   /conversations/{id}/messages
 POST   /conversations/{id}/messages/read
-POST   /feedback
-GET    /feedback, /feedback/{id}
 ```
 
 Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.

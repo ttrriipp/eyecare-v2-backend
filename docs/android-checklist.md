@@ -84,19 +84,6 @@
 
 ---
 
-## Feedback
-
-- [ ] `POST /feedback` — submit feedback
-  - [ ] Requires `rating` (1–5)
-  - [ ] Optional `comment`
-  - [ ] Either `appointment_id` or `order_id` (one required)
-  - [ ] Target appointment/order must be `completed` status — backend 422 otherwise
-- [ ] `GET /feedback` — customer's feedback history
-- [ ] `GET /feedback/{id}` — single feedback detail
-- [ ] No staff reply is returned — feedback is one-directional
-
----
-
 ## Error Handling
 
 - [ ] 401 — redirect to login

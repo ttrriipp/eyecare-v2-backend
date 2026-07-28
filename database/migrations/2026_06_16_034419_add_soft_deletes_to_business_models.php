@@ -12,7 +12,6 @@ return new class extends Migration
         'products',
         'product_variants',
         'conversations',
-        'feedback',
     ];
 
     public function up(): void

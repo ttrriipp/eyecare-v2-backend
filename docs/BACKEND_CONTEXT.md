@@ -132,21 +132,17 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
 | `conversations` | `patient_id` — one per patient. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
-| `feedback` | `patient_id`, `appointment_id` or `order_id`, `rating` (1–5), `comment`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON). |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
-| `physical_chart_events` | `patient_id`, `encounter_id`, `event_type` (checkout/return/relocation/copy), `actor_id`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
-| `retention_policies` | `category`, `retention_days`, `auto_purge_enabled`, `next_review_date`. |
-| `legal_holds` | `reference_number`, `description`, `is_active`. |
 | `clinic_hours` | `weekday` (0-6), `open_time`, `close_time`, `enabled`. |
 | `provider_hours` | `user_id`, `weekday`, `start_time`, `end_time`, `enabled`. |
 | `schedule_overrides` | `user_id` (nullable), `override_date`, `type` (closed/early_close/provider_absence), `start_time`, `end_time`, `reason`. |
 
 ### Soft Deletes
 
-These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `Feedback`, `Invoice`, `JobOrder`, `Complaint`.
+These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `Invoice`, `JobOrder`, `Complaint`.
 
 ---
 
@@ -174,7 +170,7 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 - Patients & Clinical — Patients, Encounters, Prescriptions, Complaints
 - Fulfillment & Finance — Frame Reservations, Quotations, Job Orders, Invoices
 - Catalog & Inventory — Products, Inventory History
-- Communication — Conversations, Feedback, Frame Ratings
+- Communication — Conversations, Frame Ratings
 - Reports — Reorder Report
 - Administration — Users, Audit Logs, Privacy Incidents
 - Settings — Categories, Brands, Lens Categories, Visit Reasons, Services
@@ -228,11 +224,10 @@ GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
 GET    /api/v1/conversation/attachments/{attachment}
 
-POST   /api/v1/feedback
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-The approved patient-mobile contract contains exactly 34 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
+The approved patient-mobile contract contains exactly 33 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, invoices, payments, orders, billings, checkout records, or purchases.
 
 ---
 
@@ -258,7 +253,6 @@ The approved patient-mobile contract contains exactly 34 routes. List endpoints 
 | `ModerateFrameRating` | `app/Actions/Ratings/` | Hide/restore comments, preserve star aggregates |
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |
 | `ProcessPrivacyRequest` | `app/Actions/Privacy/` | Records disposition, no auto-deletion |
-| `EvaluateRetention` | `app/Actions/Privacy/` | Checks policy, legal holds, auto-purge |
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata) |
 
 ---

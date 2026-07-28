@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConversationController;
-use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
@@ -65,8 +64,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::post('conversation/messages', [ConversationController::class, 'storeMessage']);
 
     Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
-
-    Route::post('feedback', [FeedbackController::class, 'store']);
 
     Route::post('job-order-items/{item}/rating', [FrameRatingController::class, 'store']);
 });

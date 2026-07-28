@@ -99,17 +99,6 @@
 
 ---
 
-## Feedback
-
-- [ ] Submit feedback on a completed appointment (rating + comment) → success
-- [ ] Submit feedback on a completed order → success
-- [ ] Submit feedback on a non-completed appointment → 422 error shown
-- [ ] Submit feedback without rating → validation error shown
-- [ ] Feedback history list loads
-- [ ] Tap feedback → detail shows rating, comment, linked appointment/order
-
----
-
 ## Edge Cases
 
 - [ ] No internet → error message shown, not a crash

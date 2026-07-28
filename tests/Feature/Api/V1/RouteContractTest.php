@@ -45,7 +45,6 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/appointments/{appointment}/intake/submit',
         'POST api/v1/appointments/{appointment}/reschedule',
         'POST api/v1/conversation/messages',
-        'POST api/v1/feedback',
         'POST api/v1/frame-reservations',
         'POST api/v1/frame-reservations/{reservation}/cancel',
         'POST api/v1/job-order-items/{item}/rating',
@@ -77,6 +76,14 @@ test('no checkout or purchase routes exist', function () {
 
     expect($routes)->not->toContain(fn ($uri) => str_contains($uri, 'checkout'))
         ->and($routes)->not->toContain(fn ($uri) => str_contains($uri, 'purchase'));
+});
+
+test('retired feedback routes are absent', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->pluck('uri')
+        ->toArray();
+
+    expect($routes)->not->toContain('api/v1/feedback');
 });
 
 test('staff-only api mutations are absent from the patient mobile contract', function () {
