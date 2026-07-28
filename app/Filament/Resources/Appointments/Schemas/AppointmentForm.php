@@ -176,7 +176,7 @@ class AppointmentForm
                                         default => 'gray',
                                     };
 
-                                    return new HtmlString("<span class=\"fi-badge fi-badge-size-sm inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
+                                    return new HtmlString("<span class=\"fi-badge inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
                                 })
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
@@ -283,6 +283,6 @@ class AppointmentForm
 
     private static function intakeBadgeHtml(string $label, string $color): HtmlString
     {
-        return new HtmlString("<span class=\"fi-badge fi-badge-size-sm inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
+        return new HtmlString("<span class=\"fi-badge inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
     }
 }
