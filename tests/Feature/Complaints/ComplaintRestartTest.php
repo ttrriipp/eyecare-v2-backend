@@ -39,7 +39,7 @@ test('staff can link complaint to new appointment and encounter', function () {
         ->and($result->status)->toBe(ComplaintStatus::UnderReview);
 });
 
-test('original encounter prescription job order and invoice stay unchanged', function () {
+test('original encounter prescription job order and billing record stay unchanged', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $jobOrder = JobOrder::factory()->create(['patient_id' => $patient->id, 'total_amount' => 5000]);

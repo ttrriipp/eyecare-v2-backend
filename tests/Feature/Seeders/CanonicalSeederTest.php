@@ -4,9 +4,9 @@ use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\BillingPayment;
+use App\Models\BillingRecord;
 use App\Models\Encounter;
-use App\Models\Invoice;
-use App\Models\InvoicePayment;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -97,8 +97,8 @@ test('canonical seed data creates complete clinic workflow', function () {
     expect(Encounter::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(Prescription::query()->count())->toBeGreaterThanOrEqual(1)
         ->and(JobOrder::query()->count())->toBeGreaterThanOrEqual(1)
-        ->and(Invoice::query()->count())->toBeGreaterThanOrEqual(1)
-        ->and(InvoicePayment::query()->count())->toBeGreaterThanOrEqual(1);
+        ->and(BillingRecord::query()->count())->toBeGreaterThanOrEqual(1)
+        ->and(BillingPayment::query()->count())->toBeGreaterThanOrEqual(1);
 });
 
 test('seed data has no legacy model references', function () {

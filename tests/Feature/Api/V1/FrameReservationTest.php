@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\ReservationStatus;
+use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\FrameReservation;
 use App\Models\Product;
@@ -45,7 +46,8 @@ test('patient can create a frame reservation', function () {
 
 test('patient can list their own reservations', function () {
     $user = User::factory()->patient()->create();
-    $myReservations = FrameReservation::factory()->count(2)->create(['patient_id' => $user->patient->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
+    $myReservations = FrameReservation::factory()->count(2)->forAppointment($appointment)->create();
     $otherReservation = FrameReservation::factory()->create();
 
     $this->actingAs($user)
@@ -56,8 +58,8 @@ test('patient can list their own reservations', function () {
 
 test('patient can cancel their own requested reservation', function () {
     $user = User::factory()->patient()->create();
-    $reservation = FrameReservation::factory()->create([
-        'patient_id' => $user->patient->id,
+    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
         'status' => ReservationStatus::Requested,
     ]);
 
@@ -70,7 +72,8 @@ test('patient can cancel their own requested reservation', function () {
 test('patient cannot cancel another patients reservation', function () {
     $userA = User::factory()->patient()->create();
     $userB = User::factory()->patient()->create();
-    $reservation = FrameReservation::factory()->create(['patient_id' => $userB->patient->id]);
+    $appointment = Appointment::factory()->create(['patient_id' => $userB->patient->id]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     $this->actingAs($userA)
         ->postJson("/api/v1/frame-reservations/{$reservation->id}/cancel")
@@ -84,6 +87,7 @@ test('reservation requires authentication', function () {
 
 test('reservation response does not contain internal commercial or inventory fields', function () {
     $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
     $frame = Product::factory()->create([
         'product_type' => 'frame',
         'is_active' => true,
@@ -97,8 +101,7 @@ test('reservation response does not contain internal commercial or inventory fie
         'low_stock_threshold' => 3,
         'target_stock_level' => 20,
     ]);
-    FrameReservation::factory()->create([
-        'patient_id' => $user->patient->id,
+    FrameReservation::factory()->forAppointment($appointment)->create([
         'status' => ReservationStatus::Requested,
     ]);
 

@@ -16,7 +16,7 @@ class RestartComplaintWorkflow
     /**
      * Link a complaint to a new appointment/encounter for re-examination.
      *
-     * The original encounter, prescription, job order, and invoice remain unchanged.
+     * The original encounter, prescription, job order, and billing record remain unchanged.
      */
     public function handle(
         Complaint $complaint,

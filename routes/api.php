@@ -8,7 +8,6 @@ use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
-use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PrescriptionController;
@@ -56,9 +55,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
 
     Route::get('job-orders', [JobOrderController::class, 'index']);
     Route::get('job-orders/{jobOrder}', [JobOrderController::class, 'show']);
-
-    Route::get('invoices', [InvoiceController::class, 'index']);
-    Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
 
     Route::get('billing-records', [BillingRecordController::class, 'index']);
     Route::get('billing-records/{billingRecord}', [BillingRecordController::class, 'show']);

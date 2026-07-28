@@ -1,21 +1,21 @@
 <?php
 
+use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
-use App\Actions\Invoices\DispenseJobOrder;
 use App\Actions\JobOrders\CreateJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
-use App\Enums\InvoiceStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
+use App\Models\BillingRecord;
 use App\Models\Encounter;
-use App\Models\Invoice;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -112,12 +112,11 @@ test('scheduled patient journey: appointment through dispensing', function () {
     $dispensingEvent = app(DispenseJobOrder::class)->handle(
         jobOrder: $jobOrder->fresh(),
         dispenser: $staff,
-        officialNumber: 'SI-2026-001',
     );
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed)
-        ->and($dispensingEvent->invoice->status)->toBe(InvoiceStatus::Issued)
-        ->and($dispensingEvent->invoice->official_number)->toBe('SI-2026-001');
+        ->and($dispensingEvent->billingRecord->status)->toBe(BillingRecordStatus::Unpaid)
+        ->and($dispensingEvent->billingRecord->billing_record_number)->toStartWith('BR-');
 });
 
 test('walk-in patient journey: registration through encounter', function () {
@@ -148,7 +147,7 @@ test('patient isolation: cannot access another patients records', function () {
     $prescriptionB = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
     $quotationB = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
     $jobOrderB = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
-    $invoiceB = Invoice::factory()->create(['patient_id' => $userB->patient->id]);
+    $billingRecordB = BillingRecord::factory()->create(['patient_id' => $userB->patient->id]);
 
     $this->actingAs($userA);
 
@@ -156,7 +155,7 @@ test('patient isolation: cannot access another patients records', function () {
     $this->getJson("/api/v1/prescriptions/{$prescriptionB->id}")->assertNotFound();
     $this->getJson("/api/v1/quotations/{$quotationB->id}")->assertNotFound();
     $this->getJson("/api/v1/job-orders/{$jobOrderB->id}")->assertNotFound();
-    $this->getJson("/api/v1/invoices/{$invoiceB->id}")->assertNotFound();
+    $this->getJson("/api/v1/billing-records/{$billingRecordB->id}")->assertNotFound();
 });
 
 test('receptionist capability boundary', function () {

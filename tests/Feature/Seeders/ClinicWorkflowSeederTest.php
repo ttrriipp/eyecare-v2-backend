@@ -1,9 +1,9 @@
 <?php
 
 use App\Models\Appointment;
+use App\Models\BillingRecord;
 use App\Models\ClinicHour;
 use App\Models\Encounter;
-use App\Models\Invoice;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -68,10 +68,10 @@ test('seeder creates quotations and job orders', function () {
         ->and(JobOrder::count())->toBeGreaterThanOrEqual(1);
 });
 
-test('seeder creates invoices', function () {
+test('seeder creates billing-records', function () {
     $this->seed(DatabaseSeeder::class);
 
-    expect(Invoice::count())->toBeGreaterThanOrEqual(1);
+    expect(BillingRecord::count())->toBeGreaterThanOrEqual(1);
 });
 
 test('seeder creates clinic hours for all seven days', function () {

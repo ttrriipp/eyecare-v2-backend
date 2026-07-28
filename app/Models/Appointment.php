@@ -146,6 +146,14 @@ class Appointment extends Model implements Eventable
     }
 
     /**
+     * @return HasMany<FrameReservation, $this>
+     */
+    public function frameReservations(): HasMany
+    {
+        return $this->hasMany(FrameReservation::class);
+    }
+
+    /**
      * @return HasMany<Encounter, $this>
      */
     public function encounters(): HasMany

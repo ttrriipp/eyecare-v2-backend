@@ -4,33 +4,33 @@ use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
-use App\Models\Patient;
 use App\Models\ProductVariant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('reservation belongs to a patient', function () {
-    $patient = Patient::factory()->create();
-    $reservation = FrameReservation::factory()->create(['patient_id' => $patient->id]);
-
-    expect($reservation->patient->id)->toBe($patient->id);
-});
-
-test('reservation can be linked to an appointment', function () {
     $appointment = Appointment::factory()->create();
     $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
-    expect($reservation->appointment_id)->toBe($appointment->id)
-        ->and($reservation->appointment->id)->toBe($appointment->id)
-        ->and($reservation->patient_id)->toBe($appointment->patient_id);
+    expect($reservation->patient->id)->toBe($appointment->patient_id);
 });
 
-test('reservation can exist without an appointment', function () {
-    $reservation = FrameReservation::factory()->create(['appointment_id' => null]);
+test('reservation always has an appointment', function () {
+    $reservation = FrameReservation::factory()->create();
 
-    expect($reservation->appointment_id)->toBeNull()
-        ->and($reservation->appointment)->toBeNull();
+    expect($reservation->appointment_id)->not->toBeNull()
+        ->and($reservation->appointment)->not->toBeNull();
+});
+
+test('appointment cannot be hard-deleted while reservation exists', function () {
+    $appointment = Appointment::factory()->create();
+    FrameReservation::factory()->forAppointment($appointment)->create();
+
+    $appointment->delete();
+
+    expect($appointment->trashed())->toBeTrue()
+        ->and($appointment->frameReservations()->count())->toBe(1);
 });
 
 test('reservation has items referencing frame variants', function () {

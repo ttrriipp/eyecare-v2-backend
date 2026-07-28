@@ -31,7 +31,7 @@ use Illuminate\Database\Seeder;
  *
  * Demonstrates:
  *  - Appointment → check-in → encounter → prescription
- *  - Quotation → accepted → job order → dispensing → invoice
+ *  - Quotation → accepted → job order → dispensing → billing record
  *  - Frame reservation flow
  *  - Complaint restart workflow
  *  - Conversation with staff reply
@@ -49,7 +49,7 @@ class ClinicWorkflowSeeder extends Seeder
         $prescription = $this->seedPrescription($patient, $encounter, $admin);
         $quotation = $this->seedQuotation($patient, $encounter, $prescription, $staff);
         $jobOrder = $this->seedJobOrder($patient, $encounter, $prescription, $quotation, $staff);
-        $invoice = $this->seedInvoice($patient, $jobOrder, $staff);
+        $billingRecord = $this->seedBillingRecord($patient, $jobOrder, $staff);
         $this->seedConversation($patient, $staff, $appointment);
         $this->seedComplaint($patient, $jobOrder, $staff);
     }
@@ -202,7 +202,7 @@ class ClinicWorkflowSeeder extends Seeder
         return $jobOrder;
     }
 
-    private function seedInvoice(Patient $patient, JobOrder $jobOrder, User $staff): BillingRecord
+    private function seedBillingRecord(Patient $patient, JobOrder $jobOrder, User $staff): BillingRecord
     {
         $billingRecord = BillingRecord::query()->firstOrCreate(
             ['job_order_id' => $jobOrder->id],

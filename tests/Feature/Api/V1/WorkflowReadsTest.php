@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Invoice;
+use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -105,12 +105,12 @@ test('job orders list is paginated and patient-scoped', function () {
     expect(count($response->json('data')))->toBe(4);
 });
 
-test('invoices list is paginated and patient-scoped', function () {
+test('billing-records list is paginated and patient-scoped', function () {
     $user = User::factory()->patient()->create();
-    Invoice::factory()->count(2)->create(['patient_id' => $user->patient->id]);
+    BillingRecord::factory()->count(2)->create(['patient_id' => $user->patient->id]);
 
     $response = $this->actingAs($user)
-        ->getJson('/api/v1/invoices')
+        ->getJson('/api/v1/billing-records')
         ->assertOk();
 
     expect(count($response->json('data')))->toBe(2);
@@ -123,12 +123,12 @@ test('cross-patient resources return not found', function () {
     $prescription = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
     $quotation = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
     $jobOrder = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
-    $invoice = Invoice::factory()->create(['patient_id' => $userB->patient->id]);
+    $billingRecord = BillingRecord::factory()->create(['patient_id' => $userB->patient->id]);
 
     $this->actingAs($userA);
 
     $this->getJson("/api/v1/prescriptions/{$prescription->id}")->assertNotFound();
     $this->getJson("/api/v1/quotations/{$quotation->id}")->assertNotFound();
     $this->getJson("/api/v1/job-orders/{$jobOrder->id}")->assertNotFound();
-    $this->getJson("/api/v1/invoices/{$invoice->id}")->assertNotFound();
+    $this->getJson("/api/v1/billing-records/{$billingRecord->id}")->assertNotFound();
 });

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'job_order_id',
-    'invoice_id',
+    'billing_record_id',
     'dispensed_by',
     'recipient_name',
     'notes',
@@ -28,11 +28,11 @@ class DispensingEvent extends Model
     }
 
     /**
-     * @return BelongsTo<Invoice, $this>
+     * @return BelongsTo<BillingRecord, $this>
      */
-    public function invoice(): BelongsTo
+    public function billingRecord(): BelongsTo
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(BillingRecord::class);
     }
 
     /**

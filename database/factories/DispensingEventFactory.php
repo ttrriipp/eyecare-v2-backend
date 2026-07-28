@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
-use App\Models\Invoice;
 use App\Models\JobOrder;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,7 +22,7 @@ class DispensingEventFactory extends Factory
     {
         return [
             'job_order_id' => JobOrder::factory(),
-            'invoice_id' => Invoice::factory(),
+            'billing_record_id' => BillingRecord::factory(),
             'dispensed_by' => User::factory()->staff(),
             'recipient_name' => null,
             'notes' => null,

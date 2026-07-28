@@ -10,7 +10,7 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('daily summary command counts job orders and invoice payments', function () {
+test('daily summary command counts job orders and billing payments', function () {
     $admin = User::factory()->admin()->create();
 
     $this->artisan('clinic:daily-summary')

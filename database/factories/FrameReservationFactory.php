@@ -22,7 +22,7 @@ class FrameReservationFactory extends Factory
     {
         return [
             'patient_id' => Patient::factory(),
-            'appointment_id' => null,
+            'appointment_id' => Appointment::factory(),
             'status' => ReservationStatus::Requested,
             'staff_notes' => null,
             'expires_at' => null,
