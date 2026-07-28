@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ReservationStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
@@ -7,7 +8,9 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\Encounter;
+use App\Models\FrameReservation;
 use App\Models\User;
+use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +20,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+    $this->seed(AppointmentStatusSeeder::class);
 });
 
 test('appointment table shows the populated appointment type', function () {
@@ -84,4 +88,147 @@ test('checked in appointment links to its encounter instead of exposing generic 
             TestAction::make('openEncounter')->table($appointment),
             route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
         );
+});
+
+test('check in creates a planned encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('checkIn', $appointment);
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('checked_in')
+        ->and($appointment->checked_in_at)->not->toBeNull()
+        ->and($appointment->encounter)->not->toBeNull()
+        ->and($appointment->encounter->status->value)->toBe('planned');
+});
+
+test('cancellation records actor reason and time', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('cancel', $appointment, [
+            'reason_category' => 'patient_request',
+            'cancellation_details' => null,
+        ]);
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('cancelled')
+        ->and($appointment->cancelled_by)->toBe('clinic')
+        ->and($appointment->cancelled_by_user_id)->toBe($staff->id)
+        ->and($appointment->cancellation_reason_category)->toBe('patient_request')
+        ->and($appointment->cancelled_at)->not->toBeNull();
+});
+
+test('cancellation cleans up active reservations', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
+        'status' => ReservationStatus::Requested,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('cancel', $appointment, [
+            'reason_category' => 'patient_request',
+            'cancellation_details' => null,
+        ]);
+
+    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled);
+});
+
+test('no show records actor and time', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('noShow', $appointment);
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('no_show')
+        ->and($appointment->no_show_by)->toBe($staff->id)
+        ->and($appointment->no_show_at)->not->toBeNull();
+});
+
+test('no show action is hidden for future appointments', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertActionHidden(TestAction::make('noShow')->table($appointment));
+});
+
+test('unavailable optometrist assignment is rejected', function () {
+    $staff = User::factory()->staff()->create();
+    $nonOptometrist = User::factory()->staff()->create(['is_optometrist' => false]);
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('assign', $appointment, [
+            'optometrist_id' => $nonOptometrist->id,
+        ]);
+
+    $appointment->refresh();
+    expect($appointment->optometrist_id)->not->toBe($nonOptometrist->id);
+});
+
+test('rescheduling requires clinic reason category', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->callTableAction('reschedule', $appointment, [
+            'scheduled_at' => now()->addDays(3)->format('Y-m-d'),
+            'appointment_time' => '10:00',
+            'reason_category' => null,
+            'reschedule_reason' => null,
+        ])
+        ->assertHasTableActionErrors(['reason_category']);
+});
+
+test('edit page has no editable status field', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertFormFieldDoesNotExist('appointment_status_id');
+});
+
+test('edit page shows open encounter for checked in appointments', function () {
+    $staff = User::factory()->staff()->create();
+    $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $checkedIn->id,
+        'checked_in_at' => now(),
+    ]);
+    $encounter = Encounter::factory()->create([
+        'appointment_id' => $appointment->id,
+        'patient_id' => $appointment->patient_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionVisible(TestAction::make('openEncounter'));
 });

@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Appointments\Tables;
 
+use App\Actions\Appointments\AssignAppointmentOptometrist;
+use App\Actions\Appointments\CancelAppointment;
+use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
-use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
@@ -34,11 +36,6 @@ class AppointmentsTable
 {
     public static function configure(Table $table): Table
     {
-        $advanceLabels = [
-            'scheduled' => ['label' => 'Confirm',  'icon' => 'heroicon-o-check-circle', 'color' => 'success', 'next' => 'checked_in'],
-            'checked_in' => ['label' => 'Complete', 'icon' => 'heroicon-o-check-badge', 'color' => 'success', 'next' => 'fulfilled'],
-        ];
-
         return $table
             ->columns([
                 TextColumn::make('appointment_number')
@@ -122,11 +119,25 @@ class AppointmentsTable
                 ActionGroup::make([
                     EditAction::make()
                         ->color('gray'),
+                    Action::make('openEncounter')
+                        ->label(fn (Appointment $record): string => $record->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
+                        ->icon('heroicon-o-document-text')
+                        ->color('info')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in')
+                        ->url(function (Appointment $record): ?string {
+                            $encounter = $record->encounter;
+
+                            if ($encounter === null) {
+                                return null;
+                            }
+
+                            return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
+                        }),
                     Action::make('assign')
                         ->label('Assign')
                         ->icon('heroicon-o-user-plus')
                         ->color('info')
-                        ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['scheduled', 'checked_in'], true))
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
                         ->schema([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')
@@ -136,26 +147,13 @@ class AppointmentsTable
                                 ->preload(),
                         ])
                         ->action(function (Appointment $record, array $data): void {
-                            $record->update(['optometrist_id' => $data['optometrist_id']]);
-                            Notification::make()->title('Optometrist assigned')->success()->send();
-                        }),
-                    Action::make('advance')
-                        ->label(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['label'] ?? '')
-                        ->icon(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['icon'] ?? 'heroicon-o-arrow-right')
-                        ->color(fn (Appointment $record): string => $advanceLabels[$record->status?->name]['color'] ?? 'gray')
-                        ->visible(fn (Appointment $record): bool => isset($advanceLabels[$record->status?->name]))
-                        ->requiresConfirmation()
-                        ->action(function (Appointment $record) use ($advanceLabels): void {
-                            $next = $advanceLabels[$record->status->name]['next'] ?? null;
-                            if (! $next) {
-                                return;
-                            }
                             try {
-                                app(UpdateAppointmentStatus::class)->handle($record, $next);
-                                Notification::make()->title('Appointment status updated')->success()->send();
+                                $optometrist = User::findOrFail($data['optometrist_id']);
+                                app(AssignAppointmentOptometrist::class)->handle($record, $optometrist);
+                                Notification::make()->title('Optometrist assigned')->success()->send();
                             } catch (ValidationException $e) {
-                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot advance appointment.';
-                                Notification::make()->title('Cannot advance appointment')->body($message)->danger()->send();
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot assign optometrist.';
+                                Notification::make()->title('Cannot assign optometrist')->body($message)->danger()->send();
                             }
                         }),
                     Action::make('checkIn')
@@ -194,9 +192,20 @@ class AppointmentsTable
                                 ->seconds(false)
                                 ->minutesStep(1)
                                 ->format('H:i'),
-                            Textarea::make('reschedule_reason')
+                            Select::make('reason_category')
                                 ->label('Reason')
+                                ->options([
+                                    'patient_request' => 'Patient request',
+                                    'schedule_conflict' => 'Schedule conflict',
+                                    'provider_unavailable' => 'Provider unavailable',
+                                    'emergency' => 'Emergency',
+                                    'other' => 'Other',
+                                ])
                                 ->required()
+                                ->live(),
+                            Textarea::make('reschedule_reason')
+                                ->label('Details')
+                                ->required(fn (callable $get): bool => $get('reason_category') === 'other')
                                 ->maxLength(1000)
                                 ->columnSpanFull(),
                         ])
@@ -209,7 +218,8 @@ class AppointmentsTable
                                         $data['appointment_time'],
                                     ),
                                     customerInitiated: false,
-                                    rescheduleReason: $data['reschedule_reason'],
+                                    rescheduleReason: $data['reschedule_reason'] ?? null,
+                                    reasonCategory: $data['reason_category'],
                                 );
                                 Notification::make()->title('Appointment rescheduled')->success()->send();
                             } catch (ValidationException $e) {
@@ -221,11 +231,19 @@ class AppointmentsTable
                         ->label('Mark No-show')
                         ->icon('heroicon-o-user-minus')
                         ->color('warning')
-                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled')
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'scheduled' && $record->scheduled_at?->isPast())
                         ->requiresConfirmation()
                         ->action(function (Appointment $record): void {
-                            app(UpdateAppointmentStatus::class)->handle($record, 'no_show');
-                            Notification::make()->title('Appointment marked as no-show')->success()->send();
+                            try {
+                                app(MarkAppointmentNoShow::class)->handle(
+                                    appointment: $record,
+                                    actor: auth()->user(),
+                                );
+                                Notification::make()->title('Appointment marked as no-show')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot mark as no-show.';
+                                Notification::make()->title('Cannot mark no-show')->body($message)->danger()->send();
+                            }
                         }),
                     Action::make('cancel')
                         ->label('Cancel Appointment')
@@ -233,13 +251,38 @@ class AppointmentsTable
                         ->color('danger')
                         ->visible(fn (Appointment $record): bool => in_array($record->status?->name, ['scheduled', 'checked_in'], true))
                         ->requiresConfirmation()
-                        ->action(function (Appointment $record): void {
+                        ->schema([
+                            Select::make('reason_category')
+                                ->label('Cancellation Reason')
+                                ->options([
+                                    'patient_request' => 'Patient request',
+                                    'schedule_conflict' => 'Schedule conflict',
+                                    'no_show_followup' => 'No-show follow-up',
+                                    'medical_reason' => 'Medical reason',
+                                    'duplicate' => 'Duplicate booking',
+                                    'other' => 'Other',
+                                ])
+                                ->required()
+                                ->live(),
+                            Textarea::make('cancellation_details')
+                                ->label('Details')
+                                ->required(fn (callable $get): bool => $get('reason_category') === 'other')
+                                ->maxLength(1000)
+                                ->columnSpanFull(),
+                        ])
+                        ->action(function (Appointment $record, array $data): void {
                             try {
-                                app(UpdateAppointmentStatus::class)->handle($record, 'cancelled');
+                                app(CancelAppointment::class)->handle(
+                                    appointment: $record,
+                                    initiator: 'clinic',
+                                    actor: auth()->user(),
+                                    reasonCategory: $data['reason_category'],
+                                    reasonDetails: $data['cancellation_details'] ?? null,
+                                );
                                 Notification::make()->title('Appointment cancelled')->success()->send();
                             } catch (ValidationException $e) {
                                 $message = collect($e->errors())->flatten()->first() ?? 'Cannot cancel appointment.';
-                                Notification::make()->title('Cannot cancel appointment')->body($message)->danger()->send();
+                                Notification::make()->title('Cannot cancel')->body($message)->danger()->send();
                             }
                         }),
                     RestoreAction::make()->label('Restore')->color('success')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
@@ -248,44 +291,31 @@ class AppointmentsTable
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    BulkAction::make('bulk_confirm')
-                        ->label('Confirm Selected')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->action(function (Collection $records): void {
-                            $advanced = 0;
-                            $skipped = 0;
-
-                            foreach ($records as $record) {
-                                if ($record->status?->name !== 'scheduled') {
-                                    $skipped++;
-
-                                    continue;
-                                }
-
-                                try {
-                                    app(UpdateAppointmentStatus::class)->handle($record, 'checked_in');
-                                    $advanced++;
-                                } catch (\Throwable) {
-                                    $skipped++;
-                                }
-                            }
-
-                            Notification::make()
-                                ->title("{$advanced} appointment(s) confirmed".($skipped > 0 ? ", {$skipped} skipped" : ''))
-                                ->success()
-                                ->send();
-                        })
-                        ->deselectRecordsAfterCompletion(),
-
                     BulkAction::make('bulk_cancel')
                         ->label('Cancel Selected')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->requiresConfirmation()
                         ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
-                        ->action(function (Collection $records): void {
+                        ->schema([
+                            Select::make('reason_category')
+                                ->label('Cancellation Reason')
+                                ->options([
+                                    'patient_request' => 'Patient request',
+                                    'schedule_conflict' => 'Schedule conflict',
+                                    'no_show_followup' => 'No-show follow-up',
+                                    'medical_reason' => 'Medical reason',
+                                    'duplicate' => 'Duplicate booking',
+                                    'other' => 'Other',
+                                ])
+                                ->required()
+                                ->live(),
+                            Textarea::make('cancellation_details')
+                                ->label('Details')
+                                ->required(fn (callable $get): bool => $get('reason_category') === 'other')
+                                ->maxLength(1000),
+                        ])
+                        ->action(function (Collection $records, array $data): void {
                             $cancelled = 0;
                             $skipped = 0;
 
@@ -297,7 +327,13 @@ class AppointmentsTable
                                 }
 
                                 try {
-                                    app(UpdateAppointmentStatus::class)->handle($record, 'cancelled');
+                                    app(CancelAppointment::class)->handle(
+                                        appointment: $record,
+                                        initiator: 'clinic',
+                                        actor: auth()->user(),
+                                        reasonCategory: $data['reason_category'],
+                                        reasonDetails: $data['cancellation_details'] ?? null,
+                                    );
                                     $cancelled++;
                                 } catch (\Throwable) {
                                     $skipped++;

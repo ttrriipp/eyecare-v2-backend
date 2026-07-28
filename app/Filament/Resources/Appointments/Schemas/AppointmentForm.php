@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Models\Appointment;
-use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
@@ -161,48 +160,9 @@ class AppointmentForm
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated(),
-                            ToggleButtons::make('appointment_status_id')
+                            Placeholder::make('current_status')
                                 ->label('Status')
-                                ->options(function (?Appointment $record): array {
-                                    if (! $record) {
-                                        return [];
-                                    }
-
-                                    $order = ['scheduled', 'checked_in', 'fulfilled', 'no_show', 'cancelled'];
-
-                                    $transitions = [
-                                        'scheduled' => ['checked_in', 'cancelled'],
-                                        'checked_in' => ['fulfilled', 'cancelled'],
-                                        'cancelled' => [],
-                                        'fulfilled' => [],
-                                        'no_show' => [],
-                                    ];
-
-                                    $currentName = $record->status->name;
-                                    $allowed = $transitions[$currentName] ?? [];
-                                    $visible = [$currentName, ...$allowed];
-
-                                    return AppointmentStatus::query()
-                                        ->whereIn('name', $visible)
-                                        ->get()
-                                        ->sortBy(fn ($s) => array_search($s->name, $order))
-                                        ->mapWithKeys(fn ($s) => [$s->id => Str::headline($s->name)])
-                                        ->toArray();
-                                })
-                                ->colors(function (): array {
-                                    $ids = once(fn () => AppointmentStatus::query()->pluck('id', 'name'));
-
-                                    return array_filter([
-                                        $ids['scheduled'] ?? null => 'info',
-                                        $ids['checked_in'] ?? null => 'warning',
-                                        $ids['fulfilled'] ?? null => 'success',
-                                        $ids['no_show'] ?? null => 'gray',
-                                        $ids['cancelled'] ?? null => 'danger',
-                                    ], fn ($k) => $k !== null, ARRAY_FILTER_USE_KEY);
-                                })
-                                ->inline()
-                                ->disabledOn('create')
-                                ->dehydrated()
+                                ->content(fn (?Appointment $record): string => $record?->status?->name ? Str::headline($record->status->name) : '—')
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
                                 ->label('Referring Source')

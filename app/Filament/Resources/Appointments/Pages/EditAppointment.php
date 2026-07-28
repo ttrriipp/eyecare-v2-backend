@@ -2,66 +2,43 @@
 
 namespace App\Filament\Resources\Appointments\Pages;
 
+use App\Actions\Appointments\CancelAppointment;
+use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
-use App\Actions\Appointments\UpdateAppointmentStatus;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
-use App\Models\AppointmentStatus;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 class EditAppointment extends EditRecord
 {
     protected static string $resource = AppointmentResource::class;
 
-    /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    protected function mutateFormDataBeforeSave(array $data): array
-    {
-        /** @var Appointment $appointment */
-        $appointment = $this->getRecord()->fresh(['status']);
-
-        $newStatusId = (int) ($data['appointment_status_id'] ?? $appointment->appointment_status_id);
-
-        if ($newStatusId === (int) $appointment->appointment_status_id) {
-            return $data;
-        }
-
-        $statusName = AppointmentStatus::query()->findOrFail($newStatusId)->name;
-
-        try {
-            app(UpdateAppointmentStatus::class)->handle(
-                appointment: $appointment,
-                statusName: $statusName,
-                staffNotes: $data['staff_notes'] ?? null,
-            );
-        } catch (ValidationException $e) {
-            throw ValidationException::withMessages([
-                'data.appointment_status_id' => $e->errors()['status'] ?? ['Invalid status transition.'],
-            ]);
-        }
-
-        unset($data['appointment_status_id'], $data['staff_notes']);
-        $this->statusUpdateHandled = true;
-
-        return $data;
-    }
-
-    protected bool $statusUpdateHandled = false;
-
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('openEncounter')
+                ->label(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
+                ->icon('heroicon-o-document-text')
+                ->color('info')
+                ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in')
+                ->url(function (): ?string {
+                    $encounter = $this->getRecord()->encounter;
+
+                    if ($encounter === null) {
+                        return null;
+                    }
+
+                    return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
+                }),
             Action::make('checkIn')
                 ->label('Check In')
                 ->icon('heroicon-o-arrow-right-start-on-rectangle')
@@ -70,9 +47,9 @@ class EditAppointment extends EditRecord
                 ->requiresConfirmation()
                 ->action(function (): void {
                     try {
-                        $encounter = app(CheckInAppointment::class)->handle($this->getRecord());
+                        app(CheckInAppointment::class)->handle($this->getRecord());
                         Notification::make()->title('Patient checked in — encounter created')->success()->send();
-                        $this->refreshFormData(['appointment_status_id', 'checked_in_at']);
+                        $this->refreshFormData(['current_status', 'checked_in_at']);
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot check in patient.';
                         Notification::make()->title('Cannot check in')->body($message)->danger()->send();
@@ -87,11 +64,7 @@ class EditAppointment extends EditRecord
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')
                 ->color('warning')
-                ->visible(fn (): bool => in_array(
-                    $this->getRecord()->status?->name,
-                    ['scheduled'],
-                    true,
-                ))
+                ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
                 ->schema([
                     DatePicker::make('scheduled_at')
                         ->label('New appointment date')
@@ -108,9 +81,20 @@ class EditAppointment extends EditRecord
                         ->seconds(false)
                         ->minutesStep(1)
                         ->format('H:i'),
-                    Textarea::make('reschedule_reason')
+                    Select::make('reason_category')
                         ->label('Reason')
+                        ->options([
+                            'patient_request' => 'Patient request',
+                            'schedule_conflict' => 'Schedule conflict',
+                            'provider_unavailable' => 'Provider unavailable',
+                            'emergency' => 'Emergency',
+                            'other' => 'Other',
+                        ])
                         ->required()
+                        ->live(),
+                    Textarea::make('reschedule_reason')
+                        ->label('Details')
+                        ->required(fn (callable $get): bool => $get('reason_category') === 'other')
                         ->maxLength(1000)
                         ->columnSpanFull(),
                 ])
@@ -125,35 +109,76 @@ class EditAppointment extends EditRecord
                                 $data['appointment_time'],
                             ),
                             customerInitiated: false,
-                            rescheduleReason: $data['reschedule_reason'],
+                            rescheduleReason: $data['reschedule_reason'] ?? null,
+                            reasonCategory: $data['reason_category'],
                         );
                         Notification::make()->title('Appointment rescheduled')->success()->send();
-                        $this->refreshFormData(['appointment_status_id', 'scheduled_at']);
+                        $this->refreshFormData(['current_status', 'scheduled_at']);
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot reschedule appointment.';
                         Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
                     }
                 }),
+            Action::make('noShow')
+                ->label('Mark No-show')
+                ->icon('heroicon-o-user-minus')
+                ->color('warning')
+                ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled' && $this->getRecord()->scheduled_at?->isPast())
+                ->requiresConfirmation()
+                ->action(function (): void {
+                    try {
+                        app(MarkAppointmentNoShow::class)->handle(
+                            appointment: $this->getRecord(),
+                            actor: auth()->user(),
+                        );
+                        Notification::make()->title('Appointment marked as no-show')->success()->send();
+                        $this->refreshFormData(['current_status']);
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot mark as no-show.';
+                        Notification::make()->title('Cannot mark no-show')->body($message)->danger()->send();
+                    }
+                }),
+            Action::make('cancel')
+                ->label('Cancel Appointment')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => in_array($this->getRecord()->status?->name, ['scheduled', 'checked_in'], true))
+                ->requiresConfirmation()
+                ->schema([
+                    Select::make('reason_category')
+                        ->label('Cancellation Reason')
+                        ->options([
+                            'patient_request' => 'Patient request',
+                            'schedule_conflict' => 'Schedule conflict',
+                            'no_show_followup' => 'No-show follow-up',
+                            'medical_reason' => 'Medical reason',
+                            'duplicate' => 'Duplicate booking',
+                            'other' => 'Other',
+                        ])
+                        ->required()
+                        ->live(),
+                    Textarea::make('cancellation_details')
+                        ->label('Details')
+                        ->required(fn (callable $get): bool => $get('reason_category') === 'other')
+                        ->maxLength(1000)
+                        ->columnSpanFull(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(CancelAppointment::class)->handle(
+                            appointment: $this->getRecord(),
+                            initiator: 'clinic',
+                            actor: auth()->user(),
+                            reasonCategory: $data['reason_category'],
+                            reasonDetails: $data['cancellation_details'] ?? null,
+                        );
+                        Notification::make()->title('Appointment cancelled')->success()->send();
+                        $this->refreshFormData(['current_status']);
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot cancel appointment.';
+                        Notification::make()->title('Cannot cancel')->body($message)->danger()->send();
+                    }
+                }),
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    protected function handleRecordUpdate(Model $record, array $data): Model
-    {
-        if ($this->statusUpdateHandled) {
-            $this->statusUpdateHandled = false;
-
-            if ($data !== []) {
-                $record->update($data);
-            }
-
-            return $record->fresh(['appointmentType', 'status', 'patient', 'optometrist']);
-        }
-
-        $record->update($data);
-
-        return $record;
     }
 }
