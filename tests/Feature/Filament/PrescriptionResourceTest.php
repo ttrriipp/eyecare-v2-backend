@@ -207,7 +207,6 @@ test('an optometrist can amend a prescription without changing the original', fu
 
     Livewire::test(ViewPrescription::class, ['record' => $original->getRouteKey()])
         ->assertActionHidden('print_prescription')
-        ->assertActionHidden('print_card')
         ->assertActionVisible('viewCurrentPrescription');
 });
 

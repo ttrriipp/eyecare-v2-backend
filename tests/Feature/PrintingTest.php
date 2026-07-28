@@ -37,12 +37,12 @@ test('prescription pdf uses patient relationship', function () {
 test('prescription print layouts omit unsupported prism and base fields', function () {
     $prescription = Prescription::factory()->create();
 
-    $fullPrescription = view('pdf.prescription', ['prescription' => $prescription])->render();
-    $prescriptionCard = view('pdf.prescription-card', ['prescription' => $prescription])->render();
+    $fullPrescription = view('pdf.prescription', ['prescription' => $prescription, 'clinic' => config('clinic'), 'clinicHours' => ''])->render();
 
     expect($fullPrescription)->not->toContain('<th>Prism</th>')
         ->and($fullPrescription)->not->toContain('<th>Base</th>')
-        ->and($prescriptionCard)->not->toContain('<th>Prism</th>');
+        ->and($fullPrescription)->not->toContain('od_axis')
+        ->and($fullPrescription)->not->toContain('pd');
 });
 
 test('prescription print route requires authentication', function () {
@@ -64,5 +64,4 @@ test('superseded prescriptions cannot be printed', function () {
     $this->actingAs($admin);
 
     $this->get("/pdf/prescriptions/{$original->id}")->assertForbidden();
-    $this->get("/pdf/prescriptions/{$original->id}/card")->assertForbidden();
 });

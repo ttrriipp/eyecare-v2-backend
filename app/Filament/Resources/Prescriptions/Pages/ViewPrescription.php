@@ -27,24 +27,6 @@ class ViewPrescription extends ViewRecord
             );
         }
 
-        if (! $record->expires_at) {
-            return null;
-        }
-
-        $daysUntilExpiry = (int) now()->diffInDays($record->expires_at, false);
-
-        if ($daysUntilExpiry < 0) {
-            return new HtmlString(
-                '<span class="text-sm font-medium text-danger-600 dark:text-danger-400">⚠ Expired '.abs($daysUntilExpiry).' days ago</span>'
-            );
-        }
-
-        if ($daysUntilExpiry <= 30) {
-            return new HtmlString(
-                '<span class="text-sm font-medium text-warning-600 dark:text-warning-400">⚠ Expires in '.$daysUntilExpiry.' day'.($daysUntilExpiry !== 1 ? 's' : '').'</span>'
-            );
-        }
-
         return null;
     }
 
@@ -63,16 +45,13 @@ class ViewPrescription extends ViewRecord
                 ->collapsible()
                 ->schema([
                     Grid::make(6)->schema([
-                        Placeholder::make('prev_od_sphere')->label('OD Sph')->content($previousPrescription->od_sphere ?? '—'),
-                        Placeholder::make('prev_od_cylinder')->label('OD Cyl')->content($previousPrescription->od_cylinder ?? '—'),
-                        Placeholder::make('prev_od_axis')->label('OD Axis')->content($previousPrescription->od_axis ?? '—'),
-                        Placeholder::make('prev_os_sphere')->label('OS Sph')->content($previousPrescription->os_sphere ?? '—'),
-                        Placeholder::make('prev_os_cylinder')->label('OS Cyl')->content($previousPrescription->os_cylinder ?? '—'),
-                        Placeholder::make('prev_os_axis')->label('OS Axis')->content($previousPrescription->os_axis ?? '—'),
-                        Placeholder::make('prev_od_add')->label('OD Add')->content($previousPrescription->od_add ?? '—'),
-                        Placeholder::make('prev_os_add')->label('OS Add')->content($previousPrescription->os_add ?? '—'),
-                        Placeholder::make('prev_pd')->label('PD')->content($previousPrescription->pd ?? '—'),
-                        Placeholder::make('prev_notes')->label('Notes')->content($previousPrescription->notes ?? '—'),
+                        Placeholder::make('prev_main_od_value')->label('O.D.')->content($previousPrescription->main_od_value ?? '—'),
+                        Placeholder::make('prev_main_od_sphere')->label('SPH')->content($previousPrescription->main_od_sphere ?? '—'),
+                        Placeholder::make('prev_main_od_cylinder')->label('CX')->content($previousPrescription->main_od_cylinder ?? '—'),
+                        Placeholder::make('prev_main_os_value')->label('O.S.')->content($previousPrescription->main_os_value ?? '—'),
+                        Placeholder::make('prev_main_os_sphere')->label('SPH')->content($previousPrescription->main_os_sphere ?? '—'),
+                        Placeholder::make('prev_main_os_cylinder')->label('CX')->content($previousPrescription->main_os_cylinder ?? '—'),
+                        Placeholder::make('prev_remarks')->label('Remarks')->content($previousPrescription->remarks ?? '—'),
                     ]),
                 ]);
         }
@@ -113,15 +92,6 @@ class ViewPrescription extends ViewRecord
                 ->color('gray')
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion())
                 ->url(fn () => route('pdf.prescription', $this->getRecord()))
-                ->openUrlInNewTab(),
-
-            Action::make('print_card')
-                ->label('Print Card')
-                ->icon('heroicon-o-credit-card')
-                ->color('gray')
-                ->tooltip('Wallet-size prescription card')
-                ->visible(fn (): bool => $this->getRecord()->isCurrentVersion())
-                ->url(fn () => route('pdf.prescription.card', $this->getRecord()))
                 ->openUrlInNewTab(),
         ];
     }
