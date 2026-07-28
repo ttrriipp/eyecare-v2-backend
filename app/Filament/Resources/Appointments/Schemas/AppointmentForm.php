@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
+use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -216,6 +217,31 @@ class AppointmentForm
                             ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                             ->placeholder('Assign later'),
                     ]),
+
+                    Section::make('Patient Intake')
+                        ->hiddenOn('create')
+                        ->schema([
+                            Placeholder::make('intake_status_display')
+                                ->label('Status')
+                                ->content(function (?Appointment $record): string {
+                                    if ($record === null) {
+                                        return 'Not Started';
+                                    }
+
+                                    $intake = $record->intake;
+
+                                    if ($intake === null) {
+                                        return 'Not Started';
+                                    }
+
+                                    return match ($intake->status) {
+                                        IntakeStatus::Draft => 'Draft',
+                                        IntakeStatus::Submitted => 'Submitted',
+                                        IntakeStatus::Verified => 'Verified',
+                                        default => 'Not Started',
+                                    };
+                                }),
+                        ]),
 
                     Section::make('Timeline')
                         ->hiddenOn('create')

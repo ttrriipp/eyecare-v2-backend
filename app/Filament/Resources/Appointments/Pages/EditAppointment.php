@@ -6,6 +6,7 @@ use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
+use App\Enums\IntakeStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Models\Appointment;
@@ -39,12 +40,45 @@ class EditAppointment extends EditRecord
 
                     return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
                 }),
+
+            Action::make('completeIntake')
+                ->label('Complete Intake')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('warning')
+                ->visible(fn (): bool => in_array($this->getIntakeStatus(), [null, IntakeStatus::Draft], true))
+                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
+
+            Action::make('reviewIntake')
+                ->label('Review Intake')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('info')
+                ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Submitted)
+                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
+
+            Action::make('viewIntake')
+                ->label('View Intake')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('success')
+                ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Verified)
+                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
+
             Action::make('checkIn')
                 ->label('Check In')
                 ->icon('heroicon-o-arrow-right-start-on-rectangle')
                 ->color('warning')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
-                ->requiresConfirmation()
+                ->requiresConfirmation(
+                    fn (): bool => $this->getIntakeStatus() !== IntakeStatus::Verified,
+                )
+                ->modalHeading(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
+                    ? 'Check in without verified intake?'
+                    : 'Confirm Check-in')
+                ->modalDescription(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
+                    ? 'This patient does not have a verified intake. You can still check them in for urgent or walk-in situations, but it is recommended to complete and verify the intake first.'
+                    : 'Patient will be checked in and an encounter will be created.')
+                ->modalSubmitActionLabel(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
+                    ? 'Check in without verified intake'
+                    : 'Check in')
                 ->action(function (): void {
                     try {
                         app(CheckInAppointment::class)->handle($this->getRecord());
@@ -55,11 +89,13 @@ class EditAppointment extends EditRecord
                         Notification::make()->title('Cannot check in')->body($message)->danger()->send();
                     }
                 }),
+
             Action::make('healthRecord')
                 ->label('Health Record')
                 ->icon('heroicon-o-document-text')
                 ->color('info')
                 ->url(fn (): string => AppointmentResource::getUrl('health-record', ['record' => $this->getRecord()])),
+
             Action::make('reschedule')
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')
@@ -119,6 +155,7 @@ class EditAppointment extends EditRecord
                         Notification::make()->title('Cannot reschedule')->body($message)->danger()->send();
                     }
                 }),
+
             Action::make('noShow')
                 ->label('Mark No-show')
                 ->icon('heroicon-o-user-minus')
@@ -138,6 +175,7 @@ class EditAppointment extends EditRecord
                         Notification::make()->title('Cannot mark no-show')->body($message)->danger()->send();
                     }
                 }),
+
             Action::make('cancel')
                 ->label('Cancel Appointment')
                 ->icon('heroicon-o-x-circle')
@@ -180,5 +218,10 @@ class EditAppointment extends EditRecord
                     }
                 }),
         ];
+    }
+
+    protected function getIntakeStatus(): ?IntakeStatus
+    {
+        return $this->getRecord()->intake?->status;
     }
 }
