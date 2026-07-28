@@ -240,7 +240,8 @@ class AppointmentForm
                                         IntakeStatus::Verified => 'Verified',
                                         default => 'Not Started',
                                     };
-                                }),
+                                })
+                                ->view('filament.forms.components.intake-status-badge'),
                         ]),
 
                     Section::make('Timeline')
