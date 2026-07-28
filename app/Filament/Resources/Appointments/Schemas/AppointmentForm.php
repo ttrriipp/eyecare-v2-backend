@@ -164,6 +164,7 @@ class AppointmentForm
                             Placeholder::make('current_status')
                                 ->label('Status')
                                 ->content(fn (?Appointment $record): string => $record?->status?->name ? Str::headline($record->status->name) : '—')
+                                ->view('filament.forms.components.appointment-status-badge')
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
                                 ->label('Referring Source')
