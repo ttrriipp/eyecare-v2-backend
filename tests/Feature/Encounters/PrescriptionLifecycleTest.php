@@ -1,6 +1,9 @@
 <?php
 
 use App\Actions\Prescriptions\FinalizePrescription;
+use App\Enums\AuditEvent;
+use App\Enums\EncounterStatus;
+use App\Models\AuditLog;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -14,67 +17,72 @@ uses(RefreshDatabase::class);
 test('only an optometrist can finalize a prescription', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
 
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
         data: [
-            'od_sphere' => '-2.50',
-            'os_sphere' => '-3.00',
-            'pd' => '62.0',
+            'main_od_sphere' => '-2.50',
+            'main_os_sphere' => '-3.00',
+            'remarks' => '62.0',
         ],
     );
 
     expect($prescription->patient_id)->toBe($patient->id)
         ->and($prescription->encounter_id)->toBe($encounter->id)
         ->and($prescription->created_by)->toBe($optometrist->id)
-        ->and($prescription->prescribed_at)->not->toBeNull();
+        ->and($prescription->prescribed_at)->not->toBeNull()
+        ->and(AuditLog::query()
+            ->where('subject_type', $prescription->getMorphClass())
+            ->where('subject_id', $prescription->id)
+            ->where('action', AuditEvent::PrescriptionFinalized->value)
+            ->exists())->toBeTrue();
 });
 
 test('non-optometrist cannot finalize a prescription', function () {
     $staff = User::factory()->staff()->create(['is_optometrist' => false]);
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
 
     app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $staff,
-        data: ['od_sphere' => '-2.50', 'os_sphere' => '-3.00', 'pd' => '62.0'],
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
 })->throws(ValidationException::class);
 
 test('patient cannot finalize a prescription', function () {
     $patient = User::factory()->patient()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->patient->id]);
 
     app(FinalizePrescription::class)->handle(
         patient: $patient->patient,
         encounter: $encounter,
         author: $patient,
-        data: ['od_sphere' => '-2.50', 'os_sphere' => '-3.00', 'pd' => '62.0'],
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
 })->throws(ValidationException::class);
 
 test('finalized prescription values are encrypted', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
 
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
         data: [
-            'od_sphere' => '-2.50',
-            'od_cylinder' => '-1.00',
-            'od_axis' => 90,
-            'os_sphere' => '-3.00',
-            'os_cylinder' => '-0.75',
-            'os_axis' => 85,
-            'pd' => '62.0',
+            'main_od_sphere' => '-2.50',
+            'main_od_cylinder' => '-1.00',
+            'main_od_value' => 90,
+            'main_os_sphere' => '-3.00',
+            'main_os_cylinder' => '-0.75',
+            'main_os_value' => 85,
+            'remarks' => '62.0',
         ],
     );
 
@@ -83,25 +91,25 @@ test('finalized prescription values are encrypted', function () {
         ->where('id', $prescription->id)
         ->first();
 
-    expect($raw->od_sphere)->not->toBe('-2.50')
-        ->and($raw->od_sphere)->not->toBeNull();
+    expect($raw->main_od_sphere)->not->toBe('-2.50')
+        ->and($raw->main_od_sphere)->not->toBeNull();
 
     // But model decrypts them
     $fresh = Prescription::find($prescription->id);
-    expect($fresh->od_sphere)->toBe('-2.50')
-        ->and($fresh->os_sphere)->toBe('-3.00');
+    expect($fresh->main_od_sphere)->toBe('-2.50')
+        ->and($fresh->main_os_sphere)->toBe('-3.00');
 });
 
 test('finalized prescription cannot be edited in place', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
 
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
-        data: ['od_sphere' => '-2.50', 'os_sphere' => '-3.00', 'pd' => '62.0'],
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
 
     // The prescription has a prescribed_at timestamp — it's finalized
@@ -111,7 +119,7 @@ test('finalized prescription cannot be edited in place', function () {
 test('amendment references the prior prescription', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->completed()->create(['patient_id' => $patient->id]);
 
     $original = Prescription::factory()->create([
         'patient_id' => $patient->id,
@@ -122,29 +130,148 @@ test('amendment references the prior prescription', function () {
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
-        data: ['od_sphere' => '-3.00', 'os_sphere' => '-3.50', 'pd' => '62.0'],
+        data: ['main_od_sphere' => '-3.00', 'main_os_sphere' => '-3.50', 'remarks' => '62.0'],
         previousPrescription: $original,
+        amendmentReason: 'Corrected transcription from the signed paper prescription.',
     );
+
+    $auditLog = AuditLog::query()
+        ->where('subject_type', $amendment->getMorphClass())
+        ->where('subject_id', $amendment->id)
+        ->where('action', AuditEvent::PrescriptionAmended->value)
+        ->sole();
+    $rawAmendmentReason = DB::table('prescriptions')
+        ->where('id', $amendment->id)
+        ->value('amendment_reason');
 
     expect($amendment->previous_prescription_id)->toBe($original->id)
         ->and($amendment->created_by)->toBe($optometrist->id)
+        ->and($amendment->amendment_reason)->toBe('Corrected transcription from the signed paper prescription.')
         ->and($amendment->prescribed_at)->not->toBeNull()
-        ->and($amendment->id)->not->toBe($original->id);
+        ->and($amendment->id)->not->toBe($original->id)
+        ->and($rawAmendmentReason)->not->toBe($amendment->amendment_reason)
+        ->and($auditLog->actor_id)->toBe($optometrist->id)
+        ->and($auditLog->metadata)->toMatchArray([
+            'previous_prescription_id' => $original->id,
+        ]);
 });
 
 test('prescription belongs to patient and encounter', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
-    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
 
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
-        data: ['od_sphere' => '-2.50', 'os_sphere' => '-3.00', 'pd' => '62.0'],
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
 
     expect($prescription->patient->id)->toBe($patient->id)
         ->and($prescription->encounter->id)->toBe($encounter->id)
         ->and($prescription->author->id)->toBe($optometrist->id);
+});
+
+test('an original prescription requires an in-progress encounter', function (EncounterStatus $status) {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => $status,
+    ]);
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+    );
+})->with([
+    EncounterStatus::Planned,
+    EncounterStatus::Completed,
+    EncounterStatus::Cancelled,
+])->throws(ValidationException::class);
+
+test('a prescription patient must match the encounter patient', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounterPatient = Patient::factory()->create();
+    $otherPatient = Patient::factory()->create();
+    $encounter = Encounter::factory()->inProgress()->create([
+        'patient_id' => $encounterPatient->id,
+    ]);
+
+    app(FinalizePrescription::class)->handle(
+        patient: $otherPatient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+    );
+})->throws(ValidationException::class);
+
+test('a second original prescription for the same encounter is rejected', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->inProgress()->create([
+        'patient_id' => $patient->id,
+    ]);
+
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+    );
+})->throws(ValidationException::class);
+
+test('an amendment requires a reason', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->completed()->create([
+        'patient_id' => $patient->id,
+    ]);
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+        previousPrescription: $original,
+    );
+})->throws(ValidationException::class);
+
+test('an amendment cannot branch from a superseded prescription', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->completed()->create([
+        'patient_id' => $patient->id,
+    ]);
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create([
+        'previous_prescription_id' => $original->id,
+    ]);
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+        previousPrescription: $original,
+        amendmentReason: 'Attempted branch.',
+    );
+})->throws(ValidationException::class);
+
+test('an amendment retains its predecessor after the predecessor is archived', function () {
+    $encounter = Encounter::factory()->completed()->create();
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+    $amendment = Prescription::factory()->linkedToEncounter($encounter)->create([
+        'previous_prescription_id' => $original->id,
+    ]);
+
+    $original->delete();
+
+    expect($amendment->fresh()->previousPrescription?->id)->toBe($original->id);
 });

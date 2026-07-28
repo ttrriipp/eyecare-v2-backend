@@ -68,18 +68,24 @@ test('prescriptions are created with patient ownership and encryption-compatible
 
     expect($migration)->toContain("foreignId('patient_id')->nullable()->constrained()->cascadeOnDelete()")
         ->and($migration)->toContain("foreignId('encounter_id')->nullable()")
-        ->and($migration)->toContain("text('od_sphere')->nullable()")
-        ->and($migration)->toContain("text('os_sphere')->nullable()")
-        ->and($migration)->toContain("text('pd')->nullable()")
-        ->and($migration)->toContain("text('notes')->nullable()")
+        ->and($migration)->toContain("text('main_od_sphere')->nullable()")
+        ->and($migration)->toContain("text('main_os_sphere')->nullable()")
+        ->and($migration)->toContain("text('add_od_sphere')->nullable()")
+        ->and($migration)->toContain("text('remarks')->nullable()")
+        ->and($migration)->toContain("text('amendment_reason')->nullable()")
+        ->and($migration)->toContain('softDeletes()')
         ->and($migration)->not->toContain('customer_id')
         ->and($migration)->not->toContain('od_prism')
         ->and($migration)->not->toContain('od_base')
         ->and($migration)->not->toContain('os_prism')
         ->and($migration)->not->toContain('os_base')
+        ->and($migration)->not->toContain("'pd'")
+        ->and($migration)->not->toContain("'expires_at'")
+        ->and($migration)->not->toContain("'notes'")
         ->and(file_exists(database_path('migrations/2026_07_25_210000_link_prescriptions_to_encounters.php')))->toBeFalse()
         ->and(file_exists(database_path('migrations/2026_06_29_212317_encrypt_prescription_sensitive_columns.php')))->toBeFalse()
-        ->and(file_exists(database_path('migrations/2026_06_29_231703_drop_prescription_uploads_table.php')))->toBeFalse();
+        ->and(file_exists(database_path('migrations/2026_06_29_231703_drop_prescription_uploads_table.php')))->toBeFalse()
+        ->and(file_exists(database_path('migrations/2026_06_29_215611_add_last_expiry_notified_at_to_prescriptions.php')))->toBeFalse();
 });
 
 test('prescription database columns and foreign keys match canonical constraints', function () {
@@ -92,15 +98,22 @@ test('prescription database columns and foreign keys match canonical constraints
                 'customer_id',
                 'patient_id',
                 'encounter_id',
-                'od_sphere',
-                'od_prism',
-                'od_base',
-                'os_sphere',
-                'os_prism',
-                'os_base',
-                'pd',
-                'notes',
-                'last_expiry_notified_at'
+                'main_od_value',
+                'main_od_sphere',
+                'main_od_cylinder',
+                'main_os_value',
+                'main_os_sphere',
+                'main_os_cylinder',
+                'add_od_value',
+                'add_od_sphere',
+                'add_od_cylinder',
+                'add_os_value',
+                'add_os_sphere',
+                'add_os_cylinder',
+                'remarks',
+                'amendment_reason',
+                'prescribed_at',
+                'deleted_at'
             )
     "))->keyBy('COLUMN_NAME');
 
@@ -125,14 +138,19 @@ test('prescription database columns and foreign keys match canonical constraints
         'od_base',
         'os_prism',
         'os_base',
+        'pd',
+        'expires_at',
+        'notes',
+        'last_expiry_notified_at',
     ])
         ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
         ->and($columns['encounter_id']->IS_NULLABLE)->toBe('YES')
-        ->and($columns['od_sphere']->DATA_TYPE)->toBe('text')
-        ->and($columns['os_sphere']->DATA_TYPE)->toBe('text')
-        ->and($columns['pd']->DATA_TYPE)->toBe('text')
-        ->and($columns['notes']->DATA_TYPE)->toBe('text')
-        ->and($columns['last_expiry_notified_at']->IS_NULLABLE)->toBe('YES')
+        ->and($columns['main_od_sphere']->DATA_TYPE)->toBe('text')
+        ->and($columns['main_os_sphere']->DATA_TYPE)->toBe('text')
+        ->and($columns['remarks']->DATA_TYPE)->toBe('text')
+        ->and($columns['amendment_reason']->DATA_TYPE)->toBe('text')
+        ->and($columns['prescribed_at']->DATA_TYPE)->toBe('date')
+        ->and($columns)->toHaveKey('deleted_at')
         ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
         ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE')
         ->and($foreignKeys['encounter_id']->REFERENCED_TABLE_NAME)->toBe('encounters')

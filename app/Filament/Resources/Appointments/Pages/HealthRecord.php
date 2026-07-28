@@ -42,7 +42,11 @@ class HealthRecord extends Page
         // Load encounter and prescription
         $encounter = $appointment->encounter;
         $prescription = $encounter
-            ? Prescription::query()->where('encounter_id', $encounter->id)->first()
+            ? Prescription::query()
+                ->where('encounter_id', $encounter->id)
+                ->whereDoesntHave('nextPrescription')
+                ->latest('id')
+                ->first()
             : null;
 
         return [

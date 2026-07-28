@@ -115,7 +115,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`. |
-| `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, encrypted OD/OS/PD fields, `prescribed_at`, `expires_at`, `notes`, `previous_prescription_id`. |
+| `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, encrypted OD/OS/PD fields, `prescribed_at`, nullable `expires_at`, encrypted `notes`, `previous_prescription_id`, and encrypted `amendment_reason`. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`. |
 | `quotation_revisions` | Immutable snapshots with `revision_number`, `subtotal`, `discount_amount`, `total`, `presented_by`, `accepted_by`. |
 | `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
@@ -150,7 +150,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Appointments:** `scheduled → checked_in → fulfilled` (terminal). `cancelled` and `no_show` are terminal from `scheduled` or `checked_in`. Check-in creates an Encounter transactionally.
 
-**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only optometrists can start/complete.
+**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only optometrists can start/complete. The in-progress Encounter page is the only normal entry point for finalizing its first prescription.
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Presented revisions are immutable. Accepted quotations can create job orders.
 
@@ -238,7 +238,7 @@ The approved patient-mobile contract contains exactly 33 routes. List endpoints 
 | `CreateScheduledAppointment` | `app/Actions/Appointments/` | Creates appointment from mobile API with availability checks |
 | `CreateWalkInAppointment` | `app/Actions/Appointments/` | Creates walk-in with arrived status, immediate check-in |
 | `CheckInAppointment` | `app/Actions/Encounters/` | Row-locked check-in, snapshot verified intake, create encounter |
-| `FinalizePrescription` | `app/Actions/Prescriptions/` | Optometrist-only, creates prescription with encrypted fields |
+| `FinalizePrescription` | `app/Actions/Prescriptions/` | Optometrist-only; validates encounter/patient ownership, derives appointment linkage, prevents duplicate/branching originals or amendments, and audits finalization |
 | `PresentQuotation` | `app/Actions/Quotations/` | Marks draft as presented, records presenter/time |
 | `RecordQuotationDecision` | `app/Actions/Quotations/` | Records accept/decline/expired with actor/time |
 | `CreateJobOrder` | `app/Actions/JobOrders/` | Creates from accepted quotation, commits inventory atomically |
@@ -268,7 +268,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment source values:** `mobile` (patient books via Android app), `walk_in` (patient physically at clinic), `manual` (staff creates in admin panel). Set automatically — not a user-facing dropdown.
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Referring source appears when appointment type is Referral. Notes is a single staff_notes field.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
-- **Prescriptions:** No standalone create. Only created through the appointment → encounter → prescription workflow.
+- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time.
 - **Edit pages:** Quotations, Invoices, and Job Orders have full form schemas showing related items, financial summaries, and timelines.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
 - **Patient address:** Single nullable free-text field. Editable by patient via API and by staff via Patients edit form.

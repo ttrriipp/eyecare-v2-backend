@@ -4,9 +4,7 @@ namespace App\Filament\Resources\Prescriptions\Tables;
 
 use App\Models\Prescription;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\RestoreAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
@@ -23,6 +21,13 @@ class PrescriptionsTable
                 TextColumn::make('prescribed_at')
                     ->date()
                     ->sortable(),
+                TextColumn::make('version_status')
+                    ->label('Version')
+                    ->state(fn (Prescription $record): string => $record->next_prescription_exists
+                        ? 'Superseded'
+                        : ($record->previous_prescription_id === null ? 'Original' : 'Current amendment'))
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
                 TextColumn::make('expires_at')
                     ->date()
                     ->sortable(),
@@ -43,9 +48,7 @@ class PrescriptionsTable
             ])
             ->recordActions([
                 ActionGroup::make([
-                    EditAction::make(),
-                    RestoreAction::make()->label('Restore')->visible(fn (Prescription $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive prescription')->modalDescription('This will hide the prescription from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Prescription $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
+                    ViewAction::make(),
                 ]),
             ]);
     }

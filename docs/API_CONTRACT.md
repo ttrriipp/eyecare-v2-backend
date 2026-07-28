@@ -641,7 +641,9 @@ Uses the same `FrameReservationResource` as GET — same field set, same exclusi
 
 ### GET `/prescriptions`
 
-Paginated list. Read-only — patients cannot create prescriptions.
+Paginated list of current prescription versions. Superseded versions are
+excluded from the list but remain available by ID for historical access.
+Read-only — patients cannot create prescriptions. `expires_at` is nullable.
 
 **Response (200):**
 ```json
@@ -650,6 +652,8 @@ Paginated list. Read-only — patients cannot create prescriptions.
     {
       "id": 1,
       "appointment_id": 1,
+      "previous_prescription_id": null,
+      "is_current": true,
       "od_sphere": "-2.00",
       "od_cylinder": "-0.50",
       "od_axis": 180,
@@ -671,7 +675,9 @@ Paginated list. Read-only — patients cannot create prescriptions.
 
 ### GET `/prescriptions/{id}`
 
-Single prescription. Returns `404` if not patient's.
+Single prescription, including historical superseded versions. The
+`previous_prescription_id` and `is_current` fields identify its chain position.
+Returns `404` if not patient's.
 
 ---
 

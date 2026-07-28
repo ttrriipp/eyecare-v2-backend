@@ -51,3 +51,18 @@ test('prescription print route requires authentication', function () {
     $this->get("/pdf/prescriptions/{$prescription->id}")
         ->assertRedirect();
 });
+
+test('superseded prescriptions cannot be printed', function () {
+    $admin = User::factory()->admin()->optometrist()->create();
+    $original = Prescription::factory()->create();
+    Prescription::factory()->create([
+        'patient_id' => $original->patient_id,
+        'encounter_id' => $original->encounter_id,
+        'previous_prescription_id' => $original->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    $this->get("/pdf/prescriptions/{$original->id}")->assertForbidden();
+    $this->get("/pdf/prescriptions/{$original->id}/card")->assertForbidden();
+});

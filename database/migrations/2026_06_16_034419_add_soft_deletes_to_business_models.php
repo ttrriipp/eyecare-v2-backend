@@ -8,7 +8,6 @@ return new class extends Migration
 {
     /** @var string[] */
     private array $tables = [
-        'prescriptions',
         'products',
         'product_variants',
         'conversations',

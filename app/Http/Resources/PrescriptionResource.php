@@ -21,18 +21,36 @@ class PrescriptionResource extends JsonResource
         return [
             'id' => $this->id,
             'appointment_id' => $this->appointment_id,
-            'od_sphere' => $this->od_sphere,
-            'od_cylinder' => $this->od_cylinder,
-            'od_axis' => $this->od_axis,
-            'od_add' => $this->od_add,
-            'os_sphere' => $this->os_sphere,
-            'os_cylinder' => $this->os_cylinder,
-            'os_axis' => $this->os_axis,
-            'os_add' => $this->os_add,
-            'pd' => $this->pd,
-            'prescribed_at' => $this->prescribed_at->toDateString(),
-            'expires_at' => $this->expires_at->toDateString(),
-            'notes' => $this->notes,
+            'previous_prescription_id' => $this->previous_prescription_id,
+            'is_current' => ! (bool) $this->next_prescription_exists,
+            'date' => $this->prescribed_at?->toDateString(),
+            'measurements' => [
+                'main' => [
+                    'od' => [
+                        'value' => $this->main_od_value,
+                        'sphere' => $this->main_od_sphere,
+                        'cylinder' => $this->main_od_cylinder,
+                    ],
+                    'os' => [
+                        'value' => $this->main_os_value,
+                        'sphere' => $this->main_os_sphere,
+                        'cylinder' => $this->main_os_cylinder,
+                    ],
+                ],
+                'add' => [
+                    'od' => [
+                        'value' => $this->add_od_value,
+                        'sphere' => $this->add_od_sphere,
+                        'cylinder' => $this->add_od_cylinder,
+                    ],
+                    'os' => [
+                        'value' => $this->add_os_value,
+                        'sphere' => $this->add_os_sphere,
+                        'cylinder' => $this->add_os_cylinder,
+                    ],
+                ],
+            ],
+            'remarks' => $this->remarks,
         ];
     }
 }

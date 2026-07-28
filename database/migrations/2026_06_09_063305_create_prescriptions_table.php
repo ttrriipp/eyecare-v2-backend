@@ -18,19 +18,28 @@ return new class extends Migration
             $table->foreignId('encounter_id')->nullable();
             $table->foreignId('previous_prescription_id')->nullable()->constrained('prescriptions');
             $table->foreignId('created_by')->constrained('users');
-            $table->text('od_sphere')->nullable();
-            $table->text('od_cylinder')->nullable();
-            $table->text('od_axis')->nullable();
-            $table->text('od_add')->nullable();
-            $table->text('os_sphere')->nullable();
-            $table->text('os_cylinder')->nullable();
-            $table->text('os_axis')->nullable();
-            $table->text('os_add')->nullable();
-            $table->text('pd')->nullable();
+
+            // Main measurement group
+            $table->text('main_od_value')->nullable();
+            $table->text('main_od_sphere')->nullable();
+            $table->text('main_od_cylinder')->nullable();
+            $table->text('main_os_value')->nullable();
+            $table->text('main_os_sphere')->nullable();
+            $table->text('main_os_cylinder')->nullable();
+
+            // ADD measurement group
+            $table->text('add_od_value')->nullable();
+            $table->text('add_od_sphere')->nullable();
+            $table->text('add_od_cylinder')->nullable();
+            $table->text('add_os_value')->nullable();
+            $table->text('add_os_sphere')->nullable();
+            $table->text('add_os_cylinder')->nullable();
+
+            $table->text('remarks')->nullable();
+            $table->text('amendment_reason')->nullable();
             $table->date('prescribed_at');
-            $table->date('expires_at')->nullable();
-            $table->text('notes')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

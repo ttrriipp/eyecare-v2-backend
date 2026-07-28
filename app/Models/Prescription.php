@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -14,20 +15,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'encounter_id',
     'appointment_id',
     'previous_prescription_id',
+    'amendment_reason',
     'created_by',
-    'od_sphere',
-    'od_cylinder',
-    'od_axis',
-    'od_add',
-    'os_sphere',
-    'os_cylinder',
-    'os_axis',
-    'os_add',
-    'pd',
+    'main_od_value',
+    'main_od_sphere',
+    'main_od_cylinder',
+    'main_os_value',
+    'main_os_sphere',
+    'main_os_cylinder',
+    'add_od_value',
+    'add_od_sphere',
+    'add_od_cylinder',
+    'add_os_value',
+    'add_os_sphere',
+    'add_os_cylinder',
+    'remarks',
     'prescribed_at',
-    'expires_at',
-    'notes',
-    'last_expiry_notified_at',
 ])]
 class Prescription extends Model
 {
@@ -63,7 +66,33 @@ class Prescription extends Model
      */
     public function previousPrescription(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'previous_prescription_id');
+        return $this->belongsTo(self::class, 'previous_prescription_id')
+            ->withTrashed();
+    }
+
+    /**
+     * @return HasOne<Prescription, $this>
+     */
+    public function nextPrescription(): HasOne
+    {
+        return $this->hasOne(self::class, 'previous_prescription_id')
+            ->withTrashed();
+    }
+
+    public function isCurrentVersion(): bool
+    {
+        return ! $this->nextPrescription()->exists();
+    }
+
+    public function currentVersion(): Prescription
+    {
+        $currentVersion = $this;
+
+        while ($nextVersion = $currentVersion->nextPrescription()->first()) {
+            $currentVersion = $nextVersion;
+        }
+
+        return $currentVersion;
     }
 
     /**
@@ -80,19 +109,25 @@ class Prescription extends Model
     protected function casts(): array
     {
         return [
-            'od_sphere' => 'encrypted',
-            'od_cylinder' => 'encrypted',
-            'od_axis' => 'encrypted',
-            'od_add' => 'encrypted',
-            'os_sphere' => 'encrypted',
-            'os_cylinder' => 'encrypted',
-            'os_axis' => 'encrypted',
-            'os_add' => 'encrypted',
-            'pd' => 'encrypted',
-            'notes' => 'encrypted',
+            // Main group - encrypted
+            'main_od_value' => 'encrypted',
+            'main_od_sphere' => 'encrypted',
+            'main_od_cylinder' => 'encrypted',
+            'main_os_value' => 'encrypted',
+            'main_os_sphere' => 'encrypted',
+            'main_os_cylinder' => 'encrypted',
+            // ADD group - encrypted
+            'add_od_value' => 'encrypted',
+            'add_od_sphere' => 'encrypted',
+            'add_od_cylinder' => 'encrypted',
+            'add_os_value' => 'encrypted',
+            'add_os_sphere' => 'encrypted',
+            'add_os_cylinder' => 'encrypted',
+            // Other encrypted fields
+            'remarks' => 'encrypted',
+            'amendment_reason' => 'encrypted',
+            // Date
             'prescribed_at' => 'date',
-            'expires_at' => 'date',
-            'last_expiry_notified_at' => 'datetime',
         ];
     }
 }

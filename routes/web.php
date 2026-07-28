@@ -29,12 +29,14 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::get('/pdf/prescriptions/{prescription}', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
+        abort_unless($prescription->isCurrentVersion(), 403);
 
         return $pdf->prescriptionPrintout($prescription);
     })->name('pdf.prescription');
 
     Route::get('/pdf/prescriptions/{prescription}/card', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
+        abort_unless($prescription->isCurrentVersion(), 403);
 
         return $pdf->prescriptionCard($prescription);
     })->name('pdf.prescription.card');

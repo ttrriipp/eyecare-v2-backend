@@ -15,16 +15,11 @@ return new class extends Migration
         Schema::table('sms_notifications', function (Blueprint $table) {
             $table->index(['notification_status_id', 'created_at']);
         });
-
-        Schema::table('prescriptions', function (Blueprint $table) {
-            $table->index('expires_at');
-        });
     }
 
     public function down(): void
     {
         Schema::table('appointments', fn (Blueprint $table) => $table->dropIndex(['scheduled_at']));
         Schema::table('sms_notifications', fn (Blueprint $table) => $table->dropIndex(['notification_status_id', 'created_at']));
-        Schema::table('prescriptions', fn (Blueprint $table) => $table->dropIndex(['expires_at']));
     }
 };

@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Prescriptions\Schemas;
 
+use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
+use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
+use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Models\Appointment;
 use App\Models\Patient;
 use Filament\Forms\Components\DatePicker;
@@ -26,6 +29,7 @@ class PrescriptionForm
                         ->label('Patient')
                         ->relationship('patient', 'full_name')
                         ->required()
+                        ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
                         ->searchable()
                         ->preload()
                         ->live()
@@ -36,6 +40,7 @@ class PrescriptionForm
                         ])
                         ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
                     Select::make('appointment_id')
+                        ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
                         ->relationship(
                             'appointment',
                             'id',
@@ -51,87 +56,100 @@ class PrescriptionForm
                         ->searchable()
                         ->preload(),
                 ])->columns(2),
-                Grid::make(2)->schema([
-                    Section::make('Right Eye (OD)')
-                        ->schema([
-                            Grid::make(3)->schema([
-                                TextInput::make('od_sphere')
-                                    ->label('Sphere')
-                                    ->required()
-                                    ->numeric()
-                                    ->minValue(-20)
-                                    ->maxValue(20)
-                                    ->step(0.25),
-                                TextInput::make('od_cylinder')
-                                    ->label('Cylinder')
-                                    ->numeric()
-                                    ->minValue(-10)
-                                    ->maxValue(10)
-                                    ->step(0.25)
-                                    ->default(0),
-                                TextInput::make('od_axis')
-                                    ->label('Axis')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(180)
-                                    ->default(0),
-                                TextInput::make('od_add')
-                                    ->label('Add')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(5)
-                                    ->step(0.25),
-                            ]),
+
+                Section::make('Prescription')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            // OD Row
+                            TextInput::make('main_od_value')
+                                ->label('O.D.')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('main_od_sphere')
+                                ->label('SPH')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('main_od_cylinder')
+                                ->label('CX')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            // OS Row
+                            TextInput::make('main_os_value')
+                                ->label('O.S.')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('main_os_sphere')
+                                ->label('SPH')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('main_os_cylinder')
+                                ->label('CX')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
                         ]),
-                    Section::make('Left Eye (OS)')
-                        ->schema([
-                            Grid::make(3)->schema([
-                                TextInput::make('os_sphere')
-                                    ->label('Sphere')
-                                    ->required()
-                                    ->numeric()
-                                    ->minValue(-20)
-                                    ->maxValue(20)
-                                    ->step(0.25),
-                                TextInput::make('os_cylinder')
-                                    ->label('Cylinder')
-                                    ->numeric()
-                                    ->minValue(-10)
-                                    ->maxValue(10)
-                                    ->step(0.25)
-                                    ->default(0),
-                                TextInput::make('os_axis')
-                                    ->label('Axis')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(180)
-                                    ->default(0),
-                                TextInput::make('os_add')
-                                    ->label('Add')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->maxValue(5)
-                                    ->step(0.25),
-                            ]),
-                        ]),
-                ]),
-                Section::make('Prescription Details')->schema([
-                    Grid::make(3)->schema([
-                        TextInput::make('pd')
-                            ->label('PD (mm)')
-                            ->required()
-                            ->numeric()
-                            ->minValue(40)
-                            ->maxValue(80)
-                            ->step(0.5),
-                        DatePicker::make('prescribed_at')
-                            ->required()
-                            ->live(onBlur: true),
-                        DatePicker::make('expires_at')
-                            ->required()
-                            ->afterOrEqual('prescribed_at'),
                     ]),
-                    Textarea::make('notes')
+
+                Section::make('ADD')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            // ADD OD Row
+                            TextInput::make('add_od_value')
+                                ->label('O.D.')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('add_od_sphere')
+                                ->label('SPH')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('add_od_cylinder')
+                                ->label('CX')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            // ADD OS Row
+                            TextInput::make('add_os_value')
+                                ->label('O.S.')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('add_os_sphere')
+                                ->label('SPH')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                            TextInput::make('add_os_cylinder')
+                                ->label('CX')
+                                ->numeric()
+                                ->step(0.25)
+                                ->nullable(),
+                        ]),
+                    ]),
+
+                Section::make('Details')->schema([
+                    DatePicker::make('prescribed_at')
+                        ->label('Date')
+                        ->required()
+                        ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
+                        ->live(onBlur: true),
+                    Textarea::make('remarks')
+                        ->label('Remarks')
+                        ->columnSpanFull(),
+                    Textarea::make('amendment_reason')
+                        ->label('Reason for Amendment')
+                        ->helperText('Explain why this finalized prescription is being corrected. The original remains unchanged.')
+                        ->required()
+                        ->maxLength(1000)
+                        ->visible(fn (mixed $livewire): bool => $livewire instanceof AmendPrescription
+                            || ($livewire instanceof ViewPrescription
+                                && $livewire->getRecord()->previous_prescription_id !== null))
                         ->columnSpanFull(),
                 ]),
             ]);

@@ -116,16 +116,18 @@ class ClinicWorkflowSeeder extends Seeder
         return Prescription::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
-                'od_sphere' => -1.75,
-                'od_cylinder' => -0.50,
-                'od_axis' => 180,
-                'os_sphere' => -2.00,
-                'os_cylinder' => -0.75,
-                'os_axis' => 175,
-                'pd' => 63.5,
+                // Main group
+                'main_od_sphere' => -1.75,
+                'main_od_cylinder' => -0.50,
+                'main_os_sphere' => -2.00,
+                'main_os_cylinder' => -0.75,
+                // ADD group (populated for this example)
+                'add_od_sphere' => 1.50,
+                'add_od_cylinder' => -0.25,
+                'add_os_sphere' => 1.25,
+                'add_os_cylinder' => -0.50,
+                'remarks' => 'Mild myopia with astigmatism. Recommend anti-reflective coating.',
                 'prescribed_at' => now()->subDays(1),
-                'expires_at' => now()->addYear(),
-                'notes' => 'Mild myopia with astigmatism. Recommend anti-reflective coating.',
                 'created_by' => $optometrist->id,
             ],
         );

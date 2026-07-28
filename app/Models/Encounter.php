@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -77,6 +78,14 @@ class Encounter extends Model
     public function optometrist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'optometrist_id');
+    }
+
+    /**
+     * @return HasMany<Prescription, $this>
+     */
+    public function prescriptions(): HasMany
+    {
+        return $this->hasMany(Prescription::class);
     }
 
     /**

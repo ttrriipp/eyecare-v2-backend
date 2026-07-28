@@ -8,6 +8,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PrescriptionsRelationManager extends RelationManager
 {
@@ -23,13 +24,21 @@ class PrescriptionsRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('prescribed_at')->label('Date')->date('M j, Y')->sortable(),
+                TextColumn::make('version_status')
+                    ->label('Version')
+                    ->state(fn ($record): string => $record->next_prescription_exists
+                        ? 'Superseded'
+                        : ($record->previous_prescription_id === null ? 'Original' : 'Current amendment'))
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
                 TextColumn::make('od_sphere')->label('OD Sphere'),
                 TextColumn::make('os_sphere')->label('OS Sphere'),
                 TextColumn::make('expires_at')->label('Expires')->date('M j, Y'),
             ])
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists('nextPrescription'))
             ->recordActions([
                 ViewAction::make()
-                    ->url(fn ($record) => PrescriptionResource::getUrl('edit', ['record' => $record])),
+                    ->url(fn ($record) => PrescriptionResource::getUrl('view', ['record' => $record])),
             ])
             ->defaultSort('prescribed_at', 'desc')
             ->paginated(false);

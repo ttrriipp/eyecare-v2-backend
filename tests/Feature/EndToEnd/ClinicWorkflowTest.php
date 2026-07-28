@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Encounters\CheckInAppointment;
+use App\Actions\Encounters\StartEncounter;
 use App\Actions\Invoices\DispenseJobOrder;
 use App\Actions\JobOrders\CreateJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
@@ -57,12 +58,18 @@ test('scheduled patient journey: appointment through dispensing', function () {
         ->and($encounter->patient_id)->toBe($patient->id)
         ->and($appointment->fresh()->status->name)->toBe('checked_in');
 
+    $encounter = app(StartEncounter::class)->handle(
+        encounter: $encounter,
+        optometrist: $optometrist,
+        actor: $optometrist,
+    );
+
     $prescription = app(FinalizePrescription::class)->handle(
         patient: $patient,
         encounter: $encounter,
         author: $optometrist,
         data: [
-            'od_sphere' => '-2.00',
+            'main_od_sphere' => '-2.00',
             'os_sphere' => '-1.50',
             'pd' => '62.0',
         ],

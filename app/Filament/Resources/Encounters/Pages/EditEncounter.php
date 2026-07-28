@@ -8,6 +8,7 @@ use App\Actions\Encounters\StartEncounter;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -102,6 +103,26 @@ class EditEncounter extends EditRecord
                 ->visible(fn (): bool => $this->record->appointment_id !== null)
                 ->url(fn (): string => AppointmentResource::getUrl('health-record', [
                     'record' => $this->record->appointment_id,
+                ])),
+
+            Action::make('createPrescription')
+                ->label('Create Prescription')
+                ->icon('heroicon-o-clipboard-document-list')
+                ->color('primary')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
+                    && auth()->user()?->hasOptometristCapability() === true
+                    && ! $this->record->prescriptions()->withTrashed()->exists())
+                ->url(fn (): string => PrescriptionResource::getUrl('create', [
+                    'encounter' => $this->record->id,
+                ])),
+
+            Action::make('viewPrescription')
+                ->label('View Prescription')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->prescriptions()->exists())
+                ->url(fn (): string => PrescriptionResource::getUrl('view', [
+                    'record' => $this->record->prescriptions()->latest('id')->value('id'),
                 ])),
 
             Action::make('cancelAppointment')

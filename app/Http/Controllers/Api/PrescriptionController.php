@@ -19,7 +19,10 @@ class PrescriptionController extends Controller
 
         $prescriptions = Prescription::query()
             ->where('patient_id', $patient->id)
+            ->whereDoesntHave('nextPrescription')
+            ->withExists('nextPrescription')
             ->latest('prescribed_at')
+            ->latest('id')
             ->paginate($request->integer('per_page', 15));
 
         return PrescriptionResource::collection($prescriptions);
@@ -30,6 +33,8 @@ class PrescriptionController extends Controller
         $patient = $request->user()->patient;
 
         abort_unless($patient !== null && $prescription->patient_id === $patient->id, 404);
+
+        $prescription->loadExists('nextPrescription');
 
         return response()->json([
             'data' => PrescriptionResource::make($prescription),

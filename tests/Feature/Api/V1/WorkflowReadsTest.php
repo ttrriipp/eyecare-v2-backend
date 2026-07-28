@@ -40,6 +40,50 @@ test('prescription responses omit unsupported prism and base fields', function (
     ]);
 });
 
+test('prescription response contains grouped measurements and remarks', function () {
+    $user = User::factory()->patient()->create();
+    Prescription::factory()->create([
+        'patient_id' => $user->patient->id,
+        'main_od_sphere' => '-2.00',
+        'main_od_cylinder' => '-0.50',
+        'remarks' => 'Test remarks',
+    ]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/prescriptions')
+        ->assertOk();
+
+    expect($response->json('data.0.measurements.main.od.sphere'))->toBe('-2.00')
+        ->and($response->json('data.0.measurements.main.od.cylinder'))->toBe('-0.50')
+        ->and($response->json('data.0.remarks'))->toBe('Test remarks')
+        ->and($response->json('data.0'))->not->toHaveKeys(['od_sphere', 'pd', 'expires_at', 'notes']);
+});
+
+test('prescription list returns only current versions with amendment context', function () {
+    $user = User::factory()->patient()->create();
+    $original = Prescription::factory()->create([
+        'patient_id' => $user->patient->id,
+        'prescribed_at' => now(),
+    ]);
+    $amendment = Prescription::factory()->create([
+        'patient_id' => $user->patient->id,
+        'previous_prescription_id' => $original->id,
+        'prescribed_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/prescriptions')
+        ->assertOk()
+        ->assertJsonPath('meta.total', 1)
+        ->assertJsonPath('data.0.id', $amendment->id)
+        ->assertJsonPath('data.0.previous_prescription_id', $original->id)
+        ->assertJsonPath('data.0.is_current', true);
+
+    $this->getJson("/api/v1/prescriptions/{$original->id}")
+        ->assertOk()
+        ->assertJsonPath('data.is_current', false);
+});
+
 test('quotations list is paginated and patient-scoped', function () {
     $user = User::factory()->patient()->create();
     Quotation::factory()->count(3)->create(['patient_id' => $user->patient->id]);

@@ -20,27 +20,54 @@ class PrescriptionFactory extends Factory
      */
     public function definition(): array
     {
-        $prescribedAt = fake()->dateTimeBetween('-1 year', 'now');
-
         return [
             'patient_id' => Patient::factory(),
             'encounter_id' => null,
             'appointment_id' => null,
             'previous_prescription_id' => null,
             'created_by' => User::factory()->optometrist(),
-            'od_sphere' => fake()->randomFloat(2, -6, 2),
-            'od_cylinder' => fake()->randomFloat(2, -2, 0),
-            'od_axis' => fake()->numberBetween(1, 180),
-            'od_add' => fake()->optional()->randomFloat(2, 0.75, 2.5),
-            'os_sphere' => fake()->randomFloat(2, -6, 2),
-            'os_cylinder' => fake()->randomFloat(2, -2, 0),
-            'os_axis' => fake()->numberBetween(1, 180),
-            'os_add' => fake()->optional()->randomFloat(2, 0.75, 2.5),
-            'pd' => fake()->randomFloat(1, 58, 68),
-            'prescribed_at' => $prescribedAt,
-            'expires_at' => fake()->dateTimeBetween($prescribedAt, '+2 years'),
-            'notes' => fake()->optional()->sentence(),
+            // Main group
+            'main_od_value' => null,
+            'main_od_sphere' => fake()->randomFloat(2, -6, 2),
+            'main_od_cylinder' => fake()->randomFloat(2, -2, 0),
+            'main_os_value' => null,
+            'main_os_sphere' => fake()->randomFloat(2, -6, 2),
+            'main_os_cylinder' => fake()->randomFloat(2, -2, 0),
+            // ADD group (blank by default)
+            'add_od_value' => null,
+            'add_od_sphere' => null,
+            'add_od_cylinder' => null,
+            'add_os_value' => null,
+            'add_os_sphere' => null,
+            'add_os_cylinder' => null,
+            'remarks' => fake()->optional()->sentence(),
+            'amendment_reason' => null,
+            'prescribed_at' => now(),
         ];
+    }
+
+    public function mainOnly(): static
+    {
+        return $this->state(fn () => [
+            'add_od_value' => null,
+            'add_od_sphere' => null,
+            'add_od_cylinder' => null,
+            'add_os_value' => null,
+            'add_os_sphere' => null,
+            'add_os_cylinder' => null,
+        ]);
+    }
+
+    public function withAddGroup(): static
+    {
+        return $this->state(fn () => [
+            'add_od_value' => null,
+            'add_od_sphere' => fake()->randomFloat(2, 0.75, 2.5),
+            'add_od_cylinder' => fake()->randomFloat(2, -1, 0),
+            'add_os_value' => null,
+            'add_os_sphere' => fake()->randomFloat(2, 0.75, 2.5),
+            'add_os_cylinder' => fake()->randomFloat(2, -1, 0),
+        ]);
     }
 
     public function linkedToEncounter(Encounter $encounter): static

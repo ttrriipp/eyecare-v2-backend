@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\Prescriptions;
 
-use App\Filament\Resources\Prescriptions\Pages\EditPrescription;
+use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
+use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
 use App\Filament\Resources\Prescriptions\Pages\ListPrescriptions;
+use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
 use App\Filament\Resources\Prescriptions\Tables\PrescriptionsTable;
 use App\Models\Prescription;
@@ -36,12 +38,17 @@ class PrescriptionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['patient', 'author']);
+        return parent::getEloquentQuery()
+            ->with(['patient', 'author'])
+            ->withExists('nextPrescription');
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withTrashed()->with(['patient', 'author']);
+        return parent::getEloquentQuery()
+            ->withTrashed()
+            ->with(['patient', 'author'])
+            ->withExists('nextPrescription');
     }
 
     public static function getRelations(): array
@@ -53,7 +60,9 @@ class PrescriptionResource extends Resource
     {
         return [
             'index' => ListPrescriptions::route('/'),
-            'edit' => EditPrescription::route('/{record}/edit'),
+            'create' => CreatePrescription::route('/create/{encounter}'),
+            'amend' => AmendPrescription::route('/amend/{previous}'),
+            'view' => ViewPrescription::route('/{record}'),
         ];
     }
 }
