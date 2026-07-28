@@ -22,6 +22,7 @@ class FrameReservationResource extends JsonResource
             'status' => $this->status->value,
             'expires_at' => $this->expires_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
+            'appointment' => AppointmentContextResource::make($this->whenLoaded('appointment')),
             'items' => FrameReservationItemResource::collection($this->whenLoaded('items')),
         ];
     }

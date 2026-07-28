@@ -54,6 +54,14 @@ class AppointmentFactory extends Factory
         ]);
     }
 
+    public function checkedIn(): static
+    {
+        return $this->state(fn () => [
+            'appointment_status_id' => $this->statusId(AppointmentStatusName::CheckedIn),
+            'checked_in_at' => now(),
+        ]);
+    }
+
     public function cancelled(): static
     {
         return $this->state(fn () => [

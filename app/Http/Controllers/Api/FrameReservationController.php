@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Reservations\CreateFrameReservation;
 use App\Actions\Reservations\ReleaseFrameReservation;
 use App\Enums\ReservationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreFrameReservationRequest;
 use App\Http\Resources\FrameReservationResource;
+use App\Models\Appointment;
 use App\Models\FrameReservation;
-use App\Models\FrameReservationItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -22,7 +23,7 @@ class FrameReservationController extends Controller
 
         $reservations = FrameReservation::query()
             ->where('patient_id', $patient->id)
-            ->with('items.variant.product')
+            ->with(['items.variant.product', 'appointment'])
             ->latest()
             ->get();
 
@@ -37,21 +38,16 @@ class FrameReservationController extends Controller
 
         $data = $request->validated();
 
-        $reservation = FrameReservation::query()->create([
-            'patient_id' => $patient->id,
-            'appointment_id' => $data['appointment_id'] ?? null,
-            'status' => ReservationStatus::Requested,
-        ]);
+        $appointment = Appointment::findOrFail($data['appointment_id']);
 
-        foreach ($data['items'] as $item) {
-            FrameReservationItem::query()->create([
-                'frame_reservation_id' => $reservation->id,
-                'product_variant_id' => $item['product_variant_id'],
-            ]);
-        }
+        $reservation = app(CreateFrameReservation::class)->handle(
+            patient: $patient,
+            appointment: $appointment,
+            items: $data['items'],
+        );
 
         return response()->json([
-            'data' => FrameReservationResource::make($reservation->load('items.variant.product')),
+            'data' => FrameReservationResource::make($reservation),
         ], 201);
     }
 
@@ -70,7 +66,7 @@ class FrameReservationController extends Controller
         $reservation->update(['status' => ReservationStatus::Cancelled]);
 
         return response()->json([
-            'data' => FrameReservationResource::make($reservation->fresh()->load('items.variant.product')),
+            'data' => FrameReservationResource::make($reservation->fresh()->load(['items.variant.product', 'appointment'])),
         ]);
     }
 }

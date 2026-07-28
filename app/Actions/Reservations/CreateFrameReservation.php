@@ -45,7 +45,7 @@ class CreateFrameReservation
                 ]);
             }
 
-            return $reservation->load('items.variant.product');
+            return $reservation->load(['items.variant.product', 'appointment']);
         });
     }
 
