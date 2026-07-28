@@ -506,10 +506,17 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
   "data": [
     {
       "id": 1,
-      "appointment_id": 1,
+      "appointment_id": 42,
       "status": "requested",
       "expires_at": "2026-08-03T10:00:00+08:00",
       "created_at": "2026-07-27T10:00:00+08:00",
+      "appointment": {
+        "id": 42,
+        "appointment_number": "APT-2026-000042",
+        "status": "scheduled",
+        "scheduled_at": "2026-07-30T09:00:00+08:00",
+        "duration_minutes": 30
+      },
       "items": [
         {
           "id": 1,
@@ -555,7 +562,7 @@ Creates a new frame reservation.
 **Request:**
 ```json
 {
-  "appointment_id": "integer (nullable, exists:appointments,id — must belong to patient)",
+  "appointment_id": "integer (required, exists:appointments,id — must belong to patient)",
   "items": [
     { "product_variant_id": "integer (required, exists:product_variants,id)" }
   ]
@@ -563,18 +570,28 @@ Creates a new frame reservation.
 ```
 
 **Validation:**
+- `appointment_id`: required; must belong to the authenticated patient's Patient record; must be `scheduled` and not past end time.
 - `items`: `required`, `array`, `min:1`, `max:5`.
 - Each `product_variant_id` must reference an active frame variant (product_type = frame, is_active = true, variant is_active = true).
+- Duplicate variants within a reservation are rejected.
+- An active reservation (requested, prepared, tried_on) for the same appointment is rejected.
 
 **Response (201):**
 ```json
 {
   "data": {
     "id": 1,
-    "appointment_id": null,
+    "appointment_id": 42,
     "status": "requested",
     "expires_at": null,
     "created_at": "2026-07-27T10:00:00+08:00",
+    "appointment": {
+      "id": 42,
+      "appointment_number": "APT-2026-000042",
+      "status": "scheduled",
+      "scheduled_at": "2026-07-30T09:00:00+08:00",
+      "duration_minutes": 30
+    },
     "items": [
       {
         "id": 1,
@@ -605,6 +622,13 @@ Creates a new frame reservation.
 
 Uses the same `FrameReservationResource` as GET — same field set, same exclusions.
 
+**Error responses:**
+- Missing or invalid `appointment_id`: `422` with validation error.
+- Appointment not owned by patient: `422` with validation error.
+- Owned but ineligible appointment (cancelled, fulfilled, no-show, past, checked-in): `422` with validation error.
+- Duplicate active reservation for same appointment: `422` with validation error.
+- Unauthenticated: `401`.
+
 ---
 
 ### POST `/frame-reservations/{id}/cancel`
@@ -616,10 +640,17 @@ Cancels a reservation. Only `requested` or `prepared` reservations can be cancel
 {
   "data": {
     "id": 1,
-    "appointment_id": null,
+    "appointment_id": 42,
     "status": "cancelled",
     "expires_at": null,
     "created_at": "2026-07-27T10:00:00+08:00",
+    "appointment": {
+      "id": 42,
+      "appointment_number": "APT-2026-000042",
+      "status": "scheduled",
+      "scheduled_at": "2026-07-30T09:00:00+08:00",
+      "duration_minutes": 30
+    },
     "items": [
       {
         "id": 1,
@@ -1213,7 +1244,7 @@ Registration accepts `name`, `email`, `phone`, `password`. No privacy acknowledg
 Draft intakes can be edited freely via PUT. Once submitted (`status: submitted`), they become immutable — PUT returns `422`. Verified intakes are also immutable.
 
 ### Frame reservation creation and cancellation
-Creation requires `items[].product_variant_id` (1-5 items). Each must be an active frame variant. Optional `appointment_id` links to a specific appointment. Cancellation is allowed only for `requested` or `prepared` statuses.
+Creation requires `appointment_id` (required, must belong to patient, must be scheduled and not past) and `items[].product_variant_id` (1-5 items, distinct, active frame variants). Only one active reservation per appointment is allowed. Cancellation is allowed only for `requested` or `prepared` statuses. Responses include embedded appointment context (id, number, status, schedule, duration).
 
 ### Conversation unread/read behavior
 `unread_count` on the conversation resource counts messages from other senders where `read_at IS NULL`. There is no explicit mark-read endpoint in the mobile API — read status is managed by the admin panel.

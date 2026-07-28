@@ -125,7 +125,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `invoice_items` | `type` (product/service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id`. |
 | `invoice_payments` | `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`. |
 | `dispensing_events` | `job_order_id`, `invoice_id`, `dispensed_by`, `recipient_name`, `notes`. |
-| `frame_reservations` | `patient_id`, `appointment_id`, `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
+| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
 | `frame_reservation_items` | `product_variant_id`. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
 | `frame_rating_revisions` | `revision_number`, `rating`, `comment`, `revised_by`. |
@@ -249,6 +249,8 @@ The approved patient-mobile contract contains exactly 33 routes. List endpoints 
 | `DispenseJobOrder` | `app/Actions/Invoices/` | Atomic dispensing + invoice issuance |
 | `PrepareFrameReservation` | `app/Actions/Reservations/` | Row-locked stock allocation with movement records |
 | `ReleaseFrameReservation` | `app/Actions/Reservations/` | Idempotent stock restoration |
+| `CreateFrameReservation` | `app/Actions/Reservations/` | Appointment eligibility, patient ownership, duplicate-active check, distinct variants, row lock, atomic creation |
+| `CancelReservationsForAppointment` | `app/Actions/Reservations/` | Cancels active reservations and releases prepared stock on appointment cancellation/no-show |
 | `SaveFrameRating` | `app/Actions/Ratings/` | Create or append revision, one per patient/variant |
 | `ModerateFrameRating` | `app/Actions/Ratings/` | Hide/restore comments, preserve star aggregates |
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |
