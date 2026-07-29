@@ -30,7 +30,7 @@ test('intake form page is accessible', function () {
         ->assertSuccessful();
 });
 
-test('intake form presents the health record in clinical review order', function () {
+test('intake form presents two primary health record sections', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
@@ -38,13 +38,13 @@ test('intake form presents the health record in clinical review order', function
 
     Livewire::test(IntakeForm::class, ['record' => $appointment->getRouteKey()])
         ->assertSeeInOrder([
-            'Appointment overview',
-            'Patient information',
-            'Contact details',
-            'Reason for visit',
-            'Medical history',
-            'Safety information',
+            'Patient Information',
+            'Complaints and Medical History',
         ])
+        ->assertDontSee('Appointment overview')
+        ->assertDontSee('Contact details')
+        ->assertDontSee('Reason for visit')
+        ->assertDontSee('Safety information')
         ->assertSeeHtml('for="health-record-full-name"')
         ->assertSeeHtml('id="health-record-full-name"')
         ->assertDontSeeHtml('wire:model.live=');

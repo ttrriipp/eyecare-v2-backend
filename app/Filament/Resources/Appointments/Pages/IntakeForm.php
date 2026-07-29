@@ -29,7 +29,7 @@ class IntakeForm extends Page
     public function mount(Request $request, int|string $record): void
     {
         $this->appointment = Appointment::query()
-            ->with(['patient', 'appointmentType', 'status', 'intake.submittedBy', 'intake.verifiedBy'])
+            ->with(['patient', 'appointmentType', 'intake'])
             ->findOrFail($record);
 
         $this->formData = $this->getInitialData();

@@ -33,7 +33,15 @@ test('optometrist can view encounter details', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertSuccessful();
+        ->assertSuccessful()
+        ->assertSee('Encounter Information')
+        ->assertSee('Patient Information')
+        ->assertSee('Clinical Context')
+        ->assertSee('Visit Logistics')
+        ->assertSee('Health Record Status')
+        ->assertSee('Not Started')
+        ->assertDontSee('Visit Details')
+        ->assertDontSee('Waiting to be seen');
 });
 
 test('encounter table shows status badges', function () {
