@@ -1,9 +1,13 @@
 <?php
 
+use App\Enums\BillingRecordStatus;
+use App\Enums\EyewearPaymentStatus;
 use App\Enums\EyewearProgress;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
+use App\Models\BillingPayment;
+use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
@@ -315,4 +319,195 @@ test('expected_completion_at is absent from preparation', function () {
     $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
 
     expect($aggregate->preparation)->not->toHaveKey('expected_completion_at');
+});
+
+test('unpaid billing record maps to balance_due', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'status' => BillingRecordStatus::Unpaid,
+        'total_amount' => 8000,
+        'amount_paid' => 0,
+        'balance_due' => 8000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentStatus)->toBe(EyewearPaymentStatus::BalanceDue)
+        ->and($aggregate->balanceDue)->toBe('8000.00')
+        ->and($aggregate->paymentSummary)->not->toBeNull()
+        ->and($aggregate->paymentSummary['status'])->toBe('unpaid');
+});
+
+test('partially_paid billing record maps to balance_due', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'status' => BillingRecordStatus::PartiallyPaid,
+        'total_amount' => 8000,
+        'amount_paid' => 5000,
+        'balance_due' => 3000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentStatus)->toBe(EyewearPaymentStatus::BalanceDue)
+        ->and($aggregate->balanceDue)->toBe('3000.00');
+});
+
+test('paid billing record maps to paid', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    BillingRecord::factory()->paid()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 8000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentStatus)->toBe(EyewearPaymentStatus::Paid)
+        ->and($aggregate->balanceDue)->toBe('0.00');
+});
+
+test('no billing record produces null payment fields', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::InProgress]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentStatus)->toBeNull()
+        ->and($aggregate->balanceDue)->toBeNull()
+        ->and($aggregate->paymentSummary)->toBeNull();
+});
+
+test('voided billing record is ignored', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    BillingRecord::factory()->voided()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 8000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentStatus)->toBeNull()
+        ->and($aggregate->balanceDue)->toBeNull()
+        ->and($aggregate->paymentSummary)->toBeNull();
+});
+
+test('total precedence billing record over job order', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Dispensed,
+        'total_amount' => 5000,
+    ]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 8000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->totalAmount)->toBe('8000.00');
+});
+
+test('total precedence job order over estimate', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    $revision = QuotationRevision::factory()->create([
+        'quotation_id' => $quotation->id,
+        'total' => 3000,
+    ]);
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+        'quotation_revision_id' => $revision->id,
+        'total_amount' => 5000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, $jobOrder);
+
+    expect($aggregate->totalAmount)->toBe('5000.00');
+});
+
+test('total falls back to estimate when no billing or job order', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+    QuotationRevision::factory()->create([
+        'quotation_id' => $quotation->id,
+        'total' => 7500,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, null);
+
+    expect($aggregate->totalAmount)->toBe('7500.00');
+});
+
+test('payment summary includes only posted payments', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    $billingRecord = BillingRecord::factory()->partiallyPaid()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 8000,
+    ]);
+
+    BillingPayment::factory()->create([
+        'billing_record_id' => $billingRecord->id,
+        'amount' => 5000,
+        'payment_method' => 'cash',
+        'status' => 'posted',
+        'recorded_at' => now()->subHour(),
+    ]);
+
+    BillingPayment::factory()->create([
+        'billing_record_id' => $billingRecord->id,
+        'amount' => 1000,
+        'payment_method' => 'gcash',
+        'status' => 'reversed',
+        'recorded_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentSummary['payments'])->toHaveCount(1)
+        ->and($aggregate->paymentSummary['payments'][0]['payment_method'])->toBe('cash');
+});
+
+test('activity timestamp includes payment recorded_at', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Dispensed,
+        'dispensed_at' => now()->subDays(2),
+    ]);
+    $billingRecord = BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'recorded_at' => now()->subDay(),
+    ]);
+    BillingPayment::factory()->create([
+        'billing_record_id' => $billingRecord->id,
+        'status' => 'posted',
+        'recorded_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->activityAt)->not->toBeNull();
+});
+
+test('dispensed with balance remains in history mapping', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    BillingRecord::factory()->partiallyPaid()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 8000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::Dispensed)
+        ->and($aggregate->paymentStatus)->toBe(EyewearPaymentStatus::BalanceDue);
+});
+
+test('internal notes recorder ids and void data are absent', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+    $billingRecord = BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'notes' => 'Internal billing note',
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->paymentSummary)->not->toHaveKey('notes')
+        ->and($aggregate->paymentSummary)->not->toHaveKey('voided_by')
+        ->and($aggregate->paymentSummary)->not->toHaveKey('void_reason');
 });
