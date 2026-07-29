@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'job_order_number',
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'total_amount',
     'notes',
+    'eyewear_key',
     'started_at',
     'ready_at',
     'dispensed_at',
@@ -36,6 +38,10 @@ class JobOrder extends Model
                 $year = now()->format('Y');
                 $sequence = self::query()->withTrashed()->whereYear('created_at', $year)->count() + 1;
                 $jobOrder->job_order_number = sprintf('JO-%s-%06d', $year, $sequence);
+            }
+
+            if (blank($jobOrder->eyewear_key)) {
+                $jobOrder->eyewear_key = 'eyw_'.Str::ulid();
             }
         });
     }

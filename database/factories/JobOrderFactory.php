@@ -6,6 +6,7 @@ use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<JobOrder>
@@ -28,6 +29,7 @@ class JobOrderFactory extends Factory
             'status' => JobOrderStatus::Queued,
             'total_amount' => fake()->randomFloat(2, 100, 10000),
             'notes' => null,
+            'eyewear_key' => 'eyw_'.Str::ulid(),
         ];
     }
 }

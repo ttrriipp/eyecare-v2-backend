@@ -29,6 +29,7 @@ class QuotationFactory extends Factory
             'valid_until' => fake()->dateTimeBetween('+7 days', '+30 days'),
             'notes' => fake()->optional()->sentence(),
             'internal_notes' => null,
+            'eyewear_key' => 'eyw_'.Str::ulid(),
         ];
     }
 }

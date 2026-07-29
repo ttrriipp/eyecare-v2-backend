@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
     'valid_until',
     'notes',
     'internal_notes',
+    'eyewear_key',
 ])]
 class Quotation extends Model
 {
@@ -30,6 +31,10 @@ class Quotation extends Model
         static::creating(function (Quotation $quotation): void {
             if (blank($quotation->quotation_number)) {
                 $quotation->quotation_number = 'QUO-'.Str::ulid();
+            }
+
+            if (blank($quotation->eyewear_key)) {
+                $quotation->eyewear_key = 'eyw_'.Str::ulid();
             }
         });
     }
