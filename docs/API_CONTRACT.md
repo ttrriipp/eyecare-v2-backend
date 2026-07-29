@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-07-29) — includes Billing Record simplification, frame reservation appointment linkage, and Eyewear aggregate API
+> **Backend version:** Current repository state (2026-07-29) — includes Billing Record simplification, frame reservation appointment linkage, Eyewear aggregate API, and patient isolation of supplier invoice references
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -849,6 +849,12 @@ Paginated list with items.
 
 **Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
 
+**Internal supplier reference:** Job Orders have an internal nullable
+`supplier_invoice_number`. Clinic staff must record it before a Job Order can
+transition to `ready_for_dispensing` or `dispensed`. This field is deliberately
+hidden from patient serialization and is never returned by either Job Order
+endpoint.
+
 ### GET `/job-orders/{id}`
 
 Returns a single job order with items. No API Resource — raw model serialization.
@@ -1164,6 +1170,13 @@ Returns a single billing record with posted payments.
 
 **Nullable fields:** `encounter_id`, `recorded_by`, `recorded_at`.
 
+**Line-item ownership:** The Job Order remains authoritative for item
+descriptions, quantities, and prices. The Filament Billing Record detail page
+shows `jobOrder.items` as a read-only table, but this admin-only presentation
+does not add an `items` field to the Billing Record API responses above. Android
+should use the Eyewear detail resource for the coherent patient-facing
+transaction and preparation items.
+
 ---
 
 ## 14. Conversation
@@ -1428,6 +1441,11 @@ Attachments are uploaded as `multipart/form-data` with field name `attachment`. 
 
 ### Job-order-item rating eligibility
 Ratings are submitted via `POST /job-order-items/{item}/rating`. Server-enforced authorization: the job-order item must belong to the authenticated patient, the job order must be `dispensed`, the `product_variant_id` must match the item, and `dispensing_event_id` (if supplied) must belong to the same job order. One rating per patient per variant — subsequent calls append a revision. Moderated (hidden) ratings are preserved in DB.
+
+### Supplier invoice references
+`supplier_invoice_number` is internal clinic fulfillment data. It is recorded
+on the Job Order by staff and required before the order is marked ready, but it
+is excluded from the Job Order, Billing Record, and Eyewear patient responses.
 
 ---
 

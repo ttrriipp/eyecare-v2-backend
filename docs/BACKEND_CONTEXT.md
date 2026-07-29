@@ -2,11 +2,13 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-07-28.** Canonical schema creation,
+> **Reconciliation status as of 2026-07-29.** Canonical schema creation,
 > patient route equality, conversation attachment isolation, billing record
 > simplification, and frame reservation appointment linkage have been
-> reconciled. Full regression passed at this cutoff: 498 Pest tests,
-> 1,462 assertions.
+> reconciled. Supplier invoice references on Job Orders and linked item display
+> on Billing Records are also implemented. The last full-regression cutoff
+> remains 498 Pest tests and 1,462 assertions; the latest fulfillment changes
+> passed their focused regression set.
 
 ---
 
@@ -118,7 +120,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `eyewear_key` (unique, `eyw_{ULID}`). |
 | `quotation_revisions` | Immutable snapshots with `revision_number`, `subtotal`, `discount_amount`, `total`, `presented_by`, `accepted_by`. |
 | `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
-| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
+| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
 | `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
 | `billing_records` | `patient_id`, `job_order_id` (unique), `encounter_id`, `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `total_amount`, `amount_paid`, `balance_due`, `recorded_by`, `recorded_at`. |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
@@ -154,9 +156,9 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 Quotation forms expose only the patient-visible notes field. The legacy `internal_notes` column remains temporarily for compatibility but is hidden from creation and editing; a future cleanup may replace the remaining notes field with a single patient-visible `Remarks` field and remove `internal_notes`.
 
-**Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory.
+**Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` may be blank while work is queued or in progress, but the domain transition rejects Ready for Dispensing or Dispensed without it.
 
-**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. No BIR/official number. Job order is authoritative for line items.
+**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. No BIR/official number. The Job Order is authoritative for line items; the Billing Record admin detail page displays those linked items read-only rather than duplicating them.
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
 
@@ -280,7 +282,8 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Referring source appears when appointment type is Referral. Notes is a single staff_notes field.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
 - **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time.
-- **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines.
+- **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are read-only values resolved from `jobOrder.items`.
+- **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
 - **Patient address:** Single nullable free-text field. Editable by patient via API and by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
