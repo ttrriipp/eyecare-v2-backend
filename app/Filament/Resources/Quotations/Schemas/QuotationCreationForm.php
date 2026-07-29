@@ -168,11 +168,6 @@ class QuotationCreationForm
                         ->label('Patient Notes')
                         ->maxLength(2000)
                         ->columnSpanFull(),
-                    Textarea::make('internal_notes')
-                        ->label('Internal Notes')
-                        ->helperText('Visible to clinic users only.')
-                        ->maxLength(2000)
-                        ->columnSpanFull(),
                 ]),
         ];
     }

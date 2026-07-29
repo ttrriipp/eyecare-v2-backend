@@ -24,7 +24,6 @@ test('receptionist creates a quotation from an eligible encounter', function () 
             'valid_until' => now()->addWeek()->toDateString(),
             'discount_amount' => 250,
             'notes' => 'Patient-visible estimate note.',
-            'internal_notes' => 'Clinic-only preparation note.',
             'items' => [[
                 'item_type' => 'custom',
                 'description' => 'Complete frame and single vision lens',
@@ -40,7 +39,7 @@ test('receptionist creates a quotation from an eligible encounter', function () 
 
     expect($quotation->latestRevision->total)->toBe('12250.00')
         ->and($quotation->notes)->toBe('Patient-visible estimate note.')
-        ->and($quotation->internal_notes)->toBe('Clinic-only preparation note.');
+        ->and($quotation->internal_notes)->toBeNull();
 
     expect(QuotationResource::getUrl('edit', ['record' => $quotation]))
         ->toContain("/quotations/{$quotation->id}/edit");

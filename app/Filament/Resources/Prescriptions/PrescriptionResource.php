@@ -39,7 +39,7 @@ class PrescriptionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['patient', 'author'])
+            ->with(['patient', 'encounter', 'author'])
             ->withExists('nextPrescription');
     }
 
@@ -47,7 +47,7 @@ class PrescriptionResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withTrashed()
-            ->with(['patient', 'author'])
+            ->with(['patient', 'encounter', 'author'])
             ->withExists('nextPrescription');
     }
 

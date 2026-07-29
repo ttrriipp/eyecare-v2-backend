@@ -5,9 +5,11 @@ namespace App\Filament\Resources\Quotations\Schemas;
 use App\Models\Quotation;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -42,32 +44,28 @@ class QuotationForm
 
                     Section::make('Revision Items')
                         ->schema([
-                            Repeater::make('latestRevision.items')
-                                ->label('')
-                                ->schema([
-                                    TextInput::make('description')
-                                        ->label('Description')
-                                        ->disabled()
-                                        ->dehydrated(false)
-                                        ->columnSpanFull(),
-                                    TextInput::make('quantity')
-                                        ->label('Qty')
-                                        ->disabled()
-                                        ->dehydrated(false),
-                                    TextInput::make('unit_price')
-                                        ->label('Unit Price')
-                                        ->disabled()
-                                        ->dehydrated(false)
-                                        ->prefix('₱'),
-                                    TextInput::make('amount')
-                                        ->label('Amount')
-                                        ->disabled()
-                                        ->dehydrated(false)
-                                        ->prefix('₱'),
+                            RepeatableEntry::make('latestRevision.items')
+                                ->hiddenLabel()
+                                ->table([
+                                    TableColumn::make('Description'),
+                                    TableColumn::make('Quantity'),
+                                    TableColumn::make('Unit Price'),
+                                    TableColumn::make('Amount'),
                                 ])
-                                ->columns(3)
-                                ->disabled()
-                                ->dehydrated(false),
+                                ->schema([
+                                    TextEntry::make('description')
+                                        ->hiddenLabel()
+                                        ->wrap(),
+                                    TextEntry::make('quantity')
+                                        ->hiddenLabel(),
+                                    TextEntry::make('unit_price')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                    TextEntry::make('amount')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                ])
+                                ->placeholder('No items recorded.'),
                         ]),
 
                     Section::make('Notes')

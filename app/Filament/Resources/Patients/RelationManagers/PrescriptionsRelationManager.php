@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Patients\RelationManagers;
 
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Models\Prescription;
 use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -26,16 +27,24 @@ class PrescriptionsRelationManager extends RelationManager
                 TextColumn::make('prescribed_at')->label('Date')->date('M j, Y')->sortable(),
                 TextColumn::make('version_status')
                     ->label('Version')
-                    ->state(fn ($record): string => $record->next_prescription_exists
+                    ->state(fn (Prescription $record): string => $record->next_prescription_exists
                         ? 'Superseded'
                         : ($record->previous_prescription_id === null ? 'Original' : 'Current amendment'))
                     ->badge()
                     ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
-                TextColumn::make('od_sphere')->label('OD Sphere'),
-                TextColumn::make('os_sphere')->label('OS Sphere'),
-                TextColumn::make('expires_at')->label('Expires')->date('M j, Y'),
+                TextColumn::make('encounter.encounter_number')
+                    ->label('Encounter')
+                    ->placeholder('—')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('author.name')
+                    ->label('Optometrist')
+                    ->searchable()
+                    ->sortable(),
             ])
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withExists('nextPrescription'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query
+                ->with(['encounter', 'author'])
+                ->withExists('nextPrescription'))
             ->recordActions([
                 ViewAction::make()
                     ->url(fn ($record) => PrescriptionResource::getUrl('view', ['record' => $record])),

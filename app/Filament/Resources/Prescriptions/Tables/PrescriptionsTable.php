@@ -16,10 +16,17 @@ class PrescriptionsTable
         return $table
             ->columns([
                 TextColumn::make('patient.full_name')
+                    ->label('Patient')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('prescribed_at')
-                    ->date()
+                    ->label('Date')
+                    ->date('M j, Y')
+                    ->sortable(),
+                TextColumn::make('encounter.encounter_number')
+                    ->label('Encounter')
+                    ->placeholder('—')
+                    ->searchable()
                     ->sortable(),
                 TextColumn::make('version_status')
                     ->label('Version')
@@ -28,14 +35,10 @@ class PrescriptionsTable
                         : ($record->previous_prescription_id === null ? 'Original' : 'Current amendment'))
                     ->badge()
                     ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
-                TextColumn::make('expires_at')
-                    ->date()
-                    ->sortable(),
-                TextColumn::make('pd')
-                    ->label('PD')
-                    ->sortable(),
-                TextColumn::make('createdBy.name')
-                    ->label('Recorded by')
+                TextColumn::make('author.name')
+                    ->label('Optometrist')
+                    ->searchable()
+                    ->sortable()
                     ->toggleable(),
             ])
             ->defaultSort('prescribed_at', 'desc')

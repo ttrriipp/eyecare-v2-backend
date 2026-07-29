@@ -2,8 +2,11 @@
 
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
+use App\Filament\Resources\Patients\Pages\EditPatient;
+use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
 use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
 use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
+use App\Filament\Resources\Prescriptions\Pages\ListPrescriptions;
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Appointment;
@@ -16,6 +19,43 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+test('prescription lists show retained operational columns', function () {
+    $optometrist = User::factory()->optometrist()->create(['name' => 'Dr. Padilla']);
+    $patient = Patient::factory()->create(['full_name' => 'Maria Santos']);
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'optometrist_id' => $optometrist->id,
+        'encounter_number' => 'ENC-000123',
+    ]);
+    $prescription = Prescription::factory()->create([
+        'patient_id' => $patient->id,
+        'encounter_id' => $encounter->id,
+        'created_by' => $optometrist->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ListPrescriptions::class)
+        ->assertTableColumnStateSet('patient.full_name', 'Maria Santos', record: $prescription)
+        ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
+        ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
+        ->assertTableColumnStateSet('author.name', 'Dr. Padilla', record: $prescription)
+        ->assertTableColumnDoesNotExist('expires_at')
+        ->assertTableColumnDoesNotExist('pd')
+        ->assertTableColumnDoesNotExist('createdBy.name');
+
+    Livewire::test(PrescriptionsRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
+        ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
+        ->assertTableColumnStateSet('author.name', 'Dr. Padilla', record: $prescription)
+        ->assertTableColumnDoesNotExist('od_sphere')
+        ->assertTableColumnDoesNotExist('os_sphere')
+        ->assertTableColumnDoesNotExist('expires_at');
+});
 
 test('prescription form omits unsupported prism and base fields', function () {
     $optometrist = User::factory()->admin()->optometrist()->create();
