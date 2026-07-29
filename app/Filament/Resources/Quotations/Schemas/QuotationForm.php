@@ -27,10 +27,9 @@ class QuotationForm
                                 ->label('Quotation #')
                                 ->disabled()
                                 ->dehydrated(false),
-                            TextInput::make('patient.full_name')
+                            Placeholder::make('patient_name')
                                 ->label('Patient')
-                                ->disabled()
-                                ->dehydrated(false),
+                                ->content(fn (Quotation $record): string => $record->patient?->full_name ?? '—'),
                             Placeholder::make('status_badge')
                                 ->label('Status')
                                 ->content(fn (Quotation $record): string => Str::headline($record->status->value)),
@@ -75,9 +74,6 @@ class QuotationForm
                         ->schema([
                             Textarea::make('notes')
                                 ->label('Patient Notes')
-                                ->columnSpanFull(),
-                            Textarea::make('internal_notes')
-                                ->label('Internal Notes')
                                 ->columnSpanFull(),
                         ]),
                 ]),
