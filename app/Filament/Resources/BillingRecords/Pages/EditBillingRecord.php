@@ -2,24 +2,23 @@
 
 namespace App\Filament\Resources\BillingRecords\Pages;
 
-use App\Actions\BillingRecords\CorrectBillingPayment;
-use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\VoidBillingRecord;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
-use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Placeholder;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\On;
 
 class EditBillingRecord extends EditRecord
 {
@@ -50,26 +49,29 @@ class EditBillingRecord extends EditRecord
                             ->content(fn (BillingRecord $record): string => $record->status->getLabel()),
                     ])->columns(2),
 
-                    Section::make('Payment History')->schema([
-                        Placeholder::make('payments_list')
-                            ->label('')
-                            ->content(function (BillingRecord $record): string {
-                                $payments = $record->payments()->orderByDesc('recorded_at')->get();
-
-                                if ($payments->isEmpty()) {
-                                    return 'No payments recorded.';
-                                }
-
-                                return $payments->map(function (BillingPayment $p): string {
-                                    $status = $p->status === 'posted' ? '✓' : '✗';
-                                    $method = ucfirst(str_replace('_', ' ', $p->payment_method));
-                                    $amount = '₱'.number_format($p->amount, 2);
-                                    $date = $p->recorded_at->format('M d, Y g:i A');
-                                    $ref = $p->reference_number ? " ({$p->reference_number})" : '';
-
-                                    return "{$status} {$amount} — {$method}{$ref} — {$date}";
-                                })->implode("\n");
-                            }),
+                    Section::make('Items / Charges')->schema([
+                        RepeatableEntry::make('jobOrder.items')
+                            ->hiddenLabel()
+                            ->table([
+                                TableColumn::make('Description'),
+                                TableColumn::make('Quantity'),
+                                TableColumn::make('Unit Price'),
+                                TableColumn::make('Amount'),
+                            ])
+                            ->schema([
+                                TextEntry::make('description')
+                                    ->hiddenLabel()
+                                    ->wrap(),
+                                TextEntry::make('quantity')
+                                    ->hiddenLabel(),
+                                TextEntry::make('unit_price')
+                                    ->hiddenLabel()
+                                    ->money('PHP'),
+                                TextEntry::make('amount')
+                                    ->hiddenLabel()
+                                    ->money('PHP'),
+                            ])
+                            ->placeholder('No linked job order items.'),
                     ]),
                 ]),
 
@@ -90,104 +92,16 @@ class EditBillingRecord extends EditRecord
         ]);
     }
 
+    #[On('billing-payment-updated')]
+    public function refreshBillingRecordSummary(): void
+    {
+        $this->record->refresh();
+        $this->refreshFormData(['status', 'amount_paid', 'balance_due']);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('recordPayment')
-                ->label('Record Payment')
-                ->icon('heroicon-o-banknotes')
-                ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [
-                    BillingRecordStatus::Unpaid,
-                    BillingRecordStatus::PartiallyPaid,
-                ], true))
-                ->schema([
-                    TextInput::make('amount')
-                        ->label('Amount')
-                        ->required()
-                        ->numeric()
-                        ->prefix('₱'),
-                    Select::make('payment_method')
-                        ->label('Method')
-                        ->options([
-                            'cash' => 'Cash',
-                            'gcash' => 'GCash',
-                            'bank_transfer' => 'Bank Transfer',
-                            'card' => 'Card',
-                        ])
-                        ->required(),
-                    TextInput::make('reference_number')
-                        ->label('Reference #')
-                        ->nullable(),
-                    Textarea::make('notes')
-                        ->label('Notes')
-                        ->nullable(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(RecordBillingPayment::class)->handle(
-                            billingRecord: $this->record,
-                            amount: (float) $data['amount'],
-                            paymentMethod: $data['payment_method'],
-                            recorder: auth()->user(),
-                            referenceNumber: $data['reference_number'] ?? null,
-                            notes: $data['notes'] ?? null,
-                        );
-
-                        Notification::make()->title('Payment recorded')->success()->send();
-                        $this->refreshFormData(['status', 'amount_paid', 'balance_due']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot record payment')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
-            Action::make('correctPayment')
-                ->label('Correct Payment')
-                ->icon('heroicon-o-pencil-square')
-                ->color('warning')
-                ->visible(fn (): bool => auth()->user()?->isAdmin() === true
-                    && $this->record->payments()->where('status', 'posted')->exists())
-                ->schema([
-                    Select::make('original_payment_id')
-                        ->label('Payment to Correct')
-                        ->options(fn () => $this->record->payments()
-                            ->where('status', 'posted')
-                            ->pluck('amount', 'id')
-                            ->mapWithKeys(fn ($amount, $id) => [$id => '₱'.number_format($amount, 2).' — '])
-                            ->toArray())
-                        ->required(),
-                    TextInput::make('new_amount')
-                        ->label('Corrected Amount')
-                        ->required()
-                        ->numeric()
-                        ->prefix('₱'),
-                    TextInput::make('reference_number')
-                        ->label('New Reference #')
-                        ->nullable(),
-                    Textarea::make('reason')
-                        ->label('Reason')
-                        ->required()
-                        ->maxLength(1000),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $originalPayment = BillingPayment::query()->findOrFail($data['original_payment_id']);
-
-                        app(CorrectBillingPayment::class)->handle(
-                            originalPayment: $originalPayment,
-                            newAmount: (float) $data['new_amount'],
-                            reason: $data['reason'],
-                            corrector: auth()->user(),
-                            newReferenceNumber: $data['reference_number'] ?? null,
-                        );
-
-                        Notification::make()->title('Payment corrected')->success()->send();
-                        $this->refreshFormData(['status', 'amount_paid', 'balance_due']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot correct payment')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
             Action::make('voidRecord')
                 ->label('Void Billing Record')
                 ->icon('heroicon-o-x-circle')
