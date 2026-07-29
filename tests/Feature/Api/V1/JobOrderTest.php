@@ -40,13 +40,17 @@ test('patient can list their own job orders', function () {
 
 test('patient can view their own job order with items', function () {
     $user = User::factory()->patient()->create();
-    $jobOrder = JobOrder::factory()->create(['patient_id' => $user->patient->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'supplier_invoice_number' => 'INTERNAL-SUP-1001',
+    ]);
     JobOrderItem::factory()->count(2)->create(['job_order_id' => $jobOrder->id]);
 
     $this->actingAs($user)
         ->getJson("/api/v1/job-orders/{$jobOrder->id}")
         ->assertOk()
         ->assertJsonPath('data.job_order_number', $jobOrder->job_order_number)
+        ->assertJsonMissingPath('data.supplier_invoice_number')
         ->assertJsonCount(2, 'data.items');
 });
 

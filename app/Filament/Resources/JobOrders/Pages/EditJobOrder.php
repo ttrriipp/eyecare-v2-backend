@@ -39,9 +39,19 @@ class EditJobOrder extends EditRecord
                 ->color('info')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::InProgress)
                 ->requiresConfirmation()
-                ->action(function (): void {
+                ->schema([
+                    TextInput::make('supplier_invoice_number')
+                        ->label('Supplier Invoice Number')
+                        ->default(fn (): ?string => $this->record->supplier_invoice_number)
+                        ->required()
+                        ->maxLength(100),
+                ])
+                ->action(function (array $data): void {
+                    $this->record->update([
+                        'supplier_invoice_number' => $data['supplier_invoice_number'],
+                    ]);
                     app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing');
-                    $this->refreshFormData(['status', 'ready_at']);
+                    $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
                 }),
 
             Action::make('cancel')

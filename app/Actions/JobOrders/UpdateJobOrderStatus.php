@@ -38,6 +38,15 @@ class UpdateJobOrderStatus
 
         $newStatus = JobOrderStatus::from($statusName);
 
+        if (
+            in_array($newStatus, [JobOrderStatus::ReadyForDispensing, JobOrderStatus::Dispensed], true)
+            && blank($jobOrder->supplier_invoice_number)
+        ) {
+            throw ValidationException::withMessages([
+                'supplier_invoice_number' => ['Enter the supplier invoice number before marking this job order ready.'],
+            ]);
+        }
+
         return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
             $attributes = ['status' => $newStatus];
 

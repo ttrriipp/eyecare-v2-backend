@@ -29,6 +29,7 @@ class JobOrderFactory extends Factory
             'status' => JobOrderStatus::Queued,
             'total_amount' => fake()->randomFloat(2, 100, 10000),
             'notes' => null,
+            'supplier_invoice_number' => null,
             'eyewear_key' => 'eyw_'.Str::ulid(),
         ];
     }

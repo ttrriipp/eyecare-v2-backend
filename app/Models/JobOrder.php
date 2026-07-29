@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\JobOrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,12 +22,14 @@ use Illuminate\Support\Str;
     'status',
     'total_amount',
     'notes',
+    'supplier_invoice_number',
     'eyewear_key',
     'started_at',
     'ready_at',
     'dispensed_at',
     'cancelled_at',
 ])]
+#[Hidden(['supplier_invoice_number'])]
 class JobOrder extends Model
 {
     use HasFactory, SoftDeletes;

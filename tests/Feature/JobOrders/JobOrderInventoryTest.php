@@ -82,7 +82,10 @@ test('cancel is idempotent — stock restored only once', function () {
 })->throws(ValidationException::class);
 
 test('valid status transitions are enforced', function () {
-    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+        'supplier_invoice_number' => 'SUP-INV-1001',
+    ]);
 
     // queued → in_progress (valid)
     app(UpdateJobOrderStatus::class)->handle($jobOrder, 'in_progress');
@@ -97,7 +100,10 @@ test('valid status transitions are enforced', function () {
 })->throws(ValidationException::class);
 
 test('status transitions set timestamps', function () {
-    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+        'supplier_invoice_number' => 'SUP-INV-1002',
+    ]);
 
     app(UpdateJobOrderStatus::class)->handle($jobOrder, 'in_progress');
     expect($jobOrder->fresh()->started_at)->not->toBeNull();
@@ -107,4 +113,22 @@ test('status transitions set timestamps', function () {
 
     app(UpdateJobOrderStatus::class)->handle($jobOrder->fresh(), 'dispensed');
     expect($jobOrder->fresh()->dispensed_at)->not->toBeNull();
+});
+
+test('supplier invoice number is required before a job order is marked ready', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::InProgress]);
+
+    app(UpdateJobOrderStatus::class)->handle($jobOrder, 'ready_for_dispensing');
+})->throws(ValidationException::class, 'Enter the supplier invoice number before marking this job order ready.');
+
+test('job order can be marked ready when its supplier invoice number is recorded', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::InProgress,
+        'supplier_invoice_number' => 'SUP-INV-1003',
+    ]);
+
+    $updatedJobOrder = app(UpdateJobOrderStatus::class)->handle($jobOrder, 'ready_for_dispensing');
+
+    expect($updatedJobOrder->status)->toBe(JobOrderStatus::ReadyForDispensing)
+        ->and($updatedJobOrder->supplier_invoice_number)->toBe('SUP-INV-1003');
 });

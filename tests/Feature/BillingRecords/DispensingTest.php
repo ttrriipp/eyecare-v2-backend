@@ -18,6 +18,7 @@ test('dispensing creates a billing record and dispensing event', function () {
     $jobOrder = JobOrder::factory()->create([
         'status' => JobOrderStatus::ReadyForDispensing,
         'total_amount' => 5000,
+        'supplier_invoice_number' => 'SUP-INV-2001',
     ]);
 
     $event = app(DispenseJobOrder::class)->handle(
@@ -45,6 +46,7 @@ test('dispensing with initial payment records payment', function () {
     $jobOrder = JobOrder::factory()->create([
         'status' => JobOrderStatus::ReadyForDispensing,
         'total_amount' => 5000,
+        'supplier_invoice_number' => 'SUP-INV-2002',
     ]);
 
     app(DispenseJobOrder::class)->handle(
@@ -72,11 +74,25 @@ test('dispensing rejects non-ready job orders', function () {
     );
 })->throws(ValidationException::class);
 
+test('dispensing rejects a ready job order without a supplier invoice number', function () {
+    $dispenser = User::factory()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::ReadyForDispensing,
+        'supplier_invoice_number' => null,
+    ]);
+
+    app(DispenseJobOrder::class)->handle(
+        jobOrder: $jobOrder,
+        dispenser: $dispenser,
+    );
+})->throws(ValidationException::class, 'Enter the supplier invoice number before marking this job order ready.');
+
 test('dispensing prevents duplicate billing records', function () {
     $dispenser = User::factory()->create();
     $jobOrder = JobOrder::factory()->create([
         'status' => JobOrderStatus::ReadyForDispensing,
         'total_amount' => 5000,
+        'supplier_invoice_number' => 'SUP-INV-2003',
     ]);
 
     BillingRecord::factory()->create(['job_order_id' => $jobOrder->id]);

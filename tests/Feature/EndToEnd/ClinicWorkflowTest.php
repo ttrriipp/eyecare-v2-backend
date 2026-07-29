@@ -106,6 +106,7 @@ test('scheduled patient journey: appointment through dispensing', function () {
         ->and($jobOrder->patient_id)->toBe($patient->id);
 
     app(UpdateJobOrderStatus::class)->handle($jobOrder, 'in_progress');
+    $jobOrder->update(['supplier_invoice_number' => 'SUP-INV-E2E-001']);
     app(UpdateJobOrderStatus::class)->handle($jobOrder->fresh(), 'ready_for_dispensing');
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::ReadyForDispensing);
 

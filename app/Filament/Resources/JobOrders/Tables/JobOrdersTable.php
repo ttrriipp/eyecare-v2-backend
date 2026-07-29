@@ -7,6 +7,7 @@ use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -74,7 +75,17 @@ class JobOrdersTable
                     ->color('info')
                     ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::InProgress)
                     ->requiresConfirmation()
-                    ->action(function (JobOrder $record): void {
+                    ->schema([
+                        TextInput::make('supplier_invoice_number')
+                            ->label('Supplier Invoice Number')
+                            ->default(fn (JobOrder $record): ?string => $record->supplier_invoice_number)
+                            ->required()
+                            ->maxLength(100),
+                    ])
+                    ->action(function (array $data, JobOrder $record): void {
+                        $record->update([
+                            'supplier_invoice_number' => $data['supplier_invoice_number'],
+                        ]);
                         app(UpdateJobOrderStatus::class)->handle($record, 'ready_for_dispensing');
                     }),
 
