@@ -115,10 +115,10 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`. |
 | `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
-| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`. |
+| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `eyewear_key` (unique, `eyw_{ULID}`). |
 | `quotation_revisions` | Immutable snapshots with `revision_number`, `subtotal`, `discount_amount`, `total`, `presented_by`, `accepted_by`. |
 | `quotation_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
-| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`. |
+| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_revision_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `total_amount`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
 | `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`. |
 | `billing_records` | `patient_id`, `job_order_id` (unique), `encounter_id`, `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `total_amount`, `amount_paid`, `balance_due`, `recorded_by`, `recorded_at`. |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
@@ -152,11 +152,15 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Presented revisions are immutable. Accepted quotations can create job orders.
 
+Quotation forms expose only the patient-visible notes field. The legacy `internal_notes` column remains temporarily for compatibility but is hidden from creation and editing; a future cleanup may replace the remaining notes field with a single patient-visible `Remarks` field and remove `internal_notes`.
+
 **Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory.
 
 **Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. No BIR/official number. Job order is authoritative for line items.
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
+
+**Eyewear Aggregate:** Patient-facing read-only API joining Quotation, Job Order, and Billing Record into one coherent transaction. Each aggregate carries a stable `eyw_{ULID}` key persisted on both Quotations and Job Orders. A `jo_{id}` alias is accepted for migration compatibility. Current filter: `estimate_available`, `in_preparation`, `ready_for_pickup`. History filter: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`. Payment state never changes filter membership.
 
 ---
 
@@ -217,6 +221,9 @@ GET    /api/v1/job-orders/{jobOrder}
 GET    /api/v1/billing-records
 GET    /api/v1/billing-records/{billingRecord}
 
+GET    /api/v1/eyewear             Eyewear aggregates (current/history)
+GET    /api/v1/eyewear/{key}       Eyewear detail (canonical key or jo_ alias)
+
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
@@ -225,7 +232,7 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-The approved patient-mobile contract contains exactly 33 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
+The approved patient-mobile contract contains exactly 35 routes. List endpoints are paginated except `GET /frame-reservations` (returns full list) and `GET /conversation/messages` (returns all messages). All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
 
 ---
 
@@ -250,6 +257,9 @@ The approved patient-mobile contract contains exactly 33 routes. List endpoints 
 | `ReleaseFrameReservation` | `app/Actions/Reservations/` | Idempotent stock restoration |
 | `CreateFrameReservation` | `app/Actions/Reservations/` | Appointment eligibility, patient ownership, duplicate-active check, distinct variants, row lock, atomic creation |
 | `CancelReservationsForAppointment` | `app/Actions/Reservations/` | Cancels active reservations and releases prepared stock on appointment cancellation/no-show |
+| `BuildEyewearAggregate` | `app/Services/Eyewear/` | Maps Quotation, Job Order, and Billing Record into a typed read model with deterministic money, timestamps, and section omission |
+| `ListPatientEyewear` | `app/Services/Eyewear/` | De-duplicated candidate query with Current/History filters, activity-at ordering, and page-number pagination |
+| `FindPatientEyewear` | `app/Services/Eyewear/` | Patient-scoped detail lookup accepting canonical `eyw_` keys and `jo_` aliases |
 | `SaveFrameRating` | `app/Actions/Ratings/` | Create or append revision, one per patient/variant |
 | `ModerateFrameRating` | `app/Actions/Ratings/` | Hide/restore comments, preserve star aggregates |
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |

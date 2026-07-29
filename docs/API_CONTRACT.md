@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-07-28) — includes billing record simplification and frame reservation appointment linkage
+> **Backend version:** Current repository state (2026-07-29) — includes Billing Record simplification, frame reservation appointment linkage, and Eyewear aggregate API
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -22,12 +22,13 @@
 9. [Prescriptions](#9-prescriptions)
 10. [Quotations](#10-quotations)
 11. [Job Orders](#11-job-orders)
-12. [Billing Records](#12-billing-records)
-13. [Conversation](#13-conversation)
-14. [Frame Ratings](#14-frame-ratings)
-15. [Error Responses](#15-error-responses)
-16. [Clarifications](#16-clarifications)
-17. [Retired Features](#17-retired-features)
+12. [Eyewear](#12-eyewear)
+13. [Billing Records](#13-billing-records)
+14. [Conversation](#14-conversation)
+15. [Frame Ratings](#15-frame-ratings)
+16. [Error Responses](#16-error-responses)
+17. [Clarifications](#17-clarifications)
+18. [Retired Features](#18-retired-features)
 
 ---
 
@@ -814,6 +815,10 @@ Paginated list with latest revision.
 
 **Notes:** `revision` is `null` if no revisions exist. Uses `QuotationResource`. Status values: `draft`, `presented`, `accepted`, `declined`, `expired`.
 
+---
+
+## 11. Job Orders
+
 ### GET `/job-orders`
 
 Paginated list with items.
@@ -888,7 +893,184 @@ Returns a single job order with items. No API Resource — raw model serializati
 
 **Notes:** `encounter_id`, `prescription_id`, `quotation_revision_id`, `notes`, `started_at`, `ready_at`, `dispensed_at`, `cancelled_at` are all nullable.
 
-### GET `/billing-records`
+---
+
+## 12. Eyewear
+
+The Eyewear API presents a Quotation, its resulting Job Order, dispensing progress, and its active Billing Record as one coherent transaction. This is the primary patient-facing API for eyewear status.
+
+### GET `/eyewear`
+
+Returns the patient's eyewear aggregates with deterministic ordering.
+
+**Query parameters:**
+
+| Parameter | Required | Validation | Default |
+|---|---|---|---|
+| `filter` | No | `current` or `history` | `current` |
+| `page` | No | Integer, minimum 1 | `1` |
+| `per_page` | No | Integer, 1 through 50 | `15` |
+
+**Current filter** includes: `estimate_available`, `in_preparation`, `ready_for_pickup`.  
+**History filter** includes: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`.  
+Payment state never changes filter membership.
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "key": "eyw_01K1D7H4R1V87GJ7D2GCB9QT4X",
+      "description": "Classic Rectangle Frame + 1 more",
+      "consultation_at": "2026-07-27T09:00:00+08:00",
+      "created_at": "2026-07-27T10:00:00+08:00",
+      "progress": "in_preparation",
+      "payment_status": null,
+      "total_amount": "8000.00",
+      "balance_due": null,
+      "activity_at": "2026-07-27T11:00:00+08:00"
+    }
+  ],
+  "links": {
+    "first": "http://localhost/api/v1/eyewear?filter=current&page=1",
+    "last": "http://localhost/api/v1/eyewear?filter=current&page=1",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 1,
+    "links": [],
+    "path": "http://localhost/api/v1/eyewear",
+    "per_page": 15,
+    "to": 1,
+    "total": 1
+  }
+}
+```
+
+**Progress mapping:**
+
+| Source state | Aggregate progress | Filter |
+|---|---|---|
+| Presented/accepted Quotation without Job Order | `estimate_available` | Current |
+| Queued/in-progress Job Order | `in_preparation` | Current |
+| Ready-for-dispensing Job Order | `ready_for_pickup` | Current |
+| Dispensed Job Order | `dispensed` | History |
+| Declined Quotation without Job Order | `estimate_declined` | History |
+| Expired Quotation without Job Order | `estimate_expired` | History |
+| Cancelled Job Order | `cancelled` | History |
+| Draft Quotation without Job Order | Excluded | Neither |
+
+**Payment status:**
+
+| Active Billing Record state | `payment_status` |
+|---|---|
+| `unpaid` or `partially_paid` | `balance_due` |
+| `paid` | `paid` |
+| No active Billing Record | null |
+
+**Total amount precedence:** Billing Record → Job Order → Estimate revision → `"0.00"` fallback.
+
+**Ordering:** `activity_at DESC, key ASC`.
+
+---
+
+### GET `/eyewear/{key}`
+
+Returns a single eyewear aggregate by canonical key (`eyw_...`) or migration alias (`jo_{job_order_id}`).
+
+**Response (200) — complete linked:**
+```json
+{
+  "data": {
+    "key": "eyw_01K1D7H4R1V87GJ7D2GCB9QT4X",
+    "description": "Classic Rectangle Frame + 1 more",
+    "consultation_at": "2026-07-27T09:00:00+08:00",
+    "created_at": "2026-07-27T10:00:00+08:00",
+    "progress": "dispensed",
+    "payment_status": "balance_due",
+    "total_amount": "8000.00",
+    "balance_due": "3000.00",
+    "activity_at": "2026-07-29T10:05:00+08:00",
+    "estimate": {
+      "quotation_number": "QUO-01K1D7...",
+      "status": "accepted",
+      "valid_until": "2026-08-03",
+      "subtotal": "8500.00",
+      "discount_amount": "500.00",
+      "total": "8000.00",
+      "items": [
+        {
+          "description": "Classic Rectangle Frame",
+          "quantity": 1,
+          "unit_price": "4500.00",
+          "amount": "4500.00"
+        }
+      ]
+    },
+    "preparation": {
+      "job_order_number": "JO-2026-000017",
+      "status": "dispensed",
+      "total_amount": "8000.00",
+      "started_at": "2026-07-27T11:00:00+08:00",
+      "ready_at": "2026-07-28T15:00:00+08:00",
+      "items": [
+        {
+          "id": 31,
+          "description": "Classic Rectangle Frame",
+          "quantity": 1,
+          "unit_price": "4500.00",
+          "amount": "4500.00",
+          "product_variant_id": 42
+        }
+      ]
+    },
+    "dispensing": {
+      "status": "dispensed",
+      "ready_at": "2026-07-28T15:00:00+08:00",
+      "dispensed_at": "2026-07-29T10:00:00+08:00"
+    },
+    "payment_summary": {
+      "billing_record_number": "BR-2026-000017",
+      "status": "partially_paid",
+      "total_amount": "8000.00",
+      "amount_paid": "5000.00",
+      "balance_due": "3000.00",
+      "payments": [
+        {
+          "id": 44,
+          "amount": "5000.00",
+          "payment_method": "cash",
+          "reference_number": null,
+          "recorded_at": "2026-07-29T10:05:00+08:00"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Partial response rules:**
+- Estimate-only: include `estimate`; omit `preparation`, `dispensing`, `payment_summary`.
+- Job-order-only (queued/in-progress): include `preparation`; omit `estimate`, `dispensing`, `payment_summary`.
+- Ready Job Order: include `preparation` and `dispensing`.
+- Dispensed with active Billing Record: include `preparation`, `dispensing`, `payment_summary`, plus `estimate` when linked.
+- Voided Billing Record: omit `payment_summary`, return `payment_status = null`, `balance_due = null`.
+
+**Error responses:**
+
+| Condition | Status |
+|---|---|
+| Missing or invalid Sanctum token | `401` |
+| Patient profile absent | `404` |
+| Key or alias absent/outside patient scope | `404` |
+| Invalid filter/page/per_page | `422` |
+
+---
+
+## 13. Billing Records
 
 Paginated list with posted payments. Returns the standard `{ data, links, meta }` envelope.
 
@@ -984,7 +1166,7 @@ Returns a single billing record with posted payments.
 
 ---
 
-## 13. Conversation
+## 14. Conversation
 
 ### GET `/conversation`
 
@@ -1105,7 +1287,7 @@ Downloads a message attachment.
 
 ---
 
-## 14. Frame Ratings
+## 15. Frame Ratings
 
 ### POST `/job-order-items/{id}/rating`
 
@@ -1171,7 +1353,7 @@ Submits or revises a rating for a frame variant linked to a job order item.
 
 ---
 
-## 15. Error Responses
+## 16. Error Responses
 
 ### 401 Unauthorized
 ```json
@@ -1221,7 +1403,7 @@ Not currently used by the API. Appointment scheduling conflicts return `422` wit
 
 ---
 
-## 16. Clarifications
+## 17. Clarifications
 
 ### Booking uses `appointment_type_id` only
 There is no `visit_reason_id` in the mobile API. The `appointment_type_id` determines the visit type and duration. `visit_reason_id` exists in the database schema but is not used by the mobile booking flow.
@@ -1249,7 +1431,7 @@ Ratings are submitted via `POST /job-order-items/{item}/rating`. Server-enforced
 
 ---
 
-## 17. Retired Features
+## 18. Retired Features
 
 The following old mobile features/routes are **intentionally retired** and do not exist in the v1 API:
 
@@ -1267,7 +1449,7 @@ The following old mobile features/routes are **intentionally retired** and do no
 
 ---
 
-## Appendix: Complete Route List (33 routes)
+## Appendix: Complete Route List (35 routes)
 
 ```
 POST   /api/v1/register
@@ -1303,6 +1485,9 @@ GET    /api/v1/job-orders/{jobOrder}
 GET    /api/v1/billing-records
 GET    /api/v1/billing-records/{billingRecord}
 
+GET    /api/v1/eyewear
+GET    /api/v1/eyewear/{key}
+
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
@@ -1311,4 +1496,4 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-**Total: 33 routes** (matches BACKEND_CONTEXT.md). The `appointment-types` endpoint is included in the count.
+**Total: 35 routes** (matches BACKEND_CONTEXT.md). The `appointment-types` endpoint is included in the count.
