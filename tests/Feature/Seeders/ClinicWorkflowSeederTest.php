@@ -64,8 +64,13 @@ test('seeder creates encounters and prescriptions', function () {
 test('seeder creates quotations and job orders', function () {
     $this->seed(DatabaseSeeder::class);
 
+    $quotation = Quotation::query()->firstOrFail();
+    $jobOrder = JobOrder::query()->firstOrFail();
+
     expect(Quotation::count())->toBeGreaterThanOrEqual(1)
-        ->and(JobOrder::count())->toBeGreaterThanOrEqual(1);
+        ->and(JobOrder::count())->toBeGreaterThanOrEqual(1)
+        ->and($quotation->eyewear_key)->toStartWith('eyw_')
+        ->and($jobOrder->eyewear_key)->toBe($quotation->eyewear_key);
 });
 
 test('seeder creates billing-records', function () {
