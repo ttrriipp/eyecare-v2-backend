@@ -29,6 +29,8 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/conversation',
         'GET|HEAD api/v1/conversation/attachments/{attachment}',
         'GET|HEAD api/v1/conversation/messages',
+        'GET|HEAD api/v1/eyewear',
+        'GET|HEAD api/v1/eyewear/{key}',
         'GET|HEAD api/v1/frame-reservations',
         'GET|HEAD api/v1/frames',
         'GET|HEAD api/v1/frames/{frame}',
