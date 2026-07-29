@@ -1,9 +1,12 @@
 <?php
 
 use App\Enums\EyewearProgress;
+use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Appointment;
 use App\Models\Encounter;
+use App\Models\JobOrder;
+use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
@@ -186,4 +189,130 @@ test('consultation timestamp is null when no encounter link', function () {
     $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, null);
 
     expect($aggregate->consultationAt)->toBeNull();
+});
+
+test('queued job order maps to in_preparation', function () {
+    $patient = Patient::factory()->create();
+    $quotation = Quotation::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => QuotationStatus::Accepted,
+    ]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => JobOrderStatus::Queued,
+        'total_amount' => 5000,
+    ]);
+    JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'description' => 'Frame A',
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::InPreparation)
+        ->and($aggregate->preparation)->not->toBeNull()
+        ->and($aggregate->preparation['status'])->toBe('queued')
+        ->and($aggregate->dispensing)->toBeNull();
+});
+
+test('in-progress job order maps to in_preparation', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::InProgress,
+        'started_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::InPreparation);
+});
+
+test('ready-for-dispensing job order maps to ready_for_pickup', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::ReadyForDispensing,
+        'ready_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::ReadyForPickup)
+        ->and($aggregate->dispensing)->not->toBeNull()
+        ->and($aggregate->dispensing['status'])->toBe('ready_for_dispensing');
+});
+
+test('dispensed job order maps to dispensed', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Dispensed,
+        'dispensed_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::Dispensed)
+        ->and($aggregate->dispensing)->not->toBeNull()
+        ->and($aggregate->dispensing['status'])->toBe('dispensed');
+});
+
+test('cancelled job order maps to cancelled', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Cancelled,
+        'cancelled_at' => now(),
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::Cancelled);
+});
+
+test('linked job order overrides inconsistent quotation progress', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Declined]);
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::InProgress]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, $jobOrder);
+
+    expect($aggregate->progress)->toBe(EyewearProgress::InPreparation);
+});
+
+test('preparation section includes job order items', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+        'total_amount' => 8000,
+    ]);
+    JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'description' => 'Classic Rectangle Frame',
+        'quantity' => 1,
+        'unit_price' => 4500,
+        'amount' => 4500,
+        'product_variant_id' => null,
+    ]);
+    JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'description' => 'Single Vision Lens',
+        'quantity' => 1,
+        'unit_price' => 4000,
+        'amount' => 4000,
+    ]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->preparation['items'])->toHaveCount(2)
+        ->and($aggregate->preparation['items'][0]['description'])->toBe('Classic Rectangle Frame')
+        ->and($aggregate->preparation['items'][0]['product_variant_id'])->toBeNull()
+        ->and($aggregate->preparation['items'][1]['product_variant_id'])->toBeNull();
+});
+
+test('dispensing section omitted for queued job order', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->dispensing)->toBeNull();
+});
+
+test('expected_completion_at is absent from preparation', function () {
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+
+    $aggregate = app(BuildEyewearAggregate::class)->handle(null, $jobOrder);
+
+    expect($aggregate->preparation)->not->toHaveKey('expected_completion_at');
 });
