@@ -17,6 +17,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
@@ -176,7 +177,10 @@ class AppointmentForm
                                         default => 'gray',
                                     };
 
-                                    return new HtmlString("<span class=\"fi-badge inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
+                                    return new HtmlString(Blade::render('<x-filament::badge :color="$color">{{ $label }}</x-filament::badge>', [
+                                        'color' => $color,
+                                        'label' => $label,
+                                    ]));
                                 })
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
@@ -239,20 +243,20 @@ class AppointmentForm
                                 ->label('Status')
                                 ->content(function (?Appointment $record): HtmlString {
                                     if ($record === null) {
-                                        return self::intakeBadgeHtml('Not started', 'gray');
+                                        return self::badge('Not started', 'gray');
                                     }
 
                                     $intake = $record->intake;
 
                                     if ($intake === null) {
-                                        return self::intakeBadgeHtml('Not started', 'gray');
+                                        return self::badge('Not started', 'gray');
                                     }
 
                                     return match ($intake->status) {
-                                        IntakeStatus::Draft => self::intakeBadgeHtml('Incomplete', 'warning'),
-                                        IntakeStatus::Submitted => self::intakeBadgeHtml('Needs review', 'info'),
-                                        IntakeStatus::Verified => self::intakeBadgeHtml('Verified', 'success'),
-                                        default => self::intakeBadgeHtml('Not started', 'gray'),
+                                        IntakeStatus::Draft => self::badge('Incomplete', 'warning'),
+                                        IntakeStatus::Submitted => self::badge('Needs review', 'info'),
+                                        IntakeStatus::Verified => self::badge('Verified', 'success'),
+                                        default => self::badge('Not started', 'gray'),
                                     };
                                 }),
                         ]),
@@ -281,8 +285,11 @@ class AppointmentForm
         ]);
     }
 
-    private static function intakeBadgeHtml(string $label, string $color): HtmlString
+    private static function badge(string $label, string $color): HtmlString
     {
-        return new HtmlString("<span class=\"fi-badge inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium fi-badge-{$color}\">".e($label).'</span>');
+        return new HtmlString(Blade::render('<x-filament::badge :color="$color">{{ $label }}</x-filament::badge>', [
+            'color' => $color,
+            'label' => $label,
+        ]));
     }
 }
