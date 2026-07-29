@@ -71,6 +71,14 @@ test('non-accepted quotation cannot create a job order', function () {
     app(CreateJobOrder::class)->handle($quotation, $staff);
 })->throws(ValidationException::class);
 
+test('patient cannot create a job order', function () {
+    $patientUser = User::factory()->patient()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    QuotationRevision::factory()->create(['quotation_id' => $quotation->id]);
+
+    app(CreateJobOrder::class)->handle($quotation, $patientUser);
+})->throws(ValidationException::class);
+
 test('duplicate job order from same revision is prevented', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -145,3 +153,37 @@ test('job orders have no patient-facing creation route', function () {
 
     expect($routes)->toBeEmpty();
 });
+
+test('job order inherits eyewear key from accepted quotation', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $quotation = Quotation::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => QuotationStatus::Accepted,
+        'eyewear_key' => 'eyw_TESTKEY123456789012345678',
+    ]);
+    $revision = QuotationRevision::factory()->create([
+        'quotation_id' => $quotation->id,
+        'revision_number' => 1,
+    ]);
+
+    $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);
+
+    expect($jobOrder->eyewear_key)->toBe('eyw_TESTKEY123456789012345678')
+        ->and($jobOrder->eyewear_key)->toBe($quotation->eyewear_key);
+});
+
+test('duplicate job order from same aggregate key is prevented', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $quotation = Quotation::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => QuotationStatus::Accepted,
+    ]);
+    $revision = QuotationRevision::factory()->create(['quotation_id' => $quotation->id]);
+
+    app(CreateJobOrder::class)->handle($quotation, $staff);
+
+    // Second creation with same quotation should fail on aggregate key check
+    app(CreateJobOrder::class)->handle($quotation, $staff);
+})->throws(ValidationException::class);
