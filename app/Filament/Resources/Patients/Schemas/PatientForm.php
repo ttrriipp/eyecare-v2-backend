@@ -19,12 +19,12 @@ class PatientForm
                 TextInput::make('first_name')
                     ->label('First Name')
                     ->required(),
-                TextInput::make('middle_name')
-                    ->label('Middle Name')
-                    ->nullable(),
                 TextInput::make('last_name')
                     ->label('Last Name')
                     ->required(),
+                TextInput::make('middle_name')
+                    ->label('Middle Name')
+                    ->nullable(),
                 TextInput::make('phone')
                     ->tel()
                     ->required(),
