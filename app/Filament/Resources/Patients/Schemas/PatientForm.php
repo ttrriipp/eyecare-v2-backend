@@ -25,11 +25,6 @@ class PatientForm
                 TextInput::make('last_name')
                     ->label('Last Name')
                     ->required(),
-                TextInput::make('full_name')
-                    ->label('Full Name (auto-derived)')
-                    ->disabled()
-                    ->dehydrated(false)
-                    ->columnSpanFull(),
                 TextInput::make('phone')
                     ->tel()
                     ->required(),
