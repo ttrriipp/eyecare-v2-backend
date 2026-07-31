@@ -68,11 +68,14 @@ class CheckInAppointment
                 ->first();
 
             // Create encounter linked to the appointment and intake
+            // Prefill chief complaint from appointment reason for visit
             $encounter = Encounter::query()->create([
                 'patient_id' => $lockedAppointment->patient_id,
                 'appointment_id' => $lockedAppointment->id,
                 'patient_intake_id' => $verifiedIntake?->id,
                 'status' => EncounterStatus::Planned,
+                'chief_complaint' => $lockedAppointment->reason_for_visit
+                    ?? $verifiedIntake?->chief_complaint,
             ]);
 
             // Audit the check-in event
