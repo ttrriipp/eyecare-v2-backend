@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-07-29) — includes Billing Record simplification, frame reservation appointment linkage, Eyewear aggregate API, and patient isolation of supplier invoice references
+> **Backend version:** Current repository state (2026-07-31) — introduces OTP-based patient registration, hybrid login, contact management, patient linking, appointment requests, and active-link route boundary.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -13,39 +13,80 @@
 
 1. [Authentication](#1-authentication)
 2. [Profile (me)](#2-profile-me)
-3. [Appointment Types](#3-appointment-types)
-4. [Appointment Availability](#4-appointment-availability)
-5. [Appointments](#5-appointments)
-6. [Patient Intake](#6-patient-intake)
-7. [Frames](#7-frames)
-8. [Frame Reservations](#8-frame-reservations)
-9. [Prescriptions](#9-prescriptions)
-10. [Quotations](#10-quotations)
-11. [Job Orders](#11-job-orders)
-12. [Eyewear](#12-eyewear)
-13. [Billing Records](#13-billing-records)
-14. [Conversation](#14-conversation)
-15. [Frame Ratings](#15-frame-ratings)
-16. [Error Responses](#16-error-responses)
-17. [Clarifications](#17-clarifications)
-18. [Retired Features](#18-retired-features)
+3. [Contact Management](#3-contact-management)
+4. [Patient Linking](#4-patient-linking)
+5. [Patient Invitations](#5-patient-invitations)
+6. [Appointment Requests](#6-appointment-requests)
+7. [Appointment Availability](#7-appointment-availability)
+8. [Confirmed Appointments](#8-confirmed-appointments)
+9. [Frames](#9-frames)
+10. [Frame Reservations](#10-frame-reservations)
+11. [Prescriptions](#11-prescriptions)
+12. [Quotations](#12-quotations)
+13. [Job Orders](#13-job-orders)
+14. [Eyewear](#14-eyewear)
+15. [Billing Records](#15-billing-records)
+16. [Conversation](#16-conversation)
+17. [Frame Ratings](#17-frame-ratings)
+18. [Error Responses](#18-error-responses)
+19. [Coordinated Breaking Changes](#19-coordinated-breaking-changes)
+20. [Retired Features](#20-retired-features)
+21. [Clarifications](#21-clarifications)
 
 ---
 
 ## 1. Authentication
 
-### POST `/register`
+### POST `/auth/registration/otp`
 
-Creates a patient account and returns a Sanctum token.
+Requests a registration OTP for the given contact. Returns a generic response regardless of whether the contact is already owned.
 
 **Request:**
 ```json
 {
-  "name": "string (required, max:255)",
-  "email": "string (required, email, max:255, unique:users,email)",
-  "phone": "string (nullable, max:20)",
-  "password": "string (required, confirmed, min:8)",
-  "password_confirmation": "string (required)"
+  "contact_type": "email | phone (required)",
+  "contact_value": "string (required)"
+}
+```
+
+**Validation:**
+- `contact_type`: required, `in:email,phone`
+- `contact_value`: required; if `email`, validated as email format; if `phone`, normalized to canonical E.164
+
+**Response (200):**
+```json
+{
+  "data": {
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:10:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- If the contact is already owned by an existing account, a login/recovery challenge is issued instead. The response shape is identical.
+- Rate limited: 3 per 15 minutes per destination, 10 per 15 minutes per IP, 10 per destination per day.
+- Resend invalidates all earlier pending challenges for the same purpose/destination.
+
+---
+
+### POST `/auth/registration/verify`
+
+Verifies the OTP and creates the patient mobile account. Does **not** create a Patient record.
+
+**Request:**
+```json
+{
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)",
+  "first_name": "string (required, max:255)",
+  "last_name": "string (required, max:255)",
+  "date_of_birth": "date (required, before:today, Y-m-d)",
+  "password": "string (required, confirmed, min:12)",
+  "password_confirmation": "string (required)",
+  "privacy_notice_version": "string (required)",
+  "device_name": "string (nullable, max:255)",
+  "installation_id": "string (nullable, max:255)"
 }
 ```
 
@@ -54,22 +95,62 @@ Creates a patient account and returns a Sanctum token.
 {
   "data": {
     "token": "1|abc123...",
-    "user": { /* PatientProfileResource */ }
+    "user": { /* PatientAccountResource */ }
   }
 }
 ```
 
-**Privacy note:** No `privacy_notice_version` or `privacy_acknowledged_at` fields are accepted during registration. Privacy acknowledgement is handled server-side or via a separate flow.
+**Behavior:**
+- If the contact is already owned, the challenge is consumed and the existing account is authenticated (idempotent). No duplicate account is created.
+- The response never reveals whether a new account was created or an existing one was returned.
+- 5 maximum verification attempts per challenge.
+- Creates only the `User` with `patient` role and its verified primary contact method.
+- Device label and installation ID are stored on the Sanctum token.
 
 ---
 
-### POST `/login`
+### POST `/auth/login`
+
+Authenticates a patient with password. Does **not** issue a token immediately — returns a step-up challenge.
 
 **Request:**
 ```json
 {
-  "email": "string (required)",
-  "password": "string (required)"
+  "contact_value": "string (required)",
+  "password": "string (required)",
+  "device_name": "string (nullable, max:255)",
+  "installation_id": "string (nullable, max:255)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "step_up_required": true,
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:10:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- Response is identical for wrong password and unknown contact (enumeration-safe).
+- An existing trusted device token (same `installation_id`, not expired, not revoked) may skip step-up. In that case `step_up_required` is `false` and the token is returned directly.
+- Rate limited: `throttle:login` (5 per minute).
+
+---
+
+### POST `/auth/login/verify`
+
+Verifies the login OTP step-up and issues a device-labelled Sanctum token.
+
+**Request:**
+```json
+{
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)",
+  "installation_id": "string (nullable, max:255)"
 }
 ```
 
@@ -78,18 +159,90 @@ Creates a patient account and returns a Sanctum token.
 {
   "data": {
     "token": "1|abc123...",
-    "user": { /* PatientProfileResource */ }
+    "user": { /* PatientAccountResource */ }
   }
 }
 ```
 
-**Rate limited:** `throttle:login` middleware (default: 5 attempts per minute).
+**Behavior:**
+- Replaces any existing token for the same `installation_id`.
+- Maximum 5 active patient tokens; issues beyond the limit revoke the oldest.
+- Token expires after 30 days.
+
+---
+
+### POST `/auth/password-recovery/otp`
+
+Requests a recovery OTP for the given contact.
+
+**Request:**
+```json
+{
+  "contact_value": "string (required)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:10:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- Enumeration-safe: returns identical response for known and unknown contacts.
+- Only verified contacts on patient accounts are eligible.
+
+---
+
+### POST `/auth/password-recovery/verify`
+
+Verifies the recovery OTP and resets the password. Revokes all other patient device tokens.
+
+**Request:**
+```json
+{
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)",
+  "password": "string (required, confirmed, min:12)",
+  "password_confirmation": "string (required)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "token": "1|abc123...",
+    "user": { /* PatientAccountResource */ }
+  }
+}
+```
+
+**Behavior:**
+- Revokes all other patient device tokens on successful recovery.
+- Issues one new token for the current device.
 
 ---
 
 ### POST `/logout`
 
 Revokes the current bearer token.
+
+**Auth:** Required (Sanctum token).
+
+**Response (204):** Empty body.
+
+---
+
+### POST `/logout-all`
+
+Revokes all patient device tokens for the authenticated account.
+
+**Auth:** Required (Sanctum token).
 
 **Response (204):** Empty body.
 
@@ -99,58 +252,69 @@ Revokes the current bearer token.
 
 ### GET `/me`
 
-Returns the authenticated patient's profile.
+Returns the authenticated account's profile and link state.
+
+**Auth:** Required (Sanctum token).
 
 **Response (200):**
 ```json
 {
   "data": {
     "id": 1,
-    "patient_number": "PAT-01JABC123...",
+    "first_name": "Ana",
+    "last_name": "Reyes",
     "name": "Ana Reyes",
     "email": "ana@example.com",
     "phone": "09171234567",
     "role": "patient",
-    "full_name": "Ana Reyes",
     "date_of_birth": "1990-05-15",
+    "link_status": "linked | pending_review | unlinked",
+    "patient_number": "PAT-01JABC123...",
+    "full_name": "Ana Reyes",
     "occupation": "Teacher",
     "address": "123 Main St, Manila",
     "gender": "female",
-    "contact_email": "ana@example.com"
+    "contact_email": "ana@example.com",
+    "privacy_notice_version": "2026-07",
+    "privacy_acknowledged_at": "2026-07-27T10:00:00+08:00"
   }
 }
 ```
 
-**Nullable fields:** `phone`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`.
-
----
+**Notes:**
+- `link_status`: `linked` (active `patients.user_id`), `pending_review` (active link request), `unlinked` (no link or request).
+- `patient_number`, `full_name`, `occupation`, `address`, `gender`, `contact_email` are only present when `link_status` is `linked`.
+- `email` and `phone` are from verified contact methods, not `users.email`/`users.phone`.
 
 ### PATCH `/me`
 
-Updates account and/or patient fields. At least one field required.
+Updates account fields. At least one field required.
+
+**Auth:** Required (Sanctum token).
 
 **Request (all optional):**
 ```json
 {
-  "name": "string (max:255)",
-  "email": "string (email, unique:users,email,ignore:current)",
-  "phone": "string (nullable, max:20)",
-  "address": "string (nullable, max:255)",
-  "full_name": "string (max:255)",
-  "date_of_birth": "date (before:today)",
-  "occupation": "string (nullable, max:255)",
-  "gender": "string (in:male,female,other)",
-  "contact_email": "string (nullable, email)"
+  "first_name": "string (max:255)",
+  "last_name": "string (max:255)"
 }
 ```
 
 **Response (200):** Same as GET `/me`.
 
+**Notes:**
+- Only `first_name` and `last_name` are editable via this endpoint. Contact changes go through the Contact Management endpoints.
+- Clinic Patient demographics (`full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`) are never updated through this endpoint.
+
 ---
 
-## 3. Appointment Types
+## 3. Contact Management
 
-### GET `/appointment-types`
+### GET `/account/contacts`
+
+Lists verified and pending contacts for the authenticated account.
+
+**Auth:** Required (Sanctum token).
 
 **Response (200):**
 ```json
@@ -158,35 +322,279 @@ Updates account and/or patient fields. At least one field required.
   "data": [
     {
       "id": 1,
-      "name": "New Patient",
-      "duration_minutes": 30,
-      "requires_referral": false
+      "type": "email",
+      "masked_value": "a***@example.com",
+      "is_primary": true,
+      "verified_at": "2026-07-27T10:00:00+08:00"
     },
     {
-      "id": 4,
-      "name": "Referral",
-      "duration_minutes": 30,
-      "requires_referral": true
+      "id": 2,
+      "type": "phone",
+      "masked_value": "0917***4567",
+      "is_primary": false,
+      "verified_at": null
     }
   ]
 }
 ```
 
+**Notes:**
+- `masked_value` is always returned; raw contact values are never exposed.
+- Unverified contacts (`verified_at: null`) cannot be used for login.
+
 ---
 
-## 4. Appointment Availability
+### POST `/account/contacts/otp`
 
-### GET `/appointment-availability`
+Requests an OTP to verify a new contact method.
 
-Returns time slots for a given date and appointment type.
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "contact_type": "email | phone (required)",
+  "contact_value": "string (required)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:10:00+08:00"
+  }
+}
+```
+
+**Errors:**
+- `422 CONTACT_ALREADY_OWNED`: The contact is already verified by another account.
+- `422 CONTACT_ALREADY_VERIFIED`: This account already owns this contact.
+
+---
+
+### POST `/account/contacts/verify`
+
+Verifies a pending contact OTP.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": { /* same contact structure as GET /account/contacts, with verified_at set */ }
+}
+```
+
+---
+
+### PATCH `/account/contacts/{contact}/primary`
+
+Sets a verified contact as the primary login/notification contact.
+
+**Auth:** Required (Sanctum token).
+
+**Response (200):**
+```json
+{
+  "data": [ /* updated contacts list */ ]
+}
+```
+
+**Errors:**
+- `404`: Contact not found or not owned by this account.
+- `422 CONTACT_NOT_VERIFIED`: Cannot set an unverified contact as primary.
+
+---
+
+### DELETE `/account/contacts/{contact}`
+
+Removes a contact method.
+
+**Auth:** Required (Sanctum token).
+
+**Response (204):** Empty body.
+
+**Errors:**
+- `404`: Contact not found or not owned by this account.
+- `422 LAST_CONTACT_REMAINING`: Cannot remove the last verified login contact.
+
+---
+
+## 4. Patient Linking
+
+### GET `/account/link`
+
+Returns the current link state and request status for the authenticated account.
+
+**Auth:** Required (Sanctum token).
+
+**Response (200) — linked:**
+```json
+{
+  "data": {
+    "status": "linked",
+    "linked_at": "2026-07-28T10:00:00+08:00"
+  }
+}
+```
+
+**Response (200) — pending review:**
+```json
+{
+  "data": {
+    "status": "pending_review",
+    "request_submitted_at": "2026-07-28T10:00:00+08:00"
+  }
+}
+```
+
+**Response (200) — unlinked:**
+```json
+{
+  "data": {
+    "status": "unlinked"
+  }
+}
+```
+
+**Notes:**
+- Never exposes candidate patient names, numbers, contact values, match scores, or whether a specific clinic record exists.
+
+---
+
+### POST `/patient-link-requests`
+
+Submits a link request using the account's registration identity (name, date of birth) and contact.
+
+**Auth:** Required (Sanctum token).
+
+**Request:** No body required. Uses the account's stored identity.
+
+**Response (201):**
+```json
+{
+  "data": {
+    "request_number": "PLR-2026-000001",
+    "status": "pending",
+    "submitted_at": "2026-07-28T10:00:00+08:00"
+  }
+}
+```
+
+**Errors:**
+- `422 ACCOUNT_ALREADY_LINKED`: The account already has an active patient link.
+- `422 LINK_REQUEST_ALREADY_PENDING`: An active link request already exists for this account.
+
+---
+
+### GET `/patient-link-requests/current`
+
+Returns the current active link request for the authenticated account.
+
+**Auth:** Required (Sanctum token).
+
+**Response (200):**
+```json
+{
+  "data": {
+    "request_number": "PLR-2026-000001",
+    "status": "pending",
+    "submitted_at": "2026-07-28T10:00:00+08:00",
+    "reviewed_at": null
+  }
+}
+```
+
+**Response (204):** No active request exists.
+
+---
+
+## 5. Patient Invitations
+
+### POST `/patient-invitations/acceptance/otp`
+
+Requests an OTP for accepting a patient invitation. The invitation token identifies the target contact.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "invitation_token": "string (required)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:10:00+08:00"
+  }
+}
+```
+
+**Errors:**
+- `422 INVITATION_INVALID`: Token is invalid, expired, revoked, or already consumed.
+- `422 ACCOUNT_ALREADY_LINKED`: The account already has an active patient link.
+
+---
+
+### POST `/patient-invitations/accept`
+
+Verifies the OTP and activates the patient link.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "invitation_token": "string (required)",
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "status": "linked",
+    "linked_at": "2026-07-28T10:00:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- Rechecks invitation, account, and patient eligibility under locks.
+- If the account doesn't already own the invited contact, that contact is added and verified atomically.
+- Repeated acceptance is idempotent and returns the same link.
+- Already-linked conflicts fail closed without revealing another account.
+
+---
+
+## 6. Appointment Requests
+
+### GET `/appointment-request-availability`
+
+Returns server-generated time slots for a given date, accounting for clinic hours, provider hours, existing appointments, and unexpired pending request holds.
+
+**Auth:** Required (Sanctum token).
 
 **Query parameters:**
 | Param | Type | Required | Rules |
 |---|---|---|---|
 | `date` | string | yes | `date_format:Y-m-d`, `after_or_equal:today` |
-| `appointment_type_id` | integer | yes | `exists:appointment_types,id` |
-| `appointment_id` | integer | no | `exists:appointments,id` (own appointments only, for reschedule context) |
-| `optometrist_id` | integer | no | `exists:users,id` |
 
 **Response (200):**
 ```json
@@ -195,18 +603,14 @@ Returns time slots for a given date and appointment type.
     "date": "2026-07-28",
     "timezone": "Asia/Manila",
     "interval_minutes": 30,
-    "appointment_type_id": 1,
-    "visit_duration_minutes": 30,
-    "optometrist_id": null,
-    "appointment_id": null,
+    "slot_duration_minutes": 30,
     "day_status": "open",
     "generated_at": "2026-07-27T10:00:00+08:00",
     "slots": [
       {
         "starts_at": "2026-07-28T09:00:00+08:00",
         "ends_at": "2026-07-28T09:30:00+08:00",
-        "available": true,
-        "reason": null
+        "available": true
       },
       {
         "starts_at": "2026-07-28T09:30:00+08:00",
@@ -219,18 +623,196 @@ Returns time slots for a given date and appointment type.
 }
 ```
 
-**Validation (with `appointment_id`):**
-- Appointment must belong to the authenticated patient.
-- Appointment must be in `scheduled` or `checked_in` status.
-- `appointment_type_id` duration must match the existing appointment's duration.
+**Notes:**
+- Uses a server-owned provisional duration (30 minutes) for availability calculation.
+- Unexpired pending request holds are included in capacity calculations.
+- Patient does not select appointment type; the type is resolved by staff at acceptance.
 
 ---
 
-## 5. Appointments
+### GET `/appointment-requests`
+
+Paginated list of the authenticated account's appointment requests.
+
+**Auth:** Required (Sanctum token).
+
+**Query:** `per_page` (default: 15)
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "request_number": "APR-2026-000001",
+      "status": "pending",
+      "patient_id": null,
+      "scheduled_at": "2026-07-28T10:00:00+08:00",
+      "reason_for_visit": "Blurred vision in left eye",
+      "expires_at": "2026-07-29T10:00:00+08:00",
+      "created_at": "2026-07-27T10:00:00+08:00",
+      "appointment": null
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
+}
+```
+
+**Status values:** `pending`, `accepted`, `rejected`, `cancelled`, `expired`.
+
+**Notes:**
+- `patient_id` is `null` for unlinked accounts.
+- `appointment` is populated only when `status` is `accepted`.
+
+---
+
+### POST `/appointment-requests`
+
+Creates a new appointment request.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "scheduled_at": "datetime (required, must match a returned available slot)",
+  "reason_for_visit": "string (required, max:1000)"
+}
+```
+
+**Response (201):**
+```json
+{
+  "data": {
+    "id": 1,
+    "request_number": "APR-2026-000001",
+    "status": "pending",
+    "patient_id": null,
+    "scheduled_at": "2026-07-28T10:00:00+08:00",
+    "reason_for_visit": "Blurred vision in left eye",
+    "expires_at": "2026-07-29T10:00:00+08:00",
+    "created_at": "2026-07-27T10:00:00+08:00",
+    "appointment": null
+  }
+}
+```
+
+**Behavior:**
+- Creates a 24-hour capacity hold on the requested slot.
+- For linked accounts, `patient_id` is copied from the active link.
+- For unlinked accounts, `patient_id` remains `null`.
+- Maximum 2 active pending requests per account.
+- Rate limited per account and per IP.
+- Does **not** create a Patient or an Appointment.
+
+**Errors:**
+- `422 SLOT_UNAVAILABLE`: The requested slot is no longer available.
+- `422 ACTIVE_REQUEST_LIMIT_REACHED`: Maximum active pending requests reached.
+
+---
+
+### GET `/appointment-requests/{appointmentRequest}`
+
+Returns a single appointment request (must belong to authenticated account).
+
+**Auth:** Required (Sanctum token).
+
+**Response (200):**
+```json
+{
+  "data": { /* same structure as list item */ }
+}
+```
+
+---
+
+### POST `/appointment-requests/{appointmentRequest}/cancel`
+
+Cancels a pending appointment request.
+
+**Auth:** Required (Sanctum token).
+
+**Response (200):**
+```json
+{
+  "data": {
+    "id": 1,
+    "request_number": "APR-2026-000001",
+    "status": "cancelled",
+    "scheduled_at": "2026-07-28T10:00:00+08:00",
+    "reason_for_visit": "Blurred vision in left eye",
+    "expires_at": "2026-07-29T10:00:00+08:00",
+    "cancelled_at": "2026-07-27T11:00:00+08:00",
+    "created_at": "2026-07-27T10:00:00+08:00",
+    "appointment": null
+  }
+}
+```
+
+**Errors:**
+- `404`: Request not found or not owned by this account.
+- `422 REQUEST_NOT_CANCELLABLE`: Only pending requests can be cancelled.
+
+---
+
+## 7. Appointment Availability
+
+### GET `/appointment-availability`
+
+Returns time slots for a given date. Used for confirmed appointment rescheduling.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Query parameters:**
+| Param | Type | Required | Rules |
+|---|---|---|---|
+| `date` | string | yes | `date_format:Y-m-d`, `after_or_equal:today` |
+| `appointment_id` | integer | no | `exists:appointments,id` (own appointments only, for reschedule context) |
+
+**Response (200):**
+```json
+{
+  "data": {
+    "date": "2026-07-28",
+    "timezone": "Asia/Manila",
+    "interval_minutes": 30,
+    "appointment_type_id": 1,
+    "visit_duration_minutes": 30,
+    "day_status": "open",
+    "generated_at": "2026-07-27T10:00:00+08:00",
+    "slots": [
+      {
+        "starts_at": "2026-07-28T09:00:00+08:00",
+        "ends_at": "2026-07-28T09:30:00+08:00",
+        "available": true,
+        "reason": null
+      }
+    ]
+  }
+}
+```
+
+**Validation (with `appointment_id`):**
+- Appointment must belong to the authenticated patient.
+- Appointment must be in `scheduled` or `checked_in` status.
+- Duration and type are derived from the existing appointment.
+
+**Notes:**
+- `appointment_type_id` and `visit_duration_minutes` are derived from the existing appointment when rescheduling, not submitted by the patient.
+- Unexpired pending request holds are included in capacity calculations.
+
+---
+
+## 8. Confirmed Appointments
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/appointments`
 
-Paginated list of the patient's appointments.
+Paginated list of the patient's confirmed appointments.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Query:** `per_page` (default: 15)
 
@@ -246,8 +828,8 @@ Paginated list of the patient's appointments.
       "referring_source": null,
       "status": "scheduled",
       "scheduled_at": "2026-07-28T10:00:00+08:00",
+      "reason_for_visit": "Blurred vision in left eye",
       "contact_notes": "Please call before arrival",
-      "last_reschedule_reason": null,
       "source": "mobile",
       "assigned_optometrist": { "name": "Dr. Maria Santos" }
     }
@@ -262,42 +844,16 @@ Paginated list of the patient's appointments.
 - `assigned_optometrist` contains only `name` (no `id`).
 - `status` values: `scheduled`, `checked_in`, `fulfilled`, `cancelled`, `no_show`.
 - `source` values: `mobile`, `walk_in`, `manual`.
+- `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
 
 ---
 
-### POST `/appointments`
+### GET `/appointments/{appointment}`
 
-Creates a new appointment. Source is automatically set to `mobile`. Status starts as `scheduled`.
+Returns a single confirmed appointment (must belong to authenticated patient).
 
-**Request:**
-```json
-{
-  "appointment_type_id": "integer (required, exists:appointment_types,id)",
-  "scheduled_at": "datetime (required, after:now)",
-  "contact_notes": "string (nullable, max:1000)",
-  "referring_source": "string (nullable, max:255) — REQUIRED if appointment_type requires_referral"
-}
-```
-
-**Response (201):**
-```json
-{
-  "data": { /* AppointmentResource */ }
-}
-```
-
-**Validation:**
-- `referring_source` is required when the selected `appointment_type` has `requires_referral = true`.
-- `scheduled_at` must be in the future.
-
-**Booking uses `appointment_type_id` only.** There is no `visit_reason_id` in the API. Visit reasons are a separate concept used internally.
-
----
-
-### GET `/appointments/{id}`
-
-Returns a single appointment (must belong to authenticated patient).
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -308,9 +864,11 @@ Returns a single appointment (must belong to authenticated patient).
 
 ---
 
-### POST `/appointments/{id}/cancel`
+### POST `/appointments/{appointment}/cancel`
 
 Cancels an appointment. Only `scheduled` or `checked_in` appointments can be cancelled.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -331,14 +889,16 @@ Cancels an appointment. Only `scheduled` or `checked_in` appointments can be can
 
 ---
 
-### POST `/appointments/{id}/reschedule`
+### POST `/appointments/{appointment}/reschedule`
 
 Reschedules an appointment to a new time.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Request:**
 ```json
 {
-  "scheduled_at": "datetime (required, after:now)"
+  "scheduled_at": "datetime (required, after:now, must be an available slot)"
 }
 ```
 
@@ -349,99 +909,17 @@ Reschedules an appointment to a new time.
 }
 ```
 
-**Validation:** Appointment must belong to the patient and be in `scheduled` status.
+**Validation:** Appointment must belong to the patient and be in `scheduled` status. Duration and type are derived from the existing appointment.
 
 ---
 
-## 6. Patient Intake
-
-### GET `/appointments/{id}/intake`
-
-Returns the intake for an appointment, or `null` if none exists.
-
-**Response (200):**
-```json
-{
-  "data": {
-    "id": 1,
-    "patient_id": 1,
-    "appointment_id": 1,
-    "status": "draft",
-    "appointment_type": "New Patient",
-    "full_name": "Ana Reyes",
-    "date_of_birth": "1990-05-15",
-    "gender": "female",
-    "occupation": "Teacher",
-    "address": "123 Main St",
-    "phone": "09171234567",
-    "email": "ana@example.com",
-    "chief_complaint": "Blurred vision",
-    "past_ocular_history": null,
-    "past_surgical_history": null,
-    "past_medical_history": null,
-    "allergies": null,
-    "medications": null,
-    "submitted_at": null,
-    "verified_at": null,
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "updated_at": "2026-07-27T10:00:00+08:00"
-  }
-}
-```
-
-**Status values:** `draft`, `submitted`, `verified`.
-
----
-
-### PUT `/appointments/{id}/intake`
-
-Creates or updates the intake for an appointment. Only `draft` intakes can be edited.
-
-**Request (all optional/sometimes):**
-```json
-{
-  "full_name": "string (max:255)",
-  "date_of_birth": "date (before:today)",
-  "gender": "string (in:male,female,other)",
-  "occupation": "string (nullable, max:255)",
-  "address": "string (nullable, max:255)",
-  "phone": "string (nullable, max:20)",
-  "email": "string (nullable, email, max:255)",
-  "chief_complaint": "string (nullable)",
-  "past_ocular_history": "string (nullable)",
-  "past_surgical_history": "string (nullable)",
-  "past_medical_history": "string (nullable)",
-  "allergies": "string (nullable)",
-  "medications": "string (nullable)"
-}
-```
-
-**Response:** `201` (created) or `200` (updated).
-
-**Editability:** Once submitted (`status: submitted`), the intake CANNOT be edited via PUT. Returns `422` with `"Only draft intakes can be edited."`.
-
----
-
-### POST `/appointments/{id}/intake/submit`
-
-Submits a draft intake. Sets `status` to `submitted`, records `submitted_by` and `submitted_at`.
-
-**Response (200):**
-```json
-{
-  "data": { /* PatientIntakeResource with status: "submitted" */ }
-}
-```
-
-**Error (422):** `"Only draft intakes can be submitted."` if already submitted/verified.
-
----
-
-## 7. Frames
+## 9. Frames
 
 ### GET `/frames`
 
 Paginated list of active AR-eligible frames.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Query parameters:**
 | Param | Type | Description |
@@ -493,13 +971,19 @@ Paginated list of active AR-eligible frames.
 
 Single frame detail. Returns `404` for non-frame products or non-AR-eligible frames.
 
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
 ---
 
-## 8. Frame Reservations
+## 10. Frame Reservations
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/frame-reservations`
 
 Returns all reservations for the authenticated patient. **Not paginated** — returns full list via `->get()`.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -558,7 +1042,9 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 
 ### POST `/frame-reservations`
 
-Creates a new frame reservation.
+Creates a new frame reservation. Requires an active patient link and a confirmed eligible appointment.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Request:**
 ```json
@@ -586,96 +1072,40 @@ Creates a new frame reservation.
     "status": "requested",
     "expires_at": null,
     "created_at": "2026-07-27T10:00:00+08:00",
-    "appointment": {
-      "id": 42,
-      "appointment_number": "APT-2026-000042",
-      "status": "scheduled",
-      "scheduled_at": "2026-07-30T09:00:00+08:00",
-      "duration_minutes": 30
-    },
-    "items": [
-      {
-        "id": 1,
-        "product_variant_id": 42,
-        "variant": {
-          "id": 42,
-          "name": "Black / 52mm",
-          "sku": "RB-CR-BLK-52",
-          "price": "4500.00",
-          "compare_at_price": null,
-          "attributes": { "color": "black", "size": "52mm" },
-          "images": [],
-          "product": {
-            "id": 7,
-            "name": "Classic Rectangle",
-            "slug": "classic-rectangle",
-            "description": "Timeless frame design",
-            "product_type": "frame",
-            "brand": "Ray-Ban",
-            "category": "Full Rim"
-          }
-        }
-      }
-    ]
+    "appointment": { "id": 42, "appointment_number": "APT-2026-000042", "status": "scheduled", "scheduled_at": "2026-07-30T09:00:00+08:00", "duration_minutes": 30 },
+    "items": [ /* same structure as GET */ ]
   }
 }
 ```
 
-Uses the same `FrameReservationResource` as GET — same field set, same exclusions.
-
-**Error responses:**
-- Missing or invalid `appointment_id`: `422` with validation error.
-- Appointment not owned by patient: `422` with validation error.
-- Owned but ineligible appointment (cancelled, fulfilled, no-show, past, checked-in): `422` with validation error.
-- Duplicate active reservation for same appointment: `422` with validation error.
-- Unauthenticated: `401`.
-
 ---
 
-### POST `/frame-reservations/{id}/cancel`
+### POST `/frame-reservations/{reservation}/cancel`
 
 Cancels a reservation. Only `requested` or `prepared` reservations can be cancelled.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
 {
-  "data": {
-    "id": 1,
-    "appointment_id": 42,
-    "status": "cancelled",
-    "expires_at": null,
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "appointment": {
-      "id": 42,
-      "appointment_number": "APT-2026-000042",
-      "status": "scheduled",
-      "scheduled_at": "2026-07-30T09:00:00+08:00",
-      "duration_minutes": 30
-    },
-    "items": [
-      {
-        "id": 1,
-        "product_variant_id": 42,
-        "variant": { "...same sanitized structure as GET..." }
-      }
-    ]
-  }
+  "data": { /* FrameReservationResource with status: "cancelled" */ }
 }
 ```
-
-Uses the same `FrameReservationResource` as GET — same field set, same exclusions.
 
 **Error (422):** `"This reservation cannot be cancelled."` if status is beyond `prepared`.
 
 ---
 
-## 9. Prescriptions
+## 11. Prescriptions
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/prescriptions`
 
-Paginated list of current prescription versions. Superseded versions are
-excluded from the list but remain available by ID for historical access.
-Read-only — patients cannot create prescriptions.
+Paginated list of current prescription versions. Superseded versions are excluded.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -689,28 +1119,12 @@ Read-only — patients cannot create prescriptions.
       "date": "2026-07-27",
       "measurements": {
         "main": {
-          "od": {
-            "value": null,
-            "sphere": "-2.00",
-            "cylinder": "-0.50"
-          },
-          "os": {
-            "value": null,
-            "sphere": "-1.75",
-            "cylinder": "-0.25"
-          }
+          "od": { "value": null, "sphere": "-2.00", "cylinder": "-0.50" },
+          "os": { "value": null, "sphere": "-1.75", "cylinder": "-0.25" }
         },
         "add": {
-          "od": {
-            "value": null,
-            "sphere": null,
-            "cylinder": null
-          },
-          "os": {
-            "value": null,
-            "sphere": null,
-            "cylinder": null
-          }
+          "od": { "value": null, "sphere": null, "cylinder": null },
+          "os": { "value": null, "sphere": null, "cylinder": null }
         }
       },
       "remarks": null
@@ -723,17 +1137,19 @@ Read-only — patients cannot create prescriptions.
 
 ### GET `/prescriptions/{id}`
 
-Single prescription, including historical superseded versions. The
-`previous_prescription_id` and `is_current` fields identify its chain position.
-Returns `404` if not patient's.
+Single prescription, including historical superseded versions. Returns `404` if not patient's.
 
 ---
 
-## 10. Quotations
+## 12. Quotations
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/quotations`
 
 Paginated list with latest revision.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -751,18 +1167,8 @@ Paginated list with latest revision.
         "discount_amount": 500.00,
         "total": 8000.00,
         "items": [
-          {
-            "description": "Classic Rectangle Frame",
-            "quantity": 1,
-            "unit_price": 4500.00,
-            "amount": 4500.00
-          },
-          {
-            "description": "Single Vision Lens",
-            "quantity": 1,
-            "unit_price": 4000.00,
-            "amount": 4000.00
-          }
+          { "description": "Classic Rectangle Frame", "quantity": 1, "unit_price": 4500.00, "amount": 4500.00 },
+          { "description": "Single Vision Lens", "quantity": 1, "unit_price": 4000.00, "amount": 4000.00 }
         ]
       },
       "created_at": "2026-07-27T10:00:00+08:00"
@@ -788,40 +1194,23 @@ Paginated list with latest revision.
     "status": "presented",
     "valid_until": "2026-08-03",
     "notes": "Please handle with care",
-    "revision": {
-      "revision_number": 1,
-      "subtotal": 8500.00,
-      "discount_amount": 500.00,
-      "total": 8000.00,
-      "items": [
-        {
-          "description": "Classic Rectangle Frame",
-          "quantity": 1,
-          "unit_price": 4500.00,
-          "amount": 4500.00
-        },
-        {
-          "description": "Single Vision Lens",
-          "quantity": 1,
-          "unit_price": 4000.00,
-          "amount": 4000.00
-        }
-      ]
-    },
+    "revision": { /* same as list */ },
     "created_at": "2026-07-27T10:00:00+08:00"
   }
 }
 ```
 
-**Notes:** `revision` is `null` if no revisions exist. Uses `QuotationResource`. Status values: `draft`, `presented`, `accepted`, `declined`, `expired`.
-
 ---
 
-## 11. Job Orders
+## 13. Job Orders
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/job-orders`
 
 Paginated list with items.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -834,13 +1223,7 @@ Paginated list with items.
       "status": "in_progress",
       "total_amount": 8000.00,
       "items": [
-        {
-          "id": 1,
-          "description": "Classic Rectangle Frame",
-          "quantity": 1,
-          "unit_price": 4500.00,
-          "amount": 4500.00
-        }
+        { "id": 1, "description": "Classic Rectangle Frame", "quantity": 1, "unit_price": 4500.00, "amount": 4500.00 }
       ]
     }
   ]
@@ -849,65 +1232,23 @@ Paginated list with items.
 
 **Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
 
-**Internal supplier reference:** Job Orders have an internal nullable
-`supplier_invoice_number`. Clinic staff must record it before a Job Order can
-transition to `ready_for_dispensing` or `dispensed`. This field is deliberately
-hidden from patient serialization and is never returned by either Job Order
-endpoint.
+**Internal supplier reference:** `supplier_invoice_number` is excluded from patient serialization.
 
 ### GET `/job-orders/{id}`
 
-Returns a single job order with items. No API Resource — raw model serialization.
-
-**Response (200):**
-```json
-{
-  "data": {
-    "id": 1,
-    "job_order_number": "JO-2026-000001",
-    "patient_id": 1,
-    "encounter_id": 1,
-    "prescription_id": 1,
-    "quotation_revision_id": 1,
-    "status": "dispensed",
-    "total_amount": 8000.00,
-    "notes": null,
-    "started_at": "2026-07-27T11:00:00+08:00",
-    "ready_at": "2026-07-27T14:00:00+08:00",
-    "dispensed_at": "2026-07-27T15:00:00+08:00",
-    "cancelled_at": null,
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "updated_at": "2026-07-27T15:00:00+08:00",
-    "deleted_at": null,
-    "items": [
-      {
-        "id": 1,
-        "job_order_id": 1,
-        "description": "Classic Rectangle Frame",
-        "quantity": 1,
-        "unit_price": 4500.00,
-        "amount": 4500.00,
-        "product_variant_id": 42,
-        "lens_category_id": null,
-        "created_at": "2026-07-27T10:00:00+08:00",
-        "updated_at": "2026-07-27T10:00:00+08:00"
-      }
-    ]
-  }
-}
-```
-
-**Notes:** `encounter_id`, `prescription_id`, `quotation_revision_id`, `notes`, `started_at`, `ready_at`, `dispensed_at`, `cancelled_at` are all nullable.
+Returns a single job order with items.
 
 ---
 
-## 12. Eyewear
+## 14. Eyewear
 
-The Eyewear API presents a Quotation, its resulting Job Order, dispensing progress, and its active Billing Record as one coherent transaction. This is the primary patient-facing API for eyewear status.
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/eyewear`
 
 Returns the patient's eyewear aggregates with deterministic ordering.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Query parameters:**
 
@@ -918,8 +1259,7 @@ Returns the patient's eyewear aggregates with deterministic ordering.
 | `per_page` | No | Integer, 1 through 50 | `15` |
 
 **Current filter** includes: `estimate_available`, `in_preparation`, `ready_for_pickup`.  
-**History filter** includes: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`.  
-Payment state never changes filter membership.
+**History filter** includes: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`.
 
 **Response (200):**
 ```json
@@ -937,22 +1277,8 @@ Payment state never changes filter membership.
       "activity_at": "2026-07-27T11:00:00+08:00"
     }
   ],
-  "links": {
-    "first": "http://localhost/api/v1/eyewear?filter=current&page=1",
-    "last": "http://localhost/api/v1/eyewear?filter=current&page=1",
-    "prev": null,
-    "next": null
-  },
-  "meta": {
-    "current_page": 1,
-    "from": 1,
-    "last_page": 1,
-    "links": [],
-    "path": "http://localhost/api/v1/eyewear",
-    "per_page": 15,
-    "to": 1,
-    "total": 1
-  }
+  "links": { ... },
+  "meta": { ... }
 }
 ```
 
@@ -977,8 +1303,6 @@ Payment state never changes filter membership.
 | `paid` | `paid` |
 | No active Billing Record | null |
 
-**Total amount precedence:** Billing Record → Job Order → Estimate revision → `"0.00"` fallback.
-
 **Ordering:** `activity_at DESC, key ASC`.
 
 ---
@@ -987,203 +1311,43 @@ Payment state never changes filter membership.
 
 Returns a single eyewear aggregate by canonical key (`eyw_...`) or migration alias (`jo_{job_order_id}`).
 
-**Response (200) — complete linked:**
-```json
-{
-  "data": {
-    "key": "eyw_01K1D7H4R1V87GJ7D2GCB9QT4X",
-    "description": "Classic Rectangle Frame + 1 more",
-    "consultation_at": "2026-07-27T09:00:00+08:00",
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "progress": "dispensed",
-    "payment_status": "balance_due",
-    "total_amount": "8000.00",
-    "balance_due": "3000.00",
-    "activity_at": "2026-07-29T10:05:00+08:00",
-    "estimate": {
-      "quotation_number": "QUO-01K1D7...",
-      "status": "accepted",
-      "valid_until": "2026-08-03",
-      "subtotal": "8500.00",
-      "discount_amount": "500.00",
-      "total": "8000.00",
-      "items": [
-        {
-          "description": "Classic Rectangle Frame",
-          "quantity": 1,
-          "unit_price": "4500.00",
-          "amount": "4500.00"
-        }
-      ]
-    },
-    "preparation": {
-      "job_order_number": "JO-2026-000017",
-      "status": "dispensed",
-      "total_amount": "8000.00",
-      "started_at": "2026-07-27T11:00:00+08:00",
-      "ready_at": "2026-07-28T15:00:00+08:00",
-      "items": [
-        {
-          "id": 31,
-          "description": "Classic Rectangle Frame",
-          "quantity": 1,
-          "unit_price": "4500.00",
-          "amount": "4500.00",
-          "product_variant_id": 42
-        }
-      ]
-    },
-    "dispensing": {
-      "status": "dispensed",
-      "ready_at": "2026-07-28T15:00:00+08:00",
-      "dispensed_at": "2026-07-29T10:00:00+08:00"
-    },
-    "payment_summary": {
-      "billing_record_number": "BR-2026-000017",
-      "status": "partially_paid",
-      "total_amount": "8000.00",
-      "amount_paid": "5000.00",
-      "balance_due": "3000.00",
-      "payments": [
-        {
-          "id": 44,
-          "amount": "5000.00",
-          "payment_method": "cash",
-          "reference_number": null,
-          "recorded_at": "2026-07-29T10:05:00+08:00"
-        }
-      ]
-    }
-  }
-}
-```
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Partial response rules:**
-- Estimate-only: include `estimate`; omit `preparation`, `dispensing`, `payment_summary`.
-- Job-order-only (queued/in-progress): include `preparation`; omit `estimate`, `dispensing`, `payment_summary`.
-- Ready Job Order: include `preparation` and `dispensing`.
-- Dispensed with active Billing Record: include `preparation`, `dispensing`, `payment_summary`, plus `estimate` when linked.
-- Voided Billing Record: omit `payment_summary`, return `payment_status = null`, `balance_due = null`.
-
-**Error responses:**
-
-| Condition | Status |
-|---|---|
-| Missing or invalid Sanctum token | `401` |
-| Patient profile absent | `404` |
-| Key or alias absent/outside patient scope | `404` |
-| Invalid filter/page/per_page | `422` |
+**Response (200) — complete linked:** Same as existing Eyewear detail contract with `estimate`, `preparation`, `dispensing`, and `payment_summary` sections.
 
 ---
 
-## 13. Billing Records
+## 15. Billing Records
 
-Paginated list with posted payments. Returns the standard `{ data, links, meta }` envelope.
+**Active patient link required for all endpoints in this section.**
+
+### GET `/billing-records`
+
+Paginated list with posted payments.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Query:** `per_page` (default: 15)
 
-**Response (200):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "billing_record_number": "BR-2026-000001",
-      "patient_id": 1,
-      "job_order_id": 1,
-      "encounter_id": 1,
-      "status": "partially_paid",
-      "total_amount": 8000.00,
-      "amount_paid": 5000.00,
-      "balance_due": 3000.00,
-      "recorded_by": 1,
-      "recorded_at": "2026-07-27T16:00:00+08:00",
-      "created_at": "2026-07-27T10:00:00+08:00",
-      "updated_at": "2026-07-27T16:00:00+08:00",
-      "deleted_at": null,
-      "payments": [
-        {
-          "id": 1,
-          "billing_record_id": 1,
-          "amount": 5000.00,
-          "payment_method": "gcash",
-          "reference_number": "GC-12345",
-          "recorded_by": 1,
-          "recorded_at": "2026-07-27T16:00:00+08:00",
-          "notes": null,
-          "status": "posted",
-          "created_at": "2026-07-27T16:00:00+08:00",
-          "updated_at": "2026-07-27T16:00:00+08:00"
-        }
-      ]
-    }
-  ],
-  "links": { "first": "...", "last": "...", "prev": null, "next": null },
-  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1, "from": 1, "to": 1 }
-}
-```
+**Response (200):** Same as existing Billing Record contract.
 
 **Status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
-
-**Only posted payments are included.** Voided payments are excluded.
 
 ### GET `/billing-records/{id}`
 
 Returns a single billing record with posted payments.
 
-**Response (200):**
-```json
-{
-  "data": {
-    "id": 1,
-    "billing_record_number": "BR-2026-000001",
-    "patient_id": 1,
-    "job_order_id": 1,
-    "encounter_id": 1,
-    "status": "partially_paid",
-    "total_amount": 8000.00,
-    "amount_paid": 5000.00,
-    "balance_due": 3000.00,
-    "recorded_by": 1,
-    "recorded_at": "2026-07-27T16:00:00+08:00",
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "updated_at": "2026-07-27T16:00:00+08:00",
-    "deleted_at": null,
-    "payments": [
-      {
-        "id": 1,
-        "billing_record_id": 1,
-        "amount": 5000.00,
-        "payment_method": "gcash",
-        "reference_number": "GC-12345",
-        "recorded_by": 1,
-        "recorded_at": "2026-07-27T16:00:00+08:00",
-        "notes": null,
-        "status": "posted",
-        "created_at": "2026-07-27T16:00:00+08:00",
-        "updated_at": "2026-07-27T16:00:00+08:00"
-      }
-    ]
-  }
-}
-```
-
-**Nullable fields:** `encounter_id`, `recorded_by`, `recorded_at`.
-
-**Line-item ownership:** The Job Order remains authoritative for item
-descriptions, quantities, and prices. The Filament Billing Record detail page
-shows `jobOrder.items` as a read-only table, but this admin-only presentation
-does not add an `items` field to the Billing Record API responses above. Android
-should use the Eyewear detail resource for the coherent patient-facing
-transaction and preparation items.
-
 ---
 
-## 14. Conversation
+## 16. Conversation
+
+**Active patient link required for all endpoints in this section.**
 
 ### GET `/conversation`
 
 Returns (or creates) the patient's single conversation.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response (200):**
 ```json
@@ -1197,296 +1361,238 @@ Returns (or creates) the patient's single conversation.
 }
 ```
 
-**Unread count:** Messages from other senders where `read_at IS NULL`.
-
----
-
 ### GET `/conversation/messages`
 
-Returns all messages in the conversation (oldest first).
+Returns all messages in the conversation (oldest first). NOT paginated.
 
-**Response (200):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "conversation_id": 1,
-      "sender_id": 5,
-      "body": "Hello, I have a question about my prescription.",
-      "read_at": null,
-      "created_at": "2026-07-27T10:00:00+08:00",
-      "attachments": [
-        {
-          "id": 1,
-          "original_name": "prescription.pdf",
-          "mime_type": "application/pdf",
-          "file_size": 125000
-        }
-      ],
-      "contexts": [
-        { "type": "App\\Models\\Appointment", "id": 1 }
-      ]
-    }
-  ]
-}
-```
-
-**Note:** This endpoint is NOT paginated — returns all messages.
-
----
+**Response (200):** Same as existing message contract.
 
 ### POST `/conversation/messages`
 
 Sends a message. Supports `multipart/form-data` for attachments.
 
-**Request (`multipart/form-data`):**
-```
-Content-Type: multipart/form-data; boundary=----FormBoundary
-
-------FormBoundary
-Content-Disposition: form-data; name="body"
-
-Hello, I have a question about my prescription.
-------FormBoundary
-Content-Disposition: form-data; name="contexts[0][type]"
-
-appointment
-------FormBoundary
-Content-Disposition: form-data; name="contexts[0][id]"
-
-1
-------FormBoundary
-Content-Disposition: form-data; name="contexts[1][type]"
-
-product
-------FormBoundary
-Content-Disposition: form-data; name="contexts[1][id]"
-
-7
-------FormBoundary
-Content-Disposition: form-data; name="attachment"; filename="prescription.pdf"
-Content-Type: application/pdf
-
-<binary file data>
-------FormBoundary--
-```
-
-**Field encoding rules:**
-- `body` — plain text field
-- `attachment` — file field (optional)
-- `contexts[N][type]` — indexed array, one field per context entry
-- `contexts[N][id]` — indexed array, paired with the corresponding type
-- Indexes must be sequential (`0`, `1`, `2`...) with no gaps
-- `contexts` is optional, max 5 entries
-- Context `type` must be one of: `appointment`, `order`, `product`
-
-**Response (201):**
-```json
-{
-  "data": { /* MessageResource */ }
-}
-```
-
----
+**Request:** Same as existing multipart contract with `body`, `attachment`, and `contexts[]`.
 
 ### GET `/conversation/attachments/{id}`
 
-Downloads a message attachment.
-
-**Response:** Binary file download with `Content-Type` header matching the stored mime type and `Content-Disposition` using the original filename.
-
-**Authorization:** Patient can only download attachments from their own conversation. Returns `404` for cross-patient access.
+Downloads a message attachment. Patient can only download from their own conversation.
 
 ---
 
-## 15. Frame Ratings
+## 17. Frame Ratings
+
+**Active patient link required for all endpoints in this section.**
 
 ### POST `/job-order-items/{id}/rating`
 
 Submits or revises a rating for a frame variant linked to a job order item.
 
-**Request:**
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request and Response:** Same as existing Frame Rating contract.
+
+---
+
+## 18. Error Responses
+
+All API errors use one consistent JSON shape:
+
 ```json
 {
-  "product_variant_id": "integer (required, exists:product_variants,id)",
-  "rating": "integer (required, min:1, max:5)",
-  "comment": "string (nullable, max:1000)",
-  "dispensing_event_id": "integer (nullable, exists:dispensing_events,id)"
-}
-```
-
-**Eligibility (server-enforced):**
-- The job-order item (`{item}` in the URL) must belong to the authenticated patient.
-- The job order must have `status = dispensed`.
-- `product_variant_id` in the request body must match the job-order item's `product_variant_id`.
-- If `dispensing_event_id` is supplied, it must belong to the same job order.
-- One rating per patient per variant — subsequent calls append a revision.
-
-**Response (201):**
-```json
-{
-  "data": {
-    "id": 1,
-    "patient_id": 1,
-    "product_variant_id": 42,
-    "dispensing_event_id": 1,
-    "rating": 5,
-    "comment": "Perfect fit!",
-    "current_revision_id": 1,
-    "is_hidden": false,
-    "moderation_reason": null,
-    "moderated_by": null,
-    "moderated_at": null,
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "updated_at": "2026-07-27T10:00:00+08:00",
-    "deleted_at": null,
-    "revisions": [
-      {
-        "id": 1,
-        "frame_rating_id": 1,
-        "revision_number": 1,
-        "rating": 5,
-        "comment": "Perfect fit!",
-        "revised_by": 5,
-        "revised_at": "2026-07-27T10:00:00+08:00",
-        "created_at": "2026-07-27T10:00:00+08:00",
-        "updated_at": "2026-07-27T10:00:00+08:00"
-      }
-    ]
+  "error": {
+    "code": "MACHINE_READABLE_CODE",
+    "message": "Patient-safe message",
+    "details": {}
   }
 }
 ```
 
-**On revision (second call with same patient + variant):**
-- `rating` and `comment` on the parent `FrameRating` are updated to the new values.
-- A new `FrameRatingRevision` is appended with `revision_number` incremented.
-- `current_revision_id` points to the new revision.
-- `revisions` array contains all revisions (initial + all edits).
+### Machine-Readable Error Codes
+
+| Code | HTTP Status | When |
+|---|---|---|
+| `INVALID_OTP` | 422 | Wrong, expired, or consumed OTP code |
+| `OTP_ATTEMPT_LIMIT_REACHED` | 422 | Too many verification attempts on a challenge |
+| `OTP_RATE_LIMIT_REACHED` | 429 | Too many OTP requests for this destination/IP |
+| `CONTACT_ALREADY_OWNED` | 422 | Contact is already verified by another account |
+| `INVITATION_INVALID` | 422 | Invitation token is invalid, expired, revoked, or consumed |
+| `ACCOUNT_ALREADY_LINKED` | 422 | Account already has an active patient link |
+| `PATIENT_ALREADY_LINKED` | 422 | Patient is already linked to another account |
+| `LINK_REQUEST_PENDING` | 422 | An active link request already exists |
+| `REQUEST_NOT_OWNED` | 404 | Appointment request does not belong to this account |
+| `REQUEST_TERMINAL` | 422 | Request is already accepted/rejected/cancelled/expired |
+| `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
+| `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
+| `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
+| `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | Maximum active pending requests reached |
+| `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
+| `CONTACT_NOT_VERIFIED` | 422 | Cannot set an unverified contact as primary |
+| `REQUEST_NOT_CANCELLABLE` | 422 | Only pending requests can be cancelled |
+
+### Standard HTTP Status Codes
+
+| Status | When |
+|---|---|
+| `401` | Missing or invalid Sanctum token |
+| `403` | Authenticated but not authorized (when existence disclosure is safe) |
+| `404` | Resource not found or not owned (preferred for enumeration-safe misses) |
+| `422` | Validation or state error |
+| `429` | Rate limit exceeded |
 
 ---
 
-## 16. Error Responses
+## 19. Coordinated Breaking Changes
 
-### 401 Unauthorized
-```json
-{
-  "message": "Unauthenticated."
-}
-```
+The following routes are **removed** in the coordinated Android cutover:
 
-### 403 Forbidden
-```json
-{
-  "message": "This action is unauthorized."
-}
-```
+| Removed Route | Replacement |
+|---|---|
+| `POST /register` | `POST /auth/registration/otp` + `POST /auth/registration/verify` |
+| `POST /login` | `POST /auth/login` + `POST /auth/login/verify` |
+| `GET /appointment-types` | Internal only; no patient-facing replacement |
+| `POST /appointments` | `POST /appointment-requests` |
+| `GET /appointments/{id}/intake` | Retired; no replacement |
+| `PUT /appointments/{id}/intake` | Retired; no replacement |
+| `POST /appointments/{id}/intake/submit` | Retired; no replacement |
 
-### 404 Not Found
-```json
-{
-  "message": "No query results for model [App\\Models\\Appointment] 999"
-}
-```
+### New Routes Added
 
-### 422 Validation Error
-```json
-{
-  "message": "The given data was invalid.",
-  "errors": {
-    "email": ["The email has already been taken."],
-    "scheduled_at": ["The scheduled at must be a date after now."]
-  }
-}
-```
+| New Route | Purpose |
+|---|---|
+| `POST /auth/registration/otp` | Request registration OTP |
+| `POST /auth/registration/verify` | Verify OTP and create account |
+| `POST /auth/login` | Password login (returns step-up) |
+| `POST /auth/login/verify` | Verify login OTP, issue token |
+| `POST /auth/password-recovery/otp` | Request recovery OTP |
+| `POST /auth/password-recovery/verify` | Verify recovery OTP, reset password |
+| `POST /logout-all` | Revoke all patient device tokens |
+| `GET /account/contacts` | List contacts |
+| `POST /account/contacts/otp` | Request contact verification OTP |
+| `POST /account/contacts/verify` | Verify contact OTP |
+| `PATCH /account/contacts/{id}/primary` | Set primary contact |
+| `DELETE /account/contacts/{id}` | Remove contact |
+| `GET /account/link` | Get link state |
+| `POST /patient-link-requests` | Submit link request |
+| `GET /patient-link-requests/current` | Get current link request |
+| `POST /patient-invitations/acceptance/otp` | Request invitation OTP |
+| `POST /patient-invitations/accept` | Accept invitation and activate link |
+| `GET /appointment-request-availability` | Get available slots for requests |
+| `GET /appointment-requests` | List own requests |
+| `POST /appointment-requests` | Create request |
+| `GET /appointment-requests/{id}` | Get request detail |
+| `POST /appointment-requests/{id}/cancel` | Cancel request |
 
-### 429 Too Many Requests
-```json
-{
-  "message": "Too Many Attempts."
-}
-```
+### Modified Routes
 
-**Rate limits:**
-- Login: `throttle:login` (5/min)
-- All authenticated routes: `throttle:60,1` (60/min)
-
-### 409 Conflict
-Not currently used by the API. Appointment scheduling conflicts return `422` with a descriptive error message.
-
----
-
-## 17. Clarifications
-
-### Booking uses `appointment_type_id` only
-There is no `visit_reason_id` in the mobile API. The `appointment_type_id` determines the visit type and duration. `visit_reason_id` exists in the database schema but is not used by the mobile booking flow.
-
-### `/appointment-availability` parameters
-Requires `date` (Y-m-d) and `appointment_type_id`. Optional `optometrist_id` to filter by provider. Optional `appointment_id` for reschedule context (validates ownership and status).
-
-### Registration and `/me` fields
-Registration accepts `name`, `email`, `phone`, `password`. No privacy acknowledgement fields in the API. The `/me` endpoint returns both account fields (`name`, `email`, `phone`) and patient fields (`full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `patient_number`).
-
-### Intake editability
-Draft intakes can be edited freely via PUT. Once submitted (`status: submitted`), they become immutable — PUT returns `422`. Verified intakes are also immutable.
-
-### Frame reservation creation and cancellation
-Creation requires `appointment_id` (required, must belong to patient, must be scheduled and not past) and `items[].product_variant_id` (1-5 items, distinct, active frame variants). Only one active reservation per appointment is allowed. Cancellation is allowed only for `requested` or `prepared` statuses. Responses include embedded appointment context (id, number, status, schedule, duration).
-
-### Conversation unread/read behavior
-`unread_count` on the conversation resource counts messages from other senders where `read_at IS NULL`. There is no explicit mark-read endpoint in the mobile API — read status is managed by the admin panel.
-
-### Attachment format
-Attachments are uploaded as `multipart/form-data` with field name `attachment`. Accepted types: jpg, jpeg, png, gif, pdf, doc, docx. Max 10MB. Download returns the original filename and mime type in headers.
-
-### Job-order-item rating eligibility
-Ratings are submitted via `POST /job-order-items/{item}/rating`. Server-enforced authorization: the job-order item must belong to the authenticated patient, the job order must be `dispensed`, the `product_variant_id` must match the item, and `dispensing_event_id` (if supplied) must belong to the same job order. One rating per patient per variant — subsequent calls append a revision. Moderated (hidden) ratings are preserved in DB.
-
-### Supplier invoice references
-`supplier_invoice_number` is internal clinic fulfillment data. It is recorded
-on the Job Order by staff and required before the order is marked ready, but it
-is excluded from the Job Order, Billing Record, and Eyewear patient responses.
+| Route | Change |
+|---|---|
+| `GET /me` | Now returns `link_status`, `first_name`, `last_name`; clinical fields only when linked |
+| `PATCH /me` | Only `first_name` and `last_name` editable; contact changes use dedicated endpoints |
+| `GET /appointment-availability` | Now includes request holds in capacity; removes `appointment_type_id` requirement |
+| `GET /appointments` | Now requires active patient link |
+| `GET /appointments/{id}` | Now requires active patient link |
+| `POST /appointments/{id}/cancel` | Now requires active patient link |
+| `POST /appointments/{id}/reschedule` | Duration derived from appointment; no `appointment_type_id` |
 
 ---
 
-## 18. Retired Features
+## 20. Retired Features
 
-The following old mobile features/routes are **intentionally retired** and do not exist in the v1 API:
+The following old mobile features/routes are **intentionally retired**:
 
 | Feature | Status |
 |---|---|
-| Accessories and orders (`/orders`, `/accessories`) | Retired. No order/accessory endpoints. Products are frames only. |
-| Billing PDF | Retired. No PDF generation endpoints. |
-| Clinic feedback (`/feedback`) | Retired. Complaints remain a separate clinic remediation workflow; verified frame ratings remain available after dispensing. |
-| Appointment contact-note editing (`PATCH /appointments/{id}/contact-note`) | The `updateContactNote` method exists in the controller but has **no registered route**. Retired. |
-| Explicit message mark-read | No mark-read endpoint. Unread count is read-only context. |
-| Message context cards | Contexts are embedded in the message response as `contexts[]` with `type` and `id`. No separate card/detail endpoint. |
-| `/api/user` (unversioned) | Absent. All auth uses `/api/v1/` prefix. |
-| `/api/v1/patient/profile` | Absent. Profile is accessed via `/api/v1/me`. |
-| Notification endpoints | `NotificationController` exists but has no registered routes. Retired from mobile API. |
+| Direct `POST /appointments` | Retired. All mobile bookings use appointment requests. |
+| Patient-selectable `GET /appointment-types` | Retired. Type is internal, resolved by staff at acceptance. |
+| Patient intake routes (`/appointments/{id}/intake`) | Retired. Clinical data moves to Encounter. |
+| Patient-completed intake forms | Retired. Only free-text reason for visit at booking. |
+| Accessories and orders (`/orders`, `/accessories`) | Retired. |
+| Billing PDF | Retired. |
+| Clinic feedback (`/feedback`) | Retired. |
+| Appointment contact-note editing | Retired. |
+| Explicit message mark-read | Retired. |
+| `/api/user` (unversioned) | Absent. |
+| `/api/v1/patient/profile` | Absent. Profile is `/api/v1/me`. |
+| Notification endpoints | Retired from mobile API. |
 
 ---
 
-## Appendix: Complete Route List (35 routes)
+## 21. Clarifications
+
+### Registration creates no Patient
+Registration OTP verification creates only a `User` with the `patient` role and its verified primary contact method. No clinical `Patient` record is created. Patients are created through staff duplicate review or invitation acceptance.
+
+### Active patient link boundary
+Routes in sections 7-17 require an active patient link (`patients.user_id`). Unlinked accounts can only access account management (sections 1-6). The `link_status` field on `/me` reflects the current state.
+
+### Appointment requests vs confirmed appointments
+Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
+
+### No appointment type selection by patients
+The mobile API does not expose `appointment_type_id` for booking. The internal Appointment Type is resolved by staff when accepting the request. The system may prefill `New Patient` when the resolved patient has no fulfilled clinical visit.
+
+### Reason for visit
+Appointment requests require a free-text `reason_for_visit` (max 1000 characters). This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
+
+### Identity verification
+The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `last_name`) never silently update the clinic Patient record.
+
+### OTP challenge lifecycle
+Challenges expire after 10 minutes, allow 5 verification attempts, and are consumed on successful verification. Resend invalidates earlier pending challenges for the same purpose/destination. Rate limits: 3 per 15 minutes per destination, 10 per 15 minutes per IP, 10 per destination per day.
+
+### Sanctum token lifecycle
+Tokens are device-labelled, expire after 30 days, and are limited to 5 per patient account. Same-installation replacement is supported. Password recovery and primary-contact replacement revoke other patient tokens.
+
+### Contact normalization
+Email addresses are trimmed and lowercased. Phone numbers are normalized to canonical E.164 (`+63...`) before uniqueness checks and blind-index computation.
+
+---
+
+## Appendix: Complete Route List
+
+### Public Authentication (no token required)
 
 ```
-POST   /api/v1/register
-POST   /api/v1/login
+POST   /api/v1/auth/registration/otp
+POST   /api/v1/auth/registration/verify
+POST   /api/v1/auth/login
+POST   /api/v1/auth/login/verify
+POST   /api/v1/auth/password-recovery/otp
+POST   /api/v1/auth/password-recovery/verify
+```
+
+### Authenticated Account-Only (token required, no active link needed)
+
+```
 POST   /api/v1/logout
+POST   /api/v1/logout-all
 GET    /api/v1/me
 PATCH  /api/v1/me
+GET    /api/v1/account/contacts
+POST   /api/v1/account/contacts/otp
+POST   /api/v1/account/contacts/verify
+PATCH  /api/v1/account/contacts/{contact}/primary
+DELETE /api/v1/account/contacts/{contact}
+GET    /api/v1/account/link
+POST   /api/v1/patient-link-requests
+GET    /api/v1/patient-link-requests/current
+POST   /api/v1/patient-invitations/acceptance/otp
+POST   /api/v1/patient-invitations/accept
+GET    /api/v1/appointment-request-availability
+GET    /api/v1/appointment-requests
+POST   /api/v1/appointment-requests
+GET    /api/v1/appointment-requests/{appointmentRequest}
+POST   /api/v1/appointment-requests/{appointmentRequest}/cancel
+```
 
-GET    /api/v1/appointment-types
+### Active Patient Link Required (token + active link)
+
+```
 GET    /api/v1/appointment-availability
 GET    /api/v1/appointments
-POST   /api/v1/appointments
 GET    /api/v1/appointments/{appointment}
 POST   /api/v1/appointments/{appointment}/cancel
 POST   /api/v1/appointments/{appointment}/reschedule
-
-GET    /api/v1/appointments/{appointment}/intake
-PUT    /api/v1/appointments/{appointment}/intake
-POST   /api/v1/appointments/{appointment}/intake/submit
 
 GET    /api/v1/frames
 GET    /api/v1/frames/{frame}
@@ -1514,4 +1620,4 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-**Total: 35 routes** (matches BACKEND_CONTEXT.md). The `appointment-types` endpoint is included in the count.
+**Route count:** 6 public + 20 account-only + 25 active-link = **51 routes total.**
