@@ -6,7 +6,8 @@
         body { font-family: 'Instrument Sans', sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { background: #4F8DD7; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
         .content { background: #f9f9f9; padding: 20px; border: 1px solid #ddd; border-top: none; border-radius: 0 0 8px 8px; }
-        .button { display: inline-block; background: #4F8DD7; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0; }
+        .code-box { background: #fff; border: 2px dashed #4F8DD7; padding: 16px; text-align: center; margin: 16px 0; border-radius: 8px; }
+        .code { font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #4F8DD7; font-family: monospace; }
         .footer { font-size: 12px; color: #666; margin-top: 20px; }
     </style>
 </head>
@@ -26,7 +27,13 @@
             <li>Message the clinic directly</li>
         </ul>
 
-        <p>To accept this invitation, open the Eyecare app and enter the invitation code provided by the clinic.</p>
+        <p><strong>Your invitation code:</strong></p>
+
+        <div class="code-box">
+            <div class="code">{{ $invitationCode }}</div>
+        </div>
+
+        <p>Open the Eyecare app, go to <strong>Accept Invitation</strong>, and enter this code.</p>
 
         <p><strong>This invitation expires on {{ $expiresAt->format('M j, Y g:i A') }}.</strong></p>
 
