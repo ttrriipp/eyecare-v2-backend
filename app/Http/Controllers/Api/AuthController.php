@@ -140,6 +140,13 @@ class AuthController extends Controller
         return response()->json();
     }
 
+    public function logoutAll(Request $request): JsonResponse
+    {
+        $request->user()->tokens()->delete();
+
+        return response()->json(null, 204);
+    }
+
     public function update(UpdateMeRequest $request): JsonResponse
     {
         $user = $request->user();

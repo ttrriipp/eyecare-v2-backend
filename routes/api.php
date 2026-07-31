@@ -28,11 +28,14 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     Route::post('auth/register', [AuthController::class, 'registerWithOtp']);
     Route::post('auth/login', [AuthController::class, 'patientLogin']);
     Route::post('auth/login/verify', [AuthController::class, 'patientLoginVerify']);
+    Route::post('auth/password-recovery/otp', [OtpChallengeController::class, 'recoveryOtp']);
+    Route::post('auth/password-recovery/verify', [OtpChallengeController::class, 'recoveryVerify']);
 });
 
 // Authenticated versioned patient API
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::post('logout', [AuthController::class, 'logout']);
+    Route::post('logout-all', [AuthController::class, 'logoutAll']);
     Route::get('me', [AuthController::class, 'user']);
     Route::patch('me', [AuthController::class, 'update']);
 
