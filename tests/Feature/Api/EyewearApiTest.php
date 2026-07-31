@@ -26,12 +26,12 @@ test('unauthenticated access returns 401', function () {
     $this->getJson('/api/v1/eyewear')->assertUnauthorized();
 });
 
-test('patient profile absent returns 404', function () {
+test('patient profile absent returns 403', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
         ->getJson('/api/v1/eyewear')
-        ->assertNotFound();
+        ->assertForbidden();
 });
 
 // ── List ───────────────────────────────────────────────────────────────────
