@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Patients\Schemas;
 
+use App\Models\Patient;
 use App\Models\PatientInvitation;
+use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -94,7 +96,30 @@ class PatientForm
                                 $record->user_id !== null => 'success',
                                 default => 'gray',
                             })
-                            ->size(TextSize::Large),
+                            ->size(TextSize::Large)
+                            ->hiddenOn('create'),
+
+                        Select::make('user_id')
+                            ->label('Link Account')
+                            ->options(function () {
+                                $linkedUserIds = Patient::whereNotNull('user_id')
+                                    ->pluck('user_id')
+                                    ->toArray();
+
+                                return User::whereHas('role', fn ($q) => $q->where('name', 'patient'))
+                                    ->whereNotIn('id', $linkedUserIds)
+                                    ->get()
+                                    ->mapWithKeys(fn ($user) => [
+                                        $user->id => ($user->first_name && $user->last_name)
+                                            ? "{$user->first_name} {$user->last_name}"
+                                            : ($user->name ?? "User #{$user->id}"),
+                                    ])
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->nullable()
+                            ->helperText('Optional. Link to an existing unlinked patient account.')
+                            ->visibleOn('create'),
                     ]),
                 ]),
             ]),
