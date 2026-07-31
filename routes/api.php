@@ -32,13 +32,16 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     Route::post('auth/password-recovery/verify', [OtpChallengeController::class, 'recoveryVerify']);
 });
 
-// Authenticated versioned patient API
+// Authenticated account-only routes (no active link required)
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('logout-all', [AuthController::class, 'logoutAll']);
     Route::get('me', [AuthController::class, 'user']);
     Route::patch('me', [AuthController::class, 'update']);
+});
 
+// Authenticated clinical routes (active patient link required)
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patient.link'])->group(function (): void {
     Route::get('appointment-types', fn () => response()->json([
         'data' => AppointmentType::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'duration_minutes', 'requires_referral']),
     ]));
