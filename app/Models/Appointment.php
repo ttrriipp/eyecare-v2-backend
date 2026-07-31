@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'no_show_at',
     'contact_notes',
     'staff_notes',
+    'reason_for_visit',
 ])]
 class Appointment extends Model implements Eventable
 {

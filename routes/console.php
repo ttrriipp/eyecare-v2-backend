@@ -13,3 +13,4 @@ Schedule::command('appointments:send-reminders')
     ->timezone(config('app.timezone'))
     ->withoutOverlapping();
 Schedule::command('clinic:daily-summary')->dailyAt('21:00');
+Schedule::command('appointments:expire-requests')->everyMinute()->withoutOverlapping();
