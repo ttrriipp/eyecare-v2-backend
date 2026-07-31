@@ -5,7 +5,9 @@ namespace App\Filament\Resources\Patients\Pages;
 use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Filament\Resources\Patients\PatientResource;
+use App\Models\Patient;
 use App\Models\PatientInvitation;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -119,6 +121,81 @@ class EditPatient extends EditRecord
                             ->danger()
                             ->send();
                     }
+                }),
+
+            Action::make('linkAccount')
+                ->label('Link Account')
+                ->icon('heroicon-o-link')
+                ->color('success')
+                ->visible(function (): bool {
+                    $patient = $this->getRecord();
+
+                    // Can only link if patient is not already linked
+                    if ($patient->user_id !== null) {
+                        return false;
+                    }
+
+                    return auth()->user()->isAdmin();
+                })
+                ->schema([
+                    Select::make('user_id')
+                        ->label('Select Account')
+                        ->options(function () {
+                            // Get unlinked patient-role users
+                            $linkedUserIds = Patient::whereNotNull('user_id')
+                                ->pluck('user_id')
+                                ->toArray();
+
+                            return User::whereHas('role', fn ($q) => $q->where('name', 'patient'))
+                                ->whereNotIn('id', $linkedUserIds)
+                                ->get()
+                                ->mapWithKeys(fn ($user) => [
+                                    $user->id => ($user->first_name && $user->last_name)
+                                        ? "{$user->first_name} {$user->last_name} ({$user->email})"
+                                        : ($user->name ?? "User #{$user->id}"),
+                                ])
+                                ->toArray();
+                        })
+                        ->searchable()
+                        ->required()
+                        ->helperText('Only unlinked patient accounts are shown.'),
+                ])
+                ->action(function (array $data): void {
+                    $patient = $this->getRecord();
+                    $user = User::findOrFail($data['user_id']);
+
+                    // Verify account is still unlinked
+                    if ($user->patient !== null) {
+                        Notification::make()
+                            ->title('This account is already linked to another patient')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    // Verify patient is still unlinked
+                    if ($patient->fresh()->user_id !== null) {
+                        Notification::make()
+                            ->title('This patient is already linked to an account')
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    // Activate the link
+                    $patient->update(['user_id' => $user->id]);
+
+                    // Revoke tokens to force re-authentication with link
+                    $user->tokens()->delete();
+
+                    $this->record->refresh();
+
+                    Notification::make()
+                        ->title("Account linked successfully. The patient's active sessions have been revoked.")
+                        ->success()
+                        ->send();
                 }),
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Actions\PatientAccounts;
 
 use App\Enums\PatientInvitationStatus;
+use App\Jobs\DeliverPatientInvitation;
 use App\Models\Patient;
 use App\Models\PatientInvitation;
 use App\Models\User;
@@ -60,6 +61,9 @@ class IssuePatientInvitation
                 'expires_at' => now()->addDays(config('patient_accounts.invitations.lifetime_days', 7)),
                 'sent_at' => now(),
             ]);
+
+            // Dispatch delivery job after commit
+            DeliverPatientInvitation::dispatch($invitation->id)->afterCommit();
 
             return $invitation;
         });
