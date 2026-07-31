@@ -18,13 +18,14 @@
     <div class="content">
         <p>Hello {{ $patientName }},</p>
 
-        <p>You've been invited to connect your account with <strong>Padilla Optical Clinic</strong> on Eyecare.</p>
+        <p>You've been invited to link your account with <strong>Padilla Optical Clinic</strong> on Eyecare.</p>
 
-        <p>Once connected, you'll be able to:</p>
+        <p>Linking your account connects it to your clinic patient record, giving you access to:</p>
         <ul>
-            <li>Book and manage appointments</li>
-            <li>View your prescriptions and eyewear orders</li>
-            <li>Message the clinic directly</li>
+            <li>Your prescriptions and eyewear orders</li>
+            <li>Order status and payment details</li>
+            <li>Frame reservations</li>
+            <li>Appointment history</li>
         </ul>
 
         <p><strong>Your invitation code:</strong></p>
