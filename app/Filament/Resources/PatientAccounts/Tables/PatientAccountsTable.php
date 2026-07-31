@@ -25,11 +25,6 @@ class PatientAccountsTable
                     ->formatStateUsing(fn (?string $state): string => self::maskEmail($state))
                     ->placeholder('—'),
 
-                TextColumn::make('patient.full_name')
-                    ->label('Linked Patient')
-                    ->placeholder('Unlinked')
-                    ->searchable(),
-
                 TextColumn::make('link_status')
                     ->label('Status')
                     ->badge()
