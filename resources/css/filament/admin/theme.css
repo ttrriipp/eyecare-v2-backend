@@ -12,6 +12,11 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+/* Keep appointment and intake statuses prominent in the detail sidebar. */
+.appointment-status-entry .fi-badge {
+    @apply px-3 py-1.5 text-sm;
+}
+
 /* Keep the conversation workspace within the viewport below the fixed topbar. */
 .fi-page.fi-conversation-chat-page {
     height: calc(100dvh - 4rem);
