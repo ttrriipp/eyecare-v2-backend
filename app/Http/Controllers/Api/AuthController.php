@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Auth\RegisterPatientAccount;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\RegisterPatientAccountRequest;
 use App\Http\Requests\Api\RegisterPatientRequest;
 use App\Http\Requests\Api\UpdateMeRequest;
+use App\Http\Resources\PatientAccountResource;
 use App\Http\Resources\PatientProfileResource;
 use App\Models\Patient;
 use App\Models\Role;
@@ -47,6 +50,21 @@ class AuthController extends Controller
             'data' => [
                 'token' => $user->createToken('mobile')->plainTextToken,
                 'user' => PatientProfileResource::make($user),
+            ],
+        ], 201);
+    }
+
+    public function registerWithOtp(RegisterPatientAccountRequest $request, RegisterPatientAccount $register): JsonResponse
+    {
+        $result = $register->handle($request->validated());
+
+        $user = $result['user'];
+        $user->load('role', 'contacts');
+
+        return response()->json([
+            'data' => [
+                'token' => $result['token'],
+                'user' => PatientAccountResource::make($user),
             ],
         ], 201);
     }
