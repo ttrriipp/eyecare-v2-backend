@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AcceptPatientInvitation
@@ -93,7 +94,7 @@ class AcceptPatientInvitation
                     'name' => ($firstName ?? 'Patient').' '.($lastName ?? ''),
                     'first_name' => $firstName,
                     'last_name' => $lastName,
-                    'password' => Hash::make($password ?? str_random(32)),
+                    'password' => Hash::make($password ?? Str::random(32)),
                     'role_id' => $role->id,
                 ]);
 

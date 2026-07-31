@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\OtpChallengeController;
+use App\Http\Controllers\Api\PatientInvitationController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QuotationController;
@@ -48,6 +49,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
     Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
     Route::post('appointment-requests/{appointmentRequest}/cancel', [AppointmentRequestController::class, 'cancel']);
+
+    // Patient invitations
+    Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp']);
+    Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept']);
 });
 
 // Authenticated clinical routes (active patient link required)
