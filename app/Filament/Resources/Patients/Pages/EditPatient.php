@@ -29,12 +29,10 @@ class EditPatient extends EditRecord
                 ->visible(function (): bool {
                     $patient = $this->getRecord();
 
-                    // Can only invite if patient is active and not already linked
                     if ($patient->user_id !== null) {
                         return false;
                     }
 
-                    // Check for existing pending invitation
                     $hasPending = PatientInvitation::where('patient_id', $patient->id)
                         ->where('status', 'pending')
                         ->exists();
@@ -55,7 +53,6 @@ class EditPatient extends EditRecord
                     $patient = $this->getRecord();
                     $channel = $data['channel'];
 
-                    // Verify patient has the selected contact
                     $destination = $channel === 'email' ? $patient->contact_email : $patient->phone;
 
                     if (empty($destination)) {
@@ -86,6 +83,38 @@ class EditPatient extends EditRecord
                             ->danger()
                             ->send();
                     }
+                }),
+
+            Action::make('revokeInvitation')
+                ->label('Revoke Invitation')
+                ->icon('heroicon-o-x-circle')
+                ->color('warning')
+                ->visible(function (): bool {
+                    $patient = $this->getRecord();
+
+                    if ($patient->user_id !== null) {
+                        return false;
+                    }
+
+                    return PatientInvitation::where('patient_id', $patient->id)
+                        ->where('status', 'pending')
+                        ->exists();
+                })
+                ->requiresConfirmation()
+                ->action(function (): void {
+                    $patient = $this->getRecord();
+
+                    PatientInvitation::where('patient_id', $patient->id)
+                        ->where('status', 'pending')
+                        ->update([
+                            'status' => PatientInvitationStatus::Revoked,
+                            'revoked_at' => now(),
+                        ]);
+
+                    Notification::make()
+                        ->title('Invitation revoked')
+                        ->success()
+                        ->send();
                 }),
 
             Action::make('unlinkAccount')
