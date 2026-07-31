@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\AppointmentRequestController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingRecordController;
 use App\Http\Controllers\Api\ConversationController;
@@ -43,6 +44,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     // Patient link requests
     Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);
     Route::get('patient-link-requests/current', [PatientLinkRequestController::class, 'current']);
+
+    // Appointment requests
+    Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
+    Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
+    Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
+    Route::post('appointment-requests/{appointmentRequest}/cancel', [AppointmentRequestController::class, 'cancel']);
 });
 
 // Authenticated clinical routes (active patient link required)
