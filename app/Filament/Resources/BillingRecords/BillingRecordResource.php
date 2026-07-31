@@ -26,6 +26,11 @@ class BillingRecordResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // Primary navigation is Optical Orders
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema->components([]);

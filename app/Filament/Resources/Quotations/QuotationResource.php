@@ -29,6 +29,11 @@ class QuotationResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // Primary navigation is Optical Orders
+    }
+
     protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
 
     public static function form(Schema $schema): Schema

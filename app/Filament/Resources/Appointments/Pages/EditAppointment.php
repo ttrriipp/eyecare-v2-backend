@@ -9,7 +9,9 @@ use App\Actions\Encounters\CheckInAppointment;
 use App\Enums\IntakeStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\Appointment;
+use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -39,6 +41,29 @@ class EditAppointment extends EditRecord
                     }
 
                     return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
+                }),
+
+            Action::make('openOpticalOrder')
+                ->label('Open Optical Order')
+                ->icon('heroicon-o-shopping-bag')
+                ->color('primary')
+                ->visible(function (): bool {
+                    $encounter = $this->getRecord()->encounter;
+
+                    return $encounter !== null && $encounter->prescriptions()->exists();
+                })
+                ->url(function (): ?string {
+                    $encounter = $this->getRecord()->encounter;
+                    if ($encounter === null) {
+                        return null;
+                    }
+
+                    $quotation = Quotation::where('encounter_id', $encounter->id)->first();
+                    if ($quotation !== null) {
+                        return OpticalOrderResource::getUrl('view', ['record' => $quotation]);
+                    }
+
+                    return null;
                 }),
 
             Action::make('completeHealthRecord')
