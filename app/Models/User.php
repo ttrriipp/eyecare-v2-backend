@@ -59,6 +59,14 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return $this->hasMany(PatientAccountContact::class);
     }
 
+    /**
+     * @return HasMany<PatientLinkRequest, $this>
+     */
+    public function linkRequests(): HasMany
+    {
+        return $this->hasMany(PatientLinkRequest::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role->name === 'admin';
