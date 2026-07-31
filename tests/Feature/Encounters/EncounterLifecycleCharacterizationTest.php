@@ -118,10 +118,9 @@ test('start encounter transitions to in_progress', function () {
         ->and($encounter->optometrist_id)->toBe($this->optometrist->id);
 });
 
-test('start encounter currently fulfills the appointment', function () {
-    // NOTE: This behavior will change in the new spec.
-    // Currently, StartEncounter marks the appointment as fulfilled.
-    // In the new spec, the appointment stays checked_in until Encounter completion.
+test('start encounter leaves appointment checked_in', function () {
+    // NEW BEHAVIOR: Starting consultation leaves the appointment checked_in.
+    // The appointment is only fulfilled when the encounter is completed.
     $appointment = Appointment::factory()->create();
     $this->actingAs($this->staff);
 
@@ -133,8 +132,7 @@ test('start encounter currently fulfills the appointment', function () {
     );
 
     $appointment->refresh();
-    expect($appointment->status->name)->toBe('fulfilled')
-        ->and($appointment->fulfilled_at)->not->toBeNull();
+    expect($appointment->status->name)->toBe('checked_in');
 });
 
 test('complete encounter transitions to completed', function () {

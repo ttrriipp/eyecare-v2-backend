@@ -5,7 +5,6 @@ namespace App\Actions\Encounters;
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
-use App\Models\AppointmentStatus;
 use App\Models\Encounter;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -46,19 +45,11 @@ class StartEncounter
             }
 
             // Atomically update encounter
+            // Appointment stays checked_in while encounter is in_progress
             $encounter->update([
                 'status' => EncounterStatus::InProgress,
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now(),
-            ]);
-
-            // Atomically fulfill the appointment
-            $appointment->update([
-                'appointment_status_id' => AppointmentStatus::query()
-                    ->where('name', 'fulfilled')
-                    ->value('id'),
-                'fulfilled_at' => now(),
-                'optometrist_id' => $optometrist->id,
             ]);
 
             // Audit

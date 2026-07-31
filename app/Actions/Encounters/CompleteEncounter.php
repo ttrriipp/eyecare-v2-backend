@@ -5,6 +5,7 @@ namespace App\Actions\Encounters;
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
+use App\Models\AppointmentStatus;
 use App\Models\Encounter;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,19 @@ class CompleteEncounter
             $encounter->update([
                 'status' => EncounterStatus::Completed,
                 'completed_at' => now(),
+                'completed_by' => $actor->id,
             ]);
+
+            // Fulfill the appointment when encounter is completed
+            $appointment = $encounter->appointment;
+            if ($appointment !== null) {
+                $appointment->update([
+                    'appointment_status_id' => AppointmentStatus::query()
+                        ->where('name', 'fulfilled')
+                        ->value('id'),
+                    'fulfilled_at' => now(),
+                ]);
+            }
 
             // Audit
             app(CreateAuditLog::class)->handle(
