@@ -26,6 +26,8 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     Route::post('auth/registration/otp', [OtpChallengeController::class, 'issue']);
     Route::post('auth/registration/verify', [OtpChallengeController::class, 'verify']);
     Route::post('auth/register', [AuthController::class, 'registerWithOtp']);
+    Route::post('auth/login', [AuthController::class, 'patientLogin']);
+    Route::post('auth/login/verify', [AuthController::class, 'patientLoginVerify']);
 });
 
 // Authenticated versioned patient API

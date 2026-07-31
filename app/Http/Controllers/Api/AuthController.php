@@ -2,9 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Auth\BeginPatientLogin;
+use App\Actions\Auth\DispatchOtpChallenge;
+use App\Actions\Auth\IssuePatientDeviceToken;
 use App\Actions\Auth\RegisterPatientAccount;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\PatientLoginRequest;
+use App\Http\Requests\Api\PatientLoginVerifyRequest;
 use App\Http\Requests\Api\RegisterPatientAccountRequest;
 use App\Http\Requests\Api\RegisterPatientRequest;
 use App\Http\Requests\Api\UpdateMeRequest;
@@ -78,6 +83,42 @@ class AuthController extends Controller
             'data' => [
                 'token' => $user->createToken('mobile')->plainTextToken,
                 'user' => PatientProfileResource::make($user),
+            ],
+        ]);
+    }
+
+    public function patientLogin(PatientLoginRequest $request, BeginPatientLogin $login): JsonResponse
+    {
+        $result = $login->handle(
+            contactValue: $request->validated('contact_value'),
+            password: $request->validated('password'),
+        );
+
+        return response()->json([
+            'data' => [
+                'step_up_required' => $result['step_up_required'],
+                'challenge_id' => $result['challenge_id'],
+                'expires_at' => $result['expires_at']->toISOString(),
+            ],
+        ]);
+    }
+
+    public function patientLoginVerify(PatientLoginVerifyRequest $request, IssuePatientDeviceToken $issueToken, DispatchOtpChallenge $dispatch): JsonResponse
+    {
+        $result = $issueToken->handle(
+            challengeId: $request->validated('challenge_id'),
+            code: $request->validated('code'),
+            deviceName: $request->validated('device_name'),
+            installationId: $request->validated('installation_id'),
+        );
+
+        $user = $result['user'];
+        $user->load('role', 'contacts');
+
+        return response()->json([
+            'data' => [
+                'token' => $result['token'],
+                'user' => PatientAccountResource::make($user),
             ],
         ]);
     }
