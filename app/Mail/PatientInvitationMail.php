@@ -30,7 +30,7 @@ class PatientInvitationMail extends Mailable
             view: 'emails.patient-invitation',
             with: [
                 'patientName' => $this->invitation->patient?->full_name ?? 'Patient',
-                'invitationCode' => $this->invitation->public_id,
+                'invitationCode' => $this->invitation->invitation_code,
                 'channel' => $this->invitation->channel,
                 'expiresAt' => $this->invitation->expires_at,
             ],

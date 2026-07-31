@@ -16,6 +16,7 @@ class PatientInvitation extends Model
 
     protected $fillable = [
         'public_id',
+        'invitation_code',
         'patient_id',
         'sender_id',
         'channel',
@@ -49,6 +50,9 @@ class PatientInvitation extends Model
         static::creating(function (PatientInvitation $invitation): void {
             if (blank($invitation->public_id)) {
                 $invitation->public_id = (string) Str::uuid();
+            }
+            if (blank($invitation->invitation_code)) {
+                $invitation->invitation_code = strtoupper(Str::random(8));
             }
         });
     }
