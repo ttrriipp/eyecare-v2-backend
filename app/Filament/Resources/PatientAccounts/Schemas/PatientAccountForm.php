@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\PatientAccounts\Schemas;
 
-use App\Models\AppointmentRequest;
-use App\Models\PatientInvitation;
 use App\Models\PatientLinkRequest;
 use Carbon\Carbon;
 use Filament\Forms\Components\Placeholder;
@@ -54,52 +52,6 @@ class PatientAccountForm
                                 }
 
                                 return $contacts->map(fn ($c) => strtoupper($c->type).': '.$c->encrypted_value.($c->is_primary ? ' (Primary)' : '')
-                                )->implode("\n");
-                            })
-                            ->columnSpanFull(),
-                    ]),
-
-                    Section::make('Invitation History')->schema([
-                        Placeholder::make('invitation_history')
-                            ->label('')
-                            ->content(function ($record): string {
-                                if ($record === null || $record->patient === null) {
-                                    return '—';
-                                }
-
-                                $invitations = PatientInvitation::where('patient_id', $record->patient->id)
-                                    ->orderBy('created_at', 'desc')
-                                    ->limit(10)
-                                    ->get();
-
-                                if ($invitations->isEmpty()) {
-                                    return 'No invitations';
-                                }
-
-                                return $invitations->map(fn ($i) => strtoupper($i->channel).' — '.$i->status->value.' — '.$i->created_at->format('M j, Y g:i A')
-                                )->implode("\n");
-                            })
-                            ->columnSpanFull(),
-                    ]),
-
-                    Section::make('Appointment Requests')->schema([
-                        Placeholder::make('appointment_requests')
-                            ->label('')
-                            ->content(function ($record): string {
-                                if ($record === null) {
-                                    return '—';
-                                }
-
-                                $requests = AppointmentRequest::where('user_id', $record->id)
-                                    ->orderBy('created_at', 'desc')
-                                    ->limit(10)
-                                    ->get();
-
-                                if ($requests->isEmpty()) {
-                                    return 'No appointment requests';
-                                }
-
-                                return $requests->map(fn ($r) => "{$r->request_number} — {$r->status->value} — {$r->scheduled_at->format('M j, Y g:i A')}"
                                 )->implode("\n");
                             })
                             ->columnSpanFull(),

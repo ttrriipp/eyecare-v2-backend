@@ -4,6 +4,8 @@ namespace App\Filament\Resources\PatientAccounts;
 
 use App\Filament\Resources\PatientAccounts\Pages\ListPatientAccounts;
 use App\Filament\Resources\PatientAccounts\Pages\ViewPatientAccount;
+use App\Filament\Resources\PatientAccounts\RelationManagers\AppointmentRequestsRelationManager;
+use App\Filament\Resources\PatientAccounts\RelationManagers\InvitationHistoryRelationManager;
 use App\Filament\Resources\PatientAccounts\Schemas\PatientAccountForm;
 use App\Filament\Resources\PatientAccounts\Tables\PatientAccountsTable;
 use App\Models\User;
@@ -56,7 +58,10 @@ class PatientAccountResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            InvitationHistoryRelationManager::class,
+            AppointmentRequestsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
