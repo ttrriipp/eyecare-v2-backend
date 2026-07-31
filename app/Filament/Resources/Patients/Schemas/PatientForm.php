@@ -88,6 +88,12 @@ class PatientForm
 
                                 return 'Not invited';
                             })
+                            ->badge()
+                            ->color(fn ($record) => match (true) {
+                                $record === null => 'gray',
+                                $record->user_id !== null => 'success',
+                                default => 'gray',
+                            })
                             ->size(TextSize::Large),
                     ]),
                 ]),
