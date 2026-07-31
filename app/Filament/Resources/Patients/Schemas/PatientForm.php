@@ -89,55 +89,6 @@ class PatientForm
                                 return 'Not invited';
                             })
                             ->size(TextSize::Large),
-
-                        Placeholder::make('linked_account_name')
-                            ->label('Account Name')
-                            ->content(function ($record): string {
-                                if ($record === null || $record->user_id === null) {
-                                    return '—';
-                                }
-
-                                $user = $record->account;
-                                if ($user === null) {
-                                    return '—';
-                                }
-
-                                $name = $user->first_name && $user->last_name
-                                    ? $user->first_name.' '.$user->last_name
-                                    : $user->name;
-
-                                return $name.' ('.($user->email ?? $user->phone ?? 'No contact').')';
-                            }),
-
-                        Placeholder::make('linked_account_email')
-                            ->label('Account Email')
-                            ->content(function ($record): string {
-                                if ($record === null || $record->user_id === null) {
-                                    return '—';
-                                }
-
-                                $user = $record->account;
-
-                                return $user?->contacts()
-                                    ->where('type', 'email')
-                                    ->where('is_primary', true)
-                                    ->first()?->encrypted_value ?? '—';
-                            }),
-
-                        Placeholder::make('linked_account_phone')
-                            ->label('Account Phone')
-                            ->content(function ($record): string {
-                                if ($record === null || $record->user_id === null) {
-                                    return '—';
-                                }
-
-                                $user = $record->account;
-
-                                return $user?->contacts()
-                                    ->where('type', 'phone')
-                                    ->where('is_primary', true)
-                                    ->first()?->encrypted_value ?? '—';
-                            }),
                     ]),
                 ]),
             ]),
