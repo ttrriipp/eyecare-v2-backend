@@ -173,70 +173,14 @@ test('non-optometrist does not see verify button', function () {
         ->assertDontSee('Verify');
 });
 
-test('edit appointment shows health record status card', function () {
+test('edit appointment shows reason for visit section', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Patient Health Record')
-        ->assertSee('Not started');
-});
-
-test('edit appointment shows complete health record action for absent intake', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('completeHealthRecord');
-});
-
-test('edit appointment shows complete health record action for draft', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-    PatientIntake::factory()->create([
-        'appointment_id' => $appointment->id,
-        'patient_id' => $appointment->patient_id,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('completeHealthRecord');
-});
-
-test('edit appointment shows review health record action for submitted', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-    PatientIntake::factory()->submitted()->create([
-        'appointment_id' => $appointment->id,
-        'patient_id' => $appointment->patient_id,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('reviewHealthRecord')
-        ->assertActionHidden('completeHealthRecord');
-});
-
-test('edit appointment shows view health record action for verified', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-    PatientIntake::factory()->verified()->create([
-        'appointment_id' => $appointment->id,
-        'patient_id' => $appointment->patient_id,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('viewHealthRecord')
-        ->assertActionHidden('completeHealthRecord')
-        ->assertActionHidden('reviewHealthRecord');
+        ->assertSee('Reason for Visit');
 });
 
 test('check-in shows warning when no verified health record exists', function () {

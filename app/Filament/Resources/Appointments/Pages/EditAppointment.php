@@ -66,27 +66,6 @@ class EditAppointment extends EditRecord
                     return null;
                 }),
 
-            Action::make('completeHealthRecord')
-                ->label('Complete Patient Health Record')
-                ->icon('heroicon-o-clipboard-document-check')
-                ->color('warning')
-                ->visible(fn (): bool => in_array($this->getIntakeStatus(), [null, IntakeStatus::Draft], true))
-                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
-
-            Action::make('reviewHealthRecord')
-                ->label('Review Patient Health Record')
-                ->icon('heroicon-o-clipboard-document-check')
-                ->color('info')
-                ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Submitted)
-                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
-
-            Action::make('viewHealthRecord')
-                ->label('View Patient Health Record')
-                ->icon('heroicon-o-clipboard-document-check')
-                ->color('success')
-                ->visible(fn (): bool => $this->getIntakeStatus() === IntakeStatus::Verified)
-                ->url(fn (): string => AppointmentResource::getUrl('intake-form', ['record' => $this->getRecord()])),
-
             Action::make('checkIn')
                 ->label('Check In')
                 ->icon('heroicon-o-arrow-right-start-on-rectangle')
