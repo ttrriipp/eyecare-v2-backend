@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\JobOrderController;
+use App\Http\Controllers\Api\OtpChallengeController;
 use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QuotationController;
@@ -20,6 +21,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
+
+    // New OTP-based authentication
+    Route::post('auth/registration/otp', [OtpChallengeController::class, 'issue']);
 });
 
 // Authenticated versioned patient API
