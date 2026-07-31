@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id',
@@ -32,7 +31,12 @@ class Patient extends Model
     {
         static::creating(function (Patient $patient): void {
             if (blank($patient->patient_number)) {
-                $patient->patient_number = 'PAT-'.Str::ulid();
+                $year = now()->format('Y');
+                $sequence = self::query()
+                    ->whereYear('created_at', $year)
+                    ->withTrashed()
+                    ->count() + 1;
+                $patient->patient_number = sprintf('PAT-%s-%06d', $year, $sequence);
             }
         });
     }
