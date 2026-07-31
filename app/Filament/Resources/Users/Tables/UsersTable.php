@@ -14,8 +14,10 @@ class UsersTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->searchable()
+                TextColumn::make('first_name')
+                    ->label('Name')
+                    ->searchable(['first_name', 'last_name'])
+                    ->formatStateUsing(fn ($record) => $record->name)
                     ->sortable(),
                 TextColumn::make('email')
                     ->searchable()

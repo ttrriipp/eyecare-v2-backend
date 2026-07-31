@@ -20,12 +20,41 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at'])]
+#[Fillable(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, InteractsWithAppAuthentication, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if (blank($user->name) && filled($user->first_name)) {
+                $user->name = $user->deriveFullName();
+            }
+        });
+
+        static::saving(function (User $user): void {
+            if ($user->isDirty(['first_name', 'middle_name', 'last_name']) && filled($user->first_name)) {
+                $user->name = $user->deriveFullName();
+            }
+        });
+    }
+
+    /**
+     * Derived full name from structured names.
+     */
+    public function deriveFullName(): string
+    {
+        $parts = array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+        ]);
+
+        return implode(' ', $parts);
+    }
 
     /**
      * @return BelongsTo<Role, $this>

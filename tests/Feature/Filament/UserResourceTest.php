@@ -81,7 +81,8 @@ test('admin can create a user', function () {
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'New Staff Member',
+            'first_name' => 'New',
+            'last_name' => 'Staff Member',
             'email' => 'newstaff@example.com',
             'phone' => '09171234567',
             'role_id' => $staffRole->id,
@@ -93,7 +94,8 @@ test('admin can create a user', function () {
         ->assertRedirect();
 
     $this->assertDatabaseHas(User::class, [
-        'name' => 'New Staff Member',
+        'first_name' => 'New',
+        'last_name' => 'Staff Member',
         'email' => 'newstaff@example.com',
         'role_id' => $staffRole->id,
     ]);
@@ -106,7 +108,8 @@ test('admin can create an optometrist', function () {
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Clinic Optometrist',
+            'first_name' => 'Clinic',
+            'last_name' => 'Optometrist',
             'email' => 'optometrist@example.com',
             'phone' => '09171234568',
             'role_id' => $staffRole->id,
@@ -124,13 +127,14 @@ test('create form requires name, phone, role, and password', function () {
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => null,
+            'first_name' => null,
+            'last_name' => null,
             'phone' => null,
             'role_id' => null,
             'password' => null,
         ])
         ->call('create')
-        ->assertHasFormErrors(['name', 'phone', 'role_id', 'password']);
+        ->assertHasFormErrors(['first_name', 'last_name', 'phone', 'role_id', 'password']);
 });
 
 // ─── Edit ─────────────────────────────────────────────────────────────────────
@@ -143,7 +147,8 @@ test('admin can edit a user name and role', function () {
 
     Livewire::test(EditUser::class, ['record' => $user->id])
         ->fillForm([
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
             'role_id' => $adminRole->id,
             'phone' => '09171111111',
             'password' => null,
@@ -152,7 +157,8 @@ test('admin can edit a user name and role', function () {
         ->assertHasNoFormErrors()
         ->assertNotified();
 
-    expect($user->fresh()->name)->toBe('Updated Name')
+    expect($user->fresh()->first_name)->toBe('Updated')
+        ->and($user->fresh()->last_name)->toBe('Name')
         ->and($user->fresh()->role->name)->toBe('admin');
 });
 
@@ -219,7 +225,8 @@ test('created user password can authenticate', function () {
 
     Livewire::test(CreateUser::class)
         ->fillForm([
-            'name' => 'Login Test User',
+            'first_name' => 'Login',
+            'last_name' => 'Test User',
             'email' => 'logintest@example.com',
             'phone' => '09179999999',
             'role_id' => $staffRole->id,

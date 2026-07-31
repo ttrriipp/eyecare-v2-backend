@@ -22,8 +22,15 @@ class UserForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Account Details')
                         ->schema([
-                            TextInput::make('name')
+                            TextInput::make('first_name')
+                                ->label('First Name')
                                 ->required(),
+                            TextInput::make('last_name')
+                                ->label('Last Name')
+                                ->required(),
+                            TextInput::make('middle_name')
+                                ->label('Middle Name')
+                                ->nullable(),
                             TextInput::make('email')
                                 ->email()
                                 ->unique(ignoreRecord: true)

@@ -25,9 +25,9 @@ test('me endpoint can update account fields', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
-        ->patchJson('/api/v1/me', ['name' => 'Updated Name'])
+        ->patchJson('/api/v1/me', ['first_name' => 'Updated', 'last_name' => 'Name'])
         ->assertSuccessful()
-        ->assertJsonPath('data.name', 'Updated Name');
+        ->assertJsonPath('data.first_name', 'Updated');
 });
 
 test('me endpoint can update patient fields', function () {

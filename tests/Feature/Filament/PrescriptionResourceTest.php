@@ -21,7 +21,7 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 test('prescription lists show retained operational columns', function () {
-    $optometrist = User::factory()->optometrist()->create(['name' => 'Dr. Padilla']);
+    $optometrist = User::factory()->optometrist()->create(['first_name' => 'Dr.', 'middle_name' => null, 'last_name' => 'Padilla']);
     $patient = Patient::factory()->create(['first_name' => 'Maria', 'last_name' => 'Santos']);
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,

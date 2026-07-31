@@ -51,6 +51,7 @@ test('search finds patient by phone lookup hash', function () {
 test('search finds patient by name and date of birth', function () {
     $patient = Patient::factory()->create([
         'first_name' => 'Ana',
+        'middle_name' => null,
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
     ]);

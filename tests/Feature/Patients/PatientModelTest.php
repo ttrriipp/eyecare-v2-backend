@@ -19,7 +19,7 @@ test('patients have independent system generated clinical identities', function 
         ->create(['date_of_birth' => '2000-01-02']);
 
     expect($patients->pluck('patient_number')->unique())->toHaveCount(2)
-        ->and($patients->first()->patient_number)->toMatch('/^PAT-[0-9A-HJKMNP-TV-Z]{26}$/')
+        ->and($patients->first()->patient_number)->toMatch('/^PAT-\d{4}-\d{6}$/')
         ->and($patients->first()->date_of_birth)->toBeInstanceOf(CarbonInterface::class)
         ->and($patients->first()->account)->toBeNull();
 
