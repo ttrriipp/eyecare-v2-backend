@@ -38,7 +38,8 @@ test('registration creates a patient-role user with verified contact', function 
         'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $response->assertCreated()
@@ -84,7 +85,8 @@ test('registration does not create a patient record', function () {
         'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $this->assertDatabaseCount('patients', 0);
@@ -109,7 +111,8 @@ test('registration returns a Sanctum token', function () {
         'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $token = $response->json('data.token');
@@ -148,7 +151,8 @@ test('registration with already-owned contact returns existing account', functio
         'phone' => '09179876543',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $response->assertCreated();
@@ -165,7 +169,7 @@ test('registration requires all fields', function () {
     $response->assertUnprocessable()
         ->assertJsonValidationErrors([
             'challenge_id', 'code', 'first_name', 'last_name',
-            'date_of_birth', 'phone', 'password', 'privacy_notice_version',
+            'date_of_birth', 'phone', 'password', 'privacy_policy_accepted', 'terms_accepted',
         ]);
 });
 
@@ -185,7 +189,8 @@ test('registration requires 12-character password', function () {
         'phone' => '09171234567',
         'password' => 'short',
         'password_confirmation' => 'short',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $response->assertUnprocessable()
@@ -208,7 +213,8 @@ test('registration requires password confirmation', function () {
         'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'differentpassword',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $response->assertUnprocessable()
@@ -230,7 +236,8 @@ test('registration rejects invalid OTP code', function () {
         'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
-        'privacy_notice_version' => '2026-07',
+        'privacy_policy_accepted' => true,
+        'terms_accepted' => true,
     ]);
 
     $response->assertUnprocessable()

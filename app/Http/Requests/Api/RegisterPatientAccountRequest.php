@@ -25,7 +25,9 @@ class RegisterPatientAccountRequest extends FormRequest
             'phone' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:12', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
-            'privacy_notice_version' => ['required', 'string'],
+            'privacy_policy_accepted' => ['required', 'accepted'],
+            'terms_accepted' => ['required', 'accepted'],
+            'invitation_code' => ['nullable', 'string'],
             'device_name' => ['nullable', 'string', 'max:255'],
             'installation_id' => ['nullable', 'string', 'max:255'],
         ];
