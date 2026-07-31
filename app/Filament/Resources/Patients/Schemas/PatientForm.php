@@ -118,7 +118,6 @@ class PatientForm
                             })
                             ->searchable()
                             ->nullable()
-                            ->helperText('Optional. Link to an existing unlinked patient account.')
                             ->visibleOn('create'),
                     ]),
                 ]),
