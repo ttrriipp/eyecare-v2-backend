@@ -61,6 +61,8 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/login',
         'POST api/v1/logout',
         'POST api/v1/logout-all',
+        'POST api/v1/patient-invitations/accept',
+        'POST api/v1/patient-invitations/acceptance/otp',
         'POST api/v1/patient-link-requests',
         'POST api/v1/register',
     ];
