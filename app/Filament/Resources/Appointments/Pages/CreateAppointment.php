@@ -52,8 +52,10 @@ class CreateAppointment extends CreateRecord
     {
         // Create patient from new patient fields if mode is 'new'
         if (empty($data['patient_id']) && filled($data['new_patient_full_name'] ?? null)) {
+            $nameParts = explode(' ', trim($data['new_patient_full_name']), 2);
             $patient = Patient::create([
-                'full_name' => $data['new_patient_full_name'],
+                'first_name' => $nameParts[0] ?? '',
+                'last_name' => $nameParts[1] ?? '',
                 'phone' => $data['new_patient_phone'] ?? null,
                 'contact_email' => $data['new_patient_contact_email'] ?? null,
                 'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,

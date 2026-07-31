@@ -12,10 +12,8 @@ class ConversationsTable
     {
         return $table
             ->columns([
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
                 TextColumn::make('messages_count')
                     ->label('Messages')
                     ->counts('messages'),

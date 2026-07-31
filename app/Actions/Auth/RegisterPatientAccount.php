@@ -51,7 +51,7 @@ class RegisterPatientAccount
                     'last_name' => $data['last_name'],
                     'date_of_birth' => $data['date_of_birth'],
                     'email' => null,
-                    'phone' => null,
+                    'phone' => $data['phone'] ?? null,
                     'password' => Hash::make($data['password']),
                     'role_id' => $role->id,
                     'privacy_notice_version' => $data['privacy_notice_version'],

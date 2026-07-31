@@ -32,14 +32,14 @@ class PatientForm
                     ->columnSpanFull(),
                 TextInput::make('phone')
                     ->tel()
-                    ->nullable(),
+                    ->required(),
                 TextInput::make('contact_email')
                     ->label('Email')
                     ->email()
                     ->nullable(),
                 DatePicker::make('date_of_birth')
                     ->label('Date of Birth')
-                    ->nullable()
+                    ->required()
                     ->maxDate(now()),
                 Select::make('gender')
                     ->options([

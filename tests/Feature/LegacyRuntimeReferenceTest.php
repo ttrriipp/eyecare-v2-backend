@@ -3,7 +3,7 @@
 test('conversation table no longer references legacy context columns', function () {
     $table = file_get_contents(app_path('Filament/Resources/Conversations/Tables/ConversationsTable.php'));
 
-    expect($table)->toContain("TextColumn::make('patient.full_name')")
+    expect($table)->toContain("TextColumn::make('patient.first_name')")
         ->and($table)->not->toContain('customer')
         ->and($table)->not->toContain('subject')
         ->and($table)->not->toContain('appointment_id')

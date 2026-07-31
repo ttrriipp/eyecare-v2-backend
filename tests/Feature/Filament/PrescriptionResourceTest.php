@@ -22,7 +22,7 @@ uses(RefreshDatabase::class);
 
 test('prescription lists show retained operational columns', function () {
     $optometrist = User::factory()->optometrist()->create(['name' => 'Dr. Padilla']);
-    $patient = Patient::factory()->create(['full_name' => 'Maria Santos']);
+    $patient = Patient::factory()->create(['first_name' => 'Maria', 'last_name' => 'Santos']);
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
         'optometrist_id' => $optometrist->id,
@@ -37,7 +37,7 @@ test('prescription lists show retained operational columns', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(ListPrescriptions::class)
-        ->assertTableColumnStateSet('patient.full_name', 'Maria Santos', record: $prescription)
+        ->assertTableColumnStateSet('patient.first_name', 'Maria', record: $prescription)
         ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
         ->assertTableColumnStateSet('author.name', 'Dr. Padilla', record: $prescription)

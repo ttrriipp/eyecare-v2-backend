@@ -13,7 +13,6 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'user_id',
-    'full_name',
     'first_name',
     'middle_name',
     'last_name',
@@ -35,21 +34,13 @@ class Patient extends Model
             if (blank($patient->patient_number)) {
                 $patient->patient_number = 'PAT-'.Str::ulid();
             }
-            // Auto-derive full_name from structured names if not set
-            if (blank($patient->full_name) && filled($patient->first_name)) {
-                $patient->full_name = $patient->deriveFullName();
-            }
-        });
-
-        static::saving(function (Patient $patient): void {
-            // Auto-derive full_name from structured names when names change
-            if ($patient->isDirty(['first_name', 'middle_name', 'last_name']) && filled($patient->first_name)) {
-                $patient->full_name = $patient->deriveFullName();
-            }
         });
     }
 
-    public function deriveFullName(): string
+    /**
+     * Derived full name from structured names.
+     */
+    public function getFullNameAttribute(): string
     {
         $parts = array_filter([
             $this->first_name,

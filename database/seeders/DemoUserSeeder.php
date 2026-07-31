@@ -64,7 +64,8 @@ class DemoUserSeeder extends Seeder
             Patient::query()->create([
                 'user_id' => $patientUser->id,
                 'patient_number' => 'PAT-'.Str::ulid(),
-                'full_name' => 'Ana Reyes',
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
                 'phone' => '09170000003',
                 'contact_email' => 'customer@eyecare.test',
                 'date_of_birth' => '1990-05-15',
@@ -74,10 +75,11 @@ class DemoUserSeeder extends Seeder
         }
 
         // Walk-in patient (no account)
-        if (Patient::query()->where('full_name', 'Pedro Cruz')->doesntExist()) {
+        if (Patient::query()->where('first_name', 'Pedro')->where('last_name', 'Cruz')->doesntExist()) {
             Patient::query()->create([
                 'patient_number' => 'PAT-'.Str::ulid(),
-                'full_name' => 'Pedro Cruz',
+                'first_name' => 'Pedro',
+                'last_name' => 'Cruz',
                 'phone' => '09170000004',
                 'date_of_birth' => '1985-08-20',
                 'gender' => 'male',

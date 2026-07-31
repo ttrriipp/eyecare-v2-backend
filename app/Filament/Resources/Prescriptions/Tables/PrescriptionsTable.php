@@ -15,10 +15,8 @@ class PrescriptionsTable
     {
         return $table
             ->columns([
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
                 TextColumn::make('prescribed_at')
                     ->label('Date')
                     ->date('M j, Y')

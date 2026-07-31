@@ -63,7 +63,8 @@ test('request with matching patient creates candidates', function () {
     $emailHash = $lookupHash->forEmail('ana@example.com');
 
     $patient = Patient::factory()->create([
-        'full_name' => 'Ana Reyes',
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
         'contact_email' => 'ana@example.com',
         'contact_email_lookup_hash' => $emailHash,
@@ -135,7 +136,8 @@ test('current endpoint returns 204 when no active request', function () {
 
 test('mobile response never exposes candidate details', function () {
     $patient = Patient::factory()->create([
-        'full_name' => 'Ana Reyes',
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
     ]);
 

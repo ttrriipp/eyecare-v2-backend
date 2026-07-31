@@ -25,11 +25,14 @@ class CreatePatient extends CreateRecord
                 ->modalDescription('Fill in the patient details below. All fields marked with * are required.')
                 ->modalSubmitActionLabel('Create Patient')
                 ->schema([
-                    TextInput::make('full_name')
-                        ->label('Full Name')
+                    TextInput::make('first_name')
+                        ->label('First Name')
                         ->required()
-                        ->maxLength(255)
-                        ->columnSpanFull(),
+                        ->maxLength(255),
+                    TextInput::make('last_name')
+                        ->label('Last Name')
+                        ->required()
+                        ->maxLength(255),
                     TextInput::make('phone')
                         ->label('Phone Number')
                         ->tel()

@@ -29,10 +29,9 @@ class PatientsTable
                     ->label('Patient #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('full_name')
+                TextColumn::make('first_name')
                     ->label('Name')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(),
                 TextColumn::make('phone')
                     ->searchable()
                     ->placeholder('—'),
@@ -65,6 +64,6 @@ class PatientsTable
             ->recordActions([
                 EditAction::make()->label('Edit'),
             ])
-            ->defaultSort('full_name');
+            ->defaultSort('first_name');
     }
 }

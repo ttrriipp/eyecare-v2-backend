@@ -1555,10 +1555,13 @@ Email addresses are trimmed and lowercased. Phone numbers are normalized to cano
 ```
 POST   /api/v1/auth/registration/otp
 POST   /api/v1/auth/registration/verify
+POST   /api/v1/auth/register
 POST   /api/v1/auth/login
 POST   /api/v1/auth/login/verify
 POST   /api/v1/auth/password-recovery/otp
 POST   /api/v1/auth/password-recovery/verify
+POST   /api/v1/register                       (legacy backward compat)
+POST   /api/v1/login                          (legacy backward compat)
 ```
 
 ### Authenticated Account-Only (token required, no active link needed)

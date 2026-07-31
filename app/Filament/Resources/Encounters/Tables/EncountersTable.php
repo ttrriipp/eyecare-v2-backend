@@ -19,10 +19,8 @@ class EncountersTable
                     ->label('Encounter #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
                 TextColumn::make('optometrist.name')
                     ->label('Optometrist')
                     ->placeholder('—')

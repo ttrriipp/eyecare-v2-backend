@@ -19,7 +19,8 @@ class UpdatePatientProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'full_name' => ['sometimes', 'string', 'max:255'],
+            'first_name' => ['sometimes', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'string', 'max:255'],
             'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
             'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -32,7 +33,7 @@ class UpdatePatientProfileRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            if (! array_intersect(array_keys($this->all()), ['full_name', 'date_of_birth', 'occupation', 'address', 'gender', 'contact_email', 'phone'])) {
+            if (! array_intersect(array_keys($this->all()), ['first_name', 'last_name', 'date_of_birth', 'occupation', 'address', 'gender', 'contact_email', 'phone'])) {
                 $validator->errors()->add('general', 'At least one patient field is required.');
             }
         });

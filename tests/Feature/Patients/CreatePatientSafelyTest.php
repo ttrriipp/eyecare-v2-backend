@@ -50,7 +50,8 @@ test('search finds patient by phone lookup hash', function () {
 
 test('search finds patient by name and date of birth', function () {
     $patient = Patient::factory()->create([
-        'full_name' => 'Ana Reyes',
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
     ]);
 
@@ -77,7 +78,8 @@ test('search deduplicates results', function () {
     $emailHash = $lookupHash->forEmail('ana@example.com');
 
     $patient = Patient::factory()->create([
-        'full_name' => 'Ana Reyes',
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
         'contact_email' => 'ana@example.com',
         'contact_email_lookup_hash' => $emailHash,

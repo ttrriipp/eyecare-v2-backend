@@ -117,21 +117,21 @@ test('different users can have the same contact type', function () {
 
 // --- Existing Staff/Admin Users ---
 
-test('existing staff users remain valid without structured names', function () {
+test('existing staff users have structured names from factory', function () {
     $staff = User::factory()->staff()->create();
 
     $staff->refresh();
-    expect($staff->first_name)->toBeNull()
-        ->and($staff->last_name)->toBeNull()
+    expect($staff->first_name)->not->toBeNull()
+        ->and($staff->last_name)->not->toBeNull()
         ->and($staff->name)->not->toBeNull();
 });
 
-test('existing admin users remain valid without structured names', function () {
+test('existing admin users have structured names from factory', function () {
     $admin = User::factory()->admin()->create();
 
     $admin->refresh();
-    expect($admin->first_name)->toBeNull()
-        ->and($admin->last_name)->toBeNull()
+    expect($admin->first_name)->not->toBeNull()
+        ->and($admin->last_name)->not->toBeNull()
         ->and($admin->name)->not->toBeNull();
 });
 

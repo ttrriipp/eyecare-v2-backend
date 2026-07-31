@@ -98,7 +98,7 @@ class AppointmentForm
                             // Existing Patient select
                             Select::make('patient_id')
                                 ->label('Name')
-                                ->relationship('patient', 'full_name')
+                                ->relationship('patient', 'first_name')
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
                                 ->searchable()
                                 ->preload()

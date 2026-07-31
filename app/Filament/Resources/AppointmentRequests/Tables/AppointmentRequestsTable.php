@@ -26,10 +26,9 @@ class AppointmentRequestsTable
                     ->label('Account Owner')
                     ->searchable(),
 
-                TextColumn::make('patient.full_name')
+                TextColumn::make('patient.first_name')
                     ->label('Patient')
-                    ->placeholder('Unlinked')
-                    ->searchable(),
+                    ->placeholder('Unlinked'),
 
                 TextColumn::make('scheduled_at')
                     ->label('Preferred Time')

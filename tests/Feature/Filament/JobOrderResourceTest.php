@@ -25,7 +25,7 @@ test('staff can list job orders', function () {
 
 test('staff can view a job order', function () {
     $staff = User::factory()->staff()->create();
-    $patient = Patient::factory()->create(['full_name' => 'Maria Santos']);
+    $patient = Patient::factory()->create(['first_name' => 'Maria', 'last_name' => 'Santos']);
     $jobOrder = JobOrder::factory()->create(['patient_id' => $patient->id]);
 
     $this->actingAs($staff);

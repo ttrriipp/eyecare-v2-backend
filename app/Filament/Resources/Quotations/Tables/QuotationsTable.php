@@ -19,10 +19,8 @@ class QuotationsTable
                     ->label('Quotation #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (Quotation $record): string => match ($record->status) {

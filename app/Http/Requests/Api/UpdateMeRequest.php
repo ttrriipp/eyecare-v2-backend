@@ -26,7 +26,8 @@ class UpdateMeRequest extends FormRequest
             'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             // Patient fields
-            'full_name' => ['sometimes', 'string', 'max:255'],
+            'first_name' => ['sometimes', 'string', 'max:255'],
+            'last_name' => ['sometimes', 'string', 'max:255'],
             'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
             'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
             'gender' => ['sometimes', 'nullable', 'string', 'in:male,female,other'],
@@ -38,7 +39,7 @@ class UpdateMeRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $accountFields = ['name', 'email', 'phone', 'address'];
-            $patientFields = ['full_name', 'date_of_birth', 'occupation', 'gender', 'contact_email'];
+            $patientFields = ['first_name', 'last_name', 'date_of_birth', 'occupation', 'gender', 'contact_email'];
 
             if (! array_intersect(array_keys($this->all()), array_merge($accountFields, $patientFields))) {
                 $validator->errors()->add('general', 'At least one field is required.');

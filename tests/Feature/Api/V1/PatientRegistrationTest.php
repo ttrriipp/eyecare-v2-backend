@@ -35,6 +35,7 @@ test('registration creates a patient-role user with verified contact', function 
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
         'privacy_notice_version' => '2026-07',
@@ -51,7 +52,8 @@ test('registration creates a patient-role user with verified contact', function 
 
     // Verify no Patient was created
     $this->assertDatabaseMissing('patients', [
-        'full_name' => 'Ana Reyes',
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
     ]);
 
     // Verify contact was created
@@ -79,6 +81,7 @@ test('registration does not create a patient record', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
         'privacy_notice_version' => '2026-07',
@@ -103,6 +106,7 @@ test('registration returns a Sanctum token', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
         'privacy_notice_version' => '2026-07',
@@ -141,6 +145,7 @@ test('registration with already-owned contact returns existing account', functio
         'first_name' => 'New',
         'last_name' => 'User',
         'date_of_birth' => '1995-01-01',
+        'phone' => '09179876543',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
         'privacy_notice_version' => '2026-07',
@@ -160,7 +165,7 @@ test('registration requires all fields', function () {
     $response->assertUnprocessable()
         ->assertJsonValidationErrors([
             'challenge_id', 'code', 'first_name', 'last_name',
-            'date_of_birth', 'password', 'privacy_notice_version',
+            'date_of_birth', 'phone', 'password', 'privacy_notice_version',
         ]);
 });
 
@@ -177,6 +182,7 @@ test('registration requires 12-character password', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'short',
         'password_confirmation' => 'short',
         'privacy_notice_version' => '2026-07',
@@ -199,6 +205,7 @@ test('registration requires password confirmation', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'differentpassword',
         'privacy_notice_version' => '2026-07',
@@ -220,6 +227,7 @@ test('registration rejects invalid OTP code', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '09171234567',
         'password' => 'securepassword123',
         'password_confirmation' => 'securepassword123',
         'privacy_notice_version' => '2026-07',

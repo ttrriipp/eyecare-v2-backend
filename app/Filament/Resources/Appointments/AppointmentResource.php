@@ -35,7 +35,7 @@ class AppointmentResource extends Resource
      */
     public static function getGloballySearchableAttributes(): array
     {
-        return ['appointment_number', 'patient.full_name', 'patient.phone'];
+        return ['appointment_number', 'patient.first_name', 'patient.last_name', 'patient.phone'];
     }
 
     public static function getGlobalSearchResultTitle(Model $record): string

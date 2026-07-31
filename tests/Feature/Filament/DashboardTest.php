@@ -50,7 +50,7 @@ test('today schedule widget shows patient and appointment type', function () {
 
     Livewire::test(TodaysScheduleWidget::class)
         ->assertCanSeeTableRecords([$appointment])
-        ->assertSee($appointment->patient->full_name)
+        ->assertSee($appointment->patient->first_name)
         ->assertSee('Comprehensive Eye Examination')
         ->assertDontSee('Visit Reason');
 });

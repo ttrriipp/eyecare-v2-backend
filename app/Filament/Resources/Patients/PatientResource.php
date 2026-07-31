@@ -33,14 +33,14 @@ class PatientResource extends Resource
 
     protected static bool $isGloballySearchable = true;
 
-    protected static ?string $recordTitleAttribute = 'full_name';
+    protected static ?string $recordTitleAttribute = 'first_name';
 
     /**
      * @return array<int, string>
      */
     public static function getGloballySearchableAttributes(): array
     {
-        return ['full_name', 'phone', 'contact_email', 'patient_number'];
+        return ['first_name', 'last_name', 'phone', 'contact_email', 'patient_number'];
     }
 
     public static function form(Schema $schema): Schema

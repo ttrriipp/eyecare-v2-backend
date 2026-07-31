@@ -37,8 +37,8 @@ test('canonical seed data creates required users', function () {
 test('canonical seed data creates linked and walk-in patients', function () {
     $this->seed(DatabaseSeeder::class);
 
-    $linkedPatient = Patient::query()->where('full_name', 'Ana Reyes')->first();
-    $walkInPatient = Patient::query()->where('full_name', 'Pedro Cruz')->first();
+    $linkedPatient = Patient::query()->where('first_name', 'Ana')->where('last_name', 'Reyes')->first();
+    $walkInPatient = Patient::query()->where('first_name', 'Pedro')->where('last_name', 'Cruz')->first();
 
     expect($linkedPatient)->not->toBeNull()
         ->and($linkedPatient->user_id)->not->toBeNull()

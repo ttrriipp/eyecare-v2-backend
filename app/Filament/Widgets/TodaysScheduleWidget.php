@@ -46,7 +46,7 @@ class TodaysScheduleWidget extends TableWidget
                 TextColumn::make('scheduled_at')
                     ->label('Time')
                     ->time('g:i A'),
-                TextColumn::make('patient.full_name')
+                TextColumn::make('patient.first_name')
                     ->label('Patient'),
                 TextColumn::make('patient.phone')
                     ->label('Phone')

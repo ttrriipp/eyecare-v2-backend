@@ -22,9 +22,8 @@ class OpticalOrdersTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
 
                 TextColumn::make('status')
                     ->badge()

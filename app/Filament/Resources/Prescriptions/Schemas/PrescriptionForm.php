@@ -27,14 +27,14 @@ class PrescriptionForm
                 Section::make('Patient Information')->schema([
                     Select::make('patient_id')
                         ->label('Patient')
-                        ->relationship('patient', 'full_name')
+                        ->relationship('patient', 'first_name')
                         ->required()
                         ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
                         ->searchable()
                         ->preload()
                         ->live()
                         ->createOptionForm([
-                            TextInput::make('full_name')->required(),
+                            TextInput::make('first_name')->required(),
                             TextInput::make('phone')->required()->tel(),
                             TextInput::make('contact_email')->email()->nullable(),
                         ])

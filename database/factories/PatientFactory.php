@@ -23,7 +23,6 @@ class PatientFactory extends Factory
 
         return [
             'user_id' => null,
-            'full_name' => $firstName.' '.$lastName,
             'first_name' => $firstName,
             'middle_name' => fake()->optional(0.3)->firstName(),
             'last_name' => $lastName,

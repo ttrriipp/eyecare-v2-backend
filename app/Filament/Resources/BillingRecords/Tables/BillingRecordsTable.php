@@ -18,10 +18,8 @@ class BillingRecordsTable
                     ->label('Billing Record #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('patient.full_name')
-                    ->label('Patient')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('patient.first_name')
+                    ->label('Patient'),
                 TextColumn::make('jobOrder.job_order_number')
                     ->label('Job Order')
                     ->sortable(),

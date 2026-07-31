@@ -35,12 +35,13 @@ test('me endpoint can update patient fields', function () {
 
     $this->actingAs($user)
         ->patchJson('/api/v1/me', [
-            'full_name' => 'New Full Name',
+            'first_name' => 'New',
+            'last_name' => 'Name',
             'occupation' => 'Engineer',
             'gender' => 'male',
         ])
         ->assertSuccessful()
-        ->assertJsonPath('data.full_name', 'New Full Name')
+        ->assertJsonPath('data.first_name', 'New')
         ->assertJsonPath('data.occupation', 'Engineer');
 });
 

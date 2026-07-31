@@ -39,9 +39,14 @@ class AuthController extends Controller
                 'role_id' => $patientRole->id,
             ]);
 
+            $nameParts = explode(' ', trim($data['name']), 2);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = $nameParts[1] ?? '';
+
             $patient = Patient::query()->create([
                 'user_id' => $user->id,
-                'full_name' => $data['name'],
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'contact_email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
             ]);
@@ -155,7 +160,7 @@ class AuthController extends Controller
         // Separate account fields from patient fields
         $accountFields = array_intersect_key($validated, array_flip(['name', 'email', 'phone', 'address']));
         $patientFields = array_intersect_key($validated, array_flip([
-            'full_name', 'date_of_birth', 'occupation', 'gender', 'contact_email',
+            'first_name', 'last_name', 'date_of_birth', 'occupation', 'gender', 'contact_email',
         ]));
 
         DB::transaction(function () use ($user, $accountFields, $patientFields): void {
