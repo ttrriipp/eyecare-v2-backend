@@ -12,11 +12,9 @@ use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\JobOrderController;
 use App\Http\Controllers\Api\OtpChallengeController;
-use App\Http\Controllers\Api\PatientIntakeController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QuotationController;
-use App\Models\AppointmentType;
 use Illuminate\Support\Facades\Route;
 
 // Public auth routes (versioned)
@@ -54,18 +52,13 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
 
 // Authenticated clinical routes (active patient link required)
 Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patient.link'])->group(function (): void {
-    Route::get('appointment-types', fn () => response()->json([
-        'data' => AppointmentType::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'duration_minutes', 'requires_referral']),
-    ]));
     Route::get('appointment-availability', AppointmentAvailabilityController::class);
 
-    Route::apiResource('appointments', AppointmentController::class)->only(['index', 'store', 'show']);
+    // Confirmed appointments only (no direct booking - use appointment requests)
+    Route::get('appointments', [AppointmentController::class, 'index']);
+    Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
-
-    Route::get('appointments/{appointment}/intake', [PatientIntakeController::class, 'show']);
-    Route::put('appointments/{appointment}/intake', [PatientIntakeController::class, 'upsert']);
-    Route::post('appointments/{appointment}/intake/submit', [PatientIntakeController::class, 'submit']);
 
     Route::get('frames', [FrameController::class, 'index']);
     Route::get('frames/{frame}', [FrameController::class, 'show']);

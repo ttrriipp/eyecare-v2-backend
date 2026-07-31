@@ -20,10 +20,10 @@ test('every approved v1 route is present exactly once', function () {
 
     $expected = [
         'GET|HEAD api/v1/appointment-availability',
-        'GET|HEAD api/v1/appointment-types',
+        'GET|HEAD api/v1/appointment-requests',
+        'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
         'GET|HEAD api/v1/appointments',
         'GET|HEAD api/v1/appointments/{appointment}',
-        'GET|HEAD api/v1/appointments/{appointment}/intake',
         'GET|HEAD api/v1/billing-records',
         'GET|HEAD api/v1/billing-records/{billingRecord}',
         'GET|HEAD api/v1/conversation',
@@ -37,14 +37,15 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/job-orders',
         'GET|HEAD api/v1/job-orders/{jobOrder}',
         'GET|HEAD api/v1/me',
+        'GET|HEAD api/v1/patient-link-requests/current',
         'GET|HEAD api/v1/prescriptions',
         'GET|HEAD api/v1/prescriptions/{prescription}',
         'GET|HEAD api/v1/quotations',
         'GET|HEAD api/v1/quotations/{quotation}',
         'PATCH api/v1/me',
-        'POST api/v1/appointments',
+        'POST api/v1/appointment-requests',
+        'POST api/v1/appointment-requests/{appointmentRequest}/cancel',
         'POST api/v1/appointments/{appointment}/cancel',
-        'POST api/v1/appointments/{appointment}/intake/submit',
         'POST api/v1/appointments/{appointment}/reschedule',
         'POST api/v1/auth/login',
         'POST api/v1/auth/login/verify',
@@ -60,8 +61,8 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/login',
         'POST api/v1/logout',
         'POST api/v1/logout-all',
+        'POST api/v1/patient-link-requests',
         'POST api/v1/register',
-        'PUT api/v1/appointments/{appointment}/intake',
     ];
 
     expect($v1Routes)->toBe($expected);

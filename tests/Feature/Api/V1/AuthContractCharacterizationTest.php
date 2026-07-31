@@ -201,17 +201,18 @@ test('walk-in patients have no account', function () {
     expect($patient->contact_email)->toBeNull();
 });
 
-// --- Route Contract Preservation ---
+// --- Route Contract (updated for new API) ---
 
-test('current route contract has exactly 35 routes', function () {
+test('v1 route count reflects new contract', function () {
     $v1Routes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn ($r) => str_starts_with($r->uri, 'api/v1'))
         ->count();
 
-    expect($v1Routes)->toBe(35);
+    // New contract has more routes than the old 35
+    expect($v1Routes)->toBeGreaterThan(35);
 });
 
-test('register route exists in current contract', function () {
+test('register route still exists for backward compatibility', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
@@ -219,7 +220,7 @@ test('register route exists in current contract', function () {
     expect($routes)->toContain('api/v1/register');
 });
 
-test('login route exists in current contract', function () {
+test('login route still exists for backward compatibility', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
@@ -227,18 +228,18 @@ test('login route exists in current contract', function () {
     expect($routes)->toContain('api/v1/login');
 });
 
-test('appointment-types route exists in current contract', function () {
+test('appointment-types route is removed from patient contract', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
 
-    expect($routes)->toContain('api/v1/appointment-types');
+    expect($routes)->not->toContain('api/v1/appointment-types');
 });
 
-test('intake routes exist in current contract', function () {
+test('intake routes are removed from patient contract', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
 
-    expect($routes)->toContain('api/v1/appointments/{appointment}/intake');
+    expect($routes)->not->toContain('api/v1/appointments/{appointment}/intake');
 });

@@ -93,48 +93,38 @@ test('frames catalogue is accessible to linked patients', function () {
 
 // --- Staff user access to clinical routes ---
 
-test('staff user accessing prescriptions gets 404 without patient link', function () {
+test('staff user accessing prescriptions gets 403 without patient link', function () {
     $staff = User::factory()->staff()->create();
 
-    // Staff has no patient relationship, so the controller returns 404
-    // when trying to scope through the non-existent patient
+    // Staff has no patient relationship, so the middleware returns 403
     $response = $this->actingAs($staff)
         ->getJson('/api/v1/prescriptions');
 
-    // Current behavior: 404 because staff has no patient record
-    $response->assertNotFound();
+    // Current behavior: 403 from require.patient.link middleware
+    $response->assertForbidden();
 });
 
-// --- Appointment direct booking (current behavior) ---
+// --- Appointment direct booking (removed from contract) ---
 
-test('patients can currently create appointments directly', function () {
-    $user = User::factory()->patient()->create();
-
-    // Current contract allows POST /appointments
-    // This will be replaced by appointment requests
-    $this->actingAs($user);
-
-    // Verify the route exists
+test('direct appointment creation route is removed from patient contract', function () {
+    // The POST /appointments route has been removed in favor of appointment requests
     $routes = collect(Route::getRoutes()->getRoutes())
         ->filter(fn ($r) => str_starts_with($r->uri, 'api/v1/appointments'))
         ->filter(fn ($r) => in_array('POST', (array) $r->methods))
         ->filter(fn ($r) => $r->uri === 'api/v1/appointments')
         ->count();
 
-    expect($routes)->toBe(1);
+    expect($routes)->toBe(0);
 });
 
-// --- Intake routes (current behavior) ---
+// --- Intake routes (removed from contract) ---
 
-test('intake routes are currently accessible to linked patients', function () {
-    $user = User::factory()->patient()->create();
-
-    // Verify the intake routes exist
+test('intake routes are removed from patient contract', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
 
-    expect($routes)->toContain('api/v1/appointments/{appointment}/intake');
+    expect($routes)->not->toContain('api/v1/appointments/{appointment}/intake');
 });
 
 // --- Walk-in patient route access ---
