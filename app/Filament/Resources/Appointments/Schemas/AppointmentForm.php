@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
-use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -13,12 +12,12 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ToggleButtons;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\HtmlString;
+use Filament\Support\Enums\TextSize;
 use Illuminate\Support\Str;
 
 class AppointmentForm
@@ -163,25 +162,21 @@ class AppointmentForm
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated(),
-                            Placeholder::make('current_status')
+                            TextEntry::make('current_status')
                                 ->label('Status')
-                                ->content(function (?Appointment $record): HtmlString {
-                                    $label = $record?->status?->name ? Str::headline($record->status->name) : '—';
-
-                                    $color = match ($record?->status?->name) {
-                                        'scheduled' => 'info',
-                                        'checked_in' => 'warning',
-                                        'fulfilled' => 'success',
-                                        'cancelled' => 'danger',
-                                        'no_show' => 'gray',
-                                        default => 'gray',
-                                    };
-
-                                    return new HtmlString(Blade::render('<x-filament::badge :color="$color">{{ $label }}</x-filament::badge>', [
-                                        'color' => $color,
-                                        'label' => $label,
-                                    ]));
+                                ->state(fn (?Appointment $record): ?string => $record?->status?->name)
+                                ->formatStateUsing(fn (?string $state): string => filled($state) ? Str::headline($state) : '—')
+                                ->badge()
+                                ->color(fn (?string $state): string => match ($state) {
+                                    'scheduled' => 'info',
+                                    'checked_in' => 'warning',
+                                    'fulfilled' => 'success',
+                                    'cancelled' => 'danger',
+                                    'no_show' => 'gray',
+                                    default => 'gray',
                                 })
+                                ->size(TextSize::Large)
+                                ->extraAttributes(['class' => 'appointment-status-entry'])
                                 ->hiddenOn('create'),
                             TextInput::make('referring_source')
                                 ->label('Referring Source')
@@ -236,29 +231,13 @@ class AppointmentForm
                             ->placeholder('Assign later'),
                     ]),
 
-                    Section::make('Patient Health Record')
+                    Section::make('Reason for Visit')
                         ->hiddenOn('create')
                         ->schema([
-                            Placeholder::make('intake_status_display')
-                                ->label('Status')
-                                ->content(function (?Appointment $record): HtmlString {
-                                    if ($record === null) {
-                                        return self::badge('Not started', 'gray');
-                                    }
-
-                                    $intake = $record->intake;
-
-                                    if ($intake === null) {
-                                        return self::badge('Not started', 'gray');
-                                    }
-
-                                    return match ($intake->status) {
-                                        IntakeStatus::Draft => self::badge('Incomplete', 'warning'),
-                                        IntakeStatus::Submitted => self::badge('Needs review', 'info'),
-                                        IntakeStatus::Verified => self::badge('Verified', 'success'),
-                                        default => self::badge('Not started', 'gray'),
-                                    };
-                                }),
+                            Textarea::make('reason_for_visit')
+                                ->label('Reason')
+                                ->disabled()
+                                ->rows(3),
                         ]),
 
                     Section::make('Timeline')
@@ -283,13 +262,5 @@ class AppointmentForm
                 ]),
             ]),
         ]);
-    }
-
-    private static function badge(string $label, string $color): HtmlString
-    {
-        return new HtmlString(Blade::render('<x-filament::badge :color="$color">{{ $label }}</x-filament::badge>', [
-            'color' => $color,
-            'label' => $label,
-        ]));
     }
 }

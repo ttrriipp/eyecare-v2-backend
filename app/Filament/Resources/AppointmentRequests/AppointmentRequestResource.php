@@ -22,9 +22,14 @@ class AppointmentRequestResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Patients & Clinical';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'request_number';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // Integrated into Appointments destination
+    }
 
     public static function canCreate(): bool
     {
