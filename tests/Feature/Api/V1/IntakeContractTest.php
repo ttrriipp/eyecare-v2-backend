@@ -1,12 +1,11 @@
 <?php
 
-use App\Models\Appointment;
-use App\Models\PatientIntake;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 
 uses(RefreshDatabase::class);
 
@@ -16,66 +15,44 @@ beforeEach(function () {
     $this->seed(AppointmentTypeSeeder::class);
 });
 
-test('each appointment exposes only its own intake', function () {
-    $user = User::factory()->patient()->create();
-    $appointment1 = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    $appointment2 = Appointment::factory()->create(['patient_id' => $user->patient->id]);
+// --- Intake routes are retired ---
 
-    PatientIntake::factory()->create([
-        'patient_id' => $user->patient->id,
-        'appointment_id' => $appointment1->id,
-        'chief_complaint' => 'Blurred vision',
-    ]);
-    PatientIntake::factory()->create([
-        'patient_id' => $user->patient->id,
-        'appointment_id' => $appointment2->id,
-        'chief_complaint' => 'Headache',
-    ]);
+test('intake GET route is removed from patient contract', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->pluck('uri')
+        ->toArray();
 
-    $this->actingAs($user)
-        ->getJson("/api/v1/appointments/{$appointment1->id}/intake")
-        ->assertOk()
-        ->assertJsonPath('data.chief_complaint', 'Blurred vision');
+    expect($routes)->not->toContain('api/v1/appointments/{appointment}/intake');
 });
 
-test('submitted records cannot be edited', function () {
-    $user = User::factory()->patient()->create();
-    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    $intake = PatientIntake::factory()->submitted()->create([
-        'patient_id' => $user->patient->id,
-        'appointment_id' => $appointment->id,
-    ]);
+test('intake PUT route is removed from patient contract', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->pluck('uri')
+        ->toArray();
 
-    $this->actingAs($user)
-        ->putJson("/api/v1/appointments/{$appointment->id}/intake", [
-            'chief_complaint' => 'Updated complaint',
-        ])
-        ->assertUnprocessable();
+    expect($routes)->not->toContain('api/v1/appointments/{appointment}/intake');
 });
 
-test('verified records are immutable', function () {
-    $user = User::factory()->patient()->create();
-    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    $intake = PatientIntake::factory()->verified()->create([
-        'patient_id' => $user->patient->id,
-        'appointment_id' => $appointment->id,
-    ]);
+test('intake submit route is removed from patient contract', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->pluck('uri')
+        ->toArray();
 
-    $this->actingAs($user)
-        ->putJson("/api/v1/appointments/{$appointment->id}/intake", [
-            'chief_complaint' => 'Should not work',
-        ])
-        ->assertUnprocessable();
+    expect($routes)->not->toContain('api/v1/appointments/{appointment}/intake/submit');
 });
 
-test('cross-patient intake access is denied', function () {
-    $userA = User::factory()->patient()->create();
-    $userB = User::factory()->patient()->create();
-    $appointment = Appointment::factory()->create(['patient_id' => $userB->patient->id]);
+test('intake endpoints return 404 for authenticated users', function () {
+    $user = User::factory()->patient()->create();
 
-    $this->actingAs($userA)
-        ->putJson("/api/v1/appointments/{$appointment->id}/intake", [
-            'chief_complaint' => 'Hacked',
-        ])
-        ->assertForbidden();
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointments/1/intake')
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->putJson('/api/v1/appointments/1/intake', ['chief_complaint' => 'test'])
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointments/1/intake/submit')
+        ->assertNotFound();
 });
