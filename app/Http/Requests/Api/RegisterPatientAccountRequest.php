@@ -19,6 +19,7 @@ class RegisterPatientAccountRequest extends FormRequest
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
             'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'password' => ['required', 'string', 'min:12', 'confirmed'],

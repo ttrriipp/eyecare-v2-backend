@@ -16,9 +16,19 @@ class PatientForm
     {
         return $schema->columns(1)->components([
             Section::make('Patient Information')->columns(2)->schema([
+                TextInput::make('first_name')
+                    ->label('First Name')
+                    ->required(),
+                TextInput::make('middle_name')
+                    ->label('Middle Name')
+                    ->nullable(),
+                TextInput::make('last_name')
+                    ->label('Last Name')
+                    ->required(),
                 TextInput::make('full_name')
-                    ->label('Full Name')
-                    ->required()
+                    ->label('Full Name (auto-derived)')
+                    ->disabled()
+                    ->dehydrated(false)
                     ->columnSpanFull(),
                 TextInput::make('phone')
                     ->tel()

@@ -18,9 +18,15 @@ class PatientFactory extends Factory
      */
     public function definition(): array
     {
+        $firstName = fake()->firstName();
+        $lastName = fake()->lastName();
+
         return [
             'user_id' => null,
-            'full_name' => fake()->name(),
+            'full_name' => $firstName.' '.$lastName,
+            'first_name' => $firstName,
+            'middle_name' => fake()->optional(0.3)->firstName(),
+            'last_name' => $lastName,
             'date_of_birth' => fake()->dateTimeBetween('-80 years', '-5 years'),
             'occupation' => fake()->optional()->jobTitle(),
             'address' => fake()->streetAddress(),
