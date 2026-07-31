@@ -96,6 +96,14 @@ class Patient extends Model
     }
 
     /**
+     * @return HasMany<PatientInvitation, $this>
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(PatientInvitation::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
