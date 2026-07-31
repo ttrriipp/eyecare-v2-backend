@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
     'encounter_id',
     'prescription_id',
     'quotation_revision_id',
+    'frame_reservation_id',
     'status',
     'total_amount',
     'notes',
@@ -95,6 +96,14 @@ class JobOrder extends Model
     public function billingRecord(): HasOne
     {
         return $this->hasOne(BillingRecord::class);
+    }
+
+    /**
+     * @return BelongsTo<FrameReservation, $this>
+     */
+    public function frameReservation(): BelongsTo
+    {
+        return $this->belongsTo(FrameReservation::class);
     }
 
     /**
