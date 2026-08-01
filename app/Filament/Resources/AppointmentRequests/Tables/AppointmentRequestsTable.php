@@ -10,6 +10,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class AppointmentRequestsTable
 {
@@ -18,26 +19,23 @@ class AppointmentRequestsTable
         return $table
             ->columns([
                 TextColumn::make('request_number')
-                    ->label('Request #')
+                    ->label('Number')
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('user.name')
-                    ->label('Account Owner')
-                    ->searchable(),
-
-                TextColumn::make('patient.first_name')
+                TextColumn::make('patient.full_name')
                     ->label('Patient')
-                    ->placeholder('Unlinked'),
+                    ->placeholder(fn (AppointmentRequest $record): string => $record->user->name ?? '—')
+                    ->searchable(),
 
                 TextColumn::make('scheduled_at')
                     ->label('Preferred Time')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
 
-                TextColumn::make('encrypted_reason_for_visit')
+                TextColumn::make('reason_for_visit')
                     ->label('Reason')
-                    ->limit(50)
+                    ->limit(40)
                     ->wrap(),
 
                 TextColumn::make('status')
@@ -48,7 +46,8 @@ class AppointmentRequestsTable
                         AppointmentRequestStatus::Rejected => 'danger',
                         AppointmentRequestStatus::Cancelled => 'gray',
                         AppointmentRequestStatus::Expired => 'gray',
-                    }),
+                    })
+                    ->formatStateUsing(fn (string $state): string => Str::headline($state)),
 
                 TextColumn::make('expires_at')
                     ->label('Expires')
@@ -65,23 +64,10 @@ class AppointmentRequestsTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(AppointmentRequestStatus::class),
-
-                SelectFilter::make('patient_id')
-                    ->label('Link Status')
-                    ->options([
-                        'linked' => 'Linked',
-                        'unlinked' => 'Needs Patient',
-                    ])
-                    ->query(function ($query, $data) {
-                        if ($data['value'] === 'linked') {
-                            $query->whereNotNull('patient_id');
-                        } elseif ($data['value'] === 'unlinked') {
-                            $query->whereNull('patient_id');
-                        }
-                    }),
             ])
             ->recordActions([
                 Action::make('view')
+                    ->label('Review')
                     ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
             ])
             ->toolbarActions([

@@ -1,10 +1,6 @@
 <x-filament-panels::page>
     <div x-data="{ showCalendar: $wire.entangle('showCalendar') }">
-        @if($this->activeTab === 'requests')
-            {{-- Requests tab: show appointment requests table inline --}}
-            @livewire(\App\Livewire\AppointmentRequestsInlineTable::class)
-        @else
-            {{-- Appointments tabs --}}
+        @unless($this->activeTab === 'requests')
             <div class="flex justify-end pb-2">
                 <div class="flex items-center gap-x-1 rounded-lg border border-gray-200 bg-white p-1.5 shadow-sm dark:border-white/10 dark:bg-gray-900">
                     <button wire:click="$set('showCalendar', false)" title="Table view"
@@ -19,7 +15,11 @@
                     </button>
                 </div>
             </div>
+        @endif
 
+        @if($this->activeTab === 'requests')
+            @livewire(\App\Livewire\AppointmentRequestsInlineTable::class)
+        @else
             <div x-show="! showCalendar">{{ $this->content }}</div>
             <div x-show="showCalendar" x-cloak>
                 @livewire(\App\Filament\Resources\Appointments\Widgets\AppointmentCalendarWidget::class)
