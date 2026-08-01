@@ -123,4 +123,23 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Privacy Policy & Terms of Service
+    |--------------------------------------------------------------------------
+    |
+    | Server-authoritative policy metadata. The backend validates that
+    | client-submitted acceptance values match these configuration values.
+    | Android discovers current values via GET /api/v1/auth/policies.
+    |
+    */
+
+    'privacy_policy_version' => env('PRIVACY_POLICY_VERSION', '2026-08'),
+    'privacy_policy_url' => env('PRIVACY_POLICY_URL', 'https://eyecare.example.com/privacy'),
+    'privacy_policy_effective_date' => env('PRIVACY_POLICY_EFFECTIVE_DATE', '2026-08-01'),
+
+    'terms_version' => env('TERMS_VERSION', '2026-08'),
+    'terms_url' => env('TERMS_URL', 'https://eyecare.example.com/terms'),
+    'terms_effective_date' => env('TERMS_EFFECTIVE_DATE', '2026-08-01'),
+
 ];

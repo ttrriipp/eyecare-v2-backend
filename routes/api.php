@@ -32,6 +32,9 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     // Password recovery
     Route::post('auth/password-recovery/otp', [AuthController::class, 'recoveryOtp']);
     Route::post('auth/password-recovery/verify', [AuthController::class, 'recoveryVerify']);
+
+    // Policy metadata
+    Route::get('auth/policies', [AuthController::class, 'policies']);
 });
 
 // Authenticated account-only routes (no active link required)
@@ -44,7 +47,21 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     // Step-up OTP for sensitive changes
     Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);
     Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp']);
-    Route::post('auth/password', [AuthController::class, 'changePassword']);
+    Route::post('auth/password', [AuthController::class, 'changePassword'])
+        ->middleware('require.step-up');
+
+    // Contact management - read is free, mutations require step-up
+    Route::get('account/contacts', [AuthController::class, 'listContacts']);
+    Route::post('account/contacts/otp', [AuthController::class, 'requestContactOtp'])
+        ->middleware('require.step-up');
+    Route::post('account/contacts/verify', [AuthController::class, 'verifyContact']);
+    Route::patch('account/contacts/{contact}/primary', [AuthController::class, 'setPrimaryContact'])
+        ->middleware('require.step-up');
+    Route::delete('account/contacts/{contact}', [AuthController::class, 'removeContact'])
+        ->middleware('require.step-up');
+
+    // Link state
+    Route::get('account/link', [AuthController::class, 'linkStatus']);
 
     // Patient link requests
     Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);

@@ -298,11 +298,41 @@ Revokes all patient device tokens for the authenticated account.
 
 ---
 
-## 2. Profile (me)
+### GET `/auth/policies`
+
+Returns the current Terms of Service and Privacy Policy metadata. Android uses this to discover the current versions and URLs before presenting checkboxes.
+
+**Auth:** None (public endpoint).
+
+**Response (200):**
+```json
+{
+  "data": {
+    "privacy_policy": {
+      "version": "2026-08",
+      "url": "https://eyecare.example.com/privacy",
+      "effective_date": "2026-08-01"
+    },
+    "terms_of_service": {
+      "version": "2026-08",
+      "url": "https://eyecare.example.com/terms",
+      "effective_date": "2026-08-01"
+    }
+  }
+}
+```
+
+**Behavior:**
+- Values are server-authoritative from `config('app.*')`.
+- Registration validates that submitted `privacy_policy_version` and `terms_version` match these values.
+
+---
+
+## 5. Profile (me)
 
 ### GET `/me`
 
-Returns the authenticated account's profile and link state.
+Returns the authenticated account's profile and link state. The response schema is identical to `PatientAccountResource` used in auth responses.
 
 **Auth:** Required (Sanctum token).
 
@@ -325,6 +355,23 @@ Returns the authenticated account's profile and link state.
   }
 }
 ```
+
+**PatientAccountResource schema (used in all auth responses):**
+
+| Field | Type | Nullable | Notes |
+|-------|------|----------|-------|
+| `id` | integer | no | User ID |
+| `name` | string | no | Derived from first + middle + last |
+| `first_name` | string | yes | Account first name |
+| `middle_name` | string | yes | Account middle name |
+| `last_name` | string | yes | Account last name |
+| `email` | string | yes | Primary verified email, null for phone-only accounts |
+| `phone` | string | yes | Primary verified phone, null for email-only accounts |
+| `role` | string | no | `patient` |
+| `date_of_birth` | string | yes | `Y-m-d` format |
+| `link_status` | string | no | `linked`, `pending_review`, or `unlinked` |
+| `privacy_policy_version` | string | yes | Accepted privacy policy version |
+| `privacy_accepted_at` | string | yes | ISO 8601 timestamp |
 
 **Notes:**
 - `email` and `phone` are the verified primary contact values, nullable for phone-only or email-only accounts.
@@ -358,6 +405,24 @@ Updates account fields. At least one field required.
 
 Certain security-sensitive operations require an authenticated step-up OTP to prove the current session owner authorized the change.
 
+**Step-up token delivery:** After verifying the OTP, the client receives a `step_up_token`. For mutations that require step-up, supply it via the `X-Step-Up-Token` HTTP header. This works cleanly with `DELETE` and `PATCH` methods.
+
+**Token properties:**
+- **User-bound:** Only valid for the user who requested it
+- **Purpose-bound:** Issued for `sensitive_change` purpose
+- **Short-lived:** 15-minute expiry
+- **Single-use:** Consumed on first successful validation
+
+**Endpoints requiring step-up:**
+| Endpoint | Method | Header |
+|----------|--------|--------|
+| `/account/contacts/otp` | POST | `X-Step-Up-Token` |
+| `/account/contacts/{id}/primary` | PATCH | `X-Step-Up-Token` |
+| `/account/contacts/{id}` | DELETE | `X-Step-Up-Token` |
+| `/auth/password` | POST | `X-Step-Up-Token` |
+
+---
+
 ### POST `/auth/step-up/otp`
 
 Requests a step-up OTP sent to the user's primary verified contact.
@@ -367,7 +432,7 @@ Requests a step-up OTP sent to the user's primary verified contact.
 **Request:**
 ```json
 {
-  "purpose": "change_primary_contact | remove_contact | change_password | security_settings"
+  "purpose": "sensitive_change"
 }
 ```
 

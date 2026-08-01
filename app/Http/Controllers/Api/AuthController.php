@@ -8,7 +8,9 @@ use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\IssuePatientDeviceToken;
 use App\Actions\Auth\RecoverPatientPassword;
 use App\Actions\Auth\RegisterPatientAccount;
+use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Auth\VerifyStepUpOtp;
+use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\ChangePasswordRequest;
@@ -23,11 +25,14 @@ use App\Http\Requests\Api\UpdateMeRequest;
 use App\Http\Resources\PatientAccountResource;
 use App\Http\Resources\PatientProfileResource;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
+use App\Models\PatientLinkRequest;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -381,5 +386,261 @@ class AuthController extends Controller
         }
 
         return '***';
+    }
+
+    /**
+     * List verified and pending contacts.
+     */
+    public function listContacts(Request $request): JsonResponse
+    {
+        $contacts = $request->user()->contacts()
+            ->orderByDesc('is_primary')
+            ->orderBy('type')
+            ->get()
+            ->map(fn ($contact) => [
+                'id' => $contact->id,
+                'type' => $contact->type,
+                'masked_value' => $this->maskContact($contact->encrypted_value, $contact->type),
+                'is_primary' => $contact->is_primary,
+                'verified_at' => $contact->verified_at?->toISOString(),
+            ]);
+
+        return response()->json(['data' => $contacts]);
+    }
+
+    /**
+     * Request OTP to verify a new contact.
+     */
+    public function requestContactOtp(Request $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
+    {
+        $request->validate([
+            'contact_type' => ['required', 'in:email,phone'],
+            'contact_value' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        // Check if contact already owned by another account
+        $lookupHash = app(CreateContactLookupHash::class);
+        $hash = $request->input('contact_type') === 'email'
+            ? $lookupHash->forEmail($request->input('contact_value'))
+            : $lookupHash->forPhone($request->input('contact_value'));
+
+        $existing = PatientAccountContact::where('lookup_hash', $hash)
+            ->where('type', $request->input('contact_type'))
+            ->first();
+
+        if ($existing !== null && $existing->user_id !== $user->id) {
+            return response()->json([
+                'error' => [
+                    'code' => 'CONTACT_ALREADY_OWNED',
+                    'message' => 'This contact is already verified by another account.',
+                ],
+            ], 422);
+        }
+
+        if ($existing !== null && $existing->user_id === $user->id) {
+            return response()->json([
+                'error' => [
+                    'code' => 'CONTACT_ALREADY_VERIFIED',
+                    'message' => 'You already have this contact verified.',
+                ],
+            ], 422);
+        }
+
+        $challenge = $issueOtp->handle(
+            contactType: $request->input('contact_type'),
+            contactValue: $request->input('contact_value'),
+            purpose: OtpPurpose::AddContact,
+            userId: $user->id,
+        );
+
+        $dispatch->handle($challenge);
+
+        return response()->json([
+            'data' => [
+                'challenge_id' => $challenge->public_id,
+                'expires_at' => $challenge->expires_at->toISOString(),
+            ],
+        ]);
+    }
+
+    /**
+     * Verify a contact OTP.
+     */
+    public function verifyContact(Request $request, VerifyOtpChallenge $verifyOtp): JsonResponse
+    {
+        $request->validate([
+            'challenge_id' => ['required', 'string'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $challenge = $verifyOtp->handle(
+            challengeId: $request->input('challenge_id'),
+            code: $request->input('code'),
+            expectedPurpose: OtpPurpose::AddContact,
+        );
+
+        $user = $request->user();
+        $contactType = $challenge->channel;
+        $destination = $challenge->encrypted_destination;
+
+        $lookupHash = app(CreateContactLookupHash::class);
+        $hash = $contactType === 'email'
+            ? $lookupHash->forEmail($destination)
+            : $lookupHash->forPhone($destination);
+
+        // Create or update the contact
+        $contact = PatientAccountContact::updateOrCreate(
+            ['user_id' => $user->id, 'type' => $contactType],
+            [
+                'encrypted_value' => $destination,
+                'lookup_hash' => $hash,
+                'verified_at' => now(),
+                'is_primary' => false,
+            ],
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $contact->id,
+                'type' => $contact->type,
+                'masked_value' => $this->maskContact($contact->encrypted_value, $contact->type),
+                'is_primary' => $contact->is_primary,
+                'verified_at' => $contact->verified_at->toISOString(),
+            ],
+        ]);
+    }
+
+    /**
+     * Set a contact as primary. Requires step-up.
+     */
+    public function setPrimaryContact(Request $request): JsonResponse
+    {
+        $contact = PatientAccountContact::where('id', $request->route('contact'))
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if ($contact === null) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        if ($contact->verified_at === null) {
+            return response()->json([
+                'error' => [
+                    'code' => 'CONTACT_NOT_VERIFIED',
+                    'message' => 'Cannot set an unverified contact as primary.',
+                ],
+            ], 422);
+        }
+
+        DB::transaction(function () use ($request, $contact) {
+            $request->user()->contacts()
+                ->where('is_primary', true)
+                ->update(['is_primary' => false]);
+
+            $contact->update(['is_primary' => true]);
+        });
+
+        $contacts = $request->user()->contacts()
+            ->orderByDesc('is_primary')
+            ->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'type' => $c->type,
+                'masked_value' => $this->maskContact($c->encrypted_value, $c->type),
+                'is_primary' => $c->is_primary,
+                'verified_at' => $c->verified_at?->toISOString(),
+            ]);
+
+        return response()->json(['data' => $contacts]);
+    }
+
+    /**
+     * Remove a contact. Requires step-up.
+     */
+    public function removeContact(Request $request): JsonResponse
+    {
+        $contact = PatientAccountContact::where('id', $request->route('contact'))
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if ($contact === null) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        $verifiedContacts = $request->user()->contacts()
+            ->whereNotNull('verified_at')
+            ->count();
+
+        if ($verifiedContacts <= 1) {
+            return response()->json([
+                'error' => [
+                    'code' => 'LAST_CONTACT_REMAINING',
+                    'message' => 'Cannot remove the last verified login contact.',
+                ],
+            ], 422);
+        }
+
+        $contact->delete();
+
+        return response()->json(null, 204);
+    }
+
+    /**
+     * Get link state.
+     */
+    public function linkStatus(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->patient !== null) {
+            return response()->json([
+                'data' => [
+                    'status' => 'linked',
+                    'linked_at' => $user->patient->updated_at?->toISOString(),
+                ],
+            ]);
+        }
+
+        $pendingRequest = PatientLinkRequest::where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($pendingRequest !== null) {
+            return response()->json([
+                'data' => [
+                    'status' => 'pending_review',
+                    'request_submitted_at' => $pendingRequest->created_at->toISOString(),
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'data' => [
+                'status' => 'unlinked',
+            ],
+        ]);
+    }
+
+    /**
+     * Return current policy metadata.
+     */
+    public function policies(): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'privacy_policy' => [
+                    'version' => config('app.privacy_policy_version', '2026-08'),
+                    'url' => config('app.privacy_policy_url', 'https://eyecare.example.com/privacy'),
+                    'effective_date' => config('app.privacy_policy_effective_date', '2026-08-01'),
+                ],
+                'terms_of_service' => [
+                    'version' => config('app.terms_version', '2026-08'),
+                    'url' => config('app.terms_url', 'https://eyecare.example.com/terms'),
+                    'effective_date' => config('app.terms_effective_date', '2026-08-01'),
+                ],
+            ],
+        ]);
     }
 }

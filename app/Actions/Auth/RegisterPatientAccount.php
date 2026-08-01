@@ -110,6 +110,9 @@ class RegisterPatientAccount
      */
     public function handle(array $data): array
     {
+        // Validate policy versions against server config
+        $this->validatePolicies($data);
+
         // Find and validate the registration proof
         $proof = OtpChallenge::where('public_id', $data['registration_token'])
             ->where('purpose', OtpPurpose::Registration)
@@ -229,5 +232,24 @@ class RegisterPatientAccount
 
         $patient->update(['user_id' => $user->id]);
         $invitation->accept($user);
+    }
+
+    protected function validatePolicies(array $data): void
+    {
+        $errors = [];
+
+        $serverPrivacyVersion = config('app.privacy_policy_version');
+        if (! empty($serverPrivacyVersion) && ($data['privacy_policy_version'] ?? '') !== $serverPrivacyVersion) {
+            $errors['privacy_policy_version'] = ['The accepted privacy policy version does not match the current version.'];
+        }
+
+        $serverTermsVersion = config('app.terms_version');
+        if (! empty($serverTermsVersion) && ($data['terms_version'] ?? '') !== $serverTermsVersion) {
+            $errors['terms_version'] = ['The accepted terms version does not match the current version.'];
+        }
+
+        if (! empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 }

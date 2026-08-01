@@ -2,12 +2,13 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-07-31.** Patient accounts, OTP-based
-> authentication, contact management, patient linking, appointment requests,
-> and Optical Orders workflow have been implemented. The API contract now
-> includes 43 routes across public auth, account-only, and clinical groups.
-> Legacy intake routes have been removed. The last full-regression cutoff
-> remains to be established with the new test suite.
+> **Reconciliation status as of 2026-08-01.** Patient accounts, two-stage
+> OTP-based registration, hybrid login, contact management, patient linking,
+> appointment requests, authenticated step-up for sensitive changes, and
+> Optical Orders workflow have been implemented. The API contract includes
+> 54 routes (7 public, 22 account-only, 25 active-link). Legacy intake
+> routes and direct booking have been removed. All accounts use structured
+> first/middle/last names.
 
 ---
 
@@ -109,7 +110,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `privacy_notice_version`, `privacy_acknowledged_at`. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. |
+| `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. `privacy_notice_version`, `privacy_acknowledged_at`. |
 | `patient_account_contacts` | Verified contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
@@ -199,14 +200,13 @@ Base: `/api/v1` (sole patient-mobile contract)
 ### Public Authentication (no token required)
 ```
 POST   /api/v1/auth/registration/otp          Request registration OTP
-POST   /api/v1/auth/registration/verify       Verify OTP and create account
-POST   /api/v1/auth/register                  Register with OTP
-POST   /api/v1/auth/login                     Password login (step-up)
+POST   /api/v1/auth/registration/verify       Verify OTP, get registration_token
+POST   /api/v1/auth/register                  Complete registration with profile
+POST   /api/v1/auth/login                     Password login (step-up or token)
 POST   /api/v1/auth/login/verify              Verify login OTP, issue token
 POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
-POST   /api/v1/auth/password-recovery/verify  Reset password
-POST   /api/v1/register                       Legacy registration (backward compat)
-POST   /api/v1/login                          Legacy login (backward compat)
+POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
+GET    /api/v1/auth/policies                  Get current Terms/Privacy metadata
 ```
 
 ### Authenticated Account-Only (token required, no active link needed)
@@ -215,11 +215,14 @@ POST   /api/v1/logout
 POST   /api/v1/logout-all
 GET    /api/v1/me
 PATCH  /api/v1/me
+POST   /api/v1/auth/step-up/otp               Request sensitive-change OTP
+POST   /api/v1/auth/step-up/verify            Get step_up_token (15min)
+POST   /api/v1/auth/password                  Change password (X-Step-Up-Token header)
 GET    /api/v1/account/contacts
-POST   /api/v1/account/contacts/otp
+POST   /api/v1/account/contacts/otp           Requires X-Step-Up-Token header
 POST   /api/v1/account/contacts/verify
-PATCH  /api/v1/account/contacts/{contact}/primary
-DELETE /api/v1/account/contacts/{contact}
+PATCH  /api/v1/account/contacts/{id}/primary  Requires X-Step-Up-Token header
+DELETE /api/v1/account/contacts/{id}          Requires X-Step-Up-Token header
 GET    /api/v1/account/link
 POST   /api/v1/patient-link-requests
 GET    /api/v1/patient-link-requests/current
@@ -228,44 +231,46 @@ POST   /api/v1/patient-invitations/accept
 GET    /api/v1/appointment-request-availability
 GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
-GET    /api/v1/appointment-requests/{appointmentRequest}
-POST   /api/v1/appointment-requests/{appointmentRequest}/cancel
+GET    /api/v1/appointment-requests/{id}
+POST   /api/v1/appointment-requests/{id}/cancel
 ```
 
 ### Active Patient Link Required (token + active link)
 ```
 GET    /api/v1/appointment-availability
 GET    /api/v1/appointments
-GET    /api/v1/appointments/{appointment}
-POST   /api/v1/appointments/{appointment}/cancel
-POST   /api/v1/appointments/{appointment}/reschedule
+GET    /api/v1/appointments/{id}
+POST   /api/v1/appointments/{id}/cancel
+POST   /api/v1/appointments/{id}/reschedule
 GET    /api/v1/frames
-GET    /api/v1/frames/{frame}
+GET    /api/v1/frames/{id}
 GET    /api/v1/frame-reservations
 POST   /api/v1/frame-reservations
-POST   /api/v1/frame-reservations/{reservation}/cancel
+POST   /api/v1/frame-reservations/{id}/cancel
 GET    /api/v1/prescriptions
-GET    /api/v1/prescriptions/{prescription}
+GET    /api/v1/prescriptions/{id}
 GET    /api/v1/quotations
-GET    /api/v1/quotations/{quotation}
+GET    /api/v1/quotations/{id}
 GET    /api/v1/job-orders
-GET    /api/v1/job-orders/{jobOrder}
+GET    /api/v1/job-orders/{id}
 GET    /api/v1/billing-records
-GET    /api/v1/billing-records/{billingRecord}
+GET    /api/v1/billing-records/{id}
 GET    /api/v1/eyewear
 GET    /api/v1/eyewear/{key}
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
-GET    /api/v1/conversation/attachments/{attachment}
-POST   /api/v1/job-order-items/{item}/rating
+GET    /api/v1/conversation/attachments/{id}
+POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 9 public + 12 account-only + 25 active-link = **46 routes total.**
+**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
 
-The contract includes breaking changes from the coordinated Android cutover:
+Breaking changes from coordinated Android cutover:
 - Direct `POST /appointments` removed (use appointment requests)
 - `GET /appointment-types` removed (internal only)
+- `POST /register` and `POST /login` removed (replaced by auth/register and auth/login)
+- Three intake routes removed (retired)
 - Three intake routes removed (retired)
 
 All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.

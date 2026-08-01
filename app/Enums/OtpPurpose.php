@@ -11,4 +11,5 @@ enum OtpPurpose: string
     case ReplacePrimaryContact = 'replace_primary_contact';
     case InvitationAcceptance = 'invitation_acceptance';
     case SensitiveChange = 'sensitive_change';
+    case StepUp = 'step_up';
 }
