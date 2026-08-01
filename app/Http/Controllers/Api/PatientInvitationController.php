@@ -17,10 +17,10 @@ class PatientInvitationController extends Controller
     public function requestOtp(Request $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
     {
         $request->validate([
-            'invitation_token' => ['required', 'string'],
+            'invitation_code' => ['required', 'string'],
         ]);
 
-        $invitation = PatientInvitation::where('public_id', $request->input('invitation_token'))->first();
+        $invitation = PatientInvitation::where('invitation_code', $request->input('invitation_code'))->first();
 
         if ($invitation === null || ! $invitation->isPending()) {
             return response()->json([
@@ -53,13 +53,13 @@ class PatientInvitationController extends Controller
     public function accept(Request $request, AcceptPatientInvitation $accept): JsonResponse
     {
         $request->validate([
-            'invitation_token' => ['required', 'string'],
+            'invitation_code' => ['required', 'string'],
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
         ]);
 
         $result = $accept->handle(
-            invitationToken: $request->input('invitation_token'),
+            invitationCode: $request->input('invitation_code'),
             challengeId: $request->input('challenge_id'),
             code: $request->input('code'),
         );

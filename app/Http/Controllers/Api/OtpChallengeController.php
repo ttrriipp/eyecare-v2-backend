@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
-use App\Actions\Auth\RecoverPatientPassword;
 use App\Actions\Auth\VerifyOtpChallenge;
+use App\Actions\PatientAccounts\AcceptPatientInvitation;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\IssueOtpRequest;
 use App\Http\Requests\Api\VerifyOtpRequest;
 use App\Http\Resources\PatientAccountResource;
+use App\Models\PatientInvitation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -51,44 +52,54 @@ class OtpChallengeController extends Controller
         ], 200);
     }
 
-    public function recoveryOtp(Request $request, RecoverPatientPassword $recover, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
+    public function requestOtp(Request $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
     {
-        $validated = $request->validate(['contact_value' => ['required', 'string']]);
+        $request->validate([
+            'invitation_code' => ['required', 'string'],
+        ]);
 
-        // Always return a generic response to prevent enumeration
-        $user = $recover->findUserByContact($validated['contact_value']);
+        $invitation = PatientInvitation::where('invitation_code', $request->input('invitation_code'))->first();
 
-        if ($user !== null) {
-            $challenge = $issueOtp->handle(
-                contactType: 'email',
-                contactValue: $validated['contact_value'],
-                purpose: OtpPurpose::PasswordRecovery,
-                userId: $user->id,
-            );
-
-            $dispatch->handle($challenge);
+        if ($invitation === null || ! $invitation->isPending()) {
+            return response()->json([
+                'error' => [
+                    'code' => 'INVITATION_INVALID',
+                    'message' => 'The invitation is invalid, expired, or has been revoked.',
+                ],
+            ], 422);
         }
+
+        $destination = $invitation->encrypted_destination;
+
+        $challenge = $issueOtp->handle(
+            contactType: $invitation->channel,
+            contactValue: $destination,
+            purpose: OtpPurpose::InvitationAcceptance,
+            userId: $request->user()?->id,
+        );
+
+        $dispatch->handle($challenge);
 
         return response()->json([
             'data' => [
-                'message' => 'If the contact is associated with an account, a recovery code has been sent.',
+                'challenge_id' => $challenge->public_id,
+                'expires_at' => $challenge->expires_at->toISOString(),
             ],
         ]);
     }
 
-    public function recoveryVerify(Request $request, RecoverPatientPassword $recover): JsonResponse
+    public function accept(Request $request, AcceptPatientInvitation $accept): JsonResponse
     {
-        $validated = $request->validate([
+        $request->validate([
+            'invitation_code' => ['required', 'string'],
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
-            'password' => ['required', 'string', 'min:12', 'confirmed'],
-            'password_confirmation' => ['required', 'string'],
         ]);
 
-        $result = $recover->handle(
-            challengeId: $validated['challenge_id'],
-            code: $validated['code'],
-            newPassword: $validated['password'],
+        $result = $accept->handle(
+            invitationCode: $request->input('invitation_code'),
+            challengeId: $request->input('challenge_id'),
+            code: $request->input('code'),
         );
 
         $user = $result['user'];
@@ -98,6 +109,7 @@ class OtpChallengeController extends Controller
             'data' => [
                 'token' => $result['token'],
                 'user' => PatientAccountResource::make($user),
+                'status' => 'linked',
             ],
         ]);
     }

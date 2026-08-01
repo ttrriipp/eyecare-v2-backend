@@ -20,17 +20,18 @@ use Illuminate\Support\Facades\Route;
 
 // Public auth routes (versioned)
 Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
-    Route::post('register', [AuthController::class, 'register']);
-    Route::post('login', [AuthController::class, 'login']);
-
-    // New OTP-based authentication
+    // Registration flow
     Route::post('auth/registration/otp', [OtpChallengeController::class, 'issue']);
-    Route::post('auth/registration/verify', [OtpChallengeController::class, 'verify']);
+    Route::post('auth/registration/verify', [AuthController::class, 'registrationVerify']);
     Route::post('auth/register', [AuthController::class, 'registerWithOtp']);
+
+    // Login flow
     Route::post('auth/login', [AuthController::class, 'patientLogin']);
     Route::post('auth/login/verify', [AuthController::class, 'patientLoginVerify']);
-    Route::post('auth/password-recovery/otp', [OtpChallengeController::class, 'recoveryOtp']);
-    Route::post('auth/password-recovery/verify', [OtpChallengeController::class, 'recoveryVerify']);
+
+    // Password recovery
+    Route::post('auth/password-recovery/otp', [AuthController::class, 'recoveryOtp']);
+    Route::post('auth/password-recovery/verify', [AuthController::class, 'recoveryVerify']);
 });
 
 // Authenticated account-only routes (no active link required)
@@ -39,6 +40,11 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::post('logout-all', [AuthController::class, 'logoutAll']);
     Route::get('me', [AuthController::class, 'user']);
     Route::patch('me', [AuthController::class, 'update']);
+
+    // Step-up OTP for sensitive changes
+    Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);
+    Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp']);
+    Route::post('auth/password', [AuthController::class, 'changePassword']);
 
     // Patient link requests
     Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);

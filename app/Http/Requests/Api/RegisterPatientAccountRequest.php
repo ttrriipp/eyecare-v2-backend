@@ -16,17 +16,17 @@ class RegisterPatientAccountRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'challenge_id' => ['required', 'string'],
-            'code' => ['required', 'string', 'size:6'],
+            'registration_token' => ['required', 'string'],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['required', 'date', 'before:today'],
-            'phone' => ['required', 'string', 'max:20'],
             'password' => ['required', 'string', 'min:12', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
-            'privacy_policy_accepted' => ['required', 'accepted'],
-            'terms_accepted' => ['required', 'accepted'],
+            'privacy_policy_version' => ['required', 'string'],
+            'privacy_policy_url' => ['required', 'url'],
+            'terms_version' => ['required', 'string'],
+            'terms_url' => ['required', 'url'],
             'invitation_code' => ['nullable', 'string'],
             'device_name' => ['nullable', 'string', 'max:255'],
             'installation_id' => ['nullable', 'string', 'max:255'],

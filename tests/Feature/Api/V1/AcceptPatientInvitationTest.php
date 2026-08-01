@@ -43,19 +43,19 @@ test('invitation OTP request returns challenge for valid invitation', function (
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/acceptance/otp', [
-            'invitation_token' => $invitation->public_id,
+            'invitation_code' => $invitation->invitation_code,
         ]);
 
     $response->assertOk()
         ->assertJsonStructure(['data' => ['challenge_id', 'expires_at']]);
 });
 
-test('invitation OTP request rejects invalid token', function () {
+test('invitation OTP request rejects invalid code', function () {
     $user = User::factory()->patient()->create();
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/acceptance/otp', [
-            'invitation_token' => 'invalid-token',
+            'invitation_code' => 'INVALID1',
         ]);
 
     $response->assertUnprocessable()
@@ -75,7 +75,7 @@ test('invitation OTP request rejects expired invitation', function () {
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/acceptance/otp', [
-            'invitation_token' => $invitation->public_id,
+            'invitation_code' => $invitation->invitation_code,
         ]);
 
     $response->assertUnprocessable()
@@ -123,7 +123,7 @@ test('invitation acceptance activates patient link', function () {
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/accept', [
-            'invitation_token' => $invitation->public_id,
+            'invitation_code' => $invitation->invitation_code,
             'challenge_id' => $challenge->public_id,
             'code' => $code,
         ]);
@@ -168,7 +168,7 @@ test('invitation acceptance returns token for new users', function () {
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/accept', [
-            'invitation_token' => $invitation->public_id,
+            'invitation_code' => $invitation->invitation_code,
             'challenge_id' => $challenge->public_id,
             'code' => $code,
         ]);

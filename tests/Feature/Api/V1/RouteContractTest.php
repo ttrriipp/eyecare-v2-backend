@@ -49,22 +49,23 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/appointments/{appointment}/reschedule',
         'POST api/v1/auth/login',
         'POST api/v1/auth/login/verify',
+        'POST api/v1/auth/password',
         'POST api/v1/auth/password-recovery/otp',
         'POST api/v1/auth/password-recovery/verify',
         'POST api/v1/auth/register',
         'POST api/v1/auth/registration/otp',
         'POST api/v1/auth/registration/verify',
+        'POST api/v1/auth/step-up/otp',
+        'POST api/v1/auth/step-up/verify',
         'POST api/v1/conversation/messages',
         'POST api/v1/frame-reservations',
         'POST api/v1/frame-reservations/{reservation}/cancel',
         'POST api/v1/job-order-items/{item}/rating',
-        'POST api/v1/login',
         'POST api/v1/logout',
         'POST api/v1/logout-all',
         'POST api/v1/patient-invitations/accept',
         'POST api/v1/patient-invitations/acceptance/otp',
         'POST api/v1/patient-link-requests',
-        'POST api/v1/register',
     ];
 
     expect($v1Routes)->toBe($expected);
@@ -82,6 +83,16 @@ test('unversioned patient routes are absent', function () {
         ->and($routes)->not->toContain('api/billing/{billing}');
 });
 
+test('legacy routes are absent', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->pluck('uri')
+        ->toArray();
+
+    expect($routes)->not->toContain('api/v1/register')
+        ->and($routes)->not->toContain('api/v1/login')
+        ->and($routes)->not->toContain('api/v1/appointment-types');
+});
+
 test('no checkout or purchase routes exist', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
@@ -91,12 +102,13 @@ test('no checkout or purchase routes exist', function () {
         ->and($routes)->not->toContain(fn ($uri) => str_contains($uri, 'purchase'));
 });
 
-test('retired feedback routes are absent', function () {
+test('retired routes are absent', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
 
-    expect($routes)->not->toContain('api/v1/feedback');
+    expect($routes)->not->toContain('api/v1/feedback')
+        ->and($routes)->not->toContain('api/v1/appointment-types');
 });
 
 test('staff-only api mutations are absent from the patient mobile contract', function () {

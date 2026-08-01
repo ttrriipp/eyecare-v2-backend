@@ -21,25 +21,25 @@ class AcceptPatientInvitation
     ) {}
 
     public function handle(
-        string $invitationToken,
+        string $invitationCode,
         string $challengeId,
         string $code,
         ?string $firstName = null,
         ?string $lastName = null,
         ?string $password = null,
     ): array {
-        // Find invitation by public_id
-        $invitation = PatientInvitation::where('public_id', $invitationToken)->first();
+        // Find invitation by invitation_code
+        $invitation = PatientInvitation::where('invitation_code', $invitationCode)->first();
 
         if ($invitation === null) {
             throw ValidationException::withMessages([
-                'invitation_token' => ['The invitation is invalid.'],
+                'invitation_code' => ['The invitation code is invalid.'],
             ]);
         }
 
         if (! $invitation->isPending()) {
             throw ValidationException::withMessages([
-                'invitation_token' => ['The invitation has expired, been revoked, or already accepted.'],
+                'invitation_code' => ['The invitation has expired, been revoked, or already accepted.'],
             ]);
         }
 
@@ -56,7 +56,7 @@ class AcceptPatientInvitation
 
             if (! $invitation->isPending()) {
                 throw ValidationException::withMessages([
-                    'invitation_token' => ['The invitation is no longer valid.'],
+                    'invitation_code' => ['The invitation is no longer valid.'],
                 ]);
             }
 
@@ -65,7 +65,7 @@ class AcceptPatientInvitation
             // Check patient still unlinked
             if ($patient->user_id !== null) {
                 throw ValidationException::withMessages([
-                    'invitation_token' => ['The patient is already linked to another account.'],
+                    'invitation_code' => ['The patient is already linked to another account.'],
                 ]);
             }
 
@@ -83,7 +83,7 @@ class AcceptPatientInvitation
                 // Check account not already linked
                 if ($user->patient !== null) {
                     throw ValidationException::withMessages([
-                        'invitation_token' => ['The account is already linked to a patient.'],
+                        'invitation_code' => ['The account is already linked to a patient.'],
                     ]);
                 }
             } else {
