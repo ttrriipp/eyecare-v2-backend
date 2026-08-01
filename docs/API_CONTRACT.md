@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-07-31) — introduces OTP-based patient registration, hybrid login, contact management, patient linking, appointment requests, and active-link route boundary.
+> **Backend version:** Current repository state (2026-08-01) — introduces two-stage OTP-based patient registration, hybrid login, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -14,28 +14,40 @@
 1. [Authentication](#1-authentication)
 2. [Profile (me)](#2-profile-me)
 3. [Contact Management](#3-contact-management)
-4. [Patient Linking](#4-patient-linking)
-5. [Patient Invitations](#5-patient-invitations)
-6. [Appointment Requests](#6-appointment-requests)
-7. [Appointment Availability](#7-appointment-availability)
-8. [Confirmed Appointments](#8-confirmed-appointments)
-9. [Frames](#9-frames)
-10. [Frame Reservations](#10-frame-reservations)
-11. [Prescriptions](#11-prescriptions)
-12. [Quotations](#12-quotations)
-13. [Job Orders](#13-job-orders)
-14. [Eyewear](#14-eyewear)
-15. [Billing Records](#15-billing-records)
-16. [Conversation](#16-conversation)
-17. [Frame Ratings](#17-frame-ratings)
-18. [Error Responses](#18-error-responses)
-19. [Coordinated Breaking Changes](#19-coordinated-breaking-changes)
+4. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
+5. [Patient Linking](#5-patient-linking)
+6. [Patient Invitations](#6-patient-invitations)
+7. [Appointment Requests](#7-appointment-requests)
+8. [Appointment Availability](#8-appointment-availability)
+9. [Confirmed Appointments](#9-confirmed-appointments)
+10. [Frames](#10-frames)
+11. [Frame Reservations](#11-frame-reservations)
+12. [Prescriptions](#12-prescriptions)
+13. [Quotations](#13-quotations)
+14. [Job Orders](#14-job-orders)
+15. [Eyewear](#15-eyewear)
+16. [Billing Records](#16-billing-records)
+17. [Conversation](#17-conversation)
+18. [Frame Ratings](#18-frame-ratings)
+19. [Error Responses](#19-error-responses)
 20. [Retired Features](#20-retired-features)
 21. [Clarifications](#21-clarifications)
 
 ---
 
 ## 1. Authentication
+
+### Registration Flow (Two-Stage)
+
+**Stage 1: Verify contact ownership**
+
+`POST /auth/registration/otp` → `POST /auth/registration/verify` → returns `registration_token`
+
+**Stage 2: Complete account**
+
+`POST /auth/register` with `registration_token` + profile data → returns `token` + `user`
+
+---
 
 ### POST `/auth/registration/otp`
 
@@ -49,10 +61,6 @@ Requests a registration OTP for the given contact. Returns a generic response re
 }
 ```
 
-**Validation:**
-- `contact_type`: required, `in:email,phone`
-- `contact_value`: required; if `email`, validated as email format; if `phone`, normalized to canonical E.164
-
 **Response (200):**
 ```json
 {
@@ -63,32 +71,57 @@ Requests a registration OTP for the given contact. Returns a generic response re
 }
 ```
 
-**Behavior:**
-- If the contact is already owned by an existing account, a login/recovery challenge is issued instead. The response shape is identical.
-- Rate limited: 3 per 15 minutes per destination, 10 per 15 minutes per IP, 10 per destination per day.
-- Resend invalidates all earlier pending challenges for the same purpose/destination.
-
 ---
 
 ### POST `/auth/registration/verify`
 
-Verifies the OTP and creates the patient mobile account. Does **not** create a Patient record.
+Verifies the OTP and returns a short-lived `registration_token` (30-minute expiry). Does **not** create any account.
 
 **Request:**
 ```json
 {
   "challenge_id": "string (required)",
-  "code": "string (required, 6 digits)",
+  "code": "string (required, 6 digits)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "registration_token": "opaque-hex-string",
+    "expires_at": "2026-07-27T10:30:00+08:00",
+    "contact_type": "email | phone"
+  }
+}
+```
+
+**Behavior:**
+- 5 maximum verification attempts per challenge.
+- The `registration_token` proves contact ownership and is consumed on use.
+- If the contact is already owned, returns the same response (enumeration-safe).
+
+---
+
+### POST `/auth/register`
+
+Completes registration using the proof token. Creates the account and returns a Sanctum token. The verified contact from the challenge becomes the primary contact. Does **not** create a Patient record.
+
+**Request:**
+```json
+{
+  "registration_token": "string (required, from /auth/registration/verify)",
   "first_name": "string (required, max:255)",
   "middle_name": "string (nullable, max:255)",
   "last_name": "string (required, max:255)",
   "date_of_birth": "date (required, before:today, Y-m-d)",
-  "phone": "string (required, max:20)",
   "password": "string (required, confirmed, min:12)",
   "password_confirmation": "string (required)",
-  "privacy_policy_accepted": "boolean (required, must be true)",
-  "terms_accepted": "boolean (required, must be true)",
-  "invitation_code": "string (nullable, optional)",
+  "privacy_policy_version": "string (required)",
+  "privacy_policy_url": "string (required, url)",
+  "terms_version": "string (required)",
+  "terms_url": "string (required, url)",
+  "invitation_code": "string (nullable)",
   "device_name": "string (nullable, max:255)",
   "installation_id": "string (nullable, max:255)"
 }
@@ -105,17 +138,17 @@ Verifies the OTP and creates the patient mobile account. Does **not** create a P
 ```
 
 **Behavior:**
-- If the contact is already owned, the challenge is consumed and the existing account is authenticated (idempotent). No duplicate account is created.
-- The response never reveals whether a new account was created or an existing one was returned.
-- 5 maximum verification attempts per challenge.
+- If `invitation_code` is provided and valid, the account is linked to the patient immediately.
+- If the contact is already owned, returns the existing account (idempotent).
+- Phone is **not** required — the verified contact (email or phone) becomes primary.
+- Privacy and terms acceptance records the version and URL metadata.
 - Creates only the `User` with `patient` role and its verified primary contact method.
-- Device label and installation ID are stored on the Sanctum token.
 
 ---
 
 ### POST `/auth/login`
 
-Authenticates a patient with password. Does **not** issue a token immediately — returns a step-up challenge.
+Authenticates a patient with password. May return a step-up challenge or a token directly.
 
 **Request:**
 ```json
@@ -127,7 +160,7 @@ Authenticates a patient with password. Does **not** issue a token immediately �
 }
 ```
 
-**Response (200):**
+**Response (200) — step-up required:**
 ```json
 {
   "data": {
@@ -138,9 +171,20 @@ Authenticates a patient with password. Does **not** issue a token immediately �
 }
 ```
 
+**Response (200) — trusted device (no step-up):**
+```json
+{
+  "data": {
+    "step_up_required": false,
+    "token": "1|abc123...",
+    "user": { /* PatientAccountResource */ }
+  }
+}
+```
+
 **Behavior:**
 - Response is identical for wrong password and unknown contact (enumeration-safe).
-- An existing trusted device token (same `installation_id`, not expired, not revoked) may skip step-up. In that case `step_up_required` is `false` and the token is returned directly.
+- A trusted device (same `installation_id`, not expired) may skip step-up.
 - Rate limited: `throttle:login` (5 per minute).
 
 ---
@@ -212,7 +256,9 @@ Verifies the recovery OTP and resets the password. Revokes all other patient dev
   "challenge_id": "string (required)",
   "code": "string (required, 6 digits)",
   "password": "string (required, confirmed, min:12)",
-  "password_confirmation": "string (required)"
+  "password_confirmation": "string (required)",
+  "device_name": "string (nullable, max:255)",
+  "installation_id": "string (nullable, max:255)"
 }
 ```
 
@@ -228,7 +274,7 @@ Verifies the recovery OTP and resets the password. Revokes all other patient dev
 
 **Behavior:**
 - Revokes all other patient device tokens on successful recovery.
-- Issues one new token for the current device.
+- Issues one new token for the current device (labelled with `device_name`/`installation_id`).
 
 ---
 
@@ -265,30 +311,26 @@ Returns the authenticated account's profile and link state.
 {
   "data": {
     "id": 1,
-    "first_name": "Ana",
-    "last_name": "Reyes",
     "name": "Ana Reyes",
+    "first_name": "Ana",
+    "middle_name": null,
+    "last_name": "Reyes",
     "email": "ana@example.com",
     "phone": "09171234567",
     "role": "patient",
     "date_of_birth": "1990-05-15",
     "link_status": "linked | pending_review | unlinked",
-    "patient_number": "PAT-01JABC123...",
-    "full_name": "Ana Reyes",
-    "occupation": "Teacher",
-    "address": "123 Main St, Manila",
-    "gender": "female",
-    "contact_email": "ana@example.com",
-    "privacy_notice_version": "2026-07",
-    "privacy_acknowledged_at": "2026-07-27T10:00:00+08:00"
+    "privacy_policy_version": "2026-08",
+    "privacy_accepted_at": "2026-07-27T10:00:00+08:00"
   }
 }
 ```
 
 **Notes:**
+- `email` and `phone` are the verified primary contact values, nullable for phone-only or email-only accounts.
 - `link_status`: `linked` (active `patients.user_id`), `pending_review` (active link request), `unlinked` (no link or request).
-- `patient_number`, `full_name`, `occupation`, `address`, `gender`, `contact_email` are only present when `link_status` is `linked`.
-- `email` and `phone` are from verified contact methods, not `users.email`/`users.phone`.
+- `middle_name` is nullable.
+- `privacy_policy_version` records the accepted policy version.
 
 ### PATCH `/me`
 
@@ -312,7 +354,95 @@ Updates account fields. At least one field required.
 
 ---
 
-## 3. Contact Management
+## 4. Sensitive Changes (Step-up)
+
+Certain security-sensitive operations require an authenticated step-up OTP to prove the current session owner authorized the change.
+
+### POST `/auth/step-up/otp`
+
+Requests a step-up OTP sent to the user's primary verified contact.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "purpose": "change_primary_contact | remove_contact | change_password | security_settings"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "challenge_id": "opaque-uuid",
+    "expires_at": "2026-07-27T10:15:00+08:00",
+    "contact_type": "email",
+    "masked_contact": "a***@example.com"
+  }
+}
+```
+
+---
+
+### POST `/auth/step-up/verify`
+
+Verifies the step-up OTP and returns a short-lived `step_up_token` (15-minute expiry).
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "challenge_id": "string (required)",
+  "code": "string (required, 6 digits)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "step_up_token": "opaque-hex-string",
+    "expires_in": 900
+  }
+}
+```
+
+---
+
+### POST `/auth/password`
+
+Changes the authenticated user's password. Requires a valid `step_up_token`.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "current_password": "string (required)",
+  "password": "string (required, confirmed, min:12)",
+  "password_confirmation": "string (required)",
+  "step_up_token": "string (required, from /auth/step-up/verify)"
+}
+```
+
+**Response (200):**
+```json
+{
+  "data": {
+    "message": "Password changed successfully."
+  }
+}
+```
+
+**Behavior:**
+- Revokes all other patient device tokens after password change.
+- The `step_up_token` must be from a recent `/auth/step-up/verify` call (15-minute expiry).
+
+---
+
+## 5. Patient Linking
 
 ### GET `/account/contacts`
 
@@ -527,14 +657,14 @@ Returns the current active link request for the authenticated account.
 
 ### POST `/patient-invitations/acceptance/otp`
 
-Requests an OTP for accepting a patient invitation. The invitation token identifies the target contact.
+Requests an OTP for accepting a patient invitation. The invitation code identifies the target contact.
 
 **Auth:** Required (Sanctum token).
 
 **Request:**
 ```json
 {
-  "invitation_token": "string (required)"
+  "invitation_code": "string (required)"
 }
 ```
 
@@ -563,7 +693,7 @@ Verifies the OTP and activates the patient link.
 **Request:**
 ```json
 {
-  "invitation_token": "string (required)",
+  "invitation_code": "string (required)",
   "challenge_id": "string (required)",
   "code": "string (required, 6 digits)"
 }
@@ -1557,74 +1687,75 @@ Email addresses are trimmed and lowercased. Phone numbers are normalized to cano
 ### Public Authentication (no token required)
 
 ```
-POST   /api/v1/auth/registration/otp
-POST   /api/v1/auth/registration/verify
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/login/verify
-POST   /api/v1/auth/password-recovery/otp
-POST   /api/v1/auth/password-recovery/verify
-POST   /api/v1/register                       (legacy backward compat)
-POST   /api/v1/login                          (legacy backward compat)
+POST   /api/v1/auth/registration/otp          Request registration OTP
+POST   /api/v1/auth/registration/verify       Verify OTP, get registration_token
+POST   /api/v1/auth/register                  Complete registration with profile
+POST   /api/v1/auth/login                     Password login (step-up or token)
+POST   /api/v1/auth/login/verify              Verify login OTP, issue token
+POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
+POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 ```
 
 ### Authenticated Account-Only (token required, no active link needed)
 
 ```
-POST   /api/v1/logout
-POST   /api/v1/logout-all
-GET    /api/v1/me
-PATCH  /api/v1/me
-GET    /api/v1/account/contacts
-POST   /api/v1/account/contacts/otp
-POST   /api/v1/account/contacts/verify
-PATCH  /api/v1/account/contacts/{contact}/primary
-DELETE /api/v1/account/contacts/{contact}
-GET    /api/v1/account/link
-POST   /api/v1/patient-link-requests
-GET    /api/v1/patient-link-requests/current
-POST   /api/v1/patient-invitations/acceptance/otp
-POST   /api/v1/patient-invitations/accept
-GET    /api/v1/appointment-request-availability
-GET    /api/v1/appointment-requests
-POST   /api/v1/appointment-requests
-GET    /api/v1/appointment-requests/{appointmentRequest}
-POST   /api/v1/appointment-requests/{appointmentRequest}/cancel
+POST   /api/v1/logout                         Revoke current token
+POST   /api/v1/logout-all                     Revoke all device tokens
+GET    /api/v1/me                             Account profile
+PATCH  /api/v1/me                             Update first/last name
+POST   /api/v1/auth/step-up/otp               Request sensitive-change OTP
+POST   /api/v1/auth/step-up/verify            Get step_up_token (15min)
+POST   /api/v1/auth/password                  Change password (requires step_up_token)
+GET    /api/v1/account/contacts               List contacts
+POST   /api/v1/account/contacts/otp           Request contact verification OTP
+POST   /api/v1/account/contacts/verify        Verify contact OTP
+PATCH  /api/v1/account/contacts/{id}/primary  Set primary contact
+DELETE /api/v1/account/contacts/{id}          Remove contact
+GET    /api/v1/account/link                   Get link state
+POST   /api/v1/patient-link-requests          Submit link request
+GET    /api/v1/patient-link-requests/current   Get current link request
+POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
+POST   /api/v1/patient-invitations/accept     Accept invitation and link
+GET    /api/v1/appointment-request-availability  Get available slots
+GET    /api/v1/appointment-requests            List own requests
+POST   /api/v1/appointment-requests            Create request
+GET    /api/v1/appointment-requests/{id}       Get request detail
+POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 ```
 
 ### Active Patient Link Required (token + active link)
 
 ```
-GET    /api/v1/appointment-availability
-GET    /api/v1/appointments
-GET    /api/v1/appointments/{appointment}
-POST   /api/v1/appointments/{appointment}/cancel
-POST   /api/v1/appointments/{appointment}/reschedule
+GET    /api/v1/appointment-availability        Reschedule availability
+GET    /api/v1/appointments                   List confirmed appointments
+GET    /api/v1/appointments/{id}              Get appointment detail
+POST   /api/v1/appointments/{id}/cancel       Cancel appointment
+POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 
-GET    /api/v1/frames
-GET    /api/v1/frames/{frame}
-GET    /api/v1/frame-reservations
-POST   /api/v1/frame-reservations
-POST   /api/v1/frame-reservations/{reservation}/cancel
+GET    /api/v1/frames                         List frames
+GET    /api/v1/frames/{id}                    Get frame detail
+GET    /api/v1/frame-reservations             List reservations
+POST   /api/v1/frame-reservations             Create reservation
+POST   /api/v1/frame-reservations/{id}/cancel Cancel reservation
 
-GET    /api/v1/prescriptions
-GET    /api/v1/prescriptions/{prescription}
-GET    /api/v1/quotations
-GET    /api/v1/quotations/{quotation}
-GET    /api/v1/job-orders
-GET    /api/v1/job-orders/{jobOrder}
-GET    /api/v1/billing-records
-GET    /api/v1/billing-records/{billingRecord}
+GET    /api/v1/prescriptions                  List prescriptions
+GET    /api/v1/prescriptions/{id}             Get prescription
+GET    /api/v1/quotations                     List quotations
+GET    /api/v1/quotations/{id}                Get quotation
+GET    /api/v1/job-orders                     List job orders
+GET    /api/v1/job-orders/{id}                Get job order
+GET    /api/v1/billing-records                List billing records
+GET    /api/v1/billing-records/{id}           Get billing record
 
-GET    /api/v1/eyewear
-GET    /api/v1/eyewear/{key}
+GET    /api/v1/eyewear                        List eyewear aggregates
+GET    /api/v1/eyewear/{key}                  Get eyewear detail
 
-GET    /api/v1/conversation
-GET    /api/v1/conversation/messages
-POST   /api/v1/conversation/messages
-GET    /api/v1/conversation/attachments/{attachment}
+GET    /api/v1/conversation                   Get conversation
+GET    /api/v1/conversation/messages          List messages
+POST   /api/v1/conversation/messages          Send message
+GET    /api/v1/conversation/attachments/{id}  Download attachment
 
-POST   /api/v1/job-order-items/{item}/rating
+POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
 ```
 
-**Route count:** 9 public + 12 account-only + 25 active-link = **46 routes total.**
+**Route count:** 7 public + 22 account-only + 25 active-link = **54 routes total.**
