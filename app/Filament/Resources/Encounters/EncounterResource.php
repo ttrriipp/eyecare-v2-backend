@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Encounters;
 
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
+use App\Filament\Resources\Encounters\Pages\EncounterWizard;
 use App\Filament\Resources\Encounters\Pages\ListEncounters;
 use App\Filament\Resources\Encounters\Schemas\EncounterForm;
 use App\Filament\Resources\Encounters\Tables\EncountersTable;
@@ -57,6 +58,7 @@ class EncounterResource extends Resource
         return [
             'index' => ListEncounters::route('/'),
             'edit' => EditEncounter::route('/{record}/edit'),
+            'wizard' => EncounterWizard::route('/{record}/wizard'),
         ];
     }
 }
