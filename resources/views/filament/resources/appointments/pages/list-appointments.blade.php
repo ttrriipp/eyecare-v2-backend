@@ -18,7 +18,9 @@
         @endif
 
         @if($this->activeTab === 'requests')
-            @livewire(\App\Livewire\AppointmentRequestsInlineTable::class)
+            <div class="fi-ta-ctn">
+                @livewire(\App\Livewire\AppointmentRequestsInlineTable::class)
+            </div>
         @else
             <div x-show="! showCalendar">{{ $this->content }}</div>
             <div x-show="showCalendar" x-cloak>
