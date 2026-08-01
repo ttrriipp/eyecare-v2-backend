@@ -98,7 +98,14 @@ class AppointmentForm
                             // Existing Patient select
                             Select::make('patient_id')
                                 ->label('Name')
-                                ->relationship('patient', 'first_name')
+                                ->options(function () {
+                                    return Patient::orderBy('first_name')
+                                        ->get()
+                                        ->mapWithKeys(fn ($p) => [
+                                            $p->id => $p->full_name,
+                                        ])
+                                        ->toArray();
+                                })
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
                                 ->searchable()
                                 ->preload()
