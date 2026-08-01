@@ -16,6 +16,15 @@ class ViewAppointmentRequest extends ViewRecord
 {
     protected static string $resource = AppointmentRequestResource::class;
 
+    public function getBreadcrumbs(): array
+    {
+        return [
+            '/admin/appointments' => 'Appointments',
+            '/admin/appointment-requests' => 'Requests',
+            $this->record->request_number,
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
