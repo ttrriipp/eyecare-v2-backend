@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments;
 
+use App\Filament\Resources\Appointments\Pages\AppointmentRequestsPage;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\IntakeForm;
@@ -65,6 +66,7 @@ class AppointmentResource extends Resource
             'create' => CreateAppointment::route('/create'),
             'edit' => EditAppointment::route('/{record}/edit'),
             'intake-form' => IntakeForm::route('/{record}/intake'),
+            'requests' => AppointmentRequestsPage::route('/requests'),
         ];
     }
 }

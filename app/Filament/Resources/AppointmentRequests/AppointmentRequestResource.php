@@ -24,13 +24,12 @@ class AppointmentRequestResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationLabel = 'Appointment Requests';
-
-    protected static ?string $modelLabel = 'Appointment Request';
-
-    protected static ?string $pluralModelLabel = 'Appointment Requests';
-
     protected static ?string $recordTitleAttribute = 'request_number';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false; // Integrated into Appointments destination
+    }
 
     public static function canCreate(): bool
     {

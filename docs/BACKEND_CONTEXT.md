@@ -264,7 +264,7 @@ GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 22 account-only + 25 active-link = **55 routes total.**
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
