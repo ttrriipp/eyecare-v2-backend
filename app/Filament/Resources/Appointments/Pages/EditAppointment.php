@@ -53,7 +53,7 @@ class EditAppointment extends EditRecord
                     try {
                         app(CheckInAppointment::class)->handle($this->getRecord());
                         Notification::make()->title('Patient checked in — encounter created')->success()->send();
-                        $this->refreshFormData(['current_status', 'checked_in_at']);
+                        $this->redirect(EditAppointment::getUrl(['record' => $this->getRecord()]));
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot check in patient.';
                         Notification::make()->title('Cannot check in')->body($message)->danger()->send();
