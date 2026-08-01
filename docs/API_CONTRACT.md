@@ -331,11 +331,11 @@ Returns the current Terms of Service and Privacy Policy metadata. Android uses t
 
 ### GET `/me`
 
-Returns the authenticated account's profile and link state. The response schema is identical to `PatientAccountResource` used in auth responses.
+Returns the authenticated account's profile, link state, and (when linked) read-only clinical demographics from the authoritative Patient record. The response schema is identical to `PatientAccountResource` used in all auth responses.
 
 **Auth:** Required (Sanctum token).
 
-**Response (200):**
+**Response (200) — linked account:**
 ```json
 {
   "data": {
@@ -348,35 +348,78 @@ Returns the authenticated account's profile and link state. The response schema 
     "phone": "09171234567",
     "role": "patient",
     "date_of_birth": "1990-05-15",
-    "link_status": "linked | pending_review | unlinked",
+    "link_status": "linked",
     "privacy_policy_version": "2026-08",
-    "privacy_accepted_at": "2026-07-27T10:00:00+08:00"
+    "privacy_accepted_at": "2026-07-27T10:00:00+08:00",
+    "linked_patient": {
+      "patient_number": "PAT-2026-000001",
+      "full_name": "Ana Reyes",
+      "date_of_birth": "1990-05-15",
+      "gender": "female",
+      "occupation": "Teacher",
+      "address": "123 Main St, Manila",
+      "phone": "09171234567",
+      "contact_email": "ana@example.com"
+    }
   }
 }
 ```
 
-**PatientAccountResource schema (used in all auth responses):**
+**Response (200) — unlinked account:**
+```json
+{
+  "data": {
+    "id": 1,
+    "name": "Ana Reyes",
+    "first_name": "Ana",
+    "middle_name": null,
+    "last_name": "Reyes",
+    "email": "ana@example.com",
+    "phone": "09171234567",
+    "role": "patient",
+    "date_of_birth": "1990-05-15",
+    "link_status": "unlinked",
+    "privacy_policy_version": "2026-08",
+    "privacy_accepted_at": "2026-07-27T10:00:00+08:00",
+    "linked_patient": null
+  }
+}
+```
+
+### PatientAccountResource schema
+
+**Account fields (always present):**
+
+| Field | Type | Nullable | Editable via PATCH /me | Notes |
+|-------|------|----------|----------------------|-------|
+| `id` | integer | no | no | User ID |
+| `name` | string | no | no | Derived from first + middle + last |
+| `first_name` | string | yes | yes | Account first name |
+| `middle_name` | string | yes | no | Account middle name |
+| `last_name` | string | yes | yes | Account last name |
+| `email` | string | yes | no | Primary verified email; null for phone-only accounts |
+| `phone` | string | yes | no | Primary verified phone; null for email-only accounts |
+| `role` | string | no | no | Always `patient` |
+| `date_of_birth` | string | yes | no | Account DOB, `Y-m-d` format |
+| `link_status` | string | no | no | `linked`, `pending_review`, or `unlinked` |
+| `privacy_policy_version` | string | yes | no | Accepted privacy policy version |
+| `privacy_accepted_at` | string | yes | no | ISO 8601 timestamp |
+| `linked_patient` | object \| null | yes | no | Read-only clinical demographics; `null` when unlinked |
+
+**`linked_patient` fields (read-only, present only when `link_status` is `linked`):**
 
 | Field | Type | Nullable | Notes |
 |-------|------|----------|-------|
-| `id` | integer | no | User ID |
-| `name` | string | no | Derived from first + middle + last |
-| `first_name` | string | yes | Account first name |
-| `middle_name` | string | yes | Account middle name |
-| `last_name` | string | yes | Account last name |
-| `email` | string | yes | Primary verified email, null for phone-only accounts |
-| `phone` | string | yes | Primary verified phone, null for email-only accounts |
-| `role` | string | no | `patient` |
+| `patient_number` | string | no | `PAT-YYYY-NNNNNN` |
+| `full_name` | string | no | Derived from Patient's structured names |
 | `date_of_birth` | string | yes | `Y-m-d` format |
-| `link_status` | string | no | `linked`, `pending_review`, or `unlinked` |
-| `privacy_policy_version` | string | yes | Accepted privacy policy version |
-| `privacy_accepted_at` | string | yes | ISO 8601 timestamp |
+| `gender` | string | yes | `male`, `female`, `other`, or null |
+| `occupation` | string | yes | |
+| `address` | string | yes | |
+| `phone` | string | yes | Clinic patient phone (may differ from account phone) |
+| `contact_email` | string | yes | Clinic patient email (may differ from account email) |
 
-**Notes:**
-- `email` and `phone` are the verified primary contact values, nullable for phone-only or email-only accounts.
-- `link_status`: `linked` (active `patients.user_id`), `pending_review` (active link request), `unlinked` (no link or request).
-- `middle_name` is nullable.
-- `privacy_policy_version` records the accepted policy version.
+**Important:** `linked_patient` fields are read-only clinical demographics from the authoritative Patient record. They are never editable via the mobile API. PATCH /me only updates account `first_name` and `last_name`. Contact changes use the dedicated Contact Management endpoints.
 
 ### PATCH `/me`
 
@@ -395,8 +438,9 @@ Updates account fields. At least one field required.
 **Response (200):** Same as GET `/me`.
 
 **Notes:**
-- Only `first_name` and `last_name` are editable via this endpoint. Contact changes go through the Contact Management endpoints.
-- Clinic Patient demographics (`full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`) are never updated through this endpoint.
+- Only `first_name` and `last_name` are editable via this endpoint.
+- Contact changes use `/account/contacts/*` endpoints.
+- Clinical Patient demographics are read-only and never editable via the mobile API.
 
 ---
 

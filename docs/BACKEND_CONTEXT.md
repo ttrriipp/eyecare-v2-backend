@@ -329,7 +329,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are read-only values resolved from `jobOrder.items`.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only name + phone.
-- **Patient address:** Single nullable free-text field. Editable by patient via API and by staff via Patients edit form.
+- **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.

@@ -7,18 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @property-read int $id
- * @property-read string $name
- * @property-read string|null $first_name
- * @property-read string|null $middle_name
- * @property-read string|null $last_name
- * @property-read string|null $email
- * @property-read string|null $phone
- * @property-read string $role
- * @property-read string|null $date_of_birth
- * @property-read string|null $privacy_notice_version
- * @property-read string|null $privacy_acknowledged_at
- *
  * @mixin User
  */
 class PatientAccountResource extends JsonResource
@@ -50,7 +38,23 @@ class PatientAccountResource extends JsonResource
             $linkStatus = 'pending_review';
         }
 
+        $linkedPatient = null;
+        if ($linkStatus === 'linked' && $this->relationLoaded('patient') && $this->patient !== null) {
+            $p = $this->patient;
+            $linkedPatient = [
+                'patient_number' => $p->patient_number,
+                'full_name' => $p->full_name,
+                'date_of_birth' => $p->date_of_birth?->toDateString(),
+                'gender' => $p->gender,
+                'occupation' => $p->occupation,
+                'address' => $p->address,
+                'phone' => $p->phone,
+                'contact_email' => $p->contact_email,
+            ];
+        }
+
         return [
+            // Account fields (editable via PATCH /me where noted)
             'id' => $this->id,
             'name' => $this->name,
             'first_name' => $this->first_name,
@@ -63,6 +67,9 @@ class PatientAccountResource extends JsonResource
             'link_status' => $linkStatus,
             'privacy_policy_version' => $this->privacy_notice_version,
             'privacy_accepted_at' => $this->privacy_acknowledged_at?->toISOString(),
+
+            // Linked patient section (read-only clinical demographics)
+            'linked_patient' => $linkedPatient,
         ];
     }
 }
