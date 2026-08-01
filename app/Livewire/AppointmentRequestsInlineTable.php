@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class AppointmentRequestsInlineTable extends TableWidget
 {
+    protected static ?string $heading = null;
+
     protected function getTableQuery(): Builder
     {
         return AppointmentRequest::query()->orderBy('created_at', 'desc');
