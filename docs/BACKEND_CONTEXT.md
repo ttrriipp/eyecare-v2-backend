@@ -109,14 +109,14 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `privacy_notice_version`, `privacy_acknowledged_at`. `first_name`, `last_name` for patient accounts. |
+| `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `privacy_notice_version`, `privacy_acknowledged_at`. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. |
 | `patient_account_contacts` | Verified contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
 | `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id`, `appointment_id` (unique), `scheduled_at`, `provisional_duration_minutes`, encrypted `reason_for_visit`, encrypted `identity_snapshot`, `status` (pending/accepted/rejected/cancelled/expired), `expires_at`, `resolved_by_user_id`, `resolved_at`. |
-| `patients` | Independent clinical identity. `patient_number` (PAT-ULID), `full_name`, `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
+| `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
@@ -176,12 +176,13 @@ Quotation forms expose only the patient-visible notes field. The legacy `interna
 URL: `/admin` — accessible to `staff` and `admin` roles only.
 
 **Navigation groups (in order):**
+- Accounts & Access — Staff Accounts, Patient Accounts, Link Requests
 - Patients & Clinical — Patients, Encounters, Prescriptions, Complaints
-- Fulfillment & Finance — Frame Reservations, Quotations, Job Orders, Billing Records
+- Fulfillment & Finance — Optical Orders, Frame Reservations
 - Catalog & Inventory — Products, Inventory History
 - Communication — Conversations, Frame Ratings
 - Reports — Reorder Report
-- Administration — Users, Audit Logs, Privacy Incidents
+- Administration — Audit Logs
 - Settings — Categories, Brands, Lens Categories, Visit Reasons, Services
 
 **Dashboard widgets:**
@@ -260,7 +261,7 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-**Route count:** 8 public + 20 account-only + 25 active-link = **53 routes total.**
+**Route count:** 9 public + 12 account-only + 25 active-link = **46 routes total.**
 
 The contract includes breaking changes from the coordinated Android cutover:
 - Direct `POST /appointments` removed (use appointment requests)

@@ -80,11 +80,15 @@ Verifies the OTP and creates the patient mobile account. Does **not** create a P
   "challenge_id": "string (required)",
   "code": "string (required, 6 digits)",
   "first_name": "string (required, max:255)",
+  "middle_name": "string (nullable, max:255)",
   "last_name": "string (required, max:255)",
   "date_of_birth": "date (required, before:today, Y-m-d)",
+  "phone": "string (required, max:20)",
   "password": "string (required, confirmed, min:12)",
   "password_confirmation": "string (required)",
-  "privacy_notice_version": "string (required)",
+  "privacy_policy_accepted": "boolean (required, must be true)",
+  "terms_accepted": "boolean (required, must be true)",
+  "invitation_code": "string (nullable, optional)",
   "device_name": "string (nullable, max:255)",
   "installation_id": "string (nullable, max:255)"
 }
@@ -1623,4 +1627,4 @@ GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/job-order-items/{item}/rating
 ```
 
-**Route count:** 6 public + 20 account-only + 25 active-link = **51 routes total.**
+**Route count:** 9 public + 12 account-only + 25 active-link = **46 routes total.**
