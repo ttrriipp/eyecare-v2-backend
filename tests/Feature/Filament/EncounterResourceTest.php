@@ -7,6 +7,8 @@ use App\Filament\Resources\Encounters\Pages\ListEncounters;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\User;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Wizard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -36,12 +38,42 @@ test('optometrist can view encounter details', function () {
         ->assertSuccessful()
         ->assertSee('Encounter Information')
         ->assertSee('Patient Information')
-        ->assertSee('Clinical Context')
-        ->assertSee('Visit Logistics')
-        ->assertSee('Health Record Status')
-        ->assertSee('Not Started')
-        ->assertDontSee('Visit Details')
-        ->assertDontSee('Waiting to be seen');
+        ->assertSee('Timeline')
+        ->assertSee('Consultation')
+        ->assertSee('Consultation & History')
+        ->assertSee('Examination')
+        ->assertSee('Prescription & Plan')
+        ->assertSee('Review & Complete')
+        ->assertDontSee('Health Record Status');
+});
+
+test('consultation wizard is presented as a single separate panel', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->create();
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertSchemaComponentExists(
+            'consultation-workspace',
+            checkComponentUsing: function (Section $component): bool {
+                $wizard = collect($component->getChildSchema()->getComponents())
+                    ->first(fn ($childComponent): bool => $childComponent instanceof Wizard);
+
+                expect($component->getHeading())
+                    ->toBe('Consultation')
+                    ->and($component->isContained())
+                    ->toBeTrue()
+                    ->and($wizard)
+                    ->toBeInstanceOf(Wizard::class)
+                    ->and($wizard->getKey())
+                    ->toEndWith('consultation-wizard')
+                    ->and($wizard->isContained())
+                    ->toBeFalse();
+
+                return true;
+            },
+        );
 });
 
 test('encounter table shows status badges', function () {
