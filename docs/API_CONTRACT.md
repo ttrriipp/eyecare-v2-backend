@@ -12,26 +12,28 @@
 ## Table of Contents
 
 1. [Authentication](#1-authentication)
-2. [Profile (me)](#2-profile-me)
-3. [Contact Management](#3-contact-management)
-4. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
-5. [Patient Linking](#5-patient-linking)
-6. [Patient Invitations](#6-patient-invitations)
-7. [Appointment Requests](#7-appointment-requests)
-8. [Appointment Availability](#8-appointment-availability)
-9. [Confirmed Appointments](#9-confirmed-appointments)
-10. [Frames](#10-frames)
-11. [Frame Reservations](#11-frame-reservations)
-12. [Prescriptions](#12-prescriptions)
-13. [Quotations](#13-quotations)
-14. [Job Orders](#14-job-orders)
-15. [Eyewear](#15-eyewear)
-16. [Billing Records](#16-billing-records)
-17. [Conversation](#17-conversation)
-18. [Frame Ratings](#18-frame-ratings)
-19. [Error Responses](#19-error-responses)
-20. [Retired Features](#20-retired-features)
-21. [Clarifications](#21-clarifications)
+   - [Registration Flow](#registration-flow-two-stage)
+2. [Profile (me)](#3-profile-me)
+3. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
+4. [Contact Management](#5-contact-management)
+5. [Patient Linking](#6-patient-linking)
+6. [Patient Invitations](#7-patient-invitations)
+7. [Appointment Requests](#8-appointment-requests)
+8. [Appointment Availability](#9-appointment-availability)
+9. [Confirmed Appointments](#10-confirmed-appointments)
+10. [Frames](#11-frames)
+11. [Frame Reservations](#12-frame-reservations)
+12. [Prescriptions](#13-prescriptions)
+13. [Quotations](#14-quotations)
+14. [Job Orders](#15-job-orders)
+15. [Eyewear](#16-eyewear)
+16. [Billing Records](#17-billing-records)
+17. [Conversation](#18-conversation)
+18. [Frame Ratings](#19-frame-ratings)
+19. [Error Responses](#20-error-responses)
+20. [Coordinated Breaking Changes](#21-coordinated-breaking-changes)
+21. [Retired Features](#22-retired-features)
+22. [Clarifications](#23-clarifications)
 
 ---
 
@@ -327,7 +329,7 @@ Returns the current Terms of Service and Privacy Policy metadata. Android uses t
 
 ---
 
-## 5. Profile (me)
+## 3. Profile (me)
 
 ### GET `/me`
 
@@ -549,7 +551,7 @@ Changes the authenticated user's password. Requires a valid `X-Step-Up-Token` he
 
 ---
 
-## 5. Patient Linking
+## 5. Contact Management
 
 ### GET `/account/contacts`
 
@@ -671,7 +673,7 @@ Removes a contact method.
 
 ---
 
-## 4. Patient Linking
+## 6. Patient Linking
 
 ### GET `/account/link`
 
@@ -760,7 +762,7 @@ Returns the current active link request for the authenticated account.
 
 ---
 
-## 5. Patient Invitations
+## 7. Patient Invitations
 
 ### POST `/patient-invitations/acceptance/otp`
 
@@ -824,7 +826,7 @@ Verifies the OTP and activates the patient link.
 
 ---
 
-## 6. Appointment Requests
+## 8. Appointment Requests
 
 ### GET `/appointment-request-availability`
 
@@ -997,7 +999,7 @@ Cancels a pending appointment request.
 
 ---
 
-## 7. Appointment Availability
+## 9. Appointment Availability
 
 ### GET `/appointment-availability`
 
@@ -1045,7 +1047,7 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 
 ---
 
-## 8. Confirmed Appointments
+## 10. Confirmed Appointments
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1154,7 +1156,7 @@ Reschedules an appointment to a new time.
 
 ---
 
-## 9. Frames
+## 11. Frames
 
 ### GET `/frames`
 
@@ -1216,7 +1218,7 @@ Single frame detail. Returns `404` for non-frame products or non-AR-eligible fra
 
 ---
 
-## 10. Frame Reservations
+## 12. Frame Reservations
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1338,7 +1340,7 @@ Cancels a reservation. Only `requested` or `prepared` reservations can be cancel
 
 ---
 
-## 11. Prescriptions
+## 13. Prescriptions
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1382,7 +1384,7 @@ Single prescription, including historical superseded versions. Returns `404` if 
 
 ---
 
-## 12. Quotations
+## 14. Quotations
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1443,7 +1445,7 @@ Paginated list with latest revision.
 
 ---
 
-## 13. Job Orders
+## 15. Job Orders
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1481,7 +1483,7 @@ Returns a single job order with items.
 
 ---
 
-## 14. Eyewear
+## 16. Eyewear
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1558,7 +1560,7 @@ Returns a single eyewear aggregate by canonical key (`eyw_...`) or migration ali
 
 ---
 
-## 15. Billing Records
+## 17. Billing Records
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1580,7 +1582,7 @@ Returns a single billing record with posted payments.
 
 ---
 
-## 16. Conversation
+## 18. Conversation
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1620,7 +1622,7 @@ Downloads a message attachment. Patient can only download from their own convers
 
 ---
 
-## 17. Frame Ratings
+## 19. Frame Ratings
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1634,7 +1636,7 @@ Submits or revises a rating for a frame variant linked to a job order item.
 
 ---
 
-## 18. Error Responses
+## 20. Error Responses
 
 All API errors use one consistent JSON shape:
 
@@ -1682,7 +1684,7 @@ All API errors use one consistent JSON shape:
 
 ---
 
-## 19. Coordinated Breaking Changes
+## 21. Coordinated Breaking Changes
 
 The following routes are **removed** in the coordinated Android cutover:
 
@@ -1742,7 +1744,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ---
 
-## 20. Retired Features
+## 22. Retired Features
 
 The following old mobile features/routes are **intentionally retired**:
 
@@ -1763,7 +1765,7 @@ The following old mobile features/routes are **intentionally retired**:
 
 ---
 
-## 21. Clarifications
+## 23. Clarifications
 
 ### Registration is two-stage
 `POST /auth/registration/verify` verifies the OTP and returns a `registration_token` (30-minute expiry). It does **not** create any account. `POST /auth/register` takes the `registration_token` plus profile data and creates the User with the `patient` role and its verified primary contact method. No clinical `Patient` record is created.
@@ -1871,4 +1873,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
 ```
 
-**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 22 account-only + 25 active-link = **55 routes total.**
