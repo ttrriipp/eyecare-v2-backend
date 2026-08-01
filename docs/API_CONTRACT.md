@@ -1831,7 +1831,6 @@ POST   /api/v1/patient-link-requests          Submit link request
 GET    /api/v1/patient-link-requests/current   Get current link request
 POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
-GET    /api/v1/appointment-request-availability  Get available slots
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
 GET    /api/v1/appointment-requests/{id}       Get request detail
@@ -1873,4 +1872,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
 ```
 
-**Route count:** 8 public + 22 account-only + 25 active-link = **55 routes total.**
+**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
