@@ -7,7 +7,6 @@ use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Quotations\CreateQuotation;
 use App\Enums\EncounterStatus;
-use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -99,15 +98,6 @@ class EditEncounter extends EditRecord
                     Notification::make()->title('Optometrist assigned')->success()->send();
                     $this->refreshFormData(['optometrist_id']);
                 }),
-
-            Action::make('viewHealthRecord')
-                ->label('Patient Health Record')
-                ->icon('heroicon-o-document-text')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->appointment_id !== null)
-                ->url(fn (): string => AppointmentResource::getUrl('intake-form', [
-                    'record' => $this->record->appointment_id,
-                ])),
 
             Action::make('createPrescription')
                 ->label('Create Prescription')
