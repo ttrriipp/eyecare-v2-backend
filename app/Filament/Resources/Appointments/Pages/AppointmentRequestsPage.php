@@ -28,4 +28,9 @@ class AppointmentRequestsPage extends Page
     {
         return [];
     }
+
+    public function getSubNavigation(): array
+    {
+        return [];
+    }
 }
