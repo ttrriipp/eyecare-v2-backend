@@ -19,11 +19,15 @@ test('every approved v1 route is present exactly once', function () {
         ->all();
 
     $expected = [
+        'DELETE api/v1/account/contacts/{contact}',
+        'GET|HEAD api/v1/account/contacts',
+        'GET|HEAD api/v1/account/link',
         'GET|HEAD api/v1/appointment-availability',
         'GET|HEAD api/v1/appointment-requests',
         'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
         'GET|HEAD api/v1/appointments',
         'GET|HEAD api/v1/appointments/{appointment}',
+        'GET|HEAD api/v1/auth/policies',
         'GET|HEAD api/v1/billing-records',
         'GET|HEAD api/v1/billing-records/{billingRecord}',
         'GET|HEAD api/v1/conversation',
@@ -42,7 +46,10 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/prescriptions/{prescription}',
         'GET|HEAD api/v1/quotations',
         'GET|HEAD api/v1/quotations/{quotation}',
+        'PATCH api/v1/account/contacts/{contact}/primary',
         'PATCH api/v1/me',
+        'POST api/v1/account/contacts/otp',
+        'POST api/v1/account/contacts/verify',
         'POST api/v1/appointment-requests',
         'POST api/v1/appointment-requests/{appointmentRequest}/cancel',
         'POST api/v1/appointments/{appointment}/cancel',
