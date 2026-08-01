@@ -6,12 +6,9 @@ use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
-use App\Enums\IntakeStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\Appointment;
-use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -43,46 +40,15 @@ class EditAppointment extends EditRecord
                     return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
                 }),
 
-            Action::make('openOpticalOrder')
-                ->label('Open Optical Order')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('primary')
-                ->visible(function (): bool {
-                    $encounter = $this->getRecord()->encounter;
-
-                    return $encounter !== null && $encounter->prescriptions()->exists();
-                })
-                ->url(function (): ?string {
-                    $encounter = $this->getRecord()->encounter;
-                    if ($encounter === null) {
-                        return null;
-                    }
-
-                    $quotation = Quotation::where('encounter_id', $encounter->id)->first();
-                    if ($quotation !== null) {
-                        return OpticalOrderResource::getUrl('view', ['record' => $quotation]);
-                    }
-
-                    return null;
-                }),
-
             Action::make('checkIn')
                 ->label('Check In')
                 ->icon('heroicon-o-arrow-right-start-on-rectangle')
                 ->color('warning')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
-                ->requiresConfirmation(
-                    fn (): bool => $this->getIntakeStatus() !== IntakeStatus::Verified,
-                )
-                ->modalHeading(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'Check in without verified health record?'
-                    : 'Confirm Check-in')
-                ->modalDescription(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'This patient does not have a verified health record. You can still check them in for urgent or walk-in situations, but it is recommended to complete and verify the health record first.'
-                    : 'Patient will be checked in and an encounter will be created.')
-                ->modalSubmitActionLabel(fn (): string => $this->getIntakeStatus() !== IntakeStatus::Verified
-                    ? 'Check in without verified health record'
-                    : 'Check in')
+                ->requiresConfirmation()
+                ->modalHeading('Confirm Check-in')
+                ->modalDescription('Patient will be checked in and an encounter will be created.')
+                ->modalSubmitActionLabel('Check in')
                 ->action(function (): void {
                     try {
                         app(CheckInAppointment::class)->handle($this->getRecord());
@@ -216,10 +182,5 @@ class EditAppointment extends EditRecord
                     }
                 }),
         ];
-    }
-
-    protected function getIntakeStatus(): ?IntakeStatus
-    {
-        return $this->getRecord()->intake?->status;
     }
 }
