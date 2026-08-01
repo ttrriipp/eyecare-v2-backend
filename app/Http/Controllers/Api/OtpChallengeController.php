@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\PatientAccounts\AcceptPatientInvitation;
@@ -17,15 +16,15 @@ use Illuminate\Http\Request;
 
 class OtpChallengeController extends Controller
 {
-    public function issue(IssueOtpRequest $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
+    public function issue(IssueOtpRequest $request, IssueOtpChallenge $issueOtp): JsonResponse
     {
-        $challenge = $issueOtp->handle(
+        $result = $issueOtp->handle(
             contactType: $request->validated('contact_type'),
             contactValue: $request->validated('contact_value'),
             purpose: OtpPurpose::Registration,
         );
 
-        $dispatch->handle($challenge);
+        $challenge = $result['challenge'];
 
         return response()->json([
             'data' => [
@@ -52,7 +51,7 @@ class OtpChallengeController extends Controller
         ], 200);
     }
 
-    public function requestOtp(Request $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
+    public function requestOtp(Request $request, IssueOtpChallenge $issueOtp): JsonResponse
     {
         $request->validate([
             'invitation_code' => ['required', 'string'],
@@ -71,14 +70,14 @@ class OtpChallengeController extends Controller
 
         $destination = $invitation->encrypted_destination;
 
-        $challenge = $issueOtp->handle(
+        $result = $issueOtp->handle(
             contactType: $invitation->channel,
             contactValue: $destination,
             purpose: OtpPurpose::InvitationAcceptance,
             userId: $request->user()?->id,
         );
 
-        $dispatch->handle($challenge);
+        $challenge = $result['challenge'];
 
         return response()->json([
             'data' => [

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\PatientAccounts\AcceptPatientInvitation;
 use App\Enums\OtpPurpose;
@@ -33,19 +32,17 @@ class PatientInvitationController extends Controller
 
         $destination = $invitation->encrypted_destination;
 
-        $challenge = $issueOtp->handle(
+        $result = $issueOtp->handle(
             contactType: $invitation->channel,
             contactValue: $destination,
             purpose: OtpPurpose::InvitationAcceptance,
             userId: $request->user()?->id,
         );
 
-        $dispatch->handle($challenge);
-
         return response()->json([
             'data' => [
-                'challenge_id' => $challenge->public_id,
-                'expires_at' => $challenge->expires_at->toISOString(),
+                'challenge_id' => $result['challenge']->public_id,
+                'expires_at' => $result['challenge']->expires_at->toISOString(),
             ],
         ]);
     }

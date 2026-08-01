@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\OtpMail;
 use App\Models\OtpChallenge;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -9,7 +10,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Mail;
 
 class DeliverOtpChallenge implements ShouldQueue
 {
@@ -21,6 +22,7 @@ class DeliverOtpChallenge implements ShouldQueue
 
     public function __construct(
         public string $challengeId,
+        public string $code,
     ) {}
 
     public function handle(): void
@@ -41,16 +43,11 @@ class DeliverOtpChallenge implements ShouldQueue
 
         try {
             if ($challenge->channel === 'email') {
-                // For now, log the OTP delivery. In production, use Notification::route()
-                Log::info('OTP delivery requested', [
-                    'challenge_id' => $challenge->public_id,
-                    'channel' => 'email',
-                    'masked' => $this->maskEmail($destination),
-                ]);
+                Mail::to($destination)->queue(new OtpMail($this->code, $challenge->purpose->value));
             } else {
-                Log::info('OTP delivery requested', [
+                // SMS delivery would go here
+                Log::info('SMS OTP delivery not yet implemented', [
                     'challenge_id' => $challenge->public_id,
-                    'channel' => 'phone',
                     'masked' => $this->maskPhone($destination),
                 ]);
             }
@@ -60,19 +57,6 @@ class DeliverOtpChallenge implements ShouldQueue
             $challenge->markFailed();
             throw $e;
         }
-    }
-
-    protected function maskEmail(string $email): string
-    {
-        $parts = explode('@', $email);
-        if (count($parts) !== 2) {
-            return '***';
-        }
-
-        $name = $parts[0];
-        $domain = $parts[1];
-
-        return substr($name, 0, 1).'***@'.$domain;
     }
 
     protected function maskPhone(string $phone): string

@@ -5,6 +5,7 @@ namespace App\Actions\Auth;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
 use App\Enums\OtpPurpose;
+use App\Jobs\DeliverOtpChallenge;
 use App\Models\OtpChallenge;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -20,7 +21,7 @@ class IssueOtpChallenge
         string $contactValue,
         OtpPurpose $purpose,
         ?int $userId = null,
-    ): OtpChallenge {
+    ): array {
         $normalizedValue = $contactType === 'email'
             ? app(NormalizeContact::class)->email($contactValue)
             : app(NormalizeContact::class)->phone($contactValue);
@@ -48,7 +49,13 @@ class IssueOtpChallenge
             'delivery_status' => 'pending',
         ]);
 
-        return $challenge;
+        // Dispatch delivery job with the plaintext code
+        DeliverOtpChallenge::dispatch($challenge->public_id, $code)->afterCommit();
+
+        return [
+            'challenge' => $challenge,
+            'code' => $code,
+        ];
     }
 
     protected function invalidateEarlierChallenges(string $destinationHash, OtpPurpose $purpose): void

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Auth\BeginPatientLogin;
-use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\IssuePatientDeviceToken;
 use App\Actions\Auth\RecoverPatientPassword;
@@ -228,19 +227,17 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $challenge = $issueOtp->handle(
+        $result = $issueOtp->handle(
             contactType: $primaryContact->type,
             contactValue: $primaryContact->encrypted_destination,
             purpose: OtpPurpose::SensitiveChange,
             userId: $user->id,
         );
 
-        $dispatch->handle($challenge);
-
         return response()->json([
             'data' => [
-                'challenge_id' => $challenge->public_id,
-                'expires_at' => $challenge->expires_at->toISOString(),
+                'challenge_id' => $result['challenge']->public_id,
+                'expires_at' => $result['challenge']->expires_at->toISOString(),
                 'contact_type' => $primaryContact->type,
                 'masked_contact' => $this->maskContact($primaryContact->encrypted_destination, $primaryContact->type),
             ],
@@ -320,14 +317,13 @@ class AuthController extends Controller
         $user = $recover->findUserByContact($request->input('contact_value'));
 
         if ($user !== null) {
-            $challenge = $issueOtp->handle(
+            $result = $issueOtp->handle(
                 contactType: 'email',
                 contactValue: $request->input('contact_value'),
                 purpose: OtpPurpose::PasswordRecovery,
                 userId: $user->id,
             );
 
-            $dispatch->handle($challenge);
         }
 
         return response()->json([
@@ -444,19 +440,17 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $challenge = $issueOtp->handle(
+        $result = $issueOtp->handle(
             contactType: $request->input('contact_type'),
             contactValue: $request->input('contact_value'),
             purpose: OtpPurpose::AddContact,
             userId: $user->id,
         );
 
-        $dispatch->handle($challenge);
-
         return response()->json([
             'data' => [
-                'challenge_id' => $challenge->public_id,
-                'expires_at' => $challenge->expires_at->toISOString(),
+                'challenge_id' => $result['challenge']->public_id,
+                'expires_at' => $result['challenge']->expires_at->toISOString(),
             ],
         ]);
     }
