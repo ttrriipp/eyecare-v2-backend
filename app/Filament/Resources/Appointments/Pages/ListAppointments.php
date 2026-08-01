@@ -32,6 +32,12 @@ class ListAppointments extends ListRecords
 
     public function updatedActiveTab(): void
     {
+        if ($this->activeTab === 'requests') {
+            $this->redirectRoute('filament.admin.resources.appointment-requests.index');
+
+            return;
+        }
+
         $this->dispatch('appointment-tab-changed', tab: $this->activeTab);
     }
 
@@ -60,11 +66,6 @@ class ListAppointments extends ListRecords
         }
 
         return $tabs;
-    }
-
-    public function isShowingRequests(): bool
-    {
-        return $this->activeTab === 'requests';
     }
 
     private function isWalkInQueueFilterActive(): bool
