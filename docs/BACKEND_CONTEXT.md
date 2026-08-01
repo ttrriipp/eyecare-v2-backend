@@ -206,7 +206,7 @@ POST   /api/v1/auth/login                     Password login (step-up or token)
 POST   /api/v1/auth/login/verify              Verify login OTP, issue token
 POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
-GET    /api/v1/auth/policies                  Get current Terms/Privacy metadata
+GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
 
 ### Authenticated Account-Only (token required, no active link needed)
@@ -267,10 +267,9 @@ POST   /api/v1/job-order-items/{id}/rating
 **Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
 
 Breaking changes from coordinated Android cutover:
-- Direct `POST /appointments` removed (use appointment requests)
+- `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
 - `GET /appointment-types` removed (internal only)
-- `POST /register` and `POST /login` removed (replaced by auth/register and auth/login)
-- Three intake routes removed (retired)
+- Direct `POST /appointments` removed (use appointment requests)
 - Three intake routes removed (retired)
 
 All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.

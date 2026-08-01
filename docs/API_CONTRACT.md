@@ -118,9 +118,7 @@ Completes registration using the proof token. Creates the account and returns a 
   "password": "string (required, confirmed, min:12)",
   "password_confirmation": "string (required)",
   "privacy_policy_version": "string (required)",
-  "privacy_policy_url": "string (required, url)",
   "terms_version": "string (required)",
-  "terms_url": "string (required, url)",
   "invitation_code": "string (nullable)",
   "device_name": "string (nullable, max:255)",
   "installation_id": "string (nullable, max:255)"
@@ -141,7 +139,8 @@ Completes registration using the proof token. Creates the account and returns a 
 - If `invitation_code` is provided and valid, the account is linked to the patient immediately.
 - If the contact is already owned, returns the existing account (idempotent).
 - Phone is **not** required — the verified contact (email or phone) becomes primary.
-- Privacy and terms acceptance records the version and URL metadata.
+- `privacy_policy_version` and `terms_version` are validated against server configuration (`config('app.privacy_policy_version')` and `config('app.terms_version')`). The authoritative URLs are recorded from server config, not client submission.
+- Android discovers current versions/URLs via `GET /auth/policies` before presenting checkboxes.
 - Creates only the `User` with `patient` role and its verified primary contact method.
 
 ---
@@ -478,17 +477,16 @@ Verifies the step-up OTP and returns a short-lived `step_up_token` (15-minute ex
 
 ### POST `/auth/password`
 
-Changes the authenticated user's password. Requires a valid `step_up_token`.
+Changes the authenticated user's password. Requires a valid `X-Step-Up-Token` header.
 
-**Auth:** Required (Sanctum token).
+**Auth:** Required (Sanctum token). **Step-up required** (via `X-Step-Up-Token` header).
 
 **Request:**
 ```json
 {
   "current_password": "string (required)",
   "password": "string (required, confirmed, min:12)",
-  "password_confirmation": "string (required)",
-  "step_up_token": "string (required, from /auth/step-up/verify)"
+  "password_confirmation": "string (required)"
 }
 ```
 
@@ -503,7 +501,7 @@ Changes the authenticated user's password. Requires a valid `step_up_token`.
 
 **Behavior:**
 - Revokes all other patient device tokens after password change.
-- The `step_up_token` must be from a recent `/auth/step-up/verify` call (15-minute expiry).
+- The `X-Step-Up-Token` header must contain a valid token from a recent `/auth/step-up/verify` call (15-minute expiry).
 
 ---
 
@@ -1646,8 +1644,8 @@ The following routes are **removed** in the coordinated Android cutover:
 
 | Removed Route | Replacement |
 |---|---|
-| `POST /register` | `POST /auth/registration/otp` + `POST /auth/registration/verify` |
-| `POST /login` | `POST /auth/login` + `POST /auth/login/verify` |
+| `POST /register` | Two-stage: `POST /auth/registration/otp` → `POST /auth/registration/verify` → `POST /auth/register` |
+| `POST /login` | `POST /auth/login` → `POST /auth/login/verify` |
 | `GET /appointment-types` | Internal only; no patient-facing replacement |
 | `POST /appointments` | `POST /appointment-requests` |
 | `GET /appointments/{id}/intake` | Retired; no replacement |
@@ -1659,17 +1657,22 @@ The following routes are **removed** in the coordinated Android cutover:
 | New Route | Purpose |
 |---|---|
 | `POST /auth/registration/otp` | Request registration OTP |
-| `POST /auth/registration/verify` | Verify OTP and create account |
-| `POST /auth/login` | Password login (returns step-up) |
-| `POST /auth/login/verify` | Verify login OTP, issue token |
+| `POST /auth/registration/verify` | Verify OTP, return `registration_token` (does not create account) |
+| `POST /auth/register` | Complete registration with `registration_token` and profile data |
+| `POST /auth/login` | Password login (returns step-up challenge or token) |
+| `POST /auth/login/verify` | Verify login OTP, issue device token |
 | `POST /auth/password-recovery/otp` | Request recovery OTP |
-| `POST /auth/password-recovery/verify` | Verify recovery OTP, reset password |
+| `POST /auth/password-recovery/verify` | Verify recovery OTP, reset password, issue token |
+| `GET /auth/policies` | Get current Terms/Privacy versions and URLs |
+| `POST /auth/step-up/otp` | Request sensitive-change OTP |
+| `POST /auth/step-up/verify` | Verify step-up OTP, get `step_up_token` |
+| `POST /auth/password` | Change password (requires `X-Step-Up-Token` header) |
 | `POST /logout-all` | Revoke all patient device tokens |
 | `GET /account/contacts` | List contacts |
-| `POST /account/contacts/otp` | Request contact verification OTP |
+| `POST /account/contacts/otp` | Request contact verification OTP (requires `X-Step-Up-Token`) |
 | `POST /account/contacts/verify` | Verify contact OTP |
-| `PATCH /account/contacts/{id}/primary` | Set primary contact |
-| `DELETE /account/contacts/{id}` | Remove contact |
+| `PATCH /account/contacts/{id}/primary` | Set primary contact (requires `X-Step-Up-Token`) |
+| `DELETE /account/contacts/{id}` | Remove contact (requires `X-Step-Up-Token`) |
 | `GET /account/link` | Get link state |
 | `POST /patient-link-requests` | Submit link request |
 | `GET /patient-link-requests/current` | Get current link request |
@@ -1685,13 +1688,13 @@ The following routes are **removed** in the coordinated Android cutover:
 
 | Route | Change |
 |---|---|
-| `GET /me` | Now returns `link_status`, `first_name`, `last_name`; clinical fields only when linked |
-| `PATCH /me` | Only `first_name` and `last_name` editable; contact changes use dedicated endpoints |
-| `GET /appointment-availability` | Now includes request holds in capacity; removes `appointment_type_id` requirement |
-| `GET /appointments` | Now requires active patient link |
-| `GET /appointments/{id}` | Now requires active patient link |
-| `POST /appointments/{id}/cancel` | Now requires active patient link |
-| `POST /appointments/{id}/reschedule` | Duration derived from appointment; no `appointment_type_id` |
+| `GET /me` | Returns `PatientAccountResource` schema; `link_status`, structured names |
+| `PATCH /me` | Only `first_name` and `last_name` editable |
+| `GET /appointment-availability` | Now includes request holds in capacity |
+| `GET /appointments` | Requires active patient link |
+| `GET /appointments/{id}` | Requires active patient link |
+| `POST /appointments/{id}/cancel` | Requires active patient link |
+| `POST /appointments/{id}/reschedule` | Duration derived from appointment |
 
 ---
 
@@ -1718,8 +1721,8 @@ The following old mobile features/routes are **intentionally retired**:
 
 ## 21. Clarifications
 
-### Registration creates no Patient
-Registration OTP verification creates only a `User` with the `patient` role and its verified primary contact method. No clinical `Patient` record is created. Patients are created through staff duplicate review or invitation acceptance.
+### Registration is two-stage
+`POST /auth/registration/verify` verifies the OTP and returns a `registration_token` (30-minute expiry). It does **not** create any account. `POST /auth/register` takes the `registration_token` plus profile data and creates the User with the `patient` role and its verified primary contact method. No clinical `Patient` record is created.
 
 ### Active patient link boundary
 Routes in sections 7-17 require an active patient link (`patients.user_id`). Unlinked accounts can only access account management (sections 1-6). The `link_status` field on `/me` reflects the current state.
@@ -1759,6 +1762,7 @@ POST   /api/v1/auth/login                     Password login (step-up or token)
 POST   /api/v1/auth/login/verify              Verify login OTP, issue token
 POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
+GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
 
 ### Authenticated Account-Only (token required, no active link needed)
@@ -1766,16 +1770,16 @@ POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 ```
 POST   /api/v1/logout                         Revoke current token
 POST   /api/v1/logout-all                     Revoke all device tokens
-GET    /api/v1/me                             Account profile
+GET    /api/v1/me                             Account profile (PatientAccountResource)
 PATCH  /api/v1/me                             Update first/last name
 POST   /api/v1/auth/step-up/otp               Request sensitive-change OTP
 POST   /api/v1/auth/step-up/verify            Get step_up_token (15min)
-POST   /api/v1/auth/password                  Change password (requires step_up_token)
+POST   /api/v1/auth/password                  Change password (X-Step-Up-Token header)
 GET    /api/v1/account/contacts               List contacts
-POST   /api/v1/account/contacts/otp           Request contact verification OTP
+POST   /api/v1/account/contacts/otp           Request contact OTP (X-Step-Up-Token header)
 POST   /api/v1/account/contacts/verify        Verify contact OTP
-PATCH  /api/v1/account/contacts/{id}/primary  Set primary contact
-DELETE /api/v1/account/contacts/{id}          Remove contact
+PATCH  /api/v1/account/contacts/{id}/primary  Set primary (X-Step-Up-Token header)
+DELETE /api/v1/account/contacts/{id}          Remove contact (X-Step-Up-Token header)
 GET    /api/v1/account/link                   Get link state
 POST   /api/v1/patient-link-requests          Submit link request
 GET    /api/v1/patient-link-requests/current   Get current link request
@@ -1823,4 +1827,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
 ```
 
-**Route count:** 7 public + 22 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**

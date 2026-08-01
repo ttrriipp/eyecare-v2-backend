@@ -164,6 +164,7 @@ class RegisterPatientAccount
                     'phone' => $contactType === 'phone' ? $destination : null,
                     'password' => Hash::make($data['password']),
                     'role_id' => $role->id,
+                    // Store authoritative policy metadata from server config
                     'privacy_notice_version' => $data['privacy_policy_version'],
                     'privacy_acknowledged_at' => now(),
                 ]);

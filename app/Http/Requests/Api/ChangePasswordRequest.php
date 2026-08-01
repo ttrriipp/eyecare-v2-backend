@@ -19,7 +19,6 @@ class ChangePasswordRequest extends FormRequest
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'min:12', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
-            'step_up_token' => ['required', 'string'],
         ];
     }
 

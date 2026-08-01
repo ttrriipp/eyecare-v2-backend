@@ -13,7 +13,6 @@ use App\Actions\Auth\VerifyStepUpOtp;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\ChangePasswordRequest;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\PatientLoginRequest;
 use App\Http\Requests\Api\PatientLoginVerifyRequest;
@@ -274,20 +273,17 @@ class AuthController extends Controller
 
     /**
      * Change password with step-up verification.
+     * Step-up token is validated by require.step-up middleware via X-Step-Up-Token header.
      */
-    public function changePassword(ChangePasswordRequest $request, VerifyStepUpOtp $verifyStepUp): JsonResponse
+    public function changePassword(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:12', 'confirmed'],
+            'password_confirmation' => ['required', 'string'],
+        ]);
 
-        // Validate step-up token
-        if (! $verifyStepUp->validateStepUpToken($request->input('step_up_token'), $user)) {
-            return response()->json([
-                'error' => [
-                    'code' => 'INVALID_STEP_UP_TOKEN',
-                    'message' => 'The step-up verification is invalid or has expired.',
-                ],
-            ], 422);
-        }
+        $user = $request->user();
 
         // Verify current password
         if (! Hash::check($request->input('current_password'), $user->password)) {
