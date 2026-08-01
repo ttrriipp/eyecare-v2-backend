@@ -14,10 +14,6 @@ class ListAppointments extends ListRecords
 {
     protected static string $resource = AppointmentResource::class;
 
-    protected string $view = 'filament.resources.appointments.pages.list-appointments';
-
-    public bool $showCalendar = false;
-
     protected function getHeaderActions(): array
     {
         return [
@@ -37,8 +33,6 @@ class ListAppointments extends ListRecords
 
             return;
         }
-
-        $this->dispatch('appointment-tab-changed', tab: $this->activeTab);
     }
 
     public function getTabs(): array
@@ -57,19 +51,11 @@ class ListAppointments extends ListRecords
         foreach ($statuses as $status) {
             $label = ucwords(str_replace('_', ' ', $status));
             $tabs[$status] = Tab::make($label)
-                ->modifyQueryUsing(fn (Builder $query) => $this->isWalkInQueueFilterActive()
-                    ? $query
-                    : $query->whereHas(
-                        'status',
-                        fn (Builder $q) => $q->where('name', $status)
-                    ));
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->whereHas('status', fn (Builder $q) => $q->where('name', $status))
+                );
         }
 
         return $tabs;
-    }
-
-    private function isWalkInQueueFilterActive(): bool
-    {
-        return (bool) data_get($this->tableFilters, 'walk_in_queue.isActive', false);
     }
 }
