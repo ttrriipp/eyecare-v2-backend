@@ -48,13 +48,6 @@ class EditEncounter extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('openWizard')
-                ->label('Encounter Wizard')
-                ->icon('heroicon-o-sparkles')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress)
-                ->url(fn (): string => EncounterResource::getUrl('wizard', ['record' => $this->record])),
-
             Action::make('startEncounter')
                 ->label('Start Visit')
                 ->icon('heroicon-o-play')
