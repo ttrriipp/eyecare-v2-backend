@@ -43,7 +43,7 @@ class DeliverOtpChallenge implements ShouldQueue
 
         try {
             if ($challenge->channel === 'email') {
-                Mail::to($destination)->queue(new OtpMail($this->code, $challenge->purpose->value));
+                Mail::to($destination)->send(new OtpMail($this->code, $challenge->purpose->value));
             } else {
                 // SMS delivery would go here
                 Log::info('SMS OTP delivery not yet implemented', [
@@ -55,7 +55,11 @@ class DeliverOtpChallenge implements ShouldQueue
             $challenge->markSent();
         } catch (\Throwable $e) {
             $challenge->markFailed();
-            throw $e;
+            Log::error('OTP delivery failed', [
+                'challenge_id' => $challenge->public_id,
+                'error' => $e->getMessage(),
+            ]);
+            // Don't re-throw — allow registration to complete even if delivery fails
         }
     }
 
