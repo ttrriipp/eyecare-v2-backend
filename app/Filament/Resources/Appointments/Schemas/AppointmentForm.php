@@ -42,12 +42,21 @@ class AppointmentForm
                                 ->columnSpanFull(),
 
                             // New Patient fields
-                            TextInput::make('new_patient_full_name')
-                                ->label('Full Name')
+                            TextInput::make('new_patient_first_name')
+                                ->label('First Name')
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
-                                ->dehydrated(false)
-                                ->columnSpanFull(),
+                                ->dehydrated(false),
+                            TextInput::make('new_patient_last_name')
+                                ->label('Last Name')
+                                ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
+                            TextInput::make('new_patient_middle_name')
+                                ->label('Middle Name')
+                                ->nullable()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->dehydrated(false),
                             TextInput::make('new_patient_phone')
                                 ->label('Phone')
                                 ->tel()

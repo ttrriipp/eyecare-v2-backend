@@ -51,11 +51,11 @@ class CreateAppointment extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Create patient from new patient fields if mode is 'new'
-        if (empty($data['patient_id']) && filled($data['new_patient_full_name'] ?? null)) {
-            $nameParts = explode(' ', trim($data['new_patient_full_name']), 2);
+        if (empty($data['patient_id']) && filled($data['new_patient_first_name'] ?? null)) {
             $patient = Patient::create([
-                'first_name' => $nameParts[0] ?? '',
-                'last_name' => $nameParts[1] ?? '',
+                'first_name' => $data['new_patient_first_name'],
+                'middle_name' => $data['new_patient_middle_name'] ?? null,
+                'last_name' => $data['new_patient_last_name'],
                 'phone' => $data['new_patient_phone'] ?? null,
                 'contact_email' => $data['new_patient_contact_email'] ?? null,
                 'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
