@@ -21,7 +21,6 @@ use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
-use Livewire\Attributes\On;
 
 class EditEncounter extends EditRecord
 {
@@ -136,15 +135,26 @@ class EditEncounter extends EditRecord
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
     }
 
-    #[On('completeVisit')]
-    public function completeVisit(): void
+    protected function getActions(): array
     {
-        try {
-            $this->save();
-            Notification::make()->title('Visit completed')->success()->send();
-        } catch (ValidationException $e) {
-            Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
-        }
+        return [
+            Action::make('completeVisit')
+                ->label('Complete Visit')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading('Complete Visit')
+                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
+                ->modalSubmitActionLabel('Complete Visit')
+                ->action(function (): void {
+                    try {
+                        $this->save();
+                        Notification::make()->title('Visit completed')->success()->send();
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+        ];
     }
 
     protected function getHeaderActions(): array
