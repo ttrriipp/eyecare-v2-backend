@@ -6,7 +6,6 @@ use App\Actions\Quotations\CreateQuotation;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\Patient;
 use App\Models\User;
-use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -15,13 +14,6 @@ use Illuminate\Validation\ValidationException;
 class CreateOpticalOrder extends CreateRecord
 {
     protected static string $resource = OpticalOrderResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            Actions\CancelAction::make(),
-        ];
-    }
 
     /**
      * @param  array<string, mixed>  $data
