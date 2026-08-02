@@ -171,25 +171,6 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            Action::make('completeVisit')
-                ->label('Complete Visit')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
-                    && auth()->user()?->is_optometrist === true)
-                ->requiresConfirmation()
-                ->modalHeading('Complete Visit')
-                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
-                ->modalSubmitActionLabel('Complete Visit')
-                ->action(function (): void {
-                    try {
-                        $this->save();
-                        Notification::make()->title('Visit completed')->success()->send();
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
             Action::make('assignOptometrist')
                 ->label('Assign Optometrist')
                 ->icon('heroicon-o-user-plus')
