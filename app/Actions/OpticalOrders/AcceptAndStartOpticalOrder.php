@@ -2,6 +2,7 @@
 
 namespace App\Actions\OpticalOrders;
 
+use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
@@ -10,6 +11,8 @@ use App\Models\BillingRecord;
 use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\Quotation;
+use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -26,7 +29,10 @@ class AcceptAndStartOpticalOrder
      */
     public function handle(
         Quotation $quotation,
+        ?Carbon $paymentDueDate = null,
         ?float $depositAmount = null,
+        ?string $depositPaymentMethod = null,
+        ?string $depositReference = null,
         ?int $frameReservationId = null,
     ): array {
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
@@ -35,14 +41,17 @@ class AcceptAndStartOpticalOrder
             ]);
         }
 
-        return DB::transaction(function () use ($quotation, $frameReservationId) {
+        /** @var User $confirmer */
+        $confirmer = auth()->user();
+
+        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $confirmer) {
             // Lock and accept the quotation if not already
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
 
             if ($quotation->status !== QuotationStatus::Accepted) {
                 $quotation->update([
                     'status' => QuotationStatus::Accepted,
-                    'confirmed_by' => auth()->id(),
+                    'confirmed_by' => $confirmer->id,
                     'confirmed_at' => now(),
                 ]);
             }
@@ -73,8 +82,7 @@ class AcceptAndStartOpticalOrder
                     ]);
                 }
 
-                // Commit inventory for catalog-backed items (frame, accessories)
-                // Service and custom lines do not affect inventory
+                // Commit inventory for catalog-backed items
                 app(CommitJobOrderInventory::class)->handle($jobOrder);
             }
 
@@ -82,17 +90,32 @@ class AcceptAndStartOpticalOrder
             $billingRecord = BillingRecord::where('job_order_id', $jobOrder->id)->first();
 
             if ($billingRecord === null) {
+                $balance = (float) $jobOrder->total_amount;
+
                 $billingRecord = BillingRecord::create([
                     'patient_id' => $quotation->patient_id,
                     'job_order_id' => $jobOrder->id,
                     'encounter_id' => $quotation->encounter_id,
                     'status' => 'unpaid',
-                    'total_amount' => $jobOrder->total_amount,
+                    'total_amount' => $balance,
                     'amount_paid' => 0,
-                    'balance_due' => $jobOrder->total_amount,
-                    'recorded_by' => auth()->id(),
+                    'balance_due' => $balance,
+                    'payment_due_date' => $paymentDueDate,
+                    'recorded_by' => $confirmer->id,
                     'recorded_at' => now(),
                 ]);
+
+                // Record optional initial deposit
+                if ($depositAmount !== null && $depositAmount > 0) {
+                    app(RecordBillingPayment::class)->handle(
+                        billingRecord: $billingRecord,
+                        amount: $depositAmount,
+                        paymentMethod: $depositPaymentMethod ?? 'cash',
+                        recorder: $confirmer,
+                        referenceNumber: $depositReference,
+                        notes: 'Initial deposit at confirmation',
+                    );
+                }
             }
 
             // Convert frame reservation if provided
@@ -106,7 +129,7 @@ class AcceptAndStartOpticalOrder
             return [
                 'quotation' => $quotation->fresh(),
                 'job_order' => $jobOrder,
-                'billing_record' => $billingRecord,
+                'billing_record' => $billingRecord->fresh(),
             ];
         });
     }

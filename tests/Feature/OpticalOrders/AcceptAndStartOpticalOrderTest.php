@@ -12,6 +12,7 @@ use App\Models\Quotation;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
@@ -32,7 +33,6 @@ test('accepting a presented quotation creates a job order with snapshot items', 
     $variant = ProductVariant::factory()->create();
     $lensCategory = LensCategory::factory()->create(['price' => 2000]);
 
-    // Direct items on quotation
     $quotation->items()->createMany([
         ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 4500, 'amount' => 4500, 'product_variant_id' => $variant->id],
         ['description' => 'Lens', 'quantity' => 2, 'unit_price' => 2000, 'amount' => 4000, 'lens_category_id' => $lensCategory->id],
@@ -40,23 +40,19 @@ test('accepting a presented quotation creates a job order with snapshot items', 
 
     $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
 
-    // Job Order created with direct quotation_id
     expect($result['job_order'])->toBeInstanceOf(JobOrder::class)
         ->and($result['job_order']->quotation_id)->toBe($quotation->id)
         ->and($result['job_order']->status)->toBe(JobOrderStatus::Queued)
         ->and((float) $result['job_order']->total_amount)->toBe(7500.0);
 
-    // Items are copied from quotation to job order
     expect($result['job_order']->items)->toHaveCount(2)
         ->and($result['job_order']->items->first()->description)->toBe('Frame')
         ->and($result['job_order']->items->last()->description)->toBe('Lens');
 
-    // Quotation is accepted with confirmation metadata
     expect($quotation->fresh()->status)->toBe(QuotationStatus::Accepted)
         ->and($quotation->fresh()->confirmed_by)->toBe($this->staff->id)
         ->and($quotation->fresh()->confirmed_at)->not->toBeNull();
 
-    // Billing Record created
     expect($result['billing_record'])->toBeInstanceOf(BillingRecord::class)
         ->and($result['billing_record']->status)->toBe(BillingRecordStatus::Unpaid)
         ->and((float) $result['billing_record']->total_amount)->toBe(7500.0);
@@ -103,7 +99,6 @@ test('accepting is idempotent - returns existing records', function () {
     expect($first['job_order']->id)->toBe($second['job_order']->id)
         ->and($first['billing_record']->id)->toBe($second['billing_record']->id);
 
-    // Only one job order exists
     expect(JobOrder::where('quotation_id', $quotation->id)->count())->toBe(1);
 });
 
@@ -127,7 +122,6 @@ test('heterogeneous items are all copied to job order', function () {
 
     expect($result['job_order']->items)->toHaveCount(4);
 
-    // Verify each item type
     $items = $result['job_order']->items->sortBy('id')->values();
     expect($items[0]->product_variant_id)->toBe($variant->id)
         ->and($items[1]->lens_category_id)->toBe($lensCategory->id)
@@ -157,3 +151,90 @@ test('expired quotation cannot be confirmed', function () {
 
     app(AcceptAndStartOpticalOrder::class)->handle($quotation);
 })->throws(ValidationException::class);
+
+test('payment due date is stored on billing record', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+
+    $dueDate = Carbon::today()->addDays(30);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle(
+        $quotation,
+        paymentDueDate: $dueDate,
+    );
+
+    expect($result['billing_record']->payment_due_date)->not->toBeNull()
+        ->and($result['billing_record']->payment_due_date->format('Y-m-d'))->toBe($dueDate->format('Y-m-d'));
+});
+
+test('optional deposit is recorded as first payment', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 10000,
+        'amount' => 10000,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle(
+        $quotation,
+        depositAmount: 3000,
+        depositPaymentMethod: 'gcash',
+        depositReference: 'GCASH-12345',
+    );
+
+    $billing = $result['billing_record']->fresh();
+
+    expect((float) $billing->amount_paid)->toBe(3000.0)
+        ->and((float) $billing->balance_due)->toBe(7000.0)
+        ->and($billing->status)->toBe(BillingRecordStatus::PartiallyPaid)
+        ->and($billing->payments)->toHaveCount(1)
+        ->and($billing->payments->first()->payment_method)->toBe('gcash')
+        ->and($billing->payments->first()->reference_number)->toBe('GCASH-12345');
+});
+
+test('full deposit results in paid status', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle(
+        $quotation,
+        depositAmount: 5000,
+    );
+
+    $billing = $result['billing_record']->fresh();
+
+    expect((float) $billing->amount_paid)->toBe(5000.0)
+        ->and((float) $billing->balance_due)->toBe(0.0)
+        ->and($billing->status)->toBe(BillingRecordStatus::Paid);
+});
+
+test('zero deposit creates no payment', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle(
+        $quotation,
+        depositAmount: 0,
+    );
+
+    $billing = $result['billing_record']->fresh();
+
+    expect((float) $billing->amount_paid)->toBe(0.0)
+        ->and($billing->payments)->toHaveCount(0);
+});
