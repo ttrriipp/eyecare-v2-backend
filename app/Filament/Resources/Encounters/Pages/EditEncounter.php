@@ -99,17 +99,6 @@ class EditEncounter extends EditRecord
                     $this->refreshFormData(['optometrist_id']);
                 }),
 
-            Action::make('createPrescription')
-                ->label('Create Prescription')
-                ->icon('heroicon-o-clipboard-document-list')
-                ->color('primary')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
-                    && auth()->user()?->hasOptometristCapability() === true
-                    && ! $this->record->prescriptions()->withTrashed()->exists())
-                ->url(fn (): string => PrescriptionResource::getUrl('create', [
-                    'encounter' => $this->record->id,
-                ])),
-
             Action::make('viewPrescription')
                 ->label('View Prescription')
                 ->icon('heroicon-o-eye')
