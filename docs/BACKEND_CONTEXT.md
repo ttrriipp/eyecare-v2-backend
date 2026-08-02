@@ -2,13 +2,13 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-01.** Patient accounts, two-stage
-> OTP-based registration, hybrid login, contact management, patient linking,
-> appointment requests, authenticated step-up for sensitive changes, and
-> Optical Orders workflow have been implemented. The API contract includes
-> 54 routes (7 public, 22 account-only, 25 active-link). Legacy intake
-> routes and direct booking have been removed. All accounts use structured
-> first/middle/last names.
+> **Reconciliation status as of 2026-08-02.** Patient accounts, two-stage
+> phone-OTP registration, phone-primary authentication, contact management,
+> patient linking, appointment requests, authenticated step-up for sensitive
+> changes, and Optical Orders workflow have been implemented. The API
+> contract includes 54 routes (8 public, 21 account-only, 25 active-link).
+> Legacy intake routes and direct booking have been removed. All accounts use
+> structured first/middle/last names.
 
 ---
 
@@ -110,9 +110,10 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. email + password nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. `privacy_notice_version`, `privacy_acknowledged_at`. |
-| `patient_account_contacts` | Verified contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Unique `(user_id, type)`. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` for all accounts; `name` auto-derived. `privacy_notice_version`, `privacy_acknowledged_at`. |
+| `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
+| `personal_access_tokens` | Sanctum mobile tokens. Device-labelled, expiring tokens with optional `installation_id` for trusted-device login and same-installation replacement. |
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
@@ -199,15 +200,31 @@ Base: `/api/v1` (sole patient-mobile contract)
 
 ### Public Authentication (no token required)
 ```
-POST   /api/v1/auth/registration/otp          Request registration OTP
+POST   /api/v1/auth/registration/otp          Request phone registration OTP; owned phone returns 422
 POST   /api/v1/auth/registration/verify       Verify OTP, get registration_token
 POST   /api/v1/auth/register                  Complete registration with profile
-POST   /api/v1/auth/login                     Password login (step-up or token)
+POST   /api/v1/auth/login                     Phone/password login (step-up or trusted token)
 POST   /api/v1/auth/login/verify              Verify login OTP, issue token
-POST   /api/v1/auth/password-recovery/otp     Request recovery OTP
+POST   /api/v1/auth/password-recovery/otp     Request phone recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
+
+Patient authentication rules:
+- Registration starts with a phone OTP. The registration form has no phone
+  field; the verified phone becomes the primary patient login contact.
+- Registration may include an optional email. It is stored as a pending
+  contact and is verified after authentication through the contact OTP routes.
+  Email is never accepted for patient login or password recovery.
+- An already-owned phone is rejected before an OTP is sent with
+  `CONTACT_ALREADY_OWNED`. The final registration check also rejects an owned
+  phone or optional email without creating an account or issuing a token.
+- Login requires the phone password and a login OTP for a new installation.
+  A non-expired token carrying the same `installation_id` may skip the OTP;
+  omitting the installation ID requires OTP.
+- Phone OTP delivery is queued. In `local`/`testing`, the delivery job logs the
+  OTP code for development testing; other environments log only the masked
+  phone until an SMS provider is configured.
 
 ### Authenticated Account-Only (token required, no active link needed)
 ```
@@ -280,13 +297,13 @@ All patient resource access is scoped through the authenticated account's linked
 
 | Action | Location | Does |
 |---|---|---|
-| `IssueOtpChallenge` | `app/Actions/Auth/` | Creates encrypted OTP challenge with blind index, invalidates earlier pending |
+| `IssueOtpChallenge` | `app/Actions/Auth/` | Creates encrypted OTP challenge with blind index, invalidates earlier pending, queues delivery |
 | `VerifyOtpChallenge` | `app/Actions/Auth/` | Verifies purpose-bound codes under row locks, single consumption |
-| `DispatchOtpChallenge` | `app/Actions/Auth/` | Dispatches OTP delivery job after commit |
-| `RegisterPatientAccount` | `app/Actions/Auth/` | Creates patient-role User + verified contact after OTP, no Patient created |
-| `BeginPatientLogin` | `app/Actions/Auth/` | Verifies password against contacts, issues login step-up OTP |
-| `IssuePatientDeviceToken` | `app/Actions/Auth/` | Verifies login OTP, manages device tokens, enforces max 5 |
-| `RecoverPatientPassword` | `app/Actions/Auth/` | Resets password after recovery OTP, revokes other tokens |
+| `DispatchOtpChallenge` | `app/Actions/Auth/` | Backward-compatible no-op retained alongside queued delivery |
+| `RegisterPatientAccount` | `app/Actions/Auth/` | Creates patient-role User with verified phone, optional pending email, and device token; no Patient created |
+| `BeginPatientLogin` | `app/Actions/Auth/` | Verifies phone/password, skips OTP for trusted installations, otherwise issues login step-up OTP |
+| `IssuePatientDeviceToken` | `app/Actions/Auth/` | Verifies login OTP, binds installation IDs, replaces same-installation tokens, enforces max 5 |
+| `RecoverPatientPassword` | `app/Actions/Auth/` | Resets password through verified phone recovery OTP, revokes other tokens, issues device token |
 | `NormalizeContact` | `app/Actions/PatientAccounts/` | Deterministic email/phone/name normalization |
 | `CreateContactLookupHash` | `app/Actions/PatientAccounts/` | HMAC blind indexes for contact lookups |
 | `RankPatientCandidates` | `app/Actions/PatientAccounts/` | Searches clinic data by contact/name/DOB, returns ranked candidates |

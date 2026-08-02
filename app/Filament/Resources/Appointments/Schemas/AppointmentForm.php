@@ -111,7 +111,7 @@ class AppointmentForm
                                     return Patient::orderBy('first_name')
                                         ->get()
                                         ->mapWithKeys(fn ($p) => [
-                                            $p->id => $p->full_name,
+                                            $p->id => "{$p->full_name} ({$p->patient_number})",
                                         ])
                                         ->toArray();
                                 })
@@ -197,7 +197,6 @@ class AppointmentForm
                                 ->hiddenOn('create'),
                             Textarea::make('reason_for_visit')
                                 ->label('Reason for Visit')
-                                ->placeholder('Optional for staff-created appointments')
                                 ->rows(3)
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->columnSpanFull(),

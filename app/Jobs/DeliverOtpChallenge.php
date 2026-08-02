@@ -44,8 +44,13 @@ class DeliverOtpChallenge implements ShouldQueue
         try {
             if ($challenge->channel === 'email') {
                 Mail::to($destination)->send(new OtpMail($this->code, $challenge->purpose->value));
+            } elseif (app()->environment(['local', 'testing'])) {
+                Log::info('SMS OTP delivery (development only)', [
+                    'challenge_id' => $challenge->public_id,
+                    'masked' => $this->maskPhone($destination),
+                    'code' => $this->code,
+                ]);
             } else {
-                // SMS delivery would go here
                 Log::info('SMS OTP delivery not yet implemented', [
                     'challenge_id' => $challenge->public_id,
                     'masked' => $this->maskPhone($destination),

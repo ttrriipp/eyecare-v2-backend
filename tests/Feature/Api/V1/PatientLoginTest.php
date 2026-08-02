@@ -21,12 +21,12 @@ beforeEach(function () {
 
 test('patient login with valid credentials returns step-up challenge', function () {
     $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
-    PatientAccountContact::factory()->email('test@example.com')->verified()->primary()->create([
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
 
     $response = $this->postJson('/api/v1/auth/login', [
-        'contact_value' => 'test@example.com',
+        'contact_value' => '09171234567',
         'password' => 'securepassword123',
     ]);
 
@@ -35,14 +35,93 @@ test('patient login with valid credentials returns step-up challenge', function 
         ->assertJsonStructure(['data' => ['challenge_id', 'expires_at']]);
 });
 
-test('patient login with wrong password fails', function () {
-    $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
-    PatientAccountContact::factory()->email('test@example.com')->verified()->primary()->create([
+test('patient login rejects email as a login identifier', function () {
+    $email = 'test@example.com';
+    $user = User::factory()->patient()->create([
+        'email' => $email,
+        'email_verified_at' => now(),
+        'password' => bcrypt('securepassword123'),
+    ]);
+    PatientAccountContact::factory()->email($email)->verified()->create([
+        'user_id' => $user->id,
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
 
     $response = $this->postJson('/api/v1/auth/login', [
         'contact_value' => 'test@example.com',
+        'password' => 'securepassword123',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['contact_value']);
+});
+
+test('patient login skips OTP for a trusted installation', function () {
+    $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $token = $user->createToken('Pixel', ['*'], now()->addDays(30));
+    $token->accessToken->forceFill([
+        'installation_id' => 'installation-1',
+    ])->save();
+
+    $response = $this->postJson('/api/v1/auth/login', [
+        'contact_value' => '09171234567',
+        'password' => 'securepassword123',
+        'device_name' => 'Pixel',
+        'installation_id' => 'installation-1',
+    ]);
+
+    $response->assertOk()
+        ->assertJsonPath('data.step_up_required', false)
+        ->assertJsonStructure(['data' => ['token', 'user']]);
+});
+
+test('patient can complete phone sign-in with the issued OTP', function () {
+    $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $loginResponse = $this->postJson('/api/v1/auth/login', [
+        'contact_value' => '09171234567',
+        'password' => 'securepassword123',
+    ]);
+
+    $loginResponse->assertOk();
+
+    $challengeId = $loginResponse->json('data.challenge_id');
+    $code = '654321';
+
+    OtpChallenge::query()
+        ->where('public_id', $challengeId)
+        ->update(['code_digest' => Hash::make($code)]);
+
+    $verifyResponse = $this->postJson('/api/v1/auth/login/verify', [
+        'challenge_id' => $challengeId,
+        'code' => $code,
+    ]);
+
+    $verifyResponse->assertOk()
+        ->assertJsonStructure(['data' => ['token', 'user']]);
+
+    expect($verifyResponse->json('data.token'))->toContain('|')
+        ->and(OtpChallenge::where('public_id', $challengeId)->firstOrFail()->fresh()->consumed_at)
+        ->not->toBeNull();
+});
+
+test('patient login with wrong password fails', function () {
+    $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $response = $this->postJson('/api/v1/auth/login', [
+        'contact_value' => '09171234567',
         'password' => 'wrongpassword',
     ]);
 
@@ -52,7 +131,7 @@ test('patient login with wrong password fails', function () {
 
 test('patient login with unknown contact fails', function () {
     $response = $this->postJson('/api/v1/auth/login', [
-        'contact_value' => 'unknown@example.com',
+        'contact_value' => '09171234568',
         'password' => 'securepassword123',
     ]);
 
@@ -64,7 +143,7 @@ test('patient login with unknown contact fails', function () {
 
 test('login verification issues a Sanctum token', function () {
     $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
-    PatientAccountContact::factory()->email('test@example.com')->verified()->primary()->create([
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
 
@@ -109,17 +188,17 @@ test('login verification with wrong code fails', function () {
 
 test('login responses are identical for wrong password and unknown contact', function () {
     $user = User::factory()->patient()->create(['password' => bcrypt('securepassword123')]);
-    PatientAccountContact::factory()->email('test@example.com')->verified()->primary()->create([
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
 
     $wrongPassword = $this->postJson('/api/v1/auth/login', [
-        'contact_value' => 'test@example.com',
+        'contact_value' => '09171234567',
         'password' => 'wrongpassword',
     ]);
 
     $unknownContact = $this->postJson('/api/v1/auth/login', [
-        'contact_value' => 'unknown@example.com',
+        'contact_value' => '09171234568',
         'password' => 'securepassword123',
     ]);
 

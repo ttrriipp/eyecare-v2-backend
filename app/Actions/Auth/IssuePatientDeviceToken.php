@@ -26,14 +26,20 @@ class IssuePatientDeviceToken
 
         $user = User::findOrFail($challenge->user_id);
 
+        return $this->issueForUser($user, $deviceName, $installationId);
+    }
+
+    public function issueForUser(
+        User $user,
+        ?string $deviceName = null,
+        ?string $installationId = null,
+    ): array {
         return DB::transaction(function () use ($user, $deviceName, $installationId) {
             // Revoke existing token for same installation if provided
             if ($installationId !== null) {
                 $user->tokens()
-                    ->where('name', $deviceName ?? 'mobile')
-                    ->each(function ($token) {
-                        $token->delete();
-                    });
+                    ->where('installation_id', $installationId)
+                    ->delete();
             }
 
             // Enforce max active tokens
@@ -51,14 +57,20 @@ class IssuePatientDeviceToken
                 }
             }
 
-            $token = $user->createToken(
+            $newToken = $user->createToken(
                 $deviceName ?? 'mobile',
                 ['*'],
                 now()->addDays(config('patient_accounts.tokens.expiry_days', 30))
-            )->plainTextToken;
+            );
+
+            if ($installationId !== null) {
+                $newToken->accessToken->forceFill([
+                    'installation_id' => $installationId,
+                ])->save();
+            }
 
             return [
-                'token' => $token,
+                'token' => $newToken->plainTextToken,
                 'user' => $user,
             ];
         });

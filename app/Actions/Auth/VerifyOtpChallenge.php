@@ -15,8 +15,15 @@ class VerifyOtpChallenge
         string $code,
         OtpPurpose $expectedPurpose,
         ?string $ip = null,
+        ?int $expectedUserId = null,
     ): OtpChallenge {
-        $challenge = OtpChallenge::where('public_id', $challengeId)->first();
+        $query = OtpChallenge::query()->where('public_id', $challengeId);
+
+        if ($expectedUserId !== null) {
+            $query->where('user_id', $expectedUserId);
+        }
+
+        $challenge = $query->first();
 
         if ($challenge === null) {
             throw ValidationException::withMessages([

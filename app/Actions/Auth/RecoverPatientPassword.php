@@ -3,7 +3,6 @@
 namespace App\Actions\Auth;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
-use App\Actions\PatientAccounts\NormalizeContact;
 use App\Enums\OtpPurpose;
 use App\Models\PatientAccountContact;
 use App\Models\User;
@@ -12,15 +11,17 @@ use Illuminate\Support\Facades\Hash;
 class RecoverPatientPassword
 {
     public function __construct(
-        protected NormalizeContact $normalize,
         protected CreateContactLookupHash $lookupHash,
         protected VerifyOtpChallenge $verifyOtp,
+        protected IssuePatientDeviceToken $issueToken,
     ) {}
 
     public function handle(
         string $challengeId,
         string $code,
         string $newPassword,
+        ?string $deviceName = null,
+        ?string $installationId = null,
     ): array {
         $challenge = $this->verifyOtp->handle(
             challengeId: $challengeId,
@@ -37,14 +38,10 @@ class RecoverPatientPassword
         // Revoke all other patient tokens
         $user->tokens()->delete();
 
-        $token = $user->createToken(
-            'mobile',
-            ['*'],
-            now()->addDays(config('patient_accounts.tokens.expiry_days', 30))
-        )->plainTextToken;
+        $tokenResult = $this->issueToken->issueForUser($user, $deviceName, $installationId);
 
         return [
-            'token' => $token,
+            'token' => $tokenResult['token'],
             'user' => $user,
         ];
     }
@@ -52,28 +49,13 @@ class RecoverPatientPassword
     public function findUserByContact(string $contactValue): ?User
     {
         try {
-            $emailHash = $this->lookupHash->forEmail($contactValue);
-            $contact = PatientAccountContact::where('lookup_hash', $emailHash)
-                ->where('type', 'email')
-                ->whereNotNull('verified_at')
-                ->first();
-
-            if ($contact !== null) {
-                return $contact->user;
-            }
-        } catch (\InvalidArgumentException) {
-        }
-
-        try {
             $phoneHash = $this->lookupHash->forPhone($contactValue);
             $contact = PatientAccountContact::where('lookup_hash', $phoneHash)
                 ->where('type', 'phone')
                 ->whereNotNull('verified_at')
                 ->first();
 
-            if ($contact !== null) {
-                return $contact->user;
-            }
+            return $contact?->user;
         } catch (\InvalidArgumentException) {
         }
 

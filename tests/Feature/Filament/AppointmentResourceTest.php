@@ -13,7 +13,9 @@ use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\TextSize;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -56,10 +58,14 @@ test('appointment status is read only on the edit form', function () {
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertFormFieldDoesNotExist('appointment_status_id')
         ->assertSchemaComponentExists(
-            'current_status',
-            checkComponentUsing: function ($component): bool {
-                expect($component::class)
-                    ->toBe(TextEntry::class)
+            'appointment-details',
+            checkComponentUsing: function (Section $section): bool {
+                $component = collect($section->getChildSchema()->getComponents())
+                    ->first(fn ($childComponent): bool => $childComponent instanceof TextEntry
+                        && $childComponent->getName() === 'current_status');
+
+                expect($component)
+                    ->toBeInstanceOf(TextEntry::class)
                     ->and($component->isBadge())->toBeTrue()
                     ->and($component->getSize($component->getState()))->toBe(TextSize::Large)
                     ->and($component->getExtraAttributeBag()->get('class'))->toContain('appointment-status-entry');
@@ -68,6 +74,34 @@ test('appointment status is read only on the edit form', function () {
             },
         )
         ->assertSee('Scheduled');
+});
+
+test('appointment details includes the visit reason', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'reason_for_visit' => 'Blurred vision in the left eye',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSchemaComponentExists(
+            'appointment-details',
+            checkComponentUsing: function (Section $component): bool {
+                $reason = collect($component->getChildSchema()->getComponents())
+                    ->first(fn ($childComponent): bool => $childComponent instanceof Textarea
+                        && $childComponent->getName() === 'reason_for_visit');
+
+                expect($component->getHeading())
+                    ->toBe('Appointment Details')
+                    ->and($reason)
+                    ->toBeInstanceOf(Textarea::class)
+                    ->and($reason->getLabel())
+                    ->toBe('Reason for Visit');
+
+                return true;
+            },
+        );
 });
 
 test('appointment table has no generic lifecycle advance actions', function () {

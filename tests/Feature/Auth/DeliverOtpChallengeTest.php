@@ -4,9 +4,12 @@ use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Enums\OtpPurpose;
 use App\Jobs\DeliverOtpChallenge;
+use App\Mail\OtpMail;
 use App\Models\OtpChallenge;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -19,16 +22,18 @@ beforeEach(function () {
 // --- Job Dispatch ---
 
 test('dispatching OTP queues the delivery job after commit', function () {
-    $challenge = app(IssueOtpChallenge::class)->handle(
+    $result = app(IssueOtpChallenge::class)->handle(
         contactType: 'email',
         contactValue: 'test@example.com',
         purpose: OtpPurpose::Registration,
     );
+    $challenge = $result['challenge'];
 
     app(DispatchOtpChallenge::class)->handle($challenge);
 
-    Queue::assertPushed(DeliverOtpChallenge::class, function ($job) use ($challenge) {
-        return $job->challengeId === $challenge->public_id;
+    Queue::assertPushed(DeliverOtpChallenge::class, function ($job) use ($challenge, $result) {
+        return $job->challengeId === $challenge->public_id
+            && $job->code === $result['code'];
     });
 });
 
@@ -51,7 +56,7 @@ test('dispatching skips invalidated challenges', function () {
 // --- Job Properties ---
 
 test('delivery job has retry configuration', function () {
-    $job = new DeliverOtpChallenge('test-id');
+    $job = new DeliverOtpChallenge('test-id', 'test-code');
 
     expect($job->tries)->toBe(3)
         ->and($job->backoff)->toBe(30);
@@ -62,14 +67,15 @@ test('delivery job has retry configuration', function () {
 test('delivery job marks challenge as sent on success', function () {
     Queue::fake();
 
-    $challenge = app(IssueOtpChallenge::class)->handle(
+    $result = app(IssueOtpChallenge::class)->handle(
         contactType: 'email',
         contactValue: 'test@example.com',
         purpose: OtpPurpose::Registration,
     );
+    $challenge = $result['challenge'];
 
     // Execute the job directly
-    $job = new DeliverOtpChallenge($challenge->public_id);
+    $job = new DeliverOtpChallenge($challenge->public_id, $result['code']);
     $job->handle();
 
     expect($challenge->fresh()->delivery_status)->toBe('sent')
@@ -77,7 +83,7 @@ test('delivery job marks challenge as sent on success', function () {
 });
 
 test('delivery job handles missing challenge gracefully', function () {
-    $job = new DeliverOtpChallenge('non-existent-id');
+    $job = new DeliverOtpChallenge('non-existent-id', 'test-code');
 
     // Should not throw
     $job->handle();
@@ -85,28 +91,71 @@ test('delivery job handles missing challenge gracefully', function () {
     expect(true)->toBeTrue();
 });
 
-// --- Masking ---
-
-test('delivery logs mask the destination', function () {
+test('local SMS delivery logs the OTP code for development testing', function () {
     $challenge = app(IssueOtpChallenge::class)->handle(
+        contactType: 'phone',
+        contactValue: '09171234567',
+        purpose: OtpPurpose::Registration,
+    )['challenge'];
+
+    Log::spy();
+
+    (new DeliverOtpChallenge($challenge->public_id, '123456'))->handle();
+
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with('SMS OTP delivery (development only)', [
+            'challenge_id' => $challenge->public_id,
+            'masked' => '+63***4567',
+            'code' => '123456',
+        ]);
+});
+
+test('production SMS delivery never logs the OTP code', function () {
+    $challenge = app(IssueOtpChallenge::class)->handle(
+        contactType: 'phone',
+        contactValue: '09171234567',
+        purpose: OtpPurpose::Registration,
+    )['challenge'];
+
+    Log::spy();
+    app()->instance('env', 'production');
+
+    try {
+        (new DeliverOtpChallenge($challenge->public_id, '123456'))->handle();
+    } finally {
+        app()->instance('env', 'testing');
+    }
+
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with('SMS OTP delivery not yet implemented', [
+            'challenge_id' => $challenge->public_id,
+            'masked' => '+63***4567',
+        ]);
+});
+
+// --- Email and phone delivery ---
+
+test('delivery job sends email OTP', function () {
+    $result = app(IssueOtpChallenge::class)->handle(
         contactType: 'email',
         contactValue: 'test@example.com',
         purpose: OtpPurpose::Registration,
     );
+    $challenge = $result['challenge'];
+    Mail::fake();
 
-    // The job should log masked info, not the raw destination
-    $job = new DeliverOtpChallenge($challenge->public_id);
+    (new DeliverOtpChallenge($challenge->public_id, $result['code']))->handle();
 
-    // Verify the maskEmail method works via reflection
-    $method = new ReflectionMethod($job, 'maskEmail');
-    $method->setAccessible(true);
-
-    expect($method->invoke($job, 'test@example.com'))->toBe('t***@example.com')
-        ->and($method->invoke($job, 'ana.reyes@gmail.com'))->toBe('a***@gmail.com');
+    Mail::assertSent(OtpMail::class, function (OtpMail $mail) use ($result): bool {
+        return $mail->code === $result['code']
+            && $mail->purpose === OtpPurpose::Registration->value;
+    });
 });
 
 test('delivery logs mask phone numbers', function () {
-    $job = new DeliverOtpChallenge('test-id');
+    $job = new DeliverOtpChallenge('test-id', 'test-code');
 
     $method = new ReflectionMethod($job, 'maskPhone');
     $method->setAccessible(true);

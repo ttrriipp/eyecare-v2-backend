@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\PatientAccounts\AcceptPatientInvitation;
 use App\Enums\OtpPurpose;

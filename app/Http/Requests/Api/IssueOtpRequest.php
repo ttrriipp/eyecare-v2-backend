@@ -16,7 +16,7 @@ class IssueOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'contact_type' => ['required', 'in:email,phone'],
+            'contact_type' => ['required', 'in:phone'],
             'contact_value' => ['required', 'string'],
         ];
     }

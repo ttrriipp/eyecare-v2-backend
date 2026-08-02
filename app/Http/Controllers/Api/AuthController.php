@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Auth\BeginPatientLogin;
+use App\Actions\Auth\DispatchOtpChallenge;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\IssuePatientDeviceToken;
 use App\Actions\Auth\RecoverPatientPassword;
@@ -100,6 +101,17 @@ class AuthController extends Controller
     {
         $result = $register->handle($request->validated());
 
+        if ($result['contact_already_owned'] ?? false) {
+            $contactLabel = $result['contact_type'] === 'email' ? 'email address' : 'phone number';
+
+            return response()->json([
+                'error' => [
+                    'code' => 'CONTACT_ALREADY_OWNED',
+                    'message' => "This {$contactLabel} is already registered.",
+                ],
+            ], 422);
+        }
+
         $user = $result['user'];
         $user->load('role', 'contacts');
 
@@ -107,6 +119,7 @@ class AuthController extends Controller
             'data' => [
                 'token' => $result['token'],
                 'user' => PatientAccountResource::make($user),
+                'email_verification_required' => $result['email_verification_required'] ?? false,
             ],
         ], 201);
     }
@@ -129,7 +142,22 @@ class AuthController extends Controller
         $result = $login->handle(
             contactValue: $request->validated('contact_value'),
             password: $request->validated('password'),
+            deviceName: $request->validated('device_name'),
+            installationId: $request->validated('installation_id'),
         );
+
+        if (! $result['step_up_required']) {
+            $user = $result['user'];
+            $user->load('role', 'contacts');
+
+            return response()->json([
+                'data' => [
+                    'step_up_required' => false,
+                    'token' => $result['token'],
+                    'user' => PatientAccountResource::make($user),
+                ],
+            ]);
+        }
 
         return response()->json([
             'data' => [
@@ -317,7 +345,7 @@ class AuthController extends Controller
 
         if ($user !== null) {
             $result = $issueOtp->handle(
-                contactType: 'email',
+                contactType: 'phone',
                 contactValue: $request->input('contact_value'),
                 purpose: OtpPurpose::PasswordRecovery,
                 userId: $user->id,
@@ -350,6 +378,8 @@ class AuthController extends Controller
             challengeId: $request->input('challenge_id'),
             code: $request->input('code'),
             newPassword: $request->input('password'),
+            deviceName: $request->input('device_name'),
+            installationId: $request->input('installation_id'),
         );
 
         $user = $result['user'];
@@ -430,7 +460,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        if ($existing !== null && $existing->user_id === $user->id) {
+        if ($existing !== null && $existing->user_id === $user->id && $existing->verified_at !== null) {
             return response()->json([
                 'error' => [
                     'code' => 'CONTACT_ALREADY_VERIFIED',
@@ -464,13 +494,15 @@ class AuthController extends Controller
             'code' => ['required', 'string', 'size:6'],
         ]);
 
+        $user = $request->user();
+
         $challenge = $verifyOtp->handle(
             challengeId: $request->input('challenge_id'),
             code: $request->input('code'),
             expectedPurpose: OtpPurpose::AddContact,
+            expectedUserId: $user->id,
         );
 
-        $user = $request->user();
         $contactType = $challenge->channel;
         $destination = $challenge->encrypted_destination;
 
@@ -489,6 +521,15 @@ class AuthController extends Controller
                 'is_primary' => false,
             ],
         );
+
+        if ($contactType === 'email') {
+            $user->forceFill([
+                'email' => $destination,
+                'email_verified_at' => now(),
+            ])->save();
+        } elseif ($contactType === 'phone') {
+            $user->forceFill(['phone' => $destination])->save();
+        }
 
         return response()->json([
             'data' => [

@@ -110,12 +110,39 @@ test('invalidation only affects the same purpose', function () {
 
 test('registration OTP endpoint returns a challenge ID', function () {
     $response = $this->postJson('/api/v1/auth/registration/otp', [
-        'contact_type' => 'email',
-        'contact_value' => 'test@example.com',
+        'contact_type' => 'phone',
+        'contact_value' => '09171234567',
     ]);
 
     $response->assertOk()
         ->assertJsonStructure(['data' => ['challenge_id', 'expires_at']]);
+});
+
+test('registration OTP endpoint only accepts phone contacts', function () {
+    $response = $this->postJson('/api/v1/auth/registration/otp', [
+        'contact_type' => 'email',
+        'contact_value' => 'test@example.com',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['contact_type']);
+});
+
+test('registration OTP endpoint rejects an already-owned phone', function () {
+    User::factory()->patient()->create([
+        'phone' => '+639171234567',
+    ]);
+
+    $response = $this->postJson('/api/v1/auth/registration/otp', [
+        'contact_type' => 'phone',
+        'contact_value' => '09171234567',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonPath('error.code', 'CONTACT_ALREADY_OWNED')
+        ->assertJsonPath('error.message', 'This phone number is already registered.');
+
+    expect(OtpChallenge::query()->where('purpose', OtpPurpose::Registration)->count())->toBe(0);
 });
 
 test('registration OTP endpoint validates required fields', function () {

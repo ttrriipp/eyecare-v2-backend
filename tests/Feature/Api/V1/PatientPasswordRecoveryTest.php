@@ -21,20 +21,39 @@ beforeEach(function () {
 
 test('recovery OTP endpoint returns generic response', function () {
     $response = $this->postJson('/api/v1/auth/password-recovery/otp', [
-        'contact_value' => 'test@example.com',
+        'contact_value' => '09171234567',
     ]);
 
     $response->assertOk()
         ->assertJsonPath('data.message', 'If the contact is associated with an account, a recovery code has been sent.');
 });
 
+test('recovery OTP does not accept an email login identifier', function () {
+    $email = 'known@example.com';
+    $user = User::factory()->patient()->create([
+        'email' => $email,
+        'email_verified_at' => now(),
+    ]);
+    PatientAccountContact::factory()->email($email)->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $response = $this->postJson('/api/v1/auth/password-recovery/otp', [
+        'contact_value' => $email,
+    ]);
+
+    $response->assertOk();
+
+    expect(OtpChallenge::query()->where('purpose', OtpPurpose::PasswordRecovery)->count())->toBe(0);
+});
+
 test('recovery OTP is enumeration-safe', function () {
     $known = $this->postJson('/api/v1/auth/password-recovery/otp', [
-        'contact_value' => 'known@example.com',
+        'contact_value' => '09171234567',
     ]);
 
     $unknown = $this->postJson('/api/v1/auth/password-recovery/otp', [
-        'contact_value' => 'unknown@example.com',
+        'contact_value' => '09171234568',
     ]);
 
     expect($known->getStatusCode())->toBe($unknown->getStatusCode())
@@ -45,7 +64,7 @@ test('recovery OTP is enumeration-safe', function () {
 
 test('recovery verification resets password and revokes tokens', function () {
     $user = User::factory()->patient()->create(['password' => bcrypt('oldpassword123')]);
-    PatientAccountContact::factory()->email('test@example.com')->verified()->primary()->create([
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
 

@@ -18,6 +18,7 @@ class PatientLoginVerifyRequest extends FormRequest
         return [
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
+            'device_name' => ['nullable', 'string', 'max:255'],
             'installation_id' => ['nullable', 'string', 'max:255'],
         ];
     }

@@ -5,22 +5,56 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\PatientAccounts\AcceptPatientInvitation;
+use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\NormalizeContact;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\IssueOtpRequest;
 use App\Http\Requests\Api\VerifyOtpRequest;
 use App\Http\Resources\PatientAccountResource;
+use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class OtpChallengeController extends Controller
 {
-    public function issue(IssueOtpRequest $request, IssueOtpChallenge $issueOtp): JsonResponse
-    {
+    public function issue(
+        IssueOtpRequest $request,
+        IssueOtpChallenge $issueOtp,
+        NormalizeContact $normalize,
+        CreateContactLookupHash $lookupHash,
+    ): JsonResponse {
+        $contactValue = $request->validated('contact_value');
+
+        try {
+            $normalizedPhone = $normalize->phone($contactValue);
+        } catch (\InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'contact_value' => ['Enter a valid phone number.'],
+            ]);
+        }
+
+        $phoneHash = $lookupHash->forPhone($normalizedPhone);
+
+        if (PatientAccountContact::query()
+            ->where('lookup_hash', $phoneHash)
+            ->where('type', 'phone')
+            ->exists()
+            || User::query()->whereIn('phone', $this->phoneVariants($normalizedPhone))->exists()) {
+            return response()->json([
+                'error' => [
+                    'code' => 'CONTACT_ALREADY_OWNED',
+                    'message' => 'This phone number is already registered.',
+                ],
+            ], 422);
+        }
+
         $result = $issueOtp->handle(
             contactType: $request->validated('contact_type'),
-            contactValue: $request->validated('contact_value'),
+            contactValue: $normalizedPhone,
             purpose: OtpPurpose::Registration,
         );
 
@@ -32,6 +66,21 @@ class OtpChallengeController extends Controller
                 'expires_at' => $challenge->expires_at->toISOString(),
             ],
         ], 200);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function phoneVariants(string $phone): array
+    {
+        $digits = ltrim($phone, '+');
+
+        return array_values(array_unique([
+            $phone,
+            $digits,
+            '0'.substr($digits, 2),
+            substr($digits, 2),
+        ]));
     }
 
     public function verify(VerifyOtpRequest $request, VerifyOtpChallenge $verifyOtp): JsonResponse

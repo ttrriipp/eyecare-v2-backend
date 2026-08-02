@@ -127,11 +127,12 @@ test('exhausted attempts invalidate the challenge', function () {
 
 // --- API Level ---
 
-test('verify endpoint returns verified status on success', function () {
+test('registration verify endpoint returns a registration proof on success', function () {
     $code = '123456';
     $challenge = OtpChallenge::factory()->pending()->create([
         'code_digest' => Hash::make($code),
         'purpose' => OtpPurpose::Registration,
+        'channel' => 'phone',
     ]);
 
     $response = $this->postJson('/api/v1/auth/registration/verify', [
@@ -140,7 +141,12 @@ test('verify endpoint returns verified status on success', function () {
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('data.verified', true);
+        ->assertJsonStructure([
+            'data' => ['registration_token', 'expires_at', 'contact_type'],
+        ])
+        ->assertJsonPath('data.contact_type', $challenge->channel);
+
+    expect($response->json('data.registration_token'))->not->toBeEmpty();
 });
 
 test('verify endpoint validates required fields', function () {
@@ -154,6 +160,7 @@ test('verify endpoint rejects wrong code', function () {
     $challenge = OtpChallenge::factory()->pending()->create([
         'code_digest' => Hash::make('123456'),
         'purpose' => OtpPurpose::Registration,
+        'channel' => 'phone',
     ]);
 
     $response = $this->postJson('/api/v1/auth/registration/verify', [

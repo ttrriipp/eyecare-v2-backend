@@ -19,6 +19,7 @@ class RegisterPatientAccount
     public function __construct(
         protected NormalizeContact $normalize,
         protected CreateContactLookupHash $lookupHash,
+        protected IssuePatientDeviceToken $issueToken,
     ) {}
 
     /**
@@ -37,6 +38,12 @@ class RegisterPatientAccount
         if ($challenge->purpose !== OtpPurpose::Registration) {
             throw ValidationException::withMessages([
                 'challenge_id' => ['The provided challenge is invalid.'],
+            ]);
+        }
+
+        if ($challenge->channel !== 'phone') {
+            throw ValidationException::withMessages([
+                'challenge_id' => ['Registration requires a verified phone number.'],
             ]);
         }
 
@@ -140,45 +147,78 @@ class RegisterPatientAccount
         $contactType = $proof->channel;
         $destination = $proof->encrypted_destination;
 
-        return DB::transaction(function () use ($data, $contactType, $destination, $proof) {
-            $existingContact = PatientAccountContact::where('lookup_hash', $proof->destination_hash)
-                ->where('type', $contactType)
-                ->first();
+        if ($contactType !== 'phone') {
+            throw ValidationException::withMessages([
+                'registration_token' => ['Registration requires a verified phone number.'],
+            ]);
+        }
 
-            if ($existingContact !== null) {
-                $user = $existingContact->user;
-                $isNew = false;
-            } else {
-                $role = Role::where('name', 'patient')->firstOrFail();
+        $optionalEmail = null;
 
-                $middleName = $data['middle_name'] ?? null;
-                $fullName = trim($data['first_name'].' '.($middleName ? $middleName.' ' : '').$data['last_name']);
+        if ($contactType === 'phone' && isset($data['email'])) {
+            $optionalEmail = $this->normalize->email($data['email']);
+        }
 
-                $user = User::create([
-                    'name' => $fullName,
-                    'first_name' => $data['first_name'],
-                    'middle_name' => $middleName,
-                    'last_name' => $data['last_name'],
-                    'date_of_birth' => $data['date_of_birth'],
-                    'email' => $contactType === 'email' ? $destination : null,
-                    'phone' => $contactType === 'phone' ? $destination : null,
-                    'password' => Hash::make($data['password']),
-                    'role_id' => $role->id,
-                    // Store authoritative policy metadata from server config
-                    'privacy_notice_version' => $data['privacy_policy_version'],
-                    'privacy_acknowledged_at' => now(),
-                ]);
+        $optionalEmailHash = $optionalEmail === null
+            ? null
+            : $this->lookupHash->forEmail($optionalEmail);
 
+        return DB::transaction(function () use ($data, $contactType, $destination, $proof, $optionalEmail, $optionalEmailHash) {
+            if ($this->contactIsAlreadyOwned($contactType, $destination, $proof->destination_hash)) {
+                return [
+                    'contact_already_owned' => true,
+                    'contact_type' => $contactType,
+                    'is_new' => false,
+                ];
+            }
+
+            if ($optionalEmail !== null && $optionalEmailHash !== null
+                && $this->contactIsAlreadyOwned('email', $optionalEmail, $optionalEmailHash)) {
+                return [
+                    'contact_already_owned' => true,
+                    'contact_type' => 'email',
+                    'is_new' => false,
+                ];
+            }
+
+            $role = Role::where('name', 'patient')->firstOrFail();
+
+            $middleName = $data['middle_name'] ?? null;
+            $fullName = trim($data['first_name'].' '.($middleName ? $middleName.' ' : '').$data['last_name']);
+
+            $user = User::create([
+                'name' => $fullName,
+                'first_name' => $data['first_name'],
+                'middle_name' => $middleName,
+                'last_name' => $data['last_name'],
+                'date_of_birth' => $data['date_of_birth'],
+                'email' => $optionalEmail,
+                'phone' => $contactType === 'phone' ? $destination : null,
+                'password' => Hash::make($data['password']),
+                'role_id' => $role->id,
+                // Store authoritative policy metadata from server config
+                'privacy_notice_version' => $data['privacy_policy_version'],
+                'privacy_acknowledged_at' => now(),
+            ]);
+
+            PatientAccountContact::create([
+                'user_id' => $user->id,
+                'type' => $contactType,
+                'encrypted_value' => $destination,
+                'lookup_hash' => $proof->destination_hash,
+                'verified_at' => now(),
+                'is_primary' => true,
+            ]);
+
+            if ($optionalEmail !== null && $optionalEmailHash !== null) {
                 PatientAccountContact::create([
                     'user_id' => $user->id,
-                    'type' => $contactType,
-                    'encrypted_value' => $destination,
-                    'lookup_hash' => $proof->destination_hash,
-                    'verified_at' => now(),
-                    'is_primary' => true,
+                    'type' => 'email',
+                    'encrypted_value' => $optionalEmail,
+                    'lookup_hash' => $optionalEmailHash,
+                    'verified_at' => null,
+                    'is_primary' => false,
                 ]);
-
-                $isNew = true;
             }
 
             // Consume the proof
@@ -189,18 +229,52 @@ class RegisterPatientAccount
                 $this->acceptInvitation($data['invitation_code'], $user);
             }
 
-            $token = $user->createToken(
-                $data['device_name'] ?? 'mobile',
-                ['*'],
-                now()->addDays(config('patient_accounts.tokens.expiry_days', 30))
-            )->plainTextToken;
+            $tokenResult = $this->issueToken->issueForUser(
+                $user,
+                $data['device_name'] ?? null,
+                $data['installation_id'] ?? null,
+            );
 
             return [
-                'token' => $token,
+                'token' => $tokenResult['token'],
                 'user' => $user,
-                'is_new' => $isNew,
+                'is_new' => true,
+                'email_verification_required' => $optionalEmail !== null,
             ];
         });
+    }
+
+    protected function contactIsAlreadyOwned(string $contactType, string $destination, string $destinationHash): bool
+    {
+        if (PatientAccountContact::query()
+            ->where('lookup_hash', $destinationHash)
+            ->where('type', $contactType)
+            ->exists()) {
+            return true;
+        }
+
+        if ($contactType === 'email') {
+            return User::query()->where('email', $destination)->exists();
+        }
+
+        return User::query()
+            ->whereIn('phone', $this->phoneVariants($destination))
+            ->exists();
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function phoneVariants(string $phone): array
+    {
+        $digits = ltrim($phone, '+');
+
+        return array_values(array_unique([
+            $phone,
+            $digits,
+            '0'.substr($digits, 2),
+            substr($digits, 2),
+        ]));
     }
 
     protected function acceptInvitation(string $code, User $user): void
