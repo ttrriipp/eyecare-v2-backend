@@ -79,7 +79,7 @@ class AppointmentRequestsTable
                         AppointmentRequestStatus::Cancelled => 'gray',
                         AppointmentRequestStatus::Expired => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => Str::headline($state)),
+                    ->formatStateUsing(fn (AppointmentRequestStatus $state): string => Str::headline($state->value)),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
