@@ -19,7 +19,8 @@ class QuotationController extends Controller
 
         $quotations = Quotation::query()
             ->where('patient_id', $patient->id)
-            ->with(['revisions.items'])
+            ->whereNotIn('status', ['draft'])
+            ->with(['items'])
             ->latest()
             ->paginate($request->integer('per_page', 15));
 
@@ -31,8 +32,9 @@ class QuotationController extends Controller
         $patient = $request->user()->patient;
 
         abort_unless($patient !== null && $quotation->patient_id === $patient->id, 404);
+        abort_if($quotation->status === 'draft', 404);
 
-        $quotation->load('revisions.items');
+        $quotation->load('items');
 
         return response()->json([
             'data' => QuotationResource::make($quotation),
