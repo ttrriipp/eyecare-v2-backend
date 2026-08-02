@@ -17,6 +17,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
@@ -339,11 +340,11 @@ class EncounterForm
                             ]),
                     ]),
             ])
-                ->submitAction(new HtmlString(<<<'BLADE'
+                ->submitAction(new HtmlString(Blade::render(<<<'BLADE'
                     <x-filament::button type="submit" size="sm">
                         Complete Visit
                     </x-filament::button>
-                BLADE))
+                BLADE)))
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
             Grid::make(3)
