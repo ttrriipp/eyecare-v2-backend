@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Encounters\Pages;
 
 use App\Actions\Appointments\CancelAppointment;
-use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Quotations\CreateQuotation;
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -203,26 +203,14 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            Action::make('completeEncounter')
-                ->label('Complete Visit')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
-                    && auth()->user()?->is_optometrist === true)
-                ->requiresConfirmation()
-                ->action(function (): void {
-                    try {
-                        app(CompleteEncounter::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                        );
-
-                        Notification::make()->title('Encounter completed')->success()->send();
-                        $this->refreshFormData(['status', 'completed_at']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot complete encounter')->body($e->getMessage())->danger()->send();
-                    }
-                }),
+            Action::make('viewAppointment')
+                ->label('View Appointment')
+                ->icon('heroicon-o-calendar-days')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->appointment !== null)
+                ->url(fn (): string => AppointmentResource::getUrl('edit', [
+                    'record' => $this->record->appointment,
+                ])),
         ];
     }
 }
