@@ -2,13 +2,11 @@
 
 namespace App\Filament\Resources\PatientAccounts\Schemas;
 
-use Carbon\Carbon;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\TextSize;
-use Illuminate\Support\Facades\DB;
 
 class PatientAccountForm
 {
@@ -34,41 +32,6 @@ class PatientAccountForm
                         Placeholder::make('created_at')
                             ->label('Registered')
                             ->content(fn ($record) => $record?->created_at?->format('M j, Y g:i A') ?? '—'),
-                    ]),
-
-                    Section::make('Device Sessions')->schema([
-                        Placeholder::make('device_sessions')
-                            ->label('')
-                            ->content(function ($record): string {
-                                if ($record === null) {
-                                    return '—';
-                                }
-
-                                $tokens = DB::table('personal_access_tokens')
-                                    ->where('tokenable_type', 'App\\Models\\User')
-                                    ->where('tokenable_id', $record->id)
-                                    ->where(function ($q) {
-                                        $q->whereNull('expires_at')
-                                            ->orWhere('expires_at', '>', now());
-                                    })
-                                    ->orderBy('created_at', 'desc')
-                                    ->get();
-
-                                if ($tokens->isEmpty()) {
-                                    return 'No active sessions';
-                                }
-
-                                return $tokens->map(function ($t) {
-                                    $name = $t->name ?? 'Unknown device';
-                                    $created = Carbon::parse($t->created_at)->format('M j, Y g:i A');
-                                    $lastUsed = $t->last_used_at
-                                        ? Carbon::parse($t->last_used_at)->diffForHumans()
-                                        : 'Never';
-
-                                    return "{$name} — Created {$created} — Last active: {$lastUsed}";
-                                })->implode("\n");
-                            })
-                            ->columnSpanFull(),
                     ]),
                 ]),
 
