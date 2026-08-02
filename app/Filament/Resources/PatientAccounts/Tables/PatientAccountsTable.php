@@ -20,9 +20,9 @@ class PatientAccountsTable
                     ->label('Account Name')
                     ->searchable(['first_name', 'last_name', 'name']),
 
-                TextColumn::make('email')
-                    ->label('Contact')
-                    ->formatStateUsing(fn (?string $state): string => self::maskEmail($state))
+                TextColumn::make('phone')
+                    ->label('Phone')
+                    ->searchable()
                     ->placeholder('—'),
 
                 TextColumn::make('link_status')
@@ -71,19 +71,5 @@ class PatientAccountsTable
             ->toolbarActions([
                 BulkActionGroup::make([]),
             ]);
-    }
-
-    protected static function maskEmail(?string $email): string
-    {
-        if ($email === null) {
-            return '—';
-        }
-
-        $parts = explode('@', $email);
-        if (count($parts) !== 2) {
-            return '***';
-        }
-
-        return substr($parts[0], 0, 1).'***@'.$parts[1];
     }
 }
