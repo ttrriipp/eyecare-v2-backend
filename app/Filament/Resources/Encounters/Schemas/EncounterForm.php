@@ -43,6 +43,26 @@ class EncounterForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
+            Section::make()
+                ->schema([
+                    Grid::make(4)
+                        ->schema([
+                            Placeholder::make('encounter_number')
+                                ->label('Encounter #')
+                                ->content(fn (Encounter $record): string => $record->encounter_number),
+                            Placeholder::make('patient_name')
+                                ->label('Patient')
+                                ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                            Placeholder::make('appointment_type')
+                                ->label('Appointment Type')
+                                ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                            Placeholder::make('started_at')
+                                ->label('Started')
+                                ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
+                        ]),
+                ])
+                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
+
             Wizard::make([
                 Step::make('Consultation & History')
                     ->schema([
