@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Appointment;
+use App\Models\AppointmentRequest;
+use App\Models\PatientAccountContact;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -20,6 +22,81 @@ beforeEach(function () {
 
 afterEach(fn () => Carbon::setTestNow());
 
+test('unlinked account can read appointment request availability', function () {
+    $user = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13');
+
+    $response->assertOk()
+        ->assertJsonStructure([
+            'data' => [
+                'date',
+                'timezone',
+                'interval_minutes',
+                'slot_duration_minutes',
+                'day_status',
+                'generated_at',
+                'slots' => [
+                    '*' => ['starts_at', 'ends_at', 'available', 'reason'],
+                ],
+            ],
+        ])
+        ->assertJsonPath('data.date', '2026-07-13')
+        ->assertJsonPath('data.timezone', 'Asia/Manila')
+        ->assertJsonPath('data.interval_minutes', 30)
+        ->assertJsonPath('data.slot_duration_minutes', 30)
+        ->assertJsonPath('data.day_status', 'open')
+        ->assertJsonPath('data.slots.0.starts_at', '2026-07-13T09:00:00+08:00')
+        ->assertJsonPath('data.slots.0.ends_at', '2026-07-13T09:30:00+08:00')
+        ->assertJsonPath('data.slots.0.available', true)
+        ->assertJsonPath('data.slots.0.reason', null);
+
+    expect($response->json('data.slots'))->toHaveCount(16);
+});
+
+test('appointment request availability requires a current or future date', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date']);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?date=2026-07-09')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date']);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13T00:00:00+08:00')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date']);
+});
+
+test('appointment request availability includes active request holds', function () {
+    $user = User::factory()->create();
+
+    AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'scheduled_at' => '2026-07-13 10:00:00',
+        'provisional_duration_minutes' => 30,
+        'status' => 'pending',
+        'expires_at' => now()->addHours(24),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13')
+        ->assertOk()
+        ->assertJsonPath('data.slots.2.available', false)
+        ->assertJsonPath('data.slots.2.reason', 'capacity_reached');
+});
+
+test('appointment request availability requires authentication', function () {
+    $this->getJson('/api/v1/appointment-request-availability?date=2026-07-13')
+        ->assertUnauthorized();
+});
+
 test('linked account can submit an appointment request', function () {
     $user = User::factory()->patient()->create();
 
@@ -34,7 +111,22 @@ test('linked account can submit an appointment request', function () {
 });
 
 test('unlinked account can submit an appointment request', function () {
-    $user = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+    ]);
+
+    // Create a verified contact for the account
+    PatientAccountContact::factory()->create([
+        'user_id' => $user->id,
+        'type' => 'phone',
+        'encrypted_value' => '09171234567',
+        'lookup_hash' => hash('sha256', '09171234567'),
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/appointment-requests', [
