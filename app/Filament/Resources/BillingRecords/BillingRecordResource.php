@@ -20,15 +20,15 @@ class BillingRecordResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCurrencyDollar;
 
-    protected static ?string $navigationLabel = 'Billing Records';
+    protected static ?string $navigationLabel = 'Billing & Payments';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Finance';
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false; // Primary navigation is Optical Orders
+        return true;
     }
 
     public static function form(Schema $schema): Schema

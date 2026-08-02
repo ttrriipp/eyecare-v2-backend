@@ -15,33 +15,51 @@ class BillingRecordsTable
         return $table
             ->columns([
                 TextColumn::make('billing_record_number')
-                    ->label('Billing Record #')
+                    ->label('Billing #')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('patient.first_name')
-                    ->label('Patient'),
+
+                TextColumn::make('patient.full_name')
+                    ->label('Patient')
+                    ->searchable(),
+
                 TextColumn::make('jobOrder.job_order_number')
                     ->label('Job Order')
                     ->sortable(),
+
+                TextColumn::make('total_amount')
+                    ->label('Total')
+                    ->money('PHP')
+                    ->sortable(),
+
+                TextColumn::make('amount_paid')
+                    ->label('Paid')
+                    ->money('PHP'),
+
+                TextColumn::make('balance_due')
+                    ->label('Balance')
+                    ->money('PHP')
+                    ->color(fn (BillingRecord $record): string => match (true) {
+                        (float) $record->balance_due <= 0 => 'success',
+                        $record->isOverdue() => 'danger',
+                        default => 'warning',
+                    }),
+
+                TextColumn::make('payment_due_date')
+                    ->label('Due Date')
+                    ->date('M j, Y')
+                    ->placeholder('—')
+                    ->color(fn (BillingRecord $record): string => $record->isOverdue() ? 'danger' : 'gray'),
+
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (BillingRecord $record): string => match ($record->status) {
+                    ->color(fn (BillingRecordStatus $state): string => match ($state) {
                         BillingRecordStatus::Unpaid => 'gray',
                         BillingRecordStatus::PartiallyPaid => 'warning',
                         BillingRecordStatus::Paid => 'success',
                         BillingRecordStatus::Voided => 'danger',
                     }),
-                TextColumn::make('total_amount')
-                    ->label('Total')
-                    ->money('PHP')
-                    ->sortable(),
-                TextColumn::make('amount_paid')
-                    ->label('Paid')
-                    ->money('PHP'),
-                TextColumn::make('balance_due')
-                    ->label('Balance')
-                    ->money('PHP')
-                    ->color(fn (BillingRecord $record): string => (float) $record->balance_due > 0 ? 'warning' : 'success'),
+
                 TextColumn::make('recorded_at')
                     ->label('Recorded')
                     ->dateTime('M j, Y g:i A')
