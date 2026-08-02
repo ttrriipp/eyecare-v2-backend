@@ -5,7 +5,6 @@ use App\Enums\QuotationStatus;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Quotation;
-use App\Models\QuotationRevision;
 use App\Services\Eyewear\FindPatientEyewear;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -98,15 +97,20 @@ test('linked job order resolves via alias with quotation context', function () {
     $quotation = Quotation::factory()->create([
         'patient_id' => $patient->id,
         'status' => QuotationStatus::Accepted,
+        'total' => 5000,
     ]);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
     ]);
     $jobOrder = JobOrder::factory()->create([
         'patient_id' => $patient->id,
-        'quotation_revision_id' => $revision->id,
+        'quotation_id' => $quotation->id,
         'status' => JobOrderStatus::InProgress,
         'eyewear_key' => $quotation->eyewear_key,
+        'total_amount' => 5000,
     ]);
 
     $result = app(FindPatientEyewear::class)->handle($patient, "jo_{$jobOrder->id}");

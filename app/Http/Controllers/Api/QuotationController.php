@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\QuotationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\QuotationResource;
 use App\Models\Quotation;
@@ -19,7 +20,7 @@ class QuotationController extends Controller
 
         $quotations = Quotation::query()
             ->where('patient_id', $patient->id)
-            ->whereNotIn('status', ['draft'])
+            ->where('status', '!=', QuotationStatus::Draft)
             ->with(['items'])
             ->latest()
             ->paginate($request->integer('per_page', 15));
@@ -32,7 +33,7 @@ class QuotationController extends Controller
         $patient = $request->user()->patient;
 
         abort_unless($patient !== null && $quotation->patient_id === $patient->id, 404);
-        abort_if($quotation->status === 'draft', 404);
+        abort_if($quotation->status === QuotationStatus::Draft, 404);
 
         $quotation->load('items');
 

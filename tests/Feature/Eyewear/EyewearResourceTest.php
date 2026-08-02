@@ -9,37 +9,50 @@ use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Quotation;
-use App\Models\QuotationItem;
-use App\Models\QuotationRevision;
 use App\Services\Eyewear\BuildEyewearAggregate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('summary resource matches spec fields', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    QuotationRevision::factory()->create(['quotation_id' => $quotation->id]);
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Presented,
+        'total' => 5000,
+    ]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
 
     $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, null);
     $resource = EyewearSummaryResource::make($aggregate)->resolve();
 
     expect($resource)->toHaveKeys([
         'key', 'description', 'consultation_at', 'created_at',
-        'progress', 'payment_status', 'total_amount', 'balance_due', 'activity_at',
+        'progress', 'payment_status', 'total_amount', 'amount_paid',
+        'balance_due', 'payment_due_date', 'activity_at',
     ])
         ->and($resource['progress'])->toBe('estimate_available')
         ->and($resource['payment_status'])->toBeNull()
-        ->and($resource['balance_due'])->toBeNull();
+        ->and($resource['amount_paid'])->toBeNull()
+        ->and($resource['balance_due'])->toBeNull()
+        ->and($resource['payment_due_date'])->toBeNull();
 });
 
 test('detail resource includes estimate section when present', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Presented,
         'subtotal' => 5000,
         'total' => 5000,
     ]);
-    QuotationItem::factory()->create(['quotation_revision_id' => $revision->id]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
 
     $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, null);
     $resource = EyewearDetailResource::make($aggregate)->resolve();
@@ -116,11 +129,16 @@ test('detail resource omits payment summary for voided billing', function () {
 });
 
 test('money fields are exact two-decimal strings in resource', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
-        'subtotal' => 1000.5,
-        'total' => 1000.5,
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Presented,
+        'subtotal' => 1000.50,
+        'total' => 1000.50,
+    ]);
+    $quotation->items()->create([
+        'description' => 'Item',
+        'quantity' => 1,
+        'unit_price' => 1000.50,
+        'amount' => 1000.50,
     ]);
 
     $aggregate = app(BuildEyewearAggregate::class)->handle($quotation, null);
