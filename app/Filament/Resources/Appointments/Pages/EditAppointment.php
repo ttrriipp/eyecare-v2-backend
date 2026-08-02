@@ -28,14 +28,14 @@ class EditAppointment extends EditRecord
     {
         return [
             Action::make('openEncounter')
-                ->label(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
-                ->icon('heroicon-o-document-text')
+                ->label(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'View Encounter' : 'Start Consultation')
+                ->icon('heroicon-o-eye')
                 ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in')
-                ->requiresConfirmation()
-                ->modalHeading('Start Examination')
-                ->modalDescription('Select the optometrist and start the examination.')
-                ->schema([
+                ->requiresConfirmation(fn (): bool => $this->getRecord()->encounter?->status?->name !== 'in_progress')
+                ->modalHeading('Start Consultation')
+                ->modalDescription('Select the optometrist and start the consultation.')
+                ->schema(fn (): array => $this->getRecord()->encounter?->status?->name === 'in_progress' ? [] : [
                     Select::make('optometrist_id')
                         ->label('Optometrist')
                         ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
@@ -53,7 +53,6 @@ class EditAppointment extends EditRecord
                     }
 
                     if ($encounter->status->name !== 'planned') {
-                        // Already started, just navigate
                         $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
 
                         return;
@@ -76,11 +75,11 @@ class EditAppointment extends EditRecord
                             actor: auth()->user(),
                         );
 
-                        Notification::make()->title('Examination started')->success()->send();
+                        Notification::make()->title('Consultation started')->success()->send();
                         $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot start encounter.';
-                        Notification::make()->title('Cannot start encounter')->body($message)->danger()->send();
+                        Notification::make()->title('Cannot start consultation')->body($message)->danger()->send();
                     }
                 }),
 

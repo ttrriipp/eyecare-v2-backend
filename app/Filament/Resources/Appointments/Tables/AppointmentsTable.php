@@ -119,8 +119,8 @@ class AppointmentsTable
                     EditAction::make()
                         ->color('gray'),
                     Action::make('openEncounter')
-                        ->label(fn (Appointment $record): string => $record->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
-                        ->icon('heroicon-o-document-text')
+                        ->label(fn (Appointment $record): string => $record->encounter?->status?->name === 'in_progress' ? 'View Encounter' : 'Start Consultation')
+                        ->icon('heroicon-o-eye')
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in')
                         ->url(function (Appointment $record): ?string {
