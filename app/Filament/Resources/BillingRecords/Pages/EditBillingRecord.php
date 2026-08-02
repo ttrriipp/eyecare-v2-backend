@@ -7,6 +7,7 @@ use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\BillingRecord;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -17,6 +18,7 @@ use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 
@@ -86,6 +88,14 @@ class EditBillingRecord extends EditRecord
                         Placeholder::make('balance_due')
                             ->label('Balance Due')
                             ->content(fn (BillingRecord $record): string => '₱'.number_format($record->balance_due, 2)),
+                        Placeholder::make('payment_due_date')
+                            ->label('Payment Due Date')
+                            ->content(fn (BillingRecord $record): string => $record->payment_due_date?->format('M j, Y') ?? 'Not set'),
+                        Placeholder::make('overdue_status')
+                            ->label('Status')
+                            ->content(fn (BillingRecord $record): string => $record->isOverdue() ? 'Overdue' : 'Current')
+                            ->badge()
+                            ->color(fn (BillingRecord $record): string => $record->isOverdue() ? 'danger' : 'success'),
                     ]),
                 ]),
             ]),
@@ -102,6 +112,28 @@ class EditBillingRecord extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('updateDueDate')
+                ->label('Update Due Date')
+                ->icon('heroicon-o-calendar')
+                ->color('info')
+                ->visible(fn (): bool => in_array($this->record->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true))
+                ->schema([
+                    DatePicker::make('payment_due_date')
+                        ->label('Payment Due Date')
+                        ->required()
+                        ->native(false)
+                        ->minDate(today())
+                        ->default(fn () => $this->record->payment_due_date ?? today()->addMonth()),
+                ])
+                ->action(function (array $data): void {
+                    $this->record->update([
+                        'payment_due_date' => Carbon::parse($data['payment_due_date']),
+                    ]);
+
+                    Notification::make()->title('Due date updated')->success()->send();
+                    $this->refreshFormData(['payment_due_date']);
+                }),
+
             Action::make('voidRecord')
                 ->label('Void Billing Record')
                 ->icon('heroicon-o-x-circle')
