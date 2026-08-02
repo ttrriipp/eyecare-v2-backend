@@ -6,8 +6,8 @@ use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListOpticalOrders extends ListRecords
