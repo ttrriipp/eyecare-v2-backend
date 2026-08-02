@@ -8,7 +8,6 @@ use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Models\Appointment;
 use App\Models\Encounter;
 use App\Models\Patient;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -160,13 +159,6 @@ class PrescriptionForm
                 ]),
 
             Section::make('Details')->schema([
-                DatePicker::make('prescribed_at')
-                    ->label('Date')
-                    ->required()
-                    ->disabled($forEncounter
-                        ? $disabledForExistingPrescription
-                        : fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
-                    ->live(onBlur: true),
                 Textarea::make('remarks')
                     ->label('Remarks')
                     ->disabled($disabledForExistingPrescription)
