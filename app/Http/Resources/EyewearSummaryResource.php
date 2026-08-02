@@ -21,7 +21,9 @@ class EyewearSummaryResource extends JsonResource
             'progress' => $this->progress->value,
             'payment_status' => $this->paymentStatus?->value,
             'total_amount' => $this->totalAmount,
+            'amount_paid' => $this->amountPaid,
             'balance_due' => $this->balanceDue,
+            'payment_due_date' => $this->paymentDueDate,
             'activity_at' => $this->activityAt,
         ];
     }
