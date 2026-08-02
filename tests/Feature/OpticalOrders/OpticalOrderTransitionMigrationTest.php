@@ -9,7 +9,6 @@ use App\Enums\QuotationStatus;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Quotation;
-use App\Models\QuotationRevision;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,18 +75,14 @@ test('quotations can store presentation and confirmation metadata', function () 
 
 test('quotation items can reference quotation directly via DB', function () {
     $quotation = Quotation::factory()->create();
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
-    ]);
 
     // Insert directly via DB since model fillability is updated in Task A3
     DB::table('quotation_items')->insert([
-        'quotation_revision_id' => $revision->id,
+        'quotation_id' => $quotation->id,
         'description' => 'Frame',
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
-        'quotation_id' => $quotation->id,
         'created_at' => now(),
         'updated_at' => now(),
     ]);

@@ -2,7 +2,6 @@
 
 use App\Models\JobOrder;
 use App\Models\Quotation;
-use App\Models\QuotationRevision;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 
@@ -41,14 +40,10 @@ test('eyewear keys are unique across job orders', function () {
 });
 
 test('job order linked to quotation inherits its eyewear key', function () {
-    $quotation = Quotation::factory()->create(['status' => 'accepted']);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
-        'revision_number' => 1,
-    ]);
+    $quotation = Quotation::factory()->create(['status' => 'accepted', 'total' => 5000]);
 
     $jobOrder = JobOrder::factory()->create([
-        'quotation_revision_id' => $revision->id,
+        'quotation_id' => $quotation->id,
         'eyewear_key' => $quotation->eyewear_key,
     ]);
 
@@ -57,7 +52,7 @@ test('job order linked to quotation inherits its eyewear key', function () {
 
 test('standalone job order generates its own unique key', function () {
     $quotation = Quotation::factory()->create();
-    $jobOrder = JobOrder::factory()->create(['quotation_revision_id' => null]);
+    $jobOrder = JobOrder::factory()->create(['quotation_id' => null]);
 
     expect($jobOrder->eyewear_key)
         ->toBeString()
