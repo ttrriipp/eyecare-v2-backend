@@ -13,6 +13,7 @@ use App\Models\QuotationRevision;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -112,7 +113,8 @@ test('billing records can store payment due date', function () {
         'payment_due_date' => '2026-09-01',
     ]);
 
-    expect($billing->fresh()->payment_due_date)->toBe('2026-09-01');
+    expect($billing->fresh()->payment_due_date)->toBeInstanceOf(Carbon::class)
+        ->and($billing->fresh()->payment_due_date->format('Y-m-d'))->toBe('2026-09-01');
 });
 
 test('billing records payment due date is nullable', function () {
