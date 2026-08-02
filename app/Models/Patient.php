@@ -96,6 +96,14 @@ class Patient extends Model
     }
 
     /**
+     * @return HasMany<Encounter, $this>
+     */
+    public function encounters(): HasMany
+    {
+        return $this->hasMany(Encounter::class);
+    }
+
+    /**
      * @return HasMany<PatientInvitation, $this>
      */
     public function invitations(): HasMany
