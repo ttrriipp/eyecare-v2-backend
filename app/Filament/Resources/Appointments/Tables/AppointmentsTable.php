@@ -7,7 +7,10 @@ use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
+use App\Actions\Encounters\StartEncounter;
+use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
+use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -31,6 +34,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Livewire\Component;
 
 class AppointmentsTable
 {
@@ -118,20 +122,63 @@ class AppointmentsTable
                 ActionGroup::make([
                     EditAction::make()
                         ->color('gray'),
-                    Action::make('openEncounter')
-                        ->label(fn (Appointment $record): string => $record->encounter?->status?->name === 'in_progress' ? 'View Encounter' : 'Start Consultation')
-                        ->icon('heroicon-o-eye')
+                    Action::make('startConsultation')
+                        ->label('Start Consultation')
+                        ->icon('heroicon-o-play')
                         ->color('info')
-                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in')
-                        ->url(function (Appointment $record): ?string {
+                        ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in'
+                            && $record->encounter?->status === EncounterStatus::Planned)
+                        ->requiresConfirmation()
+                        ->modalHeading('Start Consultation')
+                        ->modalDescription('Select the optometrist and start the consultation.')
+                        ->schema([
+                            Select::make('optometrist_id')
+                                ->label('Optometrist')
+                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
+                                ->required()
+                                ->searchable()
+                                ->preload(),
+                        ])
+                        ->action(function (Appointment $record, array $data, Component $livewire): void {
                             $encounter = $record->encounter;
 
                             if ($encounter === null) {
-                                return null;
+                                Notification::make()->title('No encounter found')->danger()->send();
+
+                                return;
                             }
 
-                            return route('filament.admin.resources.encounters.edit', ['record' => $encounter]);
+                            if ($encounter->status !== EncounterStatus::Planned) {
+                                $livewire->redirect(EncounterResource::getUrl('edit', ['record' => $encounter]));
+
+                                return;
+                            }
+
+                            try {
+                                app(StartEncounter::class)->handle(
+                                    encounter: $encounter,
+                                    optometrist: User::query()->findOrFail($data['optometrist_id']),
+                                    actor: auth()->user(),
+                                );
+
+                                Notification::make()->title('Consultation started')->success()->send();
+                                $livewire->redirect(EncounterResource::getUrl('edit', ['record' => $encounter]));
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot start consultation.';
+                                Notification::make()->title('Cannot start consultation')->body($message)->danger()->send();
+                            }
                         }),
+                    Action::make('viewEncounter')
+                        ->label('View Encounter')
+                        ->icon('heroicon-o-eye')
+                        ->color('info')
+                        ->visible(fn (Appointment $record): bool => in_array($record->encounter?->status, [
+                            EncounterStatus::InProgress,
+                            EncounterStatus::Completed,
+                        ], true))
+                        ->url(fn (Appointment $record): string => EncounterResource::getUrl('edit', [
+                            'record' => $record->encounter,
+                        ])),
                     Action::make('assign')
                         ->label('Assign')
                         ->icon('heroicon-o-user-plus')

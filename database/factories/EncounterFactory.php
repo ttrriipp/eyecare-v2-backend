@@ -30,6 +30,16 @@ class EncounterFactory extends Factory
             'completed_at' => null,
             'findings' => null,
             'remarks' => null,
+            'chief_complaint' => null,
+            'past_ocular_history' => null,
+            'past_surgical_history' => null,
+            'past_medical_history' => null,
+            'allergies' => null,
+            'medications' => null,
+            'plan' => null,
+            'last_wizard_step' => null,
+            'draft_saved_at' => null,
+            'completed_by' => null,
         ];
     }
 

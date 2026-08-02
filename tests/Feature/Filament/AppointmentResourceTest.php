@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EncounterStatus;
 use App\Enums\ReservationStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
@@ -115,8 +116,9 @@ test('appointment table has no generic lifecycle advance actions', function () {
         ->assertActionDoesNotExist(TestAction::make('bulk_confirm')->table()->bulk());
 });
 
-test('checked in appointment links to its encounter instead of exposing generic completion', function () {
+test('checked in appointment exposes start consultation for its planned encounter', function () {
     $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
     $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => $checkedIn->id,
@@ -130,10 +132,39 @@ test('checked in appointment links to its encounter instead of exposing generic 
     $this->actingAs($staff);
 
     Livewire::test(ListAppointments::class)
-        ->assertActionVisible(TestAction::make('openEncounter')->table($appointment))
+        ->assertActionVisible(TestAction::make('startConsultation')->table($appointment))
+        ->assertActionHidden(TestAction::make('viewEncounter')->table($appointment))
         ->assertActionHidden(TestAction::make('assign')->table($appointment))
+        ->callTableAction('startConsultation', $appointment, [
+            'optometrist_id' => $optometrist->id,
+        ])
+        ->assertRedirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+
+    expect($encounter->fresh()->status)->toBe(EncounterStatus::InProgress)
+        ->and($encounter->fresh()->optometrist_id)->toBe($optometrist->id);
+});
+
+test('started appointment exposes a dedicated view encounter action', function () {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
+    $appointment = Appointment::factory()->create([
+        'appointment_status_id' => $checkedIn->id,
+        'checked_in_at' => now(),
+    ]);
+    $encounter = Encounter::factory()->inProgress()->create([
+        'appointment_id' => $appointment->id,
+        'patient_id' => $appointment->patient_id,
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertActionHidden(TestAction::make('startConsultation')->table($appointment))
+        ->assertActionVisible(TestAction::make('viewEncounter')->table($appointment))
         ->assertActionHasUrl(
-            TestAction::make('openEncounter')->table($appointment),
+            TestAction::make('viewEncounter')->table($appointment),
             route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
         );
 });
@@ -263,8 +294,9 @@ test('edit page has no editable status field', function () {
         ->assertFormFieldDoesNotExist('appointment_status_id');
 });
 
-test('edit page shows open encounter for checked in appointments', function () {
+test('edit page starts a planned consultation and views a started encounter', function () {
     $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
     $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
     $appointment = Appointment::factory()->create([
         'appointment_status_id' => $checkedIn->id,
@@ -278,5 +310,20 @@ test('edit page shows open encounter for checked in appointments', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible(TestAction::make('openEncounter'));
+        ->assertActionVisible('startConsultation')
+        ->assertActionHidden('viewEncounter')
+        ->callAction('startConsultation', [
+            'optometrist_id' => $optometrist->id,
+        ])
+        ->assertRedirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+
+    expect($encounter->fresh()->status)->toBe(EncounterStatus::InProgress);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionHidden('startConsultation')
+        ->assertActionVisible('viewEncounter')
+        ->assertActionHasUrl(
+            'viewEncounter',
+            route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
+        );
 });

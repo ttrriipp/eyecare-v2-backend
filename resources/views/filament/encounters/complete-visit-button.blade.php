@@ -2,7 +2,8 @@
     type="button"
     color="success"
     icon="heroicon-o-check-circle"
-    size="sm"
+    size="md"
+    class="fi-ac-btn-action"
     x-on:click="$wire.mountAction('completeVisit')"
 >
     Complete Visit

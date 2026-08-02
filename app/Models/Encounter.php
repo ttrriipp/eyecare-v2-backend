@@ -22,6 +22,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'completed_at',
     'findings',
     'remarks',
+    'chief_complaint',
+    'past_ocular_history',
+    'past_surgical_history',
+    'past_medical_history',
+    'allergies',
+    'medications',
+    'plan',
+    'last_wizard_step',
+    'draft_saved_at',
+    'completed_by',
 ])]
 class Encounter extends Model
 {
@@ -99,6 +109,14 @@ class Encounter extends Model
             'completed_at' => 'datetime',
             'findings' => 'encrypted',
             'remarks' => 'encrypted',
+            'chief_complaint' => 'encrypted',
+            'past_ocular_history' => 'encrypted',
+            'past_surgical_history' => 'encrypted',
+            'past_medical_history' => 'encrypted',
+            'allergies' => 'encrypted',
+            'medications' => 'encrypted',
+            'plan' => 'encrypted',
+            'draft_saved_at' => 'datetime',
         ];
     }
 }

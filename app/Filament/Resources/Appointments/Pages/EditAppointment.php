@@ -7,8 +7,10 @@ use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
+use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
+use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -27,15 +29,16 @@ class EditAppointment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('openEncounter')
-                ->label(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'View Encounter' : 'Start Consultation')
-                ->icon('heroicon-o-eye')
+            Action::make('startConsultation')
+                ->label('Start Consultation')
+                ->icon('heroicon-o-play')
                 ->color('info')
-                ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in')
-                ->requiresConfirmation(fn (): bool => $this->getRecord()->encounter?->status?->name !== 'in_progress')
+                ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in'
+                    && $this->getRecord()->encounter?->status === EncounterStatus::Planned)
+                ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
                 ->modalDescription('Select the optometrist and start the consultation.')
-                ->schema(fn (): array => $this->getRecord()->encounter?->status?->name === 'in_progress' ? [] : [
+                ->schema([
                     Select::make('optometrist_id')
                         ->label('Optometrist')
                         ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
@@ -52,8 +55,8 @@ class EditAppointment extends EditRecord
                         return;
                     }
 
-                    if ($encounter->status->name !== 'planned') {
-                        $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+                    if ($encounter->status !== EncounterStatus::Planned) {
+                        $this->redirect(EncounterResource::getUrl('edit', ['record' => $encounter]));
 
                         return;
                     }
@@ -76,12 +79,24 @@ class EditAppointment extends EditRecord
                         );
 
                         Notification::make()->title('Consultation started')->success()->send();
-                        $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+                        $this->redirect(EncounterResource::getUrl('edit', ['record' => $encounter]));
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot start encounter.';
                         Notification::make()->title('Cannot start consultation')->body($message)->danger()->send();
                     }
                 }),
+
+            Action::make('viewEncounter')
+                ->label('View Encounter')
+                ->icon('heroicon-o-eye')
+                ->color('info')
+                ->visible(fn (): bool => in_array($this->getRecord()->encounter?->status, [
+                    EncounterStatus::InProgress,
+                    EncounterStatus::Completed,
+                ], true))
+                ->url(fn (): string => EncounterResource::getUrl('edit', [
+                    'record' => $this->getRecord()->encounter,
+                ])),
 
             Action::make('checkIn')
                 ->label('Check In')

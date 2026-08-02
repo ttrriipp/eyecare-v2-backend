@@ -75,7 +75,7 @@ test('prescription form omits unsupported prism and base fields', function () {
         ->assertFormFieldDoesNotExist('os_base');
 });
 
-test('an optometrist can open a prescription from an in-progress encounter', function () {
+test('an optometrist can create a prescription from the encounter wizard', function () {
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->inProgress()->create([
         'optometrist_id' => $optometrist->id,
@@ -84,7 +84,9 @@ test('an optometrist can open a prescription from an in-progress encounter', fun
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('createPrescription');
+        ->assertFormFieldExists('prescription.main_od_sphere')
+        ->assertFormFieldExists('prescription.main_os_sphere')
+        ->assertFormFieldDoesNotExist('plan');
 
     Livewire::test(CreatePrescription::class, ['encounter' => $encounter->id])
         ->assertSuccessful()
@@ -96,7 +98,7 @@ test('an optometrist can open a prescription from an in-progress encounter', fun
         ->assertFormFieldDisabled('appointment_id');
 });
 
-test('prescription creation is hidden outside an active optometrist encounter', function () {
+test('prescription form is hidden outside an active encounter wizard', function () {
     $optometrist = User::factory()->optometrist()->create();
     $receptionist = User::factory()->staff()->create(['is_optometrist' => false]);
     $planned = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
@@ -106,14 +108,15 @@ test('prescription creation is hidden outside an active optometrist encounter', 
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $planned->getRouteKey()])
-        ->assertActionHidden('createPrescription');
+        ->assertFormFieldDoesNotExist('prescription.main_od_sphere');
     Livewire::test(EditEncounter::class, ['record' => $completed->getRouteKey()])
-        ->assertActionHidden('createPrescription');
+        ->assertFormFieldDoesNotExist('prescription.main_od_sphere');
 
     $this->actingAs($receptionist);
 
     Livewire::test(EditEncounter::class, ['record' => $inProgress->getRouteKey()])
-        ->assertActionHidden('createPrescription');
+        ->assertFormFieldExists('prescription.main_od_sphere')
+        ->assertFormFieldDisabled('prescription.main_od_sphere');
 });
 
 test('direct prescription creation rejects unauthorized or inactive encounter access', function () {
