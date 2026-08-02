@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\Encounters\Schemas;
 
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Carbon\CarbonInterface;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
@@ -86,7 +88,13 @@ class EncounterForm
                             ->label('Current Medications')
                             ->rows(2),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->afterValidation(function (EditEncounter $livewire): void {
+                        $livewire->save(
+                            shouldRedirect: false,
+                            shouldSendSavedNotification: false,
+                        );
+                    }),
 
                 Step::make('Examination')
                     ->schema([
@@ -98,14 +106,26 @@ class EncounterForm
                             ->label('Remarks')
                             ->rows(4)
                             ->columnSpanFull(),
-                    ]),
+                    ])
+                    ->afterValidation(function (EditEncounter $livewire): void {
+                        $livewire->save(
+                            shouldRedirect: false,
+                            shouldSendSavedNotification: false,
+                        );
+                    }),
 
                 Step::make('Prescription')
                     ->schema([
                         Group::make(PrescriptionForm::components(forEncounter: true))
                             ->statePath('prescription')
                             ->columnSpanFull(),
-                    ]),
+                    ])
+                    ->afterValidation(function (EditEncounter $livewire): void {
+                        $livewire->save(
+                            shouldRedirect: false,
+                            shouldSendSavedNotification: false,
+                        );
+                    }),
 
                 Step::make('Encounter Summary')
                     ->schema([
@@ -338,68 +358,100 @@ class EncounterForm
                             ]),
                     ]),
             ])
+                ->nextAction(fn (Action $action): Action => $action
+                    ->label('Save & Continue')
+                    ->icon('heroicon-o-arrow-right'))
+                ->previousAction(fn (Action $action): Action => $action
+                    ->label('Back')
+                    ->icon('heroicon-o-arrow-left'))
                 ->submitAction(view('filament.encounters.complete-visit-button'))
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
-            Grid::make(3)
+            Section::make('Encounter Details')
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                 ->schema([
-                    Grid::make(1)->columnSpan(2)->schema([
-                        Section::make('Clinical Summary')
-                            ->schema([
-                                Placeholder::make('view_chief_complaint')
-                                    ->label('Chief Complaint')
-                                    ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—'),
-                                Placeholder::make('view_findings')
-                                    ->label('Findings')
-                                    ->content(fn (Encounter $record): string => $record->findings ?? '—'),
-                                Placeholder::make('view_remarks')
-                                    ->label('Remarks')
-                                    ->content(fn (Encounter $record): string => $record->remarks ?? '—'),
-                            ])
-                            ->columns(2),
-                    ]),
+                    Placeholder::make('encounter_number')
+                        ->label('Encounter #')
+                        ->content(fn (Encounter $record): string => $record->encounter_number),
+                    Placeholder::make('status')
+                        ->label('Status')
+                        ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
+                    Placeholder::make('appointment_type')
+                        ->label('Appointment Type')
+                        ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                    Placeholder::make('optometrist')
+                        ->label('Optometrist')
+                        ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
+                    Placeholder::make('started_at')
+                        ->label('Started')
+                        ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
+                    Placeholder::make('completed_at')
+                        ->label('Completed')
+                        ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—'),
+                ])
+                ->columns(3),
 
-                    Grid::make(1)->columnSpan(1)->schema([
-                        Section::make('Encounter')
-                            ->schema([
-                                Placeholder::make('encounter_number')
-                                    ->label('Encounter #')
-                                    ->content(fn (Encounter $record): string => $record->encounter_number),
-                                Placeholder::make('status')
-                                    ->label('Status')
-                                    ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
-                                Placeholder::make('appointment_type')
-                                    ->label('Appointment Type')
-                                    ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
-                                Placeholder::make('optometrist')
-                                    ->label('Optometrist')
-                                    ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
-                            ]),
+            Section::make('Patient')
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->schema([
+                    Placeholder::make('patient_name')
+                        ->label('Name')
+                        ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                    Placeholder::make('patient_dob')
+                        ->label('Date of Birth')
+                        ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+                    Placeholder::make('patient_gender')
+                        ->label('Gender')
+                        ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                    Placeholder::make('patient_phone')
+                        ->label('Phone')
+                        ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                    Placeholder::make('patient_email')
+                        ->label('Email')
+                        ->content(fn (Encounter $record): string => $record->patient?->contact_email ?? '—'),
+                    Placeholder::make('patient_address')
+                        ->label('Address')
+                        ->content(fn (Encounter $record): string => $record->patient?->address ?? '—')
+                        ->columnSpanFull(),
+                ])
+                ->columns(3),
 
-                        Section::make('Patient')
-                            ->schema([
-                                Placeholder::make('patient_name')
-                                    ->label('Name')
-                                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
-                                Placeholder::make('patient_phone')
-                                    ->label('Phone')
-                                    ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
-                                Placeholder::make('patient_dob')
-                                    ->label('Date of Birth')
-                                    ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
-                            ]),
+            Section::make('Consultation')
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->schema([
+                    Placeholder::make('view_chief_complaint')
+                        ->label('Chief Complaint')
+                        ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—')
+                        ->columnSpanFull(),
+                    Placeholder::make('view_past_ocular_history')
+                        ->label('Past Ocular History')
+                        ->content(fn (Encounter $record): string => $record->past_ocular_history ?? '—'),
+                    Placeholder::make('view_past_surgical_history')
+                        ->label('Past Surgical History')
+                        ->content(fn (Encounter $record): string => $record->past_surgical_history ?? '—'),
+                    Placeholder::make('view_past_medical_history')
+                        ->label('Past Medical History')
+                        ->content(fn (Encounter $record): string => $record->past_medical_history ?? '—'),
+                    Placeholder::make('view_allergies')
+                        ->label('Allergies')
+                        ->content(fn (Encounter $record): string => $record->allergies ?? '—'),
+                    Placeholder::make('view_medications')
+                        ->label('Current Medications')
+                        ->content(fn (Encounter $record): string => $record->medications ?? '—'),
+                ])
+                ->columns(2),
 
-                        Section::make('Timeline')
-                            ->schema([
-                                Placeholder::make('started_at')
-                                    ->label('Started')
-                                    ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
-                                Placeholder::make('completed_at')
-                                    ->label('Completed')
-                                    ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—'),
-                            ]),
-                    ]),
+            Section::make('Findings')
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->schema([
+                    Placeholder::make('view_findings')
+                        ->label('Findings')
+                        ->content(fn (Encounter $record): string => $record->findings ?? '—')
+                        ->columnSpanFull(),
+                    Placeholder::make('view_remarks')
+                        ->label('Remarks')
+                        ->content(fn (Encounter $record): string => $record->remarks ?? '—')
+                        ->columnSpanFull(),
                 ]),
         ]);
     }
