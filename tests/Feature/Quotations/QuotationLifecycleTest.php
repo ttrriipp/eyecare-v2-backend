@@ -4,107 +4,101 @@ use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Enums\QuotationStatus;
 use App\Models\Quotation;
-use App\Models\QuotationRevision;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
-test('presenting a draft quotation marks it as presented', function () {
-    $staff = User::factory()->staff()->create();
+beforeEach(function () {
+    $this->seed(RoleSeeder::class);
+    $this->staff = User::factory()->staff()->create();
+});
+
+test('draft can be presented', function () {
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
-    QuotationRevision::factory()->create(['quotation_id' => $quotation->id, 'revision_number' => 1]);
 
-    $result = app(PresentQuotation::class)->handle($quotation, $staff);
+    $result = app(PresentQuotation::class)->handle($quotation, $this->staff);
 
-    expect($result->status)->toBe(QuotationStatus::Presented);
-    expect($result->latestRevision->presented_by)->toBe($staff->id);
-    expect($result->latestRevision->presented_at)->not->toBeNull();
+    expect($result->status)->toBe(QuotationStatus::Presented)
+        ->and($result->presented_by)->toBe($this->staff->id)
+        ->and($result->presented_at)->not->toBeNull();
 });
 
-test('cannot present a non-draft quotation', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+test('only draft can be presented', function () {
+    $quotation = Quotation::factory()->presented()->create();
 
-    app(PresentQuotation::class)->handle($quotation, $staff);
-})->throws(ValidationException::class);
+    app(PresentQuotation::class)->handle($quotation, $this->staff);
+})->throws(ValidationException::class, 'Only draft quotations can be presented.');
 
-test('accepting a presented quotation records decision', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    QuotationRevision::factory()->create(['quotation_id' => $quotation->id, 'revision_number' => 1]);
+test('draft can be directly accepted (direct sale)', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
 
-    $result = app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $staff);
+    $result = app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $this->staff);
 
-    expect($result->status)->toBe(QuotationStatus::Accepted);
-    expect($result->latestRevision->accepted_by)->toBe($staff->id);
-    expect($result->latestRevision->accepted_at)->not->toBeNull();
+    expect($result->status)->toBe(QuotationStatus::Accepted)
+        ->and($result->confirmed_by)->toBe($this->staff->id)
+        ->and($result->confirmed_at)->not->toBeNull();
 });
 
-test('declining a presented quotation records decision', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+test('presented can be accepted', function () {
+    $quotation = Quotation::factory()->presented()->create();
 
-    $result = app(RecordQuotationDecision::class)->handle($quotation, 'declined', $staff);
+    $result = app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $this->staff);
+
+    expect($result->status)->toBe(QuotationStatus::Accepted)
+        ->and($result->confirmed_by)->toBe($this->staff->id);
+});
+
+test('presented can be declined', function () {
+    $quotation = Quotation::factory()->presented()->create();
+
+    $result = app(RecordQuotationDecision::class)->handle($quotation, 'declined', $this->staff);
 
     expect($result->status)->toBe(QuotationStatus::Declined);
 });
 
-test('expiring a presented quotation records decision', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+test('presented can be expired', function () {
+    $quotation = Quotation::factory()->presented()->create();
 
-    $result = app(RecordQuotationDecision::class)->handle($quotation, 'expired', $staff);
+    $result = app(RecordQuotationDecision::class)->handle($quotation, 'expired', $this->staff);
 
     expect($result->status)->toBe(QuotationStatus::Expired);
 });
 
-test('cannot record decision on non-presented quotation', function () {
-    $staff = User::factory()->staff()->create();
+test('presented cannot be returned to draft via decision', function () {
+    $quotation = Quotation::factory()->presented()->create();
+
+    app(RecordQuotationDecision::class)->handle($quotation, 'presented', $this->staff);
+})->throws(ValidationException::class);
+
+test('accepted quotation is terminal', function () {
+    $quotation = Quotation::factory()->accepted()->create();
+
+    app(RecordQuotationDecision::class)->handle($quotation, 'declined', $this->staff);
+})->throws(ValidationException::class);
+
+test('declined quotation is terminal', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Declined]);
+
+    app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $this->staff);
+})->throws(ValidationException::class);
+
+test('expired quotation is terminal', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Expired]);
+
+    app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $this->staff);
+})->throws(ValidationException::class);
+
+test('draft cannot be declined directly', function () {
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
 
-    app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $staff);
+    app(RecordQuotationDecision::class)->handle($quotation, 'declined', $this->staff);
 })->throws(ValidationException::class);
 
-test('accepted quotations cannot be silently revised', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+test('draft cannot be expired directly', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
 
-    // Attempting to present should fail
-    $staff = User::factory()->staff()->create();
-    app(PresentQuotation::class)->handle($quotation, $staff);
+    app(RecordQuotationDecision::class)->handle($quotation, 'expired', $this->staff);
 })->throws(ValidationException::class);
-
-test('valid transitions are enforced', function () {
-    $staff = User::factory()->staff()->create();
-
-    // Draft → Presented (valid)
-    $q1 = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
-    QuotationRevision::factory()->create(['quotation_id' => $q1->id]);
-    app(PresentQuotation::class)->handle($q1, $staff);
-    expect($q1->fresh()->status)->toBe(QuotationStatus::Presented);
-
-    // Presented → Accepted (valid)
-    $q2 = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    QuotationRevision::factory()->create(['quotation_id' => $q2->id]);
-    app(RecordQuotationDecision::class)->handle($q2, 'accepted', $staff);
-    expect($q2->fresh()->status)->toBe(QuotationStatus::Accepted);
-
-    // Accepted → Presented (invalid)
-    app(PresentQuotation::class)->handle($q2->fresh(), $staff);
-})->throws(ValidationException::class);
-
-test('acceptance identifies revision recorder and time', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
-        'revision_number' => 1,
-    ]);
-
-    $result = app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $staff);
-
-    expect($result->latestRevision->accepted_by)->toBe($staff->id)
-        ->and($result->latestRevision->accepted_at)->not->toBeNull()
-        ->and($result->latestRevision->revision_number)->toBe(1);
-});

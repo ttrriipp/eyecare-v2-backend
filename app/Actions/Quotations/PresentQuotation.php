@@ -18,20 +18,11 @@ class PresentQuotation
             ]);
         }
 
-        $latestRevision = $quotation->latestRevision;
-
-        if ($latestRevision === null) {
-            throw ValidationException::withMessages([
-                'quotation' => ['Cannot present a quotation with no revisions.'],
-            ]);
-        }
-
-        $latestRevision->update([
+        $quotation->update([
+            'status' => QuotationStatus::Presented,
             'presented_by' => $presenter->id,
             'presented_at' => Carbon::now(),
         ]);
-
-        $quotation->update(['status' => QuotationStatus::Presented]);
 
         return $quotation->fresh();
     }

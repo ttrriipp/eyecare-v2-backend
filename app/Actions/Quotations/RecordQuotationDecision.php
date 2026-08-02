@@ -13,40 +13,47 @@ class RecordQuotationDecision
     /**
      * Record a patient's decision on a presented quotation.
      *
-     * @param  'accepted'|'declined'|'expired'  $decision
+     * Allowed transitions:
+     * - Draft -> Presented (via PresentQuotation) or Accepted (direct sale)
+     * - Presented -> Draft (via UpdateQuotationDraft), Accepted, Declined, Expired
+     * - Accepted, Declined, Expired -> terminal
+     *
+     * @param  'presented'|'accepted'|'declined'|'expired'  $decision
      */
     public function handle(
         Quotation $quotation,
         string $decision,
         User $recorder,
     ): Quotation {
-        if ($quotation->status !== QuotationStatus::Presented) {
-            throw ValidationException::withMessages([
-                'quotation' => ['Only presented quotations can have a decision recorded.'],
-            ]);
-        }
+        $targetStatus = QuotationStatus::from($decision);
 
-        $status = QuotationStatus::from($decision);
+        // Validate allowed transitions
+        $this->validateTransition($quotation->status, $targetStatus);
 
-        $attributes = ['status' => $status];
+        $attributes = ['status' => $targetStatus];
 
-        if ($status === QuotationStatus::Accepted) {
-            $latestRevision = $quotation->latestRevision;
-
-            if ($latestRevision === null) {
-                throw ValidationException::withMessages([
-                    'quotation' => ['Cannot accept a quotation with no revisions.'],
-                ]);
-            }
-
-            $latestRevision->update([
-                'accepted_by' => $recorder->id,
-                'accepted_at' => Carbon::now(),
-            ]);
+        if ($targetStatus === QuotationStatus::Accepted) {
+            $attributes['confirmed_by'] = $recorder->id;
+            $attributes['confirmed_at'] = Carbon::now();
         }
 
         $quotation->update($attributes);
 
         return $quotation->fresh();
+    }
+
+    private function validateTransition(QuotationStatus $current, QuotationStatus $target): void
+    {
+        $allowed = match ($current) {
+            QuotationStatus::Draft => [QuotationStatus::Presented, QuotationStatus::Accepted],
+            QuotationStatus::Presented => [QuotationStatus::Accepted, QuotationStatus::Declined, QuotationStatus::Expired],
+            default => [],
+        };
+
+        if (! in_array($target, $allowed, true)) {
+            throw ValidationException::withMessages([
+                'quotation' => ["Cannot transition from {$current->value} to {$target->value}."],
+            ]);
+        }
     }
 }
