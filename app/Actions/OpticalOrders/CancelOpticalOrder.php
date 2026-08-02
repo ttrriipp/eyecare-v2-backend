@@ -26,7 +26,7 @@ class CancelOpticalOrder
             // Reverse inventory
             app(UpdateJobOrderStatus::class)->handle(
                 jobOrder: $jobOrder,
-                newStatus: JobOrderStatus::Cancelled,
+                statusName: JobOrderStatus::Cancelled->value,
             );
 
             // Handle billing

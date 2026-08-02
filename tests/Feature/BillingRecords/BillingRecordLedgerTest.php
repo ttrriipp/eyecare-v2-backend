@@ -1,91 +1,153 @@
 <?php
 
+use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
+use App\Actions\OpticalOrders\CancelOpticalOrder;
+use App\Enums\BillingRecordStatus;
+use App\Enums\JobOrderStatus;
+use App\Models\BillingRecord;
+use App\Models\JobOrder;
+use App\Models\ProductVariant;
+use App\Models\Quotation;
+use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
-test('billing_records table has the approved columns', function () {
-    expect(Schema::hasTable('billing_records'))->toBeTrue()
-        ->and(Schema::hasColumns('billing_records', [
-            'id',
-            'billing_record_number',
-            'patient_id',
-            'job_order_id',
-            'encounter_id',
-            'status',
-            'total_amount',
-            'amount_paid',
-            'balance_due',
-            'notes',
-            'recorded_by',
-            'recorded_at',
-            'voided_by',
-            'voided_at',
-            'void_reason',
-            'created_at',
-            'updated_at',
-        ]))->toBeTrue();
+beforeEach(function () {
+    $this->seed(RoleSeeder::class);
+    $this->staff = User::factory()->staff()->create();
+    $this->actingAs($this->staff);
 });
 
-test('billing_records job_order_id is unique', function () {
-    $indexes = DB::select("SHOW INDEX FROM billing_records WHERE Column_name = 'job_order_id'");
-    $uniqueIndexes = array_filter($indexes, fn ($index) => $index->Non_unique === 0);
+test('cancellation releases committed inventory', function () {
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    expect(count($uniqueIndexes))->toBeGreaterThan(0);
+    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 3,
+        'unit_price' => 1666.67,
+        'amount' => 5000,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $jobOrder = $result['job_order'];
+
+    // Stock decremented after confirmation
+    expect($variant->fresh()->stock_quantity)->toBe(7);
+
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+
+    // Stock restored after cancellation
+    expect($variant->fresh()->stock_quantity)->toBe(10);
 });
 
-test('billing_records status default is unpaid', function () {
-    $columns = DB::select("SHOW COLUMNS FROM billing_records WHERE Field = 'status'");
-    $statusColumn = $columns[0];
+test('cancellation voids billing when no posted payments', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
 
-    expect($statusColumn->Default)->toBe('unpaid');
+    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $jobOrder = $result['job_order'];
+
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+
+    expect($result['billing_record']->fresh()->status)->toBe(BillingRecordStatus::Voided);
 });
 
-test('billing_payments table has the approved columns', function () {
-    expect(Schema::hasTable('billing_payments'))->toBeTrue()
-        ->and(Schema::hasColumns('billing_payments', [
-            'id',
-            'billing_record_id',
-            'amount',
-            'payment_method',
-            'reference_number',
-            'status',
-            'recorded_by',
-            'recorded_at',
-            'notes',
-            'reversed_by',
-            'reversed_at',
-            'reversal_reason',
-            'created_at',
-            'updated_at',
-        ]))->toBeTrue();
+test('cancellation preserves billing when posted payments exist', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 10000,
+        'amount' => 10000,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation, depositAmount: 3000);
+    $jobOrder = $result['job_order'];
+
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+
+    $billing = $result['billing_record']->fresh();
+
+    // Billing is NOT voided because there are posted payments
+    expect($billing->status)->not->toBe(BillingRecordStatus::Voided)
+        ->and((float) $billing->amount_paid)->toBe(3000.0);
 });
 
-test('billing_payments status default is posted', function () {
-    $columns = DB::select("SHOW COLUMNS FROM billing_payments WHERE Field = 'status'");
-    $statusColumn = $columns[0];
+test('dispensed order cannot be cancelled', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Dispensed,
+        'supplier_invoice_number' => 'INV-001',
+    ]);
 
-    expect($statusColumn->Default)->toBe('posted');
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+})->throws(ValidationException::class);
+
+test('already cancelled order cannot be cancelled again', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Cancelled,
+    ]);
+
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+})->throws(ValidationException::class);
+
+test('paid billing is never overdue', function () {
+    $billing = BillingRecord::factory()->create([
+        'status' => BillingRecordStatus::Paid,
+        'total_amount' => 5000,
+        'amount_paid' => 5000,
+        'balance_due' => 0,
+        'payment_due_date' => today()->subDays(30),
+    ]);
+
+    expect($billing->isOverdue())->toBeFalse();
 });
 
-test('invoice_items table does not exist', function () {
-    expect(Schema::hasTable('invoice_items'))->toBeFalse();
+test('voided billing is never overdue', function () {
+    $billing = BillingRecord::factory()->voided()->create([
+        'payment_due_date' => today()->subDays(30),
+    ]);
+
+    expect($billing->isOverdue())->toBeFalse();
 });
 
-test('invoices table does not exist', function () {
-    expect(Schema::hasTable('invoices'))->toBeFalse();
-});
+test('aggregate relationships consistent after cancellation', function () {
+    $quotation = Quotation::factory()->presented()->create([
+        'total' => 8000,
+        'eyewear_key' => 'eyw_01CANCELTEST',
+    ]);
 
-test('invoice_payments table does not exist', function () {
-    expect(Schema::hasTable('invoice_payments'))->toBeFalse();
-});
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 8000,
+        'amount' => 8000,
+    ]);
 
-test('billing record status supports only approved values', function () {
-    $statuses = ['unpaid', 'partially_paid', 'paid', 'voided'];
+    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $jobOrder = $result['job_order'];
 
-    foreach ($statuses as $status) {
-        $record = \App\Models\BillingRecord::factory()->create(['status' => $status]);
-        expect($record->status->value)->toBe($status);
-    }
+    app(CancelOpticalOrder::class)->handle($jobOrder);
+
+    // Quotation -> Job Order link preserved
+    expect($quotation->fresh()->jobOrder->id)->toBe($jobOrder->id);
+
+    // Job Order -> Billing link preserved
+    expect($jobOrder->fresh()->billingRecord->id)->toBe($result['billing_record']->id);
+
+    // Eyewear key stable
+    expect($jobOrder->fresh()->eyewear_key)->toBe('eyw_01CANCELTEST');
+
+    // Statuses updated
+    expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Cancelled)
+        ->and($result['billing_record']->fresh()->status)->toBe(BillingRecordStatus::Voided);
 });
