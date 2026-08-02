@@ -20,15 +20,20 @@ class DispenseJobOrder
     ) {}
 
     /**
-     * Atomically dispense a job order, create billing record, and record dispensing event.
+     * Dispense a job order against its existing billing record.
+     *
+     * The billing record must exist (created at confirmation). Dispensing
+     * never creates a new billing record. Optional pickup payment is
+     * recorded against the existing billing record.
      */
     public function handle(
         JobOrder $jobOrder,
         User $dispenser,
         ?string $recipientName = null,
         ?string $notes = null,
-        ?float $initialPaymentAmount = null,
-        ?string $initialPaymentMethod = null,
+        ?float $pickupPaymentAmount = null,
+        ?string $pickupPaymentMethod = null,
+        ?string $pickupPaymentReference = null,
     ): DispensingEvent {
         if ($jobOrder->status !== JobOrderStatus::ReadyForDispensing) {
             throw ValidationException::withMessages([
@@ -36,33 +41,27 @@ class DispenseJobOrder
             ]);
         }
 
-        return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $initialPaymentAmount, $initialPaymentMethod): DispensingEvent {
-            // Check for existing billing record (prevent duplicates)
-            $existing = BillingRecord::query()
+        return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $pickupPaymentAmount, $pickupPaymentMethod, $pickupPaymentReference): DispensingEvent {
+            // Require existing billing record (created at confirmation)
+            $billingRecord = BillingRecord::query()
                 ->where('job_order_id', $jobOrder->id)
+                ->lockForUpdate()
                 ->first();
 
-            if ($existing !== null) {
+            if ($billingRecord === null) {
                 throw ValidationException::withMessages([
-                    'job_order' => ['A billing record already exists for this job order.'],
+                    'job_order' => ['No billing record found. Confirm the sale before dispensing.'],
+                ]);
+            }
+
+            if ($billingRecord->status === BillingRecordStatus::Voided) {
+                throw ValidationException::withMessages([
+                    'billing_record' => ['Cannot dispense against a voided billing record.'],
                 ]);
             }
 
             // Update job order status to dispensed
             $this->updateJobOrderStatus->handle($jobOrder, 'dispensed');
-
-            // Create billing record
-            $billingRecord = BillingRecord::query()->create([
-                'patient_id' => $jobOrder->patient_id,
-                'job_order_id' => $jobOrder->id,
-                'encounter_id' => $jobOrder->encounter_id,
-                'status' => BillingRecordStatus::Unpaid,
-                'total_amount' => $jobOrder->total_amount,
-                'amount_paid' => 0,
-                'balance_due' => $jobOrder->total_amount,
-                'recorded_by' => $dispenser->id,
-                'recorded_at' => now(),
-            ]);
 
             // Record dispensing event
             $event = DispensingEvent::query()->create([
@@ -73,25 +72,26 @@ class DispenseJobOrder
                 'notes' => $notes,
             ]);
 
-            // Record initial payment if provided
-            if ($initialPaymentAmount !== null && $initialPaymentAmount > 0) {
+            // Record optional pickup payment
+            if ($pickupPaymentAmount !== null && $pickupPaymentAmount > 0) {
                 app(RecordBillingPayment::class)->handle(
                     billingRecord: $billingRecord,
-                    amount: $initialPaymentAmount,
-                    paymentMethod: $initialPaymentMethod ?? 'cash',
+                    amount: $pickupPaymentAmount,
+                    paymentMethod: $pickupPaymentMethod ?? 'cash',
                     recorder: $dispenser,
+                    referenceNumber: $pickupPaymentReference,
+                    notes: 'Payment at dispensing',
                 );
             }
 
             // Audit
             app(CreateAuditLog::class)->handle(
                 subject: $billingRecord,
-                action: 'billing_record.created',
+                action: 'billing_record.dispensed',
                 metadata: [
                     'job_order_id' => $jobOrder->id,
                     'dispensing_event_id' => $event->id,
-                    'total_amount' => $jobOrder->total_amount,
-                    'initial_payment' => $initialPaymentAmount,
+                    'pickup_payment' => $pickupPaymentAmount,
                 ],
                 actorId: $dispenser->id,
             );
