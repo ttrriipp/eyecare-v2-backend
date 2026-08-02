@@ -16,14 +16,31 @@ class CreateOpticalOrder extends CreateRecord
 {
     protected static string $resource = OpticalOrderResource::class;
 
-    /**
-     * @var array<string, mixed>
-     */
-    protected static array $queryParams = ['encounter'];
-
     public function getTitle(): string
     {
         return 'New Optical Order';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function getInitialFormData(): array
+    {
+        $data = parent::getInitialFormData();
+
+        // Prefill from encounter context if provided
+        $encounterId = request()->query('encounter');
+
+        if ($encounterId) {
+            $encounter = Encounter::with('patient')->find($encounterId);
+
+            if ($encounter) {
+                $data['patient_id'] = $encounter->patient_id;
+                $data['encounter_id'] = $encounter->id;
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -81,27 +98,6 @@ class CreateOpticalOrder extends CreateRecord
 
             $this->halt();
         }
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     * @return array<string, mixed>
-     */
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        // Prefill from encounter context if provided
-        $encounterId = request()->query('encounter');
-
-        if ($encounterId) {
-            $encounter = Encounter::with('patient')->find($encounterId);
-
-            if ($encounter) {
-                $data['patient_id'] = $encounter->patient_id;
-                $data['encounter_id'] = $encounter->id;
-            }
-        }
-
-        return $data;
     }
 
     protected function getCreatedNotificationTitle(): ?string
