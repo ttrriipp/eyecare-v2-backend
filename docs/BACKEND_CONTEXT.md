@@ -2,11 +2,11 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-02.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-03.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, appointment requests, authenticated step-up for sensitive
 > changes, and Optical Orders workflow have been implemented. The API
-> contract includes 54 routes (8 public, 21 account-only, 25 active-link).
+> contract includes 55 routes (8 public, 24 account-only, 23 active-link).
 > Legacy intake routes and direct booking have been removed. All accounts use
 > structured first/middle/last names.
 
@@ -245,6 +245,8 @@ POST   /api/v1/patient-link-requests
 GET    /api/v1/patient-link-requests/current
 POST   /api/v1/patient-invitations/acceptance/otp
 POST   /api/v1/patient-invitations/accept
+GET    /api/v1/frames
+GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
 GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
@@ -259,8 +261,6 @@ GET    /api/v1/appointments
 GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
 POST   /api/v1/appointments/{id}/reschedule
-GET    /api/v1/frames
-GET    /api/v1/frames/{id}
 GET    /api/v1/frame-reservations
 POST   /api/v1/frame-reservations
 POST   /api/v1/frame-reservations/{id}/cancel
@@ -281,7 +281,7 @@ GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 21 account-only + 25 active-link = **54 routes total.**
+**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
@@ -289,7 +289,7 @@ Breaking changes from coordinated Android cutover:
 - Direct `POST /appointments` removed (use appointment requests)
 - Three intake routes removed (retired)
 
-All patient resource access is scoped through the authenticated account's linked patient identity. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
+All patient-specific clinical resource access is scoped through the authenticated account's linked patient identity. The frame catalog is account-level catalog data; unlinked accounts may browse it but cannot create frame reservations. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
 
 ---
 
@@ -313,7 +313,8 @@ All patient resource access is scoped through the authenticated account's linked
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Verifies OTP, creates/reuses account, activates link |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
-| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability |
+| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability, persists encrypted identity snapshot for unlinked accounts |
+| `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds encrypted identity/contact snapshot from submitted identity or account fallback, derives verified contact server-side |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Ownership check, status validation |
 | `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment, copies reason, idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
