@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\PatientAccounts\Schemas;
 
-use App\Models\PatientLinkRequest;
 use Carbon\Carbon;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Grid;
@@ -114,29 +113,6 @@ class PatientAccountForm
                         Placeholder::make('patient_number')
                             ->label('Patient Number')
                             ->content(fn ($record) => $record?->patient?->patient_number ?? '—'),
-                    ]),
-
-                    Section::make('Link Requests')->schema([
-                        Placeholder::make('link_requests')
-                            ->label('')
-                            ->content(function ($record): string {
-                                if ($record === null) {
-                                    return '—';
-                                }
-
-                                $requests = PatientLinkRequest::where('user_id', $record->id)
-                                    ->orderBy('created_at', 'desc')
-                                    ->limit(10)
-                                    ->get();
-
-                                if ($requests->isEmpty()) {
-                                    return 'No link requests';
-                                }
-
-                                return $requests->map(fn ($r) => "{$r->request_number} — {$r->status} — {$r->created_at->format('M j, Y g:i A')}"
-                                )->implode("\n");
-                            })
-                            ->columnSpanFull(),
                     ]),
                 ]),
             ]),
