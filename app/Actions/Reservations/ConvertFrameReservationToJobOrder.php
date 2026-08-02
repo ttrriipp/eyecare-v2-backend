@@ -3,8 +3,8 @@
 namespace App\Actions\Reservations;
 
 use App\Actions\JobOrders\CommitJobOrderInventory;
-use App\Enums\FrameReservationStatus;
 use App\Enums\InventoryMovementType;
+use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\JobOrder;
@@ -15,8 +15,8 @@ class ConvertFrameReservationToJobOrder
 {
     public function handle(FrameReservation $reservation, JobOrder $jobOrder): void
     {
-        if ($reservation->status !== FrameReservationStatus::Prepared
-            && $reservation->status !== FrameReservationStatus::Requested) {
+        if ($reservation->status !== ReservationStatus::Requested
+            && $reservation->status !== ReservationStatus::Prepared) {
             throw ValidationException::withMessages([
                 'reservation' => ['Only requested or prepared reservations can be converted.'],
             ]);
@@ -25,7 +25,7 @@ class ConvertFrameReservationToJobOrder
         DB::transaction(function () use ($reservation, $jobOrder) {
             $reservation->lockForUpdate();
 
-            if ($reservation->status === FrameReservationStatus::Prepared) {
+            if ($reservation->status === ReservationStatus::Prepared) {
                 // Transfer: release reservation allocation + commit order
                 // Net-zero stock change for prepared variants
                 foreach ($reservation->items as $item) {
@@ -63,7 +63,7 @@ class ConvertFrameReservationToJobOrder
 
             // Link and convert
             $jobOrder->update(['frame_reservation_id' => $reservation->id]);
-            $reservation->update(['status' => FrameReservationStatus::Converted]);
+            $reservation->update(['status' => ReservationStatus::Converted]);
         });
     }
 }

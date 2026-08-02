@@ -2,6 +2,7 @@
 
 namespace App\Actions\OpticalOrders;
 
+use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -71,6 +72,10 @@ class AcceptAndStartOpticalOrder
                         'lens_category_id' => $item->lens_category_id,
                     ]);
                 }
+
+                // Commit inventory for catalog-backed items (frame, accessories)
+                // Service and custom lines do not affect inventory
+                app(CommitJobOrderInventory::class)->handle($jobOrder);
             }
 
             // Create or return existing Billing Record
