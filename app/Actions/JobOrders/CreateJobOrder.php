@@ -30,23 +30,15 @@ class CreateJobOrder
             ]);
         }
 
-        $latestRevision = $quotation->latestRevision;
-
-        if ($latestRevision === null) {
-            throw ValidationException::withMessages([
-                'quotation' => ['Cannot create a job order from a quotation with no revisions.'],
-            ]);
-        }
-
-        return DB::transaction(function () use ($quotation, $latestRevision, $creator): JobOrder {
-            $lockedRevision = $quotation->revisions()
-                ->whereKey($latestRevision->id)
+        return DB::transaction(function () use ($quotation, $creator): JobOrder {
+            $quotation = Quotation::query()
+                ->whereKey($quotation->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (JobOrder::query()->where('quotation_revision_id', $lockedRevision->id)->exists()) {
+            if (JobOrder::query()->where('quotation_id', $quotation->id)->exists()) {
                 throw ValidationException::withMessages([
-                    'quotation' => ['A job order already exists for this quotation revision.'],
+                    'quotation' => ['A job order already exists for this quotation.'],
                 ]);
             }
 
@@ -56,15 +48,13 @@ class CreateJobOrder
                 ]);
             }
 
-            $lockedRevision->load('items');
-
             $jobOrder = JobOrder::query()->create([
                 'patient_id' => $quotation->patient_id,
                 'encounter_id' => $quotation->encounter_id,
                 'prescription_id' => $quotation->prescription_id,
-                'quotation_revision_id' => $lockedRevision->id,
+                'quotation_id' => $quotation->id,
                 'status' => JobOrderStatus::Queued,
-                'total_amount' => $lockedRevision->total,
+                'total_amount' => $quotation->total,
                 'eyewear_key' => $quotation->eyewear_key,
             ]);
 
@@ -72,7 +62,7 @@ class CreateJobOrder
                 ->firstOrCreate(['name' => 'order_commitment']);
 
             // Snapshot items and commit inventory
-            foreach ($lockedRevision->items as $item) {
+            foreach ($quotation->items as $item) {
                 JobOrderItem::query()->create([
                     'job_order_id' => $jobOrder->id,
                     'description' => $item->description,

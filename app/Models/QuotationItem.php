@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'quotation_id',
-    'quotation_revision_id',
     'description',
     'quantity',
     'unit_price',
@@ -27,14 +26,6 @@ class QuotationItem extends Model
     public function quotation(): BelongsTo
     {
         return $this->belongsTo(Quotation::class);
-    }
-
-    /**
-     * @return BelongsTo<QuotationRevision, $this>
-     */
-    public function revision(): BelongsTo
-    {
-        return $this->belongsTo(QuotationRevision::class, 'quotation_revision_id');
     }
 
     /**
