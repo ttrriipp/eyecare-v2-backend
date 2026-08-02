@@ -35,8 +35,16 @@ class EditAppointment extends EditRecord
                 ->modalHeading(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
                 ->modalDescription(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress'
                     ? 'Open the encounter to continue the consultation.'
-                    : 'This will start the examination. The encounter will be marked as in-progress.')
-                ->action(function (): void {
+                    : 'Select the optometrist and start the examination.')
+                ->schema(fn (): array => $this->getRecord()->encounter?->status?->name === 'in_progress' ? [] : [
+                    Select::make('optometrist_id')
+                        ->label('Optometrist')
+                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                ])
+                ->action(function (array $data): void {
                     $encounter = $this->getRecord()->encounter;
 
                     if ($encounter === null) {
@@ -45,12 +53,14 @@ class EditAppointment extends EditRecord
                         return;
                     }
 
-                    // Start the encounter if it's still planned
                     if ($encounter->status->name === 'planned') {
+                        $optometristId = $data['optometrist_id'] ?? auth()->id();
+                        $optometrist = User::findOrFail($optometristId);
+
                         try {
                             app(StartEncounter::class)->handle(
                                 encounter: $encounter,
-                                optometrist: auth()->user(),
+                                optometrist: $optometrist,
                                 actor: auth()->user(),
                             );
                         } catch (ValidationException $e) {

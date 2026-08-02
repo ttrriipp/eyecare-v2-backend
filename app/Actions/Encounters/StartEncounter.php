@@ -29,12 +29,6 @@ class StartEncounter
             ]);
         }
 
-        if (! $actor->is_optometrist) {
-            throw ValidationException::withMessages([
-                'actor' => ['Only optometrists can start clinical encounters.'],
-            ]);
-        }
-
         return DB::transaction(function () use ($encounter, $optometrist, $actor): Encounter {
             $appointment = $encounter->appointment;
 
