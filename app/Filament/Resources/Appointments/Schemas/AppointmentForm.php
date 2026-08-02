@@ -153,6 +153,7 @@ class AppointmentForm
                         ->columns(2),
 
                     Section::make('Appointment Details')
+                        ->key('appointment-details')
                         ->schema([
                             TextInput::make('appointment_number')
                                 ->label('Appointment #')
@@ -194,6 +195,12 @@ class AppointmentForm
                                 ->size(TextSize::Large)
                                 ->extraAttributes(['class' => 'appointment-status-entry'])
                                 ->hiddenOn('create'),
+                            Textarea::make('reason_for_visit')
+                                ->label('Reason for Visit')
+                                ->placeholder('Optional for staff-created appointments')
+                                ->rows(3)
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
+                                ->columnSpanFull(),
                             TextInput::make('referring_source')
                                 ->label('Referring Source')
                                 ->placeholder('Name of referring doctor or clinic')
@@ -246,15 +253,6 @@ class AppointmentForm
                             ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                             ->placeholder('Assign later'),
                     ]),
-
-                    Section::make('Reason for Visit')
-                        ->hiddenOn('create')
-                        ->schema([
-                            Textarea::make('reason_for_visit')
-                                ->label('Reason')
-                                ->disabled()
-                                ->rows(3),
-                        ]),
 
                     Section::make('Timeline')
                         ->hiddenOn('create')
