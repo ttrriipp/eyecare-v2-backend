@@ -135,24 +135,6 @@ class EditEncounter extends EditRecord
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
     }
 
-    protected function getSaveFormAction(): Action
-    {
-        $action = parent::getSaveFormAction();
-
-        if ($this->record->status === EncounterStatus::InProgress) {
-            $action
-                ->label('Complete Visit')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Complete Visit')
-                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
-                ->modalSubmitActionLabel('Complete Visit');
-        }
-
-        return $action;
-    }
-
     protected function getHeaderActions(): array
     {
         return [
