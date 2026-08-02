@@ -202,6 +202,7 @@ class EncounterForm
                             ]),
 
                         Section::make('Prescription')
+                            ->visible(fn (Get $get, Encounter $record): bool => self::hasPrescriptionFormData($get) || self::latestPrescription($record) !== null)
                             ->schema([
                                 Grid::make(2)
                                     ->schema([
