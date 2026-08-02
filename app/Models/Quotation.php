@@ -64,23 +64,7 @@ class Quotation extends Model
     }
 
     /**
-     * @return HasMany<QuotationRevision, $this>
-     */
-    public function revisions(): HasMany
-    {
-        return $this->hasMany(QuotationRevision::class);
-    }
-
-    /**
-     * Get the latest revision.
-     */
-    public function latestRevision(): HasOne
-    {
-        return $this->hasOne(QuotationRevision::class)->latestOfMany('revision_number');
-    }
-
-    /**
-     * Direct items relationship (bypasses revisions).
+     * Direct items relationship.
      *
      * @return HasMany<QuotationItem, $this>
      */

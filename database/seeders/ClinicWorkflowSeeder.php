@@ -22,7 +22,6 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
-use App\Models\QuotationRevision;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -143,30 +142,24 @@ class ClinicWorkflowSeeder extends Seeder
                 'prescription_id' => $prescription->id,
                 'status' => QuotationStatus::Accepted,
                 'valid_until' => now()->addDays(14),
-                'notes' => 'Includes anti-reflective coating and scratch-resistant treatment.',
-            ],
-        );
-
-        $revision = QuotationRevision::query()->firstOrCreate(
-            ['quotation_id' => $quotation->id, 'revision_number' => 1],
-            [
                 'subtotal' => 7500,
                 'discount_amount' => 0,
                 'total' => 7500,
                 'presented_by' => $staff->id,
                 'presented_at' => now()->subDays(1),
-                'accepted_by' => $staff->id,
-                'accepted_at' => now()->subDays(1)->addMinutes(30),
+                'confirmed_by' => $staff->id,
+                'confirmed_at' => now()->subDays(1)->addMinutes(30),
+                'notes' => 'Includes anti-reflective coating and scratch-resistant treatment.',
             ],
         );
 
         QuotationItem::query()->firstOrCreate(
-            ['quotation_revision_id' => $revision->id, 'description' => 'Classic Frame — Matte Black'],
+            ['quotation_id' => $quotation->id, 'description' => 'Classic Frame — Matte Black'],
             ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500],
         );
 
         QuotationItem::query()->firstOrCreate(
-            ['quotation_revision_id' => $revision->id, 'description' => 'Progressive Lens with AR Coating'],
+            ['quotation_id' => $quotation->id, 'description' => 'Progressive Lens with AR Coating'],
             ['quantity' => 1, 'unit_price' => 5000, 'amount' => 5000],
         );
 
@@ -175,10 +168,8 @@ class ClinicWorkflowSeeder extends Seeder
 
     private function seedJobOrder(Patient $patient, Encounter $encounter, Prescription $prescription, Quotation $quotation, User $staff): JobOrder
     {
-        $revision = $quotation->latestRevision;
-
         $jobOrder = JobOrder::query()->firstOrCreate(
-            ['quotation_revision_id' => $revision->id],
+            ['quotation_id' => $quotation->id],
             [
                 'job_order_number' => 'JO-2026-000001',
                 'eyewear_key' => $quotation->eyewear_key,

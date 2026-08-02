@@ -26,7 +26,6 @@ class JobOrderFactory extends Factory
             'encounter_id' => null,
             'prescription_id' => null,
             'quotation_id' => null,
-            'quotation_revision_id' => null,
             'status' => JobOrderStatus::Queued,
             'total_amount' => fake()->randomFloat(2, 100, 10000),
             'notes' => null,
