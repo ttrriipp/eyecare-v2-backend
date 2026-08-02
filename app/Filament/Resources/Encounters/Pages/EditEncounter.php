@@ -5,13 +5,11 @@ namespace App\Filament\Resources\Encounters\Pages;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
-use App\Actions\Quotations\CreateQuotation;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Filament\Resources\Quotations\QuotationResource;
-use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -240,9 +238,9 @@ class EditEncounter extends EditRecord
                     'record' => $this->record->prescriptions()->latest('id')->value('id'),
                 ])),
 
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
+            Action::make('createOpticalOrder')
+                ->label('Create Optical Order')
+                ->icon('heroicon-o-shopping-bag')
                 ->color('success')
                 ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
                     && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
@@ -253,42 +251,18 @@ class EditEncounter extends EditRecord
                         ->withTrashed()
                         ->where('encounter_id', $this->record->id)
                         ->exists())
-                ->modalHeading('Create Draft Quotation')
-                ->modalDescription('Add the items and estimated prices discussed with the patient.')
-                ->modalSubmitActionLabel('Create Draft')
-                ->modalWidth('7xl')
-                ->schema(QuotationCreationForm::components())
-                ->action(function (array $data): void {
-                    $creator = auth()->user();
+                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
+                    'encounter' => $this->record->id,
+                ])),
 
-                    abort_unless($creator instanceof User, 403);
-
-                    $quotation = app(CreateQuotation::class)->handle(
-                        patient: $this->record->patient,
-                        creator: $creator,
-                        data: $data,
-                        encounter: $this->record,
-                    );
-
-                    Notification::make()
-                        ->title('Draft quotation created')
-                        ->body('Review the quotation, then present it to the patient.')
-                        ->success()
-                        ->send();
-
-                    $this->redirect(QuotationResource::getUrl('edit', [
-                        'record' => $quotation,
-                    ]));
-                }),
-
-            Action::make('viewQuotation')
-                ->label('View Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
+            Action::make('viewOpticalOrder')
+                ->label('View Optical Order')
+                ->icon('heroicon-o-shopping-bag')
                 ->color('gray')
                 ->visible(fn (): bool => Quotation::query()
                     ->where('encounter_id', $this->record->id)
                     ->exists())
-                ->url(fn (): string => QuotationResource::getUrl('edit', [
+                ->url(fn (): string => OpticalOrderResource::getUrl('view', [
                     'record' => Quotation::query()
                         ->where('encounter_id', $this->record->id)
                         ->latest('id')

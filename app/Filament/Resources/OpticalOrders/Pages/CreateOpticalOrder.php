@@ -4,6 +4,7 @@ namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Actions\Quotations\CreateQuotation;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\User;
 use Filament\Notifications\Notification;
@@ -14,6 +15,16 @@ use Illuminate\Validation\ValidationException;
 class CreateOpticalOrder extends CreateRecord
 {
     protected static string $resource = OpticalOrderResource::class;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected static array $queryParams = ['encounter'];
+
+    public function getTitle(): string
+    {
+        return 'New Optical Order';
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -29,6 +40,12 @@ class CreateOpticalOrder extends CreateRecord
         $data['discount_amount'] = $data['discount_amount'] ?? 0;
         $data['total'] = max($subtotal - (float) ($data['discount_amount'] ?? 0), 0);
 
+        // Set encounter context if provided
+        $encounterId = request()->query('encounter');
+        if ($encounterId && ! isset($data['encounter_id'])) {
+            $data['encounter_id'] = $encounterId;
+        }
+
         return $data;
     }
 
@@ -40,12 +57,20 @@ class CreateOpticalOrder extends CreateRecord
 
         $patient = Patient::findOrFail($data['patient_id']);
 
+        $encounter = null;
+        if (isset($data['encounter_id'])) {
+            $encounter = Encounter::query()
+                ->where('id', $data['encounter_id'])
+                ->where('patient_id', $patient->id)
+                ->first();
+        }
+
         try {
             return app(CreateQuotation::class)->handle(
                 patient: $patient,
                 creator: $creator,
                 data: $data,
-                encounter: isset($data['encounter_id']) ? $patient->encounters()->find($data['encounter_id']) : null,
+                encounter: $encounter,
             );
         } catch (ValidationException $e) {
             Notification::make()
@@ -56,6 +81,27 @@ class CreateOpticalOrder extends CreateRecord
 
             $this->halt();
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        // Prefill from encounter context if provided
+        $encounterId = request()->query('encounter');
+
+        if ($encounterId) {
+            $encounter = Encounter::with('patient')->find($encounterId);
+
+            if ($encounter) {
+                $data['patient_id'] = $encounter->patient_id;
+                $data['encounter_id'] = $encounter->id;
+            }
+        }
+
+        return $data;
     }
 
     protected function getCreatedNotificationTitle(): ?string
