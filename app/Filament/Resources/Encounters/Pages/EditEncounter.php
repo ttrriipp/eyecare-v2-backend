@@ -2,8 +2,9 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
-use App\Actions\Appointments\CancelAppointment;
+use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
+use App\Actions\Prescriptions\FinalizePrescription;
 use App\Actions\Quotations\CreateQuotation;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
@@ -15,14 +16,34 @@ use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 class EditEncounter extends EditRecord
 {
     protected static string $resource = EncounterResource::class;
+
+    /**
+     * @var array<int, string>
+     */
+    private const PRESCRIPTION_FIELDS = [
+        'main_od_value',
+        'main_od_sphere',
+        'main_od_cylinder',
+        'main_os_value',
+        'main_os_sphere',
+        'main_os_cylinder',
+        'add_od_value',
+        'add_od_sphere',
+        'add_od_cylinder',
+        'add_os_value',
+        'add_os_sphere',
+        'add_os_cylinder',
+        'remarks',
+    ];
 
     public function getTitle(): string
     {
@@ -42,6 +63,76 @@ class EditEncounter extends EditRecord
             $this->record->encounter_number,
             'Edit',
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $prescription = $this->record->prescriptions()->latest('id')->first();
+
+        $data['prescription'] = $prescription === null
+            ? ['prescribed_at' => now()->toDateString()]
+            : Arr::only($prescription->attributesToArray(), [
+                ...self::PRESCRIPTION_FIELDS,
+                'prescribed_at',
+            ]);
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $prescriptionData = $data['prescription'] ?? [];
+        unset($data['prescription']);
+
+        $shouldFinalizePrescription = $record->status === EncounterStatus::InProgress
+            && $this->shouldFinalizePrescription($prescriptionData)
+            && ! $record->prescriptions()->withTrashed()->exists();
+        $author = $shouldFinalizePrescription ? auth()->user() : null;
+
+        if ($shouldFinalizePrescription) {
+            abort_unless($author instanceof User && $author->hasOptometristCapability(), 403);
+        }
+
+        $record->update($data);
+
+        if ($shouldFinalizePrescription && $author instanceof User) {
+            app(FinalizePrescription::class)->handle(
+                patient: $record->patient,
+                encounter: $record,
+                author: $author,
+                data: Arr::only($prescriptionData, self::PRESCRIPTION_FIELDS),
+            );
+        }
+
+        // Complete the encounter when wizard is submitted for in-progress encounters
+        if ($record->status === EncounterStatus::InProgress) {
+            $actor = auth()->user();
+
+            if ($actor instanceof User) {
+                app(CompleteEncounter::class)->handle(
+                    encounter: $record,
+                    actor: $actor,
+                );
+            }
+        }
+
+        return $record;
+    }
+
+    /**
+     * @param  array<string, mixed>  $prescriptionData
+     */
+    private function shouldFinalizePrescription(array $prescriptionData): bool
+    {
+        return collect(self::PRESCRIPTION_FIELDS)
+            ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
     }
 
     protected function getHeaderActions(): array
@@ -161,47 +252,6 @@ class EditEncounter extends EditRecord
                         ->latest('id')
                         ->value('id'),
                 ])),
-
-            Action::make('cancelAppointment')
-                ->label('Cancel Appointment')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
-                    && $this->record->appointment !== null
-                    && in_array($this->record->appointment->status?->name, ['scheduled', 'checked_in'], true))
-                ->requiresConfirmation()
-                ->schema(fn (): array => [
-                    Select::make('reason_category')
-                        ->label('Reason')
-                        ->options([
-                            'patient_requested' => 'Patient requested',
-                            'optometrist_unavailable' => 'Optometrist unavailable',
-                            'clinic_schedule_change' => 'Clinic schedule change',
-                            'scheduling_conflict' => 'Scheduling conflict',
-                            'other' => 'Other',
-                        ])
-                        ->required(),
-                    Textarea::make('reason_details')
-                        ->label('Details')
-                        ->requiredIf('reason_category', 'other')
-                        ->nullable(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CancelAppointment::class)->handle(
-                            appointment: $this->record->appointment,
-                            initiator: 'clinic',
-                            actor: auth()->user(),
-                            reasonCategory: $data['reason_category'],
-                            reasonDetails: $data['reason_details'] ?? null,
-                        );
-
-                        Notification::make()->title('Appointment cancelled')->success()->send();
-                        $this->refreshFormData(['status']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot cancel')->body($e->getMessage())->danger()->send();
-                    }
-                }),
 
             Action::make('viewAppointment')
                 ->label('View Appointment')
