@@ -7,10 +7,8 @@ use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Carbon\CarbonInterface;
-use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
-use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -338,21 +336,9 @@ class EncounterForm
                                     ))
                                     ->columnSpanFull(),
                             ]),
-
-                        Actions::make([
-                            Action::make('completeVisit')
-                                ->label('Complete Visit')
-                                ->icon('heroicon-o-check-circle')
-                                ->color('success')
-                                ->requiresConfirmation()
-                                ->modalHeading('Complete Visit')
-                                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
-                                ->modalSubmitActionLabel('Complete Visit')
-                                ->action(fn () => $this->dispatch('completeVisit')),
-                        ]),
                     ]),
             ])
-                ->submitAction(null)
+                ->submitAction(view('filament.encounters.complete-visit-button'))
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
             Grid::make(3)
