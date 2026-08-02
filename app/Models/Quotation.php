@@ -74,7 +74,7 @@ class Quotation extends Model
     /**
      * Get the latest revision.
      */
-    public function latestRevision()
+    public function latestRevision(): HasOne
     {
         return $this->hasOne(QuotationRevision::class)->latestOfMany('revision_number');
     }
