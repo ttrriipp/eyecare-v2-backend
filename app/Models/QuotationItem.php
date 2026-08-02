@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
+    'quotation_id',
     'quotation_revision_id',
     'description',
     'quantity',
@@ -19,6 +20,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class QuotationItem extends Model
 {
     use HasFactory;
+
+    /**
+     * @return BelongsTo<Quotation, $this>
+     */
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(Quotation::class);
+    }
 
     /**
      * @return BelongsTo<QuotationRevision, $this>

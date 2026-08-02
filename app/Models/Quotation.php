@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -18,6 +19,13 @@ use Illuminate\Support\Str;
     'prescription_id',
     'status',
     'valid_until',
+    'subtotal',
+    'discount_amount',
+    'total',
+    'presented_by',
+    'presented_at',
+    'confirmed_by',
+    'confirmed_at',
     'notes',
     'internal_notes',
     'eyewear_key',
@@ -72,6 +80,42 @@ class Quotation extends Model
     }
 
     /**
+     * Direct items relationship (bypasses revisions).
+     *
+     * @return HasMany<QuotationItem, $this>
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(QuotationItem::class);
+    }
+
+    /**
+     * Direct job order relationship.
+     *
+     * @return HasOne<JobOrder, $this>
+     */
+    public function jobOrder(): HasOne
+    {
+        return $this->hasOne(JobOrder::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function presenter(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'presented_by');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function confirmer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -79,6 +123,11 @@ class Quotation extends Model
         return [
             'status' => QuotationStatus::class,
             'valid_until' => 'date',
+            'subtotal' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'total' => 'decimal:2',
+            'presented_at' => 'datetime',
+            'confirmed_at' => 'datetime',
         ];
     }
 }

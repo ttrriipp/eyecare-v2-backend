@@ -20,9 +20,10 @@ return new class extends Migration
             $table->timestamp('confirmed_at')->nullable()->after('confirmed_by');
         });
 
-        // 2. Add direct quotation_id to quotation_items
+        // 2. Add direct quotation_id to quotation_items and make revision nullable
         Schema::table('quotation_items', function (Blueprint $table): void {
             $table->foreignId('quotation_id')->nullable()->after('id')->constrained('quotations')->cascadeOnDelete();
+            $table->foreignId('quotation_revision_id')->nullable()->change();
         });
 
         // 3. Add direct quotation_id to job_orders
