@@ -39,7 +39,9 @@ class BuildEyewearAggregate
         $billingRecord = $this->findActiveBillingRecord($jobOrder);
         $paymentStatus = $this->mapPaymentStatus($billingRecord);
         $totalAmount = $this->resolveTotalAmount($billingRecord, $jobOrder, $quotation);
+        $amountPaid = $this->resolveAmountPaid($billingRecord);
         $balanceDue = $this->resolveBalanceDue($billingRecord);
+        $paymentDueDate = $this->resolvePaymentDueDate($billingRecord);
         $consultationAt = $this->resolveConsultationFromJobOrder($jobOrder);
         $createdAt = $this->resolveCreatedAt($quotation, $jobOrder);
         $activityAt = $this->resolveActivityAt($quotation, $jobOrder, $billingRecord);
@@ -58,7 +60,9 @@ class BuildEyewearAggregate
             progress: $progress,
             paymentStatus: $paymentStatus,
             totalAmount: $totalAmount,
+            amountPaid: $amountPaid,
             balanceDue: $balanceDue,
+            paymentDueDate: $paymentDueDate,
             activityAt: $activityAt,
             estimate: $estimate,
             preparation: $preparation,
@@ -85,7 +89,9 @@ class BuildEyewearAggregate
             progress: $progress,
             paymentStatus: null,
             totalAmount: $this->resolveEstimateTotal($quotation),
+            amountPaid: null,
             balanceDue: null,
+            paymentDueDate: null,
             activityAt: $activityAt,
             estimate: $estimate,
             preparation: null,
@@ -166,6 +172,24 @@ class BuildEyewearAggregate
         }
 
         return number_format((float) $billingRecord->balance_due, 2, '.', '');
+    }
+
+    private function resolveAmountPaid(?BillingRecord $billingRecord): ?string
+    {
+        if ($billingRecord === null) {
+            return null;
+        }
+
+        return number_format((float) $billingRecord->amount_paid, 2, '.', '');
+    }
+
+    private function resolvePaymentDueDate(?BillingRecord $billingRecord): ?string
+    {
+        if ($billingRecord === null) {
+            return null;
+        }
+
+        return $billingRecord->payment_due_date?->format('Y-m-d');
     }
 
     private function resolveConsultationFromJobOrder(JobOrder $jobOrder): ?string
