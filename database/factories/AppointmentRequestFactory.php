@@ -73,4 +73,20 @@ class AppointmentRequestFactory extends Factory
             'expires_at' => now()->subHour(),
         ]);
     }
+
+    public function withSnapshot(): static
+    {
+        return $this->state([
+            'encrypted_identity_snapshot' => [
+                'first_name' => fake()->firstName(),
+                'middle_name' => fake()->optional(0.3)->firstName(),
+                'last_name' => fake()->lastName(),
+                'date_of_birth' => fake()->dateTimeBetween('-60 years', '-18 years')->format('Y-m-d'),
+                'verified_contact_type' => 'phone',
+                'verified_contact_masked' => '091***4567',
+                'verified_contact_hash' => hash('sha256', '09171234567'),
+                'submitted_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
 }

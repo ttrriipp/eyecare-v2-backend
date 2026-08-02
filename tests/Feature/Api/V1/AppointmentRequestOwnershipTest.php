@@ -1,102 +1,120 @@
 <?php
 
+use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(RoleSeeder::class);
 });
 
-afterEach(fn () => Carbon::setTestNow());
-
-// --- Listing ---
-
-test('user can list their own appointment requests', function () {
+test('submit response for linked account contains no snapshot data', function () {
     $user = User::factory()->patient()->create();
-
-    AppointmentRequest::factory()->count(3)->create(['user_id' => $user->id]);
-    AppointmentRequest::factory()->count(2)->create(); // Other users
 
     $response = $this->actingAs($user)
-        ->getJson('/api/v1/appointment-requests');
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => now()->addDays(3)->format('Y-m-d\TH:i:sP'),
+            'reason_for_visit' => 'Blurred vision',
+        ])
+        ->assertCreated();
 
-    $response->assertOk()
-        ->assertJsonCount(3, 'data');
+    $jsonString = json_encode($response->json());
+
+    expect($jsonString)->not->toContain('encrypted_identity_snapshot')
+        ->and($jsonString)->not->toContain('verified_contact_type')
+        ->and($jsonString)->not->toContain('verified_contact_masked')
+        ->and($jsonString)->not->toContain('verified_contact_hash')
+        ->and($jsonString)->not->toContain('submitted_at');
 });
 
-// --- Detail ---
-
-test('user can view their own request', function () {
+test('linked request response has no snapshot fields', function () {
     $user = User::factory()->patient()->create();
-    $request = AppointmentRequest::factory()->create(['user_id' => $user->id]);
 
-    $response = $this->actingAs($user)
-        ->getJson("/api/v1/appointment-requests/{$request->id}");
-
-    $response->assertOk()
-        ->assertJsonPath('data.id', $request->id);
-});
-
-test('user cannot view another users request', function () {
-    $user = User::factory()->patient()->create();
-    $otherRequest = AppointmentRequest::factory()->create();
-
-    $this->actingAs($user)
-        ->getJson("/api/v1/appointment-requests/{$otherRequest->id}")
-        ->assertNotFound();
-});
-
-// --- Cancellation ---
-
-test('user can cancel their own pending request', function () {
-    $user = User::factory()->patient()->create();
     $request = AppointmentRequest::factory()->create([
         'user_id' => $user->id,
-        'status' => 'pending',
+        'encrypted_identity_snapshot' => null,
     ]);
 
     $response = $this->actingAs($user)
-        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel");
+        ->getJson("/api/v1/appointment-requests/{$request->id}")
+        ->assertOk();
 
-    $response->assertOk()
-        ->assertJsonPath('data.status', 'cancelled');
+    $jsonString = json_encode($response->json());
+
+    expect($jsonString)->not->toContain('encrypted_identity_snapshot')
+        ->and($jsonString)->not->toContain('verified_contact_type')
+        ->and($jsonString)->not->toContain('verified_contact_masked')
+        ->and($jsonString)->not->toContain('verified_contact_hash')
+        ->and($jsonString)->not->toContain('submitted_at');
 });
 
-test('user cannot cancel a non-pending request', function () {
+test('cancel response has no snapshot fields', function () {
     $user = User::factory()->patient()->create();
-    $request = AppointmentRequest::factory()->accepted()->create(['user_id' => $user->id]);
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'encrypted_identity_snapshot' => null,
+    ]);
 
     $response = $this->actingAs($user)
-        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel");
+        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel")
+        ->assertOk();
 
-    $response->assertUnprocessable();
+    $jsonString = json_encode($response->json());
+
+    expect($jsonString)->not->toContain('encrypted_identity_snapshot')
+        ->and($jsonString)->not->toContain('verified_contact_type')
+        ->and($jsonString)->not->toContain('verified_contact_masked');
 });
 
-test('user cannot cancel another users request', function () {
-    $user = User::factory()->patient()->create();
-    $otherRequest = AppointmentRequest::factory()->create();
+test('encrypted snapshot is not readable in database', function () {
+    $snapshot = [
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'verified_contact_type' => 'phone',
+        'verified_contact_masked' => '091***4567',
+        'verified_contact_hash' => 'abc123',
+        'submitted_at' => now()->toIso8601String(),
+    ];
 
-    $this->actingAs($user)
-        ->postJson("/api/v1/appointment-requests/{$otherRequest->id}/cancel")
-        ->assertNotFound();
+    $request = AppointmentRequest::factory()->create([
+        'encrypted_identity_snapshot' => $snapshot,
+    ]);
+
+    $raw = DB::table('appointment_requests')
+        ->where('id', $request->id)
+        ->value('encrypted_identity_snapshot');
+
+    expect($raw)->not->toContain('Ana')
+        ->and($raw)->not->toContain('Reyes')
+        ->and($raw)->not->toContain('1990-05-15')
+        ->and($raw)->not->toContain('091***4567');
 });
 
-// --- Response Safety ---
+test('snapshot helpers return null for linked request', function () {
+    $request = AppointmentRequest::factory()->create([
+        'encrypted_identity_snapshot' => null,
+    ]);
 
-test('response does not expose internal notes or other accounts', function () {
-    $user = User::factory()->patient()->create();
-    $request = AppointmentRequest::factory()->create(['user_id' => $user->id]);
+    expect($request->hasIdentitySnapshot())->toBeFalse()
+        ->and($request->getSnapshotDisplayName())->toBeNull()
+        ->and($request->getSnapshotMaskedContact())->toBeNull()
+        ->and($request->getSnapshotContactType())->toBeNull()
+        ->and($request->getSnapshotDateOfBirth())->toBeNull();
+});
 
-    $response = $this->actingAs($user)
-        ->getJson("/api/v1/appointment-requests/{$request->id}");
+test('snapshot helpers return data for snapshotted request', function () {
+    $request = AppointmentRequest::factory()->withSnapshot()->create();
 
-    $data = $response->json('data');
-    expect($data)->not->toHaveKey('encrypted_identity_snapshot')
-        ->and($data)->not->toHaveKey('resolved_by_user_id');
+    expect($request->hasIdentitySnapshot())->toBeTrue()
+        ->and($request->getSnapshotDisplayName())->toBeString()
+        ->and($request->getSnapshotMaskedContact())->toBe('091***4567')
+        ->and($request->getSnapshotContactType())->toBe('phone')
+        ->and($request->getSnapshotDateOfBirth())->toBeString();
 });

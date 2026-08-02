@@ -124,4 +124,82 @@ class AppointmentRequest extends Model
         return $this->patient_id !== null
             && $this->status === AppointmentRequestStatus::Pending;
     }
+
+    /**
+     * Check if this request has an identity snapshot (unlinked at submission).
+     */
+    public function hasIdentitySnapshot(): bool
+    {
+        return $this->encrypted_identity_snapshot !== null;
+    }
+
+    /**
+     * Get the display name from the identity snapshot.
+     *
+     * Returns null for linked requests (no snapshot).
+     */
+    public function getSnapshotDisplayName(): ?string
+    {
+        $snapshot = $this->encrypted_identity_snapshot;
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $parts = array_filter([
+            $snapshot['first_name'] ?? null,
+            $snapshot['middle_name'] ?? null,
+            $snapshot['last_name'] ?? null,
+        ]);
+
+        return implode(' ', $parts) ?: null;
+    }
+
+    /**
+     * Get the masked verified contact from the identity snapshot.
+     *
+     * Returns null for linked requests (no snapshot).
+     */
+    public function getSnapshotMaskedContact(): ?string
+    {
+        $snapshot = $this->encrypted_identity_snapshot;
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        return $snapshot['verified_contact_masked'] ?? null;
+    }
+
+    /**
+     * Get the verified contact type from the identity snapshot.
+     *
+     * Returns null for linked requests (no snapshot).
+     */
+    public function getSnapshotContactType(): ?string
+    {
+        $snapshot = $this->encrypted_identity_snapshot;
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        return $snapshot['verified_contact_type'] ?? null;
+    }
+
+    /**
+     * Get the date of birth from the identity snapshot.
+     *
+     * Returns null for linked requests (no snapshot).
+     */
+    public function getSnapshotDateOfBirth(): ?string
+    {
+        $snapshot = $this->encrypted_identity_snapshot;
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        return $snapshot['date_of_birth'] ?? null;
+    }
 }
