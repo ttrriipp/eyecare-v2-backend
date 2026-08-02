@@ -14,41 +14,63 @@ use Illuminate\Validation\ValidationException;
 
 class AcceptAndStartOpticalOrder
 {
+    /**
+     * Confirm a quotation and create Job Order + Billing Record atomically.
+     *
+     * Accepts Draft or Presented quotations. Creates exactly one Job Order
+     * with a snapshot of all direct Quotation items. Idempotent — repeated
+     * calls return existing records without duplication.
+     *
+     * @return array{quotation: Quotation, job_order: JobOrder, billing_record: BillingRecord}
+     */
     public function handle(
         Quotation $quotation,
         ?float $depositAmount = null,
         ?int $frameReservationId = null,
     ): array {
-        if ($quotation->status !== QuotationStatus::Presented
-            && $quotation->status !== QuotationStatus::Accepted) {
+        if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
-                'quotation' => ['Only presented or accepted quotations can be started.'],
+                'quotation' => ['Only draft, presented, or accepted quotations can be confirmed.'],
             ]);
         }
 
         return DB::transaction(function () use ($quotation, $frameReservationId) {
-            // Accept the quotation if not already
-            if ($quotation->status === QuotationStatus::Presented) {
+            // Lock and accept the quotation if not already
+            $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+
+            if ($quotation->status !== QuotationStatus::Accepted) {
                 $quotation->update([
                     'status' => QuotationStatus::Accepted,
-                    'accepted_at' => now(),
-                    'accepted_by' => auth()->id(),
+                    'confirmed_by' => auth()->id(),
+                    'confirmed_at' => now(),
                 ]);
             }
 
-            // Create or return existing Job Order
-            $jobOrder = JobOrder::where('quotation_revision_id', $quotation->latestRevision?->id)->first();
+            // Create or return existing Job Order (idempotent via direct quotation_id)
+            $jobOrder = JobOrder::where('quotation_id', $quotation->id)->first();
 
             if ($jobOrder === null) {
                 $jobOrder = JobOrder::create([
                     'patient_id' => $quotation->patient_id,
                     'encounter_id' => $quotation->encounter_id,
                     'prescription_id' => $quotation->prescription_id,
-                    'quotation_revision_id' => $quotation->latestRevision?->id,
+                    'quotation_id' => $quotation->id,
                     'status' => JobOrderStatus::Queued,
-                    'total_amount' => $quotation->latestRevision?->total ?? 0,
+                    'total_amount' => $quotation->total,
                     'eyewear_key' => $quotation->eyewear_key,
                 ]);
+
+                // Snapshot all direct quotation items into job order items
+                foreach ($quotation->items as $item) {
+                    $jobOrder->items()->create([
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'amount' => $item->amount,
+                        'product_variant_id' => $item->product_variant_id,
+                        'lens_category_id' => $item->lens_category_id,
+                    ]);
+                }
             }
 
             // Create or return existing Billing Record
@@ -77,7 +99,7 @@ class AcceptAndStartOpticalOrder
             }
 
             return [
-                'quotation' => $quotation,
+                'quotation' => $quotation->fresh(),
                 'job_order' => $jobOrder,
                 'billing_record' => $billingRecord,
             ];
