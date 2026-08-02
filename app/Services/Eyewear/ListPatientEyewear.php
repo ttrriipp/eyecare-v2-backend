@@ -187,7 +187,7 @@ class ListPatientEyewear
             ->where('patient_id', $patient->id)
             ->where('eyewear_key', $key)
             ->whereNull('deleted_at')
-            ->with(['revisions.items', 'encounter.appointment'])
+            ->with(['items', 'encounter.appointment'])
             ->first();
 
         if ($jobOrder === null && $quotation === null) {

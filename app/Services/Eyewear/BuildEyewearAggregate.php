@@ -156,13 +156,7 @@ class BuildEyewearAggregate
             return '0.00';
         }
 
-        $revision = $quotation->latestRevision ?? $quotation->revisions()->orderBy('revision_number')->first();
-
-        if ($revision !== null) {
-            return number_format((float) $revision->total, 2, '.', '');
-        }
-
-        return '0.00';
+        return number_format((float) $quotation->total, 2, '.', '');
     }
 
     private function resolveBalanceDue(?BillingRecord $billingRecord): ?string
@@ -201,8 +195,8 @@ class BuildEyewearAggregate
     {
         $timestamps = collect([
             $quotation->created_at,
-            $quotation->latestRevision?->presented_at,
-            $quotation->latestRevision?->accepted_at,
+            $quotation->presented_at,
+            $quotation->confirmed_at,
         ])->filter()->values();
 
         return $timestamps->max()?->toIso8601String() ?? now()->toIso8601String();
@@ -214,8 +208,8 @@ class BuildEyewearAggregate
 
         if ($quotation !== null) {
             $timestamps->push($quotation->created_at);
-            $timestamps->push($quotation->latestRevision?->presented_at);
-            $timestamps->push($quotation->latestRevision?->accepted_at);
+            $timestamps->push($quotation->presented_at);
+            $timestamps->push($quotation->confirmed_at);
         }
 
         if ($jobOrder !== null) {
@@ -241,12 +235,11 @@ class BuildEyewearAggregate
 
     private function resolveDescription(?JobOrder $jobOrder, ?Quotation $quotation): string
     {
-        // Prefer job order items, then quotation revision items
+        // Prefer job order items, then quotation items
         $items = $jobOrder?->items ?? collect();
 
         if ($items->isEmpty() && $quotation !== null) {
-            $revision = $quotation->latestRevision ?? $quotation->revisions()->orderBy('revision_number')->first();
-            $items = $revision?->items ?? collect();
+            $items = $quotation->items ?? collect();
         }
 
         if ($items->isNotEmpty()) {
@@ -274,25 +267,7 @@ class BuildEyewearAggregate
             return null;
         }
 
-        // If a job order exists, use the exact revision it references
-        $revision = null;
-
-        if ($jobOrder !== null && $jobOrder->quotation_revision_id !== null) {
-            $revision = $quotation->revisions()
-                ->whereKey($jobOrder->quotation_revision_id)
-                ->first();
-        }
-
-        // Otherwise use latest visible revision
-        if ($revision === null) {
-            $revision = $quotation->latestRevision ?? $quotation->revisions()->orderBy('revision_number')->first();
-        }
-
-        if ($revision === null) {
-            return null;
-        }
-
-        $items = $revision->items->map(fn ($item) => [
+        $items = $quotation->items->map(fn ($item) => [
             'description' => $item->description,
             'quantity' => $item->quantity,
             'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
@@ -303,9 +278,9 @@ class BuildEyewearAggregate
             'quotation_number' => $quotation->quotation_number,
             'status' => $quotation->status->value,
             'valid_until' => $quotation->valid_until?->format('Y-m-d'),
-            'subtotal' => number_format((float) $revision->subtotal, 2, '.', ''),
-            'discount_amount' => number_format((float) $revision->discount_amount, 2, '.', ''),
-            'total' => number_format((float) $revision->total, 2, '.', ''),
+            'subtotal' => number_format((float) $quotation->subtotal, 2, '.', ''),
+            'discount_amount' => number_format((float) $quotation->discount_amount, 2, '.', ''),
+            'total' => number_format((float) $quotation->total, 2, '.', ''),
             'items' => $items,
         ];
     }

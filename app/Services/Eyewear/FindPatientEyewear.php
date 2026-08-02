@@ -5,7 +5,6 @@ namespace App\Services\Eyewear;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Quotation;
-use App\Models\QuotationRevision;
 
 class FindPatientEyewear
 {
@@ -58,22 +57,16 @@ class FindPatientEyewear
             return null;
         }
 
-        // Find the linked quotation if it exists
+        // Find the linked quotation via direct quotation_id
         $quotation = null;
 
-        if ($jobOrder->quotation_revision_id !== null) {
-            $revision = QuotationRevision::query()
-                ->whereKey($jobOrder->quotation_revision_id)
+        if ($jobOrder->quotation_id !== null) {
+            $quotation = Quotation::query()
+                ->where('patient_id', $patient->id)
+                ->whereKey($jobOrder->quotation_id)
+                ->whereNull('deleted_at')
+                ->with(['items', 'encounter.appointment'])
                 ->first();
-
-            if ($revision !== null) {
-                $quotation = Quotation::query()
-                    ->where('patient_id', $patient->id)
-                    ->whereKey($revision->quotation_id)
-                    ->whereNull('deleted_at')
-                    ->with(['revisions.items', 'encounter.appointment'])
-                    ->first();
-            }
         }
 
         return $this->buildAggregate->handle($quotation, $jobOrder);
@@ -95,7 +88,7 @@ class FindPatientEyewear
             ->where('patient_id', $patient->id)
             ->where('eyewear_key', $key)
             ->whereNull('deleted_at')
-            ->with(['revisions.items', 'encounter.appointment'])
+            ->with(['items', 'encounter.appointment'])
             ->first();
     }
 }
