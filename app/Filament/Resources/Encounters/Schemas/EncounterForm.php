@@ -43,332 +43,326 @@ class EncounterForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Section::make('Consultation')
-                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress)
-                ->schema([
-                    Wizard::make([
-                        Step::make('Consultation & History')
+            Wizard::make([
+                Step::make('Consultation & History')
+                    ->schema([
+                        Textarea::make('chief_complaint')
+                            ->label('Chief Complaint')
+                            ->rows(3)
+                            ->columnSpanFull(),
+                        Textarea::make('past_ocular_history')
+                            ->label('Past Ocular History')
+                            ->rows(2),
+                        Textarea::make('past_surgical_history')
+                            ->label('Past Surgical History')
+                            ->rows(2),
+                        Textarea::make('past_medical_history')
+                            ->label('Past Medical History')
+                            ->rows(2),
+                        Textarea::make('allergies')
+                            ->label('Allergies')
+                            ->rows(2),
+                        Textarea::make('medications')
+                            ->label('Current Medications')
+                            ->rows(2),
+                    ])
+                    ->columns(2),
+
+                Step::make('Examination')
+                    ->schema([
+                        Textarea::make('findings')
+                            ->label('Examination Findings')
+                            ->rows(6)
+                            ->columnSpanFull(),
+                        Textarea::make('remarks')
+                            ->label('Remarks')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                    ]),
+
+                Step::make('Prescription')
+                    ->schema([
+                        Group::make(PrescriptionForm::components(forEncounter: true))
+                            ->statePath('prescription')
+                            ->columnSpanFull(),
+                    ]),
+
+                Step::make('Encounter Summary')
+                    ->schema([
+                        Section::make('Encounter Summary')
                             ->schema([
-                                Textarea::make('chief_complaint')
+                                Placeholder::make('summary_encounter_number')
+                                    ->label('Encounter #')
+                                    ->content(fn (Encounter $record): string => $record->encounter_number),
+                                Placeholder::make('summary_status')
+                                    ->label('Status')
+                                    ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
+                                Placeholder::make('summary_appointment_number')
+                                    ->label('Appointment #')
+                                    ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—'),
+                                Placeholder::make('summary_appointment_type')
+                                    ->label('Appointment Type')
+                                    ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                                Placeholder::make('summary_optometrist')
+                                    ->label('Optometrist')
+                                    ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
+                                Placeholder::make('summary_started_at')
+                                    ->label('Started')
+                                    ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
+                            ])
+                            ->columns(3),
+
+                        Section::make('Patient Summary')
+                            ->schema([
+                                Placeholder::make('summary_patient_name')
+                                    ->label('Name')
+                                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                                Placeholder::make('summary_patient_phone')
+                                    ->label('Phone')
+                                    ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                                Placeholder::make('summary_patient_dob')
+                                    ->label('Date of Birth')
+                                    ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
+                                Placeholder::make('summary_patient_gender')
+                                    ->label('Gender')
+                                    ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
+                            ])
+                            ->columns(4),
+
+                        Section::make('Consultation Summary')
+                            ->schema([
+                                Placeholder::make('summary_chief_complaint')
                                     ->label('Chief Complaint')
-                                    ->rows(3)
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'chief_complaint',
+                                        $record->chief_complaint,
+                                    ))
                                     ->columnSpanFull(),
-                                Textarea::make('past_ocular_history')
+                                Placeholder::make('summary_past_ocular_history')
                                     ->label('Past Ocular History')
-                                    ->rows(2),
-                                Textarea::make('past_surgical_history')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'past_ocular_history',
+                                        $record->past_ocular_history,
+                                    )),
+                                Placeholder::make('summary_past_surgical_history')
                                     ->label('Past Surgical History')
-                                    ->rows(2),
-                                Textarea::make('past_medical_history')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'past_surgical_history',
+                                        $record->past_surgical_history,
+                                    )),
+                                Placeholder::make('summary_past_medical_history')
                                     ->label('Past Medical History')
-                                    ->rows(2),
-                                Textarea::make('allergies')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'past_medical_history',
+                                        $record->past_medical_history,
+                                    )),
+                                Placeholder::make('summary_allergies')
                                     ->label('Allergies')
-                                    ->rows(2),
-                                Textarea::make('medications')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'allergies',
+                                        $record->allergies,
+                                    )),
+                                Placeholder::make('summary_medications')
                                     ->label('Current Medications')
-                                    ->rows(2),
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'medications',
+                                        $record->medications,
+                                    )),
                             ])
                             ->columns(2),
 
-                        Step::make('Examination')
+                        Section::make('Examination Summary')
                             ->schema([
-                                Textarea::make('findings')
-                                    ->label('Examination Findings')
-                                    ->rows(6)
+                                Placeholder::make('summary_findings')
+                                    ->label('Findings')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'findings',
+                                        $record->findings,
+                                    ))
                                     ->columnSpanFull(),
-                                Textarea::make('remarks')
+                                Placeholder::make('summary_remarks')
                                     ->label('Remarks')
-                                    ->rows(4)
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get,
+                                        'remarks',
+                                        $record->remarks,
+                                    ))
                                     ->columnSpanFull(),
                             ]),
 
-                        Step::make('Prescription')
+                        Section::make('Prescription Summary')
                             ->schema([
-                                Group::make(PrescriptionForm::components(forEncounter: true))
-                                    ->statePath('prescription')
+                                Placeholder::make('summary_prescription_status')
+                                    ->label('Status')
+                                    ->content(fn (Get $get, Encounter $record): string => self::prescriptionStatus($get, $record)),
+                                Placeholder::make('summary_prescribed_at')
+                                    ->label('Date')
+                                    ->content(fn (Get $get, Encounter $record): string => self::prescriptionDate($get, $record)),
+                                Placeholder::make('summary_main_od_value')
+                                    ->label('O.D. Value')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_od_value',
+                                        self::latestPrescription($record)?->main_od_value,
+                                    )),
+                                Placeholder::make('summary_main_od_sphere')
+                                    ->label('O.D. Sphere')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_od_sphere',
+                                        self::latestPrescription($record)?->main_od_sphere,
+                                    )),
+                                Placeholder::make('summary_main_od_cylinder')
+                                    ->label('O.D. Cylinder')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_od_cylinder',
+                                        self::latestPrescription($record)?->main_od_cylinder,
+                                    )),
+                                Placeholder::make('summary_main_os_value')
+                                    ->label('O.S. Value')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_os_value',
+                                        self::latestPrescription($record)?->main_os_value,
+                                    )),
+                                Placeholder::make('summary_main_os_sphere')
+                                    ->label('O.S. Sphere')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_os_sphere',
+                                        self::latestPrescription($record)?->main_os_sphere,
+                                    )),
+                                Placeholder::make('summary_main_os_cylinder')
+                                    ->label('O.S. Cylinder')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'main_os_cylinder',
+                                        self::latestPrescription($record)?->main_os_cylinder,
+                                    )),
+                                Placeholder::make('summary_add_od_value')
+                                    ->label('O.D. Add Value')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_od_value',
+                                        self::latestPrescription($record)?->add_od_value,
+                                    )),
+                                Placeholder::make('summary_add_od_sphere')
+                                    ->label('O.D. Add Sphere')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_od_sphere',
+                                        self::latestPrescription($record)?->add_od_sphere,
+                                    )),
+                                Placeholder::make('summary_add_od_cylinder')
+                                    ->label('O.D. Add Cylinder')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_od_cylinder',
+                                        self::latestPrescription($record)?->add_od_cylinder,
+                                    )),
+                                Placeholder::make('summary_add_os_value')
+                                    ->label('O.S. Add Value')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_os_value',
+                                        self::latestPrescription($record)?->add_os_value,
+                                    )),
+                                Placeholder::make('summary_add_os_sphere')
+                                    ->label('O.S. Add Sphere')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_os_sphere',
+                                        self::latestPrescription($record)?->add_os_sphere,
+                                    )),
+                                Placeholder::make('summary_add_os_cylinder')
+                                    ->label('O.S. Add Cylinder')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'add_os_cylinder',
+                                        self::latestPrescription($record)?->add_os_cylinder,
+                                    )),
+                                Placeholder::make('summary_prescription_remarks')
+                                    ->label('Remarks')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                        $get,
+                                        'remarks',
+                                        self::latestPrescription($record)?->remarks,
+                                    ))
                                     ->columnSpanFull(),
-                            ]),
+                            ])
+                            ->columns(4),
+                    ]),
+            ])
+                ->submitAction(null)
+                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
-                        Step::make('Encounter Summary')
-                            ->schema([
-                                Section::make('Encounter Summary')
-                                    ->schema([
-                                        Placeholder::make('summary_encounter_number')
-                                            ->label('Encounter #')
-                                            ->content(fn (Encounter $record): string => $record->encounter_number),
-                                        Placeholder::make('summary_status')
-                                            ->label('Status')
-                                            ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
-                                        Placeholder::make('summary_appointment_number')
-                                            ->label('Appointment #')
-                                            ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—'),
-                                        Placeholder::make('summary_appointment_type')
-                                            ->label('Appointment Type')
-                                            ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
-                                        Placeholder::make('summary_optometrist')
-                                            ->label('Optometrist')
-                                            ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
-                                        Placeholder::make('summary_started_at')
-                                            ->label('Started')
-                                            ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
-                                    ])
-                                    ->columns(3),
-
-                                Section::make('Patient Summary')
-                                    ->schema([
-                                        Placeholder::make('summary_patient_name')
-                                            ->label('Name')
-                                            ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
-                                        Placeholder::make('summary_patient_phone')
-                                            ->label('Phone')
-                                            ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
-                                        Placeholder::make('summary_patient_dob')
-                                            ->label('Date of Birth')
-                                            ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
-                                        Placeholder::make('summary_patient_gender')
-                                            ->label('Gender')
-                                            ->content(fn (Encounter $record): string => Str::headline($record->patient?->gender ?? '—')),
-                                    ])
-                                    ->columns(4),
-
-                                Section::make('Consultation Summary')
-                                    ->schema([
-                                        Placeholder::make('summary_chief_complaint')
-                                            ->label('Chief Complaint')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'chief_complaint',
-                                                $record->chief_complaint,
-                                            ))
-                                            ->columnSpanFull(),
-                                        Placeholder::make('summary_past_ocular_history')
-                                            ->label('Past Ocular History')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'past_ocular_history',
-                                                $record->past_ocular_history,
-                                            )),
-                                        Placeholder::make('summary_past_surgical_history')
-                                            ->label('Past Surgical History')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'past_surgical_history',
-                                                $record->past_surgical_history,
-                                            )),
-                                        Placeholder::make('summary_past_medical_history')
-                                            ->label('Past Medical History')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'past_medical_history',
-                                                $record->past_medical_history,
-                                            )),
-                                        Placeholder::make('summary_allergies')
-                                            ->label('Allergies')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'allergies',
-                                                $record->allergies,
-                                            )),
-                                        Placeholder::make('summary_medications')
-                                            ->label('Current Medications')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'medications',
-                                                $record->medications,
-                                            )),
-                                    ])
-                                    ->columns(2),
-
-                                Section::make('Examination Summary')
-                                    ->schema([
-                                        Placeholder::make('summary_findings')
-                                            ->label('Findings')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'findings',
-                                                $record->findings,
-                                            ))
-                                            ->columnSpanFull(),
-                                        Placeholder::make('summary_remarks')
-                                            ->label('Remarks')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                                $get,
-                                                'remarks',
-                                                $record->remarks,
-                                            ))
-                                            ->columnSpanFull(),
-                                    ]),
-
-                                Section::make('Prescription Summary')
-                                    ->schema([
-                                        Placeholder::make('summary_prescription_status')
-                                            ->label('Status')
-                                            ->content(fn (Get $get, Encounter $record): string => self::prescriptionStatus($get, $record)),
-                                        Placeholder::make('summary_prescribed_at')
-                                            ->label('Date')
-                                            ->content(fn (Get $get, Encounter $record): string => self::prescriptionDate($get, $record)),
-                                        Placeholder::make('summary_main_od_value')
-                                            ->label('O.D. Value')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_od_value',
-                                                self::latestPrescription($record)?->main_od_value,
-                                            )),
-                                        Placeholder::make('summary_main_od_sphere')
-                                            ->label('O.D. Sphere')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_od_sphere',
-                                                self::latestPrescription($record)?->main_od_sphere,
-                                            )),
-                                        Placeholder::make('summary_main_od_cylinder')
-                                            ->label('O.D. Cylinder')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_od_cylinder',
-                                                self::latestPrescription($record)?->main_od_cylinder,
-                                            )),
-                                        Placeholder::make('summary_main_os_value')
-                                            ->label('O.S. Value')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_os_value',
-                                                self::latestPrescription($record)?->main_os_value,
-                                            )),
-                                        Placeholder::make('summary_main_os_sphere')
-                                            ->label('O.S. Sphere')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_os_sphere',
-                                                self::latestPrescription($record)?->main_os_sphere,
-                                            )),
-                                        Placeholder::make('summary_main_os_cylinder')
-                                            ->label('O.S. Cylinder')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'main_os_cylinder',
-                                                self::latestPrescription($record)?->main_os_cylinder,
-                                            )),
-                                        Placeholder::make('summary_add_od_value')
-                                            ->label('O.D. Add Value')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_od_value',
-                                                self::latestPrescription($record)?->add_od_value,
-                                            )),
-                                        Placeholder::make('summary_add_od_sphere')
-                                            ->label('O.D. Add Sphere')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_od_sphere',
-                                                self::latestPrescription($record)?->add_od_sphere,
-                                            )),
-                                        Placeholder::make('summary_add_od_cylinder')
-                                            ->label('O.D. Add Cylinder')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_od_cylinder',
-                                                self::latestPrescription($record)?->add_od_cylinder,
-                                            )),
-                                        Placeholder::make('summary_add_os_value')
-                                            ->label('O.S. Add Value')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_os_value',
-                                                self::latestPrescription($record)?->add_os_value,
-                                            )),
-                                        Placeholder::make('summary_add_os_sphere')
-                                            ->label('O.S. Add Sphere')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_os_sphere',
-                                                self::latestPrescription($record)?->add_os_sphere,
-                                            )),
-                                        Placeholder::make('summary_add_os_cylinder')
-                                            ->label('O.S. Add Cylinder')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'add_os_cylinder',
-                                                self::latestPrescription($record)?->add_os_cylinder,
-                                            )),
-                                        Placeholder::make('summary_prescription_remarks')
-                                            ->label('Remarks')
-                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'remarks',
-                                                self::latestPrescription($record)?->remarks,
-                                            ))
-                                            ->columnSpanFull(),
-                                    ])
-                                    ->columns(4),
-                            ]),
-                    ])
-                        ->submitAction(null),
-                ]),
-
-            Section::make('Encounter Details')
+            Grid::make(3)
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                 ->schema([
-                    Grid::make(3)
-                        ->schema([
-                            Grid::make(1)->columnSpan(2)->schema([
-                                Section::make('Clinical Summary')
-                                    ->schema([
-                                        Placeholder::make('view_chief_complaint')
-                                            ->label('Chief Complaint')
-                                            ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—'),
-                                        Placeholder::make('view_findings')
-                                            ->label('Findings')
-                                            ->content(fn (Encounter $record): string => $record->findings ?? '—'),
-                                        Placeholder::make('view_remarks')
-                                            ->label('Remarks')
-                                            ->content(fn (Encounter $record): string => $record->remarks ?? '—'),
-                                    ])
-                                    ->columns(2),
+                    Grid::make(1)->columnSpan(2)->schema([
+                        Section::make('Clinical Summary')
+                            ->schema([
+                                Placeholder::make('view_chief_complaint')
+                                    ->label('Chief Complaint')
+                                    ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—'),
+                                Placeholder::make('view_findings')
+                                    ->label('Findings')
+                                    ->content(fn (Encounter $record): string => $record->findings ?? '—'),
+                                Placeholder::make('view_remarks')
+                                    ->label('Remarks')
+                                    ->content(fn (Encounter $record): string => $record->remarks ?? '—'),
+                            ])
+                            ->columns(2),
+                    ]),
+
+                    Grid::make(1)->columnSpan(1)->schema([
+                        Section::make('Encounter')
+                            ->schema([
+                                Placeholder::make('encounter_number')
+                                    ->label('Encounter #')
+                                    ->content(fn (Encounter $record): string => $record->encounter_number),
+                                Placeholder::make('status')
+                                    ->label('Status')
+                                    ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
+                                Placeholder::make('appointment_type')
+                                    ->label('Appointment Type')
+                                    ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                                Placeholder::make('optometrist')
+                                    ->label('Optometrist')
+                                    ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
                             ]),
 
-                            Grid::make(1)->columnSpan(1)->schema([
-                                Section::make('Encounter')
-                                    ->schema([
-                                        Placeholder::make('encounter_number')
-                                            ->label('Encounter #')
-                                            ->content(fn (Encounter $record): string => $record->encounter_number),
-                                        Placeholder::make('status')
-                                            ->label('Status')
-                                            ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
-                                        Placeholder::make('appointment_type')
-                                            ->label('Appointment Type')
-                                            ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
-                                        Placeholder::make('optometrist')
-                                            ->label('Optometrist')
-                                            ->content(fn (Encounter $record): string => $record->optometrist?->name ?? 'Not assigned'),
-                                    ]),
-
-                                Section::make('Patient')
-                                    ->schema([
-                                        Placeholder::make('patient_name')
-                                            ->label('Name')
-                                            ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
-                                        Placeholder::make('patient_phone')
-                                            ->label('Phone')
-                                            ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
-                                        Placeholder::make('patient_dob')
-                                            ->label('Date of Birth')
-                                            ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
-                                    ]),
-
-                                Section::make('Timeline')
-                                    ->schema([
-                                        Placeholder::make('started_at')
-                                            ->label('Started')
-                                            ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
-                                        Placeholder::make('completed_at')
-                                            ->label('Completed')
-                                            ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—'),
-                                    ]),
+                        Section::make('Patient')
+                            ->schema([
+                                Placeholder::make('patient_name')
+                                    ->label('Name')
+                                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                                Placeholder::make('patient_phone')
+                                    ->label('Phone')
+                                    ->content(fn (Encounter $record): string => $record->patient?->phone ?? '—'),
+                                Placeholder::make('patient_dob')
+                                    ->label('Date of Birth')
+                                    ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
                             ]),
-                        ]),
+
+                        Section::make('Timeline')
+                            ->schema([
+                                Placeholder::make('started_at')
+                                    ->label('Started')
+                                    ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
+                                Placeholder::make('completed_at')
+                                    ->label('Completed')
+                                    ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—'),
+                            ]),
+                    ]),
                 ]),
         ]);
     }
