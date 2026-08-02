@@ -2,11 +2,8 @@
 
 namespace App\Http\Requests\Api;
 
-use App\Models\AppointmentType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -21,25 +18,26 @@ class StoreAppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'appointment_type_id' => ['required', 'integer', Rule::exists('appointment_types', 'id')],
-            'scheduled_at' => ['required', 'date', 'after:now'],
-            'contact_notes' => ['nullable', 'string', 'max:1000'],
-            'referring_source' => ['nullable', 'string', 'max:255'],
+            'scheduled_at' => ['required', 'date_format:Y-m-d\TH:i:sP', 'after:now'],
+            'reason_for_visit' => ['required', 'string', 'max:1000'],
+            'identity' => ['nullable', 'array'],
+            'identity.first_name' => ['required_with:identity', 'string', 'max:255'],
+            'identity.middle_name' => ['nullable', 'string', 'max:255'],
+            'identity.last_name' => ['required_with:identity', 'string', 'max:255'],
+            'identity.date_of_birth' => ['required_with:identity', 'date', 'before:today'],
         ];
     }
 
-    public function withValidator(Validator $validator): void
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
     {
-        $validator->after(function (Validator $validator): void {
-            if ($validator->errors()->has('appointment_type_id')) {
-                return;
-            }
-
-            $appointmentType = AppointmentType::query()->find($this->integer('appointment_type_id'));
-
-            if ($appointmentType !== null && $appointmentType->requires_referral && ! $this->filled('referring_source')) {
-                $validator->errors()->add('referring_source', 'The referring source is required for referral appointments.');
-            }
-        });
+        return [
+            'identity.first_name.required_with' => 'First name is required when providing identity.',
+            'identity.last_name.required_with' => 'Last name is required when providing identity.',
+            'identity.date_of_birth.required_with' => 'Date of birth is required when providing identity.',
+            'identity.date_of_birth.before' => 'Date of birth must be in the past.',
+        ];
     }
 }

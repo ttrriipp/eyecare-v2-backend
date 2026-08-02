@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Appointments\CancelAppointmentRequest;
 use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Models\AppointmentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,17 +36,13 @@ class AppointmentRequestController extends Controller
         ]);
     }
 
-    public function store(Request $request, SubmitAppointmentRequest $submit): JsonResponse
+    public function store(StoreAppointmentRequest $request, SubmitAppointmentRequest $submit): JsonResponse
     {
-        $validated = $request->validate([
-            'scheduled_at' => ['required', 'date_format:Y-m-d\TH:i:sP', 'after:now'],
-            'reason_for_visit' => ['required', 'string', 'max:1000'],
-        ]);
-
         $appointmentRequest = $submit->handle(
             account: $request->user(),
-            scheduledAt: Carbon::parse($validated['scheduled_at']),
-            reasonForVisit: $validated['reason_for_visit'],
+            scheduledAt: Carbon::parse($request->validated('scheduled_at')),
+            reasonForVisit: $request->validated('reason_for_visit'),
+            identity: $request->validated('identity'),
         );
 
         return response()->json([

@@ -13,12 +13,17 @@ class SubmitAppointmentRequest
 {
     public function __construct(
         protected BuildScheduleBlocks $buildBlocks,
+        protected BuildAppointmentRequestIdentitySnapshot $buildSnapshot,
     ) {}
 
+    /**
+     * @param  array{first_name?: string, middle_name?: ?string, last_name?: string, date_of_birth?: string}|null  $identity
+     */
     public function handle(
         User $account,
         CarbonInterface $scheduledAt,
         string $reasonForVisit,
+        ?array $identity = null,
     ): AppointmentRequest {
         // Rate limit check
         $rateLimitKey = 'appointment_request:'.$account->id;
@@ -58,7 +63,10 @@ class SubmitAppointmentRequest
 
         RateLimiter::hit($rateLimitKey, 3600); // 1 hour window
 
-        return DB::transaction(function () use ($account, $scheduledAt, $reasonForVisit, $provisionalDuration) {
+        // Build identity snapshot (null for linked accounts)
+        $snapshot = $this->buildSnapshot->handle($account, $identity);
+
+        return DB::transaction(function () use ($account, $scheduledAt, $reasonForVisit, $provisionalDuration, $snapshot) {
             $patientId = $account->patient?->id;
 
             return AppointmentRequest::create([
@@ -67,6 +75,7 @@ class SubmitAppointmentRequest
                 'scheduled_at' => $scheduledAt,
                 'provisional_duration_minutes' => $provisionalDuration,
                 'encrypted_reason_for_visit' => $reasonForVisit,
+                'encrypted_identity_snapshot' => $snapshot,
                 'status' => 'pending',
                 'expires_at' => now()->addHours(config('patient_accounts.appointment_requests.expiry_hours', 24)),
             ]);
