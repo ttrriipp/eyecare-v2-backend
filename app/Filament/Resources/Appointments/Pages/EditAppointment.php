@@ -32,12 +32,10 @@ class EditAppointment extends EditRecord
                 ->icon('heroicon-o-document-text')
                 ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in')
-                ->requiresConfirmation(fn (): bool => $this->getRecord()->encounter?->status?->name !== 'in_progress')
-                ->modalHeading(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress' ? 'Open Encounter' : 'Start Examination')
-                ->modalDescription(fn (): string => $this->getRecord()->encounter?->status?->name === 'in_progress'
-                    ? 'Open the encounter to continue the consultation.'
-                    : 'Select the optometrist and start the examination.')
-                ->schema(fn (): array => $this->getRecord()->encounter?->status?->name === 'in_progress' ? [] : [
+                ->requiresConfirmation()
+                ->modalHeading('Start Examination')
+                ->modalDescription('Select the optometrist and start the examination.')
+                ->schema([
                     Select::make('optometrist_id')
                         ->label('Optometrist')
                         ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
@@ -54,25 +52,28 @@ class EditAppointment extends EditRecord
                         return;
                     }
 
-                    if ($encounter->status->name === 'planned') {
-                        $optometristId = $data['optometrist_id'] ?? auth()->id();
-                        $optometrist = User::findOrFail($optometristId);
+                    if ($encounter->status->name !== 'planned') {
+                        // Already started, just navigate
+                        $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
 
-                        try {
-                            app(StartEncounter::class)->handle(
-                                encounter: $encounter,
-                                optometrist: $optometrist,
-                                actor: auth()->user(),
-                            );
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot start encounter.';
-                            Notification::make()->title('Cannot start encounter')->body($message)->danger()->send();
-
-                            return;
-                        }
+                        return;
                     }
 
-                    $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+                    $optometrist = User::findOrFail($data['optometrist_id']);
+
+                    try {
+                        app(StartEncounter::class)->handle(
+                            encounter: $encounter,
+                            optometrist: $optometrist,
+                            actor: auth()->user(),
+                        );
+
+                        Notification::make()->title('Examination started')->success()->send();
+                        $this->redirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot start encounter.';
+                        Notification::make()->title('Cannot start encounter')->body($message)->danger()->send();
+                    }
                 }),
 
             Action::make('checkIn')
