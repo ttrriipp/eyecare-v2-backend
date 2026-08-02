@@ -26,6 +26,8 @@ class EditEncounter extends EditRecord
 {
     protected static string $resource = EncounterResource::class;
 
+    private bool $isCompletingVisit = false;
+
     /**
      * @var array<int, string>
      */
@@ -111,8 +113,7 @@ class EditEncounter extends EditRecord
             );
         }
 
-        // Complete the encounter when wizard is submitted for in-progress encounters
-        if ($record->status === EncounterStatus::InProgress) {
+        if ($this->isCompletingVisit && $record->status === EncounterStatus::InProgress) {
             $actor = auth()->user();
 
             if ($actor instanceof User) {
@@ -135,26 +136,44 @@ class EditEncounter extends EditRecord
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
     }
 
-    protected function getActions(): array
+    protected function getFormActions(): array
     {
-        return [
-            Action::make('completeVisit')
-                ->label('Complete Visit')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Complete Visit')
-                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
-                ->modalSubmitActionLabel('Complete Visit')
-                ->action(function (): void {
-                    try {
-                        $this->save();
-                        Notification::make()->title('Visit completed')->success()->send();
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-        ];
+        if ($this->record->status === EncounterStatus::InProgress) {
+            return [];
+        }
+
+        return parent::getFormActions();
+    }
+
+    protected function completeVisitAction(): Action
+    {
+        return Action::make('completeVisit')
+            ->label('Complete Visit')
+            ->icon('heroicon-o-check-circle')
+            ->color('success')
+            ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress)
+            ->requiresConfirmation()
+            ->modalHeading('Complete Visit')
+            ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
+            ->modalSubmitActionLabel('Complete Visit')
+            ->action(function (): void {
+                try {
+                    $this->isCompletingVisit = true;
+                    $this->save(
+                        shouldRedirect: false,
+                        shouldSendSavedNotification: false,
+                    );
+
+                    Notification::make()->title('Visit completed')->success()->send();
+                    $this->redirect(EncounterResource::getUrl('edit', [
+                        'record' => $this->record,
+                    ]));
+                } catch (ValidationException $e) {
+                    Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
+                } finally {
+                    $this->isCompletingVisit = false;
+                }
+            });
     }
 
     protected function getHeaderActions(): array
@@ -245,9 +264,10 @@ class EditEncounter extends EditRecord
                     abort_unless($creator instanceof User, 403);
 
                     $quotation = app(CreateQuotation::class)->handle(
-                        encounter: $this->record,
+                        patient: $this->record->patient,
                         creator: $creator,
                         data: $data,
+                        encounter: $this->record,
                     );
 
                     Notification::make()

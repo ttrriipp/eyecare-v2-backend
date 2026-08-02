@@ -6,16 +6,22 @@ use App\Enums\QuotationStatus;
 use App\Models\AuditLog;
 use App\Models\Encounter;
 use App\Models\LensCategory;
+use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
-test('staff creates a draft quotation with a calculated first revision from an encounter prescription', function () {
+beforeEach(function () {
+    $this->seed(RoleSeeder::class);
+});
+
+test('staff creates a draft quotation with direct items from an encounter prescription', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
     $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -23,7 +29,7 @@ test('staff creates a draft quotation with a calculated first revision from an e
     $lensCategory = LensCategory::factory()->create(['price' => 1500]);
 
     $quotation = app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $staff,
         data: [
             'valid_until' => now()->addWeek()->toDateString(),
@@ -45,20 +51,27 @@ test('staff creates a draft quotation with a calculated first revision from an e
                 ],
             ],
         ],
+        encounter: $encounter,
     );
 
+    // Direct totals on quotation (no revision)
     expect($quotation->status)->toBe(QuotationStatus::Draft)
         ->and($quotation->patient_id)->toBe($encounter->patient_id)
         ->and($quotation->encounter_id)->toBe($encounter->id)
         ->and($quotation->prescription_id)->toBe($prescription->id)
-        ->and($quotation->latestRevision->revision_number)->toBe(1)
-        ->and($quotation->latestRevision->subtotal)->toBe('8000.00')
-        ->and($quotation->latestRevision->discount_amount)->toBe('500.00')
-        ->and($quotation->latestRevision->total)->toBe('7500.00')
-        ->and($quotation->latestRevision->items)->toHaveCount(2)
-        ->and($quotation->latestRevision->items->first()->amount)->toBe('5000.00')
-        ->and($quotation->latestRevision->items->last()->amount)->toBe('3000.00');
+        ->and((float) $quotation->subtotal)->toBe(8000.0)
+        ->and((float) $quotation->discount_amount)->toBe(500.0)
+        ->and((float) $quotation->total)->toBe(7500.0);
 
+    // Direct items on quotation
+    expect($quotation->items)->toHaveCount(2)
+        ->and((float) $quotation->items->first()->amount)->toBe(5000.0)
+        ->and((float) $quotation->items->last()->amount)->toBe(3000.0);
+
+    // No revision created
+    expect($quotation->revisions)->toHaveCount(0);
+
+    // Audit log created
     expect(AuditLog::query()
         ->where('subject_type', $quotation->getMorphClass())
         ->where('subject_id', $quotation->id)
@@ -73,7 +86,7 @@ test('an optometrist can create a quotation for a completed encounter', function
     Prescription::factory()->linkedToEncounter($encounter)->create();
 
     $quotation = app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $optometrist,
         data: [
             'discount_amount' => 0,
@@ -83,9 +96,11 @@ test('an optometrist can create a quotation for a completed encounter', function
                 'unit_price' => 750,
             ]],
         ],
+        encounter: $encounter,
     );
 
-    expect($quotation->latestRevision->total)->toBe('750.00');
+    expect((float) $quotation->total)->toBe(750.0)
+        ->and($quotation->items)->toHaveCount(1);
 });
 
 test('quotation creation requires an authorized clinic user', function () {
@@ -94,7 +109,7 @@ test('quotation creation requires an authorized clinic user', function () {
     Prescription::factory()->linkedToEncounter($encounter)->create();
 
     app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $patientUser,
         data: [
             'discount_amount' => 0,
@@ -104,6 +119,7 @@ test('quotation creation requires an authorized clinic user', function () {
                 'unit_price' => 1000,
             ]],
         ],
+        encounter: $encounter,
     );
 })->throws(ValidationException::class, 'Only clinic staff can create a quotation.');
 
@@ -113,7 +129,7 @@ test('quotation creation requires an eligible encounter status', function () {
     Prescription::factory()->linkedToEncounter($encounter)->create();
 
     app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $staff,
         data: [
             'discount_amount' => 0,
@@ -123,24 +139,28 @@ test('quotation creation requires an eligible encounter status', function () {
                 'unit_price' => 1000,
             ]],
         ],
+        encounter: $encounter,
     );
 })->throws(ValidationException::class);
 
-test('quotation creation requires a current prescription', function () {
+test('corrective eyewear requires a current prescription', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
+    $lensCategory = LensCategory::factory()->create(['price' => 1000]);
 
     app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $staff,
         data: [
             'discount_amount' => 0,
             'items' => [[
-                'description' => 'Frame',
+                'description' => 'Lens',
                 'quantity' => 1,
                 'unit_price' => 1000,
+                'lens_category_id' => $lensCategory->id,
             ]],
         ],
+        encounter: $encounter,
     );
 })->throws(ValidationException::class);
 
@@ -157,8 +177,8 @@ test('only one quotation can be created for an encounter', function () {
         ]],
     ];
 
-    app(CreateQuotation::class)->handle($encounter, $staff, $data);
-    app(CreateQuotation::class)->handle($encounter, $staff, $data);
+    app(CreateQuotation::class)->handle($encounter->patient, $staff, $data, $encounter);
+    app(CreateQuotation::class)->handle($encounter->patient, $staff, $data, $encounter);
 })->throws(ValidationException::class, 'This encounter already has a quotation.');
 
 test('quotation creation rejects invalid item sources and discounts without partial records', function (
@@ -181,9 +201,10 @@ test('quotation creation rejects invalid item sources and discounts without part
         ];
 
         app(CreateQuotation::class)->handle(
-            encounter: $encounter,
+            patient: $encounter->patient,
             creator: $staff,
             data: array_replace($data, $quotationOverrides),
+            encounter: $encounter,
         );
     } catch (ValidationException) {
         expect(Quotation::query()->where('encounter_id', $encounter->id)->exists())->toBeFalse();
@@ -207,7 +228,7 @@ test('a quotation item cannot reference both a product variant and lens category
     $lensCategory = LensCategory::factory()->create(['price' => 1000]);
 
     app(CreateQuotation::class)->handle(
-        encounter: $encounter,
+        patient: $encounter->patient,
         creator: $staff,
         data: [
             'discount_amount' => 0,
@@ -219,5 +240,53 @@ test('a quotation item cannot reference both a product variant and lens category
                 'lens_category_id' => $lensCategory->id,
             ]],
         ],
+        encounter: $encounter,
     );
 })->throws(ValidationException::class);
+
+test('non-corrective sale does not require an encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create();
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Frame',
+                'quantity' => 1,
+                'unit_price' => 5000,
+                'product_variant_id' => $variant->id,
+            ]],
+        ],
+    );
+
+    expect($quotation->encounter_id)->toBeNull()
+        ->and($quotation->prescription_id)->toBeNull()
+        ->and((float) $quotation->total)->toBe(5000.0)
+        ->and($quotation->items)->toHaveCount(1);
+});
+
+test('mixed product and service items are preserved', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create();
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [
+                ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 4500, 'product_variant_id' => $variant->id],
+                ['description' => 'Anti-reflective coating', 'quantity' => 1, 'unit_price' => 1000],
+                ['description' => 'Fitting service', 'quantity' => 1, 'unit_price' => 500],
+            ],
+        ],
+    );
+
+    expect($quotation->items)->toHaveCount(3)
+        ->and((float) $quotation->total)->toBe(6000.0);
+});

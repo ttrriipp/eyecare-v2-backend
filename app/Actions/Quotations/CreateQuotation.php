@@ -7,6 +7,7 @@ use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
@@ -23,42 +24,65 @@ class CreateQuotation
     /**
      * @param  array<string, mixed>  $data
      */
-    public function handle(Encounter $encounter, User $creator, array $data): Quotation
-    {
+    public function handle(
+        Patient $patient,
+        User $creator,
+        array $data,
+        ?Encounter $encounter = null,
+    ): Quotation {
         if (! in_array($creator->role->name, ['admin', 'staff'], true)) {
             throw ValidationException::withMessages([
                 'creator' => ['Only clinic staff can create a quotation.'],
             ]);
         }
 
-        $validated = $this->validate($data);
+        $validated = $this->validate($data, $encounter);
 
-        return DB::transaction(function () use ($encounter, $creator, $validated): Quotation {
-            $lockedEncounter = Encounter::query()
-                ->lockForUpdate()
-                ->findOrFail($encounter->id);
+        return DB::transaction(function () use ($patient, $creator, $validated, $encounter): Quotation {
+            // Validate encounter if provided
+            if ($encounter !== null) {
+                $lockedEncounter = Encounter::query()
+                    ->lockForUpdate()
+                    ->findOrFail($encounter->id);
 
-            if (! in_array($lockedEncounter->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)) {
-                throw ValidationException::withMessages([
-                    'encounter' => ['A quotation requires an in-progress or completed encounter.'],
-                ]);
+                if (! in_array($lockedEncounter->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)) {
+                    throw ValidationException::withMessages([
+                        'encounter' => ['A quotation requires an in-progress or completed encounter.'],
+                    ]);
+                }
+
+                if (Quotation::query()->withTrashed()->where('encounter_id', $lockedEncounter->id)->exists()) {
+                    throw ValidationException::withMessages([
+                        'encounter' => ['This encounter already has a quotation.'],
+                    ]);
+                }
             }
 
-            if (Quotation::query()->withTrashed()->where('encounter_id', $lockedEncounter->id)->exists()) {
-                throw ValidationException::withMessages([
-                    'encounter' => ['This encounter already has a quotation.'],
-                ]);
-            }
+            // Resolve prescription if corrective eyewear is included
+            $prescriptionId = null;
+            $hasCorrectiveItems = collect($validated['items'])->contains(
+                fn (array $item): bool => filled($item['lens_category_id'] ?? null),
+            );
 
-            $prescription = $lockedEncounter->prescriptions()
-                ->whereDoesntHave('nextPrescription')
-                ->latest('id')
-                ->first();
+            if ($hasCorrectiveItems) {
+                if ($encounter === null) {
+                    throw ValidationException::withMessages([
+                        'encounter' => ['An encounter is required when the order includes corrective eyewear.'],
+                    ]);
+                }
 
-            if ($prescription === null) {
-                throw ValidationException::withMessages([
-                    'prescription' => ['Finalize a current prescription before creating a quotation.'],
-                ]);
+                $prescription = $encounter->prescriptions()
+                    ->whereDoesntHave('nextPrescription')
+                    ->latest('id')
+                    ->first();
+
+                if ($prescription === null) {
+                    throw ValidationException::withMessages([
+                        'prescription' => ['Finalize a current prescription before creating corrective eyewear.'],
+                    ]);
+                }
+
+                $prescriptionId = $prescription->id;
             }
 
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
@@ -85,24 +109,23 @@ class CreateQuotation
                 ]);
             }
 
+            $totalInCents = $subtotalInCents - $discountInCents;
+
             $quotation = Quotation::query()->create([
-                'patient_id' => $lockedEncounter->patient_id,
-                'encounter_id' => $lockedEncounter->id,
-                'prescription_id' => $prescription->id,
+                'patient_id' => $patient->id,
+                'encounter_id' => $encounter?->id,
+                'prescription_id' => $prescriptionId,
                 'status' => QuotationStatus::Draft,
                 'valid_until' => $validated['valid_until'] ?? null,
+                'subtotal' => $this->formatMoney($subtotalInCents),
+                'discount_amount' => $this->formatMoney($discountInCents),
+                'total' => $this->formatMoney($totalInCents),
                 'notes' => $this->nullableTrimmed($validated['notes'] ?? null),
                 'internal_notes' => $this->nullableTrimmed($validated['internal_notes'] ?? null),
             ]);
 
-            $revision = $quotation->revisions()->create([
-                'revision_number' => 1,
-                'subtotal' => $this->formatMoney($subtotalInCents),
-                'discount_amount' => $this->formatMoney($discountInCents),
-                'total' => $this->formatMoney($subtotalInCents - $discountInCents),
-            ]);
-
-            $revision->items()->createMany(
+            // Create items directly on the quotation
+            $quotation->items()->createMany(
                 $itemSnapshots
                     ->map(fn (array $item): array => collect($item)->except('amount_in_cents')->all())
                     ->all(),
@@ -112,16 +135,15 @@ class CreateQuotation
                 subject: $quotation,
                 action: AuditEvent::QuotationCreated,
                 metadata: [
-                    'encounter_id' => $lockedEncounter->id,
-                    'prescription_id' => $prescription->id,
-                    'quotation_revision_id' => $revision->id,
+                    'encounter_id' => $encounter?->id,
+                    'prescription_id' => $prescriptionId,
                     'item_count' => $itemSnapshots->count(),
-                    'total' => $this->formatMoney($subtotalInCents - $discountInCents),
+                    'total' => $this->formatMoney($totalInCents),
                 ],
                 actorId: $creator->id,
             );
 
-            return $quotation->load('latestRevision.items');
+            return $quotation->load('items');
         });
     }
 
@@ -129,7 +151,7 @@ class CreateQuotation
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function validate(array $data): array
+    private function validate(array $data, ?Encounter $encounter): array
     {
         $validator = Validator::make($data, [
             'valid_until' => ['nullable', 'date', 'after_or_equal:today'],
