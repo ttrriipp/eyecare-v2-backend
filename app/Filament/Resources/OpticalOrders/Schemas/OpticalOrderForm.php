@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
+use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\Patient;
 use App\Models\ProductVariant;
@@ -36,7 +37,7 @@ class OpticalOrderForm
                             ->preload()
                             ->live()
                             ->afterStateUpdated(fn (Set $set) => $set('encounter_id', null))
-                            ->disabled(fn (Get $get): bool => filled($get('patient_id')) && filled(request()->query('encounter'))),
+                            ->default(fn () => request()->query('encounter') ? Encounter::find(request()->query('encounter'))?->patient_id : null),
 
                         Select::make('encounter_id')
                             ->label('Encounter')
@@ -50,7 +51,7 @@ class OpticalOrderForm
                             ->searchable()
                             ->preload()
                             ->nullable()
-                            ->disabled(fn (Get $get): bool => filled($get('encounter_id'))),
+                            ->default(fn () => request()->query('encounter')),
 
                         DatePicker::make('valid_until')
                             ->label('Valid Until')
