@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\OpticalOrders;
 
+use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
+use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
 use App\Filament\Resources\OpticalOrders\Pages\ViewOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderForm;
@@ -20,7 +22,7 @@ class OpticalOrderResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Fulfillment & Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Optical';
 
     protected static ?int $navigationSort = 1;
 
@@ -28,10 +30,9 @@ class OpticalOrderResource extends Resource
 
     protected static ?string $navigationLabel = 'Optical Orders';
 
-    public static function canCreate(): bool
-    {
-        return false; // Orders are created through the quotation workflow
-    }
+    protected static ?string $modelLabel = 'Optical Order';
+
+    protected static ?string $pluralModelLabel = 'Optical Orders';
 
     public static function form(Schema $schema): Schema
     {
@@ -52,6 +53,8 @@ class OpticalOrderResource extends Resource
     {
         return [
             'index' => ListOpticalOrders::route('/'),
+            'create' => CreateOpticalOrder::route('/create'),
+            'edit' => EditOpticalOrder::route('/{record}/edit'),
             'view' => ViewOpticalOrder::route('/{record}'),
         ];
     }

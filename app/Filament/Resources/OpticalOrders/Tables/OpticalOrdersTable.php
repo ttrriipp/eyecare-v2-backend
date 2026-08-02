@@ -45,7 +45,7 @@ class OpticalOrdersTable
                     ->badge()
                     ->placeholder('—'),
 
-                TextColumn::make('latestRevision.total')
+                TextColumn::make('total')
                     ->label('Total')
                     ->money('PHP')
                     ->sortable(),
