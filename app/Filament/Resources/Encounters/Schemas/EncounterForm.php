@@ -338,7 +338,7 @@ class EncounterForm
                             ]),
                     ]),
             ])
-                ->submitAction(null)
+                ->submitAction('Complete Visit')
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
             Grid::make(3)
