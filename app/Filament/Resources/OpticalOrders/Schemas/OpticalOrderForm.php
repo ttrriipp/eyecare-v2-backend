@@ -28,7 +28,9 @@ class OpticalOrderForm
                     ->schema([
                         Select::make('patient_id')
                             ->label('Patient')
-                            ->options(Patient::query()->pluck('full_name', 'id'))
+                            ->options(Patient::query()
+                                ->get()
+                                ->mapWithKeys(fn ($p) => [$p->id => $p->full_name]))
                             ->required()
                             ->searchable()
                             ->preload()
