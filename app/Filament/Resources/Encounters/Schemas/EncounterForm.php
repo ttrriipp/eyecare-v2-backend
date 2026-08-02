@@ -7,6 +7,8 @@ use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Carbon\CarbonInterface;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
@@ -17,8 +19,6 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class EncounterForm
@@ -338,17 +338,21 @@ class EncounterForm
                                     ))
                                     ->columnSpanFull(),
                             ]),
+
+                        Actions::make([
+                            Action::make('completeVisit')
+                                ->label('Complete Visit')
+                                ->icon('heroicon-o-check-circle')
+                                ->color('success')
+                                ->requiresConfirmation()
+                                ->modalHeading('Complete Visit')
+                                ->modalDescription('Are you sure you want to complete this visit? This action cannot be undone.')
+                                ->modalSubmitActionLabel('Complete Visit')
+                                ->action(fn () => $this->dispatch('completeVisit')),
+                        ]),
                     ]),
             ])
-                ->submitAction(new HtmlString(Blade::render(<<<'BLADE'
-                    <x-filament::button
-                        type="submit"
-                        size="sm"
-                        x-on:click="if(!confirm('Are you sure you want to complete this visit? This action cannot be undone.')) $event.preventDefault()"
-                    >
-                        Complete Visit
-                    </x-filament::button>
-                BLADE)))
+                ->submitAction(null)
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
             Grid::make(3)

@@ -21,6 +21,7 @@ use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\On;
 
 class EditEncounter extends EditRecord
 {
@@ -133,6 +134,17 @@ class EditEncounter extends EditRecord
     {
         return collect(self::PRESCRIPTION_FIELDS)
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
+    }
+
+    #[On('completeVisit')]
+    public function completeVisit(): void
+    {
+        try {
+            $this->save();
+            Notification::make()->title('Visit completed')->success()->send();
+        } catch (ValidationException $e) {
+            Notification::make()->title('Cannot complete visit')->body($e->getMessage())->danger()->send();
+        }
     }
 
     protected function getHeaderActions(): array
