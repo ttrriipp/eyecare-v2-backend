@@ -37,26 +37,6 @@ class PatientAccountForm
                             ->content(fn ($record) => $record?->created_at?->format('M j, Y g:i A') ?? '—'),
                     ]),
 
-                    Section::make('Verified Contacts')->schema([
-                        Placeholder::make('verified_contacts')
-                            ->label('')
-                            ->content(function ($record): string {
-                                if ($record === null) {
-                                    return '—';
-                                }
-
-                                $contacts = $record->contacts()->whereNotNull('verified_at')->get();
-
-                                if ($contacts->isEmpty()) {
-                                    return 'No verified contacts';
-                                }
-
-                                return $contacts->map(fn ($c) => strtoupper($c->type).': '.$c->encrypted_value.($c->is_primary ? ' (Primary)' : '')
-                                )->implode("\n");
-                            })
-                            ->columnSpanFull(),
-                    ]),
-
                     Section::make('Device Sessions')->schema([
                         Placeholder::make('device_sessions')
                             ->label('')
