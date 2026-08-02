@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Encounters\Schemas;
 
+use App\Enums\EncounterStatus;
 use App\Models\Encounter;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
@@ -18,9 +19,11 @@ class EncounterForm
     {
         return $schema->columns(1)->components([
             Grid::make(3)->schema([
-                // ── Main (2/3): Consultation Wizard ─────────────────
+                // ── Main (2/3): Consultation or Summary ──────────────
                 Grid::make(1)->columnSpan(2)->schema([
+                    // Wizard for in-progress encounters
                     Section::make('Consultation')
+                        ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress)
                         ->schema([
                             Wizard::make([
                                 Step::make('Consultation & History')
@@ -87,6 +90,25 @@ class EncounterForm
                             ])
                                 ->submitAction(null),
                         ]),
+
+                    // Summary for planned/completed encounters
+                    Section::make('Clinical Summary')
+                        ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                        ->schema([
+                            Placeholder::make('view_chief_complaint')
+                                ->label('Chief Complaint')
+                                ->content(fn (Encounter $record): string => $record->chief_complaint ?? '—'),
+                            Placeholder::make('view_findings')
+                                ->label('Findings')
+                                ->content(fn (Encounter $record): string => $record->findings ?? '—'),
+                            Placeholder::make('view_plan')
+                                ->label('Plan')
+                                ->content(fn (Encounter $record): string => $record->plan ?? '—'),
+                            Placeholder::make('view_remarks')
+                                ->label('Remarks')
+                                ->content(fn (Encounter $record): string => $record->remarks ?? '—'),
+                        ])
+                        ->columns(2),
                 ]),
 
                 // ── Sidebar (1/3): Encounter Details ────────────────
