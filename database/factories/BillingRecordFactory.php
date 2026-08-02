@@ -27,6 +27,7 @@ class BillingRecordFactory extends Factory
             'total_amount' => fake()->randomFloat(2, 1000, 50000),
             'amount_paid' => 0,
             'balance_due' => fn (array $attributes) => $attributes['total_amount'],
+            'payment_due_date' => null,
             'notes' => null,
             'recorded_by' => User::factory(),
             'recorded_at' => now(),

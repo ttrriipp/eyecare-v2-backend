@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'patient_id',
     'encounter_id',
     'prescription_id',
+    'quotation_id',
     'quotation_revision_id',
     'frame_reservation_id',
     'status',
@@ -72,6 +73,14 @@ class JobOrder extends Model
     public function prescription(): BelongsTo
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    /**
+     * @return BelongsTo<Quotation, $this>
+     */
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(Quotation::class);
     }
 
     /**
