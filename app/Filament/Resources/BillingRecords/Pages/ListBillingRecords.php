@@ -20,7 +20,7 @@ class ListBillingRecords extends ListRecords
         return [
             'all' => Tab::make('All'),
 
-            'outstanding' => Tab::make('Outstanding')
+            'outstanding' => Tab::make('Balances Due')
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->whereIn('status', [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid])),
 
