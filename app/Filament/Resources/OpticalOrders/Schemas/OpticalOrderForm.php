@@ -35,7 +35,8 @@ class OpticalOrderForm
                             ->searchable()
                             ->preload()
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('encounter_id', null)),
+                            ->afterStateUpdated(fn (Set $set) => $set('encounter_id', null))
+                            ->disabled(fn (Get $get): bool => filled($get('patient_id')) && filled(request()->query('encounter'))),
 
                         Select::make('encounter_id')
                             ->label('Encounter')
@@ -48,7 +49,8 @@ class OpticalOrderForm
                                     ?? collect())
                             ->searchable()
                             ->preload()
-                            ->nullable(),
+                            ->nullable()
+                            ->disabled(fn (Get $get): bool => filled($get('encounter_id'))),
 
                         DatePicker::make('valid_until')
                             ->label('Valid Until')
