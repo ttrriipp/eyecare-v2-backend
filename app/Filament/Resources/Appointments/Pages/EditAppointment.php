@@ -59,7 +59,15 @@ class EditAppointment extends EditRecord
                         return;
                     }
 
-                    $optometrist = User::findOrFail($data['optometrist_id']);
+                    $optometristId = $data['optometrist_id'] ?? null;
+
+                    if (empty($optometristId)) {
+                        Notification::make()->title('No optometrist selected')->body('Please select an optometrist.')->danger()->send();
+
+                        return;
+                    }
+
+                    $optometrist = User::findOrFail($optometristId);
 
                     try {
                         app(StartEncounter::class)->handle(
