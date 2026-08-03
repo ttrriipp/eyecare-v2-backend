@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\BillingRecordStatus;
@@ -138,16 +139,36 @@ test('aggregate relationships consistent after cancellation', function () {
 
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
-    // Quotation -> Job Order link preserved
-    expect($quotation->fresh()->jobOrder->id)->toBe($jobOrder->id);
-
-    // Job Order -> Billing link preserved
-    expect($jobOrder->fresh()->billingRecord->id)->toBe($result['billing_record']->id);
-
-    // Eyewear key stable
-    expect($jobOrder->fresh()->eyewear_key)->toBe('eyw_01CANCELTEST');
-
-    // Statuses updated
-    expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Cancelled)
+    expect($quotation->fresh()->jobOrder->id)->toBe($jobOrder->id)
+        ->and($jobOrder->fresh()->billingRecord->id)->toBe($result['billing_record']->id)
+        ->and($jobOrder->fresh()->eyewear_key)->toBe('eyw_01CANCELTEST')
+        ->and($jobOrder->fresh()->status)->toBe(JobOrderStatus::Cancelled)
         ->and($result['billing_record']->fresh()->status)->toBe(BillingRecordStatus::Voided);
+});
+
+test('posted payment locks billing record charges', function () {
+    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 10000,
+        'amount' => 10000,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation, depositAmount: 3000);
+    $billing = $result['billing_record']->fresh();
+
+    expect((float) $billing->amount_paid)->toBe(3000.0)
+        ->and((float) $billing->balance_due)->toBe(7000.0)
+        ->and($billing->status)->toBe(BillingRecordStatus::PartiallyPaid);
+});
+
+test('dispensing requires existing billing record', function () {
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::ReadyForDispensing,
+        'supplier_invoice_number' => 'INV-001',
+    ]);
+
+    $this->expectException(ValidationException::class);
+    app(DispenseJobOrder::class)->handle($jobOrder, $this->staff);
 });
