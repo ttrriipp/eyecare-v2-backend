@@ -65,6 +65,22 @@ class OpticalOrderForm
                     ->schema([
                         Repeater::make('items')
                             ->schema([
+                                Select::make('item_mode')
+                                    ->label('Type')
+                                    ->options([
+                                        'product' => 'Product',
+                                        'service' => 'Service',
+                                    ])
+                                    ->default('product')
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                                        if ($state === 'service') {
+                                            $set('product_variant_id', null);
+                                            $set('lens_category_id', null);
+                                        }
+                                    }),
+
                                 Select::make('product_variant_id')
                                     ->label('Catalog Item')
                                     ->options(ProductVariant::query()
@@ -77,6 +93,7 @@ class OpticalOrderForm
                                     ->preload()
                                     ->nullable()
                                     ->live()
+                                    ->visible(fn (Get $get): bool => $get('item_mode') === 'product')
                                     ->afterStateUpdated(function (Set $set, ?string $state): void {
                                         if ($state !== null) {
                                             $variant = ProductVariant::find($state);
@@ -94,6 +111,7 @@ class OpticalOrderForm
                                     ->preload()
                                     ->nullable()
                                     ->live()
+                                    ->visible(fn (Get $get): bool => $get('item_mode') === 'product')
                                     ->afterStateUpdated(function (Set $set, ?string $state): void {
                                         if ($state !== null) {
                                             $lens = LensCategory::find($state);
@@ -147,6 +165,32 @@ class OpticalOrderForm
                             ->columnSpanFull(),
                     ]),
 
+                Placeholder::make('transaction_type')
+                    ->label('Transaction Type')
+                    ->content(function ($record, Get $get): string {
+                        $items = $get('items') ?? [];
+                        $hasProducts = false;
+                        $hasServices = false;
+
+                        foreach ($items as $item) {
+                            if (($item['item_mode'] ?? 'product') === 'product') {
+                                $hasProducts = true;
+                            } else {
+                                $hasServices = true;
+                            }
+                        }
+
+                        if ($hasProducts && $hasServices) {
+                            return 'Mixed';
+                        }
+
+                        if ($hasProducts) {
+                            return 'Product-only';
+                        }
+
+                        return 'Service-only';
+                    }),
+
                 Section::make('Pricing')
                     ->schema([
                         Grid::make(3)
@@ -192,12 +236,16 @@ class OpticalOrderForm
 
                 Placeholder::make('fulfillment_display')
                     ->label('Fulfillment')
-                    ->content(fn ($record) => $record?->jobOrder?->status?->value ?? 'No order yet')
+                    ->content(fn ($record) => match ($record?->jobOrder?->fulfillment_mode) {
+                        'immediate' => 'Completed',
+                        'prepared' => $record?->jobOrder?->status?->value === 'queued' ? 'Confirmed' : ucfirst($record?->jobOrder?->status?->value ?? 'No order yet'),
+                        default => 'No order yet',
+                    })
                     ->visible(fn ($record) => $record !== null),
 
                 Placeholder::make('payment_display')
                     ->label('Payment')
-                    ->content(fn ($record) => $record?->jobOrder?->billingRecord?->status?->value ?? '—')
+                    ->content(fn ($record) => $record?->jobOrder?->billingRecord?->status?->getLabel() ?? '—')
                     ->visible(fn ($record) => $record !== null),
             ]);
     }

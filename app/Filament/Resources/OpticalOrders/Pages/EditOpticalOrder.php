@@ -31,7 +31,7 @@ class EditOpticalOrder extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        // Load items for the form
+        // Load items for the form with item_mode
         $data['items'] = $this->record->items->map(fn ($item) => [
             'id' => $item->id,
             'description' => $item->description,
@@ -40,6 +40,7 @@ class EditOpticalOrder extends EditRecord
             'amount' => $item->amount,
             'product_variant_id' => $item->product_variant_id,
             'lens_category_id' => $item->lens_category_id,
+            'item_mode' => ($item->product_variant_id || $item->lens_category_id) ? 'product' : 'service',
         ])->toArray();
 
         return $data;
@@ -51,6 +52,12 @@ class EditOpticalOrder extends EditRecord
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        // Strip item_mode (UI-only field)
+        foreach ($data['items'] ?? [] as &$item) {
+            unset($item['item_mode']);
+        }
+        unset($item);
+
         // Calculate subtotal from items
         $subtotal = collect($data['items'] ?? [])
             ->sum(fn (array $item) => (float) ($item['amount'] ?? 0));

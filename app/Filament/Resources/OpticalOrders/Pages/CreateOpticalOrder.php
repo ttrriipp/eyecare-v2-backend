@@ -49,6 +49,12 @@ class CreateOpticalOrder extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Strip item_mode (UI-only field)
+        foreach ($data['items'] ?? [] as &$item) {
+            unset($item['item_mode']);
+        }
+        unset($item);
+
         // Calculate subtotal from items
         $subtotal = collect($data['items'] ?? [])
             ->sum(fn (array $item) => (float) ($item['amount'] ?? 0));
