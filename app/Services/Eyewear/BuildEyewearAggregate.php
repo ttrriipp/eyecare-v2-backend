@@ -52,6 +52,15 @@ class BuildEyewearAggregate
         $dispensing = $this->buildDispensingSection($jobOrder);
         $paymentSummary = $this->buildPaymentSummary($billingRecord);
 
+        // Determine scope and other clinic charges for Combined bills
+        $scope = 'order_only';
+        $otherClinicChargesAmount = null;
+
+        if ($billingRecord !== null && $billingRecord->isCombined()) {
+            $scope = 'overall_checkout';
+            $otherClinicChargesAmount = $this->resolveOtherClinicCharges($billingRecord);
+        }
+
         return new EyewearAggregate(
             key: $jobOrder->eyewear_key,
             description: $description,
@@ -68,6 +77,8 @@ class BuildEyewearAggregate
             preparation: $preparation,
             dispensing: $dispensing,
             paymentSummary: $paymentSummary,
+            scope: $scope,
+            otherClinicChargesAmount: $otherClinicChargesAmount,
         );
     }
 
@@ -370,5 +381,21 @@ class BuildEyewearAggregate
             'balance_due' => number_format((float) $billingRecord->balance_due, 2, '.', ''),
             'payments' => $payments,
         ];
+    }
+
+    /**
+     * Resolve the sum of Encounter-originating charges for a Combined bill.
+     *
+     * This is the sum of Billing Record items that came from an Encounter
+     * (not from an Optical Order/Job Order).
+     */
+    private function resolveOtherClinicCharges(BillingRecord $billingRecord): string
+    {
+        $encounterCharges = $billingRecord->items()
+            ->whereNull('job_order_item_id')
+            ->whereNotNull('encounter_id')
+            ->sum('amount');
+
+        return number_format((float) $encounterCharges, 2, '.', '');
     }
 }

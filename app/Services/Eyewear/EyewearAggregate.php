@@ -23,5 +23,7 @@ class EyewearAggregate
         public readonly ?array $preparation,
         public readonly ?array $dispensing,
         public readonly ?array $paymentSummary,
+        public readonly string $scope = 'order_only',
+        public readonly ?string $otherClinicChargesAmount = null,
     ) {}
 }
