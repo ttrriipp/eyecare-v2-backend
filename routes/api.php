@@ -122,5 +122,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
 
     Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
+    Route::post('optical-order-items/{item}/rating', [FrameRatingController::class, 'store']);
     Route::post('job-order-items/{item}/rating', [FrameRatingController::class, 'store']);
 });
