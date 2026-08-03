@@ -46,8 +46,10 @@ class AppointmentsTable
                     ->label('Number')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('patient.first_name')
-                    ->label('Patient'),
+                TextColumn::make('patient.full_name')
+                    ->label('Patient')
+                    ->searchable(['patient.first_name', 'patient.last_name'])
+                    ->sortable(),
                 TextColumn::make('appointmentType.name')
                     ->label('Appointment Type'),
                 TextColumn::make('status.name')
