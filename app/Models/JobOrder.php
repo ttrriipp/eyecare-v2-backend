@@ -44,7 +44,7 @@ class JobOrder extends Model
             if (blank($jobOrder->job_order_number)) {
                 $year = now()->format('Y');
                 $sequence = self::query()->withTrashed()->whereYear('created_at', $year)->count() + 1;
-                $jobOrder->job_order_number = sprintf('JO-%s-%06d', $year, $sequence);
+                $jobOrder->job_order_number = sprintf('ORD-%s-%06d', $year, $sequence);
             }
 
             if (blank($jobOrder->eyewear_key)) {

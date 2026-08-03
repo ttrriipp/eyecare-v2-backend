@@ -21,7 +21,7 @@ class JobOrderFactory extends Factory
     public function definition(): array
     {
         return [
-            'job_order_number' => fn (): string => 'JO-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
+            'job_order_number' => fn (): string => 'ORD-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
             'patient_id' => Patient::factory(),
             'encounter_id' => null,
             'prescription_id' => null,

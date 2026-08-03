@@ -171,7 +171,7 @@ class ClinicWorkflowSeeder extends Seeder
         $jobOrder = JobOrder::query()->firstOrCreate(
             ['quotation_id' => $quotation->id],
             [
-                'job_order_number' => 'JO-2026-000001',
+                'job_order_number' => 'ORD-2026-000001',
                 'eyewear_key' => $quotation->eyewear_key,
                 'patient_id' => $patient->id,
                 'encounter_id' => $encounter->id,
