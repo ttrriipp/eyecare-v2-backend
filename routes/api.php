@@ -5,13 +5,11 @@ use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AppointmentRequestAvailabilityController;
 use App\Http\Controllers\Api\AppointmentRequestController;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\BillingRecordController;
 use App\Http\Controllers\Api\ConversationController;
-use App\Http\Controllers\Api\EyewearController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
 use App\Http\Controllers\Api\FrameReservationController;
-use App\Http\Controllers\Api\JobOrderController;
+use App\Http\Controllers\Api\OpticalOrderController;
 use App\Http\Controllers\Api\OtpChallengeController;
 use App\Http\Controllers\Api\PatientInvitationController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
@@ -106,15 +104,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
 
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
-
-    Route::get('job-orders', [JobOrderController::class, 'index']);
-    Route::get('job-orders/{jobOrder}', [JobOrderController::class, 'show']);
-
-    Route::get('billing-records', [BillingRecordController::class, 'index']);
-    Route::get('billing-records/{billingRecord}', [BillingRecordController::class, 'show']);
-
-    Route::get('eyewear', [EyewearController::class, 'index']);
-    Route::get('eyewear/{key}', [EyewearController::class, 'show']);
 
     Route::get('conversation', [ConversationController::class, 'show']);
     Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
