@@ -32,15 +32,18 @@ class BillingRecordsTable
                         'Encounter' => 'warning',
                         'Combined' => 'success',
                         default => 'gray',
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('jobOrder.job_order_number')
                     ->label('Optical Order')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('encounter.encounter_number')
                     ->label('Encounter')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('items_summary')
                     ->label('Items')
@@ -60,7 +63,8 @@ class BillingRecordsTable
                         }
 
                         return implode(', ', $parts);
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('total_amount')
                     ->label('Total')
