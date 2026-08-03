@@ -4,6 +4,7 @@ namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
+use App\Actions\OpticalOrders\CompleteImmediateOpticalOrder;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Enums\JobOrderStatus;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Carbon;
@@ -60,6 +62,21 @@ class ViewOpticalOrder extends ViewRecord
                 ->color('success')
                 ->visible(fn () => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented], true))
                 ->schema([
+                    Select::make('fulfillment_mode')
+                        ->label('Fulfillment')
+                        ->options([
+                            'immediate' => 'Complete sale now',
+                            'prepared' => 'Prepare for pickup',
+                        ])
+                        ->default('prepared')
+                        ->required()
+                        ->live(),
+
+                    Toggle::make('uses_external_supplier')
+                        ->label('External lab/supplier work')
+                        ->visible(fn (callable $get) => $get('fulfillment_mode') === 'prepared')
+                        ->default(false),
+
                     DatePicker::make('payment_due_date')
                         ->label('Payment Due Date')
                         ->native(false)
@@ -90,13 +107,27 @@ class ViewOpticalOrder extends ViewRecord
                 ])
                 ->action(function (array $data): void {
                     try {
-                        $result = app(AcceptAndStartOpticalOrder::class)->handle(
-                            $this->record,
-                            paymentDueDate: $data['payment_due_date'] ? Carbon::parse($data['payment_due_date']) : null,
-                            depositAmount: $data['deposit_amount'] ? (float) $data['deposit_amount'] : null,
-                            depositPaymentMethod: $data['deposit_payment_method'] ?? null,
-                            depositReference: $data['deposit_reference'] ?? null,
-                        );
+                        $fulfillmentMode = $data['fulfillment_mode'] ?? 'prepared';
+
+                        if ($fulfillmentMode === 'immediate') {
+                            $result = app(CompleteImmediateOpticalOrder::class)->handle(
+                                $this->record,
+                                paymentDueDate: $data['payment_due_date'] ? Carbon::parse($data['payment_due_date']) : null,
+                                depositAmount: $data['deposit_amount'] ? (float) $data['deposit_amount'] : null,
+                                depositPaymentMethod: $data['deposit_payment_method'] ?? null,
+                                depositReference: $data['deposit_reference'] ?? null,
+                            );
+                        } else {
+                            $result = app(AcceptAndStartOpticalOrder::class)->handle(
+                                $this->record,
+                                paymentDueDate: $data['payment_due_date'] ? Carbon::parse($data['payment_due_date']) : null,
+                                depositAmount: $data['deposit_amount'] ? (float) $data['deposit_amount'] : null,
+                                depositPaymentMethod: $data['deposit_payment_method'] ?? null,
+                                depositReference: $data['deposit_reference'] ?? null,
+                                fulfillmentMode: $fulfillmentMode,
+                                usesExternalSupplier: $data['uses_external_supplier'] ?? false,
+                            );
+                        }
 
                         $this->record->refresh();
                         Notification::make()
