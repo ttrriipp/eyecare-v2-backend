@@ -22,6 +22,8 @@ use Illuminate\Support\Str;
     'quotation_id',
     'frame_reservation_id',
     'status',
+    'fulfillment_mode',
+    'uses_external_supplier',
     'total_amount',
     'notes',
     'supplier_invoice_number',
