@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OpticalOrders\Tables;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
