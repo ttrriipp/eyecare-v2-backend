@@ -81,7 +81,7 @@ class AppointmentsTable
                         'messenger' => 'Messenger',
                         default => Str::headline($state),
                     })
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('scheduled_at')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
