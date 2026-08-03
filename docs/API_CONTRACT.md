@@ -1934,20 +1934,16 @@ GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/quotations                     List quotations
 GET    /api/v1/quotations/{id}                Get quotation
-GET    /api/v1/job-orders                     List job orders
-GET    /api/v1/job-orders/{id}                Get job order
-GET    /api/v1/billing-records                List billing records
-GET    /api/v1/billing-records/{id}           Get billing record
-
-GET    /api/v1/eyewear                        List eyewear aggregates
-GET    /api/v1/eyewear/{key}                  Get eyewear detail
+GET    /api/v1/optical-orders                 List optical orders
+GET    /api/v1/optical-orders/{id}            Get optical order
 
 GET    /api/v1/conversation                   Get conversation
 GET    /api/v1/conversation/messages          List messages
 POST   /api/v1/conversation/messages          Send message
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
-POST   /api/v1/job-order-items/{id}/rating    Submit frame rating
+POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
+POST   /api/v1/job-order-items/{id}/rating    Submit frame rating (legacy)
 ```
 
-**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**
+**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**

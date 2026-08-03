@@ -5,10 +5,12 @@
 > **Reconciliation status as of 2026-08-03.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
-> authenticated step-up for sensitive changes, and Optical Orders workflow
-> have been implemented. The API contract includes 55 routes (8 public,
-> 24 account-only, 23 active-link).
-> Legacy intake routes and direct booking have been removed. All accounts use
+> authenticated step-up for sensitive changes, Optical Orders workflow,
+> separate Quotations and Optical Orders sections, and unified billing
+> with explicit charge provenance have been implemented. The API contract
+> includes 52 routes (8 public, 24 account-only, 20 active-link).
+> Legacy intake routes, direct booking, job-orders, eyewear, and
+> billing-records API routes have been removed. All accounts use
 > structured first/middle/last names.
 
 ---
@@ -266,20 +268,17 @@ GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/quotations
 GET    /api/v1/quotations/{id}
-GET    /api/v1/job-orders
-GET    /api/v1/job-orders/{id}
-GET    /api/v1/billing-records
-GET    /api/v1/billing-records/{id}
-GET    /api/v1/eyewear
-GET    /api/v1/eyewear/{key}
+GET    /api/v1/optical-orders
+GET    /api/v1/optical-orders/{id}
 GET    /api/v1/conversation
 GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
 GET    /api/v1/conversation/attachments/{id}
+POST   /api/v1/optical-order-items/{id}/rating
 POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 24 account-only + 23 active-link = **55 routes total.**
+**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
