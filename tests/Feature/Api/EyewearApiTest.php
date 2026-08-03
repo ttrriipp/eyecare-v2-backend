@@ -7,8 +7,6 @@ use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Quotation;
-use App\Models\QuotationItem;
-use App\Models\QuotationRevision;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -128,13 +126,20 @@ test('linked quotation and job order produce one list entry', function () {
         'patient_id' => $user->patient->id,
         'status' => QuotationStatus::Accepted,
         'eyewear_key' => $key,
+        'total' => 5000,
     ]);
-    $revision = QuotationRevision::factory()->create(['quotation_id' => $quotation->id]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
     JobOrder::factory()->create([
         'patient_id' => $user->patient->id,
-        'quotation_revision_id' => $revision->id,
+        'quotation_id' => $quotation->id,
         'status' => JobOrderStatus::InProgress,
         'eyewear_key' => $key,
+        'total_amount' => 5000,
     ]);
 
     $this->actingAs($user)
@@ -260,15 +265,14 @@ test('detail includes estimate section when present', function () {
     $quotation = Quotation::factory()->create([
         'patient_id' => $user->patient->id,
         'status' => QuotationStatus::Presented,
-    ]);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
         'subtotal' => 5000,
         'total' => 5000,
     ]);
-    QuotationItem::factory()->create([
-        'quotation_revision_id' => $revision->id,
+    $quotation->items()->create([
         'description' => 'Classic Rectangle Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
     ]);
 
     $response = $this->actingAs($user)
