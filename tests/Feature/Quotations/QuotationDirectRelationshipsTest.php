@@ -1,13 +1,11 @@
 <?php
 
 /**
- * Tests for direct Quotation relationships introduced in Task A3.
- *
- * Verifies that Quotation::items() and Quotation::jobOrder() use direct keys
- * and that factories can create direct drafts without revisions.
+ * Tests for direct Quotation relationships.
  */
 
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -26,23 +24,11 @@ beforeEach(function () {
 test('quotation has direct items relationship', function () {
     $quotation = Quotation::factory()->create();
 
-    // Create items directly linked to quotation (no revision)
-    $item1 = QuotationItem::factory()->direct($quotation)->create([
-        'description' => 'Frame',
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
+    QuotationItem::factory()->count(2)->create([
+        'quotation_id' => $quotation->id,
     ]);
 
-    $item2 = QuotationItem::factory()->direct($quotation)->create([
-        'description' => 'Lens',
-        'quantity' => 2,
-        'unit_price' => 2000,
-        'amount' => 4000,
-    ]);
-
-    expect($quotation->items)->toHaveCount(2)
-        ->and($quotation->items->pluck('id')->toArray())->toContain($item1->id, $item2->id);
+    expect($quotation->items)->toHaveCount(2);
 });
 
 test('quotation has direct job order relationship', function () {
@@ -60,7 +46,9 @@ test('quotation has direct job order relationship', function () {
 test('quotation item has direct quotation relationship', function () {
     $quotation = Quotation::factory()->create();
 
-    $item = QuotationItem::factory()->direct($quotation)->create();
+    $item = QuotationItem::factory()->create([
+        'quotation_id' => $quotation->id,
+    ]);
 
     expect($item->quotation)->not->toBeNull()
         ->and($item->quotation->id)->toBe($quotation->id);
@@ -103,38 +91,42 @@ test('direct draft with heterogeneous items', function () {
     $variant = ProductVariant::factory()->create();
     $lensCategory = LensCategory::factory()->create(['price' => 3000]);
 
-    // Frame
-    QuotationItem::factory()->direct($quotation)->create([
+    QuotationItem::factory()->create([
+        'quotation_id' => $quotation->id,
         'description' => 'Classic Rectangle Frame',
         'quantity' => 1,
         'unit_price' => 4500,
         'amount' => 4500,
         'product_variant_id' => $variant->id,
+        'item_type' => TransactionItemType::Product,
     ]);
 
-    // Lens category
-    QuotationItem::factory()->direct($quotation)->create([
+    QuotationItem::factory()->create([
+        'quotation_id' => $quotation->id,
         'description' => 'Single Vision Lens',
         'quantity' => 2,
         'unit_price' => 3000,
         'amount' => 6000,
         'lens_category_id' => $lensCategory->id,
+        'item_type' => TransactionItemType::Product,
     ]);
 
-    // Service
-    QuotationItem::factory()->direct($quotation)->create([
+    QuotationItem::factory()->create([
+        'quotation_id' => $quotation->id,
         'description' => 'Custom fitting',
         'quantity' => 1,
         'unit_price' => 750,
         'amount' => 750,
+        'item_type' => TransactionItemType::Service,
     ]);
 
-    // Custom charge
-    QuotationItem::factory()->direct($quotation)->create([
+    QuotationItem::factory()->create([
+        'quotation_id' => $quotation->id,
         'description' => 'Anti-reflective coating',
         'quantity' => 1,
         'unit_price' => 1000,
         'amount' => 1000,
+        'item_type' => TransactionItemType::Service,
     ]);
 
     expect($quotation->items)->toHaveCount(4)

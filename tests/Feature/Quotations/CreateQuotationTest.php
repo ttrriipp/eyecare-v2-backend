@@ -68,9 +68,6 @@ test('staff creates a draft quotation with direct items from an encounter prescr
         ->and((float) $quotation->items->first()->amount)->toBe(5000.0)
         ->and((float) $quotation->items->last()->amount)->toBe(3000.0);
 
-    // No revision created
-    expect($quotation->revisions)->toHaveCount(0);
-
     // Audit log created
     expect(AuditLog::query()
         ->where('subject_type', $quotation->getMorphClass())
