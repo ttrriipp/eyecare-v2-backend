@@ -6,25 +6,24 @@ use App\Enums\BillingItemSourceKind;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
-use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class AddEncounterChargesToBilling
+class AddDirectServiceChargesToBilling
 {
     /**
-     * Add Encounter service charges to a Billing Record.
+     * Add direct Service charges to a Billing Record.
      *
      * Creates or reuses the open same-checkout Billing Record.
-     * Encounter-only charges create itemized Billing Records with matching
-     * Patient and Encounter source.
+     * Direct services have no Quotation, Encounter, or Optical Order source.
      *
      * @param  array<int, array{description: string, quantity: int, unit_price: float}>  $items
      */
     public function handle(
-        Encounter $encounter,
+        Patient $patient,
         array $items,
         ?float $discountAmount = null,
         ?Carbon $paymentDueDate = null,
@@ -38,11 +37,10 @@ class AddEncounterChargesToBilling
         /** @var User $recorder */
         $recorder = auth()->user();
 
-        return DB::transaction(function () use ($encounter, $items, $discountAmount, $paymentDueDate) {
-            // Find or create the open checkout billing record
+        return DB::transaction(function () use ($patient, $items, $discountAmount, $paymentDueDate) {
+            // Find or create the open checkout billing record (no encounter or job order)
             $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
-                patient: $encounter->patient,
-                encounter: $encounter,
+                patient: $patient,
             );
 
             // Check if charges can be added (no posted payments)
@@ -52,7 +50,7 @@ class AddEncounterChargesToBilling
                 ]);
             }
 
-            // Add encounter items
+            // Add direct service items
             foreach ($items as $item) {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -60,12 +58,12 @@ class AddEncounterChargesToBilling
                 BillingRecordItem::create([
                     'billing_record_id' => $billingRecord->id,
                     'item_type' => TransactionItemType::Service,
-                    'source_kind' => BillingItemSourceKind::Encounter,
+                    'source_kind' => BillingItemSourceKind::DirectService,
                     'description' => trim($item['description']),
                     'quantity' => (int) $item['quantity'],
                     'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                     'amount' => number_format($amountInCents / 100, 2, '.', ''),
-                    'encounter_id' => $encounter->id,
+                    'encounter_id' => null,
                 ]);
             }
 
