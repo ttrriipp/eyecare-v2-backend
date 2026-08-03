@@ -2,6 +2,7 @@
 
 namespace App\Actions\BillingRecords;
 
+use App\Enums\BillingItemSourceKind;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\JobOrder;
@@ -49,11 +50,13 @@ class AppendJobOrderItemsToBillingRecord
             BillingRecordItem::create([
                 'billing_record_id' => $billingRecord->id,
                 'item_type' => $item->item_type,
+                'source_kind' => BillingItemSourceKind::OpticalOrder,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
                 'amount' => $item->amount,
                 'job_order_item_id' => $item->id,
+                'quotation_item_id' => null,
                 'encounter_id' => null,
             ]);
         }
