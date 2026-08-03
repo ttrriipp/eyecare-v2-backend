@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
-use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\Patient;
 use App\Models\ProductVariant;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -25,7 +23,7 @@ class OpticalOrderForm
         return $schema
             ->columns(1)
             ->components([
-                Section::make('Patient & Prescription')
+                Section::make('Patient')
                     ->schema([
                         Select::make('patient_id')
                             ->label('Patient')
@@ -34,53 +32,14 @@ class OpticalOrderForm
                                 ->mapWithKeys(fn ($p) => [$p->id => $p->full_name]))
                             ->required()
                             ->searchable()
-                            ->preload()
-                            ->live()
-                            ->afterStateUpdated(fn (Set $set) => $set('encounter_id', null))
-                            ->default(fn () => request()->query('encounter') ? Encounter::find(request()->query('encounter'))?->patient_id : null),
-
-                        Select::make('encounter_id')
-                            ->label('Encounter')
-                            ->options(fn (Get $get) => blank($get('patient_id'))
-                                ? collect()
-                                : Patient::find($get('patient_id'))
-                                    ?->encounters()
-                                    ->whereIn('status', ['in_progress', 'completed'])
-                                    ->pluck('encounter_number', 'id')
-                                    ?? collect())
-                            ->searchable()
-                            ->preload()
-                            ->nullable()
-                            ->default(fn () => request()->query('encounter')),
-
-                        DatePicker::make('valid_until')
-                            ->label('Valid Until')
-                            ->native(false)
-                            ->minDate(today())
-                            ->nullable(),
+                            ->preload(),
                     ])
-                    ->columns(3),
+                    ->columns(2),
 
-                Section::make('Items')
+                Section::make('Product Items')
                     ->schema([
                         Repeater::make('items')
                             ->schema([
-                                Select::make('item_mode')
-                                    ->label('Type')
-                                    ->options([
-                                        'product' => 'Product',
-                                        'service' => 'Service',
-                                    ])
-                                    ->default('product')
-                                    ->required()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
-                                        if ($state === 'service') {
-                                            $set('product_variant_id', null);
-                                            $set('lens_category_id', null);
-                                        }
-                                    }),
-
                                 Select::make('product_variant_id')
                                     ->label('Catalog Item')
                                     ->options(ProductVariant::query()
@@ -93,7 +52,6 @@ class OpticalOrderForm
                                     ->preload()
                                     ->nullable()
                                     ->live()
-                                    ->visible(fn (Get $get): bool => $get('item_mode') === 'product')
                                     ->afterStateUpdated(function (Set $set, ?string $state): void {
                                         if ($state !== null) {
                                             $variant = ProductVariant::find($state);
@@ -111,7 +69,6 @@ class OpticalOrderForm
                                     ->preload()
                                     ->nullable()
                                     ->live()
-                                    ->visible(fn (Get $get): bool => $get('item_mode') === 'product')
                                     ->afterStateUpdated(function (Set $set, ?string $state): void {
                                         if ($state !== null) {
                                             $lens = LensCategory::find($state);
@@ -158,7 +115,7 @@ class OpticalOrderForm
                                     ]),
                             ])
                             ->columns(2)
-                            ->addActionLabel('Add Item')
+                            ->addActionLabel('Add Product')
                             ->reorderable()
                             ->collapsible()
                             ->defaultItems(1)
@@ -167,29 +124,7 @@ class OpticalOrderForm
 
                 Placeholder::make('transaction_type')
                     ->label('Transaction Type')
-                    ->content(function ($record, Get $get): string {
-                        $items = $get('items') ?? [];
-                        $hasProducts = false;
-                        $hasServices = false;
-
-                        foreach ($items as $item) {
-                            if (($item['item_mode'] ?? 'product') === 'product') {
-                                $hasProducts = true;
-                            } else {
-                                $hasServices = true;
-                            }
-                        }
-
-                        if ($hasProducts && $hasServices) {
-                            return 'Mixed';
-                        }
-
-                        if ($hasProducts) {
-                            return 'Product-only';
-                        }
-
-                        return 'Service-only';
-                    }),
+                    ->content('Product-only'),
 
                 Section::make('Pricing')
                     ->schema([
@@ -223,30 +158,10 @@ class OpticalOrderForm
                 Section::make('Notes')
                     ->schema([
                         Textarea::make('notes')
-                            ->label('Patient-visible notes')
+                            ->label('Notes')
                             ->rows(3)
                             ->columnSpanFull(),
                     ]),
-
-                // Summary placeholders for edit mode
-                Placeholder::make('status_display')
-                    ->label('Status')
-                    ->content(fn ($record) => $record?->status?->value ?? 'draft')
-                    ->visible(fn ($record) => $record !== null),
-
-                Placeholder::make('fulfillment_display')
-                    ->label('Fulfillment')
-                    ->content(fn ($record) => match ($record?->jobOrder?->fulfillment_mode) {
-                        'immediate' => 'Completed',
-                        'prepared' => $record?->jobOrder?->status?->value === 'queued' ? 'Confirmed' : ucfirst($record?->jobOrder?->status?->value ?? 'No order yet'),
-                        default => 'No order yet',
-                    })
-                    ->visible(fn ($record) => $record !== null),
-
-                Placeholder::make('payment_display')
-                    ->label('Payment')
-                    ->content(fn ($record) => $record?->jobOrder?->billingRecord?->status?->getLabel() ?? '—')
-                    ->visible(fn ($record) => $record !== null),
             ]);
     }
 }
