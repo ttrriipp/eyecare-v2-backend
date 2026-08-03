@@ -27,6 +27,8 @@ class JobOrderFactory extends Factory
             'prescription_id' => null,
             'quotation_id' => null,
             'status' => JobOrderStatus::Queued,
+            'fulfillment_mode' => 'prepared',
+            'uses_external_supplier' => false,
             'total_amount' => fake()->randomFloat(2, 100, 10000),
             'notes' => null,
             'supplier_invoice_number' => null,
