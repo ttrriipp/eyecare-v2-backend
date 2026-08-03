@@ -104,6 +104,9 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
     Route::get('quotations', [QuotationController::class, 'index']);
     Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
 
+    Route::get('optical-orders', [OpticalOrderController::class, 'index']);
+    Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
+
     Route::get('job-orders', [JobOrderController::class, 'index']);
     Route::get('job-orders/{jobOrder}', [JobOrderController::class, 'show']);
 
