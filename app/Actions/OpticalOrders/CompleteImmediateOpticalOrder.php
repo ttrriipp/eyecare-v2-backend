@@ -8,6 +8,7 @@ use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
@@ -63,10 +64,10 @@ class CompleteImmediateOpticalOrder
             $jobOrder = JobOrder::where('quotation_id', $quotation->id)->first();
 
             if ($jobOrder === null) {
-                $hasProducts = $quotation->items()
-                    ->whereNotNull('product_variant_id')
-                    ->orWhereNotNull('lens_category_id')
-                    ->exists();
+                // Only copy Product items into the Job Order
+                $productItems = $quotation->items()
+                    ->where('item_type', TransactionItemType::Product)
+                    ->get();
 
                 // Create in queued state for inventory commitment
                 $jobOrder = JobOrder::create([
@@ -77,12 +78,12 @@ class CompleteImmediateOpticalOrder
                     'status' => JobOrderStatus::Queued,
                     'fulfillment_mode' => 'immediate',
                     'uses_external_supplier' => false,
-                    'total_amount' => $quotation->total,
+                    'total_amount' => $productItems->sum('amount'),
                     'eyewear_key' => $quotation->eyewear_key,
                 ]);
 
-                // Snapshot items
-                foreach ($quotation->items as $item) {
+                // Snapshot Product items only
+                foreach ($productItems as $item) {
                     $jobOrder->items()->create([
                         'description' => $item->description,
                         'quantity' => $item->quantity,
@@ -90,12 +91,12 @@ class CompleteImmediateOpticalOrder
                         'amount' => $item->amount,
                         'product_variant_id' => $item->product_variant_id,
                         'lens_category_id' => $item->lens_category_id,
-                        'item_type' => $item->item_type,
+                        'item_type' => TransactionItemType::Product,
                     ]);
                 }
 
                 // Commit inventory for catalog-backed items
-                if ($hasProducts) {
+                if ($productItems->isNotEmpty()) {
                     app(CommitJobOrderInventory::class)->handle($jobOrder);
                 }
 
@@ -138,14 +139,11 @@ class CompleteImmediateOpticalOrder
                 );
             }
 
-            // Create dispensing event for product/mixed orders
+            // Create dispensing event for product orders
             $dispensingEvent = null;
-            $hasProducts = $quotation->items()
-                ->whereNotNull('product_variant_id')
-                ->orWhereNotNull('lens_category_id')
-                ->exists();
+            $hasProductItems = $jobOrder->items()->exists();
 
-            if ($hasProducts) {
+            if ($hasProductItems) {
                 $dispensingEvent = DispensingEvent::create([
                     'job_order_id' => $jobOrder->id,
                     'billing_record_id' => $billingRecord->id,
