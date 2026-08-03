@@ -116,7 +116,10 @@ test('status transitions set timestamps', function () {
 });
 
 test('supplier invoice number is required before a job order is marked ready', function () {
-    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::InProgress]);
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::InProgress,
+        'uses_external_supplier' => true,
+    ]);
 
     app(UpdateJobOrderStatus::class)->handle($jobOrder, 'ready_for_dispensing');
 })->throws(ValidationException::class, 'Enter the supplier invoice number before marking this job order ready.');
