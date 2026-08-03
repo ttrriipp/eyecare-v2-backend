@@ -112,7 +112,7 @@ test('job order snapshot preserves all line items from quotation', function () {
         'total' => 8250,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensCategory = LensCategory::factory()->create(['price' => 1500]);
 
     $quotation->items()->createMany([
