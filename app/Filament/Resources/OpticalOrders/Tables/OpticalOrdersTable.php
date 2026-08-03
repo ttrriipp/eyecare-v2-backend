@@ -5,8 +5,6 @@ namespace App\Filament\Resources\OpticalOrders\Tables;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Models\LensCategory;
 use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -45,22 +43,6 @@ class OpticalOrdersTable
                         'Declined' => 'danger',
                         'Expired' => 'gray',
                         default => 'gray',
-                    }),
-
-                TextColumn::make('lens_types')
-                    ->label('Lens Types')
-                    ->getStateUsing(function (Quotation $record): string {
-                        $lensNames = $record->items
-                            ->whereNotNull('lens_category_id')
-                            ->pluck('lens_category_id')
-                            ->unique()
-                            ->map(fn ($id) => LensCategory::find($id)?->name)
-                            ->filter()
-                            ->values();
-
-                        return $lensNames->isNotEmpty()
-                            ? $lensNames->implode(', ')
-                            : '—';
                     }),
 
                 TextColumn::make('jobOrder.supplier_invoice_number')
