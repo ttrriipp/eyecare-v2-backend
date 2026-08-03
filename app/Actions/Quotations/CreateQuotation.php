@@ -6,6 +6,7 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\ProductVariant;
@@ -89,6 +90,10 @@ class CreateQuotation
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
+                // Derive item type
+                $hasProductReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
+                $itemType = $hasProductReference ? TransactionItemType::Product : TransactionItemType::Service;
+
                 return [
                     'description' => trim($item['description']),
                     'quantity' => (int) $item['quantity'],
@@ -96,6 +101,7 @@ class CreateQuotation
                     'amount' => $this->formatMoney($amountInCents),
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'item_type' => $itemType,
                     'amount_in_cents' => $amountInCents,
                 ];
             });

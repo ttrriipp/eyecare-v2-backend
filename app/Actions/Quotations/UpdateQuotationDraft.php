@@ -3,6 +3,7 @@
 namespace App\Actions\Quotations;
 
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,6 +37,10 @@ class UpdateQuotationDraft
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
+                // Derive item type
+                $hasProductReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
+                $itemType = $hasProductReference ? TransactionItemType::Product : TransactionItemType::Service;
+
                 return [
                     'description' => trim($item['description']),
                     'quantity' => (int) $item['quantity'],
@@ -43,6 +48,7 @@ class UpdateQuotationDraft
                     'amount' => self::formatMoney($amountInCents),
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'item_type' => $itemType,
                     'amount_in_cents' => $amountInCents,
                 ];
             });
