@@ -7,7 +7,6 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * Demo accounts for local development.
@@ -69,7 +68,7 @@ class DemoUserSeeder extends Seeder
         if ($patientUser->patient === null) {
             Patient::query()->create([
                 'user_id' => $patientUser->id,
-                'patient_number' => 'PAT-'.Str::ulid(),
+                'patient_number' => 'PAT-2026-000001',
                 'first_name' => 'Ana',
                 'last_name' => 'Reyes',
                 'phone' => '09170000003',
@@ -83,7 +82,7 @@ class DemoUserSeeder extends Seeder
         // Walk-in patient (no account)
         if (Patient::query()->where('first_name', 'Pedro')->where('last_name', 'Cruz')->doesntExist()) {
             Patient::query()->create([
-                'patient_number' => 'PAT-'.Str::ulid(),
+                'patient_number' => 'PAT-2026-000002',
                 'first_name' => 'Pedro',
                 'last_name' => 'Cruz',
                 'phone' => '09170000004',
