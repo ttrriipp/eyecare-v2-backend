@@ -126,11 +126,11 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `completed_by`. |
 | `prescriptions` | `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
-| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product/service/legacy_other). |
-| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id`, `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
-| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product/service/legacy_other). |
-| `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
-| `billing_record_items` | `billing_record_id`, `item_type` (product/service/legacy_other), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `encounter_id` (nullable). |
+| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product/service). |
+| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
+| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product only for new records). |
+| `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `quotation_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
+| `billing_record_items` | `billing_record_id`, `item_type` (product/service), `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `encounter_id` (nullable). |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`. |
 | `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
@@ -168,8 +168,6 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
 
-**Eyewear Aggregate:** Patient-facing read-only API joining Quotation, Job Order, and Billing Record into one coherent transaction. Each aggregate carries a stable `eyw_{ULID}` key persisted on both Quotations and Job Orders. A `jo_{id}` alias is accepted for migration compatibility. Current filter: `estimate_available`, `in_preparation`, `ready_for_pickup`. History filter: `dispensed`, `estimate_declined`, `estimate_expired`, `cancelled`. Payment state never changes filter membership. `scope` indicates `order_only` or `overall_checkout` for Combined bills. `other_clinic_charges_amount` summarizes Encounter-originating charges.
-
 ---
 
 ## Filament Panel
@@ -179,7 +177,8 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 **Navigation groups (in order):**
 - Accounts & Access — Staff Accounts, Patient Accounts, Link Requests
 - Patients & Clinical — Patients, Encounters, Prescriptions, Complaints
-- Fulfillment & Finance — Optical Orders, Frame Reservations
+- Optical — Optical Orders (with Orders and Quotations tabs), Frame Reservations
+- Finance — Billing & Payments
 - Catalog & Inventory — Products, Inventory History
 - Communication — Conversations, Frame Ratings
 - Reports — Reorder Report
