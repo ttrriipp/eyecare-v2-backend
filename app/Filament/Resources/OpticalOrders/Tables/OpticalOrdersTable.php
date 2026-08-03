@@ -55,11 +55,11 @@ class OpticalOrdersTable
                 TextColumn::make('billingRecord.status')
                     ->label('Payment')
                     ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'Paid' => 'success',
-                        'Partially Paid' => 'warning',
-                        'Unpaid' => 'danger',
-                        'Voided' => 'gray',
+                    ->color(fn (?BillingRecordStatus $state): string => match ($state) {
+                        BillingRecordStatus::Paid => 'success',
+                        BillingRecordStatus::PartiallyPaid => 'warning',
+                        BillingRecordStatus::Unpaid => 'danger',
+                        BillingRecordStatus::Voided => 'gray',
                         default => 'gray',
                     })
                     ->placeholder('—'),
