@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'patient_id',
     'job_order_id',
     'encounter_id',
+    'quotation_id',
     'status',
     'subtotal_amount',
     'discount_amount',
@@ -71,6 +72,14 @@ class BillingRecord extends Model
     public function encounter(): BelongsTo
     {
         return $this->belongsTo(Encounter::class);
+    }
+
+    /**
+     * @return BelongsTo<Quotation, $this>
+     */
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(Quotation::class);
     }
 
     /**

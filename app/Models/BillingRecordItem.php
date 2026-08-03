@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillingItemSourceKind;
 use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,7 +17,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'unit_price',
     'amount',
     'job_order_item_id',
+    'quotation_item_id',
     'encounter_id',
+    'source_kind',
 ])]
 class BillingRecordItem extends Model
 {
@@ -26,6 +29,7 @@ class BillingRecordItem extends Model
     {
         return [
             'item_type' => TransactionItemType::class,
+            'source_kind' => BillingItemSourceKind::class,
         ];
     }
 
@@ -46,6 +50,14 @@ class BillingRecordItem extends Model
     }
 
     /**
+     * @return BelongsTo<QuotationItem, $this>
+     */
+    public function quotationItem(): BelongsTo
+    {
+        return $this->belongsTo(QuotationItem::class);
+    }
+
+    /**
      * @return BelongsTo<Encounter, $this>
      */
     public function encounter(): BelongsTo
@@ -54,18 +66,16 @@ class BillingRecordItem extends Model
     }
 
     /**
-     * Check if this item originated from an Optical Order.
+     * Get the source label for display.
      */
-    public function isFromOpticalOrder(): bool
+    public function getSourceLabel(): string
     {
-        return $this->job_order_item_id !== null;
-    }
-
-    /**
-     * Check if this item originated from an Encounter.
-     */
-    public function isFromEncounter(): bool
-    {
-        return $this->encounter_id !== null && $this->job_order_item_id === null;
+        return match ($this->source_kind) {
+            BillingItemSourceKind::OpticalOrder => 'Optical Order',
+            BillingItemSourceKind::Quotation => 'Quotation',
+            BillingItemSourceKind::Encounter => 'Encounter',
+            BillingItemSourceKind::DirectService => 'Direct Service',
+            default => 'Unknown',
+        };
     }
 }

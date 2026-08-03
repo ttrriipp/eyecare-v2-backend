@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\BillingItemSourceKind;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
@@ -25,12 +26,30 @@ class BillingRecordItemFactory extends Factory
         return [
             'billing_record_id' => BillingRecord::factory(),
             'item_type' => TransactionItemType::Service,
+            'source_kind' => BillingItemSourceKind::DirectService,
             'description' => fake()->words(3, true),
             'quantity' => $quantity,
             'unit_price' => $unitPrice,
             'amount' => $quantity * $unitPrice,
             'job_order_item_id' => null,
+            'quotation_item_id' => null,
             'encounter_id' => null,
         ];
+    }
+
+    public function product(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Product,
+            'source_kind' => BillingItemSourceKind::OpticalOrder,
+        ]);
+    }
+
+    public function service(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Service,
+            'source_kind' => BillingItemSourceKind::DirectService,
+        ]);
     }
 }
