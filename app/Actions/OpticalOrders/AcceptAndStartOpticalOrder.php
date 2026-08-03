@@ -2,7 +2,9 @@
 
 namespace App\Actions\OpticalOrders;
 
+use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
 use App\Actions\BillingRecords\RecordBillingPayment;
+use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
@@ -34,6 +36,8 @@ class AcceptAndStartOpticalOrder
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
         ?int $frameReservationId = null,
+        string $fulfillmentMode = 'prepared',
+        bool $usesExternalSupplier = false,
     ): array {
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
@@ -44,7 +48,7 @@ class AcceptAndStartOpticalOrder
         /** @var User $confirmer */
         $confirmer = auth()->user();
 
-        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $confirmer) {
+        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $fulfillmentMode, $usesExternalSupplier, $confirmer) {
             // Lock and accept the quotation if not already
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
 
@@ -66,6 +70,8 @@ class AcceptAndStartOpticalOrder
                     'prescription_id' => $quotation->prescription_id,
                     'quotation_id' => $quotation->id,
                     'status' => JobOrderStatus::Queued,
+                    'fulfillment_mode' => $fulfillmentMode,
+                    'uses_external_supplier' => $usesExternalSupplier,
                     'total_amount' => $quotation->total,
                     'eyewear_key' => $quotation->eyewear_key,
                 ]);
@@ -79,6 +85,7 @@ class AcceptAndStartOpticalOrder
                         'amount' => $item->amount,
                         'product_variant_id' => $item->product_variant_id,
                         'lens_category_id' => $item->lens_category_id,
+                        'item_type' => $item->item_type,
                     ]);
                 }
 
@@ -86,36 +93,35 @@ class AcceptAndStartOpticalOrder
                 app(CommitJobOrderInventory::class)->handle($jobOrder);
             }
 
-            // Create or return existing Billing Record
-            $billingRecord = BillingRecord::where('job_order_id', $jobOrder->id)->first();
+            // Resolve or create the Billing Record using the unified engine
+            $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
+                patient: $quotation->patient,
+                jobOrder: $jobOrder,
+                encounter: $quotation->encounter,
+            );
 
-            if ($billingRecord === null) {
-                $balance = (float) $jobOrder->total_amount;
+            // Snapshot Job Order items into Billing Record
+            app(AppendJobOrderItemsToBillingRecord::class)->handle(
+                jobOrder: $jobOrder,
+                billingRecord: $billingRecord,
+                discountAmount: (float) $quotation->discount_amount,
+            );
 
-                $billingRecord = BillingRecord::create([
-                    'patient_id' => $quotation->patient_id,
-                    'job_order_id' => $jobOrder->id,
-                    'encounter_id' => $quotation->encounter_id,
-                    'status' => 'unpaid',
-                    'total_amount' => $balance,
-                    'amount_paid' => 0,
-                    'balance_due' => $balance,
-                    'payment_due_date' => $paymentDueDate,
-                    'recorded_by' => $confirmer->id,
-                    'recorded_at' => now(),
-                ]);
+            // Set payment due date if provided
+            if ($paymentDueDate !== null) {
+                $billingRecord->update(['payment_due_date' => $paymentDueDate]);
+            }
 
-                // Record optional initial deposit
-                if ($depositAmount !== null && $depositAmount > 0) {
-                    app(RecordBillingPayment::class)->handle(
-                        billingRecord: $billingRecord,
-                        amount: $depositAmount,
-                        paymentMethod: $depositPaymentMethod ?? 'cash',
-                        recorder: $confirmer,
-                        referenceNumber: $depositReference,
-                        notes: 'Initial deposit at confirmation',
-                    );
-                }
+            // Record optional initial deposit
+            if ($depositAmount !== null && $depositAmount > 0) {
+                app(RecordBillingPayment::class)->handle(
+                    billingRecord: $billingRecord,
+                    amount: $depositAmount,
+                    paymentMethod: $depositPaymentMethod ?? 'cash',
+                    recorder: $confirmer,
+                    referenceNumber: $depositReference,
+                    notes: 'Initial deposit at confirmation',
+                );
             }
 
             // Convert frame reservation if provided
