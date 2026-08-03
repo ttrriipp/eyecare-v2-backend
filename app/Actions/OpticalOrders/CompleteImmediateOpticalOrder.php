@@ -3,13 +3,16 @@
 namespace App\Actions\OpticalOrders;
 
 use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
+use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
 use App\Models\Quotation;
@@ -60,15 +63,13 @@ class CompleteImmediateOpticalOrder
                 ]);
             }
 
-            // Create Job Order in queued state first, then complete
+            // Create Job Order only for product items
             $jobOrder = JobOrder::where('quotation_id', $quotation->id)->first();
+            $productItems = $quotation->items()
+                ->where('item_type', TransactionItemType::Product)
+                ->get();
 
-            if ($jobOrder === null) {
-                // Only copy Product items into the Job Order
-                $productItems = $quotation->items()
-                    ->where('item_type', TransactionItemType::Product)
-                    ->get();
-
+            if ($jobOrder === null && $productItems->isNotEmpty()) {
                 // Create in queued state for inventory commitment
                 $jobOrder = JobOrder::create([
                     'patient_id' => $quotation->patient_id,
@@ -96,9 +97,7 @@ class CompleteImmediateOpticalOrder
                 }
 
                 // Commit inventory for catalog-backed items
-                if ($productItems->isNotEmpty()) {
-                    app(CommitJobOrderInventory::class)->handle($jobOrder);
-                }
+                app(CommitJobOrderInventory::class)->handle($jobOrder);
 
                 // Complete immediately
                 $jobOrder->update([
@@ -116,11 +115,44 @@ class CompleteImmediateOpticalOrder
             );
 
             // Snapshot items into billing
-            app(AppendJobOrderItemsToBillingRecord::class)->handle(
-                jobOrder: $jobOrder,
-                billingRecord: $billingRecord,
-                discountAmount: (float) $quotation->discount_amount,
-            );
+            if ($jobOrder !== null) {
+                app(AppendJobOrderItemsToBillingRecord::class)->handle(
+                    jobOrder: $jobOrder,
+                    billingRecord: $billingRecord,
+                    discountAmount: (float) $quotation->discount_amount,
+                );
+            } else {
+                // Service-only: add service items directly to billing
+                $serviceItems = $quotation->items()
+                    ->where('item_type', TransactionItemType::Service)
+                    ->get();
+
+                foreach ($serviceItems as $item) {
+                    BillingRecordItem::create([
+                        'billing_record_id' => $billingRecord->id,
+                        'item_type' => TransactionItemType::Service,
+                        'source_kind' => BillingItemSourceKind::Quotation,
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'amount' => $item->amount,
+                        'quotation_item_id' => $item->id,
+                        'encounter_id' => null,
+                    ]);
+                }
+
+                // Apply discount and recalculate
+                $billingRecord->update([
+                    'quotation_id' => $quotation->id,
+                    'discount_amount' => $quotation->discount_amount,
+                ]);
+
+                $billingRecord->refresh();
+                app(RecalculateBillingRecordTotals::class)->handle(
+                    $billingRecord,
+                    discountAmount: (float) $quotation->discount_amount,
+                );
+            }
 
             // Set payment due date
             if ($paymentDueDate !== null) {
@@ -142,7 +174,7 @@ class CompleteImmediateOpticalOrder
 
             // Create dispensing event for product orders
             $dispensingEvent = null;
-            $hasProductItems = $jobOrder->items()->exists();
+            $hasProductItems = $jobOrder !== null && $jobOrder->items()->exists();
 
             if ($hasProductItems) {
                 $dispensingEvent = DispensingEvent::create([

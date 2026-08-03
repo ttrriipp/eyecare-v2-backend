@@ -30,7 +30,7 @@ test('accepting a presented quotation creates a job order with snapshot items', 
         'total' => 8000,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensCategory = LensCategory::factory()->create(['price' => 2000]);
 
     $quotation->items()->createMany([

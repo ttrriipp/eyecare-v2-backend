@@ -28,12 +28,10 @@ test('job_orders has uses_external_supplier column', function () {
 
 test('item_type enum values are valid', function () {
     expect(TransactionItemType::Product->value)->toBe('product')
-        ->and(TransactionItemType::Service->value)->toBe('service')
-        ->and(TransactionItemType::LegacyOther->value)->toBe('legacy_other');
+        ->and(TransactionItemType::Service->value)->toBe('service');
 });
 
 test('new records cannot be created with legacy_other type', function () {
-    // This is an application-level rule, not database constraint
-    expect(TransactionItemType::LegacyOther->value)->toBe('legacy_other');
-    // The enum exists for migration backfill only
+    // LegacyOther no longer exists in the enum
+    expect(TransactionItemType::cases())->toHaveCount(2);
 });

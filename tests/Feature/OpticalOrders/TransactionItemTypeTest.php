@@ -13,8 +13,7 @@ uses(RefreshDatabase::class);
 
 test('TransactionItemType enum has correct values', function () {
     expect(TransactionItemType::Product->value)->toBe('product')
-        ->and(TransactionItemType::Service->value)->toBe('service')
-        ->and(TransactionItemType::LegacyOther->value)->toBe('legacy_other');
+        ->and(TransactionItemType::Service->value)->toBe('service');
 });
 
 test('quotation item persists product type', function () {
@@ -35,10 +34,13 @@ test('job order item persists product type', function () {
     expect($item->fresh()->item_type)->toBe(TransactionItemType::Product);
 });
 
-test('job order item persists service type', function () {
-    $item = JobOrderItem::factory()->service()->create();
+test('job order item rejects service type', function () {
+    $this->expectException(InvalidArgumentException::class);
+    $this->expectExceptionMessage('Job Order items must be Product type.');
 
-    expect($item->fresh()->item_type)->toBe(TransactionItemType::Service);
+    JobOrderItem::factory()->create([
+        'item_type' => TransactionItemType::Service,
+    ]);
 });
 
 test('quotation item default is service', function () {
@@ -47,8 +49,8 @@ test('quotation item default is service', function () {
     expect($item->item_type)->toBe(TransactionItemType::Service);
 });
 
-test('job order item default is service', function () {
+test('job order item default is product', function () {
     $item = JobOrderItem::factory()->create();
 
-    expect($item->item_type)->toBe(TransactionItemType::Service);
+    expect($item->item_type)->toBe(TransactionItemType::Product);
 });

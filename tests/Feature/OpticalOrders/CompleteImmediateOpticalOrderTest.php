@@ -2,7 +2,6 @@
 
 use App\Actions\OpticalOrders\CompleteImmediateOpticalOrder;
 use App\Enums\BillingRecordStatus;
-use App\Enums\JobOrderStatus;
 use App\Enums\TransactionItemType;
 use App\Models\DispensingEvent;
 use App\Models\ProductVariant;
@@ -31,11 +30,10 @@ test('immediate service-only completes without dispensing event', function () {
 
     $result = app(CompleteImmediateOpticalOrder::class)->handle($quotation);
 
-    expect($result['job_order']->status)->toBe(JobOrderStatus::Dispensed)
-        ->and($result['job_order']->fulfillment_mode)->toBe('immediate')
-        ->and($result['job_order']->started_at)->not->toBeNull()
-        ->and($result['job_order']->dispensed_at)->not->toBeNull()
+    // Service-only quotations create no job order
+    expect($result['job_order'])->toBeNull()
         ->and($result['dispensing_event'])->toBeNull()
+        ->and($result['billing_record'])->not->toBeNull()
         ->and($result['billing_record']->status)->toBe(BillingRecordStatus::Unpaid);
 });
 

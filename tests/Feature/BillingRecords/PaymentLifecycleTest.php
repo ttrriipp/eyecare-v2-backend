@@ -28,6 +28,7 @@ test('recording a payment updates amount_paid and balance_due', function () {
         amount: 3000,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     $record->refresh();
@@ -52,6 +53,7 @@ test('full payment sets status to paid', function () {
         paymentMethod: 'gcash',
         referenceNumber: 'GC-12345',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     $record->refresh();
@@ -75,6 +77,7 @@ test('overpayment is rejected', function () {
         amount: 6000,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     $record->refresh();
@@ -94,6 +97,7 @@ test('zero amount payment is rejected', function () {
         amount: 0,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 })->throws(ValidationException::class);
 
@@ -106,6 +110,7 @@ test('negative amount payment is rejected', function () {
         amount: -100,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 })->throws(ValidationException::class);
 
@@ -118,6 +123,7 @@ test('payment on voided record is rejected', function () {
         amount: 1000,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 })->throws(ValidationException::class);
 
@@ -135,6 +141,7 @@ test('multiple payments accumulate correctly', function () {
         amount: 3000,
         paymentMethod: 'cash',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     app(RecordBillingPayment::class)->handle(
@@ -143,6 +150,7 @@ test('multiple payments accumulate correctly', function () {
         paymentMethod: 'gcash',
         referenceNumber: 'GC-67890',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     $record->refresh();
@@ -168,6 +176,7 @@ test('payment records the recorder and timestamp', function () {
         referenceNumber: 'BT-001',
         notes: 'Partial payment',
         recorder: $recorder,
+        chargesReviewed: true,
     );
 
     expect($payment->recorded_by)->toBe($recorder->id)

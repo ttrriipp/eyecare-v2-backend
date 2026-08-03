@@ -30,7 +30,7 @@ class JobOrderItemFactory extends Factory
             'amount' => $quantity * $unitPrice,
             'product_variant_id' => null,
             'lens_category_id' => null,
-            'item_type' => TransactionItemType::Service,
+            'item_type' => TransactionItemType::Product,
         ];
     }
 

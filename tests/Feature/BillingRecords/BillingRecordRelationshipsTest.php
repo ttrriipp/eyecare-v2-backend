@@ -4,6 +4,7 @@
  * Tests for Billing Record item and source relationships.
  */
 
+use App\Enums\BillingItemSourceKind;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\Encounter;
@@ -68,20 +69,20 @@ test('billing record item origin tracking', function () {
 
     $opticalItem = BillingRecordItem::factory()->create([
         'billing_record_id' => $billing->id,
+        'source_kind' => BillingItemSourceKind::OpticalOrder,
         'job_order_item_id' => JobOrderItem::factory()->create()->id,
         'encounter_id' => null,
     ]);
 
     $encounterItem = BillingRecordItem::factory()->create([
         'billing_record_id' => $billing->id,
+        'source_kind' => BillingItemSourceKind::Encounter,
         'job_order_item_id' => null,
         'encounter_id' => Encounter::factory()->create()->id,
     ]);
 
-    expect($opticalItem->isFromOpticalOrder())->toBeTrue()
-        ->and($opticalItem->isFromEncounter())->toBeFalse()
-        ->and($encounterItem->isFromEncounter())->toBeTrue()
-        ->and($encounterItem->isFromOpticalOrder())->toBeFalse();
+    expect($opticalItem->source_kind)->toBe(BillingItemSourceKind::OpticalOrder)
+        ->and($encounterItem->source_kind)->toBe(BillingItemSourceKind::Encounter);
 });
 
 test('billing record subtotal and discount casts', function () {

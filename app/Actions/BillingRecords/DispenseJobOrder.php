@@ -82,6 +82,7 @@ class DispenseJobOrder
                     recorder: $dispenser,
                     referenceNumber: $pickupPaymentReference,
                     notes: 'Payment at dispensing',
+                    chargesReviewed: true,
                 );
             }
 
