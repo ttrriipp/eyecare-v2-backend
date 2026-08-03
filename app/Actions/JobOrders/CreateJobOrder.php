@@ -4,6 +4,7 @@ namespace App\Actions\JobOrders;
 
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
@@ -61,8 +62,12 @@ class CreateJobOrder
             $commitmentType = InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_commitment']);
 
-            // Snapshot items and commit inventory
-            foreach ($quotation->items as $item) {
+            // Snapshot Product items only and commit inventory
+            $productItems = $quotation->items()
+                ->where('item_type', TransactionItemType::Product)
+                ->get();
+
+            foreach ($productItems as $item) {
                 JobOrderItem::query()->create([
                     'job_order_id' => $jobOrder->id,
                     'description' => $item->description,
@@ -71,6 +76,7 @@ class CreateJobOrder
                     'amount' => $item->amount,
                     'product_variant_id' => $item->product_variant_id,
                     'lens_category_id' => $item->lens_category_id,
+                    'item_type' => TransactionItemType::Product,
                 ]);
 
                 // Commit stock for stock-managed items
