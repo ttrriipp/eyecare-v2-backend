@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -29,6 +30,21 @@ class JobOrderItemFactory extends Factory
             'amount' => $quantity * $unitPrice,
             'product_variant_id' => null,
             'lens_category_id' => null,
+            'item_type' => TransactionItemType::Service,
         ];
+    }
+
+    public function product(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Product,
+        ]);
+    }
+
+    public function service(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Service,
+        ]);
     }
 }
