@@ -25,9 +25,9 @@ beforeEach(function () {
 
 test('accepting a presented quotation creates a job order with snapshot items', function () {
     $quotation = Quotation::factory()->presented()->create([
-        'subtotal' => 8000,
+        'subtotal' => 8500,
         'discount_amount' => 500,
-        'total' => 7500,
+        'total' => 8000,
     ]);
 
     $variant = ProductVariant::factory()->create();
@@ -43,7 +43,7 @@ test('accepting a presented quotation creates a job order with snapshot items', 
     expect($result['job_order'])->toBeInstanceOf(JobOrder::class)
         ->and($result['job_order']->quotation_id)->toBe($quotation->id)
         ->and($result['job_order']->status)->toBe(JobOrderStatus::Queued)
-        ->and((float) $result['job_order']->total_amount)->toBe(7500.0);
+        ->and((float) $result['job_order']->total_amount)->toBe(8000.0);
 
     expect($result['job_order']->items)->toHaveCount(2)
         ->and($result['job_order']->items->first()->description)->toBe('Frame')
@@ -55,7 +55,9 @@ test('accepting a presented quotation creates a job order with snapshot items', 
 
     expect($result['billing_record'])->toBeInstanceOf(BillingRecord::class)
         ->and($result['billing_record']->status)->toBe(BillingRecordStatus::Unpaid)
-        ->and((float) $result['billing_record']->total_amount)->toBe(7500.0);
+        ->and((float) $result['billing_record']->total_amount)->toBe(8000.0)
+        ->and((float) $result['billing_record']->discount_amount)->toBe(500.0)
+        ->and((float) $result['billing_record']->subtotal_amount)->toBe(8500.0);
 });
 
 test('accepting a draft quotation (direct sale) creates job order and billing', function () {

@@ -107,6 +107,9 @@ class AcceptAndStartOpticalOrder
                 discountAmount: (float) $quotation->discount_amount,
             );
 
+            // Reload to get updated totals
+            $billingRecord = $billingRecord->fresh();
+
             // Set payment due date if provided
             if ($paymentDueDate !== null) {
                 $billingRecord->update(['payment_due_date' => $paymentDueDate]);

@@ -5,7 +5,6 @@ namespace App\Actions\BillingRecords;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\JobOrder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AppendJobOrderItemsToBillingRecord
@@ -36,44 +35,41 @@ class AppendJobOrderItemsToBillingRecord
             ]);
         }
 
-        DB::transaction(function () use ($jobOrder, $billingRecord, $discountAmount) {
-            $locked = BillingRecord::query()
-                ->whereKey($billingRecord->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        // Check for existing items from this job order (idempotent)
+        $existingItemIds = $billingRecord->items()
+            ->whereNotNull('job_order_item_id')
+            ->pluck('job_order_item_id')
+            ->toArray();
 
-            // Check for existing items from this job order (idempotent)
-            $existingItemIds = $locked->items()
-                ->whereNotNull('job_order_item_id')
-                ->pluck('job_order_item_id')
-                ->toArray();
+        $newItems = $jobOrder->items()
+            ->whereNotIn('id', $existingItemIds)
+            ->get();
 
-            $newItems = $jobOrder->items()
-                ->whereNotIn('id', $existingItemIds)
-                ->get();
+        foreach ($newItems as $item) {
+            BillingRecordItem::create([
+                'billing_record_id' => $billingRecord->id,
+                'item_type' => $item->item_type,
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit_price' => $item->unit_price,
+                'amount' => $item->amount,
+                'job_order_item_id' => $item->id,
+                'encounter_id' => null,
+            ]);
+        }
 
-            foreach ($newItems as $item) {
-                BillingRecordItem::create([
-                    'billing_record_id' => $locked->id,
-                    'item_type' => $item->item_type,
-                    'description' => $item->description,
-                    'quantity' => $item->quantity,
-                    'unit_price' => $item->unit_price,
-                    'amount' => $item->amount,
-                    'job_order_item_id' => $item->id,
-                    'encounter_id' => null,
-                ]);
-            }
+        // Apply discount if provided
+        if ($discountAmount !== null) {
+            $billingRecord->update([
+                'discount_amount' => $discountAmount,
+            ]);
+        }
 
-            // Apply discount if provided
-            if ($discountAmount !== null) {
-                $locked->update([
-                    'discount_amount' => $discountAmount,
-                ]);
-            }
-
-            // Recalculate totals
-            app(RecalculateBillingRecordTotals::class)->handle($locked);
-        });
+        // Recalculate totals
+        $billingRecord->refresh();
+        app(RecalculateBillingRecordTotals::class)->handle(
+            $billingRecord,
+            discountAmount: (float) $billingRecord->discount_amount,
+        );
     }
 }

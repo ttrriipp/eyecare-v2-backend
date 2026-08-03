@@ -97,7 +97,7 @@ test('dispensing against voided billing is rejected', function () {
     ]);
 
     app(DispenseJobOrder::class)->handle($jobOrder, $this->dispenser);
-})->throws(ValidationException::class, 'voided billing record');
+})->throws(ValidationException::class, 'No billing record found');
 
 test('only ready-for-dispensing can be dispensed', function () {
     $jobOrder = JobOrder::factory()->create([

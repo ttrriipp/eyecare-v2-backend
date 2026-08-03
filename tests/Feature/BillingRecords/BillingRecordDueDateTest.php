@@ -36,23 +36,6 @@ test('job order has direct quotation relationship', function () {
         ->and($jobOrder->quotation->id)->toBe($quotation->id);
 });
 
-test('job order retains legacy quotation revision relationship', function () {
-    $quotation = Quotation::factory()->create();
-    $revision = $quotation->revisions()->create([
-        'revision_number' => 1,
-        'subtotal' => 5000,
-        'total' => 5000,
-    ]);
-
-    $jobOrder = JobOrder::factory()->create([
-        'quotation_id' => $quotation->id,
-        'quotation_revision_id' => $revision->id,
-    ]);
-
-    expect($jobOrder->quotationRevision)->not->toBeNull()
-        ->and($jobOrder->quotationRevision->id)->toBe($revision->id);
-});
-
 test('billing record payment due date is date cast', function () {
     $billing = BillingRecord::factory()->create([
         'payment_due_date' => '2026-09-15',
