@@ -136,6 +136,7 @@ class CompleteImmediateOpticalOrder
                     recorder: $confirmer,
                     referenceNumber: $depositReference,
                     notes: 'Initial deposit at immediate completion',
+                    chargesReviewed: true,
                 );
             }
 

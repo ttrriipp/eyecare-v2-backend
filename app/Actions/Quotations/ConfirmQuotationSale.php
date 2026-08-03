@@ -153,6 +153,7 @@ class ConfirmQuotationSale
                     recorder: $confirmer,
                     referenceNumber: $depositReference,
                     notes: 'Initial deposit at confirmation',
+                    chargesReviewed: true,
                 );
             }
 

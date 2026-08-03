@@ -19,6 +19,7 @@ class RecordBillingPayment
         User $recorder,
         ?string $referenceNumber = null,
         ?string $notes = null,
+        bool $chargesReviewed = false,
     ): BillingPayment {
         if ($amount <= 0) {
             throw ValidationException::withMessages([
@@ -32,7 +33,7 @@ class RecordBillingPayment
             ]);
         }
 
-        return DB::transaction(function () use ($billingRecord, $amount, $paymentMethod, $recorder, $referenceNumber, $notes): BillingPayment {
+        return DB::transaction(function () use ($billingRecord, $amount, $paymentMethod, $recorder, $referenceNumber, $notes, $chargesReviewed): BillingPayment {
             $locked = BillingRecord::query()
                 ->whereKey($billingRecord->id)
                 ->lockForUpdate()
@@ -41,6 +42,18 @@ class RecordBillingPayment
             if ($locked->status === BillingRecordStatus::Voided) {
                 throw ValidationException::withMessages([
                     'billing_record' => ['Cannot record payments against a voided billing record.'],
+                ]);
+            }
+
+            // First payment requires charge review acknowledgement
+            $hasPostedPayments = BillingPayment::query()
+                ->where('billing_record_id', $locked->id)
+                ->where('status', 'posted')
+                ->exists();
+
+            if (! $hasPostedPayments && ! $chargesReviewed) {
+                throw ValidationException::withMessages([
+                    'charges_reviewed' => ['Recording this payment will finalize the charges on this bill. Add all expected Optical Order and Service charges first.'],
                 ]);
             }
 
@@ -72,6 +85,7 @@ class RecordBillingPayment
                     'payment_id' => $payment->id,
                     'amount' => $amount,
                     'payment_method' => $paymentMethod,
+                    'charges_reviewed' => $chargesReviewed,
                 ],
                 actorId: $recorder->id,
             );
