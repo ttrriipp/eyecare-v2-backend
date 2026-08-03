@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -96,6 +97,18 @@ class JobOrder extends Model
     public function billingRecord(): HasOne
     {
         return $this->hasOne(BillingRecord::class);
+    }
+
+    /**
+     * Get the active (non-voided) billing record.
+     *
+     * @return HasOne<BillingRecord, $this>
+     */
+    public function activeBillingRecord(): HasOne
+    {
+        return $this->hasOne(BillingRecord::class)
+            ->where('status', '!=', BillingRecordStatus::Voided)
+            ->latest('id');
     }
 
     /**

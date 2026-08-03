@@ -29,8 +29,8 @@ class CancelOpticalOrder
                 statusName: JobOrderStatus::Cancelled->value,
             );
 
-            // Handle billing
-            $billingRecord = $jobOrder->billingRecord;
+            // Handle billing - use active (non-voided) record
+            $billingRecord = $jobOrder->activeBillingRecord;
             $hasPostedPayments = false;
 
             if ($billingRecord !== null) {

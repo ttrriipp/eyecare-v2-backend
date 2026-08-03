@@ -42,9 +42,10 @@ class DispenseJobOrder
         }
 
         return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $pickupPaymentAmount, $pickupPaymentMethod, $pickupPaymentReference): DispensingEvent {
-            // Require existing billing record (created at confirmation)
+            // Require existing active billing record (created at confirmation)
             $billingRecord = BillingRecord::query()
                 ->where('job_order_id', $jobOrder->id)
+                ->where('status', '!=', BillingRecordStatus::Voided)
                 ->lockForUpdate()
                 ->first();
 
