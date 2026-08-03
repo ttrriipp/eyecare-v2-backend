@@ -52,6 +52,41 @@ test('linked request response has no snapshot fields', function () {
         ->and($jsonString)->not->toContain('submitted_at');
 });
 
+test('appointment request list response excludes identity snapshot data', function () {
+    $user = User::factory()->create();
+
+    AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'encrypted_identity_snapshot' => [
+            'phone' => '+639171234567',
+            'email' => 'ana@example.com',
+            'first_name' => 'Ana',
+            'last_name' => 'Reyes',
+            'date_of_birth' => '1990-05-15',
+            'gender' => 'female',
+            'occupation' => 'Teacher',
+            'address' => '123 Main St, Manila',
+            'verified_contact_type' => 'phone',
+            'verified_contact_masked' => '+63***567',
+            'verified_contact_hash' => 'secret-hash',
+            'submitted_at' => now()->toIso8601String(),
+        ],
+    ]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/appointment-requests')
+        ->assertOk();
+
+    $jsonString = json_encode($response->json());
+
+    expect($jsonString)->not->toContain('encrypted_identity_snapshot')
+        ->not->toContain('ana@example.com')
+        ->not->toContain('+639171234567')
+        ->not->toContain('123 Main St, Manila')
+        ->not->toContain('verified_contact_hash')
+        ->and($response->json('data.0.reason_for_visit'))->toBeString();
+});
+
 test('cancel response has no snapshot fields', function () {
     $user = User::factory()->patient()->create();
 
@@ -106,7 +141,12 @@ test('snapshot helpers return null for linked request', function () {
         ->and($request->getSnapshotDisplayName())->toBeNull()
         ->and($request->getSnapshotMaskedContact())->toBeNull()
         ->and($request->getSnapshotContactType())->toBeNull()
-        ->and($request->getSnapshotDateOfBirth())->toBeNull();
+        ->and($request->getSnapshotDateOfBirth())->toBeNull()
+        ->and($request->getSnapshotMaskedPhone())->toBeNull()
+        ->and($request->getSnapshotMaskedEmail())->toBeNull()
+        ->and($request->getSnapshotGender())->toBeNull()
+        ->and($request->getSnapshotOccupation())->toBeNull()
+        ->and($request->getSnapshotAddress())->toBeNull();
 });
 
 test('snapshot helpers return data for snapshotted request', function () {
@@ -116,5 +156,10 @@ test('snapshot helpers return data for snapshotted request', function () {
         ->and($request->getSnapshotDisplayName())->toBeString()
         ->and($request->getSnapshotMaskedContact())->toBe('091***4567')
         ->and($request->getSnapshotContactType())->toBe('phone')
-        ->and($request->getSnapshotDateOfBirth())->toBeString();
+        ->and($request->getSnapshotDateOfBirth())->toBeString()
+        ->and($request->getSnapshotMaskedPhone())->toBe('+63***567')
+        ->and($request->getSnapshotMaskedEmail())->toBeNull()
+        ->and($request->getSnapshotGender())->toBeIn(['male', 'female', 'other'])
+        ->and($request->getSnapshotOccupation())->toBeString()
+        ->and($request->getSnapshotAddress())->toBeString();
 });

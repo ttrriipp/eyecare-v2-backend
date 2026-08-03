@@ -25,7 +25,7 @@ class AppointmentRequestForm
 
                 Placeholder::make('account_owner')
                     ->label('Account Owner')
-                    ->content(fn ($record) => $record?->user?->name ?? '—'),
+                    ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
 
                 Placeholder::make('patient_name')
                     ->label('Patient')
@@ -50,7 +50,7 @@ class AppointmentRequestForm
 
                 Placeholder::make('resolved_by')
                     ->label('Resolved By')
-                    ->content(fn ($record) => $record?->resolvedBy?->name ?? '—'),
+                    ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—'),
 
                 DateTimePicker::make('resolved_at')
                     ->label('Resolved At')
@@ -67,6 +67,27 @@ class AppointmentRequestForm
                         Placeholder::make('snapshot_dob')
                             ->label('Date of Birth')
                             ->content(fn ($record): string => $record?->getSnapshotDateOfBirth() ?? '—'),
+
+                        Placeholder::make('snapshot_phone')
+                            ->label('Phone')
+                            ->content(fn ($record): string => $record?->getSnapshotMaskedPhone() ?? '—'),
+
+                        Placeholder::make('snapshot_email')
+                            ->label('Email')
+                            ->content(fn ($record): string => $record?->getSnapshotMaskedEmail() ?? 'Not provided'),
+
+                        Placeholder::make('snapshot_gender')
+                            ->label('Gender')
+                            ->content(fn ($record): string => $record?->getSnapshotGender() ?? '—'),
+
+                        Placeholder::make('snapshot_occupation')
+                            ->label('Occupation')
+                            ->content(fn ($record): string => $record?->getSnapshotOccupation() ?? '—'),
+
+                        Placeholder::make('snapshot_address')
+                            ->label('Home Address')
+                            ->content(fn ($record): string => $record?->getSnapshotAddress() ?? '—')
+                            ->columnSpanFull(),
 
                         Placeholder::make('snapshot_contact_type')
                             ->label('Contact Type')

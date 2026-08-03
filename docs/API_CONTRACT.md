@@ -420,7 +420,7 @@ Returns the authenticated account's profile, link state, and (when linked) read-
 | Field | Type | Nullable | Editable via PATCH /me | Notes |
 |-------|------|----------|----------------------|-------|
 | `id` | integer | no | no | User ID |
-| `name` | string | no | no | Derived from first + middle + last |
+| `name` | string | no | no | Response-only compatibility value derived from first + middle + last; not stored as `users.name` |
 | `first_name` | string | yes | yes | Account first name |
 | `middle_name` | string | yes | no | Account middle name |
 | `last_name` | string | yes | yes | Account last name |
@@ -938,6 +938,7 @@ Paginated list of the authenticated account's appointment requests.
 **Notes:**
 - `patient_id` is `null` for unlinked accounts.
 - `appointment` is populated only when `status` is `accepted`.
+- Identity snapshots and contact details are excluded from list responses.
 
 ---
 
@@ -953,20 +954,27 @@ Creates a new appointment request.
   "scheduled_at": "datetime (required, must match a returned available slot)",
   "reason_for_visit": "string (required, max:1000)",
   "identity": {
-    "first_name": "string (optional, max:255)",
+    "phone": "string (required when identity is supplied; must match the account's verified phone)",
+    "email": "string (optional, nullable, valid email, max:255)",
+    "first_name": "string (required when identity is supplied, max:255)",
     "middle_name": "string (nullable, max:255)",
-    "last_name": "string (optional, max:255)",
-    "date_of_birth": "date (optional, before:today, Y-m-d)"
+    "last_name": "string (required when identity is supplied, max:255)",
+    "date_of_birth": "date (required when identity is supplied, before:today, Y-m-d)",
+    "gender": "male | female | other (required when identity is supplied)",
+    "occupation": "string (required when identity is supplied, max:255)",
+    "address": "string (required when identity is supplied, max:255; home address)"
   }
 }
 ```
 
 **Identity object rules:**
-- `identity` is optional for unlinked accounts. When omitted, the account's current structured name and date of birth are used as fallback.
+- `identity` is optional for unlinked accounts. When omitted, the server uses the account's current structured name, date of birth, phone, optional email, and address as fallback; unavailable demographic fields remain `null` in the staff-only snapshot.
+- When `identity` is present, phone, first name, last name, date of birth, gender, occupation, and home address are required. Middle name is nullable and email is optional.
 - `identity` is **prohibited** when the account is already linked to a patient. Linked requests use the authoritative Patient record.
 - Unknown keys inside `identity` fail validation.
-- Client-supplied `patient_id`, contact, or verification fields are not accepted.
-- The server derives the verified primary contact from the account's `PatientAccountContact` records; the client never supplies contact data.
+- Client-supplied `patient_id` or verification fields are not accepted.
+- The server derives the canonical phone from the account's verified `PatientAccountContact` record. If `phone` is supplied, it is checked against that server-side value; the client cannot change the verified contact.
+- An optional email is captured in the encrypted request snapshot but is not treated as a verified contact claim.
 
 **Response (201):**
 ```json
@@ -993,7 +1001,7 @@ Creates a new appointment request.
 - Creates a 24-hour capacity hold on the requested slot.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
-- For unlinked accounts, an encrypted identity snapshot is stored containing the effective identity and server-derived verified contact.
+- For unlinked accounts, an encrypted identity snapshot is stored containing phone, optional email, all structured name fields, date of birth, gender, occupation, home address, and server-derived verified-contact metadata.
 - Maximum 2 active pending requests per account.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
@@ -1004,6 +1012,7 @@ Creates a new appointment request.
 - `422 IDENTITY_NOT_ALLOWED`: Identity object provided for a linked account.
 - `422 INVALID_IDENTITY`: Missing required identity fields or invalid date of birth.
 - `422 NO_VERIFIED_CONTACT`: No unique verified primary contact found on the account.
+- `422 NO_VERIFIED_PHONE` or phone validation error: The account has no verified phone or the supplied phone does not match it.
 
 ---
 

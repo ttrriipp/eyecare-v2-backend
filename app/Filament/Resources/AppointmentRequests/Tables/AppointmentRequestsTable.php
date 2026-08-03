@@ -39,8 +39,8 @@ class AppointmentRequestsTable
 
                 TextColumn::make('patient.full_name')
                     ->label('Patient')
-                    ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user->name ?? '—')
-                    ->searchable(['patient.first_name', 'patient.last_name', 'user.name']),
+                    ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user?->full_name ?? '—')
+                    ->searchable(['patient.first_name', 'patient.last_name', 'user.first_name', 'user.last_name']),
 
                 TextColumn::make('link_status')
                     ->label('Link Status')

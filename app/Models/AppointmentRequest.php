@@ -202,4 +202,69 @@ class AppointmentRequest extends Model
 
         return $snapshot['date_of_birth'] ?? null;
     }
+
+    /**
+     * Get the masked phone from the identity snapshot.
+     */
+    public function getSnapshotMaskedPhone(): ?string
+    {
+        $phone = $this->getSnapshotValue('phone');
+
+        if ($phone === null) {
+            return null;
+        }
+
+        return strlen($phone) >= 4
+            ? substr($phone, 0, 3).'***'.substr($phone, -3)
+            : '***';
+    }
+
+    /**
+     * Get the masked optional email from the identity snapshot.
+     */
+    public function getSnapshotMaskedEmail(): ?string
+    {
+        $email = $this->getSnapshotValue('email');
+
+        if ($email === null) {
+            return null;
+        }
+
+        $parts = explode('@', $email);
+
+        if (count($parts) !== 2) {
+            return '***';
+        }
+
+        return substr($parts[0], 0, 1).'***@'.$parts[1];
+    }
+
+    /**
+     * Get a demographic value from the identity snapshot.
+     */
+    public function getSnapshotGender(): ?string
+    {
+        return $this->getSnapshotValue('gender');
+    }
+
+    public function getSnapshotOccupation(): ?string
+    {
+        return $this->getSnapshotValue('occupation');
+    }
+
+    public function getSnapshotAddress(): ?string
+    {
+        return $this->getSnapshotValue('address');
+    }
+
+    private function getSnapshotValue(string $key): ?string
+    {
+        $snapshot = $this->encrypted_identity_snapshot;
+
+        if ($snapshot === null || ! isset($snapshot[$key]) || ! is_string($snapshot[$key])) {
+            return null;
+        }
+
+        return $snapshot[$key];
+    }
 }

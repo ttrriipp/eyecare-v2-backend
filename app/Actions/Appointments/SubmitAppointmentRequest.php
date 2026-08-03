@@ -17,7 +17,7 @@ class SubmitAppointmentRequest
     ) {}
 
     /**
-     * @param  array{first_name?: string, middle_name?: ?string, last_name?: string, date_of_birth?: string}|null  $identity
+     * @param  array{phone?: string, email?: ?string, first_name?: string, middle_name?: ?string, last_name?: string, date_of_birth?: string, gender?: string, occupation?: string, address?: string}|null  $identity
      */
     public function handle(
         User $account,

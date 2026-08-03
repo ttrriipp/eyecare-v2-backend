@@ -20,7 +20,10 @@ class AppointmentRequestController extends Controller
             ->paginate($request->input('per_page', 15));
 
         return response()->json([
-            'data' => $requests->items(),
+            'data' => collect($requests->items())
+                ->map(fn (AppointmentRequest $appointmentRequest): array => $this->formatRequest($appointmentRequest))
+                ->values()
+                ->all(),
             'links' => [
                 'first' => $requests->url(1),
                 'last' => $requests->url($requests->lastPage()),

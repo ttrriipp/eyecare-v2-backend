@@ -23,6 +23,7 @@ class RankPatientCandidates
         $emailHash = $this->getEmailHash($account);
         $phoneHash = $this->getPhoneHash($account);
         $firstName = $account->first_name;
+        $middleName = $account->middle_name;
         $lastName = $account->last_name;
         $dateOfBirth = $account->date_of_birth?->format('Y-m-d');
 
@@ -30,6 +31,7 @@ class RankPatientCandidates
             emailHash: $emailHash,
             phoneHash: $phoneHash,
             firstName: $firstName,
+            middleName: $middleName,
             lastName: $lastName,
             dateOfBirth: $dateOfBirth,
         );
@@ -56,6 +58,7 @@ class RankPatientCandidates
             emailHash: $emailHash,
             phoneHash: $phoneHash,
             firstName: $snapshot['first_name'] ?? null,
+            middleName: $snapshot['middle_name'] ?? null,
             lastName: $snapshot['last_name'] ?? null,
             dateOfBirth: $snapshot['date_of_birth'] ?? null,
         );
@@ -70,6 +73,7 @@ class RankPatientCandidates
         ?string $emailHash,
         ?string $phoneHash,
         ?string $firstName,
+        ?string $middleName,
         ?string $lastName,
         ?string $dateOfBirth,
     ): Collection {
@@ -83,7 +87,7 @@ class RankPatientCandidates
                 ->get();
 
             foreach ($patients as $patient) {
-                $strength = $this->calculateStrength($patient, $emailHash, null, $firstName, $lastName, $dateOfBirth);
+                $strength = $this->calculateStrength($patient, $emailHash, null, $firstName, $middleName, $lastName, $dateOfBirth);
                 $candidates->push([
                     'patient' => $patient,
                     'strength' => $strength['strength'],
@@ -104,7 +108,7 @@ class RankPatientCandidates
                     continue;
                 }
 
-                $strength = $this->calculateStrength($patient, null, $phoneHash, $firstName, $lastName, $dateOfBirth);
+                $strength = $this->calculateStrength($patient, null, $phoneHash, $firstName, $middleName, $lastName, $dateOfBirth);
                 $candidates->push([
                     'patient' => $patient,
                     'strength' => $strength['strength'],
@@ -115,16 +119,12 @@ class RankPatientCandidates
 
         // Search by name + date of birth
         if ($firstName && $lastName && $dateOfBirth) {
-            $normalizedName = $this->normalize->name($firstName.' '.$lastName);
-
             $patients = Patient::query()
                 ->whereNull('user_id')
                 ->where('date_of_birth', $dateOfBirth)
                 ->get()
-                ->filter(function ($patient) use ($normalizedName) {
-                    $patientName = $this->normalize->name($patient->full_name);
-
-                    return $patientName === $normalizedName;
+                ->filter(function (Patient $patient) use ($firstName, $middleName, $lastName): bool {
+                    return $this->namesMatch($patient, $firstName, $middleName, $lastName);
                 });
 
             foreach ($patients as $patient) {
@@ -132,7 +132,7 @@ class RankPatientCandidates
                     continue;
                 }
 
-                $strength = $this->calculateStrength($patient, null, null, $firstName, $lastName, $dateOfBirth);
+                $strength = $this->calculateStrength($patient, null, null, $firstName, $middleName, $lastName, $dateOfBirth);
                 $candidates->push([
                     'patient' => $patient,
                     'strength' => $strength['strength'],
@@ -151,6 +151,7 @@ class RankPatientCandidates
         ?string $emailHash,
         ?string $phoneHash,
         ?string $firstName,
+        ?string $middleName,
         ?string $lastName,
         ?string $dateOfBirth,
     ): array {
@@ -173,13 +174,9 @@ class RankPatientCandidates
             $score += 2;
         }
 
-        if ($firstName && $lastName) {
-            $normalizedName = $this->normalize->name($firstName.' '.$lastName);
-            $patientName = $this->normalize->name($patient->full_name);
-            if ($normalizedName === $patientName) {
-                $reasons[] = 'exact_name';
-                $score += 1;
-            }
+        if ($this->namesMatch($patient, $firstName, $middleName, $lastName)) {
+            $reasons[] = 'exact_name';
+            $score += 1;
         }
 
         $strength = 'weak';
@@ -190,6 +187,29 @@ class RankPatientCandidates
         }
 
         return ['strength' => $strength, 'reasons' => $reasons];
+    }
+
+    protected function namesMatch(Patient $patient, ?string $firstName, ?string $middleName, ?string $lastName): bool
+    {
+        if (blank($firstName) || blank($lastName)) {
+            return false;
+        }
+
+        $submittedName = $this->normalize->name(implode(' ', array_filter([
+            $firstName,
+            $middleName,
+            $lastName,
+        ])));
+
+        if ($submittedName === $this->normalize->name($patient->full_name)) {
+            return true;
+        }
+
+        if (blank($middleName)) {
+            return $submittedName === $this->normalize->name($patient->first_name.' '.$patient->last_name);
+        }
+
+        return false;
     }
 
     protected function getEmailHash(User $account): ?string

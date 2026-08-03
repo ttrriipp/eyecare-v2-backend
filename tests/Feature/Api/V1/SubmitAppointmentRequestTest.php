@@ -140,6 +140,182 @@ test('unlinked account can submit an appointment request', function () {
     $response->assertJsonPath('data.patient_id', null);
 });
 
+test('unlinked account snapshots its expanded appointment identity', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+        'email' => null,
+    ]);
+
+    PatientAccountContact::factory()
+        ->phone('+639171234567')
+        ->primary()
+        ->create(['user_id' => $user->id]);
+
+    $response = $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+            'reason_for_visit' => 'Eye exam',
+            'identity' => [
+                'phone' => '09171234567',
+                'email' => 'ANA@EXAMPLE.COM',
+                'first_name' => ' Ana ',
+                'middle_name' => 'Santos',
+                'last_name' => 'Reyes',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+                'address' => '123 Main St, Manila',
+            ],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonMissingPath('data.identity')
+        ->assertJsonMissingPath('data.encrypted_identity_snapshot');
+
+    $request = AppointmentRequest::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($request->encrypted_identity_snapshot)->toMatchArray([
+        'phone' => '+639171234567',
+        'email' => 'ana@example.com',
+        'first_name' => 'Ana',
+        'middle_name' => 'Santos',
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'gender' => 'female',
+        'occupation' => 'Teacher',
+        'address' => '123 Main St, Manila',
+        'verified_contact_type' => 'phone',
+    ]);
+
+    expect($request->getRawOriginal('encrypted_identity_snapshot'))
+        ->not->toContain('ana@example.com')
+        ->not->toContain('123 Main St, Manila');
+});
+
+test('unlinked account can submit an appointment identity without an email', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+        'email' => null,
+    ]);
+
+    PatientAccountContact::factory()
+        ->phone('+639171234567')
+        ->primary()
+        ->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+            'reason_for_visit' => 'Eye exam',
+            'identity' => [
+                'phone' => '+639171234567',
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+                'address' => '123 Main St, Manila',
+            ],
+        ])
+        ->assertCreated();
+
+    $request = AppointmentRequest::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($request->encrypted_identity_snapshot['email'])->toBeNull();
+});
+
+test('expanded appointment identity requires all non-email fields', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+
+    PatientAccountContact::factory()
+        ->phone('+639171234567')
+        ->primary()
+        ->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+            'reason_for_visit' => 'Eye exam',
+            'identity' => [
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
+                'date_of_birth' => '1990-05-15',
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors([
+            'identity.phone',
+            'identity.gender',
+            'identity.occupation',
+            'identity.address',
+        ]);
+
+    expect(AppointmentRequest::query()->where('user_id', $user->id)->exists())->toBeFalse();
+});
+
+test('appointment identity rejects unknown patient claims', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+
+    PatientAccountContact::factory()
+        ->phone('+639171234567')
+        ->primary()
+        ->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+            'reason_for_visit' => 'Eye exam',
+            'identity' => [
+                'phone' => '+639171234567',
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+                'address' => '123 Main St, Manila',
+                'patient_id' => 123,
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['identity']);
+
+    expect(AppointmentRequest::query()->where('user_id', $user->id)->exists())->toBeFalse();
+});
+
+test('unlinked appointment identity phone must match the verified account phone', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+
+    PatientAccountContact::factory()
+        ->phone('+639171234567')
+        ->primary()
+        ->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', [
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+            'reason_for_visit' => 'Eye exam',
+            'identity' => [
+                'phone' => '09170000000',
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
+                'date_of_birth' => '1990-05-15',
+                'gender' => 'female',
+                'occupation' => 'Teacher',
+                'address' => '123 Main St, Manila',
+            ],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['identity.phone']);
+
+    expect(AppointmentRequest::query()->where('user_id', $user->id)->exists())->toBeFalse();
+});
+
 test('request requires reason for visit', function () {
     $user = User::factory()->patient()->create();
 

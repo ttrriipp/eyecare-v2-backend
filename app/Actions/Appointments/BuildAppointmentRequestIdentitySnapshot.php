@@ -2,22 +2,28 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\PatientAccounts\NormalizeContact;
 use App\Models\PatientAccountContact;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class BuildAppointmentRequestIdentitySnapshot
 {
+    public function __construct(
+        protected NormalizeContact $normalizeContact,
+    ) {}
+
     /**
      * Build an encrypted identity snapshot for an unlinked appointment request.
      *
      * Returns null for linked accounts. For unlinked accounts, uses the submitted
-     * identity or falls back to the account profile. Derives the verified primary
-     * contact server-side.
+     * identity or falls back to the account profile. Derives the verified phone
+     * server-side and only accepts a submitted phone as a confirmation of it.
      *
-     * @param  array{first_name?: string, middle_name?: ?string, last_name?: string, date_of_birth?: string}  $submittedIdentity
-     * @return array{first_name: string, middle_name: ?string, last_name: string, date_of_birth: string, verified_contact_type: string, verified_contact_masked: string, verified_contact_hash: string, submitted_at: string}|null
+     * @param  array{phone?: string, email?: ?string, first_name?: string, middle_name?: ?string, last_name?: string, date_of_birth?: string, gender?: string, occupation?: string, address?: string}|null  $submittedIdentity
+     * @return array{phone: string, email: ?string, first_name: string, middle_name: ?string, last_name: string, date_of_birth: string, gender: ?string, occupation: ?string, address: ?string, verified_contact_type: string, verified_contact_masked: string, verified_contact_hash: string, submitted_at: string}|null
      */
     public function handle(User $account, ?array $submittedIdentity): ?array
     {
@@ -32,16 +38,23 @@ class BuildAppointmentRequestIdentitySnapshot
             return null;
         }
 
-        // Build effective identity from submission or account fallback
-        $firstName = $submittedIdentity['first_name'] ?? $account->first_name;
-        $middleName = $submittedIdentity['middle_name'] ?? $account->middle_name;
-        $lastName = $submittedIdentity['last_name'] ?? $account->last_name;
-        $dateOfBirth = $submittedIdentity['date_of_birth'] ?? $account->date_of_birth?->format('Y-m-d');
+        // Build effective identity from submission or account fallback.
+        $firstName = $this->valueFromIdentity($submittedIdentity, 'first_name', $account->first_name);
+        $middleName = $this->valueFromIdentity($submittedIdentity, 'middle_name', $account->middle_name);
+        $lastName = $this->valueFromIdentity($submittedIdentity, 'last_name', $account->last_name);
+        $dateOfBirth = $this->valueFromIdentity($submittedIdentity, 'date_of_birth', $account->date_of_birth?->format('Y-m-d'));
+        $email = $this->valueFromIdentity($submittedIdentity, 'email', $account->email);
+        $gender = $this->valueFromIdentity($submittedIdentity, 'gender', $account->getAttribute('gender'));
+        $occupation = $this->valueFromIdentity($submittedIdentity, 'occupation', $account->getAttribute('occupation'));
+        $address = $this->valueFromIdentity($submittedIdentity, 'address', $account->address);
 
         // Normalize whitespace
         $firstName = $this->normalize($firstName);
         $middleName = $this->normalize($middleName);
         $lastName = $this->normalize($lastName);
+        $gender = $this->normalize($gender);
+        $occupation = $this->normalize($occupation);
+        $address = $this->normalize($address);
 
         // Validate required fields
         if (blank($firstName)) {
@@ -81,12 +94,22 @@ class BuildAppointmentRequestIdentitySnapshot
 
         // Get the verified primary contact
         $contact = $this->resolveVerifiedPrimaryContact($account);
+        $phone = $this->resolveVerifiedPhone($account);
+
+        if (array_key_exists('phone', $submittedIdentity ?? [])) {
+            $this->validateSubmittedPhone($submittedIdentity['phone'], $phone);
+        }
 
         return [
+            'phone' => $phone,
+            'email' => $this->normalizeEmail($email),
             'first_name' => $firstName,
             'middle_name' => $middleName,
             'last_name' => $lastName,
             'date_of_birth' => $dob->format('Y-m-d'),
+            'gender' => $gender,
+            'occupation' => $occupation,
+            'address' => $address,
             'verified_contact_type' => $contact['type'],
             'verified_contact_masked' => $contact['masked'],
             'verified_contact_hash' => $contact['hash'],
@@ -141,9 +164,76 @@ class BuildAppointmentRequestIdentitySnapshot
         ];
     }
 
-    private function normalize(?string $value): ?string
+    private function resolveVerifiedPhone(User $account): string
     {
-        if ($value === null) {
+        $contact = PatientAccountContact::query()
+            ->where('user_id', $account->id)
+            ->where('type', 'phone')
+            ->whereNotNull('verified_at')
+            ->orderByDesc('is_primary')
+            ->first();
+
+        if ($contact === null) {
+            throw ValidationException::withMessages([
+                'identity.phone' => ['No verified phone found on this account.'],
+            ]);
+        }
+
+        try {
+            return $this->normalizeContact->phone($contact->encrypted_value);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'identity.phone' => ['The verified account phone is invalid.'],
+            ]);
+        }
+    }
+
+    private function validateSubmittedPhone(string $submittedPhone, string $verifiedPhone): void
+    {
+        try {
+            $normalizedPhone = $this->normalizeContact->phone($submittedPhone);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'identity.phone' => ['Phone must be a valid Philippine phone number.'],
+            ]);
+        }
+
+        if ($normalizedPhone !== $verifiedPhone) {
+            throw ValidationException::withMessages([
+                'identity.phone' => ['Phone must match the verified account phone.'],
+            ]);
+        }
+    }
+
+    private function normalizeEmail(mixed $value): ?string
+    {
+        $normalized = $this->normalize($value);
+
+        if ($normalized === null) {
+            return null;
+        }
+
+        try {
+            return $this->normalizeContact->email($normalized);
+        } catch (InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'identity.email' => ['Email must be a valid email address.'],
+            ]);
+        }
+    }
+
+    private function valueFromIdentity(?array $identity, string $key, mixed $fallback): mixed
+    {
+        if ($identity !== null && array_key_exists($key, $identity)) {
+            return $identity[$key];
+        }
+
+        return $fallback;
+    }
+
+    private function normalize(mixed $value): ?string
+    {
+        if (! is_string($value)) {
             return null;
         }
 
