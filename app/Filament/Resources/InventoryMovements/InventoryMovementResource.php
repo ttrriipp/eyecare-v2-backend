@@ -54,7 +54,7 @@ class InventoryMovementResource extends Resource
                     ->color(fn (int $state): string => $state > 0 ? 'success' : 'danger'),
                 TextEntry::make('previous_stock')->label('Before')->placeholder('—'),
                 TextEntry::make('new_stock')->label('After')->placeholder('—'),
-                TextEntry::make('createdBy.name')->label('Recorded By')->placeholder('System'),
+                TextEntry::make('createdBy.full_name')->label('Recorded By')->placeholder('System'),
                 TextEntry::make('jobOrder.job_order_number')->label('Job Order')->placeholder('—'),
                 TextEntry::make('reservation.id')->label('Reservation')->placeholder('—'),
                 TextEntry::make('notes')->label('Notes')->placeholder('—')->columnSpanFull(),

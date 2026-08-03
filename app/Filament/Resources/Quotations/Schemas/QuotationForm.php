@@ -110,15 +110,15 @@ class QuotationForm
                             Placeholder::make('presented_at')
                                 ->label('Presented')
                                 ->content(fn (Quotation $record): string => $record->latestRevision?->presented_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('presentedBy.name')
+                            Placeholder::make('presentedBy.full_name')
                                 ->label('Presented by')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->presentedBy?->name ?? '—'),
+                                ->content(fn (Quotation $record): string => $record->latestRevision?->presentedBy?->full_name ?? '—'),
                             Placeholder::make('accepted_at')
                                 ->label('Accepted')
                                 ->content(fn (Quotation $record): string => $record->latestRevision?->accepted_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('acceptedBy.name')
+                            Placeholder::make('acceptedBy.full_name')
                                 ->label('Accepted by')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->acceptedBy?->name ?? '—'),
+                                ->content(fn (Quotation $record): string => $record->latestRevision?->acceptedBy?->full_name ?? '—'),
                         ]),
                 ]),
             ]),

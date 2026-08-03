@@ -76,6 +76,31 @@ test('frames endpoint requires authentication', function () {
     $this->getJson('/api/v1/frames')->assertUnauthorized();
 });
 
+test('unlinked patient account can browse the frame catalog', function () {
+    $user = User::factory()->create();
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'ar-assets/test.glb',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $frame->id);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/frames/{$frame->id}")
+        ->assertOk()
+        ->assertJsonPath('data.id', $frame->id);
+});
+
 test('frames endpoint returns paginated results', function () {
     $frame = Product::factory()->create([
         'product_type' => 'frame',

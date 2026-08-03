@@ -17,7 +17,7 @@ class UsersTable
                 TextColumn::make('first_name')
                     ->label('Name')
                     ->searchable(['first_name', 'last_name'])
-                    ->formatStateUsing(fn ($record) => $record->name)
+                    ->formatStateUsing(fn ($record): string => $record->full_name)
                     ->sortable(),
                 TextColumn::make('email')
                     ->searchable()

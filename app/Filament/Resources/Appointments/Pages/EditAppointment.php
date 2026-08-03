@@ -41,7 +41,7 @@ class EditAppointment extends EditRecord
                 ->schema([
                     Select::make('optometrist_id')
                         ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
+                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
                         ->required()
                         ->searchable()
                         ->preload(),

@@ -35,8 +35,9 @@ class HealthRecordRelationManager extends RelationManager
                     ->label('Allergies')
                     ->limit(30)
                     ->placeholder('—'),
-                TextColumn::make('optometrist.name')
+                TextColumn::make('optometrist.first_name')
                     ->label('Optometrist')
+                    ->state(fn (Appointment $record): string => $record->optometrist?->full_name ?? '—')
                     ->placeholder('—'),
             ])
             ->defaultSort('scheduled_at', 'desc')

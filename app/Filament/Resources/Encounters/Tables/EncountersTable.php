@@ -21,9 +21,11 @@ class EncountersTable
                     ->sortable(),
                 TextColumn::make('patient.first_name')
                     ->label('Patient'),
-                TextColumn::make('optometrist.name')
+                TextColumn::make('optometrist.first_name')
                     ->label('Optometrist')
                     ->placeholder('—')
+                    ->state(fn (Encounter $record): string => $record->optometrist?->full_name ?? '—')
+                    ->searchable(['optometrist.first_name', 'optometrist.last_name'])
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()

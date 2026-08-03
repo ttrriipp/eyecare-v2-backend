@@ -45,8 +45,9 @@ class LinkRequestsRelationManager extends RelationManager
                     ->label('Matched Patient')
                     ->placeholder('—'),
 
-                TextColumn::make('reviewer.name')
+                TextColumn::make('reviewer.first_name')
                     ->label('Reviewed By')
+                    ->state(fn (PatientLinkRequest $record): string => $record->reviewer?->full_name ?? '—')
                     ->placeholder('—'),
 
                 TextColumn::make('decision_note')

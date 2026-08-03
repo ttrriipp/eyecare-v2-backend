@@ -123,7 +123,7 @@ test('existing staff users have structured names from factory', function () {
     $staff->refresh();
     expect($staff->first_name)->not->toBeNull()
         ->and($staff->last_name)->not->toBeNull()
-        ->and($staff->name)->not->toBeNull();
+        ->and($staff->full_name)->not->toBeEmpty();
 });
 
 test('existing admin users have structured names from factory', function () {
@@ -132,7 +132,7 @@ test('existing admin users have structured names from factory', function () {
     $admin->refresh();
     expect($admin->first_name)->not->toBeNull()
         ->and($admin->last_name)->not->toBeNull()
-        ->and($admin->name)->not->toBeNull();
+        ->and($admin->full_name)->not->toBeEmpty();
 });
 
 // --- Factory States ---

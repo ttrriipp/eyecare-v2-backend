@@ -26,7 +26,7 @@ class NewMessageReceived extends Notification
             ->icon('heroicon-o-chat-bubble-left-ellipsis')
             ->iconColor('info')
             ->title('New Message')
-            ->body("{$this->message->sender->name} sent a message.")
+            ->body("{$this->message->sender->full_name} sent a message.")
             ->getDatabaseMessage();
     }
 }

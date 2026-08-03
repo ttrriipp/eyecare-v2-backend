@@ -26,7 +26,8 @@ class DemoUserSeeder extends Seeder
         $admin = User::query()->firstOrCreate(
             ['email' => 'admin@eyecare.test'],
             [
-                'name' => 'Dr. Maria Santos',
+                'first_name' => 'Maria',
+                'last_name' => 'Santos',
                 'phone' => '09170000001',
                 'password' => Hash::make('password'),
                 'role_id' => Role::query()->where('name', 'admin')->value('id'),
@@ -34,12 +35,14 @@ class DemoUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+        $admin->update(['first_name' => 'Maria', 'last_name' => 'Santos']);
 
         // Staff optometrist
         $staff = User::query()->firstOrCreate(
             ['email' => 'staff@eyecare.test'],
             [
-                'name' => 'Dr. Juan dela Cruz',
+                'first_name' => 'Juan',
+                'last_name' => 'dela Cruz',
                 'phone' => '09170000002',
                 'password' => Hash::make('password'),
                 'role_id' => Role::query()->where('name', 'staff')->value('id'),
@@ -47,18 +50,21 @@ class DemoUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
         );
+        $staff->update(['first_name' => 'Juan', 'last_name' => 'dela Cruz']);
 
         // Linked patient
         $patientUser = User::query()->firstOrCreate(
             ['email' => 'customer@eyecare.test'],
             [
-                'name' => 'Ana Reyes',
+                'first_name' => 'Ana',
+                'last_name' => 'Reyes',
                 'phone' => '09170000003',
                 'password' => Hash::make('password'),
                 'role_id' => Role::query()->where('name', 'patient')->value('id'),
                 'email_verified_at' => now(),
             ],
         );
+        $patientUser->update(['first_name' => 'Ana', 'last_name' => 'Reyes']);
 
         if ($patientUser->patient === null) {
             Patient::query()->create([

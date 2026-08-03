@@ -18,7 +18,7 @@ class PatientLinkRequestForm
 
                 Placeholder::make('account_owner')
                     ->label('Account Owner')
-                    ->content(fn ($record) => $record?->user?->name ?? '—'),
+                    ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
 
                 Placeholder::make('account_email')
                     ->label('Account Email')
@@ -34,7 +34,7 @@ class PatientLinkRequestForm
 
                 Placeholder::make('reviewer')
                     ->label('Reviewed By')
-                    ->content(fn ($record) => $record?->reviewer?->name ?? '—'),
+                    ->content(fn ($record): string => $record?->reviewer?->full_name ?? '—'),
 
                 Textarea::make('decision_note')
                     ->label('Decision Note')

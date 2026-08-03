@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
-use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -11,7 +11,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-test('receptionist creates a quotation from an eligible encounter', function () {
+test('receptionist creates an optical order from an eligible encounter', function () {
     $staff = User::factory()->staff()->create(['is_optometrist' => false]);
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -19,8 +19,9 @@ test('receptionist creates a quotation from an eligible encounter', function () 
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('createQuotation')
-        ->callAction('createQuotation', [
+        ->assertActionVisible('createOpticalOrder')
+        ->assertActionHasLabel('createOpticalOrder', 'Create Optical Order')
+        ->callAction('createOpticalOrder', [
             'valid_until' => now()->addWeek()->toDateString(),
             'discount_amount' => 250,
             'notes' => 'Patient-visible estimate note.',
@@ -37,15 +38,15 @@ test('receptionist creates a quotation from an eligible encounter', function () 
 
     $quotation = Quotation::query()->where('encounter_id', $encounter->id)->firstOrFail();
 
-    expect($quotation->latestRevision->total)->toBe('12250.00')
+    expect($quotation->total)->toBe('12250.00')
         ->and($quotation->notes)->toBe('Patient-visible estimate note.')
         ->and($quotation->internal_notes)->toBeNull();
 
-    expect(QuotationResource::getUrl('edit', ['record' => $quotation]))
-        ->toContain("/quotations/{$quotation->id}/edit");
+    expect(OpticalOrderResource::getUrl('edit', ['record' => $quotation]))
+        ->toContain("/optical-orders/{$quotation->id}/edit");
 });
 
-test('quotation action is available for a completed encounter with a current prescription', function () {
+test('optical order action is available for a completed encounter with a current prescription', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -53,15 +54,15 @@ test('quotation action is available for a completed encounter with a current pre
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('createQuotation');
+        ->assertActionVisible('createOpticalOrder');
 });
 
-test('quotation action is hidden until a prescription exists and after a quotation exists', function () {
+test('optical order action is hidden until a prescription exists and changes to view after an order exists', function () {
     $staff = User::factory()->staff()->create();
     $withoutPrescription = Encounter::factory()->inProgress()->create();
     $withQuotation = Encounter::factory()->inProgress()->create();
     $prescription = Prescription::factory()->linkedToEncounter($withQuotation)->create();
-    Quotation::factory()->create([
+    $quotation = Quotation::factory()->create([
         'patient_id' => $withQuotation->patient_id,
         'encounter_id' => $withQuotation->id,
         'prescription_id' => $prescription->id,
@@ -70,14 +71,19 @@ test('quotation action is hidden until a prescription exists and after a quotati
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $withoutPrescription->getRouteKey()])
-        ->assertActionHidden('createQuotation');
+        ->assertActionHidden('createOpticalOrder');
 
-    Livewire::test(EditEncounter::class, ['record' => $withQuotation->getRouteKey()])
-        ->assertActionHidden('createQuotation')
-        ->assertActionVisible('viewQuotation');
+    $component = Livewire::test(EditEncounter::class, ['record' => $withQuotation->getRouteKey()])
+        ->assertActionHidden('createOpticalOrder')
+        ->assertActionDoesNotExist('viewQuotation')
+        ->assertActionVisible('viewOpticalOrder')
+        ->assertActionHasLabel('viewOpticalOrder', 'View Optical Order');
+
+    expect($component->instance()->getAction('viewOpticalOrder')->getUrl())
+        ->toBe(OpticalOrderResource::getUrl('view', ['record' => $quotation]));
 });
 
-test('quotation action validates that at least one item is supplied', function () {
+test('optical order action validates that at least one item is supplied', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -85,7 +91,7 @@ test('quotation action validates that at least one item is supplied', function (
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->callAction('createQuotation', [
+        ->callAction('createOpticalOrder', [
             'discount_amount' => 0,
             'items' => [],
         ])

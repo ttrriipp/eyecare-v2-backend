@@ -56,7 +56,7 @@ class PatientAccountResource extends JsonResource
         return [
             // Account fields (editable via PATCH /me where noted)
             'id' => $this->id,
-            'name' => $this->name,
+            'name' => $this->full_name,
             'first_name' => $this->first_name,
             'middle_name' => $this->middle_name,
             'last_name' => $this->last_name,

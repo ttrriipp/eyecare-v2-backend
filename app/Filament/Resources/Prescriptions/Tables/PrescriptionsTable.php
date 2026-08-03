@@ -33,8 +33,9 @@ class PrescriptionsTable
                         : ($record->previous_prescription_id === null ? 'Original' : 'Current amendment'))
                     ->badge()
                     ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
-                TextColumn::make('author.name')
+                TextColumn::make('author.first_name')
                     ->label('Optometrist')
+                    ->state(fn (Prescription $record): string => $record->author?->full_name ?? '—')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),

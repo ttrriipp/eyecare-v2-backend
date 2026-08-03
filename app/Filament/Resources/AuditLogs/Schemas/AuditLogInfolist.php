@@ -19,7 +19,7 @@ class AuditLogInfolist
                     ->formatStateUsing(fn (string $state): string => class_basename($state)),
                 TextEntry::make('subject_id')
                     ->label('Subject ID'),
-                TextEntry::make('actor.name')
+                TextEntry::make('actor.full_name')
                     ->label('Actor')
                     ->default('System'),
                 TextEntry::make('created_at')

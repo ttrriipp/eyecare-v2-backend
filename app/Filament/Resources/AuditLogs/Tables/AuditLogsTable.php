@@ -25,8 +25,9 @@ class AuditLogsTable
                     ->sortable(),
                 TextColumn::make('subject_id')
                     ->label('Subject ID'),
-                TextColumn::make('actor.name')
+                TextColumn::make('actor.first_name')
                     ->label('Actor')
+                    ->state(fn (AuditLog $record): string => $record->actor?->full_name ?? 'System')
                     ->default('System')
                     ->searchable(),
                 TextColumn::make('created_at')

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Conversations\RelationManagers;
 
+use App\Models\Message;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -21,8 +22,9 @@ class MessagesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('body')
             ->columns([
-                TextColumn::make('sender.name')
-                    ->label('Sender'),
+                TextColumn::make('sender.first_name')
+                    ->label('Sender')
+                    ->state(fn (Message $record): string => $record->sender?->full_name ?? '—'),
                 TextColumn::make('body')
                     ->label('Message')
                     ->wrap()
@@ -60,7 +62,7 @@ class MessagesRelationManager extends RelationManager
     {
         return $schema
             ->components([
-                TextEntry::make('sender.name')
+                TextEntry::make('sender.full_name')
                     ->label('Sender'),
                 TextEntry::make('body')
                     ->label('Message')

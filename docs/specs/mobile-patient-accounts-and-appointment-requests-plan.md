@@ -53,10 +53,11 @@ The implementation will:
 clinic-authoritative clinical identity. The nullable unique
 `patients.user_id` continues to represent the active link.
 
-Patient-role users gain nullable structured `first_name` and `last_name`
-columns. Staff/admin accounts continue using the existing `name`, `email`,
-password, and Filament MFA behavior. For a new patient account, `name` is a
-derived compatibility value and is not used for patient matching.
+All user accounts use nullable structured `first_name`, `middle_name`, and
+`last_name` columns. The legacy `users.name` column is removed; any API
+compatibility `name` value is derived from the structured fields and is not
+used for patient matching. Staff/admin accounts continue using email,
+password, and Filament MFA behavior.
 
 Patient accounts do not use `users.email` or `users.phone` as authoritative
 login identifiers. Dedicated verified contact records own patient email/phone
@@ -248,11 +249,12 @@ standalone navigation is hidden.
 ### `users` additions
 
 - `first_name` nullable string;
+- `middle_name` nullable string;
 - `last_name` nullable string.
 
-Existing staff/admin rows remain valid without structured names. New and
-fully migrated patient accounts require both plus the existing
-`date_of_birth`.
+Existing staff/admin rows are backfilled from the legacy display name before
+the column is removed. New and fully migrated patient accounts require both
+first and last names plus the existing `date_of_birth`.
 
 ### `patient_account_contacts`
 
@@ -703,7 +705,8 @@ contract is explicit.
 ### Stage 2: Additive schema and compatibility
 
 - Add contact, OTP, link, invitation, and appointment-request foundations.
-- Add blind indexes and structured patient-account names.
+- Add blind indexes and structured names for all user accounts, backfill the
+  legacy values, and remove `users.name`.
 - Add Appointment reason and Encounter clinical/wizard fields.
 - Backfill existing Encounter data without dropping intake structures.
 

@@ -42,17 +42,18 @@ class AuthController extends Controller
         [$user, $patient] = DB::transaction(function () use ($data): array {
             $patientRole = Role::query()->where('name', 'patient')->firstOrFail();
 
+            $nameParts = explode(' ', trim($data['name']), 2);
+            $firstName = $nameParts[0] ?? '';
+            $lastName = $nameParts[1] ?? '';
+
             $user = User::query()->create([
-                'name' => $data['name'],
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => $data['password'],
                 'role_id' => $patientRole->id,
             ]);
-
-            $nameParts = explode(' ', trim($data['name']), 2);
-            $firstName = $nameParts[0] ?? '';
-            $lastName = $nameParts[1] ?? '';
 
             $patient = Patient::query()->create([
                 'user_id' => $user->id,

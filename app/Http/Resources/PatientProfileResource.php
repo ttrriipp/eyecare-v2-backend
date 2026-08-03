@@ -25,7 +25,7 @@ class PatientProfileResource extends JsonResource
         return [
             'id' => $this->id,
             'patient_number' => $patient?->patient_number,
-            'name' => $this->name,
+            'name' => $this->full_name,
             'email' => $this->email,
             'phone' => $this->phone,
             'role' => $this->role->name,

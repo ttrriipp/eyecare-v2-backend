@@ -40,10 +40,10 @@ test('prescription lists show retained operational columns', function () {
         ->assertTableColumnStateSet('patient.first_name', 'Maria', record: $prescription)
         ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
-        ->assertTableColumnStateSet('author.name', 'Dr. Padilla', record: $prescription)
+        ->assertTableColumnStateSet('author.first_name', 'Dr. Padilla', record: $prescription)
         ->assertTableColumnDoesNotExist('expires_at')
         ->assertTableColumnDoesNotExist('pd')
-        ->assertTableColumnDoesNotExist('createdBy.name');
+        ->assertTableColumnDoesNotExist('createdBy.first_name');
 
     Livewire::test(PrescriptionsRelationManager::class, [
         'ownerRecord' => $patient,
@@ -51,7 +51,7 @@ test('prescription lists show retained operational columns', function () {
     ])
         ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
-        ->assertTableColumnStateSet('author.name', 'Dr. Padilla', record: $prescription)
+        ->assertTableColumnStateSet('author.first_name', 'Dr. Padilla', record: $prescription)
         ->assertTableColumnDoesNotExist('od_sphere')
         ->assertTableColumnDoesNotExist('os_sphere')
         ->assertTableColumnDoesNotExist('expires_at');

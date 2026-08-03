@@ -31,7 +31,6 @@ class UserFactory extends Factory
         $lastName = fake()->lastName();
 
         return [
-            'name' => $firstName.' '.$lastName,
             'first_name' => $firstName,
             'middle_name' => fake()->optional(0.3)->firstName(),
             'last_name' => $lastName,
@@ -110,7 +109,7 @@ class UserFactory extends Factory
     }
 
     /**
-     * Walk-in patient: name + phone only, no email, no password. Cannot log in to the API.
+     * Walk-in patient: structured name + phone only, no email, no password. Cannot log in to the API.
      */
     public function walkIn(): static
     {

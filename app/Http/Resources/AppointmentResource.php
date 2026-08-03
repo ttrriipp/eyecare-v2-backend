@@ -30,7 +30,7 @@ class AppointmentResource extends JsonResource
             'fulfilled_at' => $this->fulfilled_at?->toISOString(),
             'contact_notes' => $this->contact_notes,
             'source' => $this->source,
-            'assigned_optometrist' => $this->optometrist ? ['name' => $this->optometrist->name] : null,
+            'assigned_optometrist' => $this->optometrist ? ['name' => $this->optometrist->full_name] : null,
             'latest_reschedule' => $this->whenLoaded('latestReschedule') && $this->latestReschedule
                 ? [
                     'previous_scheduled_at' => $this->latestReschedule->previous_scheduled_at->toISOString(),

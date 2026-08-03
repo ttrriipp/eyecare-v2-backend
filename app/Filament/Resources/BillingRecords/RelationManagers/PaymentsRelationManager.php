@@ -45,8 +45,9 @@ class PaymentsRelationManager extends RelationManager
                         'reversed' => 'danger',
                         default => 'gray',
                     }),
-                TextColumn::make('recordedBy.name')
+                TextColumn::make('recordedBy.first_name')
                     ->label('Recorded By')
+                    ->state(fn (BillingPayment $record): string => $record->recordedBy?->full_name ?? '—')
                     ->placeholder('—'),
                 TextColumn::make('recorded_at')
                     ->label('Recorded')

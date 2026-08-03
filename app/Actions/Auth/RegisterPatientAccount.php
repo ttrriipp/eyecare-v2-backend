@@ -184,10 +184,8 @@ class RegisterPatientAccount
             $role = Role::where('name', 'patient')->firstOrFail();
 
             $middleName = $data['middle_name'] ?? null;
-            $fullName = trim($data['first_name'].' '.($middleName ? $middleName.' ' : '').$data['last_name']);
 
             $user = User::create([
-                'name' => $fullName,
                 'first_name' => $data['first_name'],
                 'middle_name' => $middleName,
                 'last_name' => $data['last_name'],

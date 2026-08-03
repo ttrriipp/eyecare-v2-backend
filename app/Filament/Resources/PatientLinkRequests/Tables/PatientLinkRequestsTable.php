@@ -21,9 +21,10 @@ class PatientLinkRequestsTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('user.name')
+                TextColumn::make('user.first_name')
                     ->label('Account Owner')
-                    ->searchable(),
+                    ->state(fn (PatientLinkRequest $record): string => $record->user?->full_name ?? '—')
+                    ->searchable(['user.first_name', 'user.last_name']),
 
                 TextColumn::make('status')
                     ->badge()
@@ -38,8 +39,9 @@ class PatientLinkRequestsTable
                     ->label('Linked Patient')
                     ->placeholder('—'),
 
-                TextColumn::make('reviewer.name')
+                TextColumn::make('reviewer.first_name')
                     ->label('Reviewed By')
+                    ->state(fn (PatientLinkRequest $record): string => $record->reviewer?->full_name ?? '—')
                     ->placeholder('—'),
 
                 TextColumn::make('created_at')

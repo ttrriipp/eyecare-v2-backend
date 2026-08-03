@@ -64,13 +64,16 @@ class AppointmentsTable
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => Str::headline($state)),
-                TextColumn::make('optometrist.name')
+                TextColumn::make('optometrist.first_name')
                     ->label('Optometrist')
                     ->placeholder('Unassigned')
+                    ->state(fn (Appointment $record): string => $record->optometrist?->full_name ?? 'Unassigned')
+                    ->searchable(['optometrist.first_name', 'optometrist.last_name'])
                     ->sortable(),
-                TextColumn::make('createdBy.name')
+                TextColumn::make('createdBy.first_name')
                     ->label('Booked by')
                     ->placeholder('System / patient')
+                    ->state(fn (Appointment $record): string => $record->createdBy?->full_name ?? 'System / patient')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('source')
                     ->label('Source')
@@ -100,7 +103,8 @@ class AppointmentsTable
                         ->whereHas('status', fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'checked_in')))
                     ->toggle(),
                 SelectFilter::make('optometrist')
-                    ->relationship('optometrist', 'name', fn (Builder $query): Builder => $query->optometrists())
+                    ->relationship('optometrist', 'first_name', fn (Builder $query): Builder => $query->optometrists())
+                    ->getOptionLabelFromRecordUsing(fn (User $user): string => $user->full_name)
                     ->searchable()
                     ->preload(),
                 Filter::make('scheduled_date')
@@ -136,7 +140,7 @@ class AppointmentsTable
                         ->schema([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')
-                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->get()->mapWithKeys(fn ($u) => [$u->id => $u->name])->toArray())
+                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
                                 ->required()
                                 ->searchable()
                                 ->preload(),
@@ -189,7 +193,7 @@ class AppointmentsTable
                         ->schema([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')
-                                ->options(fn () => User::query()->optometrists()->orderBy('name')->pluck('name', 'id'))
+                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
                                 ->required()
                                 ->searchable()
                                 ->preload(),

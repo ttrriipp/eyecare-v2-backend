@@ -49,8 +49,9 @@ class InventoryMovementsTable
                 TextColumn::make('new_stock')
                     ->label('After')
                     ->placeholder('—'),
-                TextColumn::make('createdBy.name')
+                TextColumn::make('createdBy.first_name')
                     ->label('By')
+                    ->state(fn (InventoryMovement $record): string => $record->createdBy?->full_name ?? 'System')
                     ->placeholder('System')
                     ->toggleable(),
                 TextColumn::make('jobOrder.job_order_number')

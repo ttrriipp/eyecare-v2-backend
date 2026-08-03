@@ -18,7 +18,7 @@ test('me endpoint returns patient profile data', function () {
         ->assertSuccessful()
         ->assertJsonPath('data.patient_number', $user->patient->patient_number)
         ->assertJsonPath('data.full_name', $user->patient->full_name)
-        ->assertJsonPath('data.name', $user->name);
+        ->assertJsonPath('data.name', $user->full_name);
 });
 
 test('me endpoint can update account fields', function () {

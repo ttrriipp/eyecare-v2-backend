@@ -10,6 +10,11 @@ Phase 3 task decomposition is authorized. Migrations, routes, application
 code, tests, and Android changes remain unauthorized until the Phase 3 task
 list is separately approved.
 
+The **Unlinked Appointment Request Identity Snapshot** amendment was approved
+by the project owner on 2026-08-03. Its Phase 2 implementation plan was approved
+on 2026-08-03. Corrective tasks and application-code changes remain
+unauthorized until the later workflow gates are approved.
+
 ## Objective
 
 Replace the current patient registration flow with a NowServing-inspired
@@ -187,6 +192,38 @@ Success means:
 55. Optical Order progress and payment state remain separate dimensions:
     estimate/production/dispensing communicates fulfillment, while
     unpaid/partially-paid/paid/voided communicates finance.
+56. An unlinked account reviews identity details while submitting an
+    appointment request. The mobile client may send phone, optional email,
+    first name, middle name, last name, date of birth, gender, occupation, and
+    home address as an additive `identity` object.
+57. Submitted request identity is a point-in-time matching snapshot. Correcting
+    it changes neither the mobile account profile nor an existing clinic
+    Patient record.
+58. When `identity` is present, phone, first name, last name, date of birth,
+    gender, occupation, and home address are required; middle name remains
+    nullable and email remains optional.
+59. Existing mobile clients may omit `identity`; for an unlinked account the
+    server falls back to the account's current structured name, date of birth,
+    verified phone, optional email, and address. Unavailable demographic fields
+    remain null in the staff-only snapshot.
+60. A linked account does not submit an identity snapshot. Its active clinic
+    Patient record remains authoritative, and a supplied `identity` object is
+    rejected rather than silently applied.
+61. The verified phone snapshot is built only by the server from the account's
+    verified contact record. A submitted phone is checked against that value
+    but cannot change it. An optional submitted email is captured as an
+    unverified contact detail; the payload cannot submit contact-verification
+    state or a Patient identifier.
+62. The encrypted request snapshot contains phone, optional email, the
+    effective structured name, date of birth, gender, occupation, home address,
+    server-derived verified-contact metadata, and submission time needed for
+    staff resolution.
+63. Staff matching and duplicate review use the immutable request snapshot,
+    not a later-mutated account profile. The review UI displays the submitted
+    identity and masked phone/email contact details.
+64. Identity snapshots are staff-only matching data. They are excluded from
+    appointment-request list/detail responses, notifications, audit metadata,
+    and application logs.
 
 ## Out of Scope
 
@@ -699,9 +736,77 @@ For an unlinked account:
 
 - `user_id` identifies the submitting account;
 - `patient_id` remains null;
-- the request stores the minimum submitted identity and contact snapshot needed
-  for staff resolution;
+- the request stores the minimum submitted identity and server-derived verified
+  contact snapshot needed for staff resolution;
 - no clinical patient or appointment is created.
+
+#### Unlinked identity snapshot contract
+
+The existing `POST /api/v1/appointment-requests` contract is extended
+additively:
+
+```json
+{
+  "scheduled_at": "2026-08-10T10:00:00+08:00",
+  "reason_for_visit": "Blurred distance vision",
+  "identity": {
+    "phone": "09171234567",
+    "email": "ana@example.com",
+    "first_name": "Ana",
+    "middle_name": "Santos",
+    "last_name": "Reyes",
+    "date_of_birth": "1990-05-15",
+    "gender": "female",
+    "occupation": "Teacher",
+    "address": "123 Main St, Manila"
+  }
+}
+```
+
+Rules:
+
+- `identity` is optional at the transport level so existing clients continue
+  working. When present, phone, first name, last name, date of birth, gender,
+  occupation, and address are required; email is optional.
+- When `identity` is present for an unlinked account, it replaces the account
+  profile only for this request snapshot. Fields are trimmed and normalized at
+  the API boundary.
+- When `identity` is absent, the server copies the account's current structured
+  name, date of birth, verified phone, optional email, and address. Gender and
+  occupation are null when unavailable on the account.
+- `middle_name` is nullable and bounded by the same name-length policy as
+  registration.
+- Unknown keys inside `identity`, raw `patient_id`, and client-supplied
+  verification fields are rejected. A supplied phone must match the verified
+  account phone; the optional email is not considered verified.
+- A linked account must omit `identity`; the server snapshots no account
+  identity and continues copying its authoritative `patient_id`.
+- Snapshot creation occurs in the same transaction as the appointment request.
+  Validation or snapshot failure creates neither a request nor a capacity hold.
+- The successful response remains backward-compatible and does not echo the
+  snapshot.
+
+The encrypted snapshot shape is internal and not a mobile API contract:
+
+```text
+phone                       server-derived, canonical
+email                       nullable, optional
+first_name
+middle_name                 nullable
+last_name
+date_of_birth
+gender
+occupation
+address
+verified_contact_type       email | phone
+verified_contact_masked
+verified_contact_hash
+submitted_at
+```
+
+Phone and optional email are encrypted with the snapshot at rest. Staff UI
+renders contact values masked. Authorized matching code uses the server-derived
+verified contact hash and must not persist or log a plaintext copy.
 
 Each request records:
 
@@ -1011,6 +1116,22 @@ Use Pest feature tests with factories and faked delivery providers.
 - Linked and unlinked submission.
 - Unlinked submission creates neither patient nor appointment.
 - Linked submission copies the authoritative patient.
+- Unlinked submitted identity overrides account identity only in the encrypted
+  request snapshot.
+- An omitted identity object falls back to a complete account identity for
+  backward compatibility.
+- Missing required identity fields, an invalid phone, or an invalid date of
+  birth returns validation errors and creates no request or capacity hold.
+- Linked requests reject submitted identity and continue using the
+  authoritative Patient record.
+- The server snapshots its own verified phone and verifies any submitted phone
+  against it; optional email is not treated as verified, and client-supplied
+  Patient or verification claims are rejected.
+- Patient-facing list/detail responses, logs, notifications, and audit metadata
+  never expose the identity snapshot.
+- Staff review shows the submitted identity and masked phone/email, and
+  candidate matching uses the immutable snapshot even if the account profile
+  later changes.
 - Soft reservation participates in availability.
 - Request expiry/cancellation releases capacity.
 - Only the owner sees or cancels a request.
@@ -1086,6 +1207,10 @@ frontend build must pass before the implementation is considered complete.
 - Let staff choose an arbitrary raw `user_id` on a patient form.
 - Let staff create, know, or enter a patient credential.
 - Let account-profile edits silently update clinic patient demographics.
+- Let appointment-request identity corrections update either the account or
+  clinic Patient record.
+- Accept client claims about verified contact ownership or Patient identity.
+- Return an appointment-request identity snapshot to a mobile client.
 - Allow an unlinked account to read clinical or fulfillment information.
 - Treat a pending request as a confirmed appointment.
 - Delete or modify existing tests to make the feature pass without approval.
@@ -1148,9 +1273,22 @@ programmatically verified:
     the same frame stock twice.
 32. Deposits can be recorded before dispensing, and cancellation cannot
     silently discard or erase posted payment history.
+33. An unlinked account can review and submit structured identity while making
+    an appointment request without creating or modifying a clinic Patient.
+34. Existing clients that omit identity continue working when the account
+    already has complete structured identity.
+35. Every unlinked request stores one encrypted point-in-time identity and
+    server-derived verified-contact snapshot; linked requests store no account
+    identity snapshot.
+36. Staff can review submitted identity and masked phone/email before resolving
+    the request, while the patient API never returns that snapshot.
+37. Candidate matching uses the request snapshot and does not change when the
+    account profile changes after submission.
+38. Invalid identity, a mismatched phone, client-supplied Patient or
+    verification claims, or missing verified primary contact fails validation
+    without creating a request or consuming appointment capacity.
 
 ## Open Questions
 
-No product-flow or security-configuration questions remain open. The approved
-Phase 2 plan records the OTP, password, token, invitation, request, and
-retention defaults and the tests required for them.
+The approved 2026-08-03 amendment has no unresolved product-flow choices. Its
+technical plan and corrective task breakdown remain separately gated.

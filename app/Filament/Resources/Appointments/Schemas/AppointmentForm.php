@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Appointments\Schemas;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
+use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -245,7 +246,8 @@ class AppointmentForm
                     Section::make('Clinical Assignment')->schema([
                         Select::make('optometrist_id')
                             ->label('Optometrist')
-                            ->relationship('optometrist', 'name', fn ($query) => $query->optometrists())
+                            ->relationship('optometrist', 'first_name', fn ($query) => $query->optometrists())
+                            ->getOptionLabelFromRecordUsing(fn (User $user): string => $user->full_name)
                             ->searchable()
                             ->preload()
                             ->nullable()
@@ -259,15 +261,15 @@ class AppointmentForm
                             Placeholder::make('created_at')
                                 ->label('Booked')
                                 ->content(fn (?Appointment $record): string => $record?->created_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('createdBy.name')
+                            Placeholder::make('createdBy.full_name')
                                 ->label('Booked by')
-                                ->content(fn (?Appointment $record): string => $record?->createdBy?->name ?? 'System / patient'),
+                                ->content(fn (?Appointment $record): string => $record?->createdBy?->full_name ?? 'System / patient'),
                             Placeholder::make('checked_in_at')
                                 ->label('Checked in')
                                 ->content(fn (?Appointment $record): string => $record?->checked_in_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('checkedInBy.name')
+                            Placeholder::make('checkedInBy.full_name')
                                 ->label('Checked in by')
-                                ->content(fn (?Appointment $record): string => $record?->checkedInBy?->name ?? '—'),
+                                ->content(fn (?Appointment $record): string => $record?->checkedInBy?->full_name ?? '—'),
                             Placeholder::make('updated_at')
                                 ->label('Last updated')
                                 ->content(fn (?Appointment $record): string => $record?->updated_at?->diffForHumans() ?? '—'),

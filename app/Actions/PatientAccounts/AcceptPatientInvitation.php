@@ -91,7 +91,6 @@ class AcceptPatientInvitation
                 $role = Role::where('name', 'patient')->firstOrFail();
 
                 $user = User::create([
-                    'name' => ($firstName ?? 'Patient').' '.($lastName ?? ''),
                     'first_name' => $firstName,
                     'last_name' => $lastName,
                     'password' => Hash::make($password ?? Str::random(32)),

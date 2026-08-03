@@ -125,13 +125,13 @@ class AppointmentCalendarWidget extends CalendarWidget
                             ->content(($appointment->duration_minutes ?? 30).' minutes'),
                         Placeholder::make('created_by')
                             ->label('Booked By')
-                            ->content($appointment->createdBy?->name ?? 'System / patient'),
+                            ->content($appointment->createdBy?->full_name ?? 'System / patient'),
                         Placeholder::make('checked_in_by')
                             ->label('Checked In By')
-                            ->content($appointment->checkedInBy?->name ?? '—'),
+                            ->content($appointment->checkedInBy?->full_name ?? '—'),
                         Placeholder::make('optometrist')
                             ->label('Optometrist')
-                            ->content($appointment->optometrist?->name ?? 'Unassigned'),
+                            ->content($appointment->optometrist?->full_name ?? 'Unassigned'),
                     ]),
                     Placeholder::make('notes')
                         ->label('Contact Notes')

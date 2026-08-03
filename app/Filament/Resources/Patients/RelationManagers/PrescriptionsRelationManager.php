@@ -37,8 +37,9 @@ class PrescriptionsRelationManager extends RelationManager
                     ->placeholder('—')
                     ->searchable()
                     ->sortable(),
-                TextColumn::make('author.name')
+                TextColumn::make('author.first_name')
                     ->label('Optometrist')
+                    ->state(fn (Prescription $record): string => $record->author?->full_name ?? '—')
                     ->searchable()
                     ->sortable(),
             ])

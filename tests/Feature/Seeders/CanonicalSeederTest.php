@@ -14,6 +14,7 @@ use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
@@ -32,6 +33,22 @@ test('canonical seed data creates required users', function () {
         ->and($staff->role->name)->toBe('staff')
         ->and($patientUser)->not->toBeNull()
         ->and($patientUser->role->name)->toBe('patient');
+});
+
+test('canonical seeded users use structured names without the legacy name column', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $admin = User::query()->where('email', 'admin@eyecare.test')->firstOrFail();
+    $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
+    $patientUser = User::query()->where('email', 'customer@eyecare.test')->firstOrFail();
+
+    expect(Schema::hasColumn('users', 'name'))->toBeFalse()
+        ->and($admin->first_name)->toBe('Maria')
+        ->and($admin->last_name)->toBe('Santos')
+        ->and($staff->first_name)->toBe('Juan')
+        ->and($staff->last_name)->toBe('dela Cruz')
+        ->and($patientUser->first_name)->toBe('Ana')
+        ->and($patientUser->last_name)->toBe('Reyes');
 });
 
 test('canonical seed data creates linked and walk-in patients', function () {

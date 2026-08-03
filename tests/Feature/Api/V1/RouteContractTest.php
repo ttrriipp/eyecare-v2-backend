@@ -23,6 +23,7 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/account/contacts',
         'GET|HEAD api/v1/account/link',
         'GET|HEAD api/v1/appointment-availability',
+        'GET|HEAD api/v1/appointment-request-availability',
         'GET|HEAD api/v1/appointment-requests',
         'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
         'GET|HEAD api/v1/appointments',

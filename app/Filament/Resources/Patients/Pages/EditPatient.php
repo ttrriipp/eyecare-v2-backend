@@ -182,7 +182,7 @@ class EditPatient extends EditRecord
                                 ->mapWithKeys(fn ($user) => [
                                     $user->id => ($user->first_name && $user->last_name)
                                         ? "{$user->first_name} {$user->last_name} ({$user->email})"
-                                        : ($user->name ?? "User #{$user->id}"),
+                                        : ($user->full_name ?: "User #{$user->id}"),
                                 ])
                                 ->toArray();
                         })

@@ -121,8 +121,10 @@ class Availability extends Page
     {
         return User::query()
             ->optometrists()
-            ->orderBy('name')
-            ->pluck('name', 'id')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get()
+            ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])
             ->toArray();
     }
 

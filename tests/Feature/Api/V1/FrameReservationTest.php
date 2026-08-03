@@ -231,6 +231,15 @@ test('reservation requires authentication', function () {
     $this->postJson('/api/v1/frame-reservations', [])->assertUnauthorized();
 });
 
+test('unlinked patient account cannot create a frame reservation', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/frame-reservations', [])
+        ->assertForbidden()
+        ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
+});
+
 test('reservation response does not contain internal commercial or inventory fields', function () {
     $user = User::factory()->patient()->create();
     $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);

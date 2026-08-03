@@ -11,7 +11,7 @@ class ConversationInfolist
     {
         return $schema
             ->components([
-                TextEntry::make('customer.name')
+                TextEntry::make('customer.full_name')
                     ->label('Customer'),
                 TextEntry::make('subject')
                     ->label('Subject')

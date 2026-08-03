@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\AppointmentRequestAvailabilityController;
 use App\Http\Controllers\Api\AppointmentRequestController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingRecordController;
@@ -68,6 +69,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     Route::get('patient-link-requests/current', [PatientLinkRequestController::class, 'current']);
 
     // Appointment requests
+    Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);
     Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
     Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
     Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
@@ -76,6 +78,10 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     // Patient invitations
     Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp']);
     Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept']);
+
+    // Frame catalog browsing does not require a linked patient record.
+    Route::get('frames', [FrameController::class, 'index']);
+    Route::get('frames/{frame}', [FrameController::class, 'show']);
 });
 
 // Authenticated clinical routes (active patient link required)
@@ -87,9 +93,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
-
-    Route::get('frames', [FrameController::class, 'index']);
-    Route::get('frames/{frame}', [FrameController::class, 'show']);
 
     Route::get('frame-reservations', [FrameReservationController::class, 'index']);
     Route::post('frame-reservations', [FrameReservationController::class, 'store']);

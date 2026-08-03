@@ -19,7 +19,7 @@ class PatientAccountForm
                     Section::make('Account Details')->columns(2)->schema([
                         Placeholder::make('name')
                             ->label('Account Name')
-                            ->content(fn ($record) => $record?->name ?? '—'),
+                            ->content(fn ($record): string => $record?->full_name ?? '—'),
 
                         Placeholder::make('email')
                             ->label('Email')

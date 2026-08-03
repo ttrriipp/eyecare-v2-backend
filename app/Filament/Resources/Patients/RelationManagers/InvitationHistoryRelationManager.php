@@ -46,8 +46,9 @@ class InvitationHistoryRelationManager extends RelationManager
                         default => 'gray',
                     }),
 
-                TextColumn::make('sender.name')
+                TextColumn::make('sender.first_name')
                     ->label('Sent By')
+                    ->state(fn (PatientInvitation $record): string => $record->sender?->full_name ?? '—')
                     ->placeholder('—'),
 
                 TextColumn::make('created_at')

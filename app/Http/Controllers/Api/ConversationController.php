@@ -130,7 +130,7 @@ class ConversationController extends Controller
 
         Notification::make()
             ->title('New Message')
-            ->body("{$message->sender->name} sent a message.")
+            ->body("{$message->sender->full_name} sent a message.")
             ->actions([
                 Action::make('view')
                     ->label('View')
