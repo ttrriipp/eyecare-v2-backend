@@ -2,13 +2,14 @@
 
 namespace App\Filament\Resources\OpticalOrders;
 
+use App\Filament\Clusters\OpticalOrders\OpticalOrdersCluster;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
 use App\Filament\Resources\OpticalOrders\Pages\ViewOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderForm;
 use App\Filament\Resources\OpticalOrders\Tables\OpticalOrdersTable;
-use App\Models\Quotation;
+use App\Models\JobOrder;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,7 +19,7 @@ use UnitEnum;
 
 class OpticalOrderResource extends Resource
 {
-    protected static ?string $model = Quotation::class;
+    protected static ?string $model = JobOrder::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 
@@ -26,13 +27,15 @@ class OpticalOrderResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
-    protected static ?string $recordTitleAttribute = 'quotation_number';
+    protected static ?string $recordTitleAttribute = 'job_order_number';
 
-    protected static ?string $navigationLabel = 'Optical Orders';
+    protected static ?string $navigationLabel = 'Orders';
 
-    protected static ?string $modelLabel = 'Optical Order';
+    protected static ?string $modelLabel = 'Order';
 
-    protected static ?string $pluralModelLabel = 'Optical Orders';
+    protected static ?string $pluralModelLabel = 'Orders';
+
+    protected static ?string $cluster = OpticalOrdersCluster::class;
 
     public static function form(Schema $schema): Schema
     {

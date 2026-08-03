@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\OpticalOrders\Tables;
 
-use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
-use App\Enums\QuotationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Models\Quotation;
+use App\Models\JobOrder;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Columns\TextColumn;
@@ -19,7 +17,7 @@ class OpticalOrdersTable
     {
         return $table
             ->columns([
-                TextColumn::make('quotation_number')
+                TextColumn::make('job_order_number')
                     ->label('Order #')
                     ->searchable()
                     ->sortable(),
@@ -29,36 +27,33 @@ class OpticalOrdersTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('workflow_stage')
-                    ->label('Stage')
-                    ->getStateUsing(fn (Quotation $record): string => self::resolveWorkflowStage($record))
+                TextColumn::make('status')
+                    ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Draft' => 'gray',
-                        'Awaiting Decision' => 'info',
-                        'Confirmed' => 'warning',
-                        'In Production' => 'primary',
-                        'Ready for Pickup' => 'success',
-                        'Completed' => 'success',
-                        'Cancelled' => 'danger',
-                        'Declined' => 'danger',
-                        'Expired' => 'gray',
-                        default => 'gray',
+                    ->color(fn (JobOrderStatus $state): string => match ($state) {
+                        JobOrderStatus::Queued => 'warning',
+                        JobOrderStatus::InProgress => 'primary',
+                        JobOrderStatus::ReadyForDispensing => 'success',
+                        JobOrderStatus::Dispensed => 'success',
+                        JobOrderStatus::Cancelled => 'danger',
                     }),
 
-                TextColumn::make('jobOrder.supplier_invoice_number')
+                TextColumn::make('quotation.patient.full_name')
+                    ->label('Source Quotation')
+                    ->placeholder('Direct order'),
+
+                TextColumn::make('supplier_invoice_number')
                     ->label('Supplier Ref')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('total')
+                TextColumn::make('total_amount')
                     ->label('Total')
                     ->money('PHP')
                     ->sortable(),
 
-                TextColumn::make('payment_status_display')
+                TextColumn::make('billingRecord.status')
                     ->label('Payment')
-                    ->getStateUsing(fn (Quotation $record): ?string => $record->jobOrder?->billingRecord?->status?->getLabel())
                     ->badge()
                     ->color(fn (?string $state): string => match ($state) {
                         'Paid' => 'success',
@@ -66,77 +61,30 @@ class OpticalOrdersTable
                         'Unpaid' => 'danger',
                         'Voided' => 'gray',
                         default => 'gray',
-                    }),
+                    })
+                    ->placeholder('—'),
 
-                TextColumn::make('balance_due')
+                TextColumn::make('billingRecord.balance_due')
                     ->label('Balance')
-                    ->getStateUsing(fn (Quotation $record): ?float => $record->jobOrder?->billingRecord?->balance_due)
                     ->money('PHP')
                     ->placeholder('—'),
 
-                TextColumn::make('payment_due_date')
-                    ->label('Due Date')
-                    ->getStateUsing(fn (Quotation $record): ?string => $record->jobOrder?->billingRecord?->payment_due_date?->format('M j, Y'))
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('updated_at')
-                    ->label('Last Activity')
+                TextColumn::make('created_at')
+                    ->label('Created')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
             ])
-            ->defaultSort('updated_at', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 SelectFilter::make('status')
-                    ->options(QuotationStatus::class)
-                    ->label('Quotation Status'),
-
-                SelectFilter::make('job_order_status')
-                    ->options(JobOrderStatus::class)
-                    ->label('Fulfillment Status'),
-
-                SelectFilter::make('payment_status')
-                    ->options(BillingRecordStatus::class)
-                    ->label('Payment Status'),
+                    ->options(JobOrderStatus::class),
             ])
             ->recordActions([
                 Action::make('view')
-                    ->url(fn (Quotation $record) => OpticalOrderResource::getUrl('view', ['record' => $record])),
+                    ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('view', ['record' => $record])),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([]),
             ]);
-    }
-
-    private static function resolveWorkflowStage(Quotation $record): string
-    {
-        if ($record->status === QuotationStatus::Draft) {
-            return 'Draft';
-        }
-
-        if ($record->status === QuotationStatus::Declined) {
-            return 'Declined';
-        }
-
-        if ($record->status === QuotationStatus::Expired) {
-            return 'Expired';
-        }
-
-        $jobOrder = $record->jobOrder;
-
-        if ($jobOrder === null) {
-            return $record->status === QuotationStatus::Presented
-                ? 'Awaiting Decision'
-                : 'Draft';
-        }
-
-        return match ($jobOrder->status) {
-            JobOrderStatus::Queued => 'Confirmed',
-            JobOrderStatus::InProgress => 'In Production',
-            JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
-            JobOrderStatus::Dispensed => 'Completed',
-            JobOrderStatus::Cancelled => 'Cancelled',
-            default => 'Unknown',
-        };
     }
 }
