@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'job_order_id',
     'encounter_id',
     'status',
+    'subtotal_amount',
+    'discount_amount',
     'total_amount',
     'amount_paid',
     'balance_due',
@@ -104,6 +106,57 @@ class BillingRecord extends Model
     }
 
     /**
+     * @return HasMany<BillingRecordItem, $this>
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(BillingRecordItem::class);
+    }
+
+    /**
+     * Get the source context label.
+     */
+    public function getSourceContext(): string
+    {
+        $hasJobOrder = $this->job_order_id !== null;
+        $hasEncounter = $this->encounter_id !== null;
+
+        if ($hasJobOrder && $hasEncounter) {
+            return 'Combined';
+        }
+
+        if ($hasJobOrder) {
+            return 'Optical Order';
+        }
+
+        return 'Encounter';
+    }
+
+    /**
+     * Check if this is an Encounter-only billing record.
+     */
+    public function isEncounterOnly(): bool
+    {
+        return $this->encounter_id !== null && $this->job_order_id === null;
+    }
+
+    /**
+     * Check if this is an Optical Order-only billing record.
+     */
+    public function isOpticalOnly(): bool
+    {
+        return $this->job_order_id !== null && $this->encounter_id === null;
+    }
+
+    /**
+     * Check if this is a Combined billing record.
+     */
+    public function isCombined(): bool
+    {
+        return $this->job_order_id !== null && $this->encounter_id !== null;
+    }
+
+    /**
      * Check if this billing record is overdue.
      *
      * A record is overdue when it is non-voided, has a positive balance,
@@ -130,6 +183,8 @@ class BillingRecord extends Model
     {
         return [
             'status' => BillingRecordStatus::class,
+            'subtotal_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'amount_paid' => 'decimal:2',
             'balance_due' => 'decimal:2',
