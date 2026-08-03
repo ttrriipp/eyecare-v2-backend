@@ -22,6 +22,23 @@ class QuotationItem extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saving(function (QuotationItem $item): void {
+            // Service items cannot have catalog references
+            if ($item->item_type === TransactionItemType::Service) {
+                if ($item->product_variant_id !== null || $item->lens_category_id !== null) {
+                    throw new \InvalidArgumentException('Service items cannot reference a product variant or lens category.');
+                }
+            }
+
+            // Product items with catalog references auto-set item_type
+            if ($item->item_type === null && ($item->product_variant_id !== null || $item->lens_category_id !== null)) {
+                $item->item_type = TransactionItemType::Product;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [

@@ -22,6 +22,16 @@ class JobOrderItem extends Model
 {
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saving(function (JobOrderItem $item): void {
+            // Job Order items must be Product type
+            if ($item->item_type !== TransactionItemType::Product) {
+                throw new \InvalidArgumentException('Job Order items must be Product type.');
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
