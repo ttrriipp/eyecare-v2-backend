@@ -38,9 +38,11 @@ class UpdateJobOrderStatus
 
         $newStatus = JobOrderStatus::from($statusName);
 
+        // Supplier invoice is required only for external prepared work
         if (
             in_array($newStatus, [JobOrderStatus::ReadyForDispensing, JobOrderStatus::Dispensed], true)
             && blank($jobOrder->supplier_invoice_number)
+            && $jobOrder->uses_external_supplier
         ) {
             throw ValidationException::withMessages([
                 'supplier_invoice_number' => ['Enter the supplier invoice number before marking this job order ready.'],
