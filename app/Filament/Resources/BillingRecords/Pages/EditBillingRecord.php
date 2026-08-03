@@ -48,7 +48,14 @@ class EditBillingRecord extends EditRecord
                             ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—'),
                         Placeholder::make('status')
                             ->label('Status')
-                            ->content(fn (BillingRecord $record): string => $record->status->getLabel()),
+                            ->content(fn (BillingRecord $record): string => $record->status->getLabel())
+                            ->badge()
+                            ->color(fn (BillingRecord $record): string => match ($record->status) {
+                                BillingRecordStatus::Unpaid => 'gray',
+                                BillingRecordStatus::PartiallyPaid => 'warning',
+                                BillingRecordStatus::Paid => 'success',
+                                BillingRecordStatus::Voided => 'danger',
+                            }),
                     ])->columns(2),
 
                     Section::make('Items / Charges')->schema([
