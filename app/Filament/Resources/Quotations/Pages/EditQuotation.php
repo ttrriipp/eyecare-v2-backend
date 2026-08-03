@@ -59,13 +59,10 @@ class EditQuotation extends EditRecord
                 ->icon('heroicon-o-wrench-screwdriver')
                 ->color('success')
                 ->visible(function (): bool {
-                    $revisionId = $this->record->latestRevision?->id;
-
                     return $this->record->status === QuotationStatus::Accepted
                         && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
-                        && $revisionId !== null
                         && ! JobOrder::query()
-                            ->where('quotation_revision_id', $revisionId)
+                            ->where('quotation_id', $this->record->id)
                             ->exists();
                 })
                 ->requiresConfirmation()
