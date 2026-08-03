@@ -23,9 +23,44 @@ class BillingRecordsTable
                     ->label('Patient')
                     ->searchable(),
 
+                TextColumn::make('source_context')
+                    ->label('Source')
+                    ->getStateUsing(fn (BillingRecord $record): string => $record->getSourceContext())
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Optical Order' => 'info',
+                        'Encounter' => 'warning',
+                        'Combined' => 'success',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('jobOrder.job_order_number')
-                    ->label('Job Order')
-                    ->sortable(),
+                    ->label('Optical Order')
+                    ->placeholder('—'),
+
+                TextColumn::make('encounter.encounter_number')
+                    ->label('Encounter')
+                    ->placeholder('—'),
+
+                TextColumn::make('items_summary')
+                    ->label('Items')
+                    ->getStateUsing(function (BillingRecord $record): string {
+                        $items = $record->items;
+                        if ($items->isEmpty()) {
+                            return '—';
+                        }
+                        $productCount = $items->where('item_type', 'product')->count();
+                        $serviceCount = $items->where('item_type', 'service')->count();
+                        $parts = [];
+                        if ($productCount > 0) {
+                            $parts[] = "{$productCount} products";
+                        }
+                        if ($serviceCount > 0) {
+                            $parts[] = "{$serviceCount} services";
+                        }
+
+                        return implode(', ', $parts);
+                    }),
 
                 TextColumn::make('total_amount')
                     ->label('Total')
@@ -68,6 +103,26 @@ class BillingRecordsTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(BillingRecordStatus::class),
+
+                SelectFilter::make('source')
+                    ->options([
+                        'optical' => 'Optical Order',
+                        'encounter' => 'Encounter',
+                        'combined' => 'Combined',
+                    ])
+                    ->query(function ($query, $data) {
+                        if ($data['value'] === 'optical') {
+                            return $query->whereNotNull('job_order_id')->whereNull('encounter_id');
+                        }
+                        if ($data['value'] === 'encounter') {
+                            return $query->whereNull('job_order_id')->whereNotNull('encounter_id');
+                        }
+                        if ($data['value'] === 'combined') {
+                            return $query->whereNotNull('job_order_id')->whereNotNull('encounter_id');
+                        }
+
+                        return $query;
+                    }),
             ])
             ->defaultSort('created_at', 'desc');
     }
