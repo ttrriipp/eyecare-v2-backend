@@ -42,9 +42,9 @@ class QuotationForm
                         ])
                         ->columns(2),
 
-                    Section::make('Revision Items')
+                    Section::make('Product Items')
                         ->schema([
-                            RepeatableEntry::make('latestRevision.items')
+                            RepeatableEntry::make('productItems')
                                 ->hiddenLabel()
                                 ->table([
                                     TableColumn::make('Description'),
@@ -65,7 +65,33 @@ class QuotationForm
                                         ->hiddenLabel()
                                         ->money('PHP'),
                                 ])
-                                ->placeholder('No items recorded.'),
+                                ->placeholder('No product items.'),
+                        ]),
+
+                    Section::make('Service Items')
+                        ->schema([
+                            RepeatableEntry::make('serviceItems')
+                                ->hiddenLabel()
+                                ->table([
+                                    TableColumn::make('Description'),
+                                    TableColumn::make('Quantity'),
+                                    TableColumn::make('Unit Price'),
+                                    TableColumn::make('Amount'),
+                                ])
+                                ->schema([
+                                    TextEntry::make('description')
+                                        ->hiddenLabel()
+                                        ->wrap(),
+                                    TextEntry::make('quantity')
+                                        ->hiddenLabel(),
+                                    TextEntry::make('unit_price')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                    TextEntry::make('amount')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                ])
+                                ->placeholder('No service items.'),
                         ]),
 
                     Section::make('Notes')
@@ -78,28 +104,17 @@ class QuotationForm
 
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
-                    Section::make('Revision Summary')
+                    Section::make('Summary')
                         ->schema([
-                            Placeholder::make('revision_number')
-                                ->label('Revision')
-                                ->content(fn (Quotation $record): string => $record->latestRevision
-                                    ? "#{$record->latestRevision->revision_number}"
-                                    : '—'),
                             Placeholder::make('subtotal')
                                 ->label('Subtotal')
-                                ->content(fn (Quotation $record): string => $record->latestRevision
-                                    ? '₱'.number_format($record->latestRevision->subtotal, 2)
-                                    : '—'),
+                                ->content(fn (Quotation $record): string => '₱'.number_format($record->subtotal, 2)),
                             Placeholder::make('discount_amount')
                                 ->label('Discount')
-                                ->content(fn (Quotation $record): string => $record->latestRevision
-                                    ? '₱'.number_format($record->latestRevision->discount_amount, 2)
-                                    : '—'),
+                                ->content(fn (Quotation $record): string => '₱'.number_format($record->discount_amount, 2)),
                             Placeholder::make('total')
                                 ->label('Total')
-                                ->content(fn (Quotation $record): string => $record->latestRevision
-                                    ? '₱'.number_format($record->latestRevision->total, 2)
-                                    : '—'),
+                                ->content(fn (Quotation $record): string => '₱'.number_format($record->total, 2)),
                         ]),
 
                     Section::make('Timeline')
@@ -109,16 +124,10 @@ class QuotationForm
                                 ->content(fn (Quotation $record): string => $record->created_at?->diffForHumans() ?? '—'),
                             Placeholder::make('presented_at')
                                 ->label('Presented')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->presented_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('presentedBy.full_name')
-                                ->label('Presented by')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->presentedBy?->full_name ?? '—'),
-                            Placeholder::make('accepted_at')
-                                ->label('Accepted')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->accepted_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('acceptedBy.full_name')
-                                ->label('Accepted by')
-                                ->content(fn (Quotation $record): string => $record->latestRevision?->acceptedBy?->full_name ?? '—'),
+                                ->content(fn (Quotation $record): string => $record->presented_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('confirmed_at')
+                                ->label('Confirmed')
+                                ->content(fn (Quotation $record): string => $record->confirmed_at?->diffForHumans() ?? '—'),
                         ]),
                 ]),
             ]),

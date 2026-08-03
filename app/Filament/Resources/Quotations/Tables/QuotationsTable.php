@@ -30,7 +30,7 @@ class QuotationsTable
                         QuotationStatus::Declined => 'danger',
                         QuotationStatus::Expired => 'warning',
                     }),
-                TextColumn::make('latestRevision.total')
+                TextColumn::make('total')
                     ->label('Total')
                     ->money('PHP')
                     ->sortable(),
