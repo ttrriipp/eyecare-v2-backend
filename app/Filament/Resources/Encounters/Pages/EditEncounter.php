@@ -177,57 +177,14 @@ class EditEncounter extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('startEncounter')
-                ->label('Start Visit')
-                ->icon('heroicon-o-play')
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
-                    && auth()->user()?->is_optometrist === true)
-                ->requiresConfirmation()
-                ->schema(fn (): array => [
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('name')->pluck('name', 'id'))
-                        ->default(auth()->id())
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $optometrist = User::query()->findOrFail($data['optometrist_id']);
-
-                        app(StartEncounter::class)->handle(
-                            encounter: $this->record,
-                            optometrist: $optometrist,
-                            actor: auth()->user(),
-                        );
-
-                        Notification::make()->title('Encounter started')->success()->send();
-                        $this->refreshFormData(['status', 'started_at', 'optometrist_id']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
-            Action::make('assignOptometrist')
-                ->label('Assign Optometrist')
-                ->icon('heroicon-o-user-plus')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned)
-                ->schema(fn (): array => [
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('name')->pluck('name', 'id'))
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                ])
-                ->action(function (array $data): void {
-                    $this->record->update(['optometrist_id' => $data['optometrist_id']]);
-                    Notification::make()->title('Optometrist assigned')->success()->send();
-                    $this->refreshFormData(['optometrist_id']);
-                }),
+            Action::make('viewAppointment')
+                ->label('View Appointment')
+                ->icon('heroicon-o-calendar-days')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->appointment !== null)
+                ->url(fn (): string => AppointmentResource::getUrl('edit', [
+                    'record' => $this->record->appointment,
+                ])),
 
             Action::make('viewPrescription')
                 ->label('View Prescription')
@@ -269,14 +226,57 @@ class EditEncounter extends EditRecord
                         ->value('id'),
                 ])),
 
-            Action::make('viewAppointment')
-                ->label('View Appointment')
-                ->icon('heroicon-o-calendar-days')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->appointment !== null)
-                ->url(fn (): string => AppointmentResource::getUrl('edit', [
-                    'record' => $this->record->appointment,
-                ])),
+            Action::make('startEncounter')
+                ->label('Start Visit')
+                ->icon('heroicon-o-play')
+                ->color('warning')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
+                    && auth()->user()?->is_optometrist === true)
+                ->requiresConfirmation()
+                ->schema(fn (): array => [
+                    Select::make('optometrist_id')
+                        ->label('Optometrist')
+                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
+                        ->default(auth()->id())
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $optometrist = User::query()->findOrFail($data['optometrist_id']);
+
+                        app(StartEncounter::class)->handle(
+                            encounter: $this->record,
+                            optometrist: $optometrist,
+                            actor: auth()->user(),
+                        );
+
+                        Notification::make()->title('Encounter started')->success()->send();
+                        $this->refreshFormData(['status', 'started_at', 'optometrist_id']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            Action::make('assignOptometrist')
+                ->label('Assign Optometrist')
+                ->icon('heroicon-o-user-plus')
+                ->color('info')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned)
+                ->schema(fn (): array => [
+                    Select::make('optometrist_id')
+                        ->label('Optometrist')
+                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                ])
+                ->action(function (array $data): void {
+                    $this->record->update(['optometrist_id' => $data['optometrist_id']]);
+                    Notification::make()->title('Optometrist assigned')->success()->send();
+                    $this->refreshFormData(['optometrist_id']);
+                }),
         ];
     }
 }
