@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
+    'prescription_number',
     'patient_id',
     'encounter_id',
     'appointment_id',
@@ -36,6 +37,17 @@ class Prescription extends Model
 {
     /** @use HasFactory<PrescriptionFactory> */
     use HasFactory, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::creating(function (Prescription $prescription): void {
+            if (blank($prescription->prescription_number)) {
+                $year = now()->format('Y');
+                $sequence = self::query()->withTrashed()->whereYear('created_at', $year)->count() + 1;
+                $prescription->prescription_number = sprintf('RX-%s-%06d', $year, $sequence);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Patient, $this>
