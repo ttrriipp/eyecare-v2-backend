@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\AppointmentRequests\Pages;
 
+use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
+use Illuminate\Database\Eloquent\Builder;
 
 class ListAppointmentRequests extends ListRecords
 {
@@ -20,5 +23,30 @@ class ListAppointmentRequests extends ListRecords
     protected function getHeaderActions(): array
     {
         return [];
+    }
+
+    /**
+     * @return array<string, Tab>
+     */
+    public function getTabs(): array
+    {
+        return [
+            'all' => Tab::make('All'),
+
+            'pending' => Tab::make('Pending')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Pending)),
+
+            'accepted' => Tab::make('Accepted')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Accepted)),
+
+            'rejected' => Tab::make('Rejected')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Rejected)),
+
+            'cancelled' => Tab::make('Cancelled')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Cancelled)),
+
+            'expired' => Tab::make('Expired')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Expired)),
+        ];
     }
 }
