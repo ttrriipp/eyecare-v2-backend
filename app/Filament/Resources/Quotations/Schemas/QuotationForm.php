@@ -36,7 +36,7 @@ class QuotationForm
                                 ->label('Status')
                                 ->content(fn (Quotation $record): string => Str::headline($record->status->value))
                                 ->badge()
-                                ->size(TextSize::ExtraLarge)
+                                ->size(TextSize::Large)
                                 ->color(fn (Quotation $record): string => match ($record->status) {
                                     QuotationStatus::Draft => 'gray',
                                     QuotationStatus::Presented => 'info',
@@ -46,9 +46,11 @@ class QuotationForm
                                 }),
                             DatePicker::make('valid_until')
                                 ->label('Valid Until')
+                                ->required()
                                 ->native(false)
                                 ->displayFormat('M d, Y')
-                                ->suffixIcon('heroicon-o-calendar-days'),
+                                ->suffixIcon('heroicon-o-calendar-days')
+                                ->minDate(now()),
                         ])
                         ->columns(2),
 
