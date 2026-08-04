@@ -32,10 +32,10 @@ class OpticalOrdersTable
                     ->label('Status')
                     ->badge()
                     ->formatStateUsing(fn (JobOrderStatus $state): string => match ($state) {
-                        JobOrderStatus::Queued => 'Queued',
-                        JobOrderStatus::InProgress => 'In Progress',
-                        JobOrderStatus::ReadyForDispensing => 'Ready for Dispensing',
-                        JobOrderStatus::Dispensed => 'Dispensed',
+                        JobOrderStatus::Queued => 'Confirmed',
+                        JobOrderStatus::InProgress => 'Processing',
+                        JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
+                        JobOrderStatus::Dispensed => 'Completed',
                         JobOrderStatus::Cancelled => 'Cancelled',
                     })
                     ->color(fn (JobOrderStatus $state): string => match ($state) {
