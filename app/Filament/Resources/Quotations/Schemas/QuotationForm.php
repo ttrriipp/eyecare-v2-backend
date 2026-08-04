@@ -36,7 +36,7 @@ class QuotationForm
                                 ->label('Status')
                                 ->content(fn (Quotation $record): string => Str::headline($record->status->value))
                                 ->badge()
-                                ->size(TextSize::TwoExtraLarge)
+                                ->size(TextSize::Large)
                                 ->color(fn (Quotation $record): string => match ($record->status) {
                                     QuotationStatus::Draft => 'gray',
                                     QuotationStatus::Presented => 'info',
