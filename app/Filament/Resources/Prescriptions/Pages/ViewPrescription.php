@@ -17,6 +17,16 @@ class ViewPrescription extends ViewRecord
 {
     protected static string $resource = PrescriptionResource::class;
 
+    public function getTitle(): string
+    {
+        return 'View '.$this->getRecord()->prescription_number;
+    }
+
+    public function getBreadcrumb(): string
+    {
+        return $this->getRecord()->prescription_number;
+    }
+
     public function getSubheading(): string|Htmlable|null
     {
         $record = $this->getRecord();
