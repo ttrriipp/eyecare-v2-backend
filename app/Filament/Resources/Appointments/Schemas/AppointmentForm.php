@@ -139,7 +139,7 @@ class AppointmentForm
                                     ]);
 
                                     if ($matches->isEmpty()) {
-                                        return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matching records yet — fill in name, phone, email, or date of birth.</span>');
+                                        return new HtmlString('');
                                     }
 
                                     $rows = $matches->map(function ($patient): string {
