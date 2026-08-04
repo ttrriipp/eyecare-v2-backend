@@ -45,10 +45,12 @@ class ViewPrescription extends ViewRecord
         $record = $this->getRecord();
 
         $components = [
-            Section::make('Prescription Details')
-                ->icon('heroicon-o-document-text')
-                ->schema([
-                    Grid::make(2)->schema([
+            Grid::make(3)->schema([
+                $this->getFormContentComponent()
+                    ->columnSpan(2),
+
+                Section::make('Details')
+                    ->schema([
                         Placeholder::make('prescription_number')
                             ->label('Prescription Number')
                             ->content($record->prescription_number ?? '—'),
@@ -67,10 +69,9 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('optometrist')
                             ->label('Prescribing Optometrist')
                             ->content($record->author?->full_name ?? '—'),
-                    ]),
-                ]),
-
-            $this->getFormContentComponent(),
+                    ])
+                    ->columnSpan(1),
+            ]),
         ];
 
         $previousPrescription = $this->getRecord()->previousPrescription;
