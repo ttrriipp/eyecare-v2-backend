@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Enums\JobOrderStatus;
-use App\Enums\QuotationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -26,29 +25,20 @@ class ListOpticalOrders extends ListRecords
         return [
             'all' => Tab::make('All'),
 
-            'drafts' => Tab::make('Drafts')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Draft)),
-
-            'awaiting' => Tab::make('Awaiting Decision')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->where('status', QuotationStatus::Presented)
-                    ->whereDoesntHave('jobOrder')),
-
             'confirmed' => Tab::make('Confirmed')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereHas('jobOrder', fn (Builder $q) => $q->where('status', JobOrderStatus::Queued))),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Queued)),
 
-            'production' => Tab::make('In Production')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereHas('jobOrder', fn (Builder $q) => $q->where('status', JobOrderStatus::InProgress))),
+            'production' => Tab::make('Processing')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::InProgress)),
 
             'ready' => Tab::make('Ready for Pickup')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereHas('jobOrder', fn (Builder $q) => $q->where('status', JobOrderStatus::ReadyForDispensing))),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::ReadyForDispensing)),
 
             'completed' => Tab::make('Completed')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereHas('jobOrder', fn (Builder $q) => $q->where('status', JobOrderStatus::Dispensed))),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Dispensed)),
+
+            'cancelled' => Tab::make('Cancelled')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Cancelled)),
         ];
     }
 }
