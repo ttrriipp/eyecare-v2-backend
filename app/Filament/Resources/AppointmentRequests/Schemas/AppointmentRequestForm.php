@@ -31,7 +31,7 @@ class AppointmentRequestForm
 
                         Placeholder::make('patient_name')
                             ->label('Patient')
-                            ->content(fn ($record) => $record?->patient?->full_name ?? 'Unlinked — needs resolution'),
+                            ->content(fn ($record) => $record?->patient?->full_name ?? '—'),
 
                         Placeholder::make('preferred_time')
                             ->label('Preferred Time')
@@ -63,6 +63,17 @@ class AppointmentRequestForm
                             ->label('Resolved At')
                             ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
                             ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
+
+                        Placeholder::make('submitted_at')
+                            ->label('Submitted')
+                            ->content(function ($record): string {
+                                $snapshot = $record?->encrypted_identity_snapshot;
+                                if ($snapshot === null || ! isset($snapshot['submitted_at'])) {
+                                    return $record?->created_at?->format('M j, Y g:i A') ?? '—';
+                                }
+
+                                return Carbon::parse($snapshot['submitted_at'])->format('M j, Y g:i A');
+                            }),
                     ])
                     ->columns(2),
 
@@ -98,17 +109,6 @@ class AppointmentRequestForm
                             ->label('Home Address')
                             ->content(fn ($record): string => $record?->getSnapshotAddress() ?? '—')
                             ->columnSpanFull(),
-
-                        Placeholder::make('snapshot_submitted_at')
-                            ->label('Submitted')
-                            ->content(function ($record): string {
-                                $snapshot = $record?->encrypted_identity_snapshot;
-                                if ($snapshot === null || ! isset($snapshot['submitted_at'])) {
-                                    return '—';
-                                }
-
-                                return Carbon::parse($snapshot['submitted_at'])->format('M j, Y g:i A');
-                            }),
                     ])
                     ->columns(2),
 
