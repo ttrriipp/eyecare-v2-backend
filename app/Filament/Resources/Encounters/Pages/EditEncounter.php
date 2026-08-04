@@ -136,7 +136,8 @@ class EditEncounter extends EditRecord
 
     protected function getFormActions(): array
     {
-        if ($this->record->status === EncounterStatus::InProgress) {
+        // Hide save/cancel buttons when there are no editable fields
+        if ($this->record->status !== EncounterStatus::InProgress) {
             return [];
         }
 
