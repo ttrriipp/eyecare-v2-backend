@@ -28,7 +28,7 @@ class AppointmentRequestResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return false; // Integrated into Appointments destination
+        return true;
     }
 
     public static function canCreate(): bool
