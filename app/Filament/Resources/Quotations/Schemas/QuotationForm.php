@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\Quotations\Schemas;
 
+use App\Enums\QuotationStatus;
 use App\Models\Quotation;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -25,16 +25,23 @@ class QuotationForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Quotation Details')
                         ->schema([
-                            TextInput::make('quotation_number')
+                            Placeholder::make('quotation_number')
                                 ->label('Quotation #')
-                                ->disabled()
-                                ->dehydrated(false),
+                                ->content(fn (Quotation $record): string => $record->quotation_number ?? '—'),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
                                 ->content(fn (Quotation $record): string => $record->patient?->full_name ?? '—'),
                             Placeholder::make('status_badge')
                                 ->label('Status')
-                                ->content(fn (Quotation $record): string => Str::headline($record->status->value)),
+                                ->content(fn (Quotation $record): string => Str::headline($record->status->value))
+                                ->badge()
+                                ->color(fn (Quotation $record): string => match ($record->status) {
+                                    QuotationStatus::Draft => 'gray',
+                                    QuotationStatus::Presented => 'info',
+                                    QuotationStatus::Accepted => 'success',
+                                    QuotationStatus::Declined => 'danger',
+                                    QuotationStatus::Expired => 'warning',
+                                }),
                             DatePicker::make('valid_until')
                                 ->label('Valid Until')
                                 ->native(false)
