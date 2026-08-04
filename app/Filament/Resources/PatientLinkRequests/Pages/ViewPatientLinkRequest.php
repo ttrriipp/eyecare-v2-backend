@@ -10,6 +10,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ViewPatientLinkRequest extends ViewRecord
@@ -27,20 +29,63 @@ class ViewPatientLinkRequest extends ViewRecord
                 ->schema([
                     Select::make('patient_id')
                         ->label('Link to Patient')
-                        ->options(function () {
-                            return Patient::whereNull('user_id')
+                        ->options(function (): array {
+                            $candidates = $this->record->candidates()->with('patient')->orderBy('rank')->get()
+                                ->filter(fn ($candidate) => $candidate->patient !== null && $candidate->patient->user_id === null);
+
+                            $candidateOptions = $candidates->mapWithKeys(fn ($candidate) => [
+                                $candidate->patient_id => "{$candidate->patient->full_name} ({$candidate->patient->patient_number}) — ".Str::headline($candidate->match_strength).' match',
+                            ])->toArray();
+
+                            $otherOptions = Patient::whereNull('user_id')
+                                ->whereNotIn('id', $candidates->pluck('patient_id'))
                                 ->get()
                                 ->mapWithKeys(fn ($p) => [
                                     $p->id => "{$p->full_name} ({$p->patient_number})",
                                 ])
                                 ->toArray();
+
+                            return array_filter([
+                                'Candidate Matches' => $candidateOptions,
+                                'Other Unlinked Patients' => $otherOptions,
+                            ]);
                         })
                         ->searchable()
+                        ->live()
                         ->required()
                         ->helperText('Select the patient to link this account to.'),
                     Textarea::make('note')
                         ->label('Decision Note')
-                        ->nullable(),
+                        ->required(function (Get $get): bool {
+                            $patientId = $get('patient_id');
+
+                            if (blank($patientId)) {
+                                return false;
+                            }
+
+                            $isStrongMatch = $this->record->candidates()
+                                ->where('patient_id', $patientId)
+                                ->where('match_strength', 'strong')
+                                ->exists();
+
+                            return ! $isStrongMatch;
+                        })
+                        ->helperText(function (Get $get): ?string {
+                            $patientId = $get('patient_id');
+
+                            if (blank($patientId)) {
+                                return null;
+                            }
+
+                            $isStrongMatch = $this->record->candidates()
+                                ->where('patient_id', $patientId)
+                                ->where('match_strength', 'strong')
+                                ->exists();
+
+                            return $isStrongMatch
+                                ? null
+                                : 'This is not a strong match — explain why you\'re confident this is the right patient.';
+                        }),
                 ])
                 ->action(function (array $data): void {
                     try {

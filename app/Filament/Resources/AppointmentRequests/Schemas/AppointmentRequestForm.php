@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Schemas;
 
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
+use App\Filament\Resources\Patients\PatientResource;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -12,6 +13,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class AppointmentRequestForm
 {
@@ -116,30 +119,47 @@ class AppointmentRequestForm
 
                 // Candidate matches section - only for unlinked snapshotted requests
                 Section::make('Candidate Matches')
-                    ->visible(fn ($record): bool => $record?->hasIdentitySnapshot() ?? false)
+                    ->description('Ranked automatically from the submitted identity. Use the "Link to Patient" action to resolve.')
+                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
                     ->schema([
                         Placeholder::make('candidates')
-                            ->label('')
-                            ->content(function ($record): string {
+                            ->hiddenLabel()
+                            ->content(function ($record): HtmlString {
                                 if ($record === null || ! $record->hasIdentitySnapshot()) {
-                                    return 'No candidates';
+                                    return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No candidates.</span>');
                                 }
 
                                 $candidates = app(RankPatientCandidates::class)
                                     ->fromSnapshot($record->encrypted_identity_snapshot);
 
                                 if ($candidates->isEmpty()) {
-                                    return 'No matching patients found';
+                                    return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matching patients found.</span>');
                                 }
 
-                                return $candidates->map(function ($c) {
-                                    $strength = ucfirst($c['strength']);
-                                    $reasons = implode(', ', $c['reasons']);
-                                    $name = $c['patient']->full_name;
-                                    $dob = $c['patient']->date_of_birth?->format('M j, Y') ?? '—';
+                                $colors = [
+                                    'strong' => 'text-success-700 bg-success-50 dark:text-success-400 dark:bg-success-500/10',
+                                    'moderate' => 'text-warning-700 bg-warning-50 dark:text-warning-400 dark:bg-warning-500/10',
+                                    'weak' => 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-500/10',
+                                ];
 
-                                    return "{$name} (DOB: {$dob}) — {$strength} match [{$reasons}]";
-                                })->implode("\n");
+                                $rows = $candidates->map(function (array $candidate) use ($colors): string {
+                                    $patient = $candidate['patient'];
+                                    $color = $colors[$candidate['strength']] ?? $colors['weak'];
+                                    $reasons = collect($candidate['reasons'])
+                                        ->map(fn (string $reason): string => Str::headline($reason))
+                                        ->implode(', ');
+                                    $url = PatientResource::getUrl('edit', ['record' => $patient]);
+
+                                    return '<li class="mb-2">'
+                                        .'<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$color.'">'
+                                        .e(Str::headline($candidate['strength'])).'</span> '
+                                        .'<a href="'.e($url).'" target="_blank" class="font-medium text-primary-600 hover:underline dark:text-primary-400">'
+                                        .e($patient->full_name).'</a> — '.e($patient->patient_number)
+                                        .($reasons !== '' ? '<div class="text-xs text-gray-500 dark:text-gray-400">'.e($reasons).'</div>' : '')
+                                        .'</li>';
+                                })->implode('');
+
+                                return new HtmlString('<ul class="list-none space-y-1 text-sm">'.$rows.'</ul>');
                             })
                             ->columnSpanFull(),
                     ]),

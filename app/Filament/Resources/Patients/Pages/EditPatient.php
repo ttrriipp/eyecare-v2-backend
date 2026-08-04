@@ -218,13 +218,10 @@ class EditPatient extends EditRecord
                     // Activate the link
                     $patient->update(['user_id' => $user->id]);
 
-                    // Revoke tokens to force re-authentication with link
-                    $user->tokens()->delete();
-
                     $this->record->refresh();
 
                     Notification::make()
-                        ->title("Account linked successfully. The patient's active sessions have been revoked.")
+                        ->title('Account linked successfully')
                         ->success()
                         ->send();
                 }),

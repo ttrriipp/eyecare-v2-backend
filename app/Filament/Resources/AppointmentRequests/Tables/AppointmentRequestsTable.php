@@ -3,11 +3,14 @@
 namespace App\Filament\Resources\AppointmentRequests\Tables;
 
 use App\Actions\Appointments\AcceptAppointmentRequest;
+use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
+use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
+use App\Models\Patient;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Select;
@@ -95,6 +98,59 @@ class AppointmentRequestsTable
                 Action::make('view')
                     ->label('Review')
                     ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
+
+                Action::make('linkToPatient')
+                    ->label('Link to Patient')
+                    ->icon('heroicon-o-link')
+                    ->color('primary')
+                    ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id === null)
+                    ->schema(function (AppointmentRequest $record): array {
+                        $candidateOptions = [];
+
+                        if ($record->hasIdentitySnapshot()) {
+                            $candidateOptions = app(RankPatientCandidates::class)
+                                ->fromSnapshot($record->encrypted_identity_snapshot)
+                                ->mapWithKeys(fn (array $candidate): array => [
+                                    $candidate['patient']->id => "{$candidate['patient']->full_name} ({$candidate['patient']->patient_number}) — ".Str::headline($candidate['strength']).' match',
+                                ])
+                                ->toArray();
+                        }
+
+                        $otherOptions = Patient::query()
+                            ->whereNotIn('id', array_keys($candidateOptions))
+                            ->get()
+                            ->mapWithKeys(fn (Patient $p): array => [
+                                $p->id => "{$p->full_name} ({$p->patient_number})",
+                            ])
+                            ->toArray();
+
+                        return [
+                            Select::make('patient_id')
+                                ->label('Patient')
+                                ->options(array_filter([
+                                    'Candidate Matches' => $candidateOptions,
+                                    'All Patients' => $otherOptions,
+                                ]))
+                                ->searchable()
+                                ->required()
+                                ->helperText('Select which clinical record this request belongs to.'),
+                        ];
+                    })
+                    ->action(function (AppointmentRequest $record, array $data): void {
+                        try {
+                            $patient = Patient::findOrFail($data['patient_id']);
+
+                            app(LinkAppointmentRequestToPatient::class)->handle(
+                                request: $record,
+                                patient: $patient,
+                            );
+
+                            Notification::make()->title('Request linked to patient')->success()->send();
+                        } catch (ValidationException $e) {
+                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot link request.';
+                            Notification::make()->title('Cannot link request')->body($message)->danger()->send();
+                        }
+                    }),
 
                 Action::make('accept')
                     ->label('Accept')
