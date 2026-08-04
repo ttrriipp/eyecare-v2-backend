@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Quotations\Tables;
 
 use App\Enums\QuotationStatus;
-use App\Models\Quotation;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -25,7 +24,14 @@ class QuotationsTable
                     ->sortable(),
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (Quotation $record): string => match ($record->status) {
+                    ->formatStateUsing(fn (QuotationStatus $state): string => match ($state) {
+                        QuotationStatus::Draft => 'Draft',
+                        QuotationStatus::Presented => 'Presented',
+                        QuotationStatus::Accepted => 'Accepted',
+                        QuotationStatus::Declined => 'Declined',
+                        QuotationStatus::Expired => 'Expired',
+                    })
+                    ->color(fn (QuotationStatus $state): string => match ($state) {
                         QuotationStatus::Draft => 'gray',
                         QuotationStatus::Presented => 'info',
                         QuotationStatus::Accepted => 'success',
