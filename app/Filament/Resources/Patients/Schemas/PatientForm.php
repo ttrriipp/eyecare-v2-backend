@@ -32,7 +32,16 @@ class PatientForm
                             ->nullable(),
                         TextInput::make('phone')
                             ->tel()
-                            ->required(),
+                            ->required()
+                            ->prefix('+63')
+                            ->formatStateUsing(fn (?string $state): ?string => $state !== null
+                                ? preg_replace('/^\+63/', '', $state)
+                                : null
+                            )
+                            ->dehydrateStateUsing(fn (?string $state): ?string => $state !== null
+                                ? '+63'.preg_replace('/[^0-9]/', '', $state)
+                                : null
+                            ),
                         TextInput::make('contact_email')
                             ->label('Email')
                             ->email()
