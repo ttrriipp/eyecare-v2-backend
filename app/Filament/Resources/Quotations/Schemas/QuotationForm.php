@@ -13,6 +13,7 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\TextSize;
 use Illuminate\Support\Str;
 
 class QuotationForm
@@ -35,6 +36,7 @@ class QuotationForm
                                 ->label('Status')
                                 ->content(fn (Quotation $record): string => Str::headline($record->status->value))
                                 ->badge()
+                                ->size(TextSize::Large)
                                 ->color(fn (Quotation $record): string => match ($record->status) {
                                     QuotationStatus::Draft => 'gray',
                                     QuotationStatus::Presented => 'info',
@@ -45,7 +47,8 @@ class QuotationForm
                             DatePicker::make('valid_until')
                                 ->label('Valid Until')
                                 ->native(false)
-                                ->displayFormat('M d, Y'),
+                                ->displayFormat('M d, Y')
+                                ->suffixIcon('heroicon-o-calendar-days'),
                         ])
                         ->columns(2),
 
