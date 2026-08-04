@@ -377,7 +377,14 @@ class EncounterForm
                         ->content(fn (Encounter $record): string => $record->encounter_number),
                     Placeholder::make('status')
                         ->label('Status')
-                        ->content(fn (Encounter $record): string => Str::headline($record->status->value)),
+                        ->content(fn (Encounter $record): string => Str::headline($record->status->value))
+                        ->badge()
+                        ->color(fn (Encounter $record): string => match ($record->status) {
+                            EncounterStatus::Planned => 'gray',
+                            EncounterStatus::InProgress => 'warning',
+                            EncounterStatus::Completed => 'success',
+                            EncounterStatus::Cancelled => 'danger',
+                        }),
                     Placeholder::make('appointment_type')
                         ->label('Appointment Type')
                         ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
