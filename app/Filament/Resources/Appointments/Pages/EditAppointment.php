@@ -121,7 +121,7 @@ class EditAppointment extends EditRecord
             Action::make('reschedule')
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')
-                ->color('warning')
+                ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
                 ->schema([
                     DatePicker::make('scheduled_at')
