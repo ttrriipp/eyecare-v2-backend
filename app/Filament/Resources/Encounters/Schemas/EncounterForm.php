@@ -3,10 +3,8 @@
 namespace App\Filament\Resources\Encounters\Schemas;
 
 use App\Enums\EncounterStatus;
-use App\Enums\TransactionItemType;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
-use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Carbon\CarbonInterface;
@@ -462,59 +460,6 @@ class EncounterForm
                     Placeholder::make('view_remarks')
                         ->label('Remarks')
                         ->content(fn (Encounter $record): string => $record->remarks ?? '—')
-                        ->columnSpanFull(),
-                ]),
-
-            Section::make('Charges')
-                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
-                ->schema([
-                    // Show services already included by linked Optical Order
-                    Placeholder::make('linked_order_services')
-                        ->label('Services from Optical Order')
-                        ->content(function (Encounter $record): string {
-                            $jobOrder = $record->patient?->jobOrders()
-                                ->whereHas('quotation', fn ($q) => $q->where('encounter_id', $record->id))
-                                ->first();
-
-                            if ($jobOrder === null) {
-                                return 'No linked optical order';
-                            }
-
-                            $services = $jobOrder->items()
-                                ->where('item_type', TransactionItemType::Service)
-                                ->get();
-
-                            if ($services->isEmpty()) {
-                                return 'No services in optical order';
-                            }
-
-                            return $services->map(fn ($item) => "{$item->description} - ₱{$item->unit_price}")
-                                ->implode("\n");
-                        })
-                        ->columnSpanFull(),
-
-                    // Show current billing summary
-                    Placeholder::make('billing_summary')
-                        ->label('Billing Summary')
-                        ->content(function (Encounter $record): string {
-                            $billing = BillingRecord::query()
-                                ->where('encounter_id', $record->id)
-                                ->whereNull('deleted_at')
-                                ->orderByDesc('id')
-                                ->first();
-
-                            if ($billing === null) {
-                                return 'No billing record';
-                            }
-
-                            $source = $billing->getSourceContext();
-                            $total = number_format($billing->total_amount, 2);
-                            $paid = number_format($billing->amount_paid, 2);
-                            $balance = number_format($billing->balance_due, 2);
-                            $status = $billing->status->getLabel();
-
-                            return "Source: {$source}\nTotal: ₱{$total}\nPaid: ₱{$paid}\nBalance: ₱{$balance}\nStatus: {$status}";
-                        })
                         ->columnSpanFull(),
                 ]),
         ]);
