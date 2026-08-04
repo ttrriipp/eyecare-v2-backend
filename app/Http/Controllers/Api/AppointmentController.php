@@ -55,6 +55,7 @@ class AppointmentController extends Controller
             optometrist: null,
             contactNotes: $request->validated('contact_notes'),
             referringSource: $request->validated('referring_source'),
+            reasonForVisit: $request->validated('reason_for_visit'),
         );
 
         $staff = User::query()

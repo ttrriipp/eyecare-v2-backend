@@ -95,6 +95,17 @@ test('staff can create appointments directly via CreateScheduledAppointment', fu
         ->and($appointment->patient_id)->toBe($this->patient->patient->id);
 });
 
+test('reason for visit is saved on scheduled appointments', function () {
+    $appointment = app(CreateScheduledAppointment::class)->handle(
+        patient: $this->patient->patient,
+        appointmentType: $this->appointmentType,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        reasonForVisit: 'Blurry vision when reading.',
+    );
+
+    expect($appointment->fresh()->reason_for_visit)->toBe('Blurry vision when reading.');
+});
+
 test('walk-in appointments bypass scheduling validation', function () {
     $staff = User::factory()->staff()->create();
 

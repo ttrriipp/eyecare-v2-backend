@@ -56,6 +56,19 @@ test('patient resource excludes staff notes', function () {
         ->assertJsonPath('data.contact_notes', 'Patient note');
 });
 
+test('patient resource includes reason for visit', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'reason_for_visit' => 'Blurry vision when reading.',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/appointments/{$appointment->id}")
+        ->assertOk()
+        ->assertJsonPath('data.reason_for_visit', 'Blurry vision when reading.');
+});
+
 test('patient resource excludes optometrist id', function () {
     $user = User::factory()->patient()->create();
     $optometrist = User::factory()->optometrist()->create();

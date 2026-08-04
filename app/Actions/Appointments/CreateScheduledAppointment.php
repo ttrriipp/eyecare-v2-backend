@@ -26,8 +26,9 @@ class CreateScheduledAppointment
         ?User $optometrist = null,
         ?string $contactNotes = null,
         ?string $referringSource = null,
+        ?string $reasonForVisit = null,
     ): Appointment {
-        return DB::transaction(function () use ($patient, $appointmentType, $scheduledAt, $optometrist, $contactNotes, $referringSource): Appointment {
+        return DB::transaction(function () use ($patient, $appointmentType, $scheduledAt, $optometrist, $contactNotes, $referringSource, $reasonForVisit): Appointment {
             $this->lockAppointmentScheduleDate->handle($scheduledAt);
             $this->validateOptometrist($optometrist);
 
@@ -53,6 +54,7 @@ class CreateScheduledAppointment
                 'source' => 'mobile',
                 'scheduled_at' => $scheduledAt,
                 'contact_notes' => $contactNotes,
+                'reason_for_visit' => $reasonForVisit,
             ]);
 
             return $appointment->fresh(['appointmentType', 'status', 'patient', 'optometrist']);
