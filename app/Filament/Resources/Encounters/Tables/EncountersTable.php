@@ -73,14 +73,14 @@ class EncountersTable
                     EditAction::make()->label('View Encounter'),
 
                     Action::make('startEncounter')
-                        ->label('Start Visit')
+                        ->label('Start Consultation')
                         ->icon('heroicon-o-play')
                         ->color('warning')
                         ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned
                             && auth()->user()?->is_optometrist === true)
                         ->requiresConfirmation()
-                        ->modalHeading('Start Visit')
-                        ->modalDescription('Select the optometrist and start the visit.')
+                        ->modalHeading('Start Consultation')
+                        ->modalDescription('Select the optometrist and start the consultation.')
                         ->form([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')

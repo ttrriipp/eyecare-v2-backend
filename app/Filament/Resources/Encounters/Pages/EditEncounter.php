@@ -228,7 +228,7 @@ class EditEncounter extends EditRecord
                 ])),
 
             Action::make('startEncounter')
-                ->label('Start Visit')
+                ->label('Start Consultation')
                 ->icon('heroicon-o-play')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
