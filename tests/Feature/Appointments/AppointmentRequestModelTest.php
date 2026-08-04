@@ -79,11 +79,10 @@ test('snapshot display name is deterministic', function () {
         ->and($name)->toContain(' ');
 });
 
-test('snapshot masked contact is returned', function () {
+test('snapshot phone is returned unmasked', function () {
     $request = AppointmentRequest::factory()->withSnapshot()->create();
 
-    expect($request->getSnapshotMaskedContact())->toBe('091***4567')
-        ->and($request->getSnapshotContactType())->toBe('phone');
+    expect($request->getSnapshotPhone())->toBe('+639171234567');
 });
 
 test('snapshot date of birth is returned', function () {
@@ -99,8 +98,7 @@ test('snapshot helpers return null for linked request', function () {
     ]);
 
     expect($request->getSnapshotDisplayName())->toBeNull()
-        ->and($request->getSnapshotMaskedContact())->toBeNull()
-        ->and($request->getSnapshotContactType())->toBeNull()
+        ->and($request->getSnapshotPhone())->toBeNull()
         ->and($request->getSnapshotDateOfBirth())->toBeNull();
 });
 
@@ -109,7 +107,6 @@ test('factory withSnapshot creates valid snapshot', function () {
 
     expect($request->hasIdentitySnapshot())->toBeTrue()
         ->and($request->getSnapshotDisplayName())->toBeString()
-        ->and($request->getSnapshotMaskedContact())->toBeString()
-        ->and($request->getSnapshotContactType())->toBe('phone')
+        ->and($request->getSnapshotPhone())->toBeString()
         ->and($request->getSnapshotDateOfBirth())->toBeString();
 });

@@ -156,35 +156,19 @@ class AppointmentRequest extends Model
     }
 
     /**
-     * Get the masked verified contact from the identity snapshot.
-     *
-     * Returns null for linked requests (no snapshot).
+     * Get the unmasked phone from the identity snapshot, for staff use.
      */
-    public function getSnapshotMaskedContact(): ?string
+    public function getSnapshotPhone(): ?string
     {
-        $snapshot = $this->encrypted_identity_snapshot;
-
-        if ($snapshot === null) {
-            return null;
-        }
-
-        return $snapshot['verified_contact_masked'] ?? null;
+        return $this->getSnapshotValue('phone');
     }
 
     /**
-     * Get the verified contact type from the identity snapshot.
-     *
-     * Returns null for linked requests (no snapshot).
+     * Get the unmasked optional email from the identity snapshot, for staff use.
      */
-    public function getSnapshotContactType(): ?string
+    public function getSnapshotEmail(): ?string
     {
-        $snapshot = $this->encrypted_identity_snapshot;
-
-        if ($snapshot === null) {
-            return null;
-        }
-
-        return $snapshot['verified_contact_type'] ?? null;
+        return $this->getSnapshotValue('email');
     }
 
     /**
@@ -201,42 +185,6 @@ class AppointmentRequest extends Model
         }
 
         return $snapshot['date_of_birth'] ?? null;
-    }
-
-    /**
-     * Get the masked phone from the identity snapshot.
-     */
-    public function getSnapshotMaskedPhone(): ?string
-    {
-        $phone = $this->getSnapshotValue('phone');
-
-        if ($phone === null) {
-            return null;
-        }
-
-        return strlen($phone) >= 4
-            ? substr($phone, 0, 3).'***'.substr($phone, -3)
-            : '***';
-    }
-
-    /**
-     * Get the masked optional email from the identity snapshot.
-     */
-    public function getSnapshotMaskedEmail(): ?string
-    {
-        $email = $this->getSnapshotValue('email');
-
-        if ($email === null) {
-            return null;
-        }
-
-        $parts = explode('@', $email);
-
-        if (count($parts) !== 2) {
-            return '***';
-        }
-
-        return substr($parts[0], 0, 1).'***@'.$parts[1];
     }
 
     /**

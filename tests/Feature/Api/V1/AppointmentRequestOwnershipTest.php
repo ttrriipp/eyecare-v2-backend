@@ -139,11 +139,9 @@ test('snapshot helpers return null for linked request', function () {
 
     expect($request->hasIdentitySnapshot())->toBeFalse()
         ->and($request->getSnapshotDisplayName())->toBeNull()
-        ->and($request->getSnapshotMaskedContact())->toBeNull()
-        ->and($request->getSnapshotContactType())->toBeNull()
         ->and($request->getSnapshotDateOfBirth())->toBeNull()
-        ->and($request->getSnapshotMaskedPhone())->toBeNull()
-        ->and($request->getSnapshotMaskedEmail())->toBeNull()
+        ->and($request->getSnapshotPhone())->toBeNull()
+        ->and($request->getSnapshotEmail())->toBeNull()
         ->and($request->getSnapshotGender())->toBeNull()
         ->and($request->getSnapshotOccupation())->toBeNull()
         ->and($request->getSnapshotAddress())->toBeNull();
@@ -154,11 +152,9 @@ test('snapshot helpers return data for snapshotted request', function () {
 
     expect($request->hasIdentitySnapshot())->toBeTrue()
         ->and($request->getSnapshotDisplayName())->toBeString()
-        ->and($request->getSnapshotMaskedContact())->toBe('091***4567')
-        ->and($request->getSnapshotContactType())->toBe('phone')
         ->and($request->getSnapshotDateOfBirth())->toBeString()
-        ->and($request->getSnapshotMaskedPhone())->toBe('+63***567')
-        ->and($request->getSnapshotMaskedEmail())->toBeNull()
+        ->and($request->getSnapshotPhone())->toBe('+639171234567')
+        ->and($request->getSnapshotEmail())->toBeNull()
         ->and($request->getSnapshotGender())->toBeIn(['male', 'female', 'other'])
         ->and($request->getSnapshotOccupation())->toBeString()
         ->and($request->getSnapshotAddress())->toBeString();
