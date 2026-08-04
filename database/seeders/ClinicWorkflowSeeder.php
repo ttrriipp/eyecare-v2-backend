@@ -115,6 +115,7 @@ class ClinicWorkflowSeeder extends Seeder
         return Prescription::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
+                'prescription_number' => 'RX-2026-000001',
                 // Main group
                 'main_od_sphere' => -1.75,
                 'main_od_cylinder' => -0.50,
