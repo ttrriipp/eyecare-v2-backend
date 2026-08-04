@@ -8,7 +8,7 @@
 > authenticated step-up for sensitive changes, Optical Orders workflow,
 > separate Quotations and Optical Orders sections, and unified billing
 > with explicit charge provenance have been implemented. The API contract
-> includes 52 routes (8 public, 24 account-only, 20 active-link).
+> includes 51 routes (8 public, 24 account-only, 19 active-link).
 > Legacy intake routes, direct booking, job-orders, eyewear, and
 > billing-records API routes have been removed. All accounts use
 > structured first/middle/last names.
@@ -275,10 +275,9 @@ GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
 GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/optical-order-items/{id}/rating
-POST   /api/v1/job-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
+**Route count:** 8 public + 24 account-only + 19 active-link = **51 routes total.**
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
