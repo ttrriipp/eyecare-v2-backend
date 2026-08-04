@@ -24,6 +24,7 @@ class ViewPatientAccount extends ViewRecord
                 ->icon('heroicon-o-link')
                 ->color('success')
                 ->visible(fn () => $this->record->patient === null && auth()->user()->isAdmin())
+                ->requiresConfirmation()
                 ->schema([
                     Select::make('patient_id')
                         ->label('Select Patient')

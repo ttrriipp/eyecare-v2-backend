@@ -167,6 +167,7 @@ class EditPatient extends EditRecord
 
                     return auth()->user()->isAdmin();
                 })
+                ->requiresConfirmation()
                 ->schema([
                     Select::make('user_id')
                         ->label('Select Account')
