@@ -32,7 +32,34 @@ class ViewPrescription extends ViewRecord
 
     public function content(Schema $schema): Schema
     {
+        $record = $this->getRecord();
+
         $components = [
+            Section::make('Prescription Details')
+                ->icon('heroicon-o-document-text')
+                ->schema([
+                    Grid::make(2)->schema([
+                        Placeholder::make('prescription_number')
+                            ->label('Prescription Number')
+                            ->content($record->prescription_number ?? '—'),
+                        Placeholder::make('prescribed_at')
+                            ->label('Prescribed Date')
+                            ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
+                        Placeholder::make('patient_name')
+                            ->label('Patient')
+                            ->content($record->patient?->full_name ?? '—'),
+                        Placeholder::make('patient_number')
+                            ->label('Patient Number')
+                            ->content($record->patient?->patient_number ?? '—'),
+                        Placeholder::make('encounter')
+                            ->label('Encounter')
+                            ->content($record->encounter?->encounter_number ?? '—'),
+                        Placeholder::make('optometrist')
+                            ->label('Prescribing Optometrist')
+                            ->content($record->author?->full_name ?? '—'),
+                    ]),
+                ]),
+
             $this->getFormContentComponent(),
         ];
 
