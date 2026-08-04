@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Prescriptions\Schemas;
 use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Models\Encounter;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
