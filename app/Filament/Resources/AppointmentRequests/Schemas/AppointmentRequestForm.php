@@ -4,7 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Schemas;
 
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
-use App\Filament\Resources\Patients\PatientResource;
+use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Section;
@@ -49,7 +49,7 @@ class AppointmentRequestForm
                 Section::make('Status')
                     ->schema([
                         Placeholder::make('status')
-                            ->label('Status')
+                            ->label('Request Status')
                             ->content(fn ($record): string => Str::headline($record?->status->value ?? '—'))
                             ->badge()
                             ->color(fn ($record): string => match ($record?->status) {
@@ -131,40 +131,13 @@ class AppointmentRequestForm
                             ->hiddenLabel()
                             ->content(function ($record): HtmlString {
                                 if ($record === null || ! $record->hasIdentitySnapshot()) {
-                                    return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No candidates.</span>');
+                                    return PatientCandidateMatchCard::render(collect(), 'No candidates.');
                                 }
 
                                 $candidates = app(RankPatientCandidates::class)
                                     ->fromSnapshot($record->encrypted_identity_snapshot);
 
-                                if ($candidates->isEmpty()) {
-                                    return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matching patients found.</span>');
-                                }
-
-                                $colors = [
-                                    'strong' => 'text-success-700 bg-success-50 dark:text-success-400 dark:bg-success-500/10',
-                                    'moderate' => 'text-warning-700 bg-warning-50 dark:text-warning-400 dark:bg-warning-500/10',
-                                    'weak' => 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-500/10',
-                                ];
-
-                                $rows = $candidates->map(function (array $candidate) use ($colors): string {
-                                    $patient = $candidate['patient'];
-                                    $color = $colors[$candidate['strength']] ?? $colors['weak'];
-                                    $reasons = collect($candidate['reasons'])
-                                        ->map(fn (string $reason): string => Str::headline($reason))
-                                        ->implode(', ');
-                                    $url = PatientResource::getUrl('edit', ['record' => $patient]);
-
-                                    return '<li class="mb-2">'
-                                        .'<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$color.'">'
-                                        .e(Str::headline($candidate['strength'])).'</span> '
-                                        .'<a href="'.e($url).'" target="_blank" class="font-medium text-primary-600 hover:underline dark:text-primary-400">'
-                                        .e($patient->full_name).'</a> — '.e($patient->patient_number)
-                                        .($reasons !== '' ? '<div class="text-xs text-gray-500 dark:text-gray-400">'.e($reasons).'</div>' : '')
-                                        .'</li>';
-                                })->implode('');
-
-                                return new HtmlString('<ul class="list-none space-y-1 text-sm">'.$rows.'</ul>');
+                                return PatientCandidateMatchCard::render($candidates);
                             })
                             ->columnSpanFull(),
                     ]),
