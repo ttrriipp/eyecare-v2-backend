@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Prescriptions\Pages;
 
+use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Prescription;
@@ -64,7 +65,15 @@ class ViewPrescription extends ViewRecord
                             ->content($record->patient?->patient_number ?? '—'),
                         Placeholder::make('encounter')
                             ->label('Encounter')
-                            ->content($record->encounter?->encounter_number ?? '—'),
+                            ->content(function () use ($record): HtmlString {
+                                if ($record->encounter === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                $url = EncounterResource::getUrl('edit', ['record' => $record->encounter]);
+
+                                return new HtmlString('<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'.e($record->encounter->encounter_number).'</a>');
+                            }),
                         Placeholder::make('optometrist')
                             ->label('Prescribing Optometrist')
                             ->content($record->author?->full_name ?? '—'),
