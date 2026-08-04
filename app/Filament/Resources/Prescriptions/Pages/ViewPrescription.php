@@ -93,15 +93,38 @@ class ViewPrescription extends ViewRecord
                 ->collapsed()
                 ->collapsible()
                 ->schema([
-                    Grid::make(6)->schema([
-                        Placeholder::make('prev_main_od_value')->label('O.D.')->content($previousPrescription->main_od_value ?? '—'),
-                        Placeholder::make('prev_main_od_sphere')->label('SPH')->content($previousPrescription->main_od_sphere ?? '—'),
-                        Placeholder::make('prev_main_od_cylinder')->label('CX')->content($previousPrescription->main_od_cylinder ?? '—'),
-                        Placeholder::make('prev_main_os_value')->label('O.S.')->content($previousPrescription->main_os_value ?? '—'),
-                        Placeholder::make('prev_main_os_sphere')->label('SPH')->content($previousPrescription->main_os_sphere ?? '—'),
-                        Placeholder::make('prev_main_os_cylinder')->label('CX')->content($previousPrescription->main_os_cylinder ?? '—'),
-                        Placeholder::make('prev_remarks')->label('Remarks')->content($previousPrescription->remarks ?? '—'),
-                    ]),
+                    Section::make('Prescription')
+                        ->schema([
+                            Grid::make(3)->schema([
+                                Placeholder::make('prev_main_od_value')->label('O.D.')->content($previousPrescription->main_od_value ?? '—'),
+                                Placeholder::make('prev_main_od_sphere')->label('SPH')->content($previousPrescription->main_od_sphere ?? '—'),
+                                Placeholder::make('prev_main_od_cylinder')->label('CX')->content($previousPrescription->main_od_cylinder ?? '—'),
+                            ]),
+                            Grid::make(3)->schema([
+                                Placeholder::make('prev_main_os_value')->label('O.S.')->content($previousPrescription->main_os_value ?? '—'),
+                                Placeholder::make('prev_main_os_sphere')->label('SPH')->content($previousPrescription->main_os_sphere ?? '—'),
+                                Placeholder::make('prev_main_os_cylinder')->label('CX')->content($previousPrescription->main_os_cylinder ?? '—'),
+                            ]),
+                        ]),
+
+                    Section::make('ADD')
+                        ->schema([
+                            Grid::make(3)->schema([
+                                Placeholder::make('prev_add_od_value')->label('O.D.')->content($previousPrescription->add_od_value ?? '—'),
+                                Placeholder::make('prev_add_od_sphere')->label('SPH')->content($previousPrescription->add_od_sphere ?? '—'),
+                                Placeholder::make('prev_add_od_cylinder')->label('CX')->content($previousPrescription->add_od_cylinder ?? '—'),
+                            ]),
+                            Grid::make(3)->schema([
+                                Placeholder::make('prev_add_os_value')->label('O.S.')->content($previousPrescription->add_os_value ?? '—'),
+                                Placeholder::make('prev_add_os_sphere')->label('SPH')->content($previousPrescription->add_os_sphere ?? '—'),
+                                Placeholder::make('prev_add_os_cylinder')->label('CX')->content($previousPrescription->add_os_cylinder ?? '—'),
+                            ]),
+                        ]),
+
+                    Section::make('Details')
+                        ->schema([
+                            Placeholder::make('prev_remarks')->label('Remarks')->content($previousPrescription->remarks ?? '—')->columnSpanFull(),
+                        ]),
                 ]);
         }
 
