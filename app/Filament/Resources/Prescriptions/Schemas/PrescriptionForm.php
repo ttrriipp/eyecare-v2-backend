@@ -37,32 +37,46 @@ class PrescriptionForm
         return array_filter([
             $patientInformation,
 
-            Section::make('Prescription')
-                ->schema([
-                    Grid::make(3)->schema([
-                        Placeholder::make('main_od_value')
-                            ->label('O.D.')
-                            ->content(fn ($record) => $record->main_od_value ?? '—'),
-                        Placeholder::make('main_od_sphere')
-                            ->label('SPH')
-                            ->content(fn ($record) => $record->main_od_sphere ?? '—'),
-                        Placeholder::make('main_od_cylinder')
-                            ->label('CX')
-                            ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
-                    ]),
+            Grid::make(3)->schema([
+                Section::make('Prescription')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            Placeholder::make('main_od_value')
+                                ->label('O.D.')
+                                ->content(fn ($record) => $record->main_od_value ?? '—'),
+                            Placeholder::make('main_od_sphere')
+                                ->label('SPH')
+                                ->content(fn ($record) => $record->main_od_sphere ?? '—'),
+                            Placeholder::make('main_od_cylinder')
+                                ->label('CX')
+                                ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
+                        ]),
 
-                    Grid::make(3)->schema([
-                        Placeholder::make('main_os_value')
-                            ->label('O.S.')
-                            ->content(fn ($record) => $record->main_os_value ?? '—'),
-                        Placeholder::make('main_os_sphere')
-                            ->label('SPH')
-                            ->content(fn ($record) => $record->main_os_sphere ?? '—'),
-                        Placeholder::make('main_os_cylinder')
-                            ->label('CX')
-                            ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
-                    ]),
-                ]),
+                        Grid::make(3)->schema([
+                            Placeholder::make('main_os_value')
+                                ->label('O.S.')
+                                ->content(fn ($record) => $record->main_os_value ?? '—'),
+                            Placeholder::make('main_os_sphere')
+                                ->label('SPH')
+                                ->content(fn ($record) => $record->main_os_sphere ?? '—'),
+                            Placeholder::make('main_os_cylinder')
+                                ->label('CX')
+                                ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
+                        ]),
+                    ])
+                    ->columnSpan(2),
+
+                Section::make('Details')
+                    ->schema([
+                        Placeholder::make('optometrist')
+                            ->label('Optometrist')
+                            ->content(fn ($record) => $record->author?->full_name ?? '—'),
+                        Placeholder::make('prescribed_at')
+                            ->label('Prescribed Date')
+                            ->content(fn ($record) => $record->prescribed_at?->format('M j, Y') ?? '—'),
+                    ])
+                    ->columnSpan(1),
+            ]),
 
             Section::make('ADD')
                 ->schema([
