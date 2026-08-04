@@ -82,7 +82,8 @@ class OpticalOrdersTable
             ])
             ->recordActions([
                 Action::make('view')
-                    ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('view', ['record' => $record])),
+                    ->label('View')
+                    ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('edit', ['record' => $record])),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([]),

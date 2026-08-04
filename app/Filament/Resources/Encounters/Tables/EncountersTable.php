@@ -7,6 +7,7 @@ use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Encounter;
 use App\Models\Quotation;
 use App\Models\User;
@@ -151,12 +152,18 @@ class EncountersTable
                         ->visible(fn (Encounter $record): bool => Quotation::query()
                             ->where('encounter_id', $record->id)
                             ->exists())
-                        ->url(fn (Encounter $record): string => OpticalOrderResource::getUrl('view', [
-                            'record' => Quotation::query()
+                        ->url(function (Encounter $record): string {
+                            $quotation = Quotation::query()
                                 ->where('encounter_id', $record->id)
                                 ->latest('id')
-                                ->value('id'),
-                        ])),
+                                ->first();
+
+                            if ($quotation?->jobOrder !== null) {
+                                return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
+                            }
+
+                            return QuotationResource::getUrl('edit', ['record' => $quotation]);
+                        }),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

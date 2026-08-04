@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BillingRecords\Pages;
 
 use App\Actions\BillingRecords\VoidBillingRecord;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\BillingRecord;
@@ -19,6 +20,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 
@@ -59,10 +61,11 @@ class EditBillingRecord extends EditRecord
                     ])->columns(2),
 
                     Section::make('Items / Charges')->schema([
-                        RepeatableEntry::make('jobOrder.items')
+                        RepeatableEntry::make('items')
                             ->hiddenLabel()
                             ->table([
                                 TableColumn::make('Description'),
+                                TableColumn::make('Source'),
                                 TableColumn::make('Quantity'),
                                 TableColumn::make('Unit Price'),
                                 TableColumn::make('Amount'),
@@ -71,6 +74,10 @@ class EditBillingRecord extends EditRecord
                                 TextEntry::make('description')
                                     ->hiddenLabel()
                                     ->wrap(),
+                                TextEntry::make('source_kind')
+                                    ->hiddenLabel()
+                                    ->badge()
+                                    ->formatStateUsing(fn (BillingItemSourceKind $state): string => Str::headline($state->value)),
                                 TextEntry::make('quantity')
                                     ->hiddenLabel(),
                                 TextEntry::make('unit_price')
@@ -80,7 +87,7 @@ class EditBillingRecord extends EditRecord
                                     ->hiddenLabel()
                                     ->money('PHP'),
                             ])
-                            ->placeholder('No linked job order items.'),
+                            ->placeholder('No charges recorded.'),
                     ]),
                 ]),
 

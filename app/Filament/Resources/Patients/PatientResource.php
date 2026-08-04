@@ -24,11 +24,11 @@ class PatientResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
 
-    protected static ?string $navigationLabel = 'Patients';
+    protected static ?string $navigationLabel = 'Patient Records';
 
-    protected static ?string $modelLabel = 'Patient';
+    protected static ?string $modelLabel = 'Patient Record';
 
-    protected static ?string $pluralModelLabel = 'Patients';
+    protected static ?string $pluralModelLabel = 'Patient Records';
 
     protected static ?int $navigationSort = 3;
 

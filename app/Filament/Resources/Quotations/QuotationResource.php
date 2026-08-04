@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Quotations;
 
+use App\Filament\Resources\Quotations\Pages\CreateQuotation;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\Schemas\QuotationForm;
@@ -50,6 +51,7 @@ class QuotationResource extends Resource
     {
         return [
             'index' => ListQuotations::route('/'),
+            'create' => CreateQuotation::route('/create'),
             'edit' => EditQuotation::route('/{record}/edit'),
         ];
     }

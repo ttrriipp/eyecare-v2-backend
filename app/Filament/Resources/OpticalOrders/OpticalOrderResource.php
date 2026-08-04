@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\OpticalOrders;
 
-use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
-use App\Filament\Resources\OpticalOrders\Pages\ViewOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderForm;
 use App\Filament\Resources\OpticalOrders\Tables\OpticalOrdersTable;
 use App\Models\JobOrder;
@@ -14,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class OpticalOrderResource extends Resource
@@ -53,9 +52,13 @@ class OpticalOrderResource extends Resource
     {
         return [
             'index' => ListOpticalOrders::route('/'),
-            'create' => CreateOpticalOrder::route('/create'),
             'edit' => EditOpticalOrder::route('/{record}/edit'),
-            'view' => ViewOpticalOrder::route('/{record}'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['patient', 'items', 'encounter', 'prescription', 'quotation', 'billingRecord', 'frameReservation']);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
 use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -38,6 +39,20 @@ class Patient extends Model
                     ->withTrashed()
                     ->count() + 1;
                 $patient->patient_number = sprintf('PAT-%s-%06d', $year, $sequence);
+            }
+        });
+
+        static::saving(function (Patient $patient): void {
+            if ($patient->isDirty('phone')) {
+                $patient->phone_lookup_hash = filled($patient->phone)
+                    ? app(CreateContactLookupHash::class)->forPhone($patient->phone)
+                    : null;
+            }
+
+            if ($patient->isDirty('contact_email')) {
+                $patient->contact_email_lookup_hash = filled($patient->contact_email)
+                    ? app(CreateContactLookupHash::class)->forEmail($patient->contact_email)
+                    : null;
             }
         });
     }

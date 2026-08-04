@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Models\Patient;
 use App\Models\PatientAccountContact;
@@ -13,11 +14,12 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->ranker = app(RankPatientCandidates::class);
+    $this->lookupHash = app(CreateContactLookupHash::class);
 });
 
 test('snapshot matching finds patient by exact phone hash', function () {
     $patient = Patient::factory()->create([
-        'phone_lookup_hash' => hash('sha256', '09171234567'),
+        'phone' => '09171234567',
     ]);
 
     $snapshot = [
@@ -25,7 +27,7 @@ test('snapshot matching finds patient by exact phone hash', function () {
         'last_name' => $patient->last_name,
         'date_of_birth' => $patient->date_of_birth->format('Y-m-d'),
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '09171234567'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09171234567'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);
@@ -50,7 +52,7 @@ test('snapshot matching finds patient by exact name and dob', function () {
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '99999999999'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09999999999'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);
@@ -68,7 +70,7 @@ test('snapshot matching returns empty for no match', function () {
         'last_name' => 'Patient',
         'date_of_birth' => '2000-01-01',
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '00000000000'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09000000000'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);
@@ -78,7 +80,7 @@ test('snapshot matching returns empty for no match', function () {
 
 test('snapshot matching excludes linked patients', function () {
     $patient = Patient::factory()->create([
-        'phone_lookup_hash' => hash('sha256', '09171234567'),
+        'phone' => '09171234567',
     ]);
 
     // Create a separate user and link the patient
@@ -90,7 +92,7 @@ test('snapshot matching excludes linked patients', function () {
         'last_name' => $patient->last_name,
         'date_of_birth' => $patient->date_of_birth->format('Y-m-d'),
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '09171234567'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09171234567'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);
@@ -103,7 +105,7 @@ test('snapshot matching deduplicates patients', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
-        'phone_lookup_hash' => hash('sha256', '09171234567'),
+        'phone' => '09171234567',
     ]);
 
     $snapshot = [
@@ -111,7 +113,7 @@ test('snapshot matching deduplicates patients', function () {
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '09171234567'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09171234567'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);
@@ -129,7 +131,7 @@ test('existing account-based ranking still works', function () {
     PatientAccountContact::factory()->create([
         'user_id' => $user->id,
         'type' => 'phone',
-        'lookup_hash' => hash('sha256', '09171234567'),
+        'lookup_hash' => $this->lookupHash->forPhone('09171234567'),
         'verified_at' => now(),
         'is_primary' => true,
     ]);
@@ -138,7 +140,7 @@ test('existing account-based ranking still works', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
-        'phone_lookup_hash' => hash('sha256', '09171234567'),
+        'phone' => '09171234567',
     ]);
 
     $candidates = $this->ranker->handle($user);
@@ -152,7 +154,7 @@ test('strong match requires contact plus name or dob', function () {
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
-        'phone_lookup_hash' => hash('sha256', '09171234567'),
+        'phone' => '09171234567',
     ]);
 
     $snapshot = [
@@ -160,7 +162,7 @@ test('strong match requires contact plus name or dob', function () {
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
         'verified_contact_type' => 'phone',
-        'verified_contact_hash' => hash('sha256', '09171234567'),
+        'verified_contact_hash' => $this->lookupHash->forPhone('09171234567'),
     ];
 
     $candidates = $this->ranker->fromSnapshot($snapshot);

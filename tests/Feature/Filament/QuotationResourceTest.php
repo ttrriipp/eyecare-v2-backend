@@ -1,14 +1,13 @@
 <?php
 
 use App\Enums\QuotationStatus;
-use App\Filament\Resources\JobOrders\JobOrderResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\JobOrder;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
-use App\Models\QuotationRevision;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -39,23 +38,11 @@ test('staff can view a quotation', function () {
         ->assertDontSee('Customer Notes');
 });
 
-test('staff can see the latest revision items on a quotation', function () {
+test('staff can see product and service items on a quotation', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create();
-    $olderRevision = QuotationRevision::factory()->create([
+    QuotationItem::factory()->product()->create([
         'quotation_id' => $quotation->id,
-        'revision_number' => 1,
-    ]);
-    QuotationItem::factory()->create([
-        'quotation_revision_id' => $olderRevision->id,
-        'description' => 'Superseded Frame',
-    ]);
-    $latestRevision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
-        'revision_number' => 2,
-    ]);
-    QuotationItem::factory()->create([
-        'quotation_revision_id' => $latestRevision->id,
         'description' => 'Classic Black Frame',
         'quantity' => 1,
         'unit_price' => 4500,
@@ -67,8 +54,7 @@ test('staff can see the latest revision items on a quotation', function () {
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->assertSuccessful()
         ->assertSee('Classic Black Frame')
-        ->assertSee('4,500.00')
-        ->assertDontSee('Superseded Frame');
+        ->assertSee('4,500.00');
 });
 
 test('quotation table shows status badges', function () {
@@ -83,15 +69,11 @@ test('quotation table shows status badges', function () {
         ->assertTableColumnStateSet('status', QuotationStatus::Presented, record: $presented);
 });
 
-test('staff creates a job order from an accepted quotation', function () {
+test('staff confirms the sale of an accepted quotation and creates an optical order', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
-    $revision = QuotationRevision::factory()->create([
+    QuotationItem::factory()->product()->create([
         'quotation_id' => $quotation->id,
-        'total' => 5000,
-    ]);
-    QuotationItem::factory()->create([
-        'quotation_revision_id' => $revision->id,
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
@@ -100,17 +82,17 @@ test('staff creates a job order from an accepted quotation', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->assertActionVisible('createJobOrder')
-        ->callAction('createJobOrder')
+        ->assertActionVisible('confirmSale')
+        ->callAction('confirmSale')
         ->assertNotified()
         ->assertRedirect();
 
     $jobOrder = JobOrder::query()
-        ->where('quotation_revision_id', $revision->id)
+        ->where('quotation_id', $quotation->id)
         ->firstOrFail();
 
-    expect(JobOrderResource::getUrl('edit', ['record' => $jobOrder]))
-        ->toContain("/job-orders/{$jobOrder->id}/edit");
+    expect(OpticalOrderResource::getUrl('edit', ['record' => $jobOrder]))
+        ->toContain("/optical-orders/{$jobOrder->id}/edit");
 });
 
 test('quotation resource is registered', function () {

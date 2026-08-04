@@ -150,7 +150,7 @@
                                                 </a>
                                             @elseif ($context instanceof \App\Models\JobOrder)
                                                 <a
-                                                    href="{{ \App\Filament\Resources\JobOrders\JobOrderResource::getUrl('edit', ['record' => $context]) }}"
+                                                    href="{{ \App\Filament\Resources\OpticalOrders\OpticalOrderResource::getUrl('edit', ['record' => $context]) }}"
                                                     class="group flex w-full max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-primary-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-white/10"
                                                     data-message-context-card="job-order"
                                                 >

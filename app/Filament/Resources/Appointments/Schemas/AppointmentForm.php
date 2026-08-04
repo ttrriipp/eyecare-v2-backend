@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Appointments\Schemas;
 
+use App\Actions\Patients\SearchPatientDuplicates;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -19,6 +21,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\TextSize;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class AppointmentForm
@@ -47,34 +50,40 @@ class AppointmentForm
                                 ->label('First Name')
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             TextInput::make('new_patient_last_name')
                                 ->label('Last Name')
                                 ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             TextInput::make('new_patient_middle_name')
                                 ->label('Middle Name')
                                 ->nullable()
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             TextInput::make('new_patient_phone')
                                 ->label('Phone')
                                 ->tel()
                                 ->nullable()
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             TextInput::make('new_patient_contact_email')
                                 ->label('Email')
                                 ->email()
                                 ->nullable()
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             DatePicker::make('new_patient_date_of_birth')
                                 ->label('Date of Birth')
                                 ->nullable()
                                 ->maxDate(now())
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->live(onBlur: true)
                                 ->dehydrated(false),
                             Select::make('new_patient_gender')
                                 ->label('Gender')
@@ -97,6 +106,48 @@ class AppointmentForm
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->dehydrated(false)
                                 ->columnSpanFull(),
+
+                            Placeholder::make('new_patient_duplicate_matches')
+                                ->hiddenLabel()
+                                ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
+                                ->columnSpanFull()
+                                ->content(function (Get $get): HtmlString {
+                                    $phone = filled($get('new_patient_phone'))
+                                        ? '+63'.preg_replace('/[^0-9]/', '', $get('new_patient_phone'))
+                                        : null;
+
+                                    $fullName = trim(collect([
+                                        $get('new_patient_first_name'),
+                                        $get('new_patient_middle_name'),
+                                        $get('new_patient_last_name'),
+                                    ])->filter()->implode(' '));
+
+                                    $matches = app(SearchPatientDuplicates::class)->handle([
+                                        'contact_email' => $get('new_patient_contact_email'),
+                                        'phone' => $phone,
+                                        'full_name' => $fullName,
+                                        'date_of_birth' => $get('new_patient_date_of_birth'),
+                                    ]);
+
+                                    if ($matches->isEmpty()) {
+                                        return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matching records yet — fill in name, phone, email, or date of birth.</span>');
+                                    }
+
+                                    $rows = $matches->map(function ($patient): string {
+                                        $url = PatientResource::getUrl('edit', ['record' => $patient]);
+
+                                        return '<li><a href="'.e($url).'" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                            .e($patient->full_name).'</a> — '.e($patient->patient_number)
+                                            .($patient->date_of_birth !== null ? ' — DOB '.e($patient->date_of_birth->format('M j, Y')) : '')
+                                            .'</li>';
+                                    })->implode('');
+
+                                    return new HtmlString(
+                                        '<div class="text-sm text-warning-600 dark:text-warning-400">⚠ Possible existing record'
+                                        .($matches->count() > 1 ? 's' : '').' found:</div>'
+                                        .'<ul class="mt-1 list-disc space-y-1 pl-5 text-sm">'.$rows.'</ul>'
+                                    );
+                                }),
 
                             // Patient name (read-only on edit)
                             Placeholder::make('patient_name_display')

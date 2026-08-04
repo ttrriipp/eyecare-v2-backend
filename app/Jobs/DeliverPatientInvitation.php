@@ -68,6 +68,16 @@ class DeliverPatientInvitation implements ShouldQueue
     protected function sendSms(PatientInvitation $invitation, string $phone): void
     {
         // SMS delivery would go through the existing SMS provider boundary
+        if (app()->environment(['local', 'testing'])) {
+            Log::info('SMS invitation delivery (development only)', [
+                'invitation_id' => $invitation->id,
+                'masked_phone' => $this->mask($phone, 'phone'),
+                'invitation_code' => $invitation->invitation_code,
+            ]);
+
+            return;
+        }
+
         Log::info('SMS invitation delivery not yet implemented', [
             'invitation_id' => $invitation->id,
             'masked_phone' => $this->mask($phone, 'phone'),

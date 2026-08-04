@@ -11,10 +11,7 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Filament\Resources\Quotations\Actions\CreateQuotationAction;
 use App\Filament\Resources\Quotations\QuotationResource;
-use App\Models\Encounter;
-use App\Models\Patient;
 use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -205,18 +202,22 @@ class EditEncounter extends EditRecord
                     'record' => $this->record->prescriptions()->latest('id')->value('id'),
                 ])),
 
-            CreateQuotationAction::make(
-                patientResolver: fn (): Patient => $this->record->patient,
-                encounterResolver: fn (): Encounter => $this->record,
-            )->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
-                && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
-                && $this->record->prescriptions()
-                    ->whereDoesntHave('nextPrescription')
-                    ->exists()
-                && ! Quotation::query()
-                    ->withTrashed()
-                    ->where('encounter_id', $this->record->id)
-                    ->exists()),
+            Action::make('createQuotation')
+                ->label('Create Quotation')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('success')
+                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
+                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
+                    && $this->record->prescriptions()
+                        ->whereDoesntHave('nextPrescription')
+                        ->exists()
+                    && ! Quotation::query()
+                        ->withTrashed()
+                        ->where('encounter_id', $this->record->id)
+                        ->exists())
+                ->url(fn (): string => QuotationResource::getUrl('create', [
+                    'encounter' => $this->record->id,
+                ])),
 
             Action::make('viewOpticalOrder')
                 ->label('View Optical Order')

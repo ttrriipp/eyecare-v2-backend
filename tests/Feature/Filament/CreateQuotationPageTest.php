@@ -1,0 +1,133 @@
+<?php
+
+use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
+use App\Filament\Resources\Quotations\Pages\CreateQuotation;
+use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\Encounter;
+use App\Models\LensCategory;
+use App\Models\Patient;
+use App\Models\Prescription;
+use App\Models\Quotation;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+
+uses(RefreshDatabase::class);
+
+test('staff creates a quotation from an encounter query context', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->inProgress()->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['encounter' => (string) $encounter->id])
+        ->assertFormFieldDoesNotExist('patient_id')
+        ->fillForm([
+            'valid_until' => now()->addWeek()->toDateString(),
+            'discount_amount' => 250,
+            'notes' => 'Patient-visible estimate note.',
+            'items' => [[
+                'item_type' => 'custom',
+                'description' => 'Complete frame and single vision lens',
+                'quantity' => 1,
+                'unit_price' => 12500,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('encounter_id', $encounter->id)->firstOrFail();
+
+    expect($quotation->patient_id)->toBe($encounter->patient_id)
+        ->and($quotation->total)->toBe('12250.00')
+        ->and($quotation->notes)->toBe('Patient-visible estimate note.');
+});
+
+test('staff creates a quotation from a patient query context with no encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
+        ->assertFormFieldDoesNotExist('patient_id')
+        ->fillForm([
+            'items' => [[
+                'item_type' => 'custom',
+                'description' => 'Sunglasses',
+                'quantity' => 1,
+                'unit_price' => 2500,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('patient_id', $patient->id)->firstOrFail();
+
+    expect($quotation->encounter_id)->toBeNull()
+        ->and($quotation->total)->toBe('2500.00');
+});
+
+test('direct quotation with patient context rejects corrective items without an encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
+        ->fillForm([
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1200,
+            ]],
+        ])
+        ->call('create')
+        ->assertNotified();
+
+    expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
+});
+
+test('staff picks a patient manually when no context is provided', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class)
+        ->assertFormFieldExists('patient_id')
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'items' => [[
+                'item_type' => 'custom',
+                'description' => 'Contact Lens Solution',
+                'quantity' => 1,
+                'unit_price' => 400,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeTrue();
+});
+
+test('prescription detail links to the create quotation page with the prescription\'s encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
+        ->assertActionVisible('createQuotation');
+
+    expect($component->instance()->getAction('createQuotation')->getUrl())
+        ->toBe(QuotationResource::getUrl('create', ['encounter' => $encounter->id]));
+});

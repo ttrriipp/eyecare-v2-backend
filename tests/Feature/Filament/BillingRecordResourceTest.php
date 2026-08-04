@@ -5,8 +5,7 @@ use App\Filament\Resources\BillingRecords\Pages\EditBillingRecord;
 use App\Filament\Resources\BillingRecords\RelationManagers\PaymentsRelationManager;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
-use App\Models\JobOrder;
-use App\Models\JobOrderItem;
+use App\Models\BillingRecordItem;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,19 +27,15 @@ test('staff can view a billing record', function () {
         ->assertActionDoesNotExist('correctPayment');
 });
 
-test('staff can see linked job order items on a billing record', function () {
+test('staff can see itemized charges on a billing record', function () {
     $staff = User::factory()->staff()->create();
-    $jobOrder = JobOrder::factory()->create();
-    JobOrderItem::factory()->create([
-        'job_order_id' => $jobOrder->id,
+    $billingRecord = BillingRecord::factory()->create(['total_amount' => 12500]);
+    BillingRecordItem::factory()->product()->create([
+        'billing_record_id' => $billingRecord->id,
         'description' => 'Complete Frame and Single Vision Lens',
         'quantity' => 1,
         'unit_price' => 12500,
         'amount' => 12500,
-    ]);
-    $billingRecord = BillingRecord::factory()->create([
-        'job_order_id' => $jobOrder->id,
-        'total_amount' => 12500,
     ]);
 
     $this->actingAs($staff);

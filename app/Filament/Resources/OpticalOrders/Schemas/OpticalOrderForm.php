@@ -2,166 +2,151 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
-use App\Models\LensCategory;
-use App\Models\Patient;
-use App\Models\ProductVariant;
+use App\Enums\JobOrderStatus;
+use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Str;
 
 class OpticalOrderForm
 {
     public static function configure(Schema $schema): Schema
     {
-        return $schema
-            ->columns(1)
-            ->components([
-                Section::make('Patient')
-                    ->schema([
-                        Select::make('patient_id')
-                            ->label('Patient')
-                            ->options(Patient::query()
-                                ->get()
-                                ->mapWithKeys(fn ($p) => [$p->id => $p->full_name]))
-                            ->required()
-                            ->searchable()
-                            ->preload(),
-                    ])
-                    ->columns(2),
+        return $schema->columns(1)->components([
+            Grid::make(3)->schema([
+                // ── Main (2/3) ──────────────────────────────────────
+                Grid::make(1)->columnSpan(2)->schema([
+                    Section::make('Order Details')
+                        ->schema([
+                            TextInput::make('job_order_number')
+                                ->label('Order #')
+                                ->disabled()
+                                ->dehydrated(false),
+                            Placeholder::make('patient_name')
+                                ->label('Patient')
+                                ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—'),
+                            Placeholder::make('status_badge')
+                                ->label('Status')
+                                ->content(fn (JobOrder $record): string => Str::headline($record->status->value)),
+                            Placeholder::make('fulfillment_mode')
+                                ->label('Fulfillment')
+                                ->content(fn (JobOrder $record): string => Str::headline($record->fulfillment_mode)
+                                    .($record->uses_external_supplier ? ' (External Supplier)' : '')),
+                            TextInput::make('total_amount')
+                                ->label('Total Amount')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->prefix('₱'),
+                            TextInput::make('supplier_invoice_number')
+                                ->label('Supplier Invoice Number')
+                                ->maxLength(100)
+                                ->visible(fn (JobOrder $record): bool => $record->uses_external_supplier
+                                    || filled($record->supplier_invoice_number)),
+                        ])
+                        ->columns(2),
 
-                Section::make('Product Items')
-                    ->schema([
-                        Repeater::make('items')
-                            ->schema([
-                                Select::make('product_variant_id')
-                                    ->label('Catalog Item')
-                                    ->options(ProductVariant::query()
-                                        ->active()
-                                        ->whereHas('product', fn ($q) => $q->where('is_active', true))
-                                        ->with('product')
-                                        ->get()
-                                        ->mapWithKeys(fn ($v) => [$v->id => "{$v->product->name} - {$v->name}"]))
-                                    ->searchable()
-                                    ->preload()
-                                    ->nullable()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                        if ($state !== null) {
-                                            $variant = ProductVariant::find($state);
-                                            if ($variant) {
-                                                $set('description', "{$variant->product->name} - {$variant->name}");
-                                                $set('unit_price', $variant->price);
-                                            }
-                                        }
-                                    }),
+                    Section::make('Product Items')
+                        ->schema([
+                            RepeatableEntry::make('items')
+                                ->hiddenLabel()
+                                ->table([
+                                    TableColumn::make('Description'),
+                                    TableColumn::make('Quantity'),
+                                    TableColumn::make('Unit Price'),
+                                    TableColumn::make('Amount'),
+                                ])
+                                ->schema([
+                                    TextEntry::make('description')
+                                        ->hiddenLabel()
+                                        ->wrap(),
+                                    TextEntry::make('quantity')
+                                        ->hiddenLabel(),
+                                    TextEntry::make('unit_price')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                    TextEntry::make('amount')
+                                        ->hiddenLabel()
+                                        ->money('PHP'),
+                                ])
+                                ->placeholder('No items recorded.'),
+                        ]),
 
-                                Select::make('lens_category_id')
-                                    ->label('Lens Category')
-                                    ->options(LensCategory::query()->pluck('name', 'id'))
-                                    ->searchable()
-                                    ->preload()
-                                    ->nullable()
-                                    ->live()
-                                    ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                        if ($state !== null) {
-                                            $lens = LensCategory::find($state);
-                                            if ($lens) {
-                                                $set('description', $lens->name);
-                                                $set('unit_price', $lens->price);
-                                            }
-                                        }
-                                    }),
+                    Section::make('Notes')
+                        ->schema([
+                            Textarea::make('notes')
+                                ->label('Notes')
+                                ->columnSpanFull(),
+                        ]),
+                ]),
 
-                                TextInput::make('description')
-                                    ->required()
-                                    ->maxLength(255),
+                // ── Sidebar (1/3) ────────────────────────────────────
+                Grid::make(1)->columnSpan(1)->schema([
+                    Section::make('Payment')
+                        ->schema([
+                            Placeholder::make('billing_status')
+                                ->label('Status')
+                                ->content(fn (JobOrder $record): string => $record->billingRecord
+                                    ? Str::headline($record->billingRecord->status->value)
+                                    : 'No billing record'),
+                            Placeholder::make('billing_balance')
+                                ->label('Balance Due')
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) $record->billingRecord->balance_due, 2))
+                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                        ]),
 
-                                Grid::make(3)
-                                    ->schema([
-                                        TextInput::make('quantity')
-                                            ->required()
-                                            ->numeric()
-                                            ->integer()
-                                            ->minValue(1)
-                                            ->default(1)
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (Set $set, Get $get) => $set(
-                                                'amount',
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                            )),
+                    Section::make('Linked Records')
+                        ->schema([
+                            Placeholder::make('encounter_id')
+                                ->label('Encounter')
+                                ->content(fn (JobOrder $record): string => $record->encounter
+                                    ? "#{$record->encounter->id}"
+                                    : '—'),
+                            Placeholder::make('prescription_id')
+                                ->label('Prescription')
+                                ->content(fn (JobOrder $record): string => $record->prescription
+                                    ? "#{$record->prescription->id}"
+                                    : '—'),
+                            Placeholder::make('quotation_id')
+                                ->label('Source Quotation')
+                                ->content(fn (JobOrder $record): string => $record->quotation
+                                    ? $record->quotation->quotation_number
+                                    : 'Direct order'),
+                            Placeholder::make('frame_reservation_id')
+                                ->label('Frame Reservation')
+                                ->content(fn (JobOrder $record): string => $record->frameReservation
+                                    ? "#{$record->frameReservation->id}"
+                                    : '—'),
+                        ]),
 
-                                        TextInput::make('unit_price')
-                                            ->required()
-                                            ->numeric()
-                                            ->prefix('₱')
-                                            ->live(onBlur: true)
-                                            ->afterStateUpdated(fn (Set $set, Get $get) => $set(
-                                                'amount',
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                            )),
-
-                                        TextInput::make('amount')
-                                            ->numeric()
-                                            ->prefix('₱')
-                                            ->dehydrated()
-                                            ->readOnly(),
-                                    ]),
-                            ])
-                            ->columns(2)
-                            ->addActionLabel('Add Product')
-                            ->reorderable()
-                            ->collapsible()
-                            ->defaultItems(1)
-                            ->columnSpanFull(),
-                    ]),
-
-                Placeholder::make('transaction_type')
-                    ->label('Transaction Type')
-                    ->content('Product-only'),
-
-                Section::make('Pricing')
-                    ->schema([
-                        Grid::make(3)
-                            ->schema([
-                                TextInput::make('subtotal')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->readOnly()
-                                    ->dehydrated(),
-
-                                TextInput::make('discount_amount')
-                                    ->label('Discount')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->default(0)
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set, Get $get) => $set(
-                                        'total',
-                                        max(((float) ($get('subtotal') ?? 0)) - ((float) ($get('discount_amount') ?? 0)), 0),
-                                    )),
-
-                                TextInput::make('total')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->readOnly()
-                                    ->dehydrated(),
-                            ]),
-                    ]),
-
-                Section::make('Notes')
-                    ->schema([
-                        Textarea::make('notes')
-                            ->label('Notes')
-                            ->rows(3)
-                            ->columnSpanFull(),
-                    ]),
-            ]);
+                    Section::make('Timeline')
+                        ->schema([
+                            Placeholder::make('created_at')
+                                ->label('Created')
+                                ->content(fn (JobOrder $record): string => $record->created_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('started_at')
+                                ->label('Started')
+                                ->content(fn (JobOrder $record): string => $record->started_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('ready_at')
+                                ->label('Ready')
+                                ->content(fn (JobOrder $record): string => $record->ready_at?->diffForHumans() ?? '—'),
+                            Placeholder::make('dispensed_at')
+                                ->label('Dispensed')
+                                ->content(fn (JobOrder $record): string => $record->dispensed_at?->diffForHumans() ?? '—')
+                                ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Dispensed),
+                            Placeholder::make('cancelled_at')
+                                ->label('Cancelled')
+                                ->content(fn (JobOrder $record): string => $record->cancelled_at?->diffForHumans() ?? '—')
+                                ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Cancelled),
+                        ]),
+                ]),
+            ]),
+        ]);
     }
 }

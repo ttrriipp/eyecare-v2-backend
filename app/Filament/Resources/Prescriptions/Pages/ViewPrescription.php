@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Prescriptions\Pages;
 
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Prescription;
+use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\ViewRecord;
@@ -102,6 +104,21 @@ class ViewPrescription extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('createQuotation')
+                ->label('Create Quotation')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('success')
+                ->visible(fn (): bool => $this->getRecord()->isCurrentVersion()
+                    && $this->getRecord()->encounter !== null
+                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
+                    && ! Quotation::query()
+                        ->withTrashed()
+                        ->where('encounter_id', $this->getRecord()->encounter_id)
+                        ->exists())
+                ->url(fn (): string => QuotationResource::getUrl('create', [
+                    'encounter' => $this->getRecord()->encounter_id,
+                ])),
+
             Action::make('amendPrescription')
                 ->label('Amend Prescription')
                 ->icon('heroicon-o-document-plus')

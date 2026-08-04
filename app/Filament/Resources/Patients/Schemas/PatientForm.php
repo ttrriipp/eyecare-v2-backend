@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Patients\Schemas;
 
+use App\Actions\Patients\SearchPatientDuplicates;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Models\PatientInvitation;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -9,8 +11,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\TextSize;
+use Illuminate\Support\HtmlString;
 
 class PatientForm
 {
@@ -23,17 +27,21 @@ class PatientForm
                     Section::make('Patient Information')->columns(2)->schema([
                         TextInput::make('first_name')
                             ->label('First Name')
-                            ->required(),
+                            ->required()
+                            ->live(onBlur: true),
                         TextInput::make('last_name')
                             ->label('Last Name')
-                            ->required(),
+                            ->required()
+                            ->live(onBlur: true),
                         TextInput::make('middle_name')
                             ->label('Middle Name')
-                            ->nullable(),
+                            ->nullable()
+                            ->live(onBlur: true),
                         TextInput::make('phone')
                             ->tel()
                             ->required()
                             ->prefix('+63')
+                            ->live(onBlur: true)
                             ->formatStateUsing(fn (?string $state): ?string => $state !== null
                                 ? preg_replace('/^\+63/', '', $state)
                                 : null
@@ -45,11 +53,13 @@ class PatientForm
                         TextInput::make('contact_email')
                             ->label('Email')
                             ->email()
-                            ->nullable(),
+                            ->nullable()
+                            ->live(onBlur: true),
                         DatePicker::make('date_of_birth')
                             ->label('Date of Birth')
                             ->required()
-                            ->maxDate(now()),
+                            ->maxDate(now())
+                            ->live(onBlur: true),
                         Select::make('gender')
                             ->options([
                                 'male' => 'Male',
@@ -67,6 +77,50 @@ class PatientForm
 
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
+                    Section::make('Possible Existing Records')
+                        ->visibleOn('create')
+                        ->schema([
+                            Placeholder::make('duplicate_matches')
+                                ->hiddenLabel()
+                                ->content(function (Get $get): HtmlString {
+                                    $phone = filled($get('phone'))
+                                        ? '+63'.preg_replace('/[^0-9]/', '', $get('phone'))
+                                        : null;
+
+                                    $fullName = trim(collect([
+                                        $get('first_name'),
+                                        $get('middle_name'),
+                                        $get('last_name'),
+                                    ])->filter()->implode(' '));
+
+                                    $matches = app(SearchPatientDuplicates::class)->handle([
+                                        'contact_email' => $get('contact_email'),
+                                        'phone' => $phone,
+                                        'full_name' => $fullName,
+                                        'date_of_birth' => $get('date_of_birth'),
+                                    ]);
+
+                                    if ($matches->isEmpty()) {
+                                        return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matches yet — fill in name, phone, email, or date of birth.</span>');
+                                    }
+
+                                    $rows = $matches->map(function ($patient): string {
+                                        $url = PatientResource::getUrl('edit', ['record' => $patient]);
+
+                                        return '<li><a href="'.e($url).'" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                            .e($patient->full_name).'</a> — '.e($patient->patient_number)
+                                            .($patient->date_of_birth !== null ? ' — DOB '.e($patient->date_of_birth->format('M j, Y')) : '')
+                                            .'</li>';
+                                    })->implode('');
+
+                                    return new HtmlString(
+                                        '<div class="text-sm text-warning-600 dark:text-warning-400">⚠ Possible existing record'
+                                        .($matches->count() > 1 ? 's' : '').' found:</div>'
+                                        .'<ul class="mt-1 list-disc space-y-1 pl-5 text-sm">'.$rows.'</ul>'
+                                    );
+                                }),
+                        ]),
+
                     Section::make('App Access')
                         ->hiddenOn('create')
                         ->schema([
