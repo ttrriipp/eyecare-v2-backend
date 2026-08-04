@@ -45,10 +45,6 @@ class AppointmentRequestsRelationManager extends RelationManager
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
 
-                TextColumn::make('reason_for_visit')
-                    ->label('Reason')
-                    ->limit(50),
-
                 TextColumn::make('created_at')
                     ->label('Submitted')
                     ->dateTime('M j, Y g:i A')
