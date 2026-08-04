@@ -54,9 +54,6 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('prescription_number')
                             ->label('Prescription Number')
                             ->content($record->prescription_number ?? '—'),
-                        Placeholder::make('prescribed_at')
-                            ->label('Prescribed Date')
-                            ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
                         Placeholder::make('patient_name')
                             ->label('Patient')
                             ->content($record->patient?->full_name ?? '—'),
@@ -69,6 +66,9 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('optometrist')
                             ->label('Prescribing Optometrist')
                             ->content($record->author?->full_name ?? '—'),
+                        Placeholder::make('prescribed_at')
+                            ->label('Prescribed Date')
+                            ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
                     ])
                     ->columnSpan(1),
             ]),
