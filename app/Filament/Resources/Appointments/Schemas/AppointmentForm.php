@@ -117,7 +117,7 @@ class AppointmentForm
                                 ->columnSpanFull(),
 
                             Placeholder::make('new_patient_duplicate_matches')
-                                ->label('Possible Existing Records')
+                                ->hiddenLabel()
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->columnSpanFull()
                                 ->content(function (Get $get): HtmlString {
@@ -137,6 +137,10 @@ class AppointmentForm
                                         'full_name' => $fullName,
                                         'date_of_birth' => $get('new_patient_date_of_birth'),
                                     ]);
+
+                                    if ($matches->isEmpty()) {
+                                        return new HtmlString('');
+                                    }
 
                                     return PatientDuplicateMatchCard::render(
                                         $matches,
