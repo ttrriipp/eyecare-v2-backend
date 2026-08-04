@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
+use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
@@ -10,12 +11,19 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Quotations\Actions\CreateQuotationAction;
+use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Grid;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +33,8 @@ class EditEncounter extends EditRecord
     protected static string $resource = EncounterResource::class;
 
     private bool $isCompletingVisit = false;
+
+    public bool $isSavingDraft = false;
 
     /**
      * @var array<int, string>
@@ -91,7 +101,9 @@ class EditEncounter extends EditRecord
         $prescriptionData = $data['prescription'] ?? [];
         unset($data['prescription']);
 
-        $shouldFinalizePrescription = $record->status === EncounterStatus::InProgress
+        // Only finalize prescription when completing the visit, not when saving draft
+        $shouldFinalizePrescription = ! $this->isSavingDraft
+            && $record->status === EncounterStatus::InProgress
             && $this->shouldFinalizePrescription($prescriptionData)
             && ! $record->prescriptions()->withTrashed()->exists();
         $author = $shouldFinalizePrescription ? auth()->user() : null;
@@ -193,22 +205,18 @@ class EditEncounter extends EditRecord
                     'record' => $this->record->prescriptions()->latest('id')->value('id'),
                 ])),
 
-            Action::make('createOpticalOrder')
-                ->label('Create Optical Order')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
-                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
-                    && $this->record->prescriptions()
-                        ->whereDoesntHave('nextPrescription')
-                        ->exists()
-                    && ! Quotation::query()
-                        ->withTrashed()
-                        ->where('encounter_id', $this->record->id)
-                        ->exists())
-                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
-                    'encounter' => $this->record->id,
-                ])),
+            CreateQuotationAction::make(
+                patientResolver: fn (): Patient => $this->record->patient,
+                encounterResolver: fn (): Encounter => $this->record,
+            )->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
+                && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
+                && $this->record->prescriptions()
+                    ->whereDoesntHave('nextPrescription')
+                    ->exists()
+                && ! Quotation::query()
+                    ->withTrashed()
+                    ->where('encounter_id', $this->record->id)
+                    ->exists()),
 
             Action::make('viewOpticalOrder')
                 ->label('View Optical Order')
@@ -217,12 +225,18 @@ class EditEncounter extends EditRecord
                 ->visible(fn (): bool => Quotation::query()
                     ->where('encounter_id', $this->record->id)
                     ->exists())
-                ->url(fn (): string => OpticalOrderResource::getUrl('view', [
-                    'record' => Quotation::query()
+                ->url(function (): string {
+                    $quotation = Quotation::query()
                         ->where('encounter_id', $this->record->id)
                         ->latest('id')
-                        ->value('id'),
-                ])),
+                        ->first();
+
+                    if ($quotation?->jobOrder !== null) {
+                        return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
+                    }
+
+                    return QuotationResource::getUrl('edit', ['record' => $quotation]);
+                }),
 
             Action::make('startEncounter')
                 ->label('Start Consultation')
@@ -255,6 +269,57 @@ class EditEncounter extends EditRecord
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
                     }
+                }),
+
+            Action::make('addCharge')
+                ->label('Add Charge')
+                ->icon('heroicon-o-plus-circle')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
+                ->schema([
+                    Repeater::make('items')
+                        ->hiddenLabel()
+                        ->schema([
+                            TextInput::make('description')
+                                ->required()
+                                ->maxLength(255),
+                            Grid::make(2)->schema([
+                                TextInput::make('quantity')
+                                    ->numeric()
+                                    ->integer()
+                                    ->minValue(1)
+                                    ->default(1)
+                                    ->required(),
+                                TextInput::make('unit_price')
+                                    ->label('Unit Price')
+                                    ->numeric()
+                                    ->prefix('₱')
+                                    ->minValue(0)
+                                    ->required(),
+                            ]),
+                        ])
+                        ->columns(2)
+                        ->defaultItems(0)
+                        ->minItems(1)
+                        ->addActionLabel('Add Service Line'),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $billingRecord = app(AddEncounterChargesToBilling::class)->handle(
+                            encounter: $this->record,
+                            items: $data['items'],
+                        );
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->title('Charge added')
+                        ->body("Billing Record: {$billingRecord->billing_record_number}")
+                        ->success()
+                        ->send();
                 }),
 
             Action::make('assignOptometrist')

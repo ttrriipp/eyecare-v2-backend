@@ -123,10 +123,12 @@ class EncounterForm
                             ->columnSpanFull(),
                     ])
                     ->afterValidation(function (EditEncounter $livewire): void {
+                        $livewire->isSavingDraft = true;
                         $livewire->save(
                             shouldRedirect: false,
                             shouldSendSavedNotification: false,
                         );
+                        $livewire->isSavingDraft = false;
                     }),
 
                 Step::make('Encounter Summary')
