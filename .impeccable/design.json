@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-04T21:10:00Z",
+  "title": "Design System: Eyecare — Padilla Optical Clinic Admin",
+  "extensions": {
+    "colorMeta": {
+      "clinical-blue": {
+        "role": "primary",
+        "displayName": "Clinical Blue",
+        "canonical": "#4F8DD7",
+        "tonalRamp": ["#0F2A45", "#173F66", "#215687", "#2E6EA8", "#4F8DD7", "#7EACE2", "#AECBEC", "#E1EDF9"]
+      },
+      "status-success": {
+        "role": "semantic",
+        "displayName": "Success Green",
+        "canonical": "#16A34A",
+        "tonalRamp": ["#052E13", "#0A4A20", "#116931", "#158A3E", "#16A34A", "#4ADE80", "#86EFAC", "#DCFCE7"]
+      },
+      "status-warning": {
+        "role": "semantic",
+        "displayName": "Warning Amber",
+        "canonical": "#D97706",
+        "tonalRamp": ["#3A2205", "#5C3708", "#7E4A0B", "#A2600C", "#D97706", "#F5A623", "#FBC96B", "#FEECC8"]
+      },
+      "status-danger": {
+        "role": "semantic",
+        "displayName": "Danger Red",
+        "canonical": "#DC2626",
+        "tonalRamp": ["#3D0A0A", "#5F1414", "#821D1D", "#A82424", "#DC2626", "#EF5350", "#F49C9C", "#FBD5D5"]
+      },
+      "status-neutral": {
+        "role": "semantic",
+        "displayName": "Neutral Gray",
+        "canonical": "#4B5563",
+        "tonalRamp": ["#111418", "#1F242C", "#2E3540", "#3C4653", "#4B5563", "#8B95A1", "#C2C9D1", "#EAEDF0"]
+      }
+    },
+    "typographyMeta": {
+      "heading": { "displayName": "Heading", "purpose": "Section and page titles, modal headings." },
+      "body": { "displayName": "Body", "purpose": "Default text: table cells, card content, form values." },
+      "label": { "displayName": "Label", "purpose": "Form field labels, badge text, small meta lines." }
+    },
+    "shadows": [
+      { "name": "section-rest", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Filament's default section/card shadow at rest; not amplified anywhere in this project." }
+    ],
+    "breakpoints": [
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Filament's default primary action button, using the brand accent color.",
+      "html": "<button class=\"ds-btn-primary\">Save</button>",
+      "css": ".ds-btn-primary { background: #4F8DD7; color: #fff; padding: 0.5rem 1rem; border-radius: 0.5rem; font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; border: none; transition: background 0.15s ease; } .ds-btn-primary:hover { background: #3E76BE; } .ds-btn-primary:focus-visible { outline: 2px solid #4F8DD7; outline-offset: 2px; }"
+    },
+    {
+      "name": "Match Strength Badge",
+      "kind": "chip",
+      "refersTo": "badge-strength-strong",
+      "description": "Semantic strength/status pill used across every candidate-matching surface (Create Patient/Appointment duplicate checks, Patient Link Request and Appointment Request candidate review).",
+      "html": "<span class=\"ds-badge ds-badge-strong\">Strong</span> <span class=\"ds-badge ds-badge-moderate\">Moderate</span> <span class=\"ds-badge ds-badge-weak\">Weak</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; border-radius: 0.375rem; padding: 0.125rem 0.5rem; font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; } .ds-badge-strong { background: #F0FDF4; color: #16A34A; } .ds-badge-moderate { background: #FFFBEB; color: #D97706; } .ds-badge-weak { background: #F3F4F6; color: #4B5563; }"
+    },
+    {
+      "name": "Duplicate/Candidate Match Card",
+      "kind": "card",
+      "refersTo": "card-match-row",
+      "description": "The panel's signature custom component: a bordered, warning-tinted card listing possible existing-patient matches, each row linking out to the full record. Empty state is a dashed muted card, never blank space.",
+      "html": "<div class=\"ds-match-card\"><div class=\"ds-match-card-header\"><svg class=\"ds-match-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z\"/></svg>Possible existing records found</div><div class=\"ds-match-row\"><span class=\"ds-match-avatar\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z\"/></svg></span><span class=\"ds-match-body\"><span class=\"ds-match-name\">Ana Reyes</span><span class=\"ds-match-meta\">PAT-2026-000001 · DOB Jan 1, 1990</span></span><svg class=\"ds-match-chevron\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M8.25 4.5l7.5 7.5-7.5 7.5\"/></svg></div></div>",
+      "css": ".ds-match-card { border: 1px solid #FDE68A; border-radius: 0.75rem; overflow: hidden; font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; } .ds-match-card-header { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: #FFFBEB; color: #B45309; font-size: 0.875rem; font-weight: 500; } .ds-match-icon { width: 1rem; height: 1rem; flex-shrink: 0; } .ds-match-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-top: 1px solid #FDE68A; text-decoration: none; transition: background 0.15s ease; } .ds-match-row:hover { background: #FAFAFA; } .ds-match-avatar { display: flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 9999px; background: #FFFBEB; color: #D97706; flex-shrink: 0; } .ds-match-avatar svg { width: 1.25rem; height: 1.25rem; } .ds-match-body { flex: 1; min-width: 0; } .ds-match-name { display: block; font-size: 0.875rem; font-weight: 600; color: #0F172A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-match-meta { display: block; font-size: 0.75rem; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-match-chevron { width: 1rem; height: 1rem; color: #9CA3AF; flex-shrink: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Clinical Blue",
+    "overview": "This is Filament 5's own design language, deliberately left mostly stock, with one confident brand decision layered on top: a single blue (#4F8DD7) that shows up in the sidebar mark, primary buttons, links, and focus states, against Filament's default Slate neutrals. There is no bespoke component system underneath it — the honest description of this panel is \"Filament defaults plus a calm, trustworthy blue,\" not a from-scratch design language. That restraint is deliberate: staff already know how Filament panels behave, and unlearning nothing is a feature for a daily-use clinic tool.\n\nWhere this project does go further than stock Filament is in a handful of hand-built informational patterns introduced for identity/duplicate matching (Create Patient, Create Appointment, Patient Link Requests, Appointment Requests) — bordered result cards and match-strength badges rendered as raw HTML inside Placeholder components. These are the system's signature components and should be reused, not reinvented, anywhere a similar \"is this the same person\" judgment call needs surfacing to staff.\n\nThe audience skews toward less tech-fluent clinic staff and owners, so the tiebreak always favors clarity and confidence over density: an action's result should be obvious at a glance (a real \"Approved\" state, a badge that unmistakably reads as a warning), not just technically present in small, low-contrast text.",
+    "keyCharacteristics": [
+      "Flat, bordered surfaces — Filament's default fi-section card, not custom elevation.",
+      "One accent color used deliberately sparingly: primary buttons, links, and the logo mark, never as a wash across a whole screen.",
+      "Status is always color plus an icon or label text — never color alone.",
+      "Warm and reassuring over minimal: legible sizes, generous padding, and unambiguous confirmation states, even where a denser admin theme would compress them."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Clinical Blue is the only color used to mean \"act on this\" (buttons, links). It never doubles as a status color — status always comes from the success/warning/danger/neutral set, so \"this needs action\" and \"this is a warning\" are never visually confusable.", "section": "colors" },
+      { "name": "The No-Display-Face Rule", "body": "Don't introduce a second typeface or an oversized display size for emphasis. Emphasis comes from weight (600) and color (status/accent), not scale — this is a working tool, not an editorial page.", "section": "typography" },
+      { "name": "The Border-Over-Shadow Rule", "body": "When a custom component needs to separate from its surroundings (a match card, a banner), reach for a border and a tinted background first; add shadow only if Filament's own default section shadow doesn't already provide enough separation.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Clinical Blue reserved for actions and brand marks; never repurpose it as a status color.",
+      "Do pair every status/match-strength badge with a plain-language label (never color-only signaling), matching the confirmed WCAG 2.1 AA baseline.",
+      "Do reuse the duplicate/candidate match card pattern for any future \"is this the same person\" surface rather than building a new one.",
+      "Do favor Filament's default component styling for anything that isn't an identity-matching surface — most of this panel should look and behave like stock Filament."
+    ],
+    "donts": [
+      "Don't introduce a second accent color or a display typeface; the one-blue, one-typeface system is deliberate.",
+      "Don't add shadow-heavy \"lifted\" cards or hover-elevation effects — this system is flat by confirmed choice.",
+      "Don't compress match-strength or status information into color-only chips with no text, even to save space — the target audience (older clinic staff/owners) needs the label, not just the tint.",
+      "Don't invent new spacing/radius scales for a one-off component; reuse rounded.md/rounded.lg and Filament's existing section padding."
+    ]
+  }
+}
