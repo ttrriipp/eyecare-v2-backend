@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Patients\Schemas;
 
 use App\Actions\Patients\SearchPatientDuplicates;
-use App\Filament\Resources\Patients\PatientResource;
+use App\Filament\Support\PatientDuplicateMatchCard;
 use App\Models\PatientInvitation;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -100,23 +100,9 @@ class PatientForm
                                         'date_of_birth' => $get('date_of_birth'),
                                     ]);
 
-                                    if ($matches->isEmpty()) {
-                                        return new HtmlString('<span class="text-sm text-gray-500 dark:text-gray-400">No matches yet — fill in name, phone, email, or date of birth.</span>');
-                                    }
-
-                                    $rows = $matches->map(function ($patient): string {
-                                        $url = PatientResource::getUrl('edit', ['record' => $patient]);
-
-                                        return '<li><a href="'.e($url).'" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">'
-                                            .e($patient->full_name).'</a> — '.e($patient->patient_number)
-                                            .($patient->date_of_birth !== null ? ' — DOB '.e($patient->date_of_birth->format('M j, Y')) : '')
-                                            .'</li>';
-                                    })->implode('');
-
-                                    return new HtmlString(
-                                        '<div class="text-sm text-warning-600 dark:text-warning-400">⚠ Possible existing record'
-                                        .($matches->count() > 1 ? 's' : '').' found:</div>'
-                                        .'<ul class="mt-1 list-disc space-y-1 pl-5 text-sm">'.$rows.'</ul>'
+                                    return PatientDuplicateMatchCard::render(
+                                        $matches,
+                                        'No matches yet — fill in name, phone, email, or date of birth.',
                                     );
                                 }),
                         ]),

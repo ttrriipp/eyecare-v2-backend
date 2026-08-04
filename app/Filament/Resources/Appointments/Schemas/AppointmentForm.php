@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Actions\Patients\SearchPatientDuplicates;
-use App\Filament\Resources\Patients\PatientResource;
+use App\Filament\Support\PatientDuplicateMatchCard;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -117,7 +117,7 @@ class AppointmentForm
                                 ->columnSpanFull(),
 
                             Placeholder::make('new_patient_duplicate_matches')
-                                ->hiddenLabel()
+                                ->label('Possible Existing Records')
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->columnSpanFull()
                                 ->content(function (Get $get): HtmlString {
@@ -138,23 +138,9 @@ class AppointmentForm
                                         'date_of_birth' => $get('new_patient_date_of_birth'),
                                     ]);
 
-                                    if ($matches->isEmpty()) {
-                                        return new HtmlString('');
-                                    }
-
-                                    $rows = $matches->map(function ($patient): string {
-                                        $url = PatientResource::getUrl('edit', ['record' => $patient]);
-
-                                        return '<li><a href="'.e($url).'" target="_blank" class="text-primary-600 hover:underline dark:text-primary-400">'
-                                            .e($patient->full_name).'</a> — '.e($patient->patient_number)
-                                            .($patient->date_of_birth !== null ? ' — DOB '.e($patient->date_of_birth->format('M j, Y')) : '')
-                                            .'</li>';
-                                    })->implode('');
-
-                                    return new HtmlString(
-                                        '<div class="text-sm text-warning-600 dark:text-warning-400">⚠ Possible existing record'
-                                        .($matches->count() > 1 ? 's' : '').' found:</div>'
-                                        .'<ul class="mt-1 list-disc space-y-1 pl-5 text-sm">'.$rows.'</ul>'
+                                    return PatientDuplicateMatchCard::render(
+                                        $matches,
+                                        'No matching records yet — fill in name, phone, email, or date of birth.',
                                     );
                                 }),
 
