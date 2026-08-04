@@ -50,7 +50,16 @@ class AppointmentRequestForm
                     ->schema([
                         Placeholder::make('status')
                             ->label('Status')
-                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—')),
+                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—'))
+                            ->badge()
+                            ->color(fn ($record): string => match ($record?->status) {
+                                AppointmentRequestStatus::Pending => 'warning',
+                                AppointmentRequestStatus::Accepted => 'success',
+                                AppointmentRequestStatus::Rejected => 'danger',
+                                AppointmentRequestStatus::Cancelled => 'gray',
+                                AppointmentRequestStatus::Expired => 'gray',
+                                default => 'gray',
+                            }),
 
                         Placeholder::make('expires_at')
                             ->label('Expires')
