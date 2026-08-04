@@ -41,7 +41,8 @@ class PrescriptionForm
             : Section::make('Patient Information')->schema([
                 Select::make('patient_id')
                     ->label('Patient')
-                    ->relationship('patient', 'full_name')
+                    ->relationship('patient', 'first_name')
+                    ->getOptionLabelFromRecordUsing(fn (Patient $record): string => $record->full_name)
                     ->required()
                     ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
                     ->searchable()
