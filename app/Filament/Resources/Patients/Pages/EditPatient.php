@@ -6,7 +6,6 @@ use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
 use App\Filament\Resources\Patients\PatientResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Patient;
 use App\Models\PatientInvitation;
 use App\Models\User;
@@ -24,16 +23,6 @@ class EditPatient extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
-                ->color('success')
-                ->tooltip('No clinical encounter is attached — this quotation cannot include corrective lenses or other prescription-dependent items.')
-                ->visible(fn (): bool => in_array(auth()->user()?->role?->name, ['admin', 'staff'], true))
-                ->url(fn (): string => QuotationResource::getUrl('create', [
-                    'patient' => $this->getRecord()->id,
-                ])),
-
             Action::make('sendInvitation')
                 ->label('Send App Invitation')
                 ->icon('heroicon-o-envelope')
