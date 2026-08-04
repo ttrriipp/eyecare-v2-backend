@@ -29,9 +29,11 @@ class AppointmentRequestForm
                             ->label('Account Owner')
                             ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
 
-                        Placeholder::make('patient_name')
-                            ->label('Patient')
-                            ->content(fn ($record) => $record?->patient?->full_name ?? '—'),
+                        Placeholder::make('account_status')
+                            ->label('Account Status')
+                            ->content(fn ($record): string => $record?->patient_id !== null ? 'Linked' : 'Unlinked')
+                            ->badge()
+                            ->color(fn ($record): string => $record?->patient_id !== null ? 'success' : 'warning'),
 
                         Placeholder::make('preferred_time')
                             ->label('Preferred Time')
