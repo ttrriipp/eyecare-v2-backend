@@ -22,42 +22,50 @@ class AppointmentRequestForm
     {
         return $schema
             ->components([
-                TextInput::make('request_number')
-                    ->label('Request #')
-                    ->disabled(),
+                Section::make('Request Details')
+                    ->schema([
+                        TextInput::make('request_number')
+                            ->label('Request #')
+                            ->disabled(),
 
-                Placeholder::make('account_owner')
-                    ->label('Account Owner')
-                    ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
+                        Placeholder::make('account_owner')
+                            ->label('Account Owner')
+                            ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
 
-                Placeholder::make('patient_name')
-                    ->label('Patient')
-                    ->content(fn ($record) => $record?->patient?->full_name ?? 'Unlinked — needs resolution'),
+                        Placeholder::make('patient_name')
+                            ->label('Patient')
+                            ->content(fn ($record) => $record?->patient?->full_name ?? 'Unlinked — needs resolution'),
 
-                Placeholder::make('preferred_time')
-                    ->label('Preferred Time')
-                    ->content(fn ($record) => $record?->scheduled_at?->format('M j, Y g:i A') ?? '—'),
+                        Placeholder::make('preferred_time')
+                            ->label('Preferred Time')
+                            ->content(fn ($record) => $record?->scheduled_at?->format('M j, Y g:i A') ?? '—'),
 
-                Textarea::make('encrypted_reason_for_visit')
-                    ->label('Reason for Visit')
-                    ->disabled()
-                    ->columnSpanFull(),
+                        Textarea::make('encrypted_reason_for_visit')
+                            ->label('Reason for Visit')
+                            ->disabled()
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
 
-                Select::make('status')
-                    ->options(AppointmentRequestStatus::class)
-                    ->disabled(),
+                Section::make('Status')
+                    ->schema([
+                        Select::make('status')
+                            ->options(AppointmentRequestStatus::class)
+                            ->disabled(),
 
-                DateTimePicker::make('expires_at')
-                    ->label('Expires')
-                    ->disabled(),
+                        DateTimePicker::make('expires_at')
+                            ->label('Expires')
+                            ->disabled(),
 
-                Placeholder::make('resolved_by')
-                    ->label('Resolved By')
-                    ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—'),
+                        Placeholder::make('resolved_by')
+                            ->label('Resolved By')
+                            ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—'),
 
-                DateTimePicker::make('resolved_at')
-                    ->label('Resolved At')
-                    ->disabled(),
+                        DateTimePicker::make('resolved_at')
+                            ->label('Resolved At')
+                            ->disabled(),
+                    ])
+                    ->columns(2),
 
                 // Submitted identity section - only for unlinked snapshotted requests
                 Section::make('Submitted Identity')
