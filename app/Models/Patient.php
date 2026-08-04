@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Actions\PatientAccounts\NormalizeContact;
 use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +40,16 @@ class Patient extends Model
                 $patient->patient_number = sprintf('PAT-%s-%06d', $year, $sequence);
             }
         });
+    }
+
+    /**
+     * Normalize phone number to +63XXXXXXXXXX format.
+     */
+    protected function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = $value !== null
+            ? app(NormalizeContact::class)->phone($value)
+            : null;
     }
 
     /**

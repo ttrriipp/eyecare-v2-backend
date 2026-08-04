@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Actions\PatientAccounts\NormalizeContact;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
@@ -26,6 +27,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, InteractsWithAppAuthentication, Notifiable;
+
+    /**
+     * Normalize phone number to +63XXXXXXXXXX format.
+     */
+    protected function setPhoneAttribute(?string $value): void
+    {
+        $this->attributes['phone'] = $value !== null
+            ? app(NormalizeContact::class)->phone($value)
+            : null;
+    }
 
     /**
      * Derived full name from structured names.
