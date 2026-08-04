@@ -32,11 +32,6 @@ class AppointmentRequestsTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('age')
-                    ->label('Age')
-                    ->state(fn (AppointmentRequest $record): string => $record->created_at->diffForHumans(['short' => true]))
-                    ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('created_at', $direction)),
-
                 TextColumn::make('patient.full_name')
                     ->label('Patient')
                     ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user?->full_name ?? '—')
@@ -58,11 +53,6 @@ class AppointmentRequestsTable
                     ->label('Preferred Date & Time')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
-
-                TextColumn::make('reason_for_visit')
-                    ->label('Reason')
-                    ->limit(50)
-                    ->wrap(),
 
                 TextColumn::make('expires_at')
                     ->label('Expires')
