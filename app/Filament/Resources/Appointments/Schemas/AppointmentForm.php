@@ -140,7 +140,6 @@ class AppointmentForm
 
                                     return PatientDuplicateMatchCard::render(
                                         $matches,
-                                        'No matching records yet — fill in name, phone, email, or date of birth.',
                                     );
                                 }),
 

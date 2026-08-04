@@ -14,9 +14,13 @@ class PatientDuplicateMatchCard
      *
      * @param  Collection<int, Patient>  $matches
      */
-    public static function render(Collection $matches, string $emptyMessage): HtmlString
+    public static function render(Collection $matches, string $emptyMessage = ''): HtmlString
     {
         if ($matches->isEmpty()) {
+            if (empty($emptyMessage)) {
+                return new HtmlString('');
+            }
+
             return new HtmlString(
                 '<div class="rounded-lg border border-dashed border-gray-300 p-3 text-center text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">'
                 .e($emptyMessage).'</div>'
