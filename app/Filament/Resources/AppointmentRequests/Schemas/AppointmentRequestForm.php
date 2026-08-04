@@ -5,11 +5,8 @@ namespace App\Filament\Resources\AppointmentRequests\Schemas;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\Patients\PatientResource;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
@@ -24,9 +21,9 @@ class AppointmentRequestForm
             ->components([
                 Section::make('Request Details')
                     ->schema([
-                        TextInput::make('request_number')
+                        Placeholder::make('request_number')
                             ->label('Request #')
-                            ->disabled(),
+                            ->content(fn ($record): string => $record?->request_number ?? '—'),
 
                         Placeholder::make('account_owner')
                             ->label('Account Owner')
@@ -49,22 +46,22 @@ class AppointmentRequestForm
 
                 Section::make('Status')
                     ->schema([
-                        Select::make('status')
-                            ->options(AppointmentRequestStatus::class)
-                            ->disabled(),
+                        Placeholder::make('status')
+                            ->label('Status')
+                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—')),
 
-                        DateTimePicker::make('expires_at')
+                        Placeholder::make('expires_at')
                             ->label('Expires')
-                            ->disabled(),
+                            ->content(fn ($record): string => $record?->expires_at?->format('M j, Y g:i A') ?? '—'),
 
                         Placeholder::make('resolved_by')
                             ->label('Resolved By')
                             ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—')
                             ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
 
-                        DateTimePicker::make('resolved_at')
+                        Placeholder::make('resolved_at')
                             ->label('Resolved At')
-                            ->disabled()
+                            ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
                             ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
                     ])
                     ->columns(2),
