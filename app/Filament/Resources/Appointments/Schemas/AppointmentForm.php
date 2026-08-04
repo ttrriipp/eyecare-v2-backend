@@ -68,6 +68,15 @@ class AppointmentForm
                                 ->label('Phone')
                                 ->tel()
                                 ->nullable()
+                                ->prefix('+63')
+                                ->formatStateUsing(fn (?string $state): ?string => $state !== null
+                                    ? preg_replace('/^\+63/', '', $state)
+                                    : null
+                                )
+                                ->dehydrateStateUsing(fn (?string $state): ?string => $state !== null
+                                    ? '+63'.preg_replace('/[^0-9]/', '', $state)
+                                    : null
+                                )
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->live(onBlur: true)
                                 ->dehydrated(false),
