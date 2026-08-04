@@ -419,7 +419,7 @@ class EncounterForm
                 ->columns(3),
 
             Section::make('Consultation')
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
                 ->schema([
                     Placeholder::make('view_chief_complaint')
                         ->label('Chief Complaint')
@@ -444,7 +444,7 @@ class EncounterForm
                 ->columns(2),
 
             Section::make('Findings')
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
                 ->schema([
                     Placeholder::make('view_findings')
                         ->label('Findings')
@@ -457,7 +457,7 @@ class EncounterForm
                 ]),
 
             Section::make('Charges')
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
                 ->schema([
                     // Show services already included by linked Optical Order
                     Placeholder::make('linked_order_services')
