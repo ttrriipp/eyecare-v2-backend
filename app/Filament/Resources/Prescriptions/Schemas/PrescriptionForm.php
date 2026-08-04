@@ -39,59 +39,56 @@ class PrescriptionForm
 
             Section::make('Prescription')
                 ->schema([
-                    Section::make('O.D. (Right Eye)')
-                        ->schema([
-                            Grid::make(3)->schema([
-                                Placeholder::make('main_od_value')
-                                    ->label('Value')
-                                    ->content(fn ($record) => $record->main_od_value ?? '—'),
-                                Placeholder::make('main_od_sphere')
-                                    ->label('SPH')
-                                    ->content(fn ($record) => $record->main_od_sphere ?? '—'),
-                                Placeholder::make('main_od_cylinder')
-                                    ->label('CX')
-                                    ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
-                            ]),
+                    Grid::make(3)->schema([
+                        Placeholder::make('main_od_value')
+                            ->label('O.D.')
+                            ->content(fn ($record) => $record->main_od_value ?? '—'),
+                        Placeholder::make('main_od_sphere')
+                            ->label('SPH')
+                            ->content(fn ($record) => $record->main_od_sphere ?? '—'),
+                        Placeholder::make('main_od_cylinder')
+                            ->label('CX')
+                            ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
+                    ]),
 
-                            Grid::make(3)->schema([
-                                Placeholder::make('add_od_value')
-                                    ->label('Value (ADD)')
-                                    ->content(fn ($record) => $record->add_od_value ?? '—'),
-                                Placeholder::make('add_od_sphere')
-                                    ->label('SPH (ADD)')
-                                    ->content(fn ($record) => $record->add_od_sphere ?? '—'),
-                                Placeholder::make('add_od_cylinder')
-                                    ->label('CX (ADD)')
-                                    ->content(fn ($record) => $record->add_od_cylinder ?? '—'),
-                            ]),
-                        ]),
+                    Grid::make(3)->schema([
+                        Placeholder::make('main_os_value')
+                            ->label('O.S.')
+                            ->content(fn ($record) => $record->main_os_value ?? '—'),
+                        Placeholder::make('main_os_sphere')
+                            ->label('SPH')
+                            ->content(fn ($record) => $record->main_os_sphere ?? '—'),
+                        Placeholder::make('main_os_cylinder')
+                            ->label('CX')
+                            ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
+                    ]),
+                ]),
 
-                    Section::make('O.S. (Left Eye)')
-                        ->schema([
-                            Grid::make(3)->schema([
-                                Placeholder::make('main_os_value')
-                                    ->label('Value')
-                                    ->content(fn ($record) => $record->main_os_value ?? '—'),
-                                Placeholder::make('main_os_sphere')
-                                    ->label('SPH')
-                                    ->content(fn ($record) => $record->main_os_sphere ?? '—'),
-                                Placeholder::make('main_os_cylinder')
-                                    ->label('CX')
-                                    ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
-                            ]),
+            Section::make('ADD')
+                ->schema([
+                    Grid::make(3)->schema([
+                        Placeholder::make('add_od_value')
+                            ->label('O.D.')
+                            ->content(fn ($record) => $record->add_od_value ?? '—'),
+                        Placeholder::make('add_od_sphere')
+                            ->label('SPH')
+                            ->content(fn ($record) => $record->add_od_sphere ?? '—'),
+                        Placeholder::make('add_od_cylinder')
+                            ->label('CX')
+                            ->content(fn ($record) => $record->add_od_cylinder ?? '—'),
+                    ]),
 
-                            Grid::make(3)->schema([
-                                Placeholder::make('add_os_value')
-                                    ->label('Value (ADD)')
-                                    ->content(fn ($record) => $record->add_os_value ?? '—'),
-                                Placeholder::make('add_os_sphere')
-                                    ->label('SPH (ADD)')
-                                    ->content(fn ($record) => $record->add_os_sphere ?? '—'),
-                                Placeholder::make('add_os_cylinder')
-                                    ->label('CX (ADD)')
-                                    ->content(fn ($record) => $record->add_os_cylinder ?? '—'),
-                            ]),
-                        ]),
+                    Grid::make(3)->schema([
+                        Placeholder::make('add_os_value')
+                            ->label('O.S.')
+                            ->content(fn ($record) => $record->add_os_value ?? '—'),
+                        Placeholder::make('add_os_sphere')
+                            ->label('SPH')
+                            ->content(fn ($record) => $record->add_os_sphere ?? '—'),
+                        Placeholder::make('add_os_cylinder')
+                            ->label('CX')
+                            ->content(fn ($record) => $record->add_os_cylinder ?? '—'),
+                    ]),
                 ]),
 
             Section::make('Details')->schema([
