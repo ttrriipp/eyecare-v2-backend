@@ -24,6 +24,7 @@ class RejectAppointmentRequest
             'status' => AppointmentRequestStatus::Rejected,
             'resolved_by_user_id' => $reviewer->id,
             'resolved_at' => now(),
+            'rejection_reason' => $reason,
         ]);
 
         return $request->fresh();

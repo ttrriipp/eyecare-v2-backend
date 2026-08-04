@@ -85,6 +85,12 @@ class AppointmentRequestForm
 
                                 return Carbon::parse($snapshot['submitted_at'])->format('M j, Y g:i A');
                             }),
+
+                        Placeholder::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->content(fn ($record): string => $record?->rejection_reason ?? '—')
+                            ->visible(fn ($record): bool => $record?->status === AppointmentRequestStatus::Rejected)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 

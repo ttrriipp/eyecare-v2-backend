@@ -27,6 +27,7 @@ class AppointmentRequest extends Model
         'expires_at',
         'resolved_by_user_id',
         'resolved_at',
+        'rejection_reason',
     ];
 
     protected function casts(): array
