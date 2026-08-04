@@ -114,8 +114,8 @@ class AppointmentRequestForm
                     ])
                     ->columns(2),
 
-                // Candidate matches section - only for unlinked snapshotted requests
-                Section::make('Candidate Matches')
+                // Potential matches section - only for unlinked snapshotted requests
+                Section::make('Potential Matches')
                     ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
                     ->schema([
                         Placeholder::make('candidates')
