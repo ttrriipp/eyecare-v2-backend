@@ -110,7 +110,7 @@ class AppointmentRequestForm
 
                         Placeholder::make('snapshot_gender')
                             ->label('Gender')
-                            ->content(fn ($record): string => $record?->getSnapshotGender() ?? '—'),
+                            ->content(fn ($record): string => Str::headline($record?->getSnapshotGender() ?? '—')),
 
                         Placeholder::make('snapshot_occupation')
                             ->label('Occupation')
