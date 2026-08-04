@@ -3,19 +3,13 @@
 namespace App\Filament\Resources\Prescriptions\Schemas;
 
 use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
-use App\Filament\Resources\Prescriptions\Pages\CreatePrescription;
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
-use App\Models\Appointment;
 use App\Models\Encounter;
-use App\Models\Patient;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Builder;
 
 class PrescriptionForm
 {
@@ -38,40 +32,7 @@ class PrescriptionForm
 
         $patientInformation = $forEncounter
             ? null
-            : Section::make('Patient Information')->schema([
-                Select::make('patient_id')
-                    ->label('Patient')
-                    ->relationship('patient', 'first_name')
-                    ->getOptionLabelFromRecordUsing(fn (Patient $record): string => $record->full_name)
-                    ->required()
-                    ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
-                    ->searchable()
-                    ->preload()
-                    ->live()
-                    ->createOptionForm([
-                        TextInput::make('first_name')->required(),
-                        TextInput::make('last_name')->required(),
-                        TextInput::make('phone')->required()->tel(),
-                        TextInput::make('contact_email')->email()->nullable(),
-                    ])
-                    ->createOptionUsing(fn (array $data): int => Patient::query()->create($data)->getKey()),
-                Select::make('appointment_id')
-                    ->disabled(fn (mixed $livewire): bool => $livewire instanceof CreatePrescription)
-                    ->relationship(
-                        'appointment',
-                        'id',
-                        fn (Builder $query, Get $get): Builder => $query
-                            ->when(
-                                filled($get('patient_id')),
-                                fn (Builder $appointmentQuery): Builder => $appointmentQuery->where('patient_id', $get('patient_id')),
-                            ),
-                    )
-                    ->getOptionLabelFromRecordUsing(
-                        fn (Appointment $record): string => "{$record->scheduled_at->format('Y-m-d H:i')} (#{$record->id})",
-                    )
-                    ->searchable()
-                    ->preload(),
-            ])->columns(2);
+            : null;
 
         return array_filter([
             $patientInformation,
