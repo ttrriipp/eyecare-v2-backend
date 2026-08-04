@@ -59,11 +59,13 @@ class AppointmentRequestForm
 
                         Placeholder::make('resolved_by')
                             ->label('Resolved By')
-                            ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—'),
+                            ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—')
+                            ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
 
                         DateTimePicker::make('resolved_at')
                             ->label('Resolved At')
-                            ->disabled(),
+                            ->disabled()
+                            ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
                     ])
                     ->columns(2),
 
