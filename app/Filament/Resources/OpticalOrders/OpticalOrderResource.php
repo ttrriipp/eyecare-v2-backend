@@ -27,11 +27,11 @@ class OpticalOrderResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'job_order_number';
 
-    protected static ?string $navigationLabel = 'Orders';
+    protected static ?string $navigationLabel = 'Optical Orders';
 
-    protected static ?string $modelLabel = 'Order';
+    protected static ?string $modelLabel = 'Optical Order';
 
-    protected static ?string $pluralModelLabel = 'Orders';
+    protected static ?string $pluralModelLabel = 'Optical Orders';
 
     public static function form(Schema $schema): Schema
     {
