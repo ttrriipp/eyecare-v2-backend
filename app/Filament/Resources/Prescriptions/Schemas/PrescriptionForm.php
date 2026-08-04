@@ -6,7 +6,6 @@ use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Models\Encounter;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -39,85 +38,46 @@ class PrescriptionForm
 
             Section::make('Prescription')
                 ->schema([
-                    Grid::make(3)->schema([
-                        TextInput::make('main_od_value')
+                    Grid::make(6)->schema([
+                        Placeholder::make('main_od_value')
                             ->label('O.D.')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('main_od_sphere')
+                            ->content(fn ($record) => $record->main_od_value ?? '—'),
+                        Placeholder::make('main_od_sphere')
                             ->label('SPH')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('main_od_cylinder')
+                            ->content(fn ($record) => $record->main_od_sphere ?? '—'),
+                        Placeholder::make('main_od_cylinder')
                             ->label('CX')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('main_os_value')
-                            ->label('O.S.')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('main_os_sphere')
-                            ->label('SPH')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('main_os_cylinder')
-                            ->label('CX')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
+                            ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
+                        Placeholder::make('add_od_value')
+                            ->label('O.D. (ADD)')
+                            ->content(fn ($record) => $record->add_od_value ?? '—'),
+                        Placeholder::make('add_od_sphere')
+                            ->label('SPH (ADD)')
+                            ->content(fn ($record) => $record->add_od_sphere ?? '—'),
+                        Placeholder::make('add_od_cylinder')
+                            ->label('CX (ADD)')
+                            ->content(fn ($record) => $record->add_od_cylinder ?? '—'),
                     ]),
-                ]),
 
-            Section::make('ADD')
-                ->schema([
-                    Grid::make(3)->schema([
-                        TextInput::make('add_od_value')
-                            ->label('O.D.')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('add_od_sphere')
-                            ->label('SPH')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('add_od_cylinder')
-                            ->label('CX')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('add_os_value')
+                    Grid::make(6)->schema([
+                        Placeholder::make('main_os_value')
                             ->label('O.S.')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('add_os_sphere')
+                            ->content(fn ($record) => $record->main_os_value ?? '—'),
+                        Placeholder::make('main_os_sphere')
                             ->label('SPH')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
-                        TextInput::make('add_os_cylinder')
+                            ->content(fn ($record) => $record->main_os_sphere ?? '—'),
+                        Placeholder::make('main_os_cylinder')
                             ->label('CX')
-                            ->numeric()
-                            ->step(0.25)
-                            ->nullable()
-                            ->disabled($disabledForExistingPrescription),
+                            ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
+                        Placeholder::make('add_os_value')
+                            ->label('O.S. (ADD)')
+                            ->content(fn ($record) => $record->add_os_value ?? '—'),
+                        Placeholder::make('add_os_sphere')
+                            ->label('SPH (ADD)')
+                            ->content(fn ($record) => $record->add_os_sphere ?? '—'),
+                        Placeholder::make('add_os_cylinder')
+                            ->label('CX (ADD)')
+                            ->content(fn ($record) => $record->add_os_cylinder ?? '—'),
                     ]),
                 ]),
 
