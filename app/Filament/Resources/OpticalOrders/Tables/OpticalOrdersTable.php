@@ -31,6 +31,13 @@ class OpticalOrdersTable
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
+                    ->formatStateUsing(fn (JobOrderStatus $state): string => match ($state) {
+                        JobOrderStatus::Queued => 'Queued',
+                        JobOrderStatus::InProgress => 'In Progress',
+                        JobOrderStatus::ReadyForDispensing => 'Ready for Dispensing',
+                        JobOrderStatus::Dispensed => 'Dispensed',
+                        JobOrderStatus::Cancelled => 'Cancelled',
+                    })
                     ->color(fn (JobOrderStatus $state): string => match ($state) {
                         JobOrderStatus::Queued => 'warning',
                         JobOrderStatus::InProgress => 'primary',
