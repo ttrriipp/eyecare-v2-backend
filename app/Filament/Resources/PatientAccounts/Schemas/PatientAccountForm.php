@@ -29,6 +29,10 @@ class PatientAccountForm
                             ->label('Phone')
                             ->content(fn ($record) => $record?->phone ?? '—'),
 
+                        Placeholder::make('date_of_birth')
+                            ->label('Date of Birth')
+                            ->content(fn ($record) => $record?->date_of_birth?->format('M j, Y') ?? '—'),
+
                         Placeholder::make('created_at')
                             ->label('Registered')
                             ->content(fn ($record) => $record?->created_at?->format('M j, Y g:i A') ?? '—'),
