@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Encounters\Pages;
 
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
+use App\Filament\Widgets\EncounterStatsWidget;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,11 @@ use Illuminate\Database\Eloquent\Builder;
 class ListEncounters extends ListRecords
 {
     protected static string $resource = EncounterResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [EncounterStatsWidget::class];
+    }
 
     /**
      * @return array<string, Tab>
