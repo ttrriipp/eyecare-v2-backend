@@ -12,6 +12,7 @@ use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\Patient;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -95,117 +96,119 @@ class AppointmentRequestsTable
                     ->options(AppointmentRequestStatus::class),
             ])
             ->recordActions([
-                Action::make('view')
-                    ->label('Review')
-                    ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
+                ActionGroup::make([
+                    Action::make('view')
+                        ->label('Review')
+                        ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
 
-                Action::make('linkToPatient')
-                    ->label('Link to Patient')
-                    ->icon('heroicon-o-link')
-                    ->color('primary')
-                    ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id === null)
-                    ->schema(function (AppointmentRequest $record): array {
-                        $candidateOptions = [];
+                    Action::make('linkToPatient')
+                        ->label('Link to Patient')
+                        ->icon('heroicon-o-link')
+                        ->color('primary')
+                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id === null)
+                        ->schema(function (AppointmentRequest $record): array {
+                            $candidateOptions = [];
 
-                        if ($record->hasIdentitySnapshot()) {
-                            $candidateOptions = app(RankPatientCandidates::class)
-                                ->fromSnapshot($record->encrypted_identity_snapshot)
-                                ->mapWithKeys(fn (array $candidate): array => [
-                                    $candidate['patient']->id => "{$candidate['patient']->full_name} ({$candidate['patient']->patient_number}) — ".Str::headline($candidate['strength']).' match',
+                            if ($record->hasIdentitySnapshot()) {
+                                $candidateOptions = app(RankPatientCandidates::class)
+                                    ->fromSnapshot($record->encrypted_identity_snapshot)
+                                    ->mapWithKeys(fn (array $candidate): array => [
+                                        $candidate['patient']->id => "{$candidate['patient']->full_name} ({$candidate['patient']->patient_number}) — ".Str::headline($candidate['strength']).' match',
+                                    ])
+                                    ->toArray();
+                            }
+
+                            $otherOptions = Patient::query()
+                                ->whereNotIn('id', array_keys($candidateOptions))
+                                ->get()
+                                ->mapWithKeys(fn (Patient $p): array => [
+                                    $p->id => "{$p->full_name} ({$p->patient_number})",
                                 ])
                                 ->toArray();
-                        }
 
-                        $otherOptions = Patient::query()
-                            ->whereNotIn('id', array_keys($candidateOptions))
-                            ->get()
-                            ->mapWithKeys(fn (Patient $p): array => [
-                                $p->id => "{$p->full_name} ({$p->patient_number})",
-                            ])
-                            ->toArray();
+                            return [
+                                Select::make('patient_id')
+                                    ->label('Patient')
+                                    ->options(array_filter([
+                                        'Candidate Matches' => $candidateOptions,
+                                        'All Patients' => $otherOptions,
+                                    ]))
+                                    ->searchable()
+                                    ->required()
+                                    ->helperText('Select which clinical record this request belongs to.'),
+                            ];
+                        })
+                        ->action(function (AppointmentRequest $record, array $data): void {
+                            try {
+                                $patient = Patient::findOrFail($data['patient_id']);
 
-                        return [
-                            Select::make('patient_id')
-                                ->label('Patient')
-                                ->options(array_filter([
-                                    'Candidate Matches' => $candidateOptions,
-                                    'All Patients' => $otherOptions,
-                                ]))
-                                ->searchable()
-                                ->required()
-                                ->helperText('Select which clinical record this request belongs to.'),
-                        ];
-                    })
-                    ->action(function (AppointmentRequest $record, array $data): void {
-                        try {
-                            $patient = Patient::findOrFail($data['patient_id']);
+                                app(LinkAppointmentRequestToPatient::class)->handle(
+                                    request: $record,
+                                    patient: $patient,
+                                );
 
-                            app(LinkAppointmentRequestToPatient::class)->handle(
-                                request: $record,
-                                patient: $patient,
-                            );
+                                Notification::make()->title('Request linked to patient')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot link request.';
+                                Notification::make()->title('Cannot link request')->body($message)->danger()->send();
+                            }
+                        }),
 
-                            Notification::make()->title('Request linked to patient')->success()->send();
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot link request.';
-                            Notification::make()->title('Cannot link request')->body($message)->danger()->send();
-                        }
-                    }),
+                    Action::make('accept')
+                        ->label('Accept')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id !== null)
+                        ->schema([
+                            Select::make('appointment_type_id')
+                                ->label('Appointment Type')
+                                ->options(AppointmentType::pluck('name', 'id'))
+                                ->required(),
+                        ])
+                        ->action(function (AppointmentRequest $record, array $data): void {
+                            try {
+                                $appointment = app(AcceptAppointmentRequest::class)->handle(
+                                    request: $record,
+                                    reviewer: auth()->user(),
+                                    appointmentTypeId: $data['appointment_type_id'],
+                                );
 
-                Action::make('accept')
-                    ->label('Accept')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id !== null)
-                    ->schema([
-                        Select::make('appointment_type_id')
-                            ->label('Appointment Type')
-                            ->options(AppointmentType::pluck('name', 'id'))
-                            ->required(),
-                    ])
-                    ->action(function (AppointmentRequest $record, array $data): void {
-                        try {
-                            $appointment = app(AcceptAppointmentRequest::class)->handle(
-                                request: $record,
-                                reviewer: auth()->user(),
-                                appointmentTypeId: $data['appointment_type_id'],
-                            );
+                                Notification::make()
+                                    ->title("Appointment {$appointment->appointment_number} created")
+                                    ->success()
+                                    ->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot accept.';
+                                Notification::make()->title('Cannot accept')->body($message)->danger()->send();
+                            }
+                        }),
 
-                            Notification::make()
-                                ->title("Appointment {$appointment->appointment_number} created")
-                                ->success()
-                                ->send();
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot accept.';
-                            Notification::make()->title('Cannot accept')->body($message)->danger()->send();
-                        }
-                    }),
+                    Action::make('reject')
+                        ->label('Reject')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending)
+                        ->schema([
+                            Textarea::make('reason')
+                                ->label('Reason')
+                                ->required(),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (AppointmentRequest $record, array $data): void {
+                            try {
+                                app(RejectAppointmentRequest::class)->handle(
+                                    request: $record,
+                                    reviewer: auth()->user(),
+                                    reason: $data['reason'],
+                                );
 
-                Action::make('reject')
-                    ->label('Reject')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending)
-                    ->schema([
-                        Textarea::make('reason')
-                            ->label('Reason')
-                            ->required(),
-                    ])
-                    ->requiresConfirmation()
-                    ->action(function (AppointmentRequest $record, array $data): void {
-                        try {
-                            app(RejectAppointmentRequest::class)->handle(
-                                request: $record,
-                                reviewer: auth()->user(),
-                                reason: $data['reason'],
-                            );
-
-                            Notification::make()->title('Request rejected')->success()->send();
-                        } catch (ValidationException $e) {
-                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot reject.';
-                            Notification::make()->title('Cannot reject')->body($message)->danger()->send();
-                        }
-                    }),
+                                Notification::make()->title('Request rejected')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot reject.';
+                                Notification::make()->title('Cannot reject')->body($message)->danger()->send();
+                            }
+                        }),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([]),
