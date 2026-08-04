@@ -114,7 +114,6 @@ class AppointmentRequestForm
 
                 // Candidate matches section - only for unlinked snapshotted requests
                 Section::make('Candidate Matches')
-                    ->description('Ranked automatically from the submitted identity. Use the "Link to Patient" action to resolve.')
                     ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
                     ->schema([
                         Placeholder::make('candidates')
