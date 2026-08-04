@@ -79,8 +79,8 @@ class AppointmentRequestForm
                     ])
                     ->columns(2),
 
-                // Submitted identity section - only for unlinked snapshotted requests
-                Section::make('Submitted Identity')
+                // Patient information section - only for unlinked snapshotted requests
+                Section::make('Patient Information')
                     ->visible(fn ($record): bool => $record?->hasIdentitySnapshot() ?? false)
                     ->schema([
                         Placeholder::make('snapshot_name')
