@@ -3,8 +3,9 @@
 namespace App\Filament\Resources\PatientAccounts\RelationManagers;
 
 use App\Enums\AppointmentRequestStatus;
-use App\Models\AppointmentRequest;
-use Filament\Forms\Components\Placeholder;
+use App\Filament\Resources\AppointmentRequests\Schemas\AppointmentRequestForm;
+use Filament\Actions\ActionGroup;
+use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -18,10 +19,7 @@ class AppointmentRequestsRelationManager extends RelationManager
 
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
-            Placeholder::make('request_number')
-                ->content(fn (?AppointmentRequest $record) => $record?->request_number ?? '—'),
-        ]);
+        return AppointmentRequestForm::configure($schema);
     }
 
     public function table(Table $table): Table
@@ -58,6 +56,11 @@ class AppointmentRequestsRelationManager extends RelationManager
             ])
             ->defaultSort('created_at', 'desc')
             ->paginated([5])
+            ->recordActions([
+                ActionGroup::make([
+                    ViewAction::make(),
+                ]),
+            ])
             ->heading(null);
     }
 }
