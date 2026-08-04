@@ -116,7 +116,7 @@ class EncounterForm
                         );
                     }),
 
-                Step::make('Prescription')
+                Step::make('Prescription (Optional)')
                     ->schema([
                         Group::make(PrescriptionForm::components(forEncounter: true))
                             ->statePath('prescription')
