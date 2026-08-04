@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\OpticalOrders;
 
-use App\Filament\Clusters\OpticalOrders\OpticalOrdersCluster;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
@@ -34,8 +33,6 @@ class OpticalOrderResource extends Resource
     protected static ?string $modelLabel = 'Order';
 
     protected static ?string $pluralModelLabel = 'Orders';
-
-    protected static ?string $cluster = OpticalOrdersCluster::class;
 
     public static function form(Schema $schema): Schema
     {

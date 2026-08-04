@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Quotations;
 
-use App\Filament\Clusters\OpticalOrders\OpticalOrdersCluster;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\Schemas\QuotationForm;
@@ -31,8 +30,6 @@ class QuotationResource extends Resource
     protected static ?int $navigationSort = 2;
 
     protected static string|UnitEnum|null $navigationGroup = 'Optical';
-
-    protected static ?string $cluster = OpticalOrdersCluster::class;
 
     public static function form(Schema $schema): Schema
     {
