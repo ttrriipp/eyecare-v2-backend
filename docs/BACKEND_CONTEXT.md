@@ -10,13 +10,23 @@
 > with explicit charge provenance have been implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
-> Filament cluster with per-optometrist Today/Next-7-Days resolution and
-> schedule-override audit logging, and a Service catalog was added so
-> clinical/service charges no longer need a product/lens-category
-> workaround. The API contract includes 51 routes (8 public, 24
-> account-only, 19 active-link). Legacy intake routes, direct booking,
-> job-orders, eyewear, and billing-records API routes have been removed.
-> All accounts use structured first/middle/last names.
+> Filament cluster (Clinic Hours, Optometrist Hours, Schedule Overrides —
+> the "Today" resolved-availability sub-page was built and then removed),
+> and a Service catalog was added so clinical/service charges no longer
+> need a product/lens-category workaround. `JobOrderResource` was folded
+> into `OpticalOrderResource` (index + edit only; creation happens via
+> quotation confirm-sale or the new "New Direct Order" direct-creation
+> flow). Quotation confirm-sale, Encounter service charges, and direct
+> Billing Record charges now share one open checkout per patient
+> visit instead of creating duplicate billing records per source. Staff
+> can reserve frames from any scheduled appointment regardless of source
+> (mobile, walk-in, or manually created), not just mobile-originated ones.
+> Patient app-invitation delivery is phone/SMS only (email invitation
+> delivery was removed) so the invitation-acceptance trust anchor matches
+> the verified login contact. The API contract includes 51 routes (8
+> public, 24 account-only, 19 active-link). Legacy intake routes, direct
+> booking, job-orders, eyewear, and billing-records API routes have been
+> removed. All accounts use structured first/middle/last names.
 
 ---
 
@@ -78,8 +88,8 @@ Use `User::isAdmin()` to check role in Filament. `is_optometrist` is a capabilit
 | Appointments | Create, check-in, reschedule, cancel, mark no-show | Cancel bulk |
 | Encounters | View | Start/complete (optometrist only) |
 | Prescriptions | View | Finalize/amend (optometrist only) |
-| Quotations | Present, accept/decline | — |
-| Job Orders | Start, mark ready, cancel | — |
+| Quotations | Present, accept/decline, confirm sale | — |
+| Optical Orders | Start, mark ready, dispense, cancel, create direct order | — |
 | Billing Records | Record payment | Void, correct payment |
 | Products | Create, edit, manage variants | Delete/restore |
 | Patients | Create, edit | Delete/restore |
@@ -170,7 +180,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create job orders. No revisions.
 
-**Job Orders:** `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path.
+**Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path.
 
 **Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates.
 
@@ -194,7 +204,6 @@ URL: `/admin` — accessible to `staff` and `admin` roles only.
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).
 
 **Availability cluster** (`app/Filament/Clusters/Availability/`) replaces the old single Availability page. Sub-pages:
-- **Today** — resolved Today/Next-7-Days availability summary, per optometrist (see `ResolveDailyAvailabilitySummary` below). A day only shows as open if at least one optometrist actually has an `in`/`away_partial` status that day — the clinic's own hours are never sufficient on their own, since only optometrists operate the clinic.
 - **Clinic Hours** — weekly `clinic_hours` schedule.
 - **Optometrist Hours** — per-optometrist `provider_hours` schedule.
 - **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete.
@@ -328,15 +337,20 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
-| `ResolveDailyAvailabilitySummary` | `app/Actions/Appointments/` | Resolves per-optometrist open/away/closed status for today + next 7 days from clinic hours, provider hours, and overrides |
 | `UpdateClinicHours` | `app/Actions/Appointments/` | Updates the weekly `clinic_hours` schedule, audit-logged |
 | `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
 | `ConvertFrameReservationToJobOrder` | `app/Actions/Reservations/` | Transfers reservation allocation to order commitment |
-| `AcceptAndStartOpticalOrder` | `app/Actions/OpticalOrders/` | Accepts quotation, creates Job Order + Billing Record |
+| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action, which works on any scheduled appointment regardless of `source` |
+| `AcceptAndStartOpticalOrder` | `app/Actions/OpticalOrders/` | Legacy accept-quotation flow (creates Job Order + Billing Record); still covered by tests but no longer reachable from the Filament UI, superseded by `ConfirmQuotationSale` |
+| `ConfirmQuotationSale` | `app/Actions/Quotations/` | Current confirm-sale flow used by the Quotation edit page: accepts the quotation, creates an Optical Order from product lines only, copies selected performed service lines into billing, and records an optional deposit — idempotent |
+| `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order directly for a patient without a preceding Quotation ("New Direct Order") |
 | `CreateQuotation` | `app/Actions/Quotations/` | Creates a quotation for a patient, from an in-progress encounter or, independently, from any current-version prescription (`?Prescription $prescription`); validates `service_id` items against active services |
 | `CancelOpticalOrder` | `app/Actions/OpticalOrders/` | Reverses inventory, voids unpaid billing, preserves payments |
+| `ResolveOpenCheckoutBillingRecord` | `app/Actions/BillingRecords/` | Resolves or reuses the one open Billing Record for a patient visit (matched by `job_order_id`/`encounter_id`) instead of creating a separate record per charge source |
+| `AddEncounterChargesToBilling` | `app/Actions/BillingRecords/` | Adds service-line charges from the Encounter edit page's "Add Service Charge" action to the visit's open Billing Record |
+| `AddDirectServiceChargesToBilling` | `app/Actions/BillingRecords/` | Adds service-line charges directly from the Billing Records list, independent of an encounter or optical order |
 | `AuditLegacyPatientIntakes` | `app/Actions/Encounters/` | Reports cleanup readiness for legacy intake data |
 | `PrunePatientAccountData` | `app/Actions/PatientAccounts/` | Prunes expired OTPs, tokens, invitations, terminal requests |
 | `CreateScheduledAppointment` | `app/Actions/Appointments/` | Creates appointment from mobile API with availability checks |
@@ -360,7 +374,11 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
 - **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, and date. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
 - **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant or lens category. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category pickers; an item may reference at most one of the three, and inactive services are rejected at validation time.
-- **Edit pages:** Quotations, Billing Records, and Job Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are read-only values resolved from `jobOrder.items`.
+- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
+- **Encounter "Create Quotation":** The in-progress/completed Encounter edit page also offers **Create Quotation**, opening `CreateQuotation` with `?encounter=` — distinct from the Prescription-page path: it requires the encounter's current prescription to be finalized, and is capped at one quotation per encounter (hidden once one exists). The Prescription-page path has no such cap.
+- **Encounter billing:** The Encounter edit page offers **Add Service Charge** (posts service-line charges via `AddEncounterChargesToBilling`) and **View Billing Record**, both resolving to the single open Billing Record for that patient visit via `ResolveOpenCheckoutBillingRecord` — charges added after a Quotation sale is confirmed land on the same record instead of opening a second one.
+- **Reserve Frames:** The Appointment edit page offers a staff-initiated **Reserve Frames** action for any scheduled, not-yet-elapsed appointment without an active reservation, regardless of `source` (mobile/walk-in/manual) — reuses `CreateFrameReservation`, the same action the mobile API uses.
+- **Patient app invitations:** "Send App Invitation" is phone/SMS only; email is not an invitation delivery channel, since the verified phone is also the account's login contact. In `local`/`testing`, invitation codes are logged for `sail artisan pail` visibility, mirroring OTP delivery.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
