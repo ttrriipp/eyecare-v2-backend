@@ -25,10 +25,9 @@ class OpticalOrderForm
                 Grid::make(1)->columnSpan(2)->schema([
                     Section::make('Order Details')
                         ->schema([
-                            TextInput::make('job_order_number')
+                            Placeholder::make('job_order_number')
                                 ->label('Order #')
-                                ->disabled()
-                                ->dehydrated(false),
+                                ->content(fn (JobOrder $record): string => $record->job_order_number ?? '—'),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
                                 ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—'),
@@ -39,11 +38,6 @@ class OpticalOrderForm
                                 ->label('Fulfillment')
                                 ->content(fn (JobOrder $record): string => Str::headline($record->fulfillment_mode)
                                     .($record->uses_external_supplier ? ' (External Supplier)' : '')),
-                            TextInput::make('total_amount')
-                                ->label('Total Amount')
-                                ->disabled()
-                                ->dehydrated(false)
-                                ->prefix('₱'),
                             TextInput::make('supplier_invoice_number')
                                 ->label('Supplier Invoice Number')
                                 ->maxLength(100)
@@ -90,6 +84,9 @@ class OpticalOrderForm
                 Grid::make(1)->columnSpan(1)->schema([
                     Section::make('Payment')
                         ->schema([
+                            Placeholder::make('total_amount')
+                                ->label('Total Amount')
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) $record->total_amount, 2)),
                             Placeholder::make('billing_status')
                                 ->label('Status')
                                 ->content(fn (JobOrder $record): string => $record->billingRecord
@@ -118,11 +115,6 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->quotation
                                     ? $record->quotation->quotation_number
                                     : 'Direct order'),
-                            Placeholder::make('frame_reservation_id')
-                                ->label('Frame Reservation')
-                                ->content(fn (JobOrder $record): string => $record->frameReservation
-                                    ? "#{$record->frameReservation->id}"
-                                    : '—'),
                         ]),
 
                     Section::make('Timeline')
