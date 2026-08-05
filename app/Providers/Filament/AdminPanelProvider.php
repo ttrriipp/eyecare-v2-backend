@@ -51,16 +51,21 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
+            ->discoverClusters(in: app_path('Filament/Clusters'), for: 'App\Filament\Clusters')
+            // The full sidebar runs taller than a 1366x768 front-desk laptop, so staff
+            // can reclaim the width. Icons stay visible when collapsed, which only works
+            // because every navigation icon is unique.
+            ->sidebarCollapsibleOnDesktop()
+            // Groups follow the clinic's working day, not the schema: the shift first,
+            // then the people, their care, the sale, the money, and finally reference data.
             ->navigationGroups([
-                'Schedule',
-                'Patients & Clinical',
+                'Today',
+                'Patients',
+                'Clinical',
                 'Optical',
-                'Finance',
-                'Catalog & Inventory',
-                'Communication',
-                'Reports',
-                'Administration',
-                'Settings',
+                'Billing',
+                'Catalog',
+                'Admin',
             ])
             ->pages([
                 Dashboard::class,

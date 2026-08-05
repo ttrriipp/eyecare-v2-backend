@@ -5,6 +5,7 @@ use App\Enums\QuotationStatus;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,6 +48,35 @@ test('draft quotation items and totals can be updated', function () {
         ->and((float) $updated->total)->toBe(7500.0)
         ->and($updated->items)->toHaveCount(2)
         ->and($updated->items->first()->description)->toBe('New frame');
+});
+
+test('valid_until and notes can be cleared by omitting them from the payload', function () {
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'valid_until' => now()->addWeek()->toDateString(),
+        'notes' => 'Old notes',
+        'internal_notes' => 'Old internal notes',
+    ]);
+
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+
+    $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
+        'valid_until' => null,
+        'notes' => null,
+        'internal_notes' => null,
+        'items' => [
+            ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000],
+        ],
+    ]);
+
+    expect($updated->valid_until)->toBeNull()
+        ->and($updated->notes)->toBeNull()
+        ->and($updated->internal_notes)->toBeNull();
 });
 
 test('editing presented quotation returns it to draft and clears presentation metadata', function () {
@@ -135,5 +165,25 @@ test('invalid product variant is rejected on update', function () {
 
     app(UpdateQuotationDraft::class)->handle($quotation, [
         'items' => [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 1000, 'product_variant_id' => 999999]],
+    ]);
+})->throws(ValidationException::class);
+
+test('a service reference is preserved on update', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
+    $service = Service::factory()->create(['price' => 800]);
+
+    $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
+        'items' => [['description' => $service->name, 'quantity' => 1, 'unit_price' => 800, 'service_id' => $service->id]],
+    ]);
+
+    expect($updated->items->first()->service_id)->toBe($service->id);
+});
+
+test('an inactive service is rejected on update', function () {
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
+    $service = Service::factory()->inactive()->create();
+
+    app(UpdateQuotationDraft::class)->handle($quotation, [
+        'items' => [['description' => $service->name, 'quantity' => 1, 'unit_price' => 800, 'service_id' => $service->id]],
     ]);
 })->throws(ValidationException::class);

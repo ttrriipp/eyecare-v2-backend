@@ -10,6 +10,7 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -286,4 +287,171 @@ test('mixed product and service items are preserved', function () {
 
     expect($quotation->items)->toHaveCount(3)
         ->and((float) $quotation->total)->toBe(6000.0);
+});
+
+test('a quotation item can reference the service catalog', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $service = Service::factory()->create(['price' => 800]);
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => $service->name,
+                'quantity' => 1,
+                'unit_price' => 800,
+                'service_id' => $service->id,
+            ]],
+        ],
+    );
+
+    expect($quotation->items->first()->service_id)->toBe($service->id);
+});
+
+test('an inactive service cannot be referenced on a new quotation item', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $service = Service::factory()->inactive()->create();
+
+    app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => $service->name,
+                'quantity' => 1,
+                'unit_price' => 800,
+                'service_id' => $service->id,
+            ]],
+        ],
+    );
+})->throws(ValidationException::class);
+
+test('a quotation item cannot reference both a service and a catalog item', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create();
+    $service = Service::factory()->create();
+
+    app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Invalid combined source',
+                'quantity' => 1,
+                'unit_price' => 1000,
+                'product_variant_id' => $variant->id,
+                'service_id' => $service->id,
+            ]],
+        ],
+    );
+})->throws(ValidationException::class);
+
+test('a standalone existing prescription allows corrective eyewear with no new encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+    $lensCategory = LensCategory::factory()->create(['price' => 1500]);
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $encounter->patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Single vision lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+                'lens_category_id' => $lensCategory->id,
+            ]],
+        ],
+        prescription: $prescription,
+    );
+
+    expect($quotation->encounter_id)->toBeNull()
+        ->and($quotation->prescription_id)->toBe($prescription->id);
+});
+
+test('a standalone prescription must belong to the patient', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $otherEncounter = Encounter::factory()->completed()->create();
+    $otherPrescription = Prescription::factory()->linkedToEncounter($otherEncounter)->create();
+    $lensCategory = LensCategory::factory()->create(['price' => 1500]);
+
+    app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Single vision lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+                'lens_category_id' => $lensCategory->id,
+            ]],
+        ],
+        prescription: $otherPrescription,
+    );
+})->throws(ValidationException::class);
+
+test('a superseded standalone prescription is rejected', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create([
+        'previous_prescription_id' => $original->id,
+    ]);
+    $lensCategory = LensCategory::factory()->create(['price' => 1500]);
+
+    app(CreateQuotation::class)->handle(
+        patient: $encounter->patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Single vision lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+                'lens_category_id' => $lensCategory->id,
+            ]],
+        ],
+        prescription: $original,
+    );
+})->throws(ValidationException::class);
+
+test('an explicit prescription takes priority over the encounter\'s own resolved prescription', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->inProgress()->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    // A second, unrelated current prescription for the same patient, from a
+    // different (older) encounter.
+    $otherEncounter = Encounter::factory()->completed()->create(['patient_id' => $encounter->patient_id]);
+    $explicitPrescription = Prescription::factory()->linkedToEncounter($otherEncounter)->create();
+    $lensCategory = LensCategory::factory()->create(['price' => 1500]);
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $encounter->patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Single vision lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+                'lens_category_id' => $lensCategory->id,
+            ]],
+        ],
+        encounter: $encounter,
+        prescription: $explicitPrescription,
+    );
+
+    expect($quotation->prescription_id)->toBe($explicitPrescription->id);
 });

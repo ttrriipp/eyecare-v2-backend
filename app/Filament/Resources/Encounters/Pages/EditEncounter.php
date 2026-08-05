@@ -6,13 +6,17 @@ use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\BillingRecord;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
@@ -21,6 +25,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -141,6 +146,15 @@ class EditEncounter extends EditRecord
     {
         return collect(self::PRESCRIPTION_FIELDS)
             ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
+    }
+
+    private function latestBillingRecord(): ?BillingRecord
+    {
+        return BillingRecord::query()
+            ->where('encounter_id', $this->record->id)
+            ->whereNull('deleted_at')
+            ->latest('id')
+            ->first();
     }
 
     protected function getFormActions(): array
@@ -273,7 +287,10 @@ class EditEncounter extends EditRecord
                 }),
 
             Action::make('addCharge')
-                ->label('Add Charge')
+                ->label(fn (): string => $this->latestBillingRecord()?->status !== null
+                    && in_array($this->latestBillingRecord()->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true)
+                    ? 'Add Another Service Charge'
+                    : 'Add Service Charge')
                 ->icon('heroicon-o-plus-circle')
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
@@ -281,9 +298,34 @@ class EditEncounter extends EditRecord
                     Repeater::make('items')
                         ->hiddenLabel()
                         ->schema([
+                            Select::make('service_id')
+                                ->label('Service')
+                                ->options(fn (): array => Service::query()
+                                    ->active()
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(fn (Service $service): array => [
+                                        $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
+                                    ])
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->live()
+                                ->columnSpanFull()
+                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                    $service = Service::query()->find($state);
+
+                                    if ($service === null) {
+                                        return;
+                                    }
+
+                                    $set('description', $service->name);
+                                    $set('unit_price', $service->price);
+                                }),
                             TextInput::make('description')
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->columnSpanFull(),
                             Grid::make(2)->schema([
                                 TextInput::make('quantity')
                                     ->numeric()
@@ -322,6 +364,15 @@ class EditEncounter extends EditRecord
                         ->success()
                         ->send();
                 }),
+
+            Action::make('viewBillingRecord')
+                ->label('View Billing Record')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->visible(fn (): bool => $this->latestBillingRecord() !== null)
+                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
+                    'record' => $this->latestBillingRecord(),
+                ])),
 
             Action::make('assignOptometrist')
                 ->label('Assign Optometrist')

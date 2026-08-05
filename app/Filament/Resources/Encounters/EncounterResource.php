@@ -13,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class EncounterResource extends Resource
 {
@@ -28,7 +29,11 @@ class EncounterResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'encounter_number';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 10;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Clinical';
+
+    protected static bool $isGloballySearchable = true;
 
     protected static string|NITENUM|null $NAVIGATIONGROUP = 'Patients & Clinical';
 

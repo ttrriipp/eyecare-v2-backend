@@ -7,6 +7,7 @@ use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\Encounter;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -25,20 +26,26 @@ class CreateQuotation extends CreateRecord
 
     public ?int $patientId = null;
 
-    public function mount(?string $encounter = null, ?string $patient = null): void
+    public ?int $prescriptionId = null;
+
+    public function mount(?string $encounter = null, ?string $patient = null, ?string $prescription = null): void
     {
         $encounter ??= request()->query('encounter');
         $patient ??= request()->query('patient');
+        $prescription ??= request()->query('prescription');
 
         $this->encounterId = filled($encounter) ? (int) $encounter : null;
         $this->patientId = filled($patient) ? (int) $patient : null;
+        $this->prescriptionId = filled($prescription) ? (int) $prescription : null;
 
         parent::mount();
     }
 
     public function getTitle(): string
     {
-        $patient = $this->resolveEncounter()?->patient ?? $this->resolvePatient();
+        $patient = $this->resolveEncounter()?->patient
+            ?? $this->resolvePrescription()?->patient
+            ?? $this->resolvePatient();
 
         return $patient !== null
             ? "New Quotation for {$patient->full_name}"
@@ -48,7 +55,7 @@ class CreateQuotation extends CreateRecord
     public function form(Schema $schema): Schema
     {
         $encounter = $this->resolveEncounter();
-        $patient = $encounter?->patient ?? $this->resolvePatient();
+        $patient = $encounter?->patient ?? $this->resolvePrescription()?->patient ?? $this->resolvePatient();
 
         return $schema
             ->columns(1)
@@ -87,7 +94,9 @@ class CreateQuotation extends CreateRecord
         abort_unless($creator instanceof User, 403);
 
         $encounter = $this->resolveEncounter();
+        $prescription = $this->resolvePrescription();
         $patient = $encounter?->patient
+            ?? $prescription?->patient
             ?? $this->resolvePatient()
             ?? Patient::query()->find($data['patient_id'] ?? null);
 
@@ -109,6 +118,7 @@ class CreateQuotation extends CreateRecord
                 creator: $creator,
                 data: $data,
                 encounter: $encounter,
+                prescription: $prescription,
             );
         } catch (ValidationException $e) {
             Notification::make()
@@ -139,5 +149,10 @@ class CreateQuotation extends CreateRecord
     private function resolvePatient(): ?Patient
     {
         return $this->patientId !== null ? Patient::query()->find($this->patientId) : null;
+    }
+
+    private function resolvePrescription(): ?Prescription
+    {
+        return $this->prescriptionId !== null ? Prescription::query()->find($this->prescriptionId) : null;
     }
 }

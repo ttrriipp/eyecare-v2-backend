@@ -6,6 +6,7 @@ use App\Actions\BillingRecords\AddDirectServiceChargesToBilling;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\Patient;
+use App\Models\Service;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -14,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
@@ -44,9 +46,34 @@ class ListBillingRecords extends ListRecords
                     Repeater::make('items')
                         ->hiddenLabel()
                         ->schema([
+                            Select::make('service_id')
+                                ->label('Service')
+                                ->options(fn (): array => Service::query()
+                                    ->active()
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(fn (Service $service): array => [
+                                        $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
+                                    ])
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->live()
+                                ->columnSpanFull()
+                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                    $service = Service::query()->find($state);
+
+                                    if ($service === null) {
+                                        return;
+                                    }
+
+                                    $set('description', $service->name);
+                                    $set('unit_price', $service->price);
+                                }),
                             TextInput::make('description')
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->columnSpanFull(),
                             Grid::make(2)->schema([
                                 TextInput::make('quantity')
                                     ->numeric()

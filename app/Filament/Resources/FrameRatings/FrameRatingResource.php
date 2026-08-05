@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class FrameRatingResource extends Resource
 {
@@ -24,7 +25,9 @@ class FrameRatingResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Ratings';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 40;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Optical';
 
     protected static string|NITENUM|null $NAVIGATIONGROUP = 'Communication';
 

@@ -11,12 +11,13 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class FrameReservationResource extends Resource
 {
     protected static ?string $model = FrameReservation::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBookmark;
 
     protected static ?string $navigationLabel = 'Frame Reservations';
 
@@ -24,7 +25,9 @@ class FrameReservationResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Reservations';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 30;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Optical';
 
     protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
 

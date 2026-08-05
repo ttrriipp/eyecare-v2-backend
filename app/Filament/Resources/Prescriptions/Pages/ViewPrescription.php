@@ -6,7 +6,6 @@ use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Prescription;
-use App\Models\Quotation;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\ViewRecord;
@@ -141,14 +140,9 @@ class ViewPrescription extends ViewRecord
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color('success')
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion()
-                    && $this->getRecord()->encounter !== null
-                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
-                    && ! Quotation::query()
-                        ->withTrashed()
-                        ->where('encounter_id', $this->getRecord()->encounter_id)
-                        ->exists())
+                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true))
                 ->url(fn (): string => QuotationResource::getUrl('create', [
-                    'encounter' => $this->getRecord()->encounter_id,
+                    'prescription' => $this->getRecord()->id,
                 ])),
 
             Action::make('amendPrescription')

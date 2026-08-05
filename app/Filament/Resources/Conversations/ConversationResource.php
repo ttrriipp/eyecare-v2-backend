@@ -17,9 +17,9 @@ class ConversationResource extends Resource
 
     protected static ?string $navigationLabel = 'Conversations';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 40;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Communication';
+    protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
     public static function getPages(): array
     {

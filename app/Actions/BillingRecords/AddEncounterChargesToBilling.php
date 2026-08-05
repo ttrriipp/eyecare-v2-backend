@@ -7,6 +7,7 @@ use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\Encounter;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,7 @@ class AddEncounterChargesToBilling
      * Encounter-only charges create itemized Billing Records with matching
      * Patient and Encounter source.
      *
-     * @param  array<int, array{description: string, quantity: int, unit_price: float}>  $items
+     * @param  array<int, array{description: string, quantity: int, unit_price: float, service_id?: int|null}>  $items
      */
     public function handle(
         Encounter $encounter,
@@ -34,6 +35,8 @@ class AddEncounterChargesToBilling
                 'items' => ['At least one service line is required.'],
             ]);
         }
+
+        $this->assertServicesActive($items);
 
         /** @var User $recorder */
         $recorder = auth()->user();
@@ -66,6 +69,7 @@ class AddEncounterChargesToBilling
                     'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                     'amount' => number_format($amountInCents / 100, 2, '.', ''),
                     'encounter_id' => $encounter->id,
+                    'service_id' => $item['service_id'] ?? null,
                 ]);
             }
 
@@ -83,5 +87,25 @@ class AddEncounterChargesToBilling
 
             return $billingRecord->fresh();
         });
+    }
+
+    /**
+     * @param  array<int, array{description: string, quantity: int, unit_price: float, service_id?: int|null}>  $items
+     */
+    private function assertServicesActive(array $items): void
+    {
+        $serviceIds = collect($items)->pluck('service_id')->filter()->unique();
+
+        if ($serviceIds->isEmpty()) {
+            return;
+        }
+
+        $activeCount = Service::query()->active()->whereIn('id', $serviceIds)->count();
+
+        if ($activeCount !== $serviceIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => ['One or more selected services are no longer available.'],
+            ]);
+        }
     }
 }

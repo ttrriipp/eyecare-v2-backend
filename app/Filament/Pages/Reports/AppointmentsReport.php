@@ -8,12 +8,15 @@ use BackedEnum;
 use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Str;
+use UnitEnum;
 
 class AppointmentsReport extends BaseReport
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 20;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Billing';
 
     protected static ?string $title = 'Appointments Report';
 

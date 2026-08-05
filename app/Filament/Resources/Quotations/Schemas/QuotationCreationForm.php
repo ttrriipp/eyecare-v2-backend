@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Quotations\Schemas;
 
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
+use App\Models\Service;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -54,6 +55,7 @@ class QuotationCreationForm
                                 ->options([
                                     'catalog' => 'Catalog Item',
                                     'lens' => 'Lens Category',
+                                    'service' => 'Service',
                                     'custom' => 'Custom Item or Service',
                                 ])
                                 ->default('catalog')
@@ -62,6 +64,7 @@ class QuotationCreationForm
                                 ->afterStateUpdated(function (Set $set): void {
                                     $set('product_variant_id', null);
                                     $set('lens_category_id', null);
+                                    $set('service_id', null);
                                     $set('description', null);
                                     $set('unit_price', null);
                                 }),
@@ -115,6 +118,28 @@ class QuotationCreationForm
                                     if ($lensCategory->price !== null) {
                                         $set('unit_price', $lensCategory->price);
                                     }
+                                }),
+                            Select::make('service_id')
+                                ->label('Service')
+                                ->options(fn (): array => Service::query()
+                                    ->active()
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->required(fn (Get $get): bool => $get('item_type') === 'service')
+                                ->visible(fn (Get $get): bool => $get('item_type') === 'service')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                    $service = Service::query()->find($state);
+
+                                    if ($service === null) {
+                                        return;
+                                    }
+
+                                    $set('description', $service->name);
+                                    $set('unit_price', $service->price);
                                 }),
                             TextInput::make('description')
                                 ->label('Description')

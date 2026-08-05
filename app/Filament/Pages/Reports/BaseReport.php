@@ -6,12 +6,9 @@ use Filament\Pages\Page;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Livewire\Attributes\Url;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use UnitEnum;
 
 abstract class BaseReport extends Page
 {
-    protected static string|UnitEnum|null $navigationGroup = 'Reports';
-
     protected string $view = 'filament.pages.reports.report';
 
     #[Url]

@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use UnitEnum;
 
 class AppointmentResource extends Resource
 {
@@ -25,7 +26,9 @@ class AppointmentResource extends Resource
 
     protected static ?string $navigationLabel = 'Appointments';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Today';
 
     protected static bool $isGloballySearchable = true;
 

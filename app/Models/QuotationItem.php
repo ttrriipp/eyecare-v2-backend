@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'amount',
     'product_variant_id',
     'lens_category_id',
+    'service_id',
     'item_type',
 ])]
 class QuotationItem extends Model
@@ -30,6 +31,11 @@ class QuotationItem extends Model
                 if ($item->product_variant_id !== null || $item->lens_category_id !== null) {
                     throw new \InvalidArgumentException('Service items cannot reference a product variant or lens category.');
                 }
+            }
+
+            // Product items cannot reference a service catalog entry
+            if ($item->item_type === TransactionItemType::Product && $item->service_id !== null) {
+                throw new \InvalidArgumentException('Product items cannot reference a service.');
             }
 
             // Product items with catalog references auto-set item_type
@@ -68,5 +74,13 @@ class QuotationItem extends Model
     public function lensCategory(): BelongsTo
     {
         return $this->belongsTo(LensCategory::class, 'lens_category_id');
+    }
+
+    /**
+     * @return BelongsTo<Service, $this>
+     */
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
     }
 }

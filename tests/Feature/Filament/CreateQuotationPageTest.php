@@ -46,6 +46,62 @@ test('staff creates a quotation from an encounter query context', function () {
         ->and($quotation->notes)->toBe('Patient-visible estimate note.');
 });
 
+test('staff creates a quotation from an existing prescription with no new encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
+        ->assertFormFieldDoesNotExist('patient_id')
+        ->fillForm([
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('prescription_id', $prescription->id)->firstOrFail();
+
+    expect($quotation->encounter_id)->toBeNull()
+        ->and($quotation->patient_id)->toBe($encounter->patient_id);
+});
+
+test('an existing prescription cannot be reused for corrective eyewear once superseded', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create([
+        'previous_prescription_id' => $original->id,
+    ]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $original->id])
+        ->fillForm([
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+            ]],
+        ])
+        ->call('create')
+        ->assertNotified();
+
+    expect(Quotation::query()->where('prescription_id', $original->id)->exists())->toBeFalse();
+});
+
 test('staff creates a quotation from a patient query context with no encounter', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -118,7 +174,7 @@ test('staff picks a patient manually when no context is provided', function () {
     expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeTrue();
 });
 
-test('prescription detail links to the create quotation page with the prescription\'s encounter', function () {
+test('prescription detail links to the create quotation page with the prescription itself', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();
     $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -129,5 +185,5 @@ test('prescription detail links to the create quotation page with the prescripti
         ->assertActionVisible('createQuotation');
 
     expect($component->instance()->getAction('createQuotation')->getUrl())
-        ->toBe(QuotationResource::getUrl('create', ['encounter' => $encounter->id]));
+        ->toBe(QuotationResource::getUrl('create', ['prescription' => $prescription->id]));
 });

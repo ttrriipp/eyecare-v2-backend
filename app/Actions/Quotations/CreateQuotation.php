@@ -9,6 +9,7 @@ use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\Encounter;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
@@ -30,6 +31,7 @@ class CreateQuotation
         User $creator,
         array $data,
         ?Encounter $encounter = null,
+        ?Prescription $prescription = null,
     ): Quotation {
         if (! in_array($creator->role->name, ['admin', 'staff'], true)) {
             throw ValidationException::withMessages([
@@ -39,7 +41,7 @@ class CreateQuotation
 
         $validated = $this->validate($data, $encounter);
 
-        return DB::transaction(function () use ($patient, $creator, $validated, $encounter): Quotation {
+        return DB::transaction(function () use ($patient, $creator, $validated, $encounter, $prescription): Quotation {
             // Validate encounter if provided
             if ($encounter !== null) {
                 $lockedEncounter = Encounter::query()
@@ -59,31 +61,41 @@ class CreateQuotation
                 }
             }
 
-            // Resolve prescription if corrective eyewear is included
+            // Resolve prescription if corrective eyewear is included. An explicitly
+            // passed prescription (an existing Rx, no new encounter) takes priority
+            // over resolving one from the encounter (a same-visit quotation).
             $prescriptionId = null;
             $hasCorrectiveItems = collect($validated['items'])->contains(
                 fn (array $item): bool => filled($item['lens_category_id'] ?? null),
             );
 
             if ($hasCorrectiveItems) {
-                if ($encounter === null) {
+                if ($prescription !== null) {
+                    if ($prescription->patient_id !== $patient->id || ! $prescription->isCurrentVersion()) {
+                        throw ValidationException::withMessages([
+                            'prescription' => ['The selected prescription is not this patient\'s current prescription.'],
+                        ]);
+                    }
+
+                    $prescriptionId = $prescription->id;
+                } elseif ($encounter !== null) {
+                    $resolved = $encounter->prescriptions()
+                        ->whereDoesntHave('nextPrescription')
+                        ->latest('id')
+                        ->first();
+
+                    if ($resolved === null) {
+                        throw ValidationException::withMessages([
+                            'prescription' => ['Finalize a current prescription before creating corrective eyewear.'],
+                        ]);
+                    }
+
+                    $prescriptionId = $resolved->id;
+                } else {
                     throw ValidationException::withMessages([
-                        'encounter' => ['An encounter is required when the order includes corrective eyewear.'],
+                        'encounter' => ['An encounter or an existing prescription is required when the order includes corrective eyewear.'],
                     ]);
                 }
-
-                $prescription = $encounter->prescriptions()
-                    ->whereDoesntHave('nextPrescription')
-                    ->latest('id')
-                    ->first();
-
-                if ($prescription === null) {
-                    throw ValidationException::withMessages([
-                        'prescription' => ['Finalize a current prescription before creating corrective eyewear.'],
-                    ]);
-                }
-
-                $prescriptionId = $prescription->id;
             }
 
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
@@ -101,6 +113,7 @@ class CreateQuotation
                     'amount' => $this->formatMoney($amountInCents),
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_type' => $itemType,
                     'amount_in_cents' => $amountInCents,
                 ];
@@ -176,6 +189,7 @@ class CreateQuotation
                     ->where('is_active', true),
             ],
             'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('is_active', true)],
         ]);
 
         $validator->after(function ($validator) use ($data): void {
@@ -184,6 +198,15 @@ class CreateQuotation
                     $validator->errors()->add(
                         "items.{$index}.product_variant_id",
                         'A quotation item can reference either a catalog item or a lens category, not both.',
+                    );
+                }
+
+                $hasCatalogReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
+
+                if ($hasCatalogReference && filled($item['service_id'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.service_id",
+                        'An item cannot reference both a service and a catalog item or lens category.',
                     );
                 }
             }

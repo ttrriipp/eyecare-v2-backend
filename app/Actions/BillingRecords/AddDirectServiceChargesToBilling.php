@@ -7,6 +7,7 @@ use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\Patient;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class AddDirectServiceChargesToBilling
      * Creates or reuses the open same-checkout Billing Record.
      * Direct services have no Quotation, Encounter, or Optical Order source.
      *
-     * @param  array<int, array{description: string, quantity: int, unit_price: float}>  $items
+     * @param  array<int, array{description: string, quantity: int, unit_price: float, service_id?: int|null}>  $items
      */
     public function handle(
         Patient $patient,
@@ -33,6 +34,8 @@ class AddDirectServiceChargesToBilling
                 'items' => ['At least one service line is required.'],
             ]);
         }
+
+        $this->assertServicesActive($items);
 
         /** @var User $recorder */
         $recorder = auth()->user();
@@ -64,6 +67,7 @@ class AddDirectServiceChargesToBilling
                     'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                     'amount' => number_format($amountInCents / 100, 2, '.', ''),
                     'encounter_id' => null,
+                    'service_id' => $item['service_id'] ?? null,
                 ]);
             }
 
@@ -81,5 +85,25 @@ class AddDirectServiceChargesToBilling
 
             return $billingRecord->fresh();
         });
+    }
+
+    /**
+     * @param  array<int, array{description: string, quantity: int, unit_price: float, service_id?: int|null}>  $items
+     */
+    private function assertServicesActive(array $items): void
+    {
+        $serviceIds = collect($items)->pluck('service_id')->filter()->unique();
+
+        if ($serviceIds->isEmpty()) {
+            return;
+        }
+
+        $activeCount = Service::query()->active()->whereIn('id', $serviceIds)->count();
+
+        if ($activeCount !== $serviceIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => ['One or more selected services are no longer available.'],
+            ]);
+        }
     }
 }

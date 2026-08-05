@@ -20,9 +20,9 @@ class PatientLinkRequestResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedLink;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Accounts & Access';
+    protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $recordTitleAttribute = 'request_number';
 

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Enums\ScheduleOverrideType;
 use App\Models\ClinicHour;
 use App\Models\ScheduleOverride;
 use Carbon\CarbonInterface;
@@ -41,9 +42,9 @@ readonly class ClinicSchedule
         $overrideTypes = [];
 
         foreach ($overrides as $override) {
-            $overrideTypes[] = $override->type;
+            $overrideTypes[] = $override->type->value;
 
-            if ($override->type === ScheduleOverride::TYPE_CLOSED) {
+            if ($override->type === ScheduleOverrideType::Closed) {
                 $isClosed = true;
             }
         }
@@ -56,7 +57,7 @@ readonly class ClinicSchedule
 
         $earlyCloseTime = null;
         foreach ($overrides as $override) {
-            if ($override->type === ScheduleOverride::TYPE_EARLY_CLOSE && $override->start_time !== null) {
+            if ($override->type === ScheduleOverrideType::EarlyClose && $override->start_time !== null) {
                 $earlyCloseTime = $override->start_time->format('H:i');
                 $closeTime = $earlyCloseTime;
             }

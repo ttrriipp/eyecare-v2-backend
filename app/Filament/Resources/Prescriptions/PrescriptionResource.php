@@ -15,16 +15,19 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class PrescriptionResource extends Resource
 {
     protected static ?string $model = Prescription::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedEye;
 
     protected static ?string $navigationLabel = 'Prescriptions';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Clinical';
 
     public static function form(Schema $schema): Schema
     {

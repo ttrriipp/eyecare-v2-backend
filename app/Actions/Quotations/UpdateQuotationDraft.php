@@ -48,6 +48,7 @@ class UpdateQuotationDraft
                     'amount' => self::formatMoney($amountInCents),
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_type' => $itemType,
                     'amount_in_cents' => $amountInCents,
                 ];
@@ -69,9 +70,9 @@ class UpdateQuotationDraft
                 'subtotal' => self::formatMoney($subtotalInCents),
                 'discount_amount' => self::formatMoney($discountInCents),
                 'total' => self::formatMoney($totalInCents),
-                'valid_until' => $validated['valid_until'] ?? $quotation->valid_until,
-                'notes' => self::nullableTrimmed($validated['notes'] ?? $quotation->notes),
-                'internal_notes' => self::nullableTrimmed($validated['internal_notes'] ?? $quotation->internal_notes),
+                'valid_until' => array_key_exists('valid_until', $validated) ? $validated['valid_until'] : $quotation->valid_until,
+                'notes' => self::nullableTrimmed(array_key_exists('notes', $validated) ? $validated['notes'] : $quotation->notes),
+                'internal_notes' => self::nullableTrimmed(array_key_exists('internal_notes', $validated) ? $validated['internal_notes'] : $quotation->internal_notes),
             ];
 
             if ($quotation->status === QuotationStatus::Presented) {
@@ -117,6 +118,7 @@ class UpdateQuotationDraft
                     ->where('is_active', true),
             ],
             'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('is_active', true)],
         ]);
 
         $validator->after(function ($validator) use ($data): void {
@@ -125,6 +127,15 @@ class UpdateQuotationDraft
                     $validator->errors()->add(
                         "items.{$index}.product_variant_id",
                         'A quotation item can reference either a catalog item or a lens category, not both.',
+                    );
+                }
+
+                $hasCatalogReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
+
+                if ($hasCatalogReference && filled($item['service_id'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.service_id",
+                        'An item cannot reference both a service and a catalog item or lens category.',
                     );
                 }
             }

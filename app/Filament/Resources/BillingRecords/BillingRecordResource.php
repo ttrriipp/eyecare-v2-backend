@@ -18,18 +18,17 @@ class BillingRecordResource extends Resource
 {
     protected static ?string $model = BillingRecord::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCurrencyDollar;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBanknotes;
 
     protected static ?string $navigationLabel = 'Billing & Payments';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Finance';
+    protected static string|UnitEnum|null $navigationGroup = 'Billing';
 
-    public static function shouldRegisterNavigation(): bool
-    {
-        return true;
-    }
+    protected static ?string $recordTitleAttribute = 'billing_record_number';
+
+    protected static bool $isGloballySearchable = true;
 
     public static function form(Schema $schema): Schema
     {

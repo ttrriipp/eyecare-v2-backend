@@ -20,11 +20,13 @@ class LensCategoryResource extends Resource
 {
     protected static ?string $model = LensCategory::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Settings';
+    protected static string|UnitEnum|null $navigationGroup = 'Catalog';
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedEye;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedViewfinderCircle;
 
     protected static ?string $navigationLabel = 'Lens Categories';
+
+    protected static ?int $navigationSort = 50;
 
     public static function canViewAny(): bool
     {

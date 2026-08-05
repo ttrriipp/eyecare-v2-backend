@@ -27,9 +27,9 @@ class AuditLogResource extends Resource
         return auth()->user()?->isAdmin() ?? false;
     }
 
-    protected static ?int $navigationSort = 41;
+    protected static ?int $navigationSort = 30;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Administration';
+    protected static string|UnitEnum|null $navigationGroup = 'Admin';
 
     public static function infolist(Schema $schema): Schema
     {

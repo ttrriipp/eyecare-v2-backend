@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\Encounters\Schemas;
 
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
+use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Carbon\CarbonInterface;
@@ -400,6 +402,37 @@ class EncounterForm
                 ])
                 ->columns(3),
 
+            Section::make('Billing')
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
+                ->schema([
+                    Placeholder::make('billing_status')
+                        ->label('Status')
+                        ->content(function (Encounter $record): string {
+                            $billing = self::latestBillingRecord($record);
+
+                            return $billing !== null
+                                ? Str::headline($billing->status->value)
+                                : 'No charges billed yet';
+                        })
+                        ->badge()
+                        ->color(fn (Encounter $record): string => match (self::latestBillingRecord($record)?->status) {
+                            BillingRecordStatus::Paid => 'success',
+                            BillingRecordStatus::PartiallyPaid => 'warning',
+                            BillingRecordStatus::Unpaid => 'danger',
+                            BillingRecordStatus::Voided => 'gray',
+                            default => 'gray',
+                        }),
+                    Placeholder::make('billing_total')
+                        ->label('Total')
+                        ->content(fn (Encounter $record): string => '₱'.number_format((float) self::latestBillingRecord($record)?->total_amount, 2))
+                        ->visible(fn (Encounter $record): bool => self::latestBillingRecord($record) !== null),
+                    Placeholder::make('billing_balance')
+                        ->label('Balance Due')
+                        ->content(fn (Encounter $record): string => '₱'.number_format((float) self::latestBillingRecord($record)?->balance_due, 2))
+                        ->visible(fn (Encounter $record): bool => self::latestBillingRecord($record) !== null),
+                ])
+                ->columns(3),
+
             Section::make('Patient')
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                 ->schema([
@@ -468,6 +501,15 @@ class EncounterForm
     private static function latestPrescription(Encounter $record): ?Prescription
     {
         return $record->prescriptions()->latest('id')->first();
+    }
+
+    private static function latestBillingRecord(Encounter $record): ?BillingRecord
+    {
+        return BillingRecord::query()
+            ->where('encounter_id', $record->id)
+            ->whereNull('deleted_at')
+            ->latest('id')
+            ->first();
     }
 
     private static function prescriptionStatus(Get $get, Encounter $record): string

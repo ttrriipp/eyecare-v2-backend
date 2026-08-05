@@ -4,6 +4,8 @@ use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
+use App\Models\JobOrder;
+use App\Models\Service;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,6 +80,28 @@ test('creates new billing after posted payment', function () {
     expect($second->id)->not->toBe($first->id);
 });
 
+test('a charge line can reference the service catalog', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    $service = Service::factory()->create(['price' => 1500]);
+
+    $billing = $this->action->handle(
+        encounter: $encounter,
+        items: [['description' => $service->name, 'quantity' => 1, 'unit_price' => 1500, 'service_id' => $service->id]],
+    );
+
+    expect($billing->items->first()->service_id)->toBe($service->id);
+});
+
+test('an inactive service cannot be charged', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    $service = Service::factory()->inactive()->create();
+
+    $this->action->handle(
+        encounter: $encounter,
+        items: [['description' => $service->name, 'quantity' => 1, 'unit_price' => 500, 'service_id' => $service->id]],
+    );
+})->throws(ValidationException::class);
+
 test('rejects empty items', function () {
     $encounter = Encounter::factory()->inProgress()->create();
 
@@ -86,6 +110,26 @@ test('rejects empty items', function () {
         items: [],
     );
 })->throws(ValidationException::class, 'At least one service line');
+
+test('reuses a combined billing record created from a confirmed quotation', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+
+    // Simulates the record ConfirmQuotationSale would have created for this encounter.
+    $existing = BillingRecord::factory()->create([
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+        'job_order_id' => JobOrder::factory()->create(['patient_id' => $encounter->patient_id])->id,
+        'status' => BillingRecordStatus::Unpaid,
+    ]);
+
+    $billing = $this->action->handle(
+        encounter: $encounter,
+        items: [['description' => 'Follow-up Consultation', 'quantity' => 1, 'unit_price' => 500]],
+    );
+
+    expect($billing->id)->toBe($existing->id)
+        ->and($billing->items)->toHaveCount(1);
+});
 
 test('creates separate billing when previous has posted payments', function () {
     $encounter = Encounter::factory()->inProgress()->create();

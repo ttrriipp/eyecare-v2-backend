@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -10,14 +11,14 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-test('create quotation action is hidden without an encounter', function () {
+test('create quotation action is visible without an encounter, using the prescription directly', function () {
     $staff = User::factory()->staff()->create();
     $prescription = Prescription::factory()->create(['encounter_id' => null]);
 
     $this->actingAs($staff);
 
     Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
-        ->assertActionHidden('createQuotation');
+        ->assertActionVisible('createQuotation');
 });
 
 test('create quotation action is hidden on a superseded prescription', function () {
@@ -34,7 +35,9 @@ test('create quotation action is hidden on a superseded prescription', function 
         ->assertActionHidden('createQuotation');
 });
 
-test('create quotation action is hidden when the encounter already has a quotation', function () {
+test('create quotation action stays visible when the prescription\'s originating encounter already has a quotation', function () {
+    // A prescription's own encounter having one quotation must not block using
+    // that same still-current prescription for an unrelated future quotation.
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();
     $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
@@ -47,5 +50,18 @@ test('create quotation action is hidden when the encounter already has a quotati
     $this->actingAs($staff);
 
     Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
-        ->assertActionHidden('createQuotation');
+        ->assertActionVisible('createQuotation');
+});
+
+test('the create quotation action links to the prescription, not the encounter', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->completed()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
+        ->assertActionHasUrl('createQuotation', QuotationResource::getUrl('create', [
+            'prescription' => $prescription->id,
+        ]));
 });

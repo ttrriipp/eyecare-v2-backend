@@ -18,18 +18,13 @@ class AppointmentRequestResource extends Resource
 {
     protected static ?string $model = AppointmentRequest::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInboxArrowDown;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Patients & Clinical';
+    protected static string|UnitEnum|null $navigationGroup = 'Today';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $recordTitleAttribute = 'request_number';
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return true;
-    }
 
     public static function canCreate(): bool
     {

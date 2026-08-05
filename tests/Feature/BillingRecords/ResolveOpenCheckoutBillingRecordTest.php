@@ -90,6 +90,22 @@ test('encounter-only creates correct source context', function () {
         ->and($billing->isEncounterOnly())->toBeTrue();
 });
 
+test('encounter-only reuses a combined record already open for that encounter', function () {
+    $jobOrder = JobOrder::factory()->create(['patient_id' => $this->patient->id]);
+    $encounter = Encounter::factory()->create(['patient_id' => $this->patient->id]);
+
+    $existing = BillingRecord::factory()->create([
+        'patient_id' => $this->patient->id,
+        'job_order_id' => $jobOrder->id,
+        'encounter_id' => $encounter->id,
+        'status' => BillingRecordStatus::Unpaid,
+    ]);
+
+    $result = $this->resolve->handle($this->patient, encounter: $encounter);
+
+    expect($result->id)->toBe($existing->id);
+});
+
 test('combined creates correct source context', function () {
     $jobOrder = JobOrder::factory()->create(['patient_id' => $this->patient->id]);
     $encounter = Encounter::factory()->create(['patient_id' => $this->patient->id]);

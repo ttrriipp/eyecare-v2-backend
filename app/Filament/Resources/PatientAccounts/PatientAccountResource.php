@@ -24,9 +24,9 @@ class PatientAccountResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserCircle;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Accounts & Access';
+    protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $navigationLabel = 'Patient Accounts';
 

@@ -69,9 +69,11 @@ class ResolveOpenCheckoutBillingRecord
             $query->where('job_order_id', $jobOrder->id)
                 ->whereNull('encounter_id');
         } elseif ($encounter !== null) {
-            // Encounter-only: must match encounter and no job order
-            $query->where('encounter_id', $encounter->id)
-                ->whereNull('job_order_id');
+            // Encounter caller with no specific Job Order in hand: reuse whatever
+            // open record is already tied to this encounter, whether it originated
+            // from a confirmed Quotation (has a job_order_id) or a direct charge
+            // (does not) — a visit has one open checkout, not one per source.
+            $query->where('encounter_id', $encounter->id);
         } else {
             return null;
         }

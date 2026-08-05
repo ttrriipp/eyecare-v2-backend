@@ -17,6 +17,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class PatientResource extends Resource
 {
@@ -30,7 +31,9 @@ class PatientResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Patient Records';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 10;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
     protected static bool $isGloballySearchable = true;
 

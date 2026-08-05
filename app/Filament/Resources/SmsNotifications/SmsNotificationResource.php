@@ -20,9 +20,9 @@ class SmsNotificationResource extends Resource
 
     protected static ?string $navigationLabel = 'SMS Log';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Communication';
+    protected static string|UnitEnum|null $navigationGroup = 'Admin';
 
-    protected static ?int $navigationSort = 35;
+    protected static ?int $navigationSort = 20;
 
     public static function canViewAny(): bool
     {

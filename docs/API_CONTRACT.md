@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-03) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary.
+> **Backend version:** Current repository state (2026-08-05) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1494,7 +1494,10 @@ never returned.
           "description": "Classic Rectangle Frame",
           "quantity": 1,
           "unit_price": "4500.00",
-          "amount": "4500.00"
+          "amount": "4500.00",
+          "product_variant_id": 42,
+          "lens_category_id": null,
+          "service_id": null
         },
         {
           "id": 2,
@@ -1502,7 +1505,10 @@ never returned.
           "description": "Progressive Lens with AR Coating",
           "quantity": 1,
           "unit_price": "3000.00",
-          "amount": "3000.00"
+          "amount": "3000.00",
+          "product_variant_id": null,
+          "lens_category_id": 7,
+          "service_id": null
         },
         {
           "id": 3,
@@ -1510,7 +1516,10 @@ never returned.
           "description": "Eye Examination",
           "quantity": 1,
           "unit_price": "1000.00",
-          "amount": "1000.00"
+          "amount": "1000.00",
+          "product_variant_id": null,
+          "lens_category_id": null,
+          "service_id": 3
         }
       ]
     }
@@ -1537,6 +1546,7 @@ never returned.
 - `item_type` is `product` or `service`.
 - `optical_order` is populated only when `status` is `accepted` and an order was created.
 - Items include both product and service lines because they are part of the proposal.
+- Each item carries its catalog reference: `product_variant_id`, `lens_category_id`, and `service_id` are mutually exclusive — exactly one is non-null for a given item (or none, for legacy free-text lines), matching `item_type`.
 - All monetary values are strings with two decimal places.
 
 **Read-only.** Patients cannot create, accept, or decline quotations via the API.

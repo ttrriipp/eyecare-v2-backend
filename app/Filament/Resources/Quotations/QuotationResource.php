@@ -20,7 +20,7 @@ class QuotationResource extends Resource
 {
     protected static ?string $model = Quotation::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCurrencyDollar;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCheck;
 
     protected static ?string $navigationLabel = 'Quotations';
 
@@ -28,9 +28,13 @@ class QuotationResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Quotations';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 10;
 
     protected static string|UnitEnum|null $navigationGroup = 'Optical';
+
+    protected static ?string $recordTitleAttribute = 'quotation_number';
+
+    protected static bool $isGloballySearchable = true;
 
     public static function form(Schema $schema): Schema
     {

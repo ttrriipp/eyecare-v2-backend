@@ -2,6 +2,7 @@
 
 use App\Enums\QuotationStatus;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,6 +46,28 @@ test('patient can view their own quotation with details', function () {
         ->assertJsonPath('data.status', 'presented')
         ->assertJsonPath('data.revision.revision_number', 1)
         ->assertJsonCount(1, 'data.revision.items');
+});
+
+test('quotation item exposes its catalog reference and type', function () {
+    $user = User::factory()->patient()->create();
+    $service = Service::factory()->create();
+    $quotation = Quotation::factory()->presented()->create(['patient_id' => $user->patient->id]);
+    $quotation->items()->create([
+        'description' => $service->name,
+        'quantity' => 1,
+        'unit_price' => 800,
+        'amount' => 800,
+        'service_id' => $service->id,
+        'item_type' => 'service',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/quotations/{$quotation->id}")
+        ->assertOk()
+        ->assertJsonPath('data.revision.items.0.item_type', 'service')
+        ->assertJsonPath('data.revision.items.0.service_id', $service->id)
+        ->assertJsonPath('data.revision.items.0.product_variant_id', null)
+        ->assertJsonPath('data.revision.items.0.lens_category_id', null);
 });
 
 test('draft quotations are excluded from patient list', function () {

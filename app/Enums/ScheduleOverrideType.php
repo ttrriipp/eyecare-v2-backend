@@ -16,7 +16,7 @@ enum ScheduleOverrideType: string implements HasColor, HasLabel
         return match ($this) {
             self::Closed => 'Clinic Closed',
             self::EarlyClose => 'Early Closing',
-            self::ProviderAbsence => 'Provider Absence',
+            self::ProviderAbsence => 'Optometrist Absence',
         };
     }
 

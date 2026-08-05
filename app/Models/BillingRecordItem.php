@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'amount',
     'job_order_item_id',
     'quotation_item_id',
+    'service_id',
     'encounter_id',
     'source_kind',
 ])]
@@ -63,6 +64,14 @@ class BillingRecordItem extends Model
     public function encounter(): BelongsTo
     {
         return $this->belongsTo(Encounter::class);
+    }
+
+    /**
+     * @return BelongsTo<Service, $this>
+     */
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
     }
 
     /**
