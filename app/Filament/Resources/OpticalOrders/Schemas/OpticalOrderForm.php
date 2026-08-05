@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
+use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
@@ -33,11 +34,27 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—'),
                             Placeholder::make('status_badge')
                                 ->label('Status')
-                                ->content(fn (JobOrder $record): string => Str::headline($record->status->value)),
+                                ->content(fn (JobOrder $record): string => match ($record->status) {
+                                    JobOrderStatus::Queued => 'Confirmed',
+                                    JobOrderStatus::InProgress => 'Processing',
+                                    JobOrderStatus::ReadyForDispensing => 'Ready for Pickup',
+                                    JobOrderStatus::Dispensed => 'Completed',
+                                    JobOrderStatus::Cancelled => 'Cancelled',
+                                })
+                                ->badge()
+                                ->color(fn (JobOrder $record): string => match ($record->status) {
+                                    JobOrderStatus::Queued => 'warning',
+                                    JobOrderStatus::InProgress => 'primary',
+                                    JobOrderStatus::ReadyForDispensing => 'success',
+                                    JobOrderStatus::Dispensed => 'success',
+                                    JobOrderStatus::Cancelled => 'danger',
+                                }),
                             Placeholder::make('fulfillment_mode')
                                 ->label('Fulfillment')
                                 ->content(fn (JobOrder $record): string => Str::headline($record->fulfillment_mode)
-                                    .($record->uses_external_supplier ? ' (External Supplier)' : '')),
+                                    .($record->uses_external_supplier ? ' (External Supplier)' : ''))
+                                ->badge()
+                                ->color(fn (JobOrder $record): string => $record->uses_external_supplier ? 'warning' : 'info'),
                             TextInput::make('supplier_invoice_number')
                                 ->label('Supplier Invoice Number')
                                 ->maxLength(100)
@@ -91,7 +108,15 @@ class OpticalOrderForm
                                 ->label('Status')
                                 ->content(fn (JobOrder $record): string => $record->billingRecord
                                     ? Str::headline($record->billingRecord->status->value)
-                                    : 'No billing record'),
+                                    : 'No billing record')
+                                ->badge()
+                                ->color(fn (JobOrder $record): string => match ($record->billingRecord?->status) {
+                                    BillingRecordStatus::Paid => 'success',
+                                    BillingRecordStatus::PartiallyPaid => 'warning',
+                                    BillingRecordStatus::Unpaid => 'danger',
+                                    BillingRecordStatus::Voided => 'gray',
+                                    default => 'gray',
+                                }),
                             Placeholder::make('billing_balance')
                                 ->label('Balance Due')
                                 ->content(fn (JobOrder $record): string => '₱'.number_format((float) $record->billingRecord->balance_due, 2))
