@@ -99,6 +99,7 @@ class AppointmentRequestsTable
                 ActionGroup::make([
                     Action::make('view')
                         ->label('Review')
+                        ->icon('heroicon-o-eye')
                         ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
 
                     Action::make('linkToPatient')
