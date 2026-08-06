@@ -11,6 +11,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Validation\Rules\Password;
 
 class UserForm
 {
@@ -34,7 +35,7 @@ class UserForm
                             TextInput::make('email')
                                 ->email()
                                 ->unique(ignoreRecord: true)
-                                ->nullable(),
+                                ->required(),
                             TextInput::make('phone')
                                 ->tel()
                                 ->required()
@@ -50,7 +51,7 @@ class UserForm
                             TextInput::make('password')
                                 ->password()
                                 ->revealable()
-                                ->minLength(8)
+                                ->rules([Password::defaults()])
                                 ->dehydrated(fn (?string $state): bool => filled($state))
                                 ->required(fn (string $operation): bool => $operation === 'create')
                                 ->label(fn (string $operation): string => $operation === 'create' ? 'Password' : 'New password (leave blank to keep)')

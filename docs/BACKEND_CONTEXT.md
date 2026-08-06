@@ -26,7 +26,12 @@
 > the verified login contact. The API contract includes 51 routes (8
 > public, 24 account-only, 19 active-link). Legacy intake routes, direct
 > booking, job-orders, eyewear, and billing-records API routes have been
-> removed. All accounts use structured first/middle/last names.
+> removed. All accounts use structured first/middle/last names. Staff/admin
+> accounts now own their own credentials (Filament `->profile()` and
+> `->passwordReset()`, replacing admin-typed passwords), support
+> forced-password-change on admin-issued credentials, can be deactivated
+> without being deleted, and have login/logout/failed-login activity
+> audited — see "Account ownership and lifecycle" below.
 
 ---
 
@@ -93,8 +98,25 @@ Use `User::isAdmin()` to check role in Filament. `is_optometrist` is a capabilit
 | Billing Records | Record payment | Void, correct payment |
 | Products | Create, edit, manage variants | Delete/restore |
 | Patients | Create, edit | Delete/restore |
-| Users | Hidden | Full CRUD |
+| Users | Hidden | Full CRUD, activate/deactivate |
 | Audit Logs | Hidden | Read-only |
+
+Every staff/admin account can manage its own credentials via the panel's Profile page (avatar menu, top-right), independent of role — see "Account ownership and lifecycle" below.
+
+---
+
+## Account ownership and lifecycle
+
+Staff/admin accounts used to be entirely admin-managed: an admin typed each user's initial password directly into the Staff Accounts form, and there was no way to disable an account short of deleting it (which is unsafe — see the `users` table note above). Both gaps are closed:
+
+- **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password, and enrol TOTP MFA, without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
+- **Password policy.** `Password::defaults()` is configured once in `AppServiceProvider::boot()` (`min(12)->mixedCase()->numbers()` in production, `min(8)` elsewhere) and used by both the Staff Accounts form and the profile page, replacing a bare `minLength(8)`.
+- **Forced first-login password change.** When an admin creates a user or resets an existing user's password on their behalf, `must_change_password` is set (`CreateUser::mutateFormDataBeforeCreate()`, and `UserObserver::saving()` for admin-initiated password changes on someone else's account — distinguished from self-service by comparing `auth()->id()` to the record being saved). The `EnsurePasswordIsChanged` middleware (registered in the panel's `authMiddleware`) redirects any such user to the profile page until they change it themselves, while still allowing the profile page and logout so they're never locked out. `password_changed_at` is stamped whenever the password changes.
+- **Deactivation, not deletion.** Admins can activate/deactivate any staff/admin account from the Staff Accounts table (`toggleActive` action), guarded so the last active admin cannot be deactivated (mirrors the existing last-admin-demotion guard on role changes). A deactivated account fails `canAccessPanel()` immediately and is excluded from `scopeOptometrists()`, but every record they authored (encounters, prescriptions, provider hours, audit entries) is untouched.
+- **Authentication audit trail.** `RecordAuthenticationAudit` (registered in `AppServiceProvider::boot()` via `Event::listen()`) listens to Laravel's `Illuminate\Auth\Events\{Login,Logout,Failed}` and writes `user.logged_in` / `user.logged_out` / `user.login_failed` audit entries, scoped to accounts that can access the admin panel so patient-mobile activity never pollutes this trail. A failed attempt against an *unknown* email writes nothing (only known accounts are audited, to prevent flooding). `last_login_at` is updated on every successful login and shown as a "Last Login" column on Staff Accounts.
+- **Password/lifecycle audit events.** `UserObserver` additionally writes `user.password_changed` (on any password change) and `user.deactivated`/`user.reactivated` (on `is_active` transitions), alongside its existing `user.created`/`user.role_changed`.
+
+Deliberately out of scope for now: a formal staff invitation flow (mirroring `PatientInvitation`) and the optometrist-as-credential correction (PRC license number; unifying the `is_optometrist` capability check, which currently has some call sites reading the raw boolean instead of `hasOptometristCapability()`) — both real, both independent of the above.
 
 ---
 
@@ -128,7 +150,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients. `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
 | `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `personal_access_tokens` | Sanctum mobile tokens. Device-labelled, expiring tokens with optional `installation_id` for trusted-device login and same-installation replacement. |
@@ -158,7 +180,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
 | `conversations` | `patient_id` — one per patient. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
-| `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON). |
+| `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
@@ -190,7 +212,9 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 ## Filament Panel
 
-URL: `/admin` — accessible to `staff` and `admin` roles only.
+URL: `/admin` — accessible to `staff` and `admin` roles only. `canAccessPanel()` also requires `is_active`, so a deactivated account is blocked regardless of role.
+
+Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, `->passwordReset()`, and `->multiFactorAuthentication([AppAuthentication::make()], isRequired: app()->isProduction())` (TOTP, required in production, optional and enrollable via the profile page otherwise). `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
 
 **Navigation groups (in order), workflow-shaped rather than by data domain:**
 - Today — Appointments, Appointment Requests, Availability (cluster)
@@ -356,7 +380,8 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `CreateScheduledAppointment` | `app/Actions/Appointments/` | Creates appointment from mobile API with availability checks |
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |
 | `ProcessPrivacyRequest` | `app/Actions/Privacy/` | Records disposition, no auto-deletion |
-| `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata) |
+| `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata, ip_address, user_agent — the latter two default from the current request when not passed explicitly) |
+| `RecordAuthenticationAudit` | `app/Listeners/` | Listens to `Illuminate\Auth\Events\{Login,Logout,Failed}`, scoped to panel-capable accounts; writes login/logout/failed-login audit entries and updates `last_login_at` |
 
 ---
 

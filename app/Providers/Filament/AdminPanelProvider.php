@@ -3,10 +3,12 @@
 namespace App\Providers\Filament;
 
 use App\Filament\AvatarProviders\BrandAvatarProvider;
+use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Filament\Widgets\TodaysScheduleWidget;
+use App\Http\Middleware\EnsurePasswordIsChanged;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
@@ -34,6 +36,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->login(Login::class)
+            ->profile(EditProfile::class, isSimple: false)
+            ->passwordReset()
             ->brandName('Eyecare')
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2rem')
@@ -89,6 +93,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnsurePasswordIsChanged::class,
             ]);
     }
 }

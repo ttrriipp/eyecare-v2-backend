@@ -21,7 +21,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at'])]
+#[Fillable(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at', 'last_login_at', 'is_active', 'must_change_password', 'password_changed_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
@@ -142,6 +142,10 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             return false;
         }
 
+        if (! $this->is_active) {
+            return false;
+        }
+
         return in_array($this->role->name, ['admin', 'staff'], true);
     }
 
@@ -149,6 +153,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     {
         return $query
             ->where('is_optometrist', true)
+            ->where('is_active', true)
             ->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->whereIn('name', ['admin', 'staff']));
     }
 
@@ -198,6 +203,10 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'is_optometrist' => 'boolean',
             'password' => 'hashed',
             'privacy_acknowledged_at' => 'datetime',
+            'last_login_at' => 'datetime',
+            'is_active' => 'boolean',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
         ];
     }
 }

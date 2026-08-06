@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
     'subject_id',
     'action',
     'metadata',
+    'ip_address',
+    'user_agent',
 ])]
 class AuditLog extends Model
 {

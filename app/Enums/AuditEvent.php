@@ -54,6 +54,13 @@ enum AuditEvent: string
     case UserCreated = 'user.created';
     case UserRoleChanged = 'user.role_changed';
 
+    case UserLoggedIn = 'user.logged_in';
+    case UserLoggedOut = 'user.logged_out';
+    case UserLoginFailed = 'user.login_failed';
+    case UserPasswordChanged = 'user.password_changed';
+    case UserDeactivated = 'user.deactivated';
+    case UserReactivated = 'user.reactivated';
+
     case ProductCreated = 'product.created';
     case ProductUpdated = 'product.updated';
     case ProductArchived = 'product.archived';

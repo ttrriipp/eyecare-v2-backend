@@ -19,6 +19,8 @@ class CreateAuditLog
         AuditEvent|string $action,
         ?array $metadata = null,
         ?int $actorId = null,
+        ?string $ipAddress = null,
+        ?string $userAgent = null,
     ): AuditLog {
         return AuditLog::query()->create([
             'actor_id' => $actorId ?? Auth::id(),
@@ -26,6 +28,8 @@ class CreateAuditLog
             'subject_id' => $subject->getKey(),
             'action' => $action instanceof AuditEvent ? $action->value : $action,
             'metadata' => $metadata,
+            'ip_address' => $ipAddress ?? (app()->bound('request') ? request()?->ip() : null),
+            'user_agent' => $userAgent ?? (app()->bound('request') ? request()?->userAgent() : null),
         ]);
     }
 }

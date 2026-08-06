@@ -40,6 +40,8 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'role_id' => $this->fixedRoleId('patient'),
             'is_optometrist' => false,
+            'is_active' => true,
+            'must_change_password' => false,
             'remember_token' => Str::random(10),
         ];
     }
