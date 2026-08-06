@@ -32,7 +32,6 @@ class ServiceForm
                             ->columnSpanFull(),
                         Toggle::make('is_active')
                             ->label('Active')
-                            ->helperText('Inactive services stay on past records but no longer appear when billing or quoting.')
                             ->default(true),
                     ]),
 
