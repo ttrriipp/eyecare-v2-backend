@@ -2,8 +2,11 @@
 
 namespace App\Filament\Resources\Quotations\Pages;
 
+use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\Encounter;
@@ -172,6 +175,23 @@ class CreateQuotation extends CreateRecord
                     'presented_by' => $creator->id,
                     'presented_at' => now(),
                 ]);
+            } elseif ($this->creationMode === 'accepted') {
+                // Confirm the sale like the Confirm Sale action
+                $result = app(ConfirmQuotationSale::class)->handle(
+                    quotation: $quotation,
+                    confirmer: $creator,
+                    performedServiceItemIds: $quotation->items()
+                        ->where('item_type', TransactionItemType::Service)
+                        ->pluck('id')
+                        ->all(),
+                );
+
+                // If there's an optical order, redirect to it
+                if ($result['optical_order'] !== null) {
+                    $this->redirectUrl = OpticalOrderResource::getUrl('edit', [
+                        'record' => $result['optical_order'],
+                    ]);
+                }
             }
 
             return $quotation;
@@ -195,6 +215,7 @@ class CreateQuotation extends CreateRecord
     {
         return match ($this->creationMode) {
             'presented' => 'Quotation created and presented',
+            'accepted' => 'Quotation confirmed and optical order created',
             default => 'Quotation saved as draft',
         };
     }
