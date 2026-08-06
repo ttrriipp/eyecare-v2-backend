@@ -4,6 +4,7 @@ use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
+use App\Models\DispensingEvent;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
@@ -75,4 +76,34 @@ test('marking an optical order ready records the required supplier invoice numbe
 
 test('optical order resource is registered', function () {
     expect(OpticalOrderResource::getModel())->toBe(JobOrder::class);
+});
+
+test('the dispensing section is hidden when the order has no dispensing event', function () {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertDontSee('Recipient');
+});
+
+test('staff can see who received a dispensed order and who dispensed it', function () {
+    $staff = User::factory()->staff()->create(['first_name' => 'Ana', 'middle_name' => null, 'last_name' => 'Reyes']);
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Dispensed]);
+
+    DispensingEvent::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'dispensed_by' => $staff->id,
+        'recipient_name' => 'Juan dela Cruz',
+        'notes' => 'Picked up by patient\'s son.',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Juan dela Cruz')
+        ->assertSee('Ana Reyes')
+        ->assertSee('Picked up by patient\'s son.');
 });

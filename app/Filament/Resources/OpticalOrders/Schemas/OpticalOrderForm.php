@@ -162,6 +162,21 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->cancelled_at?->diffForHumans() ?? '—')
                                 ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Cancelled),
                         ]),
+
+                    Section::make('Dispensing')
+                        ->visible(fn (JobOrder $record): bool => $record->dispensingEvents->isNotEmpty())
+                        ->schema([
+                            Placeholder::make('recipient_name')
+                                ->label('Recipient')
+                                ->content(fn (JobOrder $record): string => $record->dispensingEvents->last()?->recipient_name ?? '—'),
+                            Placeholder::make('dispensed_by')
+                                ->label('Dispensed By')
+                                ->content(fn (JobOrder $record): string => $record->dispensingEvents->last()?->dispensedBy?->full_name ?? '—'),
+                            Placeholder::make('dispensing_notes')
+                                ->label('Notes')
+                                ->content(fn (JobOrder $record): string => $record->dispensingEvents->last()?->notes ?? '—')
+                                ->visible(fn (JobOrder $record): bool => filled($record->dispensingEvents->last()?->notes)),
+                        ]),
                 ]),
             ]),
         ]);

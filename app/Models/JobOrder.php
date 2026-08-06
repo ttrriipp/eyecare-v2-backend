@@ -122,6 +122,14 @@ class JobOrder extends Model
     }
 
     /**
+     * @return HasMany<DispensingEvent, $this>
+     */
+    public function dispensingEvents(): HasMany
+    {
+        return $this->hasMany(DispensingEvent::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
