@@ -60,7 +60,7 @@ class ListBillingRecords extends ListRecords
                                 ->preload()
                                 ->live()
                                 ->columnSpanFull()
-                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                     $service = Service::query()->find($state);
 
                                     if ($service === null) {
@@ -69,30 +69,67 @@ class ListBillingRecords extends ListRecords
 
                                     $set('description', $service->name);
                                     $set('unit_price', $service->price);
+                                    $set('line_total', number_format(
+                                        ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                        2,
+                                    ));
                                 }),
                             TextInput::make('description')
                                 ->required()
                                 ->maxLength(255)
                                 ->columnSpanFull(),
-                            Grid::make(2)->schema([
-                                TextInput::make('quantity')
-                                    ->numeric()
-                                    ->integer()
-                                    ->minValue(1)
-                                    ->default(1)
-                                    ->required(),
-                                TextInput::make('unit_price')
-                                    ->label('Unit Price')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->minValue(0)
-                                    ->required(),
-                            ]),
+                            Grid::make(3)
+                                ->columnSpanFull()
+                                ->schema([
+                                    TextInput::make('quantity')
+                                        ->numeric()
+                                        ->integer()
+                                        ->minValue(1)
+                                        ->default(1)
+                                        ->required()
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, Get $get): void {
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                2,
+                                            ));
+                                        }),
+                                    TextInput::make('unit_price')
+                                        ->label('Unit Price')
+                                        ->numeric()
+                                        ->prefix('₱')
+                                        ->minValue(0)
+                                        ->required()
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, Get $get): void {
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                2,
+                                            ));
+                                        }),
+                                    Placeholder::make('line_total')
+                                        ->label('Line Total')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                            2,
+                                        )),
+                                ]),
                         ])
                         ->columns(2)
-                        ->defaultItems(0)
+                        ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
+
+                    Placeholder::make('total')
+                        ->label('Total')
+                        ->content(function (Get $get): string {
+                            $total = collect($get('items') ?? [])->sum(
+                                fn (array $item): float => ((float) ($item['quantity'] ?? 0))
+                                    * ((float) ($item['unit_price'] ?? 0)),
+                            );
+
+                            return '₱'.number_format($total, 2);
+                        }),
                 ])
                 ->action(function (array $data): void {
                     $patient = Patient::query()->findOrFail($data['patient_id']);
