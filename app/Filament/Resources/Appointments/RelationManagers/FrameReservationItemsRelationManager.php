@@ -104,7 +104,7 @@ class FrameReservationItemsRelationManager extends RelationManager
                 Action::make('addFrame')
                     ->label('Add Frame')
                     ->icon('heroicon-o-plus')
-                    ->color('gray')
+                    ->color('info')
                     ->visible(fn (): bool => $this->getOwnerRecord()->frameReservation !== null
                         && Gate::allows('addFrame', $this->getOwnerRecord()->frameReservation)
                         && in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
