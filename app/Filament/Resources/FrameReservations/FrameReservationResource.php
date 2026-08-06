@@ -4,6 +4,7 @@ namespace App\Filament\Resources\FrameReservations;
 
 use App\Filament\Resources\FrameReservations\Pages\EditFrameReservation;
 use App\Filament\Resources\FrameReservations\Pages\ListFrameReservations;
+use App\Filament\Resources\FrameReservations\Schemas\FrameReservationForm;
 use App\Filament\Resources\FrameReservations\Tables\FrameReservationsTable;
 use App\Models\FrameReservation;
 use BackedEnum;
@@ -21,19 +22,17 @@ class FrameReservationResource extends Resource
 
     protected static ?string $navigationLabel = 'Frame Reservations';
 
-    protected static ?string $modelLabel = 'Reservation';
+    protected static ?string $modelLabel = 'Frame Reservation';
 
-    protected static ?string $pluralModelLabel = 'Reservations';
+    protected static ?string $pluralModelLabel = 'Frame Reservations';
 
     protected static ?int $navigationSort = 30;
 
     protected static string|UnitEnum|null $navigationGroup = 'Optical';
 
-    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Fulfillment & Finance';
-
     public static function form(Schema $schema): Schema
     {
-        return $schema->components([]);
+        return FrameReservationForm::configure($schema);
     }
 
     public static function table(Table $table): Table
