@@ -50,14 +50,14 @@ class FrameReservationForm
                             Placeholder::make('items')
                                 ->hiddenLabel()
                                 ->content(function (FrameReservation $record): string {
-                                    $items = $record->items()->with('productVariant.product')->get();
+                                    $items = $record->items()->with('variant.product')->get();
 
                                     if ($items->isEmpty()) {
                                         return 'No frames reserved.';
                                     }
 
                                     return $items->map(function ($item): string {
-                                        $variant = $item->productVariant;
+                                        $variant = $item->variant;
                                         $product = $variant?->product;
 
                                         return $product
