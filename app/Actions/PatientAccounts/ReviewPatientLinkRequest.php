@@ -38,7 +38,7 @@ class ReviewPatientLinkRequest
 
         return DB::transaction(function () use ($linkRequest, $patient, $reviewer, $note) {
             // Re-check under lock
-            $patient->lockForUpdate();
+            $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
             if ($patient->user_id !== null) {
                 throw ValidationException::withMessages([
