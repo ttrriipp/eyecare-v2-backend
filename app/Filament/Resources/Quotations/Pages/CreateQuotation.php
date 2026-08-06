@@ -3,12 +3,14 @@
 namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
+use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
@@ -28,6 +30,8 @@ class CreateQuotation extends CreateRecord
     public ?int $patientId = null;
 
     public ?int $prescriptionId = null;
+
+    public string $creationMode = 'draft';
 
     public function mount(?string $encounter = null, ?string $patient = null, ?string $prescription = null): void
     {
@@ -153,13 +157,24 @@ class CreateQuotation extends CreateRecord
         }
 
         try {
-            return app(CreateQuotationAction::class)->handle(
+            $quotation = app(CreateQuotationAction::class)->handle(
                 patient: $patient,
                 creator: $creator,
                 data: $data,
                 encounter: $encounter,
                 prescription: $prescription,
             );
+
+            // Update status based on creation mode
+            if ($this->creationMode === 'presented') {
+                $quotation->update([
+                    'status' => QuotationStatus::Presented,
+                    'presented_by' => $creator->id,
+                    'presented_at' => now(),
+                ]);
+            }
+
+            return $quotation;
         } catch (ValidationException $e) {
             Notification::make()
                 ->title('Cannot create quotation')
@@ -178,7 +193,47 @@ class CreateQuotation extends CreateRecord
 
     protected function getCreatedNotificationTitle(): ?string
     {
-        return 'Quotation created';
+        return match ($this->creationMode) {
+            'presented' => 'Quotation created and presented',
+            default => 'Quotation saved as draft',
+        };
+    }
+
+    protected function getFormActions(): array
+    {
+        return [
+            Action::make('saveDraft')
+                ->label('Save Draft')
+                ->icon('heroicon-o-document')
+                ->color('gray')
+                ->action(function (): void {
+                    $this->creationMode = 'draft';
+                    $this->create();
+                }),
+
+            Action::make('presentQuotation')
+                ->label('Present Quotation')
+                ->icon('heroicon-o-paper-airplane')
+                ->color('primary')
+                ->action(function (): void {
+                    $this->creationMode = 'presented';
+                    $this->create();
+                }),
+
+            Action::make('acceptAndContinue')
+                ->label('Accept & Continue')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->action(function (): void {
+                    $this->creationMode = 'accepted';
+                    $this->create();
+                }),
+        ];
+    }
+
+    protected function hasCreateAnother(): bool
+    {
+        return false;
     }
 
     private function resolveEncounter(): ?Encounter
