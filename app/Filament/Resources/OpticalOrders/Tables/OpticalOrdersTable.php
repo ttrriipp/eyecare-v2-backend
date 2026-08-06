@@ -53,7 +53,7 @@ class OpticalOrdersTable
                 TextColumn::make('supplier_invoice_number')
                     ->label('Supplier Ref')
                     ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
 
                 TextColumn::make('total_amount')
                     ->label('Total')
