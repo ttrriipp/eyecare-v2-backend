@@ -376,9 +376,12 @@ class EditEncounter extends EditRecord
                                         ->minValue(0)
                                         ->required()
                                         ->live(onBlur: true),
-                                    Placeholder::make('line_total')
+                                    TextInput::make('line_total')
                                         ->label('Line Total')
-                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                        ->prefix('₱')
+                                        ->disabled()
+                                        ->dehydrated(false)
+                                        ->formatStateUsing(fn (Get $get): string => number_format(
                                             ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
                                             2,
                                         )),
