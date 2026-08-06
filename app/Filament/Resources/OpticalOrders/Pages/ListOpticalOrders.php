@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OpticalOrders\Pages;
 use App\Actions\OpticalOrders\CreateDirectOpticalOrder;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\OpticalOrders\Widgets\OpticalOrderStatsWidget;
 use App\Models\LensCategory;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -299,6 +300,13 @@ class ListOpticalOrders extends ListRecords
 
             'cancelled' => Tab::make('Cancelled')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', JobOrderStatus::Cancelled)),
+        ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            OpticalOrderStatsWidget::class,
         ];
     }
 }
