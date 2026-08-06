@@ -76,7 +76,7 @@ class CreateQuotation extends CreateRecord
                                     ->label('Patient')
                                     ->options(fn (): array => Patient::query()
                                         ->get()
-                                        ->mapWithKeys(fn (Patient $p): array => [$p->id => $p->full_name])
+                                        ->mapWithKeys(fn (Patient $p): array => [$p->id => "{$p->full_name} ({$p->patient_number})"])
                                         ->all())
                                     ->required()
                                     ->searchable()
