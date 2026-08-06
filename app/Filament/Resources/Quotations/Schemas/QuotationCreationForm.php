@@ -31,8 +31,7 @@ class QuotationCreationForm
                         DatePicker::make('valid_until')
                             ->label('Valid Until')
                             ->native(false)
-                            ->minDate(today())
-                            ->default(today()->addWeek()),
+                            ->minDate(today()),
                         TextInput::make('discount_amount')
                             ->label('Discount')
                             ->prefix('₱')
@@ -44,7 +43,7 @@ class QuotationCreationForm
                     ]),
                 ]),
 
-            Section::make('Items')
+            Section::make()
                 ->schema([
                     Repeater::make('items')
                         ->label('')
@@ -170,7 +169,7 @@ class QuotationCreationForm
                                 )),
                         ])
                         ->columns(3)
-                        ->defaultItems(0)
+                        ->defaultItems(1)
                         ->minItems(1)
                         ->maxItems(50)
                         ->addActionLabel('Add Quotation Item'),
