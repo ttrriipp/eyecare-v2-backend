@@ -179,6 +179,19 @@ class EditAppointment extends EditRecord
                     }
                 }),
 
+            Action::make('viewReservation')
+                ->label('View Reservation')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->visible(fn (): bool => FrameReservation::query()
+                    ->where('appointment_id', $this->getRecord()->id)
+                    ->exists())
+                ->url(fn (): string => FrameReservationResource::getUrl('edit', [
+                    'record' => FrameReservation::query()
+                        ->where('appointment_id', $this->getRecord()->id)
+                        ->firstOrFail(),
+                ])),
+
             Action::make('reschedule')
                 ->label('Reschedule')
                 ->icon('heroicon-o-calendar-days')

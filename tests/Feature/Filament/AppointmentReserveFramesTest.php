@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
+use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
 use App\Models\Product;
@@ -69,6 +70,32 @@ test('reserve frames action is hidden once an active reservation exists', functi
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionHidden('reserveFrames');
+});
+
+test('view reservation action is visible once a reservation exists and links to it', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+    $reservation = FrameReservation::factory()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => 'requested',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionVisible('viewReservation')
+        ->assertActionHasUrl('viewReservation', FrameReservationResource::getUrl('edit', ['record' => $reservation]));
+});
+
+test('view reservation action is hidden when no reservation exists', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionHidden('viewReservation');
 });
 
 test('reserve frames action rejects a non-frame product variant', function () {
