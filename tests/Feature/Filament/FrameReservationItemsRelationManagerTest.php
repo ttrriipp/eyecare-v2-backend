@@ -75,7 +75,7 @@ test('staff can remove a frame from a requested reservation', function () {
         ->and($reservation->items()->whereKey($keptItem->id)->exists())->toBeTrue();
 });
 
-test('the last frame on a reservation cannot be removed', function () {
+test('removing the last frame releases the reservation', function () {
     $staff = User::factory()->staff()->create();
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
     $onlyItem = $reservation->items()->create([
@@ -90,9 +90,11 @@ test('the last frame on a reservation cannot be removed', function () {
         'ownerRecord' => $reservation,
         'pageClass' => EditFrameReservation::class,
     ])
-        ->callAction(TestAction::make('removeFrame')->table($onlyItem));
+        ->callAction(TestAction::make('removeFrame')->table($onlyItem))
+        ->assertHasNoActionErrors();
 
-    expect($reservation->items()->whereKey($onlyItem->id)->exists())->toBeTrue();
+    expect($reservation->items()->whereKey($onlyItem->id)->exists())->toBeFalse()
+        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Released);
 });
 
 test('the remove frame action is hidden once a reservation is tried on', function () {

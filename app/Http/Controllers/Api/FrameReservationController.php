@@ -61,9 +61,7 @@ class FrameReservationController extends Controller
             return response()->json(['message' => 'This reservation cannot be cancelled.'], 422);
         }
 
-        app(ReleaseFrameReservation::class)->handle($reservation);
-
-        $reservation->update(['status' => ReservationStatus::Cancelled]);
+        app(ReleaseFrameReservation::class)->handle($reservation, ReservationStatus::Cancelled);
 
         return response()->json([
             'data' => FrameReservationResource::make($reservation->fresh()->load(['items.variant.product', 'appointment'])),

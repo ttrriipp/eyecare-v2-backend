@@ -46,13 +46,16 @@ test('removing an item from a prepared reservation restores its allocated stock'
         ->and($reservation->items()->where('product_variant_id', $keptVariant->id)->exists())->toBeTrue();
 });
 
-test('the last item on a reservation cannot be removed', function () {
+test('removing the last item releases the reservation', function () {
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
     $variant = createFrameVariantForRemoval();
     $item = $reservation->items()->create(['product_variant_id' => $variant->id]);
 
     app(RemoveFrameReservationItem::class)->handle($reservation, $item);
-})->throws(ValidationException::class, 'A reservation must keep at least one frame');
+
+    expect($reservation->items()->count())->toBe(0)
+        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Released);
+});
 
 test('items cannot be removed from a tried-on reservation', function () {
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);

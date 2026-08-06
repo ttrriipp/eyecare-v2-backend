@@ -11,18 +11,18 @@ use Illuminate\Support\Facades\DB;
 
 class ReleaseFrameReservation
 {
-    public function handle(FrameReservation $reservation): FrameReservation
+    public function handle(FrameReservation $reservation, ReservationStatus $targetStatus = ReservationStatus::Released): FrameReservation
     {
         $hasAllocatedStock = in_array($reservation->status, [ReservationStatus::Prepared, ReservationStatus::TriedOn], true);
 
         if (! $hasAllocatedStock) {
             // Only prepared/tried-on reservations have allocated stock to release
-            $reservation->update(['status' => ReservationStatus::Released]);
+            $reservation->update(['status' => $targetStatus]);
 
             return $reservation->fresh();
         }
 
-        return DB::transaction(function () use ($reservation): FrameReservation {
+        return DB::transaction(function () use ($reservation, $targetStatus): FrameReservation {
             $reservation->load('items');
 
             $releaseType = InventoryMovementType::query()
@@ -55,7 +55,7 @@ class ReleaseFrameReservation
                 ]);
             }
 
-            $reservation->update(['status' => ReservationStatus::Released]);
+            $reservation->update(['status' => $targetStatus]);
 
             return $reservation->fresh();
         });
