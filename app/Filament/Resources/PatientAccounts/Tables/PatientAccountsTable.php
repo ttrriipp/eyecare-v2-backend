@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PatientAccounts\Tables;
 use App\Filament\Resources\PatientAccounts\PatientAccountResource;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -65,8 +66,10 @@ class PatientAccountsTable
                     }),
             ])
             ->recordActions([
-                Action::make('view')
-                    ->url(fn (User $record) => PatientAccountResource::getUrl('view', ['record' => $record])),
+                ActionGroup::make([
+                    Action::make('view')
+                        ->url(fn (User $record) => PatientAccountResource::getUrl('view', ['record' => $record])),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([]),
