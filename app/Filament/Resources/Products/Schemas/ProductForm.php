@@ -134,8 +134,7 @@ class ProductForm
                             TextInput::make('cost_price')
                                 ->label('Cost Price')
                                 ->numeric()
-                                ->prefix('₱')
-                                ->helperText('Internal use only — not visible to customers.'),
+                                ->prefix('₱'),
                             TextInput::make('stock_quantity')
                                 ->required()
                                 ->numeric()
@@ -148,7 +147,6 @@ class ProductForm
                                 ->default(0),
                             TextInput::make('target_stock_level')
                                 ->label('Target Stock Level')
-                                ->helperText('Optional. When set, restock suggestions replenish inventory to this level.')
                                 ->nullable()
                                 ->integer()
                                 ->minValue(0)
