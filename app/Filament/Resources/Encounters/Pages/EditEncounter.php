@@ -19,12 +19,14 @@ use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -365,19 +367,39 @@ class EditEncounter extends EditRecord
                                         ->integer()
                                         ->minValue(1)
                                         ->default(1)
-                                        ->required(),
+                                        ->required()
+                                        ->live(onBlur: true),
                                     TextInput::make('unit_price')
                                         ->label('Unit Price')
                                         ->numeric()
                                         ->prefix('₱')
                                         ->minValue(0)
-                                        ->required(),
+                                        ->required()
+                                        ->live(onBlur: true),
                                 ]),
+                            Placeholder::make('line_total')
+                                ->label('Line Total')
+                                ->content(fn (Get $get): string => '₱'.number_format(
+                                    ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                    2,
+                                ))
+                                ->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
+
+                    Placeholder::make('total')
+                        ->label('Total')
+                        ->content(function (Get $get): string {
+                            $total = collect($get('items') ?? [])->sum(
+                                fn (array $item): float => ((float) ($item['quantity'] ?? 0))
+                                    * ((float) ($item['unit_price'] ?? 0)),
+                            );
+
+                            return '₱'.number_format($total, 2);
+                        }),
                 ])
                 ->action(function (array $data): void {
                     try {
