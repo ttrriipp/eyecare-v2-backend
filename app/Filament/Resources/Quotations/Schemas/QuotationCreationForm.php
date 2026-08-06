@@ -31,7 +31,8 @@ class QuotationCreationForm
                         DatePicker::make('valid_until')
                             ->label('Valid Until')
                             ->native(false)
-                            ->minDate(today()),
+                            ->minDate(today())
+                            ->suffixIcon('heroicon-o-calendar-days'),
                         TextInput::make('discount_amount')
                             ->label('Discount')
                             ->prefix('₱')
