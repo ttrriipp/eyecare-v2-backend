@@ -90,6 +90,7 @@ class OpticalOrdersTable
             ->recordActions([
                 Action::make('view')
                     ->label('View')
+                    ->icon('heroicon-o-eye')
                     ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('edit', ['record' => $record])),
             ])
             ->toolbarActions([
