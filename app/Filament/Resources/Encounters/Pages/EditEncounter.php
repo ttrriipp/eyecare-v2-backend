@@ -249,6 +249,15 @@ class EditEncounter extends EditRecord
                     'record' => $this->record->prescriptions()->latest('id')->value('id'),
                 ])),
 
+            Action::make('viewBillingRecord')
+                ->label('View Billing Record')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->visible(fn (): bool => $this->latestBillingRecord() !== null)
+                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
+                    'record' => $this->latestBillingRecord(),
+                ])),
+
             Action::make('createQuotation')
                 ->label('Create Quotation')
                 ->icon('heroicon-o-document-currency-dollar')
@@ -325,7 +334,7 @@ class EditEncounter extends EditRecord
                     ? 'Add Another Service Charge'
                     : 'Add Service Charge')
                 ->icon('heroicon-o-plus-circle')
-                ->color('gray')
+                ->color('warning')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
                 ->schema([
                     Repeater::make('items')
@@ -433,15 +442,6 @@ class EditEncounter extends EditRecord
                         ->success()
                         ->send();
                 }),
-
-            Action::make('viewBillingRecord')
-                ->label('View Billing Record')
-                ->icon('heroicon-o-banknotes')
-                ->color('gray')
-                ->visible(fn (): bool => $this->latestBillingRecord() !== null)
-                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
-                    'record' => $this->latestBillingRecord(),
-                ])),
 
             Action::make('assignOptometrist')
                 ->label('Assign Optometrist')
