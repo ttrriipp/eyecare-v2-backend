@@ -26,12 +26,6 @@ class RemoveFrameReservationItem
             ]);
         }
 
-        if ($reservation->items()->count() <= 1) {
-            throw ValidationException::withMessages([
-                'reservation' => ['A reservation must keep at least one frame — release it instead.'],
-            ]);
-        }
-
         DB::transaction(function () use ($reservation, $item): void {
             $reservation = FrameReservation::query()->lockForUpdate()->findOrFail($reservation->id);
 
@@ -40,6 +34,11 @@ class RemoveFrameReservationItem
             }
 
             $item->delete();
+
+            // If no frames remain, release the reservation
+            if ($reservation->items()->count() === 0) {
+                $reservation->update(['status' => ReservationStatus::Released]);
+            }
         });
     }
 
