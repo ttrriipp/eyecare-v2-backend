@@ -31,6 +31,7 @@ class UsersTable
                     ->toggleable(),
                 TextColumn::make('role.name')
                     ->label('Role')
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'admin' => 'danger',
