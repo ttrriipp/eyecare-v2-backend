@@ -128,7 +128,6 @@ class EncounterForm
                             shouldRedirect: false,
                             shouldSendSavedNotification: false,
                         );
-                        $livewire->isSavingDraft = false;
                     }),
 
                 Step::make('Encounter Summary')

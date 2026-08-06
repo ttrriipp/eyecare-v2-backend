@@ -155,6 +155,9 @@ class EditEncounter extends EditRecord
             }
         }
 
+        // Reset the draft flag after save completes
+        $this->isSavingDraft = false;
+
         return $record;
     }
 
