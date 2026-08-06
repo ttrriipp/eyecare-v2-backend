@@ -63,63 +63,60 @@ class CreateQuotation extends CreateRecord
         return $schema
             ->columns(1)
             ->components([
-                Section::make('Patient')
-                    ->schema($patient !== null
-                        ? [
-                            Placeholder::make('patient_display')
-                                ->label('Patient')
-                                ->content($patient->full_name),
-                        ]
-                        : [
-                            Select::make('patient_id')
-                                ->label('Patient')
-                                ->options(fn (): array => Patient::query()
-                                    ->get()
-                                    ->mapWithKeys(fn (Patient $p): array => [$p->id => $p->full_name])
-                                    ->all())
-                                ->required()
-                                ->searchable()
-                                ->preload()
-                                ->live(),
-                        ])
-                    ->columns(2),
-
-                Section::make('Prescription')
-                    ->description('Only required if a lens item is added below.')
-                    ->schema(match (true) {
-                        $contextPrescription !== null => [
-                            Placeholder::make('prescription_display')
-                                ->label('Prescription')
-                                ->content($contextPrescription->prescription_number),
-                        ],
-                        $encounter !== null => [
-                            Placeholder::make('prescription_display')
-                                ->label('Prescription')
-                                ->content($encounterPrescription?->prescription_number
-                                    ?? 'No finalized prescription on this encounter yet.'),
-                        ],
-                        default => [
-                            Select::make('prescription_id')
-                                ->label('Prescription')
-                                ->options(function (Get $get) use ($patient): array {
-                                    $patientId = $patient?->id ?? $get('patient_id');
-
-                                    if (blank($patientId)) {
-                                        return [];
-                                    }
-
-                                    return Prescription::query()
-                                        ->where('patient_id', $patientId)
-                                        ->whereDoesntHave('nextPrescription')
+                Section::make('Patient & Prescription')
+                    ->schema([
+                        ...($patient !== null
+                            ? [
+                                Placeholder::make('patient_display')
+                                    ->label('Patient')
+                                    ->content($patient->full_name),
+                            ]
+                            : [
+                                Select::make('patient_id')
+                                    ->label('Patient')
+                                    ->options(fn (): array => Patient::query()
                                         ->get()
-                                        ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
-                                        ->all();
-                                })
-                                ->searchable()
-                                ->preload()
-                                ->helperText('Leave blank if this quotation has no corrective lens item.'),
-                        ],
-                    })
+                                        ->mapWithKeys(fn (Patient $p): array => [$p->id => $p->full_name])
+                                        ->all())
+                                    ->required()
+                                    ->searchable()
+                                    ->preload()
+                                    ->live(),
+                            ]),
+                        ...(match (true) {
+                            $contextPrescription !== null => [
+                                Placeholder::make('prescription_display')
+                                    ->label('Prescription')
+                                    ->content($contextPrescription->prescription_number),
+                            ],
+                            $encounter !== null => [
+                                Placeholder::make('prescription_display')
+                                    ->label('Prescription')
+                                    ->content($encounterPrescription?->prescription_number
+                                        ?? 'No finalized prescription on this encounter yet.'),
+                            ],
+                            default => [
+                                Select::make('prescription_id')
+                                    ->label('Prescription')
+                                    ->options(function (Get $get) use ($patient): array {
+                                        $patientId = $patient?->id ?? $get('patient_id');
+
+                                        if (blank($patientId)) {
+                                            return [];
+                                        }
+
+                                        return Prescription::query()
+                                            ->where('patient_id', $patientId)
+                                            ->whereDoesntHave('nextPrescription')
+                                            ->get()
+                                            ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
+                                            ->all();
+                                    })
+                                    ->searchable()
+                                    ->preload(),
+                            ],
+                        }),
+                    ])
                     ->columns(2),
 
                 ...QuotationCreationForm::components(),
