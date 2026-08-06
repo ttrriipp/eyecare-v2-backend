@@ -4,6 +4,7 @@ use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\Patient;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,7 +14,8 @@ uses(RefreshDatabase::class);
 
 test('staff can link an unlinked request to a patient from the detail page', function () {
     $staff = User::factory()->staff()->create();
-    $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null]);
+    $account = User::factory()->create(['role_id' => Role::firstOrCreate(['name' => 'patient'])->id]);
+    $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null, 'user_id' => $account->id]);
     $patient = Patient::factory()->create();
 
     $this->actingAs($staff);
@@ -21,11 +23,35 @@ test('staff can link an unlinked request to a patient from the detail page', fun
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
         ->assertActionVisible('linkToPatient')
         ->assertActionHidden('accept')
-        ->callAction('linkToPatient', ['patient_id' => $patient->id])
+        ->callAction('linkToPatient', ['patient_mode' => 'existing', 'patient_id' => $patient->id])
         ->assertHasNoActionErrors()
         ->assertNotified();
 
-    expect($request->fresh()->patient_id)->toBe($patient->id);
+    expect($request->fresh()->patient_id)->toBe($patient->id)
+        ->and($patient->fresh()->user_id)->toBe($account->id);
+});
+
+test('staff can link a request to a brand-new patient from the detail page', function () {
+    $staff = User::factory()->staff()->create();
+    $account = User::factory()->create(['role_id' => Role::firstOrCreate(['name' => 'patient'])->id]);
+    $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null, 'user_id' => $account->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
+        ->callAction('linkToPatient', [
+            'patient_mode' => 'new',
+            'new_patient_first_name' => 'Maria',
+            'new_patient_last_name' => 'Santos',
+            'new_patient_phone' => '9171234567',
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    $newPatient = Patient::query()->where('first_name', 'Maria')->where('last_name', 'Santos')->firstOrFail();
+
+    expect($request->fresh()->patient_id)->toBe($newPatient->id)
+        ->and($newPatient->user_id)->toBe($account->id);
 });
 
 test('accepting a linked request from the detail page does not error and creates an appointment', function () {

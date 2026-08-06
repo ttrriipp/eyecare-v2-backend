@@ -11,10 +11,14 @@ use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Models\AppointmentType;
 use App\Models\Patient;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -59,21 +63,102 @@ class ViewAppointmentRequest extends ViewRecord
                         ])
                         ->toArray();
 
+                    $snapshot = $this->record->encrypted_identity_snapshot ?? [];
+
                     return [
-                        Select::make('patient_id')
+                        ToggleButtons::make('patient_mode')
                             ->label('Patient')
+                            ->options([
+                                'existing' => 'Existing Patient',
+                                'new' => 'New Patient',
+                            ])
+                            ->default('existing')
+                            ->inline()
+                            ->live()
+                            ->required(),
+
+                        Select::make('patient_id')
+                            ->label('Clinical Record')
                             ->options(array_filter([
                                 'Candidate Matches' => $candidateOptions,
                                 'All Patients' => $otherOptions,
                             ]))
                             ->searchable()
-                            ->required()
+                            ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'existing')
                             ->helperText('Select which clinical record this request belongs to.'),
+
+                        TextInput::make('new_patient_first_name')
+                            ->label('First Name')
+                            ->default($snapshot['first_name'] ?? null)
+                            ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_middle_name')
+                            ->label('Middle Name')
+                            ->default($snapshot['middle_name'] ?? null)
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_last_name')
+                            ->label('Last Name')
+                            ->default($snapshot['last_name'] ?? null)
+                            ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_phone')
+                            ->label('Phone')
+                            ->default($this->record->getSnapshotPhone())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_contact_email')
+                            ->label('Email')
+                            ->email()
+                            ->default($this->record->getSnapshotEmail())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        DatePicker::make('new_patient_date_of_birth')
+                            ->label('Date of Birth')
+                            ->default($this->record->getSnapshotDateOfBirth())
+                            ->maxDate(now())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        Select::make('new_patient_gender')
+                            ->label('Gender')
+                            ->options([
+                                'male' => 'Male',
+                                'female' => 'Female',
+                                'other' => 'Other',
+                            ])
+                            ->default($this->record->getSnapshotGender())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_occupation')
+                            ->label('Occupation')
+                            ->default($this->record->getSnapshotOccupation())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
+                        TextInput::make('new_patient_address')
+                            ->label('Address')
+                            ->default($this->record->getSnapshotAddress())
+                            ->nullable()
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                     ];
                 })
                 ->action(function (array $data): void {
                     try {
-                        $patient = Patient::findOrFail($data['patient_id']);
+                        if (($data['patient_mode'] ?? 'existing') === 'new') {
+                            $patient = Patient::create([
+                                'first_name' => $data['new_patient_first_name'],
+                                'middle_name' => $data['new_patient_middle_name'] ?? null,
+                                'last_name' => $data['new_patient_last_name'],
+                                'phone' => $data['new_patient_phone'] ?? null,
+                                'contact_email' => $data['new_patient_contact_email'] ?? null,
+                                'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
+                                'gender' => $data['new_patient_gender'] ?? null,
+                                'occupation' => $data['new_patient_occupation'] ?? null,
+                                'address' => $data['new_patient_address'] ?? null,
+                            ]);
+                        } else {
+                            $patient = Patient::findOrFail($data['patient_id']);
+                        }
 
                         app(LinkAppointmentRequestToPatient::class)->handle(
                             request: $this->record,
