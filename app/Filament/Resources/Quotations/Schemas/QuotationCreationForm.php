@@ -45,7 +45,6 @@ class QuotationCreationForm
                 ]),
 
             Section::make('Items')
-                ->description('Add the frame, lens option, service, or other items discussed with the patient.')
                 ->schema([
                     Repeater::make('items')
                         ->label('')
