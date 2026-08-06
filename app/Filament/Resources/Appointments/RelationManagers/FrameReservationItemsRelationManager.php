@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Appointments\RelationManagers;
 
 use App\Actions\Reservations\AddFrameReservationItem;
 use App\Actions\Reservations\CreateFrameReservation;
+use App\Actions\Reservations\RemoveFrameReservationItem;
 use App\Enums\ReservationStatus;
 use App\Filament\Resources\Products\ProductResource;
 use App\Models\FrameReservation;
@@ -17,6 +18,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class FrameReservationItemsRelationManager extends RelationManager
@@ -39,12 +41,14 @@ class FrameReservationItemsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->recordTitleAttribute('id')
             ->headerActions([
                 Action::make('reserveFrames')
                     ->label('Reserve Frames')
                     ->icon('heroicon-o-eye')
                     ->color('info')
-                    ->visible(fn (): bool => $this->getOwnerRecord()->status?->name === 'scheduled'
+                    ->visible(fn (): bool => Gate::allows('reserveFrames', FrameReservation::class)
+                        && $this->getOwnerRecord()->status?->name === 'scheduled'
                         && ! $this->getOwnerRecord()->scheduled_at
                             ?->addMinutes($this->getOwnerRecord()->duration_minutes ?? 30)
                             ->isPast()
@@ -71,6 +75,8 @@ class FrameReservationItemsRelationManager extends RelationManager
                             ->required(),
                     ])
                     ->action(function (array $data): void {
+                        Gate::authorize('reserveFrames', FrameReservation::class);
+
                         $appointment = $this->getOwnerRecord();
 
                         try {
@@ -82,6 +88,8 @@ class FrameReservationItemsRelationManager extends RelationManager
                                     ->all(),
                             );
 
+                            $appointment->refresh();
+                            $this->dispatch('frame-reservation-updated');
                             Notification::make()
                                 ->title('Frames reserved')
                                 ->body("Reservation #{$reservation->id}")
@@ -97,7 +105,9 @@ class FrameReservationItemsRelationManager extends RelationManager
                     ->label('Add Frame')
                     ->icon('heroicon-o-plus')
                     ->color('gray')
-                    ->visible(fn (): bool => in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                    ->visible(fn (): bool => $this->getOwnerRecord()->frameReservation !== null
+                        && Gate::allows('addFrame', $this->getOwnerRecord()->frameReservation)
+                        && in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                     ->schema([
                         Select::make('product_variant_id')
                             ->label('Frame')
@@ -119,12 +129,16 @@ class FrameReservationItemsRelationManager extends RelationManager
                         /** @var FrameReservation $reservation */
                         $reservation = $this->getOwnerRecord()->frameReservation;
 
+                        Gate::authorize('addFrame', $reservation);
+
                         try {
                             app(AddFrameReservationItem::class)->handle(
                                 reservation: $reservation,
                                 productVariantId: (int) $data['product_variant_id'],
                             );
 
+                            $reservation->refresh();
+                            $this->dispatch('frame-reservation-updated');
                             Notification::make()->title('Frame added')->success()->send();
                         } catch (ValidationException $e) {
                             $message = collect($e->errors())->flatten()->first() ?? 'Cannot add frame.';
@@ -154,8 +168,37 @@ class FrameReservationItemsRelationManager extends RelationManager
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
             ])
+            ->recordActions([
+                Action::make('removeFrame')
+                    ->label('Remove')
+                    ->icon('heroicon-o-x-mark')
+                    ->color('danger')
+                    ->visible(fn (): bool => $this->getOwnerRecord()->frameReservation !== null
+                        && Gate::allows('removeFrame', $this->getOwnerRecord()->frameReservation)
+                        && in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                    ->requiresConfirmation()
+                    ->action(function (FrameReservationItem $record): void {
+                        /** @var FrameReservation $reservation */
+                        $reservation = $this->getOwnerRecord()->frameReservation;
+
+                        Gate::authorize('removeFrame', $reservation);
+
+                        try {
+                            app(RemoveFrameReservationItem::class)->handle($reservation, $record);
+
+                            $reservation->refresh();
+                            $this->dispatch('frame-reservation-updated');
+                            Notification::make()->title('Frame removed')->success()->send();
+                        } catch (ValidationException $e) {
+                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot remove frame.';
+                            Notification::make()->title('Cannot remove frame')->body($message)->danger()->send();
+                        }
+                    }),
+            ])
             ->defaultSort('created_at', 'desc')
             ->paginated(false)
+            ->emptyStateHeading('No frames reserved')
+            ->emptyStateDescription('Reserve the first frame for this appointment.')
             ->heading('Reserved Frames');
     }
 }

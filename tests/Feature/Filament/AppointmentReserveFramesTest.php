@@ -152,6 +152,62 @@ test('the add frame action is hidden from the appointment relation manager once 
         ->assertActionHidden(TestAction::make('addFrame')->table());
 });
 
+test('staff can remove a frame from the appointment reservation relation manager', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+    $reservation = FrameReservation::factory()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => 'requested',
+    ]);
+    $keptItem = $reservation->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create([
+            'product_id' => Product::factory()->create(['product_type' => 'frame'])->id,
+        ])->id,
+    ]);
+    $removedItem = $reservation->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create([
+            'product_id' => Product::factory()->create(['product_type' => 'frame'])->id,
+        ])->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->assertActionVisible(TestAction::make('removeFrame')->table($removedItem))
+        ->callAction(TestAction::make('removeFrame')->table($removedItem))
+        ->assertHasNoActionErrors();
+
+    expect($reservation->items()->whereKey($removedItem->id)->exists())->toBeFalse()
+        ->and($reservation->items()->whereKey($keptItem->id)->exists())->toBeTrue();
+});
+
+test('the remove frame action is hidden from the appointment relation manager once tried on', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+    $reservation = FrameReservation::factory()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => 'tried_on',
+    ]);
+    $item = $reservation->items()->create([
+        'product_variant_id' => ProductVariant::factory()->create([
+            'product_id' => Product::factory()->create(['product_type' => 'frame'])->id,
+        ])->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->assertActionHidden(TestAction::make('removeFrame')->table($item));
+});
+
 test('reserve frames action rejects a non-frame product variant', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
