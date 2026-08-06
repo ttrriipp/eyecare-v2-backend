@@ -13,8 +13,10 @@ class ReleaseFrameReservation
 {
     public function handle(FrameReservation $reservation): FrameReservation
     {
-        if ($reservation->status !== ReservationStatus::Prepared) {
-            // Only prepared reservations have allocated stock to release
+        $hasAllocatedStock = in_array($reservation->status, [ReservationStatus::Prepared, ReservationStatus::TriedOn], true);
+
+        if (! $hasAllocatedStock) {
+            // Only prepared/tried-on reservations have allocated stock to release
             $reservation->update(['status' => ReservationStatus::Released]);
 
             return $reservation->fresh();

@@ -46,3 +46,41 @@ test('reservation table shows status badges', function () {
 test('reservation resource is registered', function () {
     expect(FrameReservationResource::getModel())->toBe(FrameReservation::class);
 });
+
+test('staff marks a prepared reservation as tried on', function () {
+    $staff = User::factory()->staff()->create();
+    $reservation = FrameReservation::factory()->prepared()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditFrameReservation::class, ['record' => $reservation->getRouteKey()])
+        ->assertActionVisible('triedOn')
+        ->callAction('triedOn')
+        ->assertHasNoActionErrors();
+
+    expect($reservation->fresh()->status)->toBe(ReservationStatus::TriedOn);
+});
+
+test('the tried on action is hidden for a requested reservation', function () {
+    $staff = User::factory()->staff()->create();
+    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditFrameReservation::class, ['record' => $reservation->getRouteKey()])
+        ->assertActionHidden('triedOn');
+});
+
+test('staff can release a tried-on reservation', function () {
+    $staff = User::factory()->staff()->create();
+    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditFrameReservation::class, ['record' => $reservation->getRouteKey()])
+        ->assertActionVisible('release')
+        ->callAction('release')
+        ->assertHasNoActionErrors();
+
+    expect($reservation->fresh()->status)->toBe(ReservationStatus::Released);
+});

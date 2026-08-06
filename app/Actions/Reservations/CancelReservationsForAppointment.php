@@ -28,8 +28,8 @@ class CancelReservationsForAppointment
         $releaseAction = app(ReleaseFrameReservation::class);
 
         foreach ($reservations as $reservation) {
-            // Prepared reservations have allocated stock that must be released.
-            if ($reservation->status === ReservationStatus::Prepared) {
+            // Prepared/tried-on reservations have allocated stock that must be released.
+            if (in_array($reservation->status, [ReservationStatus::Prepared, ReservationStatus::TriedOn], true)) {
                 $releaseAction->handle($reservation);
             }
 

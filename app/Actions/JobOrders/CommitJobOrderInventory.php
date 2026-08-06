@@ -12,7 +12,13 @@ use Illuminate\Validation\ValidationException;
 
 class CommitJobOrderInventory
 {
-    public function handle(JobOrder $jobOrder): void
+    /**
+     * @param  array<int, int>  $excludeProductVariantIds  Variants already committed elsewhere in
+     *                                                     this same confirmation (e.g. transferred
+     *                                                     from a converted frame reservation) —
+     *                                                     skipped here to avoid double-committing.
+     */
+    public function handle(JobOrder $jobOrder, array $excludeProductVariantIds = []): void
     {
         if ($jobOrder->status !== JobOrderStatus::Queued) {
             throw ValidationException::withMessages([
@@ -20,12 +26,16 @@ class CommitJobOrderInventory
             ]);
         }
 
-        DB::transaction(function () use ($jobOrder): void {
+        DB::transaction(function () use ($jobOrder, $excludeProductVariantIds): void {
             $commitmentType = InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_commitment']);
 
             foreach ($jobOrder->items as $item) {
                 if ($item->product_variant_id === null) {
+                    continue;
+                }
+
+                if (in_array($item->product_variant_id, $excludeProductVariantIds, true)) {
                     continue;
                 }
 

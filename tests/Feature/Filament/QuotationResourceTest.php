@@ -2,11 +2,15 @@
 
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Enums\QuotationStatus;
+use App\Enums\ReservationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\FrameReservation;
 use App\Models\JobOrder;
+use App\Models\Patient;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
@@ -203,4 +207,35 @@ test('the revise items action is hidden once a quotation has an optical order', 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->assertActionHidden('reviseItems')
         ->assertActionHidden('confirmSale');
+});
+
+test('confirming a sale with a selected frame reservation converts it instead of double-committing stock', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 9]);
+
+    $reservation = FrameReservation::factory()->prepared()->create(['patient_id' => $patient->id]);
+    $reservation->items()->create(['product_variant_id' => $variant->id]);
+
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft, 'patient_id' => $patient->id]);
+    QuotationItem::factory()->product()->create([
+        'quotation_id' => $quotation->id,
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->callAction('confirmSale', ['frame_reservation_id' => $reservation->id])
+        ->assertHasNoActionErrors();
+
+    expect($variant->fresh()->stock_quantity)->toBe(9)
+        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted);
+
+    $jobOrder = JobOrder::query()->where('quotation_id', $quotation->id)->firstOrFail();
+
+    expect($jobOrder->frame_reservation_id)->toBe($reservation->id);
 });

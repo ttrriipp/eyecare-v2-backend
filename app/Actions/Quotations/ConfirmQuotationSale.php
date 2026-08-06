@@ -102,8 +102,22 @@ class ConfirmQuotationSale
                         ]);
                     }
 
-                    // Commit inventory for catalog-backed items
-                    app(CommitJobOrderInventory::class)->handle($opticalOrder);
+                    // Convert the frame reservation first, if one was selected — its
+                    // variants already have stock allocated, so they must be excluded
+                    // from the normal commitment below to avoid double-committing.
+                    $reservedVariantIds = [];
+
+                    if ($frameReservationId !== null) {
+                        $reservation = FrameReservation::find($frameReservationId);
+
+                        if ($reservation !== null) {
+                            app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $opticalOrder);
+                            $reservedVariantIds = $reservation->items->pluck('product_variant_id')->all();
+                        }
+                    }
+
+                    // Commit inventory for catalog-backed items not already covered above
+                    app(CommitJobOrderInventory::class)->handle($opticalOrder, excludeProductVariantIds: $reservedVariantIds);
                 }
             }
 
@@ -155,14 +169,6 @@ class ConfirmQuotationSale
                     notes: 'Initial deposit at confirmation',
                     chargesReviewed: true,
                 );
-            }
-
-            // Convert frame reservation if provided
-            if ($frameReservationId !== null && $opticalOrder !== null) {
-                $reservation = FrameReservation::find($frameReservationId);
-                if ($reservation !== null) {
-                    app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $opticalOrder);
-                }
             }
 
             return [

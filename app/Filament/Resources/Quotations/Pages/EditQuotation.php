@@ -8,10 +8,12 @@ use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\QuotationStatus;
+use App\Enums\ReservationStatus;
 use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
+use App\Models\FrameReservation;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -22,6 +24,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class EditQuotation extends EditRecord
@@ -107,6 +110,14 @@ class EditQuotation extends EditRecord
                         ->where('item_type', TransactionItemType::Service)
                         ->get();
 
+                    $hasProductItems = $this->record->productItems()->exists();
+
+                    $activeReservations = FrameReservation::query()
+                        ->where('patient_id', $this->record->patient_id)
+                        ->whereIn('status', [ReservationStatus::Requested, ReservationStatus::Prepared, ReservationStatus::TriedOn])
+                        ->with('items.variant.product')
+                        ->get();
+
                     return [
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
@@ -115,6 +126,18 @@ class EditQuotation extends EditRecord
                                 $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
                             ]))
                             ->visible($serviceItems->isNotEmpty()),
+
+                        Select::make('frame_reservation_id')
+                            ->label('Frame Reservation')
+                            ->helperText('Converts the reservation\'s already-held stock into this order instead of committing it a second time.')
+                            ->options($activeReservations->mapWithKeys(fn (FrameReservation $reservation): array => [
+                                $reservation->id => 'Reservation #'.$reservation->id.' — '.$reservation->items
+                                    ->map(fn ($item): string => $item->variant?->product?->name ?? 'Unknown frame')
+                                    ->implode(', ').' ('.Str::headline($reservation->status->value).')',
+                            ]))
+                            ->searchable()
+                            ->nullable()
+                            ->visible($hasProductItems && $activeReservations->isNotEmpty()),
 
                         DatePicker::make('payment_due_date')
                             ->label('Payment Due Date')
@@ -162,6 +185,7 @@ class EditQuotation extends EditRecord
                             depositAmount: filled($data['deposit_amount'] ?? null) ? (float) $data['deposit_amount'] : null,
                             depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                             depositReference: $data['deposit_reference'] ?? null,
+                            frameReservationId: filled($data['frame_reservation_id'] ?? null) ? (int) $data['frame_reservation_id'] : null,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()
