@@ -24,8 +24,7 @@ class LensCategoryForm
                             ->unique(ignoreRecord: true),
                         TextInput::make('price')
                             ->numeric()
-                            ->prefix('₱')
-                            ->helperText('Price added to order total when this lens category is selected.'),
+                            ->prefix('₱'),
                         Textarea::make('description')
                             ->columnSpanFull(),
                     ]),

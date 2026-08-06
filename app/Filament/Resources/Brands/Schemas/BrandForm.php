@@ -24,8 +24,7 @@ class BrandForm
                         TextInput::make('supplier_contact')
                             ->label('Supplier Contact')
                             ->maxLength(255)
-                            ->placeholder('e.g. Juan - 0917 123 4567 (Viber)')
-                            ->helperText('Name, phone, or Viber/WhatsApp of your frame supplier rep.'),
+                            ->placeholder('e.g. Juan - 0917 123 4567 (Viber)'),
                     ]),
 
                 Section::make('Timestamps')
