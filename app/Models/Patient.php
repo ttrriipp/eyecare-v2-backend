@@ -138,6 +138,14 @@ class Patient extends Model
     }
 
     /**
+     * @return HasMany<BillingRecord, $this>
+     */
+    public function billingRecords(): HasMany
+    {
+        return $this->hasMany(BillingRecord::class);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
