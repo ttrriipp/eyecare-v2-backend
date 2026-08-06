@@ -74,18 +74,26 @@ class OptometristHours extends AvailabilityClusterPage
     public function content(Schema $schema): Schema
     {
         $weekdays = $this->getWeekdays();
+        $hasOptometrists = filled($this->getOptometrists());
 
         return $schema->components([
             Section::make('Optometrist Hours')
                 ->description('Set individual optometrist availability. Hours must fit within clinic hours.')
                 ->schema([
+                    Placeholder::make('no_optometrists')
+                        ->hiddenLabel()
+                        ->content('No optometrists have been added yet. Add an optometrist account to set their availability here.')
+                        ->visible(! $hasOptometrists),
+
                     Select::make('selectedOptometristId')
                         ->label('Optometrist')
                         ->options($this->getOptometrists())
                         ->searchable()
                         ->preload()
                         ->live()
-                        ->afterStateUpdated(fn () => $this->loadProviderHours()),
+                        ->afterStateUpdated(fn () => $this->loadProviderHours())
+                        ->visible($hasOptometrists),
+
                     ...array_map(fn (int $day, string $name) => Grid::make(4)->schema([
                         Toggle::make("providerHours.{$day}.enabled")
                             ->label($name)
@@ -99,13 +107,13 @@ class OptometristHours extends AvailabilityClusterPage
                             ->label('End')
                             ->seconds(false)
                             ->visible(fn (Get $get) => $get("providerHours.{$day}.enabled") ?? false),
-                    ]), array_keys($weekdays), $weekdays),
+                    ])->visible(fn (): bool => filled($this->selectedOptometristId)), array_keys($weekdays), $weekdays),
                 ])
-                ->visible(fn () => filled($this->selectedOptometristId))
                 ->footer([
                     Action::make('saveProviderHours')
                         ->label('Save Optometrist Hours')
-                        ->action('saveProviderHours'),
+                        ->action('saveProviderHours')
+                        ->visible(fn (): bool => filled($this->selectedOptometristId)),
                 ]),
         ]);
     }

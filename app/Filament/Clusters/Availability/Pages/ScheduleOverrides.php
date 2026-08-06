@@ -8,43 +8,31 @@ use App\Enums\ScheduleOverrideType;
 use App\Models\ScheduleOverride;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\HtmlString;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
-class ScheduleOverrides extends AvailabilityClusterPage
+class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
 {
+    use InteractsWithTable;
+
     protected static ?string $title = 'Schedule Overrides';
 
     protected static ?string $navigationLabel = 'Schedule Overrides';
 
     protected static ?int $navigationSort = 4;
-
-    /** @var Collection<int, ScheduleOverride> */
-    public Collection $overrides;
-
-    public function mount(): void
-    {
-        $this->loadOverrides();
-    }
-
-    private function loadOverrides(): void
-    {
-        $this->overrides = ScheduleOverride::query()
-            ->with('user')
-            ->where('override_date', '>=', today()->toDateString())
-            ->orderBy('override_date')
-            ->get();
-    }
 
     /**
      * @return array<string, string>
@@ -60,73 +48,63 @@ class ScheduleOverrides extends AvailabilityClusterPage
             ->all();
     }
 
-    private function renderOverridesList(): HtmlString
-    {
-        if ($this->overrides->isEmpty()) {
-            return new HtmlString(
-                '<div class="rounded-lg border border-dashed border-gray-300 p-3 text-center text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">No upcoming overrides.</div>'
-            );
-        }
-
-        $badgeColors = [
-            'danger' => 'bg-danger-50 text-danger-700 dark:bg-danger-500/15 dark:text-danger-400',
-            'warning' => 'bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400',
-            'info' => 'bg-info-50 text-info-700 dark:bg-info-500/15 dark:text-info-400',
-        ];
-
-        $rows = $this->overrides->map(function (ScheduleOverride $override) use ($badgeColors): string {
-            $canDelete = $override->type === ScheduleOverrideType::ProviderAbsence
-                ? $this->canManageProviderAbsence($override->user_id)
-                : $this->canManageClinicWideOverrides();
-
-            $date = e($override->override_date->format('D, M j, Y'));
-            $badgeColor = $badgeColors[$override->type->getColor()] ?? $badgeColors['info'];
-            $label = e($override->type->getLabel());
-
-            $detail = match ($override->type) {
-                ScheduleOverrideType::Closed => 'Clinic closed all day',
-                ScheduleOverrideType::EarlyClose => 'Closes at '.e($override->start_time?->format('g:i A') ?? '—'),
-                ScheduleOverrideType::ProviderAbsence => e($override->user?->full_name ?? 'Unknown optometrist')
-                    .($override->start_time !== null
-                        ? ' — away '.e($override->start_time->format('g:i A')).' to '.e($override->end_time?->format('g:i A') ?? '—')
-                        : ' — away all day'),
-            };
-
-            $reason = filled($override->reason)
-                ? '<div class="text-xs text-gray-500 dark:text-gray-400">'.e($override->reason).'</div>'
-                : '';
-
-            $deleteButton = $canDelete
-                ? '<button type="button" wire:click="deleteOverride('.$override->id.')" wire:confirm="Remove this override?" class="shrink-0 text-sm font-medium text-danger-600 hover:underline dark:text-danger-400">Remove</button>'
-                : '';
-
-            return '<div class="flex items-center gap-x-3 p-3">'
-                .'<div class="min-w-0 flex-1">'
-                .'<div class="flex items-center gap-x-2">'
-                .'<span class="text-sm font-semibold text-gray-900 dark:text-white">'.$date.'</span>'
-                .'<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$badgeColor.'">'.$label.'</span>'
-                .'</div>'
-                .'<div class="text-sm text-gray-600 dark:text-gray-300">'.$detail.'</div>'
-                .$reason
-                .'</div>'
-                .$deleteButton
-                .'</div>';
-        })->implode('<div class="border-t border-gray-200 dark:border-white/10"></div>');
-
-        return new HtmlString('<div class="rounded-lg border border-gray-200 dark:border-white/10">'.$rows.'</div>');
-    }
-
     public function content(Schema $schema): Schema
     {
         return $schema->components([
             Section::make('Schedule Overrides')
                 ->description('Upcoming one-off closures, early-closing days, and optometrist absences. These take priority over the weekly hours above.')
                 ->schema([
-                    Placeholder::make('overrides_list')
-                        ->hiddenLabel()
-                        ->content(fn () => $this->renderOverridesList()),
+                    EmbeddedTable::make(),
                 ]),
         ]);
+    }
+
+    public function table(Table $table): Table
+    {
+        return $table
+            ->query(fn (): Builder => ScheduleOverride::query()
+                ->with('user')
+                ->where('override_date', '>=', today()->toDateString()))
+            ->defaultSort('override_date')
+            ->columns([
+                TextColumn::make('override_date')
+                    ->label('Date')
+                    ->date('D, M j, Y')
+                    ->sortable(),
+
+                TextColumn::make('type')
+                    ->badge(),
+
+                TextColumn::make('detail')
+                    ->label('Detail')
+                    ->state(fn (ScheduleOverride $record): string => match ($record->type) {
+                        ScheduleOverrideType::Closed => 'Clinic closed all day',
+                        ScheduleOverrideType::EarlyClose => 'Closes at '.($record->start_time?->format('g:i A') ?? '—'),
+                        ScheduleOverrideType::ProviderAbsence => ($record->user?->full_name ?? 'Unknown optometrist')
+                            .($record->start_time !== null
+                                ? ' — away '.$record->start_time->format('g:i A').' to '.($record->end_time?->format('g:i A') ?? '—')
+                                : ' — away all day'),
+                    }),
+
+                TextColumn::make('reason')
+                    ->wrap()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->recordActions([
+                Action::make('delete')
+                    ->label('Remove')
+                    ->icon(Heroicon::OutlinedTrash)
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription('Remove this override?')
+                    ->visible(fn (ScheduleOverride $record): bool => $record->type === ScheduleOverrideType::ProviderAbsence
+                        ? $this->canManageProviderAbsence($record->user_id)
+                        : $this->canManageClinicWideOverrides())
+                    ->action(fn (ScheduleOverride $record) => $this->deleteOverride($record->id)),
+            ])
+            ->emptyStateHeading('No upcoming overrides')
+            ->emptyStateDescription('Add a closure, early-close day, or optometrist absence above.');
     }
 
     protected function getHeaderActions(): array
@@ -241,8 +219,6 @@ class ScheduleOverrides extends AvailabilityClusterPage
             return;
         }
 
-        $this->loadOverrides();
-
         Notification::make()
             ->title('Override added')
             ->body("{$type->getLabel()} — {$override->override_date->format('D, M j, Y')}")
@@ -276,7 +252,6 @@ class ScheduleOverrides extends AvailabilityClusterPage
         $date = $override->override_date->format('D, M j, Y');
 
         app(DeleteScheduleOverride::class)->handle($override);
-        $this->loadOverrides();
 
         Notification::make()
             ->title('Override removed')

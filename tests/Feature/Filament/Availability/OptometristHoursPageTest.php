@@ -33,6 +33,15 @@ test('each weekday\'s provider hour fields are independently visible', function 
         ->assertSchemaComponentVisible('providerHours.3.end_time');
 });
 
+test('shows an empty state instead of a blank form when there are no optometrists', function () {
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    Livewire::test(OptometristHours::class)
+        ->assertSchemaComponentExists('no_optometrists')
+        ->assertSchemaComponentHidden('selectedOptometristId');
+});
+
 test('provider hours outside clinic hours are rejected with a visible error', function () {
     $optometrist = User::factory()->optometrist()->create();
     $this->actingAs($optometrist);

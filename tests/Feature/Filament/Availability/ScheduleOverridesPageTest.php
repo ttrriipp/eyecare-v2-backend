@@ -125,9 +125,7 @@ test('past overrides are not shown in the upcoming list', function () {
         'override_date' => today()->addDays(2)->toDateString(),
     ]);
 
-    $component = Livewire::test(ScheduleOverrides::class);
-
-    expect($component->get('overrides')->pluck('id'))
-        ->not->toContain($past->id)
-        ->toContain($upcoming->id);
+    Livewire::test(ScheduleOverrides::class)
+        ->assertCanSeeTableRecords([$upcoming])
+        ->assertCanNotSeeTableRecords([$past]);
 });
