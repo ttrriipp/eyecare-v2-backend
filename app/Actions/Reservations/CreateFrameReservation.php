@@ -30,7 +30,7 @@ class CreateFrameReservation
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $this->assertNoActiveReservation($appointment);
+            $this->assertNoExistingReservation($appointment);
 
             $reservation = FrameReservation::query()->create([
                 'patient_id' => $patient->id,
@@ -118,22 +118,23 @@ class CreateFrameReservation
         }
     }
 
-    private function assertNoActiveReservation(Appointment $appointment): void
+    /**
+     * A reservation holds stock for a patient who isn't at the clinic yet —
+     * that problem only exists once, before the visit. A frame reservation
+     * is a before-the-visit tool, so an appointment gets exactly one, ever,
+     * regardless of how it was resolved (matches the DB-level unique
+     * constraint on appointment_id). Anything tried on in person after that
+     * flows straight into the sale without going through this action again.
+     */
+    private function assertNoExistingReservation(Appointment $appointment): void
     {
-        $activeStatuses = [
-            ReservationStatus::Requested,
-            ReservationStatus::Prepared,
-            ReservationStatus::TriedOn,
-        ];
-
-        $hasActive = FrameReservation::query()
+        $hasExisting = FrameReservation::query()
             ->where('appointment_id', $appointment->id)
-            ->whereIn('status', $activeStatuses)
             ->exists();
 
-        if ($hasActive) {
+        if ($hasExisting) {
             throw ValidationException::withMessages([
-                'appointment_id' => ['An active reservation already exists for this appointment.'],
+                'appointment_id' => ['This appointment already has a frame reservation.'],
             ]);
         }
     }

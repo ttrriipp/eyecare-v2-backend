@@ -9,7 +9,6 @@ use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Reservations\CreateFrameReservation;
 use App\Enums\EncounterStatus;
-use App\Enums\ReservationStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
@@ -131,9 +130,12 @@ class EditAppointment extends EditRecord
                     && ! $this->getRecord()->scheduled_at
                         ?->addMinutes($this->getRecord()->duration_minutes ?? 30)
                         ->isPast()
+                    // A reservation is a before-the-visit tool — an appointment gets exactly
+                    // one, ever, regardless of status (matches the DB-level unique constraint
+                    // on appointment_id). Anything tried on in person after that flows
+                    // straight into the sale without another reservation.
                     && ! FrameReservation::query()
                         ->where('appointment_id', $this->getRecord()->id)
-                        ->whereIn('status', [ReservationStatus::Requested, ReservationStatus::Prepared, ReservationStatus::TriedOn])
                         ->exists())
                 ->schema([
                     Select::make('product_variant_ids')

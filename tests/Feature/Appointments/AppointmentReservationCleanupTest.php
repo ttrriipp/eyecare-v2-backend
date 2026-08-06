@@ -65,16 +65,22 @@ test('cancelling appointment releases prepared stock then cancels', function () 
 });
 
 test('cancelling appointment leaves terminal reservations unchanged', function () {
-    $appointment = Appointment::factory()->create();
-    $cancelled = FrameReservation::factory()->forAppointment($appointment)->create([
+    $cancelledAppointment = Appointment::factory()->create();
+    $cancelled = FrameReservation::factory()->forAppointment($cancelledAppointment)->create([
         'status' => ReservationStatus::Cancelled,
     ]);
-    $released = FrameReservation::factory()->forAppointment($appointment)->create([
+
+    $releasedAppointment = Appointment::factory()->create();
+    $released = FrameReservation::factory()->forAppointment($releasedAppointment)->create([
         'status' => ReservationStatus::Released,
     ]);
 
     app(CancelAppointment::class)->handle(
-        appointment: $appointment,
+        appointment: $cancelledAppointment,
+        initiator: 'patient',
+    );
+    app(CancelAppointment::class)->handle(
+        appointment: $releasedAppointment,
         initiator: 'patient',
     );
 

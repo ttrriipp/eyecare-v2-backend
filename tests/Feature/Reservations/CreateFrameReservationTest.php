@@ -108,7 +108,7 @@ test('another patients appointment is rejected', function () {
     );
 })->throws(ValidationException::class);
 
-test('duplicate active reservation is rejected', function () {
+test('a second active reservation for the same appointment is rejected', function () {
     $user = User::factory()->patient()->create();
     $appointment = createEligibleAppointment($user->patient);
     $variant1 = createActiveFrameVariant();
@@ -127,15 +127,17 @@ test('duplicate active reservation is rejected', function () {
         appointment: $appointment,
         items: [['product_variant_id' => $variant2->id]],
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'already has a frame reservation');
 
-test('terminal reservation permits new reservation for same appointment', function () {
+test('a terminal reservation still blocks a new one for the same appointment', function () {
+    // A reservation is a before-the-visit tool: an appointment gets exactly
+    // one, ever. Trying on something else in person doesn't create a new
+    // reservation — it just becomes a line item on the eventual sale.
     $user = User::factory()->patient()->create();
     $appointment = createEligibleAppointment($user->patient);
     $variant1 = createActiveFrameVariant();
     $variant2 = createActiveFrameVariant();
 
-    // First reservation — cancelled
     $first = $this->action->handle(
         patient: $user->patient,
         appointment: $appointment,
@@ -143,16 +145,12 @@ test('terminal reservation permits new reservation for same appointment', functi
     );
     $first->update(['status' => ReservationStatus::Cancelled]);
 
-    // Second reservation should succeed
-    $second = $this->action->handle(
+    $this->action->handle(
         patient: $user->patient,
         appointment: $appointment,
         items: [['product_variant_id' => $variant2->id]],
     );
-
-    expect($second->id)->not->toBe($first->id)
-        ->and($second->status)->toBe(ReservationStatus::Requested);
-});
+})->throws(ValidationException::class, 'already has a frame reservation');
 
 test('duplicate variant within reservation is rejected', function () {
     $user = User::factory()->patient()->create();

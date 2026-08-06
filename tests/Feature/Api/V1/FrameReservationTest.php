@@ -192,8 +192,10 @@ test('responses contain appointment display context', function () {
 
 test('patient can list their own reservations', function () {
     $user = User::factory()->patient()->create();
-    $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    FrameReservation::factory()->count(2)->forAppointment($appointment)->create();
+    $firstAppointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
+    $secondAppointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
+    FrameReservation::factory()->forAppointment($firstAppointment)->create();
+    FrameReservation::factory()->forAppointment($secondAppointment)->create();
     FrameReservation::factory()->create(); // other patient
 
     $this->actingAs($user)
