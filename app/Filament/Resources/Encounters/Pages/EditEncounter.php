@@ -375,7 +375,7 @@ class EditEncounter extends EditRecord
                                 ]),
                         ])
                         ->columns(2)
-                        ->defaultItems(0)
+                        ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
                 ])
