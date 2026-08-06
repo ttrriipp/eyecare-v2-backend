@@ -228,6 +228,13 @@ class CreateQuotation extends CreateRecord
                     $this->creationMode = 'accepted';
                     $this->create();
                 }),
+
+            Action::make('cancel')
+                ->label('Cancel')
+                ->icon('heroicon-o-x-mark')
+                ->color('danger')
+                ->url(QuotationResource::getUrl('index'))
+                ->cancelParentActions(),
         ];
     }
 
