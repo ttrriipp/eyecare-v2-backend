@@ -7,6 +7,7 @@ use App\Actions\Reservations\ReleaseFrameReservation;
 use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -60,27 +61,29 @@ class FrameReservationsTable
                     ->options(ReservationStatus::class),
             ])
             ->recordActions([
-                Action::make('prepare')
-                    ->label('Prepare')
-                    ->icon('heroicon-o-check')
-                    ->color('info')
-                    ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Requested)
-                    ->requiresConfirmation()
-                    ->action(function (FrameReservation $record): void {
-                        app(PrepareFrameReservation::class)->handle($record);
-                    }),
+                ActionGroup::make([
+                    Action::make('prepare')
+                        ->label('Prepare')
+                        ->icon('heroicon-o-check')
+                        ->color('info')
+                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Requested)
+                        ->requiresConfirmation()
+                        ->action(function (FrameReservation $record): void {
+                            app(PrepareFrameReservation::class)->handle($record);
+                        }),
 
-                Action::make('release')
-                    ->label('Release')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('warning')
-                    ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
-                    ->requiresConfirmation()
-                    ->action(function (FrameReservation $record): void {
-                        app(ReleaseFrameReservation::class)->handle($record);
-                    }),
+                    Action::make('release')
+                        ->label('Release')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('warning')
+                        ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                        ->requiresConfirmation()
+                        ->action(function (FrameReservation $record): void {
+                            app(ReleaseFrameReservation::class)->handle($record);
+                        }),
 
-                EditAction::make()->label('View'),
+                    EditAction::make()->label('View'),
+                ]),
             ])
             ->defaultSort('created_at', 'desc');
     }
