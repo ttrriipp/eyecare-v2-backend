@@ -28,14 +28,16 @@ test('staff can reserve frames for a manually-scheduled appointment', function (
 
     $this->actingAs($staff);
 
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionVisible('reserveFrames')
-        ->callAction('reserveFrames', [
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->assertActionVisible(TestAction::make('reserveFrames')->table())
+        ->callAction(TestAction::make('reserveFrames')->table(), [
             'product_variant_ids' => [$variant->id],
         ])
         ->assertHasNoActionErrors()
-        ->assertNotified()
-        ->assertRedirect();
+        ->assertNotified();
 
     $reservation = FrameReservation::query()->where('appointment_id', $appointment->id)->firstOrFail();
 
@@ -51,9 +53,12 @@ test('staff can reserve frames for a walk-in appointment the same as a mobile on
 
     $this->actingAs($staff);
 
-    Livewire::test(EditAppointment::class, ['record' => $walkIn->getRouteKey()])
-        ->assertActionVisible('reserveFrames')
-        ->callAction('reserveFrames', ['product_variant_ids' => [$variant->id]])
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $walkIn,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->assertActionVisible(TestAction::make('reserveFrames')->table())
+        ->callAction(TestAction::make('reserveFrames')->table(), ['product_variant_ids' => [$variant->id]])
         ->assertHasNoActionErrors();
 
     expect(FrameReservation::query()->where('appointment_id', $walkIn->id)->exists())->toBeTrue();
@@ -70,8 +75,11 @@ test('reserve frames action is hidden once an active reservation exists', functi
 
     $this->actingAs($staff);
 
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertActionHidden('reserveFrames');
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->assertActionHidden(TestAction::make('reserveFrames')->table());
 });
 
 test('view reservation action is visible once a reservation exists and links to it', function () {
@@ -153,8 +161,11 @@ test('reserve frames action rejects a non-frame product variant', function () {
 
     $this->actingAs($staff);
 
-    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->callAction('reserveFrames', ['product_variant_ids' => [$accessoryVariant->id]]);
+    Livewire::test(FrameReservationItemsRelationManager::class, [
+        'ownerRecord' => $appointment,
+        'pageClass' => EditAppointment::class,
+    ])
+        ->callAction(TestAction::make('reserveFrames')->table(), ['product_variant_ids' => [$accessoryVariant->id]]);
 
     expect(FrameReservation::query()->where('appointment_id', $appointment->id)->exists())->toBeFalse();
 });

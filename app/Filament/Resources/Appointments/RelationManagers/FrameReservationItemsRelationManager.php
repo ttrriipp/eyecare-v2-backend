@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Appointments\RelationManagers;
 
 use App\Actions\Reservations\AddFrameReservationItem;
+use App\Actions\Reservations\CreateFrameReservation;
 use App\Enums\ReservationStatus;
 use App\Filament\Resources\Products\ProductResource;
 use App\Models\FrameReservation;
@@ -39,6 +40,59 @@ class FrameReservationItemsRelationManager extends RelationManager
     {
         return $table
             ->headerActions([
+                Action::make('reserveFrames')
+                    ->label('Reserve Frames')
+                    ->icon('heroicon-o-eye')
+                    ->color('info')
+                    ->visible(fn (): bool => $this->getOwnerRecord()->status?->name === 'scheduled'
+                        && ! $this->getOwnerRecord()->scheduled_at
+                            ?->addMinutes($this->getOwnerRecord()->duration_minutes ?? 30)
+                            ->isPast()
+                        // A reservation is a before-the-visit tool — an appointment gets exactly
+                        // one, ever, regardless of status (matches the DB-level unique constraint
+                        // on appointment_id). Anything tried on in person after that flows
+                        // straight into the sale without another reservation.
+                        && $this->getOwnerRecord()->frameReservation === null)
+                    ->schema([
+                        Select::make('product_variant_ids')
+                            ->label('Frames')
+                            ->options(fn (): array => ProductVariant::query()
+                                ->active()
+                                ->whereHas('product', fn ($q) => $q->where('is_active', true)->where('product_type', 'frame'))
+                                ->with('product')
+                                ->get()
+                                ->mapWithKeys(fn (ProductVariant $variant): array => [
+                                    $variant->id => "{$variant->product->name} — {$variant->name} ({$variant->sku})",
+                                ])
+                                ->all())
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                    ])
+                    ->action(function (array $data): void {
+                        $appointment = $this->getOwnerRecord();
+
+                        try {
+                            $reservation = app(CreateFrameReservation::class)->handle(
+                                patient: $appointment->patient,
+                                appointment: $appointment,
+                                items: collect($data['product_variant_ids'])
+                                    ->map(fn ($id): array => ['product_variant_id' => (int) $id])
+                                    ->all(),
+                            );
+
+                            Notification::make()
+                                ->title('Frames reserved')
+                                ->body("Reservation #{$reservation->id}")
+                                ->success()
+                                ->send();
+                        } catch (ValidationException $e) {
+                            $message = collect($e->errors())->flatten()->first() ?? 'Cannot reserve frames.';
+                            Notification::make()->title('Cannot reserve frames')->body($message)->danger()->send();
+                        }
+                    }),
+
                 Action::make('addFrame')
                     ->label('Add Frame')
                     ->icon('heroicon-o-plus')
