@@ -110,39 +110,49 @@ class EditEncounter extends EditRecord
         $prescriptionData = $data['prescription'] ?? [];
         unset($data['prescription']);
 
-        // Only finalize prescription when completing the visit, not when saving draft
-        $shouldFinalizePrescription = ! $this->isSavingDraft
-            && $record->status === EncounterStatus::InProgress
-            && $this->shouldFinalizePrescription($prescriptionData)
-            && ! $record->prescriptions()->withTrashed()->exists();
-        $author = $shouldFinalizePrescription ? auth()->user() : null;
-
-        if ($shouldFinalizePrescription) {
-            abort_unless($author instanceof User && $author->hasOptometristCapability(), 403);
-        }
-
-        // Save prescription draft when saving (not finalizing)
-        if ($this->isSavingDraft && ! $shouldFinalizePrescription) {
+        // Only process prescription data when explicitly saving a draft or completing the visit
+        // This prevents other wizard steps (Consultation, Examination) from accidentally
+        // finalizing prescription data that's still in Livewire state
+        if ($this->isSavingDraft) {
+            // Save prescription draft
             $hasPrescriptionData = collect(self::PRESCRIPTION_FIELDS)
                 ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
 
             $data['prescription_draft'] = $hasPrescriptionData ? $prescriptionData : null;
             $data['draft_saved_at'] = now();
+        } elseif ($this->isCompletingVisit) {
+            // Finalize prescription when completing the visit
+            $shouldFinalizePrescription = $record->status === EncounterStatus::InProgress
+                && $this->shouldFinalizePrescription($prescriptionData)
+                && ! $record->prescriptions()->withTrashed()->exists();
+
+            if ($shouldFinalizePrescription) {
+                $author = auth()->user();
+                abort_unless($author instanceof User && $author->hasOptometristCapability(), 403);
+
+                $record->update($data);
+
+                app(FinalizePrescription::class)->handle(
+                    patient: $record->patient,
+                    encounter: $record,
+                    author: $author,
+                    data: Arr::only($prescriptionData, self::PRESCRIPTION_FIELDS),
+                );
+
+                $record->update(['prescription_draft' => null]);
+
+                app(CompleteEncounter::class)->handle(
+                    encounter: $record,
+                    actor: $author,
+                );
+
+                $this->isSavingDraft = false;
+
+                return $record;
+            }
         }
 
         $record->update($data);
-
-        if ($shouldFinalizePrescription && $author instanceof User) {
-            app(FinalizePrescription::class)->handle(
-                patient: $record->patient,
-                encounter: $record,
-                author: $author,
-                data: Arr::only($prescriptionData, self::PRESCRIPTION_FIELDS),
-            );
-
-            // Clear the draft after finalizing
-            $record->update(['prescription_draft' => null]);
-        }
 
         if ($this->isCompletingVisit && $record->status === EncounterStatus::InProgress) {
             $actor = auth()->user();
@@ -155,7 +165,6 @@ class EditEncounter extends EditRecord
             }
         }
 
-        // Reset the draft flag after save completes
         $this->isSavingDraft = false;
 
         return $record;
