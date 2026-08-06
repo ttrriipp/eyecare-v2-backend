@@ -155,12 +155,7 @@ class ProductForm
                                 ->gte('low_stock_threshold')
                                 ->default(null),
                             Toggle::make('is_active')
-                                ->label('Visibility')
-                                ->helperText(
-                                    fn (bool $state): string => $state
-                                        ? 'This variant is available to customers.'
-                                        : 'This variant will be hidden from all sales channels.'
-                                )
+                                ->label('Active')
                                 ->default(true),
                             Toggle::make('ar_eligible')->live()
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
