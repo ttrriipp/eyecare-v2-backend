@@ -109,12 +109,11 @@ class ListBillingRecords extends ListRecords
                                                 2,
                                             ));
                                         }),
-                                    Placeholder::make('line_total')
+                                    TextInput::make('line_total')
                                         ->label('Line Total')
-                                        ->content(fn (Get $get): string => '₱'.number_format(
-                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                            2,
-                                        )),
+                                        ->prefix('₱')
+                                        ->disabled()
+                                        ->dehydrated(false),
                                 ]),
                         ])
                         ->columns(2)
