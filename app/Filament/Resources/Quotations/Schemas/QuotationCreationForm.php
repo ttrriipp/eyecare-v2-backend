@@ -88,7 +88,7 @@ class QuotationCreationForm
                                         ->required(fn (Get $get): bool => $get('item_type') === 'catalog')
                                         ->visible(fn (Get $get): bool => $get('item_type') === 'catalog')
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $variant = ProductVariant::query()->with('product')->find($state);
 
                                             if ($variant === null) {
@@ -97,6 +97,10 @@ class QuotationCreationForm
 
                                             $set('description', "{$variant->product->name} — {$variant->name}");
                                             $set('unit_price', $variant->price);
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 1)) * ((float) $variant->price),
+                                                2,
+                                            ));
                                         }),
                                     Select::make('lens_category_id')
                                         ->label('Lens Category')
@@ -109,7 +113,7 @@ class QuotationCreationForm
                                         ->required(fn (Get $get): bool => $get('item_type') === 'lens')
                                         ->visible(fn (Get $get): bool => $get('item_type') === 'lens')
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $lensCategory = LensCategory::query()->find($state);
 
                                             if ($lensCategory === null) {
@@ -120,6 +124,10 @@ class QuotationCreationForm
 
                                             if ($lensCategory->price !== null) {
                                                 $set('unit_price', $lensCategory->price);
+                                                $set('line_total', number_format(
+                                                    ((float) ($get('quantity') ?? 1)) * ((float) $lensCategory->price),
+                                                    2,
+                                                ));
                                             }
                                         }),
                                     Select::make('service_id')
@@ -134,7 +142,7 @@ class QuotationCreationForm
                                         ->required(fn (Get $get): bool => $get('item_type') === 'service')
                                         ->visible(fn (Get $get): bool => $get('item_type') === 'service')
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $service = Service::query()->find($state);
 
                                             if ($service === null) {
@@ -143,6 +151,10 @@ class QuotationCreationForm
 
                                             $set('description', $service->name);
                                             $set('unit_price', $service->price);
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                                2,
+                                            ));
                                         }),
                                 ]),
                             TextInput::make('description')
