@@ -14,6 +14,7 @@ use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -55,7 +56,9 @@ class CreateQuotation extends CreateRecord
     public function form(Schema $schema): Schema
     {
         $encounter = $this->resolveEncounter();
-        $patient = $encounter?->patient ?? $this->resolvePrescription()?->patient ?? $this->resolvePatient();
+        $contextPrescription = $this->resolvePrescription();
+        $patient = $encounter?->patient ?? $contextPrescription?->patient ?? $this->resolvePatient();
+        $encounterPrescription = $encounter !== null ? $this->resolveEncounterPrescription($encounter) : null;
 
         return $schema
             ->columns(1)
@@ -76,8 +79,47 @@ class CreateQuotation extends CreateRecord
                                     ->all())
                                 ->required()
                                 ->searchable()
-                                ->preload(),
+                                ->preload()
+                                ->live(),
                         ])
+                    ->columns(2),
+
+                Section::make('Prescription')
+                    ->description('Only required if a lens item is added below.')
+                    ->schema(match (true) {
+                        $contextPrescription !== null => [
+                            Placeholder::make('prescription_display')
+                                ->label('Prescription')
+                                ->content($contextPrescription->prescription_number),
+                        ],
+                        $encounter !== null => [
+                            Placeholder::make('prescription_display')
+                                ->label('Prescription')
+                                ->content($encounterPrescription?->prescription_number
+                                    ?? 'No finalized prescription on this encounter yet.'),
+                        ],
+                        default => [
+                            Select::make('prescription_id')
+                                ->label('Prescription')
+                                ->options(function (Get $get) use ($patient): array {
+                                    $patientId = $patient?->id ?? $get('patient_id');
+
+                                    if (blank($patientId)) {
+                                        return [];
+                                    }
+
+                                    return Prescription::query()
+                                        ->where('patient_id', $patientId)
+                                        ->whereDoesntHave('nextPrescription')
+                                        ->get()
+                                        ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
+                                        ->all();
+                                })
+                                ->searchable()
+                                ->preload()
+                                ->helperText('Leave blank if this quotation has no corrective lens item.'),
+                        ],
+                    })
                     ->columns(2),
 
                 ...QuotationCreationForm::components(),
@@ -94,13 +136,14 @@ class CreateQuotation extends CreateRecord
         abort_unless($creator instanceof User, 403);
 
         $encounter = $this->resolveEncounter();
-        $prescription = $this->resolvePrescription();
+        $prescription = $this->resolvePrescription()
+            ?? (filled($data['prescription_id'] ?? null) ? Prescription::query()->find($data['prescription_id']) : null);
         $patient = $encounter?->patient
             ?? $prescription?->patient
             ?? $this->resolvePatient()
             ?? Patient::query()->find($data['patient_id'] ?? null);
 
-        unset($data['patient_id']);
+        unset($data['patient_id'], $data['prescription_id']);
 
         if ($patient === null) {
             Notification::make()
@@ -154,5 +197,13 @@ class CreateQuotation extends CreateRecord
     private function resolvePrescription(): ?Prescription
     {
         return $this->prescriptionId !== null ? Prescription::query()->find($this->prescriptionId) : null;
+    }
+
+    private function resolveEncounterPrescription(Encounter $encounter): ?Prescription
+    {
+        return $encounter->prescriptions()
+            ->whereDoesntHave('nextPrescription')
+            ->latest('id')
+            ->first();
     }
 }

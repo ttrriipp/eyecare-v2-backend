@@ -174,6 +174,94 @@ test('staff picks a patient manually when no context is provided', function () {
     expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeTrue();
 });
 
+test('a manually-picked patient can select their current prescription to add a lens item', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class)
+        ->fillForm([
+            'patient_id' => $patient->id,
+        ])
+        ->assertFormFieldExists('prescription_id')
+        ->fillForm([
+            'prescription_id' => $prescription->id,
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('patient_id', $patient->id)->firstOrFail();
+
+    expect($quotation->prescription_id)->toBe($prescription->id);
+});
+
+test('a superseded prescription picked manually is still rejected for a lens item', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $original = Prescription::factory()->create(['patient_id' => $patient->id]);
+    Prescription::factory()->create([
+        'patient_id' => $patient->id,
+        'previous_prescription_id' => $original->id,
+    ]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class)
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'prescription_id' => $original->id,
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+            ]],
+        ])
+        ->call('create');
+
+    expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
+});
+
+test('a quotation with only a patient context in the URL still offers a prescription picker for lens items', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
+        ->fillForm([
+            'prescription_id' => $prescription->id,
+            'items' => [[
+                'item_type' => 'lens',
+                'lens_category_id' => $lensCategory->id,
+                'description' => 'Single Vision Lens',
+                'quantity' => 1,
+                'unit_price' => 1500,
+            ]],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $quotation = Quotation::query()->where('patient_id', $patient->id)->firstOrFail();
+
+    expect($quotation->prescription_id)->toBe($prescription->id);
+});
+
 test('prescription detail links to the create quotation page with the prescription itself', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();
