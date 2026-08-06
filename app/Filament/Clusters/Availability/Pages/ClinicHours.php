@@ -39,8 +39,8 @@ class ClinicHours extends AvailabilityClusterPage
             $hour = $hours->get($day);
             $this->clinicHours[$day] = [
                 'enabled' => $hour?->enabled ?? true,
-                'open_time' => $hour?->open_time ?? '09:00',
-                'close_time' => $hour?->close_time ?? '17:00',
+                'open_time' => $hour?->open_time?->format('H:i') ?? '09:00',
+                'close_time' => $hour?->close_time?->format('H:i') ?? '17:00',
             ];
         }
     }

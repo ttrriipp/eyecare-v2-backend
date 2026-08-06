@@ -45,6 +45,19 @@ test('each weekday\'s clinic hour fields are independently enabled', function ()
         );
 });
 
+test('loaded clinic hours display as plain H:i strings, not Carbon instances', function () {
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    // ClinicHour casts open_time/close_time as datetime:H:i, which only
+    // controls serialization — direct property access still returns a
+    // Carbon instance. Binding that straight into the form leaves the
+    // TimePicker unable to display a value at all.
+    Livewire::test(ClinicHours::class)
+        ->assertSet('clinicHours.0.open_time', '09:00')
+        ->assertSet('clinicHours.0.close_time', '17:00');
+});
+
 test('an invalid day does not partially save clinic hours', function () {
     $admin = User::factory()->admin()->create();
     $this->actingAs($admin);

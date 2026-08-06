@@ -60,8 +60,8 @@ class OptometristHours extends AvailabilityClusterPage
             $hour = $hours->get($day);
             $this->providerHours[$day] = [
                 'enabled' => $hour?->enabled ?? false,
-                'start_time' => $hour?->start_time ?? '09:00',
-                'end_time' => $hour?->end_time ?? '17:00',
+                'start_time' => $hour?->start_time?->format('H:i') ?? '09:00',
+                'end_time' => $hour?->end_time?->format('H:i') ?? '17:00',
             ];
         }
     }
