@@ -228,137 +228,121 @@ class EncounterForm
                         Section::make('Prescription')
                             ->visible(fn (Get $get, Encounter $record): bool => self::hasPrescriptionFormData($get) || self::latestPrescription($record) !== null)
                             ->schema([
-                                Grid::make(2)
+                                Section::make('Prescription')
                                     ->schema([
-                                        Placeholder::make('summary_prescription_status')
-                                            ->label('Status')
-                                            ->content(fn (Get $get, Encounter $record): string => self::prescriptionStatus($get, $record)),
-                                        Placeholder::make('summary_prescribed_at')
-                                            ->label('Date')
-                                            ->content(fn (Get $get, Encounter $record): string => self::prescriptionDate($get, $record)),
-                                    ]),
-                                Grid::make(2)
-                                    ->schema([
-                                        Section::make('O.D. (Right Eye)')
+                                        Grid::make(3)
                                             ->schema([
-                                                Grid::make(3)
-                                                    ->schema([
-                                                        Placeholder::make('summary_main_od_value')
-                                                            ->label('Value')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_od_value',
-                                                                self::latestPrescription($record)?->main_od_value,
-                                                            )),
-                                                        Placeholder::make('summary_main_od_sphere')
-                                                            ->label('SPH')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_od_sphere',
-                                                                self::latestPrescription($record)?->main_od_sphere,
-                                                            )),
-                                                        Placeholder::make('summary_main_od_cylinder')
-                                                            ->label('CYL')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_od_cylinder',
-                                                                self::latestPrescription($record)?->main_od_cylinder,
-                                                            )),
-                                                    ]),
+                                                Placeholder::make('summary_main_od_value')
+                                                    ->label('O.D.')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_od_value',
+                                                        self::latestPrescription($record)?->main_od_value,
+                                                    )),
+                                                Placeholder::make('summary_main_od_sphere')
+                                                    ->label('SPH')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_od_sphere',
+                                                        self::latestPrescription($record)?->main_od_sphere,
+                                                    )),
+                                                Placeholder::make('summary_main_od_cylinder')
+                                                    ->label('CX')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_od_cylinder',
+                                                        self::latestPrescription($record)?->main_od_cylinder,
+                                                    )),
                                             ]),
-                                        Section::make('O.S. (Left Eye)')
+                                        Grid::make(3)
                                             ->schema([
-                                                Grid::make(3)
-                                                    ->schema([
-                                                        Placeholder::make('summary_main_os_value')
-                                                            ->label('Value')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_os_value',
-                                                                self::latestPrescription($record)?->main_os_value,
-                                                            )),
-                                                        Placeholder::make('summary_main_os_sphere')
-                                                            ->label('SPH')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_os_sphere',
-                                                                self::latestPrescription($record)?->main_os_sphere,
-                                                            )),
-                                                        Placeholder::make('summary_main_os_cylinder')
-                                                            ->label('CYL')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'main_os_cylinder',
-                                                                self::latestPrescription($record)?->main_os_cylinder,
-                                                            )),
-                                                    ]),
+                                                Placeholder::make('summary_main_os_value')
+                                                    ->label('O.S.')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_os_value',
+                                                        self::latestPrescription($record)?->main_os_value,
+                                                    )),
+                                                Placeholder::make('summary_main_os_sphere')
+                                                    ->label('SPH')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_os_sphere',
+                                                        self::latestPrescription($record)?->main_os_sphere,
+                                                    )),
+                                                Placeholder::make('summary_main_os_cylinder')
+                                                    ->label('CX')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'main_os_cylinder',
+                                                        self::latestPrescription($record)?->main_os_cylinder,
+                                                    )),
                                             ]),
                                     ]),
-                                Grid::make(2)
+
+                                Section::make('ADD')
                                     ->schema([
-                                        Section::make('O.D. Add')
+                                        Grid::make(3)
                                             ->schema([
-                                                Grid::make(3)
-                                                    ->schema([
-                                                        Placeholder::make('summary_add_od_value')
-                                                            ->label('Value')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_od_value',
-                                                                self::latestPrescription($record)?->add_od_value,
-                                                            )),
-                                                        Placeholder::make('summary_add_od_sphere')
-                                                            ->label('SPH')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_od_sphere',
-                                                                self::latestPrescription($record)?->add_od_sphere,
-                                                            )),
-                                                        Placeholder::make('summary_add_od_cylinder')
-                                                            ->label('CYL')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_od_cylinder',
-                                                                self::latestPrescription($record)?->add_od_cylinder,
-                                                            )),
-                                                    ]),
+                                                Placeholder::make('summary_add_od_value')
+                                                    ->label('O.D.')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_od_value',
+                                                        self::latestPrescription($record)?->add_od_value,
+                                                    )),
+                                                Placeholder::make('summary_add_od_sphere')
+                                                    ->label('SPH')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_od_sphere',
+                                                        self::latestPrescription($record)?->add_od_sphere,
+                                                    )),
+                                                Placeholder::make('summary_add_od_cylinder')
+                                                    ->label('CX')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_od_cylinder',
+                                                        self::latestPrescription($record)?->add_od_cylinder,
+                                                    )),
                                             ]),
-                                        Section::make('O.S. Add')
+                                        Grid::make(3)
                                             ->schema([
-                                                Grid::make(3)
-                                                    ->schema([
-                                                        Placeholder::make('summary_add_os_value')
-                                                            ->label('Value')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_os_value',
-                                                                self::latestPrescription($record)?->add_os_value,
-                                                            )),
-                                                        Placeholder::make('summary_add_os_sphere')
-                                                            ->label('SPH')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_os_sphere',
-                                                                self::latestPrescription($record)?->add_os_sphere,
-                                                            )),
-                                                        Placeholder::make('summary_add_os_cylinder')
-                                                            ->label('CYL')
-                                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                                $get,
-                                                                'add_os_cylinder',
-                                                                self::latestPrescription($record)?->add_os_cylinder,
-                                                            )),
-                                                    ]),
+                                                Placeholder::make('summary_add_os_value')
+                                                    ->label('O.S.')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_os_value',
+                                                        self::latestPrescription($record)?->add_os_value,
+                                                    )),
+                                                Placeholder::make('summary_add_os_sphere')
+                                                    ->label('SPH')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_os_sphere',
+                                                        self::latestPrescription($record)?->add_os_sphere,
+                                                    )),
+                                                Placeholder::make('summary_add_os_cylinder')
+                                                    ->label('CX')
+                                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                        $get,
+                                                        'add_os_cylinder',
+                                                        self::latestPrescription($record)?->add_os_cylinder,
+                                                    )),
                                             ]),
                                     ]),
-                                Placeholder::make('summary_prescription_remarks')
-                                    ->label('Remarks')
-                                    ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                        $get,
-                                        'remarks',
-                                        self::latestPrescription($record)?->remarks,
-                                    ))
-                                    ->columnSpanFull(),
+
+                                Section::make('Details')
+                                    ->schema([
+                                        Placeholder::make('summary_prescription_remarks')
+                                            ->label('Remarks')
+                                            ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
+                                                $get,
+                                                'remarks',
+                                                self::latestPrescription($record)?->remarks,
+                                            ))
+                                            ->columnSpanFull(),
+                                    ]),
                             ]),
                     ]),
             ])
