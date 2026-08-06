@@ -157,7 +157,13 @@ class QuotationCreationForm
                                 ->minValue(1)
                                 ->maxValue(999)
                                 ->default(1)
-                                ->live(onBlur: true),
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get): void {
+                                    $set('line_total', number_format(
+                                        ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                        2,
+                                    ));
+                                }),
                             TextInput::make('unit_price')
                                 ->label('Unit Price')
                                 ->prefix('₱')
@@ -165,13 +171,18 @@ class QuotationCreationForm
                                 ->numeric()
                                 ->minValue(0)
                                 ->step(0.01)
-                                ->live(onBlur: true),
-                            Placeholder::make('line_total')
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Set $set, Get $get): void {
+                                    $set('line_total', number_format(
+                                        ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                        2,
+                                    ));
+                                }),
+                            TextInput::make('line_total')
                                 ->label('Line Total')
-                                ->content(fn (Get $get): string => '₱'.number_format(
-                                    ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                    2,
-                                )),
+                                ->prefix('₱')
+                                ->disabled()
+                                ->dehydrated(false),
                         ])
                         ->columns(3)
                         ->defaultItems(1)
