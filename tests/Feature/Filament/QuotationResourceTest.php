@@ -98,3 +98,95 @@ test('staff confirms the sale of an accepted quotation and creates an optical or
 test('quotation resource is registered', function () {
     expect(QuotationResource::getModel())->toBe(Quotation::class);
 });
+
+test('staff revises a draft quotation\'s items', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'subtotal' => 4500,
+        'total' => 4500,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertActionVisible('reviseItems')
+        ->callAction('reviseItems', [
+            'items' => [[
+                'item_type' => 'custom_service',
+                'description' => 'Adjusted eye exam fee',
+                'quantity' => 1,
+                'unit_price' => 800,
+            ]],
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    $quotation->refresh();
+
+    expect($quotation->items)->toHaveCount(1)
+        ->and($quotation->items->first()->description)->toBe('Adjusted eye exam fee')
+        ->and($quotation->total)->toBe('800.00');
+});
+
+test('opening revise items pre-fills the existing item', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
+    QuotationItem::factory()->product()->create([
+        'quotation_id' => $quotation->id,
+        'description' => 'Classic Black Frame',
+        'quantity' => 1,
+        'unit_price' => 4500,
+        'amount' => 4500,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->mountAction('reviseItems')
+        ->assertSee('Classic Black Frame');
+});
+
+test('revising a presented quotation reverts it to draft', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Presented,
+        'presented_by' => $staff->id,
+        'presented_at' => now(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertActionVisible('reviseItems')
+        ->callAction('reviseItems', [
+            'items' => [[
+                'item_type' => 'custom_service',
+                'description' => 'Revised charge',
+                'quantity' => 1,
+                'unit_price' => 900,
+            ]],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($quotation->fresh()->status)->toBe(QuotationStatus::Draft);
+});
+
+test('the revise items action is hidden once a quotation has an optical order', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    QuotationItem::factory()->product()->create([
+        'quotation_id' => $quotation->id,
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->callAction('confirmSale');
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertActionHidden('reviseItems');
+});

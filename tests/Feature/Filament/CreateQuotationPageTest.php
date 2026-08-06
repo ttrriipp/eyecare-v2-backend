@@ -28,7 +28,7 @@ test('staff creates a quotation from an encounter query context', function () {
             'discount_amount' => 250,
             'notes' => 'Patient-visible estimate note.',
             'items' => [[
-                'item_type' => 'custom',
+                'item_type' => 'custom_product',
                 'description' => 'Complete frame and single vision lens',
                 'quantity' => 1,
                 'unit_price' => 12500,
@@ -112,7 +112,7 @@ test('staff creates a quotation from a patient query context with no encounter',
         ->assertFormFieldDoesNotExist('patient_id')
         ->fillForm([
             'items' => [[
-                'item_type' => 'custom',
+                'item_type' => 'custom_product',
                 'description' => 'Sunglasses',
                 'quantity' => 1,
                 'unit_price' => 2500,
@@ -162,7 +162,7 @@ test('staff picks a patient manually when no context is provided', function () {
         ->fillForm([
             'patient_id' => $patient->id,
             'items' => [[
-                'item_type' => 'custom',
+                'item_type' => 'custom_product',
                 'description' => 'Contact Lens Solution',
                 'quantity' => 1,
                 'unit_price' => 400,

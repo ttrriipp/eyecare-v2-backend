@@ -126,3 +126,39 @@ test('update preserves item types', function () {
     expect($updated->items->first()->item_type)->toBe(TransactionItemType::Product)
         ->and($updated->items->last()->item_type)->toBe(TransactionItemType::Service);
 });
+
+test('a custom item explicitly typed as a product is not misreported as a service', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $encounter->patient,
+        creator: $this->staff,
+        data: [
+            'items' => [
+                ['item_type' => 'custom_product', 'description' => 'Off-catalog designer frame', 'quantity' => 1, 'unit_price' => 5000],
+            ],
+        ],
+        encounter: $encounter,
+    );
+
+    expect($quotation->items->first()->item_type)->toBe(TransactionItemType::Product);
+});
+
+test('a custom item explicitly typed as a service is reported as a service', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $encounter->patient,
+        creator: $this->staff,
+        data: [
+            'items' => [
+                ['item_type' => 'custom_service', 'description' => 'One-off repair fee', 'quantity' => 1, 'unit_price' => 300],
+            ],
+        ],
+        encounter: $encounter,
+    );
+
+    expect($quotation->items->first()->item_type)->toBe(TransactionItemType::Service);
+});

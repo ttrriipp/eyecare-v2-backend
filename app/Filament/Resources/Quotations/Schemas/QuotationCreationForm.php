@@ -56,7 +56,8 @@ class QuotationCreationForm
                                     'catalog' => 'Catalog Item',
                                     'lens' => 'Lens Category',
                                     'service' => 'Service',
-                                    'custom' => 'Custom Item or Service',
+                                    'custom_product' => 'Custom Item',
+                                    'custom_service' => 'Custom Service',
                                 ])
                                 ->default('catalog')
                                 ->required()

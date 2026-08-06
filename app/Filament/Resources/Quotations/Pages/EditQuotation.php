@@ -5,10 +5,12 @@ namespace App\Filament\Resources\Quotations\Pages;
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
+use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
@@ -36,6 +38,61 @@ class EditQuotation extends EditRecord
                 ->requiresConfirmation()
                 ->action(function (): void {
                     app(PresentQuotation::class)->handle($this->record, auth()->user());
+                    $this->refreshFormData(['status']);
+                }),
+
+            Action::make('reviseItems')
+                ->label('Revise Items')
+                ->icon('heroicon-o-pencil-square')
+                ->color('gray')
+                ->visible(fn (): bool => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented], true)
+                    && $this->record->jobOrder === null)
+                ->schema(QuotationCreationForm::components())
+                ->fillForm(fn (): array => [
+                    'valid_until' => $this->record->valid_until?->toDateString(),
+                    'discount_amount' => (float) $this->record->discount_amount,
+                    'notes' => $this->record->notes,
+                    'items' => $this->record->items->map(fn ($item): array => [
+                        'item_type' => match (true) {
+                            filled($item->product_variant_id) => 'catalog',
+                            filled($item->lens_category_id) => 'lens',
+                            filled($item->service_id) => 'service',
+                            $item->item_type === TransactionItemType::Product => 'custom_product',
+                            default => 'custom_service',
+                        },
+                        'product_variant_id' => $item->product_variant_id,
+                        'lens_category_id' => $item->lens_category_id,
+                        'service_id' => $item->service_id,
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => (float) $item->unit_price,
+                    ])->all(),
+                ])
+                ->modalHeading('Revise Quotation Items')
+                ->modalSubmitActionLabel('Save Revision')
+                ->action(function (array $data): void {
+                    // A revision to a Presented quotation must be shown to the
+                    // patient again before it can move forward — the action
+                    // itself reverts status to Draft when this applies.
+                    try {
+                        app(UpdateQuotationDraft::class)->handle($this->record, $data);
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot revise quotation')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    $this->record->refresh();
+
+                    Notification::make()
+                        ->title('Quotation revised')
+                        ->success()
+                        ->send();
+
                     $this->refreshFormData(['status']);
                 }),
 

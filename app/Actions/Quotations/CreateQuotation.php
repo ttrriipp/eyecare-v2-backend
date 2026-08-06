@@ -102,9 +102,16 @@ class CreateQuotation
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
-                // Derive item type
+                // Derive item type. Catalog/lens/service items are typed by which
+                // reference is filled; a custom item has no reference to key off,
+                // so it relies on the form's explicit item_type intent instead.
                 $hasProductReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
-                $itemType = $hasProductReference ? TransactionItemType::Product : TransactionItemType::Service;
+                $itemType = match (true) {
+                    $hasProductReference => TransactionItemType::Product,
+                    filled($item['service_id'] ?? null) => TransactionItemType::Service,
+                    ($item['item_type'] ?? null) === 'custom_product' => TransactionItemType::Product,
+                    default => TransactionItemType::Service,
+                };
 
                 return [
                     'description' => trim($item['description']),
@@ -178,6 +185,7 @@ class CreateQuotation
             'notes' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.item_type' => ['nullable', Rule::in(['catalog', 'lens', 'service', 'custom_product', 'custom_service'])],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
             'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
