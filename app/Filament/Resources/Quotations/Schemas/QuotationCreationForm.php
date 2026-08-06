@@ -47,7 +47,7 @@ class QuotationCreationForm
             Section::make('Items')
                 ->schema([
                     Repeater::make('items')
-                        ->label('')
+                        ->hiddenLabel()
                         ->schema([
                             Grid::make(2)
                                 ->columnSpanFull()
