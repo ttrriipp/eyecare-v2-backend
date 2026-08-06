@@ -345,7 +345,7 @@ class EditEncounter extends EditRecord
                                 ->preload()
                                 ->live()
                                 ->columnSpanFull()
-                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                     $service = Service::query()->find($state);
 
                                     if ($service === null) {
@@ -354,6 +354,10 @@ class EditEncounter extends EditRecord
 
                                     $set('description', $service->name);
                                     $set('unit_price', $service->price);
+                                    $set('line_total', number_format(
+                                        ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                        2,
+                                    ));
                                 }),
                             TextInput::make('description')
                                 ->required()
@@ -368,20 +372,31 @@ class EditEncounter extends EditRecord
                                         ->minValue(1)
                                         ->default(1)
                                         ->required()
-                                        ->live(onBlur: true),
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, Get $get): void {
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                2,
+                                            ));
+                                        }),
                                     TextInput::make('unit_price')
                                         ->label('Unit Price')
                                         ->numeric()
                                         ->prefix('₱')
                                         ->minValue(0)
                                         ->required()
-                                        ->live(onBlur: true),
-                                    Placeholder::make('line_total')
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, Get $get): void {
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                2,
+                                            ));
+                                        }),
+                                    TextInput::make('line_total')
                                         ->label('Line Total')
-                                        ->content(fn (Get $get): string => '₱'.number_format(
-                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                            2,
-                                        )),
+                                        ->prefix('₱')
+                                        ->disabled()
+                                        ->dehydrated(false),
                                 ]),
                         ])
                         ->columns(2)
