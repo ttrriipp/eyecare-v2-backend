@@ -25,6 +25,16 @@ test('staff can list quotations', function () {
         ->assertCanSeeTableRecords($quotations);
 });
 
+test('the quotations list offers a direct new quotation action that opens the create page', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListQuotations::class)
+        ->assertActionVisible('create')
+        ->assertActionHasUrl('create', QuotationResource::getUrl('create'));
+});
+
 test('staff can view a quotation', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create();

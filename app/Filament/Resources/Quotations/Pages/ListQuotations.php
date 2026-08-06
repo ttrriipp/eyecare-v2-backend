@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\QuotationResource;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,14 @@ use Illuminate\Database\Eloquent\Builder;
 class ListQuotations extends ListRecords
 {
     protected static string $resource = QuotationResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make()
+                ->label('New Quotation'),
+        ];
+    }
 
     /**
      * @return array<string, Tab>
