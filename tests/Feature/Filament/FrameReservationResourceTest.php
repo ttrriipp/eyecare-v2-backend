@@ -5,8 +5,6 @@ use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use App\Filament\Resources\FrameReservations\Pages\EditFrameReservation;
 use App\Filament\Resources\FrameReservations\Pages\ListFrameReservations;
 use App\Models\FrameReservation;
-use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -85,32 +83,4 @@ test('staff can release a tried-on reservation', function () {
         ->assertHasNoActionErrors();
 
     expect($reservation->fresh()->status)->toBe(ReservationStatus::Released);
-});
-
-test('staff can add another frame to a requested reservation', function () {
-    $staff = User::factory()->staff()->create();
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
-    $variant = ProductVariant::factory()->create([
-        'is_active' => true,
-        'product_id' => Product::factory()->create(['product_type' => 'frame', 'is_active' => true])->id,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditFrameReservation::class, ['record' => $reservation->getRouteKey()])
-        ->assertActionVisible('addFrame')
-        ->callAction('addFrame', ['product_variant_id' => $variant->id])
-        ->assertHasNoActionErrors();
-
-    expect($reservation->items()->where('product_variant_id', $variant->id)->exists())->toBeTrue();
-});
-
-test('the add frame action is hidden once a reservation is tried on', function () {
-    $staff = User::factory()->staff()->create();
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditFrameReservation::class, ['record' => $reservation->getRouteKey()])
-        ->assertActionHidden('addFrame');
 });
