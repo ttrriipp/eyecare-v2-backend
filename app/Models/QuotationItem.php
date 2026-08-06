@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'quotation_id',
@@ -82,5 +83,13 @@ class QuotationItem extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * @return HasMany<BillingRecordItem, $this>
+     */
+    public function billingRecordItems(): HasMany
+    {
+        return $this->hasMany(BillingRecordItem::class);
     }
 }

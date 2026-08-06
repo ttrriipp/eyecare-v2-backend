@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
@@ -69,9 +70,9 @@ test('quotation table shows status badges', function () {
         ->assertTableColumnStateSet('status', QuotationStatus::Presented, record: $presented);
 });
 
-test('staff confirms the sale of an accepted quotation and creates an optical order', function () {
+test('staff confirms the sale of a presented quotation and creates an optical order', function () {
     $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
     QuotationItem::factory()->product()->create([
         'quotation_id' => $quotation->id,
         'quantity' => 1,
@@ -174,7 +175,7 @@ test('revising a presented quotation reverts it to draft', function () {
 
 test('the revise items action is hidden once a quotation has an optical order', function () {
     $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
     QuotationItem::factory()->product()->create([
         'quotation_id' => $quotation->id,
         'quantity' => 1,
@@ -182,11 +183,14 @@ test('the revise items action is hidden once a quotation has an optical order', 
         'amount' => 5000,
     ]);
 
+    app(ConfirmQuotationSale::class)->handle(
+        quotation: $quotation,
+        confirmer: $staff,
+    );
+
     $this->actingAs($staff);
 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->callAction('confirmSale');
-
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->assertActionHidden('reviseItems');
+        ->assertActionHidden('reviseItems')
+        ->assertActionHidden('confirmSale');
 });

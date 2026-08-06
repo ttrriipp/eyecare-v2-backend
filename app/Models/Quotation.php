@@ -93,6 +93,17 @@ class Quotation extends Model
     }
 
     /**
+     * Quoted service lines not yet snapshotted onto any Billing Record —
+     * either skipped at confirm-sale time or added to the quotation after.
+     *
+     * @return HasMany<QuotationItem, $this>
+     */
+    public function unbilledServiceItems(): HasMany
+    {
+        return $this->serviceItems()->whereDoesntHave('billingRecordItems');
+    }
+
+    /**
      * Direct job order relationship.
      *
      * @return HasOne<JobOrder, $this>

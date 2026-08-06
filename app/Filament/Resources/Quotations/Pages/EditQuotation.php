@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Quotations\Pages;
 
+use App\Actions\BillingRecords\BillRemainingQuotedServices;
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
@@ -100,8 +101,7 @@ class EditQuotation extends EditRecord
                 ->label('Confirm Sale')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)
-                    && $this->record->jobOrder === null)
+                ->visible(fn (): bool => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented], true))
                 ->schema(function (): array {
                     $serviceItems = $this->record->items()
                         ->where('item_type', TransactionItemType::Service)
@@ -110,7 +110,7 @@ class EditQuotation extends EditRecord
                     return [
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
-                            ->helperText('Unselected services remain proposed and can be billed later.')
+                            ->helperText('Unselected services stay proposed — bill them later from "Bill Remaining Services".')
                             ->options($serviceItems->mapWithKeys(fn ($item): array => [
                                 $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
                             ]))
@@ -192,6 +192,45 @@ class EditQuotation extends EditRecord
                     }
 
                     $this->refreshFormData(['status']);
+                }),
+
+            Action::make('billRemainingServices')
+                ->label('Bill Remaining Services')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->status === QuotationStatus::Accepted
+                    && $this->record->unbilledServiceItems()->exists())
+                ->schema(fn (): array => [
+                    CheckboxList::make('quotation_item_ids')
+                        ->label('Services to bill now')
+                        ->required()
+                        ->options($this->record->unbilledServiceItems()->get()->mapWithKeys(fn ($item): array => [
+                            $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
+                        ])),
+                ])
+                ->requiresConfirmation()
+                ->modalHeading('Bill Remaining Services')
+                ->modalDescription('Confirms the selected quoted services have now been performed and adds them to this patient\'s open bill.')
+                ->action(function (array $data): void {
+                    try {
+                        app(BillRemainingQuotedServices::class)->handle(
+                            quotation: $this->record,
+                            quotationItemIds: array_map('intval', $data['quotation_item_ids'] ?? []),
+                        );
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot bill services')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->title('Services billed')
+                        ->success()
+                        ->send();
                 }),
 
             Action::make('decline')
