@@ -66,6 +66,8 @@ class PatientAccountsTable
             ])
             ->recordActions([
                 Action::make('view')
+                    ->label('View')
+                    ->icon('heroicon-o-eye')
                     ->url(fn (User $record) => PatientAccountResource::getUrl('view', ['record' => $record])),
             ])
             ->toolbarActions([
