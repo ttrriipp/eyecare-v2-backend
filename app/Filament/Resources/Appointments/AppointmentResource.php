@@ -6,7 +6,7 @@ use App\Filament\Resources\Appointments\Pages\AppointmentRequestsPage;
 use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
-use App\Filament\Resources\Appointments\RelationManagers\FrameReservationsRelationManager;
+use App\Filament\Resources\Appointments\RelationManagers\FrameReservationItemsRelationManager;
 use App\Filament\Resources\Appointments\Schemas\AppointmentForm;
 use App\Filament\Resources\Appointments\Tables\AppointmentsTable;
 use App\Models\Appointment;
@@ -60,7 +60,7 @@ class AppointmentResource extends Resource
     public static function getRelations(): array
     {
         return [
-            FrameReservationsRelationManager::class,
+            FrameReservationItemsRelationManager::class,
         ];
     }
 
