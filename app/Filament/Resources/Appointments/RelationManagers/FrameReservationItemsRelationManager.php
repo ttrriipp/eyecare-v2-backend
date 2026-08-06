@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Appointments\RelationManagers;
 
+use App\Filament\Resources\Products\ProductResource;
 use App\Models\FrameReservationItem;
 use Filament\Forms\Components\Placeholder;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -32,7 +33,11 @@ class FrameReservationItemsRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('variant.product.name')
                     ->label('Product')
-                    ->sortable(),
+                    ->sortable()
+                    ->url(fn (FrameReservationItem $record): string => $record->variant?->product
+                        ? ProductResource::getUrl('edit', ['record' => $record->variant->product])
+                        : '#')
+                    ->openUrlInNewTab(),
 
                 TextColumn::make('variant.name')
                     ->label('Variant')
@@ -49,6 +54,6 @@ class FrameReservationItemsRelationManager extends RelationManager
             ])
             ->defaultSort('created_at', 'desc')
             ->paginated(false)
-            ->heading(null);
+            ->heading('Reserved Frames');
     }
 }
