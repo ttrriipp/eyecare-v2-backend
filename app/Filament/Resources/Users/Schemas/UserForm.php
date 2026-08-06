@@ -80,7 +80,6 @@ class UserForm
                             ),
                         Toggle::make('is_optometrist')
                             ->label('Optometrist')
-                            ->helperText('Can be assigned to patient appointments.')
                             ->default(false),
                     ]),
 
