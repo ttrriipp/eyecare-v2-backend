@@ -43,103 +43,107 @@ class QuotationCreationForm
                     ]),
                 ]),
 
-            Section::make()
+            Section::make('Items')
                 ->schema([
                     Repeater::make('items')
                         ->label('')
                         ->schema([
-                            Select::make('item_type')
-                                ->label('Item Type')
-                                ->options([
-                                    'catalog' => 'Catalog Item',
-                                    'lens' => 'Lens Category',
-                                    'service' => 'Service',
-                                    'custom_product' => 'Custom Item',
-                                    'custom_service' => 'Custom Service',
-                                ])
-                                ->default('catalog')
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function (Set $set): void {
-                                    $set('product_variant_id', null);
-                                    $set('lens_category_id', null);
-                                    $set('service_id', null);
-                                    $set('description', null);
-                                    $set('unit_price', null);
-                                }),
-                            Select::make('product_variant_id')
-                                ->label('Catalog Item')
-                                ->options(fn (): array => ProductVariant::query()
-                                    ->with('product')
-                                    ->active()
-                                    ->whereHas('product', fn (Builder $query): Builder => $query->where('is_active', true))
-                                    ->orderBy('sku')
-                                    ->get()
-                                    ->mapWithKeys(fn (ProductVariant $variant): array => [
-                                        $variant->id => "{$variant->product->name} — {$variant->name} ({$variant->sku})",
-                                    ])
-                                    ->all())
-                                ->searchable()
-                                ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'catalog')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'catalog')
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, mixed $state): void {
-                                    $variant = ProductVariant::query()->with('product')->find($state);
+                            Grid::make(2)
+                                ->columnSpanFull()
+                                ->schema([
+                                    Select::make('item_type')
+                                        ->label('Item Type')
+                                        ->options([
+                                            'catalog' => 'Catalog Item',
+                                            'lens' => 'Lens Category',
+                                            'service' => 'Service',
+                                            'custom_product' => 'Custom Item',
+                                            'custom_service' => 'Custom Service',
+                                        ])
+                                        ->default('catalog')
+                                        ->required()
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set): void {
+                                            $set('product_variant_id', null);
+                                            $set('lens_category_id', null);
+                                            $set('service_id', null);
+                                            $set('description', null);
+                                            $set('unit_price', null);
+                                        }),
+                                    Select::make('product_variant_id')
+                                        ->label('Catalog Item')
+                                        ->options(fn (): array => ProductVariant::query()
+                                            ->with('product')
+                                            ->active()
+                                            ->whereHas('product', fn (Builder $query): Builder => $query->where('is_active', true))
+                                            ->orderBy('sku')
+                                            ->get()
+                                            ->mapWithKeys(fn (ProductVariant $variant): array => [
+                                                $variant->id => "{$variant->product->name} — {$variant->name} ({$variant->sku})",
+                                            ])
+                                            ->all())
+                                        ->searchable()
+                                        ->preload()
+                                        ->required(fn (Get $get): bool => $get('item_type') === 'catalog')
+                                        ->visible(fn (Get $get): bool => $get('item_type') === 'catalog')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                            $variant = ProductVariant::query()->with('product')->find($state);
 
-                                    if ($variant === null) {
-                                        return;
-                                    }
+                                            if ($variant === null) {
+                                                return;
+                                            }
 
-                                    $set('description', "{$variant->product->name} — {$variant->name}");
-                                    $set('unit_price', $variant->price);
-                                }),
-                            Select::make('lens_category_id')
-                                ->label('Lens Category')
-                                ->options(fn (): array => LensCategory::query()
-                                    ->orderBy('name')
-                                    ->pluck('name', 'id')
-                                    ->all())
-                                ->searchable()
-                                ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'lens')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'lens')
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, mixed $state): void {
-                                    $lensCategory = LensCategory::query()->find($state);
+                                            $set('description', "{$variant->product->name} — {$variant->name}");
+                                            $set('unit_price', $variant->price);
+                                        }),
+                                    Select::make('lens_category_id')
+                                        ->label('Lens Category')
+                                        ->options(fn (): array => LensCategory::query()
+                                            ->orderBy('name')
+                                            ->pluck('name', 'id')
+                                            ->all())
+                                        ->searchable()
+                                        ->preload()
+                                        ->required(fn (Get $get): bool => $get('item_type') === 'lens')
+                                        ->visible(fn (Get $get): bool => $get('item_type') === 'lens')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                            $lensCategory = LensCategory::query()->find($state);
 
-                                    if ($lensCategory === null) {
-                                        return;
-                                    }
+                                            if ($lensCategory === null) {
+                                                return;
+                                            }
 
-                                    $set('description', $lensCategory->name);
+                                            $set('description', $lensCategory->name);
 
-                                    if ($lensCategory->price !== null) {
-                                        $set('unit_price', $lensCategory->price);
-                                    }
-                                }),
-                            Select::make('service_id')
-                                ->label('Service')
-                                ->options(fn (): array => Service::query()
-                                    ->active()
-                                    ->orderBy('name')
-                                    ->pluck('name', 'id')
-                                    ->all())
-                                ->searchable()
-                                ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'service')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'service')
-                                ->live()
-                                ->afterStateUpdated(function (Set $set, mixed $state): void {
-                                    $service = Service::query()->find($state);
+                                            if ($lensCategory->price !== null) {
+                                                $set('unit_price', $lensCategory->price);
+                                            }
+                                        }),
+                                    Select::make('service_id')
+                                        ->label('Service')
+                                        ->options(fn (): array => Service::query()
+                                            ->active()
+                                            ->orderBy('name')
+                                            ->pluck('name', 'id')
+                                            ->all())
+                                        ->searchable()
+                                        ->preload()
+                                        ->required(fn (Get $get): bool => $get('item_type') === 'service')
+                                        ->visible(fn (Get $get): bool => $get('item_type') === 'service')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                            $service = Service::query()->find($state);
 
-                                    if ($service === null) {
-                                        return;
-                                    }
+                                            if ($service === null) {
+                                                return;
+                                            }
 
-                                    $set('description', $service->name);
-                                    $set('unit_price', $service->price);
-                                }),
+                                            $set('description', $service->name);
+                                            $set('unit_price', $service->price);
+                                        }),
+                                ]),
                             TextInput::make('description')
                                 ->label('Description')
                                 ->required()
