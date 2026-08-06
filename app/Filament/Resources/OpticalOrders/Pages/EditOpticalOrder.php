@@ -124,8 +124,8 @@ class EditOpticalOrder extends EditRecord
                             dispenser: auth()->user(),
                             recipientName: $data['recipient_name'] ?? null,
                             notes: $data['notes'] ?? null,
-                            initialPaymentAmount: $data['initial_payment_amount'] ?? null,
-                            initialPaymentMethod: $data['initial_payment_method'] ?? null,
+                            pickupPaymentAmount: $data['initial_payment_amount'] ?? null,
+                            pickupPaymentMethod: $data['initial_payment_method'] ?? null,
                         );
 
                         Notification::make()->title('Order dispensed — billing record created')->success()->send();

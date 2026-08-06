@@ -4,6 +4,7 @@ use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
+use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
@@ -72,6 +73,30 @@ test('marking an optical order ready records the required supplier invoice numbe
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::ReadyForDispensing)
         ->and($jobOrder->fresh()->supplier_invoice_number)->toBe('SUP-INV-3002');
+});
+
+test('staff dispenses a ready order and records the recipient and pickup payment', function () {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'total_amount' => 1000,
+        'balance_due' => 1000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->callAction('dispense', [
+            'recipient_name' => 'Juan dela Cruz',
+            'notes' => 'Picked up by patient\'s son.',
+            'initial_payment_amount' => 1000,
+            'initial_payment_method' => 'cash',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed)
+        ->and(DispensingEvent::query()->where('job_order_id', $jobOrder->id)->where('recipient_name', 'Juan dela Cruz')->exists())->toBeTrue();
 });
 
 test('optical order resource is registered', function () {
