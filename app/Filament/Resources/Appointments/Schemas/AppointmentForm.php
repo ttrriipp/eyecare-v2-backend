@@ -275,6 +275,7 @@ class AppointmentForm
                                 ->seconds(false)
                                 ->minutesStep(1)
                                 ->format('H:i')
+                                ->suffixIcon('heroicon-o-clock')
                                 ->afterStateHydrated(function (TimePicker $component, ?Appointment $record): void {
                                     if ($record) {
                                         $component->state($record->scheduled_at->format('H:i'));
