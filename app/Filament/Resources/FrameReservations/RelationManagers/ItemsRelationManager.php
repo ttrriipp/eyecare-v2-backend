@@ -44,7 +44,7 @@ class ItemsRelationManager extends RelationManager
                 Action::make('addFrame')
                     ->label('Add Frame')
                     ->icon('heroicon-o-plus')
-                    ->color('primary')
+                    ->color('info')
                     ->visible(fn (): bool => in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                     ->schema([
                         Select::make('product_variant_id')
