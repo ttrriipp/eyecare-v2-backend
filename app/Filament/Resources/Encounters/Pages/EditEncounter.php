@@ -24,7 +24,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -326,20 +325,20 @@ class EditEncounter extends EditRecord
                                 ->required()
                                 ->maxLength(255)
                                 ->columnSpanFull(),
-                            Grid::make(2)->schema([
-                                TextInput::make('quantity')
-                                    ->numeric()
-                                    ->integer()
-                                    ->minValue(1)
-                                    ->default(1)
-                                    ->required(),
-                                TextInput::make('unit_price')
-                                    ->label('Unit Price')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->minValue(0)
-                                    ->required(),
-                            ]),
+                            TextInput::make('quantity')
+                                ->numeric()
+                                ->integer()
+                                ->minValue(1)
+                                ->default(1)
+                                ->required()
+                                ->columnSpanFull(),
+                            TextInput::make('unit_price')
+                                ->label('Unit Price')
+                                ->numeric()
+                                ->prefix('₱')
+                                ->minValue(0)
+                                ->required()
+                                ->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->defaultItems(0)
