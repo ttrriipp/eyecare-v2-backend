@@ -325,20 +325,22 @@ class EditEncounter extends EditRecord
                                 ->required()
                                 ->maxLength(255)
                                 ->columnSpanFull(),
-                            TextInput::make('quantity')
-                                ->numeric()
-                                ->integer()
-                                ->minValue(1)
-                                ->default(1)
-                                ->required()
-                                ->columnSpanFull(),
-                            TextInput::make('unit_price')
-                                ->label('Unit Price')
-                                ->numeric()
-                                ->prefix('₱')
-                                ->minValue(0)
-                                ->required()
-                                ->columnSpanFull(),
+                            Grid::make(2)
+                                ->columnSpanFull()
+                                ->schema([
+                                    TextInput::make('quantity')
+                                        ->numeric()
+                                        ->integer()
+                                        ->minValue(1)
+                                        ->default(1)
+                                        ->required(),
+                                    TextInput::make('unit_price')
+                                        ->label('Unit Price')
+                                        ->numeric()
+                                        ->prefix('₱')
+                                        ->minValue(0)
+                                        ->required(),
+                                ]),
                         ])
                         ->columns(2)
                         ->defaultItems(0)
