@@ -46,7 +46,7 @@ class FrameReservationItemsRelationManager extends RelationManager
                 Action::make('reserveFrames')
                     ->label('Reserve Frames')
                     ->icon('heroicon-o-eye')
-                    ->color('info')
+                    ->color('primary')
                     ->visible(fn (): bool => Gate::allows('reserveFrames', FrameReservation::class)
                         && $this->getOwnerRecord()->status?->name === 'scheduled'
                         && ! $this->getOwnerRecord()->scheduled_at
