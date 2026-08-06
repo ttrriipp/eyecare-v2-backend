@@ -359,7 +359,7 @@ class EditEncounter extends EditRecord
                                 ->required()
                                 ->maxLength(255)
                                 ->columnSpanFull(),
-                            Grid::make(2)
+                            Grid::make(3)
                                 ->columnSpanFull()
                                 ->schema([
                                     TextInput::make('quantity')
@@ -376,14 +376,13 @@ class EditEncounter extends EditRecord
                                         ->minValue(0)
                                         ->required()
                                         ->live(onBlur: true),
+                                    Placeholder::make('line_total')
+                                        ->label('Line Total')
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                            2,
+                                        )),
                                 ]),
-                            Placeholder::make('line_total')
-                                ->label('Line Total')
-                                ->content(fn (Get $get): string => '₱'.number_format(
-                                    ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                    2,
-                                ))
-                                ->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->defaultItems(1)
