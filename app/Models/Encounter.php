@@ -31,6 +31,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'plan',
     'last_wizard_step',
     'draft_saved_at',
+    'prescription_draft',
     'completed_by',
 ])]
 class Encounter extends Model
@@ -117,6 +118,7 @@ class Encounter extends Model
             'medications' => 'encrypted',
             'plan' => 'encrypted',
             'draft_saved_at' => 'datetime',
+            'prescription_draft' => 'array',
         ];
     }
 }

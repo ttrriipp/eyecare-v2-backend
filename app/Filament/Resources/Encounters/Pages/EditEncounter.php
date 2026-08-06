@@ -85,12 +85,19 @@ class EditEncounter extends EditRecord
     {
         $prescription = $this->record->prescriptions()->latest('id')->first();
 
-        $data['prescription'] = $prescription === null
-            ? ['prescribed_at' => now()->toDateString()]
-            : Arr::only($prescription->attributesToArray(), [
+        if ($prescription !== null) {
+            // Use finalized prescription data
+            $data['prescription'] = Arr::only($prescription->attributesToArray(), [
                 ...self::PRESCRIPTION_FIELDS,
                 'prescribed_at',
             ]);
+        } elseif ($this->record->prescription_draft !== null) {
+            // Use saved draft data
+            $data['prescription'] = $this->record->prescription_draft;
+        } else {
+            // No prescription or draft yet
+            $data['prescription'] = ['prescribed_at' => now()->toDateString()];
+        }
 
         return $data;
     }
@@ -114,6 +121,15 @@ class EditEncounter extends EditRecord
             abort_unless($author instanceof User && $author->hasOptometristCapability(), 403);
         }
 
+        // Save prescription draft when saving (not finalizing)
+        if ($this->isSavingDraft && ! $shouldFinalizePrescription) {
+            $hasPrescriptionData = collect(self::PRESCRIPTION_FIELDS)
+                ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
+
+            $data['prescription_draft'] = $hasPrescriptionData ? $prescriptionData : null;
+            $data['draft_saved_at'] = now();
+        }
+
         $record->update($data);
 
         if ($shouldFinalizePrescription && $author instanceof User) {
@@ -123,6 +139,9 @@ class EditEncounter extends EditRecord
                 author: $author,
                 data: Arr::only($prescriptionData, self::PRESCRIPTION_FIELDS),
             );
+
+            // Clear the draft after finalizing
+            $record->update(['prescription_draft' => null]);
         }
 
         if ($this->isCompletingVisit && $record->status === EncounterStatus::InProgress) {
