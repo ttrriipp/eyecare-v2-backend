@@ -39,7 +39,9 @@ class Quotation extends Model
     {
         static::creating(function (Quotation $quotation): void {
             if (blank($quotation->quotation_number)) {
-                $quotation->quotation_number = 'QUO-'.Str::ulid();
+                $year = now()->format('Y');
+                $sequence = self::query()->withTrashed()->whereYear('created_at', $year)->count() + 1;
+                $quotation->quotation_number = sprintf('QUO-%s-%06d', $year, $sequence);
             }
 
             if (blank($quotation->eyewear_key)) {
