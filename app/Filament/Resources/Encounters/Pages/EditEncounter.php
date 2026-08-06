@@ -368,31 +368,20 @@ class EditEncounter extends EditRecord
                                         ->minValue(1)
                                         ->default(1)
                                         ->required()
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Set $set, Get $get): void {
-                                            $set('line_total', number_format(
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                                2,
-                                            ));
-                                        }),
+                                        ->live(onBlur: true),
                                     TextInput::make('unit_price')
                                         ->label('Unit Price')
                                         ->numeric()
                                         ->prefix('₱')
                                         ->minValue(0)
                                         ->required()
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Set $set, Get $get): void {
-                                            $set('line_total', number_format(
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                                2,
-                                            ));
-                                        }),
-                                    TextInput::make('line_total')
+                                        ->live(onBlur: true),
+                                    Placeholder::make('line_total')
                                         ->label('Line Total')
-                                        ->prefix('₱')
-                                        ->disabled()
-                                        ->dehydrated(false),
+                                        ->content(fn (Get $get): string => '₱'.number_format(
+                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                            2,
+                                        )),
                                 ]),
                         ])
                         ->columns(2)
