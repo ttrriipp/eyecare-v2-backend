@@ -19,8 +19,10 @@ class FrameReservationsTable
     {
         return $table
             ->columns([
-                TextColumn::make('patient.first_name')
-                    ->label('Patient'),
+                TextColumn::make('patient.full_name')
+                    ->label('Patient')
+                    ->searchable(['patient.first_name', 'patient.last_name'])
+                    ->sortable(),
                 TextColumn::make('appointment.appointment_number')
                     ->label('Appointment')
                     ->searchable()
