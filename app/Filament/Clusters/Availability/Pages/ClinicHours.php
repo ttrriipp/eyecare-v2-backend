@@ -58,13 +58,15 @@ class ClinicHours extends AvailabilityClusterPage
                         ->live(),
                     TimePicker::make("clinicHours.{$day}.open_time")
                         ->label('Open')
+                        ->hiddenLabel($day !== 0)
                         ->seconds(false)
-                        ->visible(fn (Get $get) => $get("clinicHours.{$day}.enabled") ?? true),
+                        ->disabled(fn (Get $get) => ! ($get("clinicHours.{$day}.enabled") ?? true)),
                     Placeholder::make("clinic_hours_spacer_{$day}")->hiddenLabel(),
                     TimePicker::make("clinicHours.{$day}.close_time")
                         ->label('Close')
+                        ->hiddenLabel($day !== 0)
                         ->seconds(false)
-                        ->visible(fn (Get $get) => $get("clinicHours.{$day}.enabled") ?? true),
+                        ->disabled(fn (Get $get) => ! ($get("clinicHours.{$day}.enabled") ?? true)),
                 ]), array_keys($weekdays), $weekdays))
                 ->footer([
                     Action::make('saveClinicHours')

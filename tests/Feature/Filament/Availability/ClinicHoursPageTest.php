@@ -5,7 +5,9 @@ use App\Models\ClinicHour;
 use App\Models\User;
 use Database\Seeders\ClinicHoursSeeder;
 use Database\Seeders\RoleSeeder;
+use Filament\Forms\Components\TimePicker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\Assert;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -15,19 +17,32 @@ beforeEach(function () {
     $this->seed(ClinicHoursSeeder::class);
 });
 
-test('each weekday\'s clinic hour fields are independently visible', function () {
+test('each weekday\'s clinic hour fields are independently enabled', function () {
     $admin = User::factory()->admin()->create();
     $this->actingAs($admin);
 
-    // One Grid per weekday means toggling one day off must not hide or
-    // reflow any other day's fields.
+    // One Grid per weekday means toggling one day off must not disable or
+    // reflow any other day's fields. Fields stay visible (so every day's row
+    // aligns) but are disabled when the day is off.
     Livewire::test(ClinicHours::class)
         ->set('clinicHours.0.enabled', false)
         ->set('clinicHours.1.enabled', true)
-        ->assertSchemaComponentHidden('clinicHours.0.open_time')
-        ->assertSchemaComponentHidden('clinicHours.0.close_time')
-        ->assertSchemaComponentVisible('clinicHours.1.open_time')
-        ->assertSchemaComponentVisible('clinicHours.1.close_time');
+        ->assertSchemaComponentExists(
+            'clinicHours.0.open_time',
+            checkComponentUsing: function (TimePicker $component): bool {
+                Assert::assertTrue($component->isDisabled());
+
+                return true;
+            },
+        )
+        ->assertSchemaComponentExists(
+            'clinicHours.1.open_time',
+            checkComponentUsing: function (TimePicker $component): bool {
+                Assert::assertFalse($component->isDisabled());
+
+                return true;
+            },
+        );
 });
 
 test('an invalid day does not partially save clinic hours', function () {

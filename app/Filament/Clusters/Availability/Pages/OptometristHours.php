@@ -100,13 +100,15 @@ class OptometristHours extends AvailabilityClusterPage
                             ->live(),
                         TimePicker::make("providerHours.{$day}.start_time")
                             ->label('Start')
+                            ->hiddenLabel($day !== 0)
                             ->seconds(false)
-                            ->visible(fn (Get $get) => $get("providerHours.{$day}.enabled") ?? false),
+                            ->disabled(fn (Get $get) => ! ($get("providerHours.{$day}.enabled") ?? false)),
                         Placeholder::make("provider_hours_spacer_{$day}")->hiddenLabel(),
                         TimePicker::make("providerHours.{$day}.end_time")
                             ->label('End')
+                            ->hiddenLabel($day !== 0)
                             ->seconds(false)
-                            ->visible(fn (Get $get) => $get("providerHours.{$day}.enabled") ?? false),
+                            ->disabled(fn (Get $get) => ! ($get("providerHours.{$day}.enabled") ?? false)),
                     ])->visible(fn (): bool => filled($this->selectedOptometristId)), array_keys($weekdays), $weekdays),
                 ])
                 ->footer([
