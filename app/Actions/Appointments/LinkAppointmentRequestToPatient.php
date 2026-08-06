@@ -25,11 +25,6 @@ class LinkAppointmentRequestToPatient
 
         $request->update(['patient_id' => $patient->id]);
 
-        // Also link the patient account if the request has a user and the patient is not already linked
-        if ($request->user_id !== null && $patient->user_id === null) {
-            $patient->update(['user_id' => $request->user_id]);
-        }
-
         return $request->fresh();
     }
 }
