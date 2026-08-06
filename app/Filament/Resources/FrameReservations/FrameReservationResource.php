@@ -4,6 +4,7 @@ namespace App\Filament\Resources\FrameReservations;
 
 use App\Filament\Resources\FrameReservations\Pages\EditFrameReservation;
 use App\Filament\Resources\FrameReservations\Pages\ListFrameReservations;
+use App\Filament\Resources\FrameReservations\RelationManagers\ItemsRelationManager;
 use App\Filament\Resources\FrameReservations\Schemas\FrameReservationForm;
 use App\Filament\Resources\FrameReservations\Tables\FrameReservationsTable;
 use App\Models\FrameReservation;
@@ -42,7 +43,9 @@ class FrameReservationResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            ItemsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

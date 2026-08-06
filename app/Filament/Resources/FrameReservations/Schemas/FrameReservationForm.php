@@ -44,29 +44,6 @@ class FrameReservationForm
                                 ->columnSpanFull(),
                         ])
                         ->columns(2),
-
-                    Section::make('Reserved Frames')
-                        ->schema([
-                            Placeholder::make('items')
-                                ->hiddenLabel()
-                                ->content(function (FrameReservation $record): string {
-                                    $items = $record->items()->with('variant.product')->get();
-
-                                    if ($items->isEmpty()) {
-                                        return 'No frames reserved.';
-                                    }
-
-                                    return $items->map(function ($item): string {
-                                        $variant = $item->variant;
-                                        $product = $variant?->product;
-
-                                        return $product
-                                            ? "{$product->name} — {$variant->name} ({$variant->sku})"
-                                            : "Variant #{$item->product_variant_id}";
-                                    })->implode("\n");
-                                })
-                                ->columnSpanFull(),
-                        ]),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────
