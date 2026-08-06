@@ -42,8 +42,8 @@ class ItemsRelationManager extends RelationManager
             ->recordTitleAttribute('id')
             ->headerActions([
                 Action::make('addFrame')
-                    ->label(fn (): string => $this->getOwnerRecord()->items()->count() === 0 ? 'Reserve Frame' : 'Add Frame')
-                    ->icon(fn (): string => $this->getOwnerRecord()->items()->count() === 0 ? 'heroicon-o-bookmark' : 'heroicon-o-plus')
+                    ->label('Add Frame')
+                    ->icon('heroicon-o-plus')
                     ->color('primary')
                     ->visible(fn (): bool => in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                     ->schema([
