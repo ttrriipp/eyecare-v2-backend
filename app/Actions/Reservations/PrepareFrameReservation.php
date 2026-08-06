@@ -2,11 +2,13 @@
 
 namespace App\Actions\Reservations;
 
+use App\Actions\Appointments\ClinicSchedule;
 use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,7 +23,7 @@ class PrepareFrameReservation
         }
 
         return DB::transaction(function () use ($reservation): FrameReservation {
-            $reservation->load('items');
+            $reservation->load(['items', 'appointment']);
 
             $allocationType = InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'reservation_allocation']);
@@ -55,9 +57,29 @@ class PrepareFrameReservation
                 ]);
             }
 
-            $reservation->update(['status' => ReservationStatus::Prepared]);
+            $reservation->update([
+                'status' => ReservationStatus::Prepared,
+                'expires_at' => $this->resolveExpiry($reservation),
+            ]);
 
             return $reservation->fresh();
         });
+    }
+
+    /**
+     * Prepared stock is held until the end of the appointment's clinic day —
+     * if the patient doesn't show, reservations:expire releases it.
+     */
+    private function resolveExpiry(FrameReservation $reservation): ?Carbon
+    {
+        $appointmentDate = $reservation->appointment?->scheduled_at;
+
+        if ($appointmentDate === null) {
+            return null;
+        }
+
+        $schedule = ClinicSchedule::forDate($appointmentDate);
+
+        return Carbon::parse($appointmentDate->toDateString().' '.$schedule->closeTime);
     }
 }

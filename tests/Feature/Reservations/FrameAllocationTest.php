@@ -3,6 +3,7 @@
 use App\Actions\Reservations\PrepareFrameReservation;
 use App\Actions\Reservations\ReleaseFrameReservation;
 use App\Enums\ReservationStatus;
+use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
@@ -28,6 +29,26 @@ test('prepare reservation decrements stock for each item', function () {
     expect($variant1->fresh()->stock_quantity)->toBe(4)
         ->and($variant2->fresh()->stock_quantity)->toBe(2)
         ->and($reservation->fresh()->status)->toBe(ReservationStatus::Prepared);
+});
+
+test('prepare sets an expiry at the appointment day close time', function () {
+    $brand = Brand::factory()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'stock_quantity' => 5]);
+    $appointment = Appointment::factory()->create(['scheduled_at' => now()->addDay()->setTime(10, 0)]);
+
+    $reservation = FrameReservation::factory()->create([
+        'status' => ReservationStatus::Requested,
+        'appointment_id' => $appointment->id,
+    ]);
+    FrameReservationItem::factory()->create(['frame_reservation_id' => $reservation->id, 'product_variant_id' => $variant->id]);
+
+    app(PrepareFrameReservation::class)->handle($reservation);
+
+    $expiresAt = $reservation->fresh()->expires_at;
+
+    expect($expiresAt)->not->toBeNull()
+        ->and($expiresAt->toDateString())->toBe($appointment->scheduled_at->toDateString());
 });
 
 test('prepare rejects when variant is out of stock', function () {

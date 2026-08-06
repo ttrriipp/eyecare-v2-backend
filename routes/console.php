@@ -14,4 +14,5 @@ Schedule::command('appointments:send-reminders')
     ->withoutOverlapping();
 Schedule::command('clinic:daily-summary')->dailyAt('21:00');
 Schedule::command('appointments:expire-requests')->everyMinute()->withoutOverlapping();
+Schedule::command('reservations:expire')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('patient-accounts:prune')->dailyAt('03:00')->withoutOverlapping();
