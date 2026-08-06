@@ -88,12 +88,7 @@ class ProductForm
                     ->schema([
                         Section::make('Status')->schema([
                             Toggle::make('is_active')
-                                ->label('Visibility')
-                                ->helperText(
-                                    fn (bool $state): string => $state
-                                        ? 'This product is visible to customers.'
-                                        : 'This product will be hidden from all sales channels.'
-                                )
+                                ->label('Active')
                                 ->default(true),
                         ]),
 
