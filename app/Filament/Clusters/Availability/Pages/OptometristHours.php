@@ -16,6 +16,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
 class OptometristHours extends AvailabilityClusterPage
@@ -94,19 +95,30 @@ class OptometristHours extends AvailabilityClusterPage
                         ->afterStateUpdated(fn () => $this->loadProviderHours())
                         ->visible($hasOptometrists),
 
+                    Grid::make(4)->schema([
+                        Placeholder::make('provider_hours_header_day')->hiddenLabel(),
+                        Placeholder::make('provider_hours_header_start')
+                            ->hiddenLabel()
+                            ->content(new HtmlString('<span class="text-sm font-medium text-gray-700 dark:text-gray-200">Start</span>')),
+                        Placeholder::make('provider_hours_header_spacer')->hiddenLabel(),
+                        Placeholder::make('provider_hours_header_end')
+                            ->hiddenLabel()
+                            ->content(new HtmlString('<span class="text-sm font-medium text-gray-700 dark:text-gray-200">End</span>')),
+                    ])->visible(fn (): bool => filled($this->selectedOptometristId)),
+
                     ...array_map(fn (int $day, string $name) => Grid::make(4)->schema([
                         Toggle::make("providerHours.{$day}.enabled")
                             ->label($name)
                             ->live(),
                         TimePicker::make("providerHours.{$day}.start_time")
                             ->label('Start')
-                            ->hiddenLabel($day !== 0)
+                            ->hiddenLabel()
                             ->seconds(false)
                             ->disabled(fn (Get $get) => ! ($get("providerHours.{$day}.enabled") ?? false)),
                         Placeholder::make("provider_hours_spacer_{$day}")->hiddenLabel(),
                         TimePicker::make("providerHours.{$day}.end_time")
                             ->label('End')
-                            ->hiddenLabel($day !== 0)
+                            ->hiddenLabel()
                             ->seconds(false)
                             ->disabled(fn (Get $get) => ! ($get("providerHours.{$day}.enabled") ?? false)),
                     ])->visible(fn (): bool => filled($this->selectedOptometristId)), array_keys($weekdays), $weekdays),
