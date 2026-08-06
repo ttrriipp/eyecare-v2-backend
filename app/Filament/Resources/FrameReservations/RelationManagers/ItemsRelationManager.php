@@ -17,7 +17,6 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class ItemsRelationManager extends RelationManager
@@ -45,9 +44,8 @@ class ItemsRelationManager extends RelationManager
                 Action::make('addFrame')
                     ->label('Add Frame')
                     ->icon('heroicon-o-plus')
-                    ->color('gray')
-                    ->visible(fn (): bool => Gate::allows('addFrame', $this->getOwnerRecord())
-                        && in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                    ->color('primary')
+                    ->visible(fn (): bool => in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                     ->schema([
                         Select::make('product_variant_id')
                             ->label('Frame')
@@ -68,8 +66,6 @@ class ItemsRelationManager extends RelationManager
                     ->action(function (array $data): void {
                         /** @var FrameReservation $reservation */
                         $reservation = $this->getOwnerRecord();
-
-                        Gate::authorize('addFrame', $reservation);
 
                         try {
                             app(AddFrameReservationItem::class)->handle(
@@ -113,14 +109,11 @@ class ItemsRelationManager extends RelationManager
                     ->label('Remove')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn (): bool => Gate::allows('removeFrame', $this->getOwnerRecord())
-                        && in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                    ->visible(fn (): bool => in_array($this->getOwnerRecord()->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                     ->requiresConfirmation()
                     ->action(function (FrameReservationItem $record): void {
                         /** @var FrameReservation $reservation */
                         $reservation = $this->getOwnerRecord();
-
-                        Gate::authorize('removeFrame', $reservation);
 
                         try {
                             app(RemoveFrameReservationItem::class)->handle($reservation, $record);
