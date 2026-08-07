@@ -9,6 +9,7 @@ use App\Models\Quotation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 
 class QuotationController extends Controller
 {
@@ -18,9 +19,22 @@ class QuotationController extends Controller
 
         abort_unless($patient !== null, 404);
 
+        $request->validate([
+            'filter' => ['nullable', 'string', Rule::in(['current', 'history'])],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $filter = $request->input('filter', 'current');
+
         $quotations = Quotation::query()
             ->where('patient_id', $patient->id)
             ->where('status', '!=', QuotationStatus::Draft)
+            ->when($filter === 'current', fn ($query) => $query->where('status', QuotationStatus::Presented))
+            ->when($filter === 'history', fn ($query) => $query->whereIn('status', [
+                QuotationStatus::Accepted,
+                QuotationStatus::Declined,
+                QuotationStatus::Expired,
+            ]))
             ->with(['items'])
             ->latest()
             ->paginate($request->integer('per_page', 15));
