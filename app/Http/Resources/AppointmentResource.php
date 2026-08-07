@@ -18,6 +18,11 @@ class AppointmentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $patient = $request->user()?->patient;
+        $isRateable = $this->status?->name === 'fulfilled'
+            && $patient !== null
+            && $this->patient_id === $patient->id;
+
         return [
             'id' => $this->id,
             'appointment_number' => $this->appointment_number,
@@ -51,6 +56,32 @@ class AppointmentResource extends JsonResource
                 ]
                 : null,
             'no_show_at' => $this->no_show_at?->toISOString(),
+            'is_rateable' => $isRateable,
+            'rating' => $this->when(
+                $this->relationLoaded('visitRating'),
+                fn () => $this->formatVisitRating($patient),
+            ),
+        ];
+    }
+
+    /**
+     * Format the visit rating for the API response.
+     */
+    private function formatVisitRating(?mixed $patient): ?array
+    {
+        $rating = $this->visitRating;
+
+        if ($rating === null) {
+            return null;
+        }
+
+        $isAuthor = $patient !== null && $rating->patient_id === $patient->id;
+
+        return [
+            'rating' => $rating->rating,
+            'comment' => ($rating->is_hidden && ! $isAuthor) ? null : $rating->comment,
+            'created_at' => $rating->created_at?->toISOString(),
+            'revision_number' => $rating->currentRevision?->revision_number ?? 1,
         ];
     }
 }
