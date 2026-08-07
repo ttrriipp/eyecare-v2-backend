@@ -154,6 +154,22 @@ through the parent billing record. Verify against seeded data during Task 2.
 | N+1 on `GET /appointments` once `rating` is exposed | Slow list endpoint | Eager-load `visitRating` in `AppointmentController::index` |
 | `AppointmentResource` is shared by list + show + possibly other callers | Unintended contract change elsewhere | Grep all `AppointmentResource::` usages before editing; the two new keys are additive so risk is low |
 
+## Pre-change test baseline (measured 2026-08-07, before any code)
+
+`vendor/bin/sail artisan test --compact tests/Feature/Api/V1`
+→ **176 tests, 149 passed, 27 failed.** "No new failures" is meaningless without this
+number; record it before starting and compare against it, not against zero.
+
+| Cause | Count | Notes |
+|---|---|---|
+| Tests for **deliberately removed routes** — `/register`, `/login`, `/job-orders`, `/billing-records`, `/eyewear` | ~24 | The coordinated Android cutover (documented in `BACKEND_CONTEXT.md`) removed these routes; the tests were never updated. Spread across 5 files. |
+| `RouteContractTest::every_approved_v1_route_is_present_exactly_once` | 1 | Hard-asserts the **exact** route list; still expects `job-orders`/`billing-records`/`eyewear` and doesn't know `optical-orders` exists. ⚠️ **Landmine for Task 4** — adding `POST /appointments/{id}/rating` requires updating it. |
+| `WorkflowReadsTest::quotations list is paginated and patient-scoped` | 1 | ⚠️ **Sits in Task 0b's path.** `QuotationFactory` defaults to `Draft`; the controller excludes drafts, so it asserts 3 and gets 0. Fix as part of 0b using the `presented()` state — which is exactly what the new `filter=current` semantics require. |
+| `MeEndpointTest` / `AuthContractTest` profile assertions | 2 | Expect `patient_number` / `occupation` at the top level; they moved under `linked_patient`. |
+
+**Two of these are not passive noise** — the `RouteContractTest` and `WorkflowReadsTest`
+failures land directly on files this work touches, and are called out in their tasks.
+
 ## Verification checkpoints
 
 **Checkpoint 0 — after Tasks 0a–0d (prelude).**

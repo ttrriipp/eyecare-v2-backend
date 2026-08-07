@@ -48,6 +48,11 @@ Each prelude task removes its own ⚠️ markers from `API_CONTRACT.md`.
     - Invalid `filter` value is a 422, not a silent fallback.
     - `per_page` validated to 1–50 as documented.
     - Optical-order ordering becomes `created_at DESC, id DESC` (deterministic ties).
+    - **Fix the pre-existing failure in this file's path:**
+      `WorkflowReadsTest::quotations list is paginated and patient-scoped` currently
+      asserts 3 and gets 0, because `QuotationFactory` defaults to `Draft` and the
+      controller excludes drafts. Switch it to the `presented()` state — which is what
+      `filter=current` now requires anyway. Do **not** leave it red and call it pre-existing.
   - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/`
   - **Files:** `app/Http/Controllers/Api/OpticalOrderController.php`,
     `app/Http/Controllers/Api/QuotationController.php`, their tests, `docs/API_CONTRACT.md`
@@ -157,6 +162,11 @@ Each prelude task removes its own ⚠️ markers from `API_CONTRACT.md`.
       `StoreVisitRatingRequest`, not inline in the controller.
     - Unlinked account is rejected by existing `require.patient.link` middleware (403).
     - Response uses a `VisitRatingResource`; a hidden comment returns `comment: null`.
+    - ⚠️ **`RouteContractTest::every_approved_v1_route_is_present_exactly_once` must be
+      updated in this commit.** It hard-asserts the exact v1 route list, so adding a route
+      breaks it. It is *already* failing on a stale list (expects the removed
+      `job-orders`/`billing-records`/`eyewear`, missing `optical-orders`) — fix the whole
+      list, don't just append the new route.
   - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/VisitRatingTest.php`
   - **Files:** `app/Http/Controllers/Api/VisitRatingController.php`,
     `app/Http/Requests/Api/StoreVisitRatingRequest.php`,
