@@ -14,14 +14,54 @@
 | Eligibility | `appointment.status = fulfilled` |
 | Model naming | `VisitRating` / `VisitRatingRevision` (symmetry with shipped `FrameRating`); Filament label reads "Visit Feedback" |
 | Filament nav group | **Patients**, after Conversations — grouped with the other patient-submitted channel |
-| Frame-rating aggregates (Task 8) | **In scope**, shipped as its own final commit |
+| Frame-rating aggregates | **In scope**, resequenced from Task 8 into the prelude as Task 0d |
+| Frame-rating read path | **In scope as a prelude (Tasks 0a–0d)**, ahead of visit feedback — see below |
 
-Frame ratings remain a separate, untouched feature — they answer "is this frame good?"
-(purchasing lever), visit ratings answer "was this visit good?" (staffing/process lever).
+## Prelude: finish the frame-rating read path first
+
+An audit while writing this spec found that `API_CONTRACT.md` §14–§15 documents an
+interface that was never built. The write path for frame ratings shipped; the read path
+did not. The drift is the symptom, not the disease:
+
+| Patient can… | Status |
+|---|---|
+| Submit a frame rating | ✅ works |
+| Discover what is rateable | ❌ `is_rateable` never built |
+| See a rating they already left | ❌ `rating` never built |
+| See ratings while browsing the catalog | ❌ no aggregates |
+| Filter orders to current vs history | ❌ `?filter=` inert on §14 **and** §15 |
+| Submit without a 422 | ⚠️ only by ignoring the contract and sending `product_variant_id` |
+
+Plus a defect: the rating endpoint returns the raw model, exposing `moderation_reason`
+and `moderated_by` — a staff member's internal note about *this patient's* comment, and
+the staff user ID who wrote it. Narrow (it only surfaces on a re-submission after staff
+hid the comment) but real.
+
+**Why before, not after.** `is_rateable` on optical order items and `is_rateable` on
+appointments must be one convention, not two. Building the appointment version first
+(Task 5) means inventing a shape in isolation and retrofitting orders to match later —
+two chances to diverge. Building orders first makes Task 5 mirror working, tested code,
+which is what this spec claimed all along but could not deliver. Task 0d (catalog
+aggregates) touches the same resources, so it folds in for free rather than being a
+separate final commit.
+
+Frame ratings remain a **separate feature** — they answer "is this frame good?" (purchasing
+lever); visit ratings answer "was this visit good?" (staffing/process lever). The prelude
+finishes frame ratings' read path but does not merge the two: they stay distinct tables,
+endpoints, and admin resources.
 
 ## Components and dependency order
 
 ```
+0a. FrameRatingResource      stop the moderation leak; optional product_variant_id
+        │
+0b. ?filter= + ordering      quotations AND optical orders
+        │
+0c. Rating fields            is_rateable / rating / product_variant_id / is_overdue
+        │                    ← establishes the convention Task 5 mirrors
+0d. Catalog aggregates       average_rating / rating_count            ← CHECKPOINT 0
+        │
+        ▼
 1. Foundation        migration + models + factory
         │
         ▼
@@ -45,12 +85,10 @@ Frame ratings remain a separate, untouched feature — they answer "is this fram
              the catalog API  (separate commit)
 ```
 
-Task 8 is adjacent to this feature, not part of it — it closes a hole found while writing
-this spec (frame ratings are collected but never returned by the catalog API). It depends
-on nothing above it and can be cut at any point without affecting Tasks 1–7.
-
-Steps 3, 4, and 6 are independent of each other and can be built in any order once 2 lands.
-Steps 1 → 2 and 6 → 7 are strictly sequential.
+Tasks 0a–0d are a prelude, not part of visit feedback — they finish the frame-rating read
+path (see the Prelude section above). They must land **first**: 0c establishes the
+`is_rateable` convention that Task 5 mirrors. Tasks 3, 4, and 6 are independent of each
+other and can be built in any order once 2 lands; 1 → 2 and 6 → 7 are strictly sequential.
 
 ## Design decisions
 
@@ -104,6 +142,10 @@ through the parent billing record. Verify against seeded data during Task 2.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
+| **(0b) Implementing `?filter=` to spec changes default behavior.** Today both endpoints return *everything*; the contract says the default is `current`. An existing client that relied on getting all orders will silently start receiving only active ones | Android list screens lose history rows with no error | Follow the contract (it is the authority Android should code to), but call it out explicitly in the commit and notify the mobile side. Do **not** quietly default to "all" — that leaves the contract lying |
+| **(0c) `payment_summary.status` switches from `"Partially Paid"` to `partially_paid`** | Any client string-matching the display label breaks | Contract always specified machine-readable; this is code catching up. Flag in the commit as a breaking change; the label is trivially derivable client-side |
+| **(0a) Making `product_variant_id` optional must not break clients already sending it** | Existing submissions 422 | Optional-but-validated: derive from the route item when absent, verify it matches when present. Covered by a test for each path |
+| **(0a) Author's own hidden comment** — spec says "hidden comments are not returned to the patient API", which would blank an author's own words back to them | Confusing UX; author thinks their text vanished | Refine the rule: hiding suppresses **public/aggregate** display, not an author's view of their own submission. Recorded in Task 0a |
 | `AdminNavigationStructureTest` locks group order, item order per group, and unique icons — adding a Filament resource **will** fail it | Red suite, looks like a regression | Update that test in the **same commit** as the resource (Task 6), not a follow-up |
 | `lockForUpdate()` on an already-hydrated model is a silent no-op — this repo has shipped that bug at least three times (`ConvertFrameReservationToJobOrder`, `ReviewPatientLinkRequest`, `AcceptAppointmentRequest`) | Lost update on concurrent submit | Always re-fetch inside the transaction: `VisitRating::query()->lockForUpdate()->find(...)` |
 | `unique(appointment_id)` + concurrent first-submit race | 500 instead of a clean revision | Lock the appointment row inside the transaction; catch `UniqueConstraintViolationException` and fall through to the revision path |
@@ -113,6 +155,11 @@ through the parent billing record. Verify against seeded data during Task 2.
 | `AppointmentResource` is shared by list + show + possibly other callers | Unintended contract change elsewhere | Grep all `AppointmentResource::` usages before editing; the two new keys are additive so risk is low |
 
 ## Verification checkpoints
+
+**Checkpoint 0 — after Tasks 0a–0d (prelude).**
+Every ⚠️ `NOT IMPLEMENTED` / `MISMATCH` marker is gone from `API_CONTRACT.md` §14–§15,
+because the code now does what the document says. The moderation leak is closed and the
+`is_rateable` convention exists in working, tested code. Only then start Task 1.
 
 **Checkpoint A — after Task 2 (domain).**
 `vendor/bin/sail artisan test --compact tests/Feature/Ratings` green. Domain rules

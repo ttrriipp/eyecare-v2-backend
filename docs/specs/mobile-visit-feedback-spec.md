@@ -308,7 +308,7 @@ All scope questions are closed. Recorded here so the reasoning survives the conv
 | 5 | Eligibility anchor | **`appointment.status = fulfilled`** | A patient can rate a visit they attended even if the optometrist never completed the encounter record — staff oversight must not silently block feedback. |
 | 6 | Admin reporting | **Table + moderation only** | No averages widget this round; `gap-analysis.md` §M tracks the reports module separately. |
 | 7 | Filament navigation group | **Patients**, after Conversations | Grouped with Conversations as "things patients sent us". Accepted cost: the two rating types sit in different groups (Frame Ratings stays under Optical, a purchasing concern with a different audience). |
-| 8 | Frame-rating aggregates in the catalog | **In scope**, as a separate final commit | See Task 8 — adjacent hole, not part of visit feedback. Cut it freely without affecting Tasks 1–7. |
+| 8 | Frame-rating aggregates in the catalog | **In scope**, resequenced into the prelude as Task 0d | Originally planned as a cuttable final commit. A follow-up audit found the whole frame-rating *read path* was unbuilt — no `is_rateable`, no `rating`, inert `?filter=`, plus a moderation-data leak — so the aggregates now ship alongside those fixes in Tasks 0a–0d, **before** visit feedback. See the plan's Prelude section. |
 
 ### Why frame ratings stay a separate feature
 

@@ -6,6 +6,84 @@ Run `vendor/bin/sail bin pint --dirty --format agent` before finalizing every ta
 
 ---
 
+# Prelude — finish the frame-rating read path
+
+The write path shipped; the read path never did. `API_CONTRACT.md` §14–§15 documents
+the full interface, but `?filter=` is inert, optical order items expose no rating
+fields, and the rating endpoint leaks staff moderation data. Doing this **before**
+Tasks 1–7 means Task 5 mirrors code that actually exists, and old Task 8 folds in here.
+
+Each prelude task removes its own ⚠️ markers from `API_CONTRACT.md`.
+
+- [ ] **Task 0a — `FrameRatingResource`: stop leaking moderation data**
+  - **Description:** `FrameRatingController::store` returns `$rating->load('revisions')`
+    — the raw model, no resource class. Wrap it.
+  - **Acceptance:**
+    - Response exposes only `id`, `item_id`, `product_variant_id`, `rating`, `comment`,
+      `revision_number`, `created_at`.
+    - **`moderation_reason`, `moderated_by`, `moderated_at`, `is_hidden`, `patient_id`,
+      `deleted_at`, `current_revision_id` are absent.**
+    - The author still sees their **own** `comment` even when staff hid it — hiding
+      suppresses public/aggregate display, not the author's view of their own words.
+      (Refines the spec's blanket "hidden comments are not returned"; that rule applies
+      to aggregate surfaces, not to showing an author their own submission.)
+    - `product_variant_id` becomes **optional** in the request: derived from the route's
+      item when omitted, still validated as matching when supplied. This makes the
+      contract's "the client does not submit the variant ID" true without breaking any
+      client already sending it.
+    - `201` on create, `200` on revise, per the contract.
+  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameRatingTest.php`
+  - **Files:** `app/Http/Resources/Api/FrameRatingResource.php`,
+    `app/Http/Controllers/Api/FrameRatingController.php`,
+    `tests/Feature/Api/V1/FrameRatingTest.php`, `docs/API_CONTRACT.md`
+
+- [ ] **Task 0b — Implement `?filter=` on quotations and optical orders**
+  - **Description:** Both controllers ignore the parameter the contract specifies.
+    Semantics are already fully defined there — no product decision needed.
+  - **Acceptance:**
+    - Optical orders: `current` = `queued`/`in_progress`/`ready_for_dispensing`;
+      `history` = `dispensed`/`cancelled`; default `current`.
+    - Quotations: `current` = `presented`; `history` = `accepted`/`declined`/`expired`;
+      drafts never returned under either.
+    - Invalid `filter` value is a 422, not a silent fallback.
+    - `per_page` validated to 1–50 as documented.
+    - Optical-order ordering becomes `created_at DESC, id DESC` (deterministic ties).
+  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/`
+  - **Files:** `app/Http/Controllers/Api/OpticalOrderController.php`,
+    `app/Http/Controllers/Api/QuotationController.php`, their tests, `docs/API_CONTRACT.md`
+
+- [ ] **Task 0c — Optical order item rating fields**
+  - **Description:** Add the four documented-but-missing fields. This establishes the
+    `is_rateable` convention that visit-feedback Task 5 will mirror.
+  - **Acceptance:**
+    - `items[].product_variant_id`, `items[].is_rateable`, `items[].rating` present.
+    - `is_rateable` is `true` only for a **dispensed** order's item with a non-null
+      `product_variant_id`.
+    - `payment_summary.is_overdue` present (`BillingRecord::isOverdue()`).
+    - **`payment_summary.status` returns the machine-readable enum value**
+      (`partially_paid`), not `getLabel()`'s `"Partially Paid"` — the contract always
+      specified this. **Breaking change for any client string-matching the label; call
+      it out in the commit.**
+    - No N+1: the patient's `FrameRating`s are fetched once and keyed by variant, not
+      queried per item.
+  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/`
+  - **Files:** `app/Http/Resources/Api/OpticalOrderResource.php`,
+    `app/Http/Controllers/Api/OpticalOrderController.php`, tests, `docs/API_CONTRACT.md`
+
+- [ ] **Task 0d — Catalog rating aggregates** *(was Task 8)*
+  - **Description:** Ratings are collected but never surfaced. Expose them where they
+    earn their keep — the frame catalog a patient browses in AR try-on.
+  - **Acceptance:** as old Task 8 (see bottom of this file).
+  - **Verify:** frame catalog test file
+  - **Files:** frame resource(s), `FrameController`, `ProductVariant`, tests
+
+> **CHECKPOINT 0** — frame-rating read path complete, all ⚠️ markers gone from
+> `API_CONTRACT.md`. Only then start Task 1.
+
+---
+
+# Visit feedback
+
 - [ ] **Task 1 — Foundation: schema, models, factory**
   - **Description:** Create `visit_ratings` + `visit_rating_revisions` tables and their
     Eloquent models, mirroring the shipped `FrameRating` pair. Unlike `frame_ratings`
@@ -151,13 +229,17 @@ Run `vendor/bin/sail bin pint --dirty --format agent` before finalizing every ta
 
 ---
 
-- [ ] **Task 8 — Surface frame-rating aggregates in the catalog** *(separate commit)*
-  - **Description:** Adjacent to visit feedback, not part of it. Fixes a hole found while
-    writing this spec: frame ratings are **write-only** — collected by
-    `POST /optical-order-items/{item}/rating` but never returned by `GET /frames` or
-    `GET /frames/{id}`. `ModerateFrameRating`'s own docblock references preserving stars
-    "in aggregates" that do not exist. Depends on nothing in Tasks 1–7; cuttable at any
-    point. **Commit separately** so the visit-feedback history stays clean.
+## Task 0d detail — Surface frame-rating aggregates in the catalog
+
+> Originally Task 8 (a post-feature optional). **Resequenced into the prelude as Task 0d**
+> once we decided to finish the frame-rating read path first — it touches the same
+> resources as 0c, so it belongs with them rather than as a trailing commit.
+
+- [ ] **Task 0d — Surface frame-rating aggregates in the catalog**
+  - **Description:** Fixes a hole found while writing this spec: frame ratings are
+    **write-only** — collected by `POST /optical-order-items/{item}/rating` but never
+    returned by `GET /frames` or `GET /frames/{id}`. `ModerateFrameRating`'s own docblock
+    references preserving stars "in aggregates" that do not exist.
   - **Acceptance:**
     - `GET /frames` and `GET /frames/{id}` expose `average_rating` (1 decimal, null when
       unrated) and `rating_count` per variant or product — decide which at implementation.
