@@ -289,24 +289,30 @@ collisions on `product_categories` / `appointment_types`. Compare failures again
 - [ ] `docs/API_CONTRACT.md`, `docs/BACKEND_CONTEXT.md`, and `docs/gap-analysis.md` §J
       reflect the new capability.
 
-## Open Questions
+## Resolved Decisions
 
-**These block Phase 2 (Plan). Answer before implementation starts.**
+All scope questions are closed. Recorded here so the reasoning survives the conversation.
 
-1. **Unit of feedback** — confirm the recommendation above (rate the *visit*), or override
-   in favor of one rating per service line item.
-2. **General feedback channel** — should there also be an un-anchored "send feedback about
-   the app / clinic" endpoint, not tied to any visit? This is a separate table and a
-   separate admin inbox; it is currently **out** of scope.
-3. **Per-service star breakdown** — is the snapshot (`service_ids` + one overall star value)
-   enough, or do you want the patient to rate each service individually? Snapshot is
-   recommended; per-service stars would add a third table.
-4. **Model naming** — `VisitRating` is proposed for symmetry with the shipped `FrameRating`.
-   The Filament resource can still be labeled "Visit Feedback" in the UI. Object to the
-   name now, not after 12 files reference it.
-5. **Eligibility anchor** — `appointment.status = fulfilled` is proposed. Confirm that a
-   patient whose optometrist never completed the encounter should still be able to rate
-   the visit they attended.
-6. **Admin reporting** — ship raw data + filterable table only (recommended), or also add
-   an averages widget/report in this round? `gap-analysis.md` §M lists the reports module
-   as missing overall.
+| # | Question | Decision | Consequence |
+|---|---|---|---|
+| 1 | Unit of feedback | **The visit** — one rating per fulfilled appointment | Services + optometrist are snapshotted onto the record; per-service and per-optometrist averages still fall out. Rejected: one rating per service line item (asks the patient to grade SKUs from a single sitting). |
+| 2 | Un-anchored "app feedback" channel | **Out of scope** | Every rating ties to a real completed visit. Addable later without rework. |
+| 3 | Per-service star breakdown | **Out of scope** — snapshot only | `service_ids` JSON + one overall star value. Per-service stars would need a third table and N prompts per visit. |
+| 4 | Model naming | **`VisitRating` / `VisitRatingRevision`** | Symmetric with shipped `FrameRating`; no `$table` override needed. Filament UI label still reads "Visit Feedback". |
+| 5 | Eligibility anchor | **`appointment.status = fulfilled`** | A patient can rate a visit they attended even if the optometrist never completed the encounter record — staff oversight must not silently block feedback. |
+| 6 | Admin reporting | **Table + moderation only** | No averages widget this round; `gap-analysis.md` §M tracks the reports module separately. |
+| 7 | Filament navigation group | **Patients**, after Conversations | Grouped with Conversations as "things patients sent us". Accepted cost: the two rating types sit in different groups (Frame Ratings stays under Optical, a purchasing concern with a different audience). |
+| 8 | Frame-rating aggregates in the catalog | **In scope**, as a separate final commit | See Task 8 — adjacent hole, not part of visit feedback. Cut it freely without affecting Tasks 1–7. |
+
+### Why frame ratings stay a separate feature
+
+Merging the two would destroy both signals. A patient who liked their optometrist but
+dislikes their frames would have one number to give, and neither the purchasing team nor
+clinic management could tell which it referred to.
+
+| | Frame rating (shipped) | Visit rating (this spec) |
+|---|---|---|
+| Question | "Is this frame model any good?" | "Was this visit any good?" |
+| Anchor | Catalog item (`product_variant`) | Event (`appointment`) |
+| Lever | Purchasing — stop restocking a 2★ frame | Staffing / process |
+| Aggregates by | Product, brand | Optometrist, service, visit type |

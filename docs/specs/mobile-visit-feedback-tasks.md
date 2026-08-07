@@ -148,12 +148,13 @@ Run `vendor/bin/sail bin pint --dirty --format agent` before finalizing every ta
 
 ---
 
-- [ ] **Task 8 — OPTIONAL / SEPARABLE: surface frame-rating aggregates in the catalog**
-  - **Description:** Not part of visit feedback. Fixes a hole found while writing this
-    spec: frame ratings are **write-only** — collected by
+- [ ] **Task 8 — Surface frame-rating aggregates in the catalog** *(separate commit)*
+  - **Description:** Adjacent to visit feedback, not part of it. Fixes a hole found while
+    writing this spec: frame ratings are **write-only** — collected by
     `POST /optical-order-items/{item}/rating` but never returned by `GET /frames` or
     `GET /frames/{id}`. `ModerateFrameRating`'s own docblock references preserving stars
-    "in aggregates" that do not exist. Cut this task freely; it does not block anything.
+    "in aggregates" that do not exist. Depends on nothing in Tasks 1–7; cuttable at any
+    point. **Commit separately** so the visit-feedback history stays clean.
   - **Acceptance:**
     - `GET /frames` and `GET /frames/{id}` expose `average_rating` (1 decimal, null when
       unrated) and `rating_count` per variant or product — decide which at implementation.

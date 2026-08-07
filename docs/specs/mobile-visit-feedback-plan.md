@@ -13,6 +13,8 @@
 | Admin scope | **Table + moderation only** — no averages widget |
 | Eligibility | `appointment.status = fulfilled` |
 | Model naming | `VisitRating` / `VisitRatingRevision` (symmetry with shipped `FrameRating`); Filament label reads "Visit Feedback" |
+| Filament nav group | **Patients**, after Conversations — grouped with the other patient-submitted channel |
+| Frame-rating aggregates (Task 8) | **In scope**, shipped as its own final commit |
 
 Frame ratings remain a separate, untouched feature — they answer "is this frame good?"
 (purchasing lever), visit ratings answer "was this visit good?" (staffing/process lever).
@@ -39,9 +41,13 @@ Frame ratings remain a separate, untouched feature — they answer "is this fram
               7. Docs reconciliation                ← CHECKPOINT C
                        │
                        ▼
-          8. (OPTIONAL) Surface frame-rating
-             aggregates in the catalog API
+          8. Surface frame-rating aggregates in
+             the catalog API  (separate commit)
 ```
+
+Task 8 is adjacent to this feature, not part of it — it closes a hole found while writing
+this spec (frame ratings are collected but never returned by the catalog API). It depends
+on nothing above it and can be cut at any point without affecting Tasks 1–7.
 
 Steps 3, 4, and 6 are independent of each other and can be built in any order once 2 lands.
 Steps 1 → 2 and 6 → 7 are strictly sequential.
