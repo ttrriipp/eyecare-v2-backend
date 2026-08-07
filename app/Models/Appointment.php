@@ -189,6 +189,14 @@ class Appointment extends Model implements Eventable
     }
 
     /**
+     * @return HasOne<VisitRating, $this>
+     */
+    public function visitRating(): HasOne
+    {
+        return $this->hasOne(VisitRating::class);
+    }
+
+    /**
      * @return HasOne<Encounter, $this>
      */
     public function encounter(): HasOne
