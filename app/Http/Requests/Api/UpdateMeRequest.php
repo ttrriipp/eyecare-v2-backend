@@ -26,6 +26,7 @@ class UpdateMeRequest extends FormRequest
             'address' => ['sometimes', 'nullable', 'string', 'max:255'],
             // Patient fields
             'first_name' => ['sometimes', 'string', 'max:255'],
+            'middle_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'last_name' => ['sometimes', 'string', 'max:255'],
             'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
             'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
