@@ -4,6 +4,8 @@
 >
 > **⚠️ Drift audit 2026-08-07.** Sections 14 and 15 were verified against the implementation and found to document unbuilt behavior. Every affected field, parameter, and error code is now flagged inline with **⚠️ NOT IMPLEMENTED** or **⚠️ MISMATCH**; §15 carries a summary table. The `?filter=` parameter is inert on both endpoints, optical-order items expose no rating fields, and `POST /optical-order-items/{id}/rating` requires a `product_variant_id` the contract said it wouldn't. **Do not build against a flagged field.** Reconciliation direction is an open decision — nothing was deleted, only relabeled.
 >
+> **Fixed 2026-08-07:** The frame rating endpoint (`POST /optical-order-items/{id}/rating`) now returns a sanitized `FrameRatingResource` instead of the raw model. Moderation fields (`is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`) are no longer leaked. `product_variant_id` is now optional and derived from the route item when omitted.
+>
 > **Planned, not yet built:** patient-submitted visit feedback (`POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`). Spec approved, implementation not started — see `docs/specs/mobile-visit-feedback-spec.md`. It is deliberately **absent** from the route list below until it ships.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
@@ -1828,67 +1830,51 @@ route.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Request** — as actually validated by `FrameRatingController::store`:
+**Request:**
 ```json
 {
-  "product_variant_id": "integer (REQUIRED, must match the item's variant)",
+  "product_variant_id": "integer (nullable, derived from route item when omitted)",
   "rating": "integer (required, 1-5)",
   "comment": "string (nullable, max:1000)",
   "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
 
-> **⚠️ `product_variant_id` is required.** This contract previously stated the
-> client does not submit it. Omitting it returns `422`. Send the
-> `product_variant_id` of the item being rated.
+`product_variant_id` is optional. When omitted, the server derives it from the
+route's job-order item. When supplied, it must match the item's variant.
 
-**Response:** `201 Created` — **always**, including when revising. The
-documented `200 OK` on revision is not implemented.
+**Response:** `201 Created` on first rating, `200 OK` on revision.
 
-The response body is the `FrameRating` model with its `revisions` relation
-loaded — **not** the trimmed shape below:
+The response is wrapped in a `FrameRatingResource` that exposes only
+patient-safe fields:
 
 ```json
 {
   "data": {
     "id": 1,
-    "patient_id": 3,
+    "item_id": null,
     "product_variant_id": 42,
-    "dispensing_event_id": null,
     "rating": 5,
     "comment": "Excellent frame quality",
-    "current_revision_id": 1,
-    "is_hidden": false,
-    "moderation_reason": null,
-    "created_at": "2026-08-05T10:00:00+08:00",
-    "updated_at": "2026-08-05T10:00:00+08:00",
-    "revisions": [
-      { "id": 1, "revision_number": 1, "rating": 5, "comment": "Excellent frame quality", "revised_by": 7, "revised_at": "2026-08-05T10:00:00+08:00" }
-    ]
+    "revision_number": 1,
+    "created_at": "2026-08-05T10:00:00+08:00"
   }
 }
 ```
 
-> **⚠️ Known defects in this response — do not depend on the current shape.**
-> - No `item_id` or top-level `revision_number` field (the documented shape never existed).
-> - **Staff-internal moderation fields (`is_hidden`, `moderation_reason`, and on some
->   paths `moderated_by`/`moderated_at`) are leaked to the patient.** These should be
->   stripped by a resource class; the controller returns the raw model.
-> - `revisions[]` exposes the full edit history including `revised_by` user IDs.
->
-> Treat only `id`, `rating`, `comment`, and `created_at` as stable.
+**Hidden comments:** When staff hide a comment, the author still sees their own
+`comment` text. Other patients and aggregate surfaces see `comment: null`. The
+star value always counts toward averages regardless of hiding.
 
-The response represents the current rating after the upsert. Revisions are
-retained server-side for moderation history.
+**Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
+`moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
+`dispensing_event_id`.
 
 **Errors:**
-- `403`: Item belongs to another patient. *(Note: this differs from the 404-on-foreign-resource
-  convention used by every other endpoint in this contract, and is a mild enumeration oracle.)*
+- `403`: Item belongs to another patient.
 - `404`: Item not found.
-- `422`: Order is not dispensed, `product_variant_id` missing or mismatched, rating outside
-  1–5, or comment over 1,000 characters. **These return a plain Laravel validation/abort
-  body, not the `{error: {code, message}}` envelope described in §17** — the documented
-  `ORDER_NOT_DISPENSED` and `VALIDATION_ERROR` codes are not emitted.
+- `422`: Order is not dispensed, `product_variant_id` mismatched, rating outside
+  1–5, or comment over 1,000 characters.
 
 ---
 
