@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\PatientInvitationController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\QuotationController;
+use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
 
 // Public auth routes (versioned)
@@ -104,6 +105,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
 
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
+
+    Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
 
     Route::get('conversation', [ConversationController::class, 'show']);
     Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
