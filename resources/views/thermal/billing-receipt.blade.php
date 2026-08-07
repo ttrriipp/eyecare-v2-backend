@@ -59,7 +59,7 @@
 {{-- Clinic Header --}}
 <div class="center">
     <div class="bold large">Padilla Optical Clinic</div>
-    <div class="small">Eyecare Management System</div>
+    <div class="small">EyeCare Management System</div>
 </div>
 
 <div class="divider"></div>

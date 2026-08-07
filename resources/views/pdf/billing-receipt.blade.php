@@ -55,7 +55,7 @@
 
     <div class="header">
         <div class="clinic-name">Padilla Optical Clinic</div>
-        <div class="clinic-sub">Eyecare Management System</div>
+        <div class="clinic-sub">EyeCare Management System</div>
     </div>
 
     <div class="meta">

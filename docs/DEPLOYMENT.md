@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> Production deployment for the Padilla Optical Clinic Management System (Eyecare).
+> Production deployment for the Padilla Optical Clinic Management System (EyeCare).
 
 ---
 
@@ -162,7 +162,7 @@ sudo certbot --nginx -d eyecare.example.com
 ## Environment Variables (Production)
 
 ```env
-APP_NAME=Eyecare
+APP_NAME=EyeCare
 APP_ENV=production
 APP_KEY=            # Generated via php artisan key:generate
 APP_DEBUG=false
@@ -182,7 +182,7 @@ CACHE_STORE=file
 
 SEMAPHORE_ENABLED=true
 SEMAPHORE_API_KEY=  # From semaphore.co dashboard
-SEMAPHORE_SENDER_NAME=Eyecare
+SEMAPHORE_SENDER_NAME=EyeCare
 
 FILAMENT_TIMEZONE=Asia/Manila
 ```

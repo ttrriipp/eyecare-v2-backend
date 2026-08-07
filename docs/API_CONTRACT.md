@@ -1,12 +1,12 @@
-# Eyecare Mobile API v1 — Authoritative Contract
+# EyeCare Mobile API v1 — Authoritative Contract
 
 > **Backend version:** Current repository state (2026-08-07) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
 >
-> **⚠️ Drift audit 2026-08-07.** Sections 14 and 15 were verified against the implementation and found to document unbuilt behavior. Every affected field, parameter, and error code is now flagged inline with **⚠️ NOT IMPLEMENTED** or **⚠️ MISMATCH**; §15 carries a summary table. The `?filter=` parameter is inert on both endpoints, optical-order items expose no rating fields, and `POST /optical-order-items/{id}/rating` requires a `product_variant_id` the contract said it wouldn't. **Do not build against a flagged field.** Reconciliation direction is an open decision — nothing was deleted, only relabeled.
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped. `?filter=` works on both quotations and optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
 >
-> **Fixed 2026-08-07:** The frame rating endpoint (`POST /optical-order-items/{id}/rating`) now returns a sanitized `FrameRatingResource` instead of the raw model. Moderation fields (`is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`) are no longer leaked. `product_variant_id` is now optional and derived from the route item when omitted.
+> **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
-> **Planned, not yet built:** patient-submitted visit feedback (`POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`). Spec approved, implementation not started — see `docs/specs/mobile-visit-feedback-spec.md`. It is deliberately **absent** from the route list below until it ships.
+> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. **Known bug:** the aggregate excludes hidden ratings' stars entirely rather than just their comments, contradicting the documented moderation model — see §11.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1304,6 +1304,8 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
       "product_type": "frame",
       "brand": "Ray-Ban",
       "category": "Full Rim",
+      "average_rating": 4.5,
+      "rating_count": 12,
       "variants": [
         {
           "id": 1,
@@ -1326,6 +1328,31 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
 ```
 
 **Excluded fields:** `cost_price`, `stock_quantity`, `low_stock_threshold`.
+
+**Rating aggregates:** `average_rating` (float, 1 decimal, `null` when unrated)
+and `rating_count` (integer) are computed across all of the product's frame
+ratings, collected via `POST /optical-order-items/{id}/rating`.
+
+> **Null means unrated, not zero.** `average_rating` is `?float` end-to-end
+> (`FrameResource::computeAverageRating()` returns `null`, not `0.0`, when the
+> product has no ratings) and reaches the response as JSON `null`. A client
+> that coerces `null` to `0` will render every unrated frame as a 0-star
+> product instead of an unrated one — do not collapse the two.
+
+> ⚠️ **Known bug (2026-08-07):** both fields are computed from ratings
+> filtered to `is_hidden = false` (`FrameController` / `FrameResource`), so a
+> **hidden rating's star value is excluded from the aggregate entirely**, not
+> just its comment. This contradicts the documented moderation model — hiding
+> is meant to suppress the comment only, with the star still counting (see
+> `ModerateFrameRating`'s own docblock and the visit-feedback spec's Task 0d
+> acceptance criteria). As shipped, staff hiding an abusive 1-star comment
+> also quietly erases that 1 star from the product's average. Not yet fixed.
+>
+> **No client-side fix exists.** The API never exposes individual hidden
+> ratings to a client, patient or otherwise — only this pre-skewed aggregate —
+> so a consuming client has no data to reconstruct the true average from and
+> must display the number as received. This is a server-side-only fix; do not
+> treat a client displaying a skewed average as a client bug.
 
 ---
 
@@ -1656,28 +1683,6 @@ Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
 record. Service-only accepted quotations do not create Optical Orders.
 
-> ### ⚠️ Contract drift — do not build against the fields below until reconciled
->
-> Audited 2026-08-07 against `App\Http\Resources\Api\OpticalOrderResource` and
-> `App\Http\Controllers\Api\OpticalOrderController`. This section documents an
-> intended shape that is **partly unimplemented**. Items marked
-> **`⚠️ NOT IMPLEMENTED`** below are absent from the live response — a client
-> reading them today gets `null`/undefined, not data.
->
-> | Documented | Reality | Impact |
-> |---|---|---|
-> | `items[].product_variant_id` | absent | Cannot identify which catalog variant an item is |
-> | `items[].is_rateable` | absent | No way to know what may be rated |
-> | `items[].rating` | absent | Existing ratings are never returned |
-> | `payment_summary.is_overdue` | absent | Client must derive from `payment_due_date` |
-> | `payment_summary.status` = `unpaid` / `partially_paid` / … | returns `"Partially Paid"` (display label from `BillingRecordStatus::getLabel()`) | **String comparison against the documented values fails** |
-> | `?filter=current\|history` | not handled — always returns all orders, newest first | Filtering silently does nothing |
-> | Ordering `created_at DESC, id DESC` | `->latest()` — `created_at DESC` only | Ties order non-deterministically |
->
-> No test asserts any of these fields, which is why the drift went unnoticed.
-> Reconciliation direction (implement the missing fields vs. cut them from the
-> contract) is an open product decision — see `docs/specs/mobile-visit-feedback-spec.md`,
-> which found this while auditing rating patterns.
 
 ### GET `/optical-orders`
 
@@ -1809,18 +1814,7 @@ from non-dispensed orders have `is_rateable: false`.
 
 **Payment status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
 
-**Rateable items** *(⚠️ NOT IMPLEMENTED — describes intent, not current behavior)*:
-`is_rateable` is `true` only for a dispensed Product item with a linked
-`product_variant_id`. Service items, custom products, and items from
-non-dispensed orders have `is_rateable: false`.
-
-> The final sentence of this rule previously read *"The client does not submit
-> the variant ID; the server resolves it from the Optical Order item route."*
-> That is **false today** — `POST /optical-order-items/{id}/rating` requires
-> `product_variant_id` in the request body. See that endpoint below.
-
-**Ordering:** `created_at DESC` (⚠️ documented as `created_at DESC, id DESC`;
-the implementation uses `->latest()`, so ties are not deterministically ordered).
+**Ordering:** `created_at DESC, id DESC` (deterministic ties).
 
 **Notes:**
 - Items contain only product lines. Service lines are never included.
@@ -2363,6 +2357,7 @@ GET    /api/v1/appointments                   List confirmed appointments
 GET    /api/v1/appointments/{id}              Get appointment detail
 POST   /api/v1/appointments/{id}/cancel       Cancel appointment
 POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
+POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/frame-reservations             List reservations
 POST   /api/v1/frame-reservations             Create reservation
@@ -2381,6 +2376,7 @@ POST   /api/v1/conversation/messages          Send message
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
+POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above
 ```
 
 **Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**

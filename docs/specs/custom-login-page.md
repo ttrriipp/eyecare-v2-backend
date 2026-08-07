@@ -2,20 +2,20 @@
 
 ## Objective
 
-Replace the default Filament login page with a custom-designed login page that matches the EyeCare brand identity. The page features a split layout: a white login form card on the left with branding, and an eyecare product image collage on the right, all against a light blue background.
+Replace the default Filament login page with a custom-designed login page that matches the EyeCare brand identity, using DESIGN.md's tokens rather than a bespoke color/type system. The page features a split layout: a white login form card on the left with branding, and an eyecare product image collage on the right.
 
 **User:** Admin/staff users logging into the EyeCare management system.
 
 **Acceptance Criteria:**
 - Login page renders at `/admin/login` with the custom design
-- Light blue full-page background (`#DCEEFB` or similar)
-- Left side: White rounded card containing:
-  - "EYECARE" heading (bold, large)
-  - Tagline: *"When elegance meets convenience"* (italic)
-  - Email field labeled "Username"
-  - Password field with visibility toggle, labeled "Password" with "Forgot password?" link
+- Neutral page background (Filament's default), matching the rest of the panel — no full-screen Clinical Blue wash (DESIGN.md's One Accent Rule reserves the brand blue for actions/links/the logo mark, never a screen-wide tint)
+- Left side: White rounded card (`rounded-lg`, bordered per DESIGN.md's Border-Over-Shadow rule) containing:
+  - The panel's real brand mark (`resources/views/filament/admin/logo.blade.php` — biconvex lens/eye SVG + "EyeCare" wordmark), not a reinvented heading
+  - Functional subheading: "Staff sign-in for Padilla Optical Clinic"
+  - Email field labeled "Email"
+  - Password field with visibility toggle, labeled "Password" with a "Forgot password?" link (Filament's built-in password-reset flow, enabled panel-wide via `->passwordReset()`)
   - "Remember me" checkbox
-  - Full-width black "Login" button
+  - Full-width primary (Clinical Blue) "Sign in" button — Filament's default primary button styling, untouched
 - Right side: Image collage with 3 eyecare product images (asymmetric grid layout with rounded corners)
 - Responsive: images hidden on smaller screens, form card centered
 - Authentication still works via Filament's auth system (session-based)
@@ -99,6 +99,6 @@ class Login extends BaseLogin
 
 ## Decisions
 
-1. **No "Forgot password?" link** — Remove it entirely from the design.
-2. **Use all 3 stock images** (eyeglass1.png, eyeglass2.png, eyeglass3.png) in the collage.
-3. **Redirect `/` to login page** — Replace the welcome page route with a redirect to `/admin/login`.
+1. **Use all 3 stock images** (eyeglass1.png, eyeglass2.png, eyeglass3.png) in the collage.
+2. **Redirect `/` to login page** — Replace the welcome page route with a redirect to `/admin/login`.
+3. **Reconciled with DESIGN.md (2026-08-07)** — The screen originally shipped with its own bespoke colors/typography/black button and no password-reset link, all predating DESIGN.md. It's now aligned: real logo mark instead of a reinvented wordmark, DESIGN.md's neutral/border tokens instead of hardcoded hex, the primary (Clinical Blue) button Filament renders by default instead of the originally-specified black one, and the "Forgot password?" link restored now that `->passwordReset()` is enabled panel-wide — removing it left locked-out staff with no self-service recovery path.

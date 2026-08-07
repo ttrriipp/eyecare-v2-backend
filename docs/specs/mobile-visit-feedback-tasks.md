@@ -278,20 +278,30 @@ Each prelude task removes its own ⚠️ markers from `API_CONTRACT.md`.
 > once we decided to finish the frame-rating read path first — it touches the same
 > resources as 0c, so it belongs with them rather than as a trailing commit.
 
-- [ ] **Task 0d — Surface frame-rating aggregates in the catalog**
+- [x] **Task 0d — Surface frame-rating aggregates in the catalog** *(shipped `5dcf292`,
+      2026-08-07 — but one acceptance criterion below is not met; see the note)*
   - **Description:** Fixes a hole found while writing this spec: frame ratings are
     **write-only** — collected by `POST /optical-order-items/{item}/rating` but never
     returned by `GET /frames` or `GET /frames/{id}`. `ModerateFrameRating`'s own docblock
     references preserving stars "in aggregates" that do not exist.
   - **Acceptance:**
-    - `GET /frames` and `GET /frames/{id}` expose `average_rating` (1 decimal, null when
+    - [x] `GET /frames` and `GET /frames/{id}` expose `average_rating` (1 decimal, null when
       unrated) and `rating_count` per variant or product — decide which at implementation.
-    - Hidden ratings still count toward the average (that is the documented intent of
-      hiding only the comment); their comments are never exposed.
-    - Aggregates are computed with `withAvg`/`withCount`, not an N+1 per row.
-  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameTest.php`
-    (or the existing frame catalog test file)
-  - **Files:** `app/Http/Resources/` frame resource(s),
-    `app/Http/Controllers/Api/FrameController.php`, `app/Models/ProductVariant.php`,
-    frame catalog test
+      *(Per product, via `FrameResource`.)*
+    - [ ] **Hidden ratings still count toward the average** (that is the documented intent
+      of hiding only the comment); their comments are never exposed. **Not met as shipped:**
+      `FrameController` eager-loads `ratings` filtered to `where('is_hidden', false)`, so a
+      hidden rating's star is excluded from the average and count entirely, not just its
+      comment. Staff hiding an abusive 1-star comment also erases that 1 star from the
+      product's average. See `docs/API_CONTRACT.md` §11 for the flagged detail. Needs a
+      follow-up fix: drop the `is_hidden` filter on the eager-load, keep it only on whatever
+      exposes the comment text.
+    - [~] Aggregates are computed with `withAvg`/`withCount`, not an N+1 per row. *(Shipped
+      as a single filtered eager-load + in-PHP `avg()`/`count()` over the loaded collection
+      instead — not literally `withAvg`/`withCount`, but also not N+1: one query per
+      relation, batched across the page. Acceptable as shipped; revisit only if profiling
+      shows it matters.)*
+  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php`
+  - **Files:** `app/Http/Resources/FrameResource.php`,
+    `app/Http/Controllers/Api/FrameController.php`
   - **Scope:** Small (≤4 files)

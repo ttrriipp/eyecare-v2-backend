@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "appRoot": "/home/trip/repos/academic/eyecare-v2-backend",
+  "repoRoot": "/home/trip/repos/academic/eyecare-v2-backend",
+  "contextRoot": "/home/trip/repos/academic/eyecare-v2-backend",
+  "sessionRoot": "/home/trip/repos/academic/eyecare-v2-backend/.impeccable/live",
+  "productPath": "/home/trip/repos/academic/eyecare-v2-backend/PRODUCT.md",
+  "designPath": "/home/trip/repos/academic/eyecare-v2-backend/DESIGN.md",
+  "resolvedFrom": "cwd"
+}

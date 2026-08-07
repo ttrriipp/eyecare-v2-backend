@@ -17,7 +17,7 @@ Patients are a second audience but are served by a separate Android app (own cod
 
 ## Product Purpose
 
-POCMS ("Eyecare") is a management system for Padilla Optical Clinic covering the full operational loop: patient records, appointment scheduling, clinical encounters and prescriptions, optical retail (quotations → optical orders → dispensing), unified billing/payments, and inventory. It is the academic capstone/thesis project "Online Optical Management System with Augmented Reality for Padilla Optical Clinic," but is built and evaluated to real production standards rather than as a throwaway demo — the codebase includes a genuine deployment guide (Laravel Cloud / VPS), production-shaped data model (encryption, audit logging, soft deletes, idempotent financial actions), and a full Pest test suite.
+POCMS ("EyeCare") is a management system for Padilla Optical Clinic covering the full operational loop: patient records, appointment scheduling, clinical encounters and prescriptions, optical retail (quotations → optical orders → dispensing), unified billing/payments, and inventory. It is the academic capstone/thesis project "Online Optical Management System with Augmented Reality for Padilla Optical Clinic," but is built and evaluated to real production standards rather than as a throwaway demo — the codebase includes a genuine deployment guide (Laravel Cloud / VPS), production-shaped data model (encryption, audit logging, soft deletes, idempotent financial actions), and a full Pest test suite.
 
 Success for this repository specifically means: clinic staff can run a full day's operations (book/check in patients, run encounters, quote and fulfill optical orders, take payments, track inventory) through the admin panel without needing to leave it or work around missing functionality.
 
@@ -42,10 +42,10 @@ The backend/admin repo and the Android app are separate codebases; this repo own
 
 ## Brand Commitments
 
-- App/product name: **Eyecare**. Clinic name: **Padilla Optical Clinic**.
+- App/product name: **EyeCare**. Clinic name: **Padilla Optical Clinic**.
 - Primary color: `#4F8DD7` (shared with the Android app).
 - Panel font: Instrument Sans (400/500/600).
-- Logo: biconvex lens/eye mark + "Eyecare" wordmark, at `resources/views/filament/admin/logo.blade.php`.
+- Logo: biconvex lens/eye mark + "EyeCare" wordmark, at `resources/views/filament/admin/logo.blade.php`.
 - Favicon: `public/images/favicon.svg`.
 - Default theme: light, with a dark mode toggle available.
 

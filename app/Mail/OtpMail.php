@@ -20,7 +20,7 @@ class OtpMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your Eyecare Verification Code',
+            subject: 'Your EyeCare Verification Code',
         );
     }
 

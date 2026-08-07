@@ -38,7 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->login(Login::class)
             ->profile(EditProfile::class, isSimple: false)
             ->passwordReset()
-            ->brandName('Eyecare')
+            ->brandName('EyeCare')
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2rem')
             ->favicon(asset('images/favicon.svg'))

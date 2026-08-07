@@ -1,5 +1,5 @@
 ---
-name: Eyecare — Padilla Optical Clinic Admin
+name: EyeCare — Padilla Optical Clinic Admin
 description: A calm, high-contrast Filament 5 admin panel for clinic staff, lightly branded in clinical blue.
 colors:
   clinical-blue: "#4F8DD7"
@@ -70,7 +70,7 @@ components:
     padding: "0.75rem"
 ---
 
-# Design System: Eyecare — Padilla Optical Clinic Admin
+# Design System: EyeCare — Padilla Optical Clinic Admin
 
 ## Overview
 

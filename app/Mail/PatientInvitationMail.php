@@ -20,7 +20,7 @@ class PatientInvitationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'You\'re invited to connect with Eyecare',
+            subject: 'You\'re invited to connect with EyeCare',
         );
     }
 

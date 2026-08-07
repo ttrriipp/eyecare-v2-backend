@@ -34,9 +34,11 @@
 > History ones, so staff no longer have to leave the patient page to see
 > commercial history. Patient app-invitation delivery is phone/SMS only
 > (email invitation delivery was removed) so the invitation-acceptance trust
-> anchor matches the verified login contact. The API contract includes 52
-> routes (8 public, 24 account-only, 20 active-link) — corrected from 51 on
-> 2026-08-07, which had omitted the `job-order-items/{id}/rating` legacy alias. Legacy intake routes,
+> anchor matches the verified login contact. The API contract includes 53
+> routes (8 public, 24 account-only, 21 active-link) — 52 after the
+> `job-order-items/{id}/rating` legacy alias was added to the count on
+> 2026-08-07, then 53 once visit feedback's `POST /appointments/{id}/rating`
+> shipped the same day. Legacy intake routes,
 > direct booking, job-orders, eyewear, and billing-records API routes have
 > been removed. All accounts use structured first/middle/last names.
 > Staff/admin accounts now own their own credentials (Filament `->profile()`
@@ -45,28 +47,46 @@
 > without being deleted, and have login/logout/failed-login activity
 > audited — see "Account ownership and lifecycle" below.
 >
-> **Approved but NOT yet built (2026-08-07):** patient-submitted **visit
-> feedback** — one 1–5 star rating + optional comment per *fulfilled
-> appointment*, with the optometrist and the services rendered snapshotted onto
-> the record so per-optometrist and per-service averages fall out without asking
-> the patient to grade individual line items. Frame ratings (product feedback)
-> stay a separate feature answering a different question. Spec, plan, and tasks
-> are in `docs/specs/mobile-visit-feedback-{spec,plan,tasks}.md`; no schema,
-> route, or model exists yet. Nothing below describes it — this note is the only
-> mention until it ships.
+> **Shipped (2026-08-07): patient-submitted visit feedback.** One 1–5 star
+> rating + optional comment per *fulfilled appointment*, with the optometrist
+> and the services rendered snapshotted onto the record at submission time so
+> per-optometrist and per-service averages fall out without asking the patient
+> to grade individual line items. Frame ratings (product feedback) remain a
+> separate feature answering a different question. `POST
+> /api/v1/appointments/{appointment}/rating`, `visit_ratings` /
+> `visit_rating_revisions` tables, `SaveVisitRating`/`ModerateVisitRating`
+> actions, and the "Visit Feedback" Filament resource are all live — see below
+> for each. Spec/plan/tasks live in
+> `docs/specs/mobile-visit-feedback-{spec,plan,tasks}.md` for the design
+> rationale, but the tasks file's checkboxes are stale (unchecked despite the
+> work landing) as of this note.
 >
-> **Known drift found while writing that spec (2026-08-07):** `API_CONTRACT.md`
-> §14–§15 documented behavior that was never implemented — inert `?filter=`
-> parameters on both the quotations and optical-orders endpoints, `is_rateable` /
-> `rating` / `product_variant_id` / `is_overdue` fields absent from the optical
-> order response, a `payment_summary.status` that returns a display label rather
-> than the documented machine-readable value, and a rating endpoint that requires
-> a `product_variant_id` the contract said clients would not send. Every instance
-> is now flagged inline in that document. Separately, **frame ratings are
-> write-only**: collected via `POST /optical-order-items/{id}/rating` but never
-> returned by any catalog endpoint, and the rating response leaks staff-only
-> moderation fields (`is_hidden`, `moderation_reason`) to the patient. None of
-> this is fixed yet.
+> **Also shipped (2026-08-07): the frame-rating read-path drift found while
+> building the above.** `?filter=` now works on both quotations and
+> optical-orders; `items[].product_variant_id`/`is_rateable`/`rating` and
+> `payment_summary.is_overdue` are present on optical orders;
+> `payment_summary.status` returns the machine-readable enum value, not the
+> display label; and `POST /optical-order-items/{id}/rating` returns a
+> sanitized `FrameRatingResource` instead of leaking `is_hidden`/
+> `moderation_reason`. `API_CONTRACT.md`'s drift markers for all of these are
+> cleared. `GET /frames` and `GET /frames/{id}` also now surface
+> `average_rating`/`rating_count` per product (tasks file's "Task 0d",
+> shipped in `5dcf292`) — corrected here 2026-08-07 after this note wrongly
+> called that surface still write-only.
+>
+> **Known bug in that aggregate (2026-08-07):** hidden ratings are excluded
+> from both the average and the count — `FrameController` eager-loads
+> `ratings` filtered to `where('is_hidden', false)`, so a moderated rating's
+> star value vanishes from the aggregate entirely. The spec's Task 0d
+> explicitly required the opposite: hiding suppresses the *comment* only, the
+> star should still count. As written, a staff member hiding an abusive
+> 1-star comment also quietly erases that 1 star from the product's average —
+> which is a moderation-integrity problem, not just a doc nit. Not fixed;
+> needs a decision, see `docs/specs/mobile-visit-feedback-tasks.md` Task 0d.
+>
+> Separately, `docs/gap-analysis.md` §J still describes only the frame-rating
+> workflow and hasn't been updated to mention visit feedback as a second, now-
+> shipped, feedback channel.
 
 ---
 
@@ -82,11 +102,11 @@ Laravel 13 backend for the Padilla Optical Clinic Management System. Serves two 
 
 | Element | Value |
 |---|---|
-| App name | Eyecare |
+| App name | EyeCare |
 | Clinic name | Padilla Optical Clinic |
 | Primary color | `#4F8DD7` (use in both web panel and mobile app) |
 | Panel font | Instrument Sans (400/500/600) |
-| Logo | Biconvex lens/eye mark + "Eyecare" wordmark — see `resources/views/filament/admin/logo.blade.php` |
+| Logo | Biconvex lens/eye mark + "EyeCare" wordmark — see `resources/views/filament/admin/logo.blade.php` |
 | Favicon | `public/images/favicon.svg` |
 | Default theme mode | Light (dark mode toggle available) |
 
@@ -345,6 +365,7 @@ GET    /api/v1/appointments
 GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
 POST   /api/v1/appointments/{id}/reschedule
+POST   /api/v1/appointments/{id}/rating
 GET    /api/v1/frame-reservations
 POST   /api/v1/frame-reservations
 POST   /api/v1/frame-reservations/{id}/cancel
@@ -371,7 +392,8 @@ POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (s
 > predating the `JobOrder` → Optical Order rename; it was previously undocumented in
 > both this file and `API_CONTRACT.md`, which is why the count read 51.
 > **Decision: keep the alias**, since removing it breaks any un-migrated client.
-> `RouteContractTest` asserts the exact route list, so it counts 52 too.
+> `RouteContractTest` asserts the exact route list; it now counts 53, including
+> the `appointments/{id}/rating` route visit feedback added the same day.
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)

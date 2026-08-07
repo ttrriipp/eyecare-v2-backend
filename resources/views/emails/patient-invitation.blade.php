@@ -13,12 +13,12 @@
 </head>
 <body>
     <div class="header">
-        <h1>Eyecare</h1>
+        <h1>EyeCare</h1>
     </div>
     <div class="content">
         <p>Hello {{ $patientName }},</p>
 
-        <p>You've been invited to link your account with <strong>Padilla Optical Clinic</strong> on Eyecare.</p>
+        <p>You've been invited to link your account with <strong>Padilla Optical Clinic</strong> on EyeCare.</p>
 
         <p>Linking your account connects it to your clinic patient record, giving you access to:</p>
         <ul>
@@ -34,7 +34,7 @@
             <div class="code">{{ $invitationCode }}</div>
         </div>
 
-        <p>Open the Eyecare app, go to <strong>Accept Invitation</strong>, and enter this code.</p>
+        <p>Open the EyeCare app, go to <strong>Accept Invitation</strong>, and enter this code.</p>
 
         <p><strong>This invitation expires on {{ $expiresAt->format('M j, Y g:i A') }}.</strong></p>
 

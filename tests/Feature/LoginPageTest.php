@@ -14,8 +14,13 @@ test('login page renders successfully', function () {
 
 test('login page contains EyeCare branding', function () {
     $this->get('/admin/login')
-        ->assertSee('EYECARE')
-        ->assertSee('When elegance meets convenience');
+        ->assertSee('EyeCare')
+        ->assertSee('Staff sign-in for Padilla Optical Clinic');
+});
+
+test('login page offers a password reset link', function () {
+    $this->get('/admin/login')
+        ->assertSee('Forgot password?');
 });
 
 test('login page displays stock images', function () {

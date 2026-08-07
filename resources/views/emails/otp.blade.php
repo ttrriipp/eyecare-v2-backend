@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>Eyecare</h1>
+        <h1>EyeCare</h1>
     </div>
     <div class="content">
         <p>Your verification code is:</p>

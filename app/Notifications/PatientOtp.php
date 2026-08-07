@@ -24,7 +24,7 @@ class PatientOtp extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Eyecare Verification Code')
+            ->subject('Your EyeCare Verification Code')
             ->line('Your verification code is: **'.$this->code.'**')
             ->line('This code will expire in 10 minutes.')
             ->line('If you did not request this code, please ignore this message.');

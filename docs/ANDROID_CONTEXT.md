@@ -1,4 +1,4 @@
-# Eyecare Android App — Project Context
+# EyeCare Android App — Project Context
 
 ## What This Is
 
@@ -166,7 +166,7 @@ Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager
 | Primary color | `#29B6F6` (logo cyan) |
 | Text / on-surface | `#3D3535` (logo charcoal) |
 | Background | `#F8F9FA` (warm off-white) |
-| App name | Eyecare |
+| App name | EyeCare |
 | Font | Instrument Sans (Google Fonts, downloaded at runtime) |
 
 Color tokens live in `ui/theme/Color.kt` and are wired into `MaterialTheme.colorScheme` via `ui/theme/Theme.kt` (light scheme only — no dark theme defined yet). Cards use pure white (`CardSurface`) with a subtle 8%-black border (`CardBorder`, mapped to `outlineVariant`) so they float above the warm background.
