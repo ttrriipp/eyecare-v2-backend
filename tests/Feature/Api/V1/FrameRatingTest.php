@@ -41,7 +41,7 @@ test('patient can submit a frame rating for a dispensed job order item', functio
         ->assertJsonPath('data.rating', 5)
         ->assertJsonPath('data.comment', 'Excellent frame!')
         ->assertJsonPath('data.product_variant_id', $variant->id)
-        ->assertJsonStructure('data', ['id', 'product_variant_id', 'rating', 'comment', 'revision_number', 'created_at'])
+        ->assertJsonStructure(['data' => ['id', 'product_variant_id', 'rating', 'comment', 'revision_number', 'created_at']])
         ->assertJsonMissing(['moderation_reason', 'moderated_by', 'moderated_at', 'is_hidden', 'patient_id', 'deleted_at', 'current_revision_id']);
 });
 
