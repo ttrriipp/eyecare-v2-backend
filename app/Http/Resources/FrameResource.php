@@ -28,6 +28,43 @@ class FrameResource extends JsonResource
             'category' => $this->category?->name,
             'variants' => FrameVariantResource::collection($this->whenLoaded('variants')),
             'images' => $this->images ?? [],
+            'average_rating' => $this->computeAverageRating(),
+            'rating_count' => $this->computeRatingCount(),
         ];
+    }
+
+    /**
+     * Compute average rating across all variants.
+     */
+    private function computeAverageRating(): ?float
+    {
+        if (! $this->relationLoaded('variants')) {
+            return null;
+        }
+
+        $ratings = $this->variants
+            ->flatMap(fn ($variant) => $variant->ratings ?? collect())
+            ->where('is_hidden', false);
+
+        if ($ratings->isEmpty()) {
+            return null;
+        }
+
+        return round($ratings->avg('rating'), 1);
+    }
+
+    /**
+     * Compute total rating count across all variants.
+     */
+    private function computeRatingCount(): int
+    {
+        if (! $this->relationLoaded('variants')) {
+            return 0;
+        }
+
+        return $this->variants
+            ->flatMap(fn ($variant) => $variant->ratings ?? collect())
+            ->where('is_hidden', false)
+            ->count();
     }
 }

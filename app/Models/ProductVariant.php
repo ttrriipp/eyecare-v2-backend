@@ -133,6 +133,14 @@ class ProductVariant extends Model
     }
 
     /**
+     * @return HasMany<FrameRating, $this>
+     */
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(FrameRating::class, 'product_variant_id');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
