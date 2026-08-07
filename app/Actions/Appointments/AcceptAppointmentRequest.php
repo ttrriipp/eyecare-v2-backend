@@ -14,6 +14,10 @@ use Illuminate\Validation\ValidationException;
 
 class AcceptAppointmentRequest
 {
+    public function __construct(
+        private readonly EvaluateAppointmentAvailability $evaluateAvailability,
+    ) {}
+
     public function handle(
         AppointmentRequest $request,
         User $reviewer,
@@ -48,7 +52,7 @@ class AcceptAppointmentRequest
 
         return DB::transaction(function () use ($request, $reviewer, $appointmentType, $scheduledAt) {
             // Lock the request
-            $request->lockForUpdate();
+            $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if ($request->status !== AppointmentRequestStatus::Pending) {
                 // Already processed (idempotent)
@@ -57,6 +61,20 @@ class AcceptAppointmentRequest
                 }
                 throw ValidationException::withMessages([
                     'request' => ['This request has already been processed.'],
+                ]);
+            }
+
+            // The mobile request only held a provisional slot; the appointment type
+            // (and its real duration) is chosen here, so re-check availability
+            // against the actual duration before committing to it.
+            $decision = $this->evaluateAvailability->handle(
+                startsAt: $scheduledAt,
+                durationMinutes: $appointmentType->duration_minutes,
+            );
+
+            if (! $decision->available) {
+                throw ValidationException::withMessages([
+                    'appointment_type_id' => ["This appointment type no longer fits this time slot ({$decision->reason})."],
                 ]);
             }
 
