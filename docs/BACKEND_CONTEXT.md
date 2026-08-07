@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-05.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-07.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -21,14 +21,25 @@
 > visit instead of creating duplicate billing records per source. Staff
 > can reserve frames from any scheduled appointment regardless of source
 > (mobile, walk-in, or manually created), not just mobile-originated ones.
-> Patient app-invitation delivery is phone/SMS only (email invitation
-> delivery was removed) so the invitation-acceptance trust anchor matches
-> the verified login contact. The API contract includes 51 routes (8
-> public, 24 account-only, 19 active-link). Legacy intake routes, direct
-> booking, job-orders, eyewear, and billing-records API routes have been
-> removed. All accounts use structured first/middle/last names. Staff/admin
-> accounts now own their own credentials (Filament `->profile()` and
-> `->passwordReset()`, replacing admin-typed passwords), support
+> A frame reservation is a strictly before-the-visit tool — an appointment
+> gets exactly one, ever (DB-level unique constraint on `appointment_id`);
+> staff can add/remove candidate frames on that one reservation up to
+> `tried_on`, mark it tried on, and reservation expiration is now actually
+> wired up (`expires_at` is stamped at prepare time and `reservations:expire`
+> runs on a schedule — both existed structurally before but neither was
+> connected). Confirm Sale converts a selected reservation's held stock into
+> the resulting Optical Order instead of committing it a second time. The
+> Patient record gained Encounters, Optical Orders, and Billing tabs
+> alongside the existing Prescriptions/Appointments/Health Record/Invitation
+> History ones, so staff no longer have to leave the patient page to see
+> commercial history. Patient app-invitation delivery is phone/SMS only
+> (email invitation delivery was removed) so the invitation-acceptance trust
+> anchor matches the verified login contact. The API contract includes 51
+> routes (8 public, 24 account-only, 19 active-link). Legacy intake routes,
+> direct booking, job-orders, eyewear, and billing-records API routes have
+> been removed. All accounts use structured first/middle/last names.
+> Staff/admin accounts now own their own credentials (Filament `->profile()`
+> and `->passwordReset()`, replacing admin-typed passwords), support
 > forced-password-change on admin-issued credentials, can be deactivated
 > without being deleted, and have login/logout/failed-login activity
 > audited — see "Account ownership and lifecycle" below.
@@ -173,7 +184,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_record_items` | `billing_record_id`, `item_type` (product/service), `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `service_id` (nullable), `encounter_id` (nullable). |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`. |
-| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at`. |
+| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete, **unique** — one reservation per appointment, ever), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at` (null until `Prepared`, then the appointment day's clinic close time). |
 | `frame_reservation_items` | `product_variant_id`. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
 | `frame_rating_revisions` | `revision_number`, `rating`, `comment`, `revised_by`. |
@@ -206,7 +217,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates.
 
-**Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. Prepared reservations allocate stock. Release restores stock.
+**Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. A reservation is strictly a before-the-visit tool: an appointment gets exactly one, ever (`frame_reservations.appointment_id` is unique at the DB level). Prepared reservations allocate stock and stamp `expires_at` at that day's clinic close time; the `reservations:expire` command (scheduled every 15 minutes in `routes/console.php`) releases any `Prepared` reservation past its `expires_at`, restoring stock. Release restores stock. Staff can add/remove candidate frames on the one reservation up to `tried_on` via `AddFrameReservationItem`/`RemoveFrameReservationItem`, exposed as header/row actions on the `ItemsRelationManager` (FrameReservations resource) and the `FrameReservationItemsRelationManager` (Appointment resource) — both gated by `FrameReservationPolicy`.
 
 ---
 
@@ -230,7 +241,9 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 **Availability cluster** (`app/Filament/Clusters/Availability/`) replaces the old single Availability page. Sub-pages:
 - **Clinic Hours** — weekly `clinic_hours` schedule.
 - **Optometrist Hours** — per-optometrist `provider_hours` schedule.
-- **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete.
+- **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete; the upcoming-overrides list is a real Filament table (`HasTable`/`InteractsWithTable` on the page), not hand-rolled HTML.
+
+**Patient Record tabs** (`app/Filament/Resources/Patients/RelationManagers/`): Prescriptions, Appointments, **Encounters**, **Optical Orders**, **Billing**, Health Record, Invitation History — all read-only lists with a `ViewAction` linking out to the full resource page. Encounters/Optical Orders reuse the existing `Patient::encounters()`/`jobOrders()` relations; Billing required a new `Patient::billingRecords()` relation.
 
 **Dashboard widgets:**
 1. **Stats Overview** — Today's Appointments, Waiting Today, Active Encounters, Quotations Pending, Ready for Dispensing, Low Stock
@@ -357,7 +370,7 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability, persists encrypted identity snapshot for unlinked accounts |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Ownership check, status validation |
-| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment, copies reason, idempotent |
+| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment, copies reason, idempotent; re-validates availability against the chosen appointment type's real duration before creating it, since the mobile request only ever held a provisional 30-minute block and the real type/duration is picked here |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
@@ -366,7 +379,12 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
 | `ConvertFrameReservationToJobOrder` | `app/Actions/Reservations/` | Transfers reservation allocation to order commitment |
-| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action, which works on any scheduled appointment regardless of `source` |
+| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action, which works on any scheduled appointment regardless of `source`; rejects a second reservation for an appointment that already has one, ever |
+| `AddFrameReservationItem` | `app/Actions/Reservations/` | Adds another candidate frame to an existing `Requested`/`Prepared` reservation; allocates stock immediately if already `Prepared` |
+| `RemoveFrameReservationItem` | `app/Actions/Reservations/` | Drops a candidate frame from a `Requested`/`Prepared` reservation, restoring allocated stock if `Prepared`; releases the whole reservation if the last item is removed |
+| `MarkFrameReservationTriedOn` | `app/Actions/Reservations/` | Transitions a `Prepared` reservation to `TriedOn` |
+| `PrepareFrameReservation` | `app/Actions/Reservations/` | Allocates stock for a `Requested` reservation's items and stamps `expires_at` at the appointment day's clinic close time |
+| `ReleaseFrameReservation` | `app/Actions/Reservations/` | Restores allocated stock (if any) and sets a terminal status; accepts a `targetStatus` param (default `Released`) so callers that mean `Cancelled` can request it directly instead of writing `Released` then immediately overwriting it |
 | `AcceptAndStartOpticalOrder` | `app/Actions/OpticalOrders/` | Legacy accept-quotation flow (creates Job Order + Billing Record); still covered by tests but no longer reachable from the Filament UI, superseded by `ConfirmQuotationSale` |
 | `ConfirmQuotationSale` | `app/Actions/Quotations/` | Current confirm-sale flow used by the Quotation edit page: accepts the quotation, creates an Optical Order from product lines only, copies selected performed service lines into billing, and records an optional deposit — idempotent |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order directly for a patient without a preceding Quotation ("New Direct Order") |

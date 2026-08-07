@@ -1,6 +1,6 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-05) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references.
+> **Backend version:** Current repository state (2026-08-07) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1297,7 +1297,7 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
       "id": 1,
       "appointment_id": 42,
       "status": "requested",
-      "expires_at": "2026-08-03T10:00:00+08:00",
+      "expires_at": null,
       "created_at": "2026-07-27T10:00:00+08:00",
       "appointment": {
         "id": 42,
@@ -1341,6 +1341,8 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 - Variant excludes: `cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`, `is_active`, `ar_eligible`, `ar_asset_reference`, `product_id`, `deleted_at`, timestamps.
 - Product excludes: `brand_id`, `category_id`, `lens_category_id`, `is_active`, `images`, `deleted_at`, timestamps. `brand` and `category` are string names, not objects.
 - `status` values: `requested`, `prepared`, `tried_on`, `converted`, `released`, `cancelled`.
+- `expires_at` is `null` until the reservation reaches `prepared` (staff have pulled the frames and stock is allocated); it's then set to the appointment day's clinic close time, and an automatic sweep releases the reservation if it's still `prepared` past that time.
+- An appointment can have at most one frame reservation, ever — the reservation exists only to hold stock before the visit; frames tried on in person flow directly into the eventual order without a reservation.
 
 ---
 
