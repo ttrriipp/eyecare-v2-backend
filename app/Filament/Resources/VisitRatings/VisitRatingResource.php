@@ -15,7 +15,7 @@ class VisitRatingResource extends Resource
 {
     protected static ?string $model = VisitRating::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHandThumbUp;
 
     protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
