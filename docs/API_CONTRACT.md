@@ -1731,20 +1731,24 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `items[].quantity` | integer | no | Item quantity |
 | `items[].unit_price` | string | no | Unit price, two decimal places |
 | `items[].amount` | string | no | Line amount, two decimal places |
-| `items[].product_variant_id` | integer | yes | **⚠️ NOT IMPLEMENTED.** Catalog variant ID; null for non-catalog or lens-category items |
-| `items[].is_rateable` | boolean | no | **⚠️ NOT IMPLEMENTED.** Whether the patient may submit or revise a rating for this item now |
-| `items[].rating` | object | yes | **⚠️ NOT IMPLEMENTED.** Current rating summary; null when not yet rated |
+| `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
+| `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
+| `items[].rating` | object | yes | Current rating summary; null when not yet rated |
 | `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
-| `payment_summary.status` | string | no | **⚠️ MISMATCH.** Documented as machine-readable `unpaid` / `partially_paid` / `paid` / `voided`; the API actually returns the display label (`"Partially Paid"`) |
+| `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, `voided` |
 | `payment_summary.total_amount` | string | no | Billing total |
 | `payment_summary.amount_paid` | string | no | Amount paid |
 | `payment_summary.balance_due` | string | no | Remaining balance |
 | `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
-| `payment_summary.is_overdue` | boolean | no | **⚠️ NOT IMPLEMENTED.** Whether the unpaid balance is past its due date |
+| `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
 
-When `items[].rating` is not null, it contains the current `rating`, optional
-`comment`, and `created_at` timestamp. Rating history is not included in the
-Optical Order response.
+When `items[].rating` is not null, it contains `rating`, optional `comment`,
+`created_at`, and `revision_number`. Hidden comments return `comment: null` to
+non-authors; the author always sees their own comment.
+
+**Rateable items:** `is_rateable` is `true` only for a dispensed order's item
+with a non-null `product_variant_id`. Service items, custom products, and items
+from non-dispensed orders have `is_rateable: false`.
 
 **Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
 
