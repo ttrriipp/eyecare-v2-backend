@@ -89,8 +89,11 @@ Run `vendor/bin/sail bin pint --dirty --format agent` before finalizing every ta
 ---
 
 - [ ] **Task 5 — Appointment contract: `is_rateable` + `rating`**
-  - **Description:** Let the app discover what can be rated without a new endpoint,
-    mirroring the `is_rateable` + `rating` shape already documented for optical order items.
+  - **Description:** Let the app discover what can be rated without a new endpoint, using
+    the `is_rateable` + `rating` shape `API_CONTRACT.md` §15 documents for optical order
+    items. **Note:** that shape is documented but *not implemented* there (see the §15
+    drift notice) — this task is the first real implementation of it, not a copy of
+    working code.
   - **Acceptance:**
     - `is_rateable` is `true` only when `status = fulfilled`.
     - `rating` is `null` until submitted, else `{rating, comment, revision_number, created_at}`.

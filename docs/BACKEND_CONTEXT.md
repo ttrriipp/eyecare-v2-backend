@@ -43,6 +43,29 @@
 > forced-password-change on admin-issued credentials, can be deactivated
 > without being deleted, and have login/logout/failed-login activity
 > audited — see "Account ownership and lifecycle" below.
+>
+> **Approved but NOT yet built (2026-08-07):** patient-submitted **visit
+> feedback** — one 1–5 star rating + optional comment per *fulfilled
+> appointment*, with the optometrist and the services rendered snapshotted onto
+> the record so per-optometrist and per-service averages fall out without asking
+> the patient to grade individual line items. Frame ratings (product feedback)
+> stay a separate feature answering a different question. Spec, plan, and tasks
+> are in `docs/specs/mobile-visit-feedback-{spec,plan,tasks}.md`; no schema,
+> route, or model exists yet. Nothing below describes it — this note is the only
+> mention until it ships.
+>
+> **Known drift found while writing that spec (2026-08-07):** `API_CONTRACT.md`
+> §14–§15 documented behavior that was never implemented — inert `?filter=`
+> parameters on both the quotations and optical-orders endpoints, `is_rateable` /
+> `rating` / `product_variant_id` / `is_overdue` fields absent from the optical
+> order response, a `payment_summary.status` that returns a display label rather
+> than the documented machine-readable value, and a rating endpoint that requires
+> a `product_variant_id` the contract said clients would not send. Every instance
+> is now flagged inline in that document. Separately, **frame ratings are
+> write-only**: collected via `POST /optical-order-items/{id}/rating` but never
+> returned by any catalog endpoint, and the rating response leaks staff-only
+> moderation fields (`is_hidden`, `moderation_reason`) to the patient. None of
+> this is fixed yet.
 
 ---
 

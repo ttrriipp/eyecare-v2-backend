@@ -1,6 +1,10 @@
 # Eyecare Mobile API v1 — Authoritative Contract
 
 > **Backend version:** Current repository state (2026-08-07) — introduces two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
+>
+> **⚠️ Drift audit 2026-08-07.** Sections 14 and 15 were verified against the implementation and found to document unbuilt behavior. Every affected field, parameter, and error code is now flagged inline with **⚠️ NOT IMPLEMENTED** or **⚠️ MISMATCH**; §15 carries a summary table. The `?filter=` parameter is inert on both endpoints, optical-order items expose no rating fields, and `POST /optical-order-items/{id}/rating` requires a `product_variant_id` the contract said it wouldn't. **Do not build against a flagged field.** Reconciliation direction is an open decision — nothing was deleted, only relabeled.
+>
+> **Planned, not yet built:** patient-submitted visit feedback (`POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`). Spec approved, implementation not started — see `docs/specs/mobile-visit-feedback-spec.md`. It is deliberately **absent** from the route list below until it ships.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1472,6 +1476,11 @@ Paginated list of the patient's non-draft quotations.
 returns `accepted`, `declined`, and `expired` quotations. Draft quotations are
 never returned.
 
+> **⚠️ `filter` NOT IMPLEMENTED.** `QuotationController::index` does not read the
+> parameter — it returns *all* non-draft quotations, newest first. Only the
+> "drafts are never returned" half of this rule is real. Filter client-side until
+> reconciled. (Same defect as §15; audited 2026-08-07.)
+
 **Response (200):**
 ```json
 {
@@ -1595,6 +1604,29 @@ Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
 record. Service-only accepted quotations do not create Optical Orders.
 
+> ### ⚠️ Contract drift — do not build against the fields below until reconciled
+>
+> Audited 2026-08-07 against `App\Http\Resources\Api\OpticalOrderResource` and
+> `App\Http\Controllers\Api\OpticalOrderController`. This section documents an
+> intended shape that is **partly unimplemented**. Items marked
+> **`⚠️ NOT IMPLEMENTED`** below are absent from the live response — a client
+> reading them today gets `null`/undefined, not data.
+>
+> | Documented | Reality | Impact |
+> |---|---|---|
+> | `items[].product_variant_id` | absent | Cannot identify which catalog variant an item is |
+> | `items[].is_rateable` | absent | No way to know what may be rated |
+> | `items[].rating` | absent | Existing ratings are never returned |
+> | `payment_summary.is_overdue` | absent | Client must derive from `payment_due_date` |
+> | `payment_summary.status` = `unpaid` / `partially_paid` / … | returns `"Partially Paid"` (display label from `BillingRecordStatus::getLabel()`) | **String comparison against the documented values fails** |
+> | `?filter=current\|history` | not handled — always returns all orders, newest first | Filtering silently does nothing |
+> | Ordering `created_at DESC, id DESC` | `->latest()` — `created_at DESC` only | Ties order non-deterministically |
+>
+> No test asserts any of these fields, which is why the drift went unnoticed.
+> Reconciliation direction (implement the missing fields vs. cut them from the
+> contract) is an open product decision — see `docs/specs/mobile-visit-feedback-spec.md`,
+> which found this while auditing rating patterns.
+
 ### GET `/optical-orders`
 
 Paginated list of the patient's confirmed optical orders.
@@ -1611,6 +1643,10 @@ Paginated list of the patient's confirmed optical orders.
 
 **Current filter** includes: `queued`, `in_progress`, `ready_for_dispensing`.
 **History filter** includes: `dispensed`, `cancelled`.
+
+> **⚠️ NOT IMPLEMENTED.** `OpticalOrderController::index` does not read `filter`.
+> Every request returns all of the patient's orders, newest first, regardless of
+> the parameter. Filter client-side until this is reconciled.
 
 **Response (200):**
 ```json
@@ -1701,16 +1737,16 @@ Paginated list of the patient's confirmed optical orders.
 | `items[].quantity` | integer | no | Item quantity |
 | `items[].unit_price` | string | no | Unit price, two decimal places |
 | `items[].amount` | string | no | Line amount, two decimal places |
-| `items[].product_variant_id` | integer | yes | Catalog variant ID; null for non-catalog or lens-category items |
-| `items[].is_rateable` | boolean | no | Whether the patient may submit or revise a rating for this item now |
-| `items[].rating` | object | yes | Current rating summary; null when not yet rated |
-| `payment_summary` | object | yes | Active billing summary; null if no billing record |
-| `payment_summary.status` | string | no | Machine-readable: `unpaid`, `partially_paid`, `paid`, or `voided` |
+| `items[].product_variant_id` | integer | yes | **⚠️ NOT IMPLEMENTED.** Catalog variant ID; null for non-catalog or lens-category items |
+| `items[].is_rateable` | boolean | no | **⚠️ NOT IMPLEMENTED.** Whether the patient may submit or revise a rating for this item now |
+| `items[].rating` | object | yes | **⚠️ NOT IMPLEMENTED.** Current rating summary; null when not yet rated |
+| `payment_summary` | object | yes | Active billing summary; omitted entirely if no billing record |
+| `payment_summary.status` | string | no | **⚠️ MISMATCH.** Documented as machine-readable `unpaid` / `partially_paid` / `paid` / `voided`; the API actually returns the display label (`"Partially Paid"`) |
 | `payment_summary.total_amount` | string | no | Billing total |
 | `payment_summary.amount_paid` | string | no | Amount paid |
 | `payment_summary.balance_due` | string | no | Remaining balance |
 | `payment_summary.payment_due_date` | string | yes | Due date, `Y-m-d` format |
-| `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
+| `payment_summary.is_overdue` | boolean | no | **⚠️ NOT IMPLEMENTED.** Whether the unpaid balance is past its due date |
 
 When `items[].rating` is not null, it contains the current `rating`, optional
 `comment`, and `created_at` timestamp. Rating history is not included in the
@@ -1720,12 +1756,18 @@ Optical Order response.
 
 **Payment status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
 
-**Rateable items:** `is_rateable` is `true` only for a dispensed Product item
-with a linked `product_variant_id`. Service items, custom products, and items
-from non-dispensed orders have `is_rateable: false`. The client does not submit
-the variant ID; the server resolves it from the Optical Order item route.
+**Rateable items** *(⚠️ NOT IMPLEMENTED — describes intent, not current behavior)*:
+`is_rateable` is `true` only for a dispensed Product item with a linked
+`product_variant_id`. Service items, custom products, and items from
+non-dispensed orders have `is_rateable: false`.
 
-**Ordering:** `created_at DESC, id DESC`.
+> The final sentence of this rule previously read *"The client does not submit
+> the variant ID; the server resolves it from the Optical Order item route."*
+> That is **false today** — `POST /optical-order-items/{id}/rating` requires
+> `product_variant_id` in the request body. See that endpoint below.
+
+**Ordering:** `created_at DESC` (⚠️ documented as `created_at DESC, id DESC`;
+the implementation uses `->latest()`, so ties are not deterministically ordered).
 
 **Notes:**
 - Items contain only product lines. Service lines are never included.
@@ -1786,38 +1828,67 @@ route.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Request:**
+**Request** — as actually validated by `FrameRatingController::store`:
 ```json
 {
+  "product_variant_id": "integer (REQUIRED, must match the item's variant)",
   "rating": "integer (required, 1-5)",
-  "comment": "string (nullable, max:1000)"
+  "comment": "string (nullable, max:1000)",
+  "dispensing_event_id": "integer (nullable, must belong to the same job order)"
 }
 ```
 
-**Response:** `201 Created` for the first rating; `200 OK` when revising an
-existing rating.
+> **⚠️ `product_variant_id` is required.** This contract previously stated the
+> client does not submit it. Omitting it returns `422`. Send the
+> `product_variant_id` of the item being rated.
+
+**Response:** `201 Created` — **always**, including when revising. The
+documented `200 OK` on revision is not implemented.
+
+The response body is the `FrameRating` model with its `revisions` relation
+loaded — **not** the trimmed shape below:
 
 ```json
 {
   "data": {
     "id": 1,
-    "item_id": 5,
+    "patient_id": 3,
+    "product_variant_id": 42,
+    "dispensing_event_id": null,
     "rating": 5,
     "comment": "Excellent frame quality",
-    "revision_number": 1,
-    "created_at": "2026-08-05T10:00:00+08:00"
+    "current_revision_id": 1,
+    "is_hidden": false,
+    "moderation_reason": null,
+    "created_at": "2026-08-05T10:00:00+08:00",
+    "updated_at": "2026-08-05T10:00:00+08:00",
+    "revisions": [
+      { "id": 1, "revision_number": 1, "rating": 5, "comment": "Excellent frame quality", "revised_by": 7, "revised_at": "2026-08-05T10:00:00+08:00" }
+    ]
   }
 }
 ```
+
+> **⚠️ Known defects in this response — do not depend on the current shape.**
+> - No `item_id` or top-level `revision_number` field (the documented shape never existed).
+> - **Staff-internal moderation fields (`is_hidden`, `moderation_reason`, and on some
+>   paths `moderated_by`/`moderated_at`) are leaked to the patient.** These should be
+>   stripped by a resource class; the controller returns the raw model.
+> - `revisions[]` exposes the full edit history including `revised_by` user IDs.
+>
+> Treat only `id`, `rating`, `comment`, and `created_at` as stable.
 
 The response represents the current rating after the upsert. Revisions are
 retained server-side for moderation history.
 
 **Errors:**
-- `404`: Item not found, not owned by patient, or not rateable.
-- `422 ORDER_NOT_DISPENSED`: Order must be dispensed before rating.
-- `422 VALIDATION_ERROR`: Rating is outside 1-5 or the comment exceeds 1,000
-  characters.
+- `403`: Item belongs to another patient. *(Note: this differs from the 404-on-foreign-resource
+  convention used by every other endpoint in this contract, and is a mild enumeration oracle.)*
+- `404`: Item not found.
+- `422`: Order is not dispensed, `product_variant_id` missing or mismatched, rating outside
+  1–5, or comment over 1,000 characters. **These return a plain Laravel validation/abort
+  body, not the `{error: {code, message}}` envelope described in §17** — the documented
+  `ORDER_NOT_DISPENSED` and `VALIDATION_ERROR` codes are not emitted.
 
 ---
 

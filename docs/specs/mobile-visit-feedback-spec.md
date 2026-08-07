@@ -53,9 +53,15 @@ Rationale:
   Eye Exam" and "Contact Lens Fitting" were both billed for one 30-minute sitting, asking
   for two separate star ratings produces noise, not signal.
 - **No new discovery endpoint is needed.** The mobile app already lists appointments
-  (`GET /api/v1/appointments`) and `fulfilled` is a terminal status. We mirror the
-  established `is_rateable` + `rating` shape already documented for optical order items
-  (`API_CONTRACT.md` §15), so Android reuses a pattern it has already implemented.
+  (`GET /api/v1/appointments`) and `fulfilled` is a terminal status, so `is_rateable` +
+  `rating` can ride on the existing resource.
+  > ⚠️ **Correction (2026-08-07).** An earlier draft justified this by "reusing a pattern
+  > Android has already implemented." That was wrong: `API_CONTRACT.md` §15 *documents*
+  > `is_rateable`/`rating` on optical order items, but **no such fields exist in the
+  > code** — `grep -rn is_rateable app/` returns nothing, and no test references them.
+  > The shape is still the right one to adopt, but it is an unbuilt convention rather
+  > than a proven precedent, so Android has no existing client code to reuse. Budget
+  > for that in the mobile estimate.
 - **Per-service averages are still obtainable** — without asking the patient N questions.
   The services rendered at that visit are already recorded as `billing_record_items`
   (`item_type = service`, `encounter_id` set). Snapshotting those onto the feedback record
