@@ -2346,4 +2346,10 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 24 account-only + 19 active-link = **51 routes total.**
+**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
+
+> **Corrected 2026-08-07 (was 51).** `POST /api/v1/job-order-items/{id}/rating` is a
+> **legacy alias** of `POST /api/v1/optical-order-items/{id}/rating` — same controller,
+> same behavior — kept for Android builds predating the Optical Order rename. It was
+> undocumented, which is why the count was one short. **New clients should use
+> `optical-order-items`;** the alias is retained but will not gain new behavior.

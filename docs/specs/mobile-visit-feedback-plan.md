@@ -170,6 +170,23 @@ number; record it before starting and compare against it, not against zero.
 **Two of these are not passive noise** — the `RouteContractTest` and `WorkflowReadsTest`
 failures land directly on files this work touches, and are called out in their tasks.
 
+### Two findings from reading the failing tests
+
+**1. The suite contradicts itself.** `AuthContractCharacterizationTest` asserts
+`api/v1/register` and `api/v1/login` *still exist* "for backward compatibility";
+`RouteContractTest::legacy routes are absent` asserts they *don't*. Both live in
+`tests/Feature/Api/V1`. They cannot both pass — the characterization file captured
+pre-cutover behavior and was never retired. Task 0 deletes those two assertions rather
+than trying to satisfy both.
+
+**2. There are 52 v1 routes, not 51.** `routes/api.php:114-115` registers the frame-rating
+endpoint under **two** paths — `optical-order-items/{item}/rating` and
+`job-order-items/{item}/rating` — pointing at the same controller. The latter is an
+undocumented backward-compat alias, which is why both `API_CONTRACT.md` and
+`BACKEND_CONTEXT.md` read 51. **Decision: keep the alias, document it** (done
+2026-08-07; both counts corrected to 52). Task 0's corrected `RouteContractTest`
+expectation must therefore contain 52 entries, and Task 4 makes it 53.
+
 ## Verification checkpoints
 
 **Checkpoint 0 — after Tasks 0a–0d (prelude).**

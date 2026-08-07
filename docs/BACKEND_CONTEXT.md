@@ -34,8 +34,9 @@
 > History ones, so staff no longer have to leave the patient page to see
 > commercial history. Patient app-invitation delivery is phone/SMS only
 > (email invitation delivery was removed) so the invitation-acceptance trust
-> anchor matches the verified login contact. The API contract includes 51
-> routes (8 public, 24 account-only, 19 active-link). Legacy intake routes,
+> anchor matches the verified login contact. The API contract includes 52
+> routes (8 public, 24 account-only, 20 active-link) — corrected from 51 on
+> 2026-08-07, which had omitted the `job-order-items/{id}/rating` legacy alias. Legacy intake routes,
 > direct booking, job-orders, eyewear, and billing-records API routes have
 > been removed. All accounts use structured first/middle/last names.
 > Staff/admin accounts now own their own credentials (Filament `->profile()`
@@ -356,9 +357,19 @@ GET    /api/v1/conversation/messages
 POST   /api/v1/conversation/messages
 GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/optical-order-items/{id}/rating
+POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (same controller)
 ```
 
-**Route count:** 8 public + 24 account-only + 19 active-link = **51 routes total.**
+**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
+
+> **Corrected 2026-08-07 (was 51).** `routes/api.php` registers the frame-rating
+> endpoint twice — under both `optical-order-items/{item}/rating` and
+> `job-order-items/{item}/rating`, pointing at the same `FrameRatingController::store`.
+> The `job-order-items` path is a **backward-compatibility alias** for Android builds
+> predating the `JobOrder` → Optical Order rename; it was previously undocumented in
+> both this file and `API_CONTRACT.md`, which is why the count read 51.
+> **Decision: keep the alias**, since removing it breaks any un-migrated client.
+> `RouteContractTest` asserts the exact route list, so it counts 52 too.
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)

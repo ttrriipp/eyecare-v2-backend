@@ -15,6 +15,39 @@ Tasks 1–7 means Task 5 mirrors code that actually exists, and old Task 8 folds
 
 Each prelude task removes its own ⚠️ markers from `API_CONTRACT.md`.
 
+- [ ] **Task 0 — Green the `Api/V1` baseline** *(approved as "0e"; sequenced first, because
+      every later task's "no new failures" check depends on it)*
+  - **Description:** 27 of 176 tests in `tests/Feature/Api/V1` fail before any of this
+    work starts — almost all exercising routes the Android cutover deliberately removed.
+    A red baseline hides new regressions: if one of these starts failing for a *different*
+    reason, nobody notices.
+  - **Acceptance:**
+    - **Retarget, don't delete, where a live successor exists:** `job-orders` →
+      `optical-orders`; `MeEndpointTest`/`AuthContractTest` profile assertions →
+      `linked_patient.*`. The behavior under test is still real; only the address moved.
+    - **Delete where the capability is genuinely gone:** `/register`, `/login` (replaced by
+      two-stage OTP auth), `/billing-records`, `/eyewear`.
+    - `RouteContractTest`'s expected route list is corrected in full — the *current* live
+      list, not a patch. It must contain **52** entries (generate it with
+      `vendor/bin/sail artisan route:list --path=api/v1 --json`, don't hand-edit), and
+      must include the `job-order-items/{item}/rating` legacy alias with a comment saying
+      what it is. Task 4 later makes it 53.
+    - **Delete the two self-contradicting assertions.**
+      `AuthContractCharacterizationTest`'s *"register route still exists for backward
+      compatibility"* and *"login route still exists…"* assert the exact opposite of
+      `RouteContractTest::legacy routes are absent`. They are unsatisfiable together;
+      the cutover made the latter correct.
+    - **Keep** the genuinely valuable tests in that file — `patients.user_id is the
+      authoritative active link`, `one patient cannot link to multiple accounts`,
+      `deleting the account preserves but unlinks the patient`, the walk-in behavior,
+      and the intake/appointment-types removal checks. Only the pre-cutover auth
+      characterizations go.
+    - `tests/Feature/Api/V1` finishes **green**.
+    - No test is deleted that covers behavior still reachable through another route —
+      check each one before removing it.
+  - **Verify:** `vendor/bin/sail artisan test --compact tests/Feature/Api/V1`
+  - **Files:** the 5 affected test files under `tests/Feature/Api/V1/`
+
 - [ ] **Task 0a — `FrameRatingResource`: stop leaking moderation data**
   - **Description:** `FrameRatingController::store` returns `$rating->load('revisions')`
     — the raw model, no resource class. Wrap it.
