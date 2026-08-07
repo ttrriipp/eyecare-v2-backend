@@ -1153,6 +1153,8 @@ Paginated list of the patient's confirmed appointments.
 - `source` values: `mobile`, `walk_in`, `manual`.
 - `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
+- `is_rateable` is `true` only when `status = fulfilled` and the appointment belongs to the authenticated patient.
+- `rating` is `null` until submitted, then contains `{rating, comment, revision_number, created_at}`. Hidden comments return `comment: null` to non-authors.
 
 ---
 
@@ -1217,6 +1219,59 @@ Reschedules an appointment to a new time.
 ```
 
 **Validation:** Appointment must belong to the patient and be in `scheduled` status. Duration and type are derived from the existing appointment.
+
+---
+
+### POST `/appointments/{appointment}/rating`
+
+Creates or revises the patient's visit rating for a fulfilled appointment.
+Upsert semantics: 201 on create, 200 on revise.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request:**
+```json
+{
+  "rating": "integer (required, 1-5)",
+  "comment": "string (nullable, max:1000)"
+}
+```
+
+**Response (201 Created — first rating):**
+```json
+{
+  "data": {
+    "id": 1,
+    "rating": 5,
+    "comment": "Dr. Santos explained everything clearly.",
+    "revision_number": 1,
+    "created_at": "2026-08-07T10:00:00+08:00"
+  }
+}
+```
+
+**Response (200 OK — revision):**
+```json
+{
+  "data": {
+    "id": 1,
+    "rating": 4,
+    "comment": "Updated comment",
+    "revision_number": 2,
+    "created_at": "2026-08-07T10:00:00+08:00"
+  }
+}
+```
+
+**Behavior:**
+- Only fulfilled appointments can be rated.
+- Appointment must belong to the authenticated patient.
+- `optometrist_id` and `service_ids` are snapshotted at submission time.
+- Hidden comments return `comment: null` to non-authors; authors always see their own.
+
+**Errors:**
+- `404`: Appointment not found or not owned by the patient.
+- `422`: Appointment not fulfilled, or rating outside 1–5.
 
 ---
 
@@ -2328,7 +2383,7 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
+**Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**
 
 > **Corrected 2026-08-07 (was 51).** `POST /api/v1/job-order-items/{id}/rating` is a
 > **legacy alias** of `POST /api/v1/optical-order-items/{id}/rating` — same controller,

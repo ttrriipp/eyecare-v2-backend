@@ -212,6 +212,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `frame_reservation_items` | `product_variant_id`. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
 | `frame_rating_revisions` | `revision_number`, `rating`, `comment`, `revised_by`. |
+| `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `current_revision_id`, `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
+| `visit_rating_revisions` | `visit_rating_id`, `revision_number`, `rating`, `comment`, `revised_by`, `revised_at`. |
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
 | `conversations` | `patient_id` — one per patient. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
@@ -225,7 +227,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 ### Soft Deletes
 
-These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `BillingRecord`, `JobOrder`, `Complaint`.
+These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `BillingRecord`, `JobOrder`, `Complaint`, `VisitRating`.
 
 ---
 
@@ -253,7 +255,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 
 **Navigation groups (in order), workflow-shaped rather than by data domain:**
 - Today — Appointments, Appointment Requests, Availability (cluster)
-- Patients — Patient Records, Patient Accounts, Link Requests, Conversations
+- Patients — Patient Records, Patient Accounts, Link Requests, Conversations, Visit Feedback
 - Clinical — Encounters, Prescriptions
 - Optical — Quotations, Optical Orders, Frame Reservations, Frame Ratings
 - Billing — Billing & Payments, Appointments Report
@@ -360,7 +362,7 @@ POST   /api/v1/optical-order-items/{id}/rating
 POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (same controller)
 ```
 
-**Route count:** 8 public + 24 account-only + 20 active-link = **52 routes total.**
+**Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**
 
 > **Corrected 2026-08-07 (was 51).** `routes/api.php` registers the frame-rating
 > endpoint twice — under both `optical-order-items/{item}/rating` and
@@ -434,6 +436,8 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `ProcessPrivacyRequest` | `app/Actions/Privacy/` | Records disposition, no auto-deletion |
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata, ip_address, user_agent — the latter two default from the current request when not passed explicitly) |
 | `RecordAuthenticationAudit` | `app/Listeners/` | Listens to `Illuminate\Auth\Events\{Login,Logout,Failed}`, scoped to panel-capable accounts; writes login/logout/failed-login audit entries and updates `last_login_at` |
+| `SaveVisitRating` | `app/Actions/Ratings/` | Create or revise a patient's visit rating; snapshots optometrist and services at submission time |
+| `ModerateVisitRating` | `app/Actions/Ratings/` | Hide/restore a visit rating comment while preserving the star value |
 
 ---
 
