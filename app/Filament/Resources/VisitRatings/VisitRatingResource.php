@@ -7,6 +7,7 @@ use App\Filament\Resources\VisitRatings\Tables\VisitRatingsTable;
 use App\Models\VisitRating;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -14,7 +15,7 @@ class VisitRatingResource extends Resource
 {
     protected static ?string $model = VisitRating::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-star';
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedStar;
 
     protected static string|UnitEnum|null $navigationGroup = 'Patients';
 
@@ -24,7 +25,7 @@ class VisitRatingResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Visit Feedback';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 50;
 
     public static function canCreate(): bool
     {
