@@ -16,8 +16,8 @@ test('me endpoint returns patient profile data', function () {
     $this->actingAs($user)
         ->getJson('/api/v1/me')
         ->assertSuccessful()
-        ->assertJsonPath('data.patient_number', $user->patient->patient_number)
-        ->assertJsonPath('data.full_name', $user->patient->full_name)
+        ->assertJsonPath('data.linked_patient.patient_number', $user->patient->patient_number)
+        ->assertJsonPath('data.linked_patient.full_name', $user->patient->full_name)
         ->assertJsonPath('data.name', $user->full_name);
 });
 
@@ -30,19 +30,17 @@ test('me endpoint can update account fields', function () {
         ->assertJsonPath('data.first_name', 'Updated');
 });
 
-test('me endpoint can update patient fields', function () {
+test('me endpoint can update account name', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
         ->patchJson('/api/v1/me', [
             'first_name' => 'New',
             'last_name' => 'Name',
-            'occupation' => 'Engineer',
-            'gender' => 'male',
         ])
         ->assertSuccessful()
         ->assertJsonPath('data.first_name', 'New')
-        ->assertJsonPath('data.occupation', 'Engineer');
+        ->assertJsonPath('data.name', 'New Name');
 });
 
 test('patient profile routes are absent', function () {

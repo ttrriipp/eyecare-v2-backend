@@ -33,27 +33,11 @@ test('quotations are scoped through the patient relationship', function () {
         ->assertOk();
 });
 
-test('job orders are scoped through the patient relationship', function () {
+test('optical orders are scoped through the patient relationship', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
-        ->getJson('/api/v1/job-orders')
-        ->assertOk();
-});
-
-test('billing records are scoped through the patient relationship', function () {
-    $user = User::factory()->patient()->create();
-
-    $this->actingAs($user)
-        ->getJson('/api/v1/billing-records')
-        ->assertOk();
-});
-
-test('eyewear is scoped through the patient relationship', function () {
-    $user = User::factory()->patient()->create();
-
-    $this->actingAs($user)
-        ->getJson('/api/v1/eyewear')
+        ->getJson('/api/v1/optical-orders')
         ->assertOk();
 });
 

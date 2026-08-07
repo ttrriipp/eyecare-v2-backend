@@ -29,7 +29,7 @@ test('patient can list their own job orders', function () {
     ]);
 
     $response = $this->actingAs($user)
-        ->getJson('/api/v1/job-orders')
+        ->getJson('/api/v1/optical-orders')
         ->assertOk();
 
     $json = $response->json();
@@ -47,9 +47,9 @@ test('patient can view their own job order with items', function () {
     JobOrderItem::factory()->count(2)->create(['job_order_id' => $jobOrder->id]);
 
     $this->actingAs($user)
-        ->getJson("/api/v1/job-orders/{$jobOrder->id}")
+        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
         ->assertOk()
-        ->assertJsonPath('data.job_order_number', $jobOrder->job_order_number)
+        ->assertJsonPath('data.order_number', $jobOrder->job_order_number)
         ->assertJsonMissingPath('data.supplier_invoice_number')
         ->assertJsonCount(2, 'data.items');
 });
@@ -60,10 +60,10 @@ test('patient cannot view another patients job order', function () {
     $jobOrder = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
 
     $this->actingAs($userA)
-        ->getJson("/api/v1/job-orders/{$jobOrder->id}")
+        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
         ->assertNotFound();
 });
 
 test('job orders require authentication', function () {
-    $this->getJson('/api/v1/job-orders')->assertUnauthorized();
+    $this->getJson('/api/v1/optical-orders')->assertUnauthorized();
 });

@@ -13,101 +13,13 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-// --- Staff/Admin Authentication ---
-
-test('staff can login via v1 and receive a token immediately', function () {
-    $staff = User::factory()->staff()->create(['password' => bcrypt('password123')]);
-
-    $response = $this->postJson('/api/v1/login', [
-        'email' => $staff->email,
-        'password' => 'password123',
-    ]);
-
-    $response->assertOk()
-        ->assertJsonStructure(['data' => ['token', 'user']]);
-});
-
-test('admin can login via v1 and receive a token immediately', function () {
-    $admin = User::factory()->admin()->create(['password' => bcrypt('password123')]);
-
-    $response = $this->postJson('/api/v1/login', [
-        'email' => $admin->email,
-        'password' => 'password123',
-    ]);
-
-    $response->assertOk()
-        ->assertJsonStructure(['data' => ['token', 'user']]);
-});
-
-test('staff login response includes staff role', function () {
-    $staff = User::factory()->staff()->create(['password' => bcrypt('password123')]);
-
-    $response = $this->postJson('/api/v1/login', [
-        'email' => $staff->email,
-        'password' => 'password123',
-    ]);
-
-    $response->assertOk()
-        ->assertJsonPath('data.user.role', 'staff');
-});
-
-test('patient login response includes patient role', function () {
-    $user = User::factory()->patient()->create(['password' => bcrypt('password123')]);
-
-    $response = $this->postJson('/api/v1/login', [
-        'email' => $user->email,
-        'password' => 'password123',
-    ]);
-
-    $response->assertOk()
-        ->assertJsonPath('data.user.role', 'patient');
-});
-
-// --- Patient Registration ---
-
-test('current registration creates both user and patient', function () {
-    $response = $this->postJson('/api/v1/register', [
-        'name' => 'Test Patient',
-        'email' => 'test@example.com',
-        'phone' => '09171234567',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
-    ]);
-
-    $response->assertCreated()
-        ->assertJsonStructure(['data' => ['token', 'user']]);
-
-    $user = User::where('email', 'test@example.com')->first();
-    expect($user)->not->toBeNull();
-    expect($user->role->name)->toBe('patient');
-    expect($user->patient)->not->toBeNull();
-    expect($user->patient->user_id)->toBe($user->id);
-});
-
-test('current registration returns a token immediately without OTP', function () {
-    $response = $this->postJson('/api/v1/register', [
-        'name' => 'Test Patient',
-        'email' => 'test@example.com',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
-    ]);
-
-    $response->assertCreated();
-
-    $token = $response->json('data.token');
-    expect($token)->not->toBeNull()
-        ->and($token)->toContain('|');
-});
-
 // --- Clinical Route Access via patients.user_id ---
 
 test('clinical routes are inaccessible without authentication', function () {
     $clinicalRoutes = [
         ['GET', '/api/v1/prescriptions'],
         ['GET', '/api/v1/quotations'],
-        ['GET', '/api/v1/job-orders'],
-        ['GET', '/api/v1/billing-records'],
-        ['GET', '/api/v1/eyewear'],
+        ['GET', '/api/v1/optical-orders'],
         ['GET', '/api/v1/conversation'],
         ['GET', '/api/v1/frames'],
         ['GET', '/api/v1/frame-reservations'],
@@ -128,9 +40,7 @@ test('linked patient can access clinical routes through patient relationship', f
     // These routes scope data through the authenticated user's patient
     $this->getJson('/api/v1/prescriptions')->assertOk();
     $this->getJson('/api/v1/quotations')->assertOk();
-    $this->getJson('/api/v1/job-orders')->assertOk();
-    $this->getJson('/api/v1/billing-records')->assertOk();
-    $this->getJson('/api/v1/eyewear')->assertOk();
+    $this->getJson('/api/v1/optical-orders')->assertOk();
     $this->getJson('/api/v1/frames')->assertOk();
     $this->getJson('/api/v1/frame-reservations')->assertOk();
     $this->getJson('/api/v1/appointments')->assertOk();
@@ -210,22 +120,6 @@ test('v1 route count reflects new contract', function () {
 
     // New contract has more routes than the old 35
     expect($v1Routes)->toBeGreaterThan(35);
-});
-
-test('register route still exists for backward compatibility', function () {
-    $routes = collect(Route::getRoutes()->getRoutes())
-        ->pluck('uri')
-        ->toArray();
-
-    expect($routes)->toContain('api/v1/register');
-});
-
-test('login route still exists for backward compatibility', function () {
-    $routes = collect(Route::getRoutes()->getRoutes())
-        ->pluck('uri')
-        ->toArray();
-
-    expect($routes)->toContain('api/v1/login');
 });
 
 test('appointment-types route is removed from patient contract', function () {

@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -86,7 +85,7 @@ test('prescription list returns only current versions with amendment context', f
 
 test('quotations list is paginated and patient-scoped', function () {
     $user = User::factory()->patient()->create();
-    Quotation::factory()->count(3)->create(['patient_id' => $user->patient->id]);
+    Quotation::factory()->presented()->count(3)->create(['patient_id' => $user->patient->id]);
 
     $this->actingAs($user)
         ->getJson('/api/v1/quotations')
@@ -99,21 +98,10 @@ test('job orders list is paginated and patient-scoped', function () {
     JobOrder::factory()->count(4)->create(['patient_id' => $user->patient->id]);
 
     $response = $this->actingAs($user)
-        ->getJson('/api/v1/job-orders')
+        ->getJson('/api/v1/optical-orders')
         ->assertOk();
 
     expect(count($response->json('data')))->toBe(4);
-});
-
-test('billing-records list is paginated and patient-scoped', function () {
-    $user = User::factory()->patient()->create();
-    BillingRecord::factory()->count(2)->create(['patient_id' => $user->patient->id]);
-
-    $response = $this->actingAs($user)
-        ->getJson('/api/v1/billing-records')
-        ->assertOk();
-
-    expect(count($response->json('data')))->toBe(2);
 });
 
 test('cross-patient resources return not found', function () {
@@ -123,12 +111,10 @@ test('cross-patient resources return not found', function () {
     $prescription = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
     $quotation = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
     $jobOrder = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
-    $billingRecord = BillingRecord::factory()->create(['patient_id' => $userB->patient->id]);
 
     $this->actingAs($userA);
 
     $this->getJson("/api/v1/prescriptions/{$prescription->id}")->assertNotFound();
     $this->getJson("/api/v1/quotations/{$quotation->id}")->assertNotFound();
-    $this->getJson("/api/v1/job-orders/{$jobOrder->id}")->assertNotFound();
-    $this->getJson("/api/v1/billing-records/{$billingRecord->id}")->assertNotFound();
+    $this->getJson("/api/v1/optical-orders/{$jobOrder->id}")->assertNotFound();
 });

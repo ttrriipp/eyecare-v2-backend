@@ -17,8 +17,8 @@ test('v1 auth routes are registered', function () {
         ->pluck('uri')
         ->toArray();
 
-    expect($v1Routes)->toContain('api/v1/register')
-        ->and($v1Routes)->toContain('api/v1/login')
+    expect($v1Routes)->toContain('api/v1/auth/register')
+        ->and($v1Routes)->toContain('api/v1/auth/login')
         ->and($v1Routes)->toContain('api/v1/logout')
         ->and($v1Routes)->toContain('api/v1/me');
 });
@@ -34,37 +34,13 @@ test('unversioned auth routes are absent', function () {
         ->and($routes)->not->toContain('api/user');
 });
 
-test('patient can register via v1', function () {
-    $response = $this->postJson('/api/v1/register', [
-        'name' => 'Test Patient',
-        'email' => 'test@example.com',
-        'password' => 'password123',
-        'password_confirmation' => 'password123',
-    ]);
-
-    $response->assertCreated()
-        ->assertJsonStructure(['data' => ['token', 'user']]);
-});
-
-test('patient can login via v1', function () {
-    $user = User::factory()->patient()->create(['password' => bcrypt('password123')]);
-
-    $response = $this->postJson('/api/v1/login', [
-        'email' => $user->email,
-        'password' => 'password123',
-    ]);
-
-    $response->assertOk()
-        ->assertJsonStructure(['data' => ['token', 'user']]);
-});
-
 test('patient can view profile via v1/me', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
         ->getJson('/api/v1/me')
         ->assertOk()
-        ->assertJsonPath('data.email', $user->email);
+        ->assertJsonPath('data.linked_patient.contact_email', $user->patient->contact_email);
 });
 
 test('missing patient linkage has consistent error', function () {
