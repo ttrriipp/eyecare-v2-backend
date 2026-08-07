@@ -36,6 +36,7 @@ test('me endpoint can update account name', function () {
     $this->actingAs($user)
         ->patchJson('/api/v1/me', [
             'first_name' => 'New',
+            'middle_name' => null,
             'last_name' => 'Name',
         ])
         ->assertSuccessful()
