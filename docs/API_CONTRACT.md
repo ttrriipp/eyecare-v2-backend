@@ -1476,12 +1476,7 @@ Paginated list of the patient's non-draft quotations.
 
 **Filter behavior:** `current` returns `presented` quotations. `history`
 returns `accepted`, `declined`, and `expired` quotations. Draft quotations are
-never returned.
-
-> **⚠️ `filter` NOT IMPLEMENTED.** `QuotationController::index` does not read the
-> parameter — it returns *all* non-draft quotations, newest first. Only the
-> "drafts are never returned" half of this rule is real. Filter client-side until
-> reconciled. (Same defect as §15; audited 2026-08-07.)
+never returned. Invalid `filter` values return `422`.
 
 **Response (200):**
 ```json
@@ -1644,11 +1639,8 @@ Paginated list of the patient's confirmed optical orders.
 | `per_page` | No | Integer, 1 through 50 | `15` |
 
 **Current filter** includes: `queued`, `in_progress`, `ready_for_dispensing`.
-**History filter** includes: `dispensed`, `cancelled`.
-
-> **⚠️ NOT IMPLEMENTED.** `OpticalOrderController::index` does not read `filter`.
-> Every request returns all of the patient's orders, newest first, regardless of
-> the parameter. Filter client-side until this is reconciled.
+**History filter** includes: `dispensed`, `cancelled`. Invalid `filter` values
+return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 
 **Response (200):**
 ```json
