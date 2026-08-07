@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Ratings\SaveFrameRating;
 use App\Enums\JobOrderStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\FrameRatingResource;
 use App\Models\DispensingEvent;
 use App\Models\JobOrderItem;
 use App\Models\ProductVariant;
@@ -28,20 +29,25 @@ class FrameRatingController extends Controller
         abort_unless($jobOrder->status === JobOrderStatus::Dispensed, 422, 'Only dispensed job orders can be rated.');
 
         $request->validate([
-            'product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'product_variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'comment' => ['nullable', 'string', 'max:1000'],
             'dispensing_event_id' => ['nullable', 'integer', 'exists:dispensing_events,id'],
         ]);
 
-        // Authorization: product_variant_id must match the job-order item
-        abort_unless(
-            $item->product_variant_id === $request->integer('product_variant_id'),
-            422,
-            'The product variant does not match this job order item.',
-        );
+        // Derive product_variant_id from the item when not provided
+        $productVariantId = $request->input('product_variant_id') ?? $item->product_variant_id;
 
-        $variant = ProductVariant::findOrFail($request->integer('product_variant_id'));
+        // Authorization: product_variant_id must match the job-order item when provided
+        if ($request->filled('product_variant_id')) {
+            abort_unless(
+                $item->product_variant_id === $request->integer('product_variant_id'),
+                422,
+                'The product variant does not match this job order item.',
+            );
+        }
+
+        $variant = ProductVariant::findOrFail($productVariantId);
 
         // Authorization: dispensing_event_id must belong to the same patient/job order
         $dispensingEvent = null;
@@ -63,6 +69,8 @@ class FrameRatingController extends Controller
             dispensingEvent: $dispensingEvent,
         );
 
-        return response()->json(['data' => $rating->load('revisions')], 201);
+        $rating->load('currentRevision');
+
+        return response()->json(['data' => FrameRatingResource::make($rating)], 201);
     }
 }

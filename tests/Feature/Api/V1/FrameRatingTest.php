@@ -40,7 +40,32 @@ test('patient can submit a frame rating for a dispensed job order item', functio
         ->assertCreated()
         ->assertJsonPath('data.rating', 5)
         ->assertJsonPath('data.comment', 'Excellent frame!')
-        ->assertJsonCount(1, 'data.revisions');
+        ->assertJsonPath('data.product_variant_id', $variant->id)
+        ->assertJsonStructure('data', ['id', 'product_variant_id', 'rating', 'comment', 'revision_number', 'created_at'])
+        ->assertJsonMissing(['moderation_reason', 'moderated_by', 'moderated_at', 'is_hidden', 'patient_id', 'deleted_at', 'current_revision_id']);
+});
+
+test('product_variant_id is optional and derived from item', function () {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+            'rating' => 4,
+            'comment' => 'Good frame',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.rating', 4)
+        ->assertJsonPath('data.product_variant_id', $variant->id);
 });
 
 test('rating can be revised on subsequent submissions', function () {
@@ -74,7 +99,7 @@ test('rating can be revised on subsequent submissions', function () {
         ])
         ->assertCreated()
         ->assertJsonPath('data.rating', 5)
-        ->assertJsonCount(2, 'data.revisions');
+        ->assertJsonPath('data.revision_number', 2);
 });
 
 test('rating is rejected for another patients job order item', function () {
