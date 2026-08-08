@@ -129,34 +129,45 @@ Laravel 13 backend for the Padilla Optical Clinic Management System. Serves two 
 
 ## Roles
 
-Three fixed roles. No dynamic permission management.
+Four fixed system roles. Three are panel roles; one is mobile-only. No dynamic permission management.
 
-| Role | Access |
-|---|---|
-| `admin` | Filament panel. Can manage users, audit/privacy records, destructive archive/restore actions, and optometrist workflow actions when `is_optometrist` is true. |
-| `staff` | Filament panel. Used for clinic operators such as optometrists and possible receptionists; optometrist-only workflow actions require `is_optometrist`. |
-| `patient` | Mobile API only — cannot access Filament |
-
-Role enforcement: `canAccessPanel()` on `User` model for Filament; policies and action-level checks for patient records, clinical records, and optometrist-only workflow steps. There is no approved staff-only mobile API route group.
-
-### Admin vs Staff permissions
-
-Use `User::isAdmin()` to check role in Filament. `is_optometrist` is a capability flag on staff/admin accounts.
-
-| Area | Staff CAN | Admin only |
+| Role | Account surface | Meaning |
 |---|---|---|
-| Appointments | Create, check-in, reschedule, cancel, mark no-show | Cancel bulk |
-| Encounters | View | Start/complete (optometrist only) |
-| Prescriptions | View | Finalize/amend (optometrist only) |
-| Quotations | Present, accept/decline, confirm sale | — |
-| Optical Orders | Start, mark ready, dispense, cancel, create direct order | — |
-| Billing Records | Record payment | Void, correct payment |
-| Products | Create, edit, manage variants | Delete/restore |
-| Patients | Create, edit | Delete/restore |
-| Users | Hidden | Full CRUD, activate/deactivate |
-| Audit Logs | Hidden | Read-only |
+| `admin` | Filament panel | Administrative and privileged authority; never implicitly clinical |
+| `optometrist` | Filament panel | Clinical authority plus shared clinic operations |
+| `staff` | Filament panel | Shared non-clinical clinic operations |
+| `patient` | Mobile API | Patient account behavior; never panel access |
 
-Every staff/admin account can manage its own credentials via the panel's Profile page (avatar menu, top-right), independent of role — see "Account ownership and lifecycle" below.
+Users may hold multiple panel roles. The supported combinations are: `admin`, `optometrist`, `staff`, and `admin + optometrist`. Redundant combinations (`admin + staff`, `optometrist + staff`) and cross-boundary combinations (any panel role + `patient`) are rejected.
+
+Role enforcement: `canAccessPanel()` on `User` model checks for at least one panel role; policies and action-level checks use `hasRole()`, `isAdmin()`, `isOptometrist()`, `isStaff()`, `isPatient()`, and `hasPanelRole()`. There is no approved staff-only mobile API route group.
+
+### Permission matrix
+
+| Area | Staff | Optometrist | Admin |
+|---|---|---|---|
+| Panel login and own profile/MFA | Yes | Yes | Yes |
+| Appointments: view, create, check-in, reschedule, cancel, no-show | Yes | Yes | Yes |
+| Appointments: bulk cancellation | No | No | Yes |
+| Encounters: view | Yes | Yes | Yes |
+| Encounters: start and complete | No | Yes | No |
+| Prescriptions: view | Yes | Yes | Yes |
+| Prescriptions: create, finalize, and amend | No | Yes | No |
+| Quotations: create, revise, present, decide, confirm sale | Yes | Yes | Yes |
+| Optical Orders: create and advance operational workflow | Yes | Yes | Yes |
+| Frame Reservations: operational workflow | Yes | Yes | Yes |
+| Billing: view and record payment | Yes | Yes | Yes |
+| Billing: void/correct payment | No | No | Yes |
+| Patients: create and edit | Yes | Yes | Yes |
+| Patients/products: archive and restore | No | No | Yes |
+| Catalog: create, edit, and manage variants | Yes | Yes | Yes |
+| Team accounts and role assignments | No | No | Yes |
+| Audit logs and privacy administration | No | No | Yes |
+| Clinic-wide availability configuration | No | No | Yes |
+| Own provider hours and own provider absences | No | Yes | No |
+| Any provider's hours/absence overrides | No | No | Yes |
+
+Every panel account can manage its own credentials via the panel's Profile page (avatar menu, top-right), independent of role — see "Account ownership and lifecycle" below.
 
 ---
 
@@ -171,7 +182,7 @@ Staff/admin accounts used to be entirely admin-managed: an admin typed each user
 - **Authentication audit trail.** `RecordAuthenticationAudit` (registered in `AppServiceProvider::boot()` via `Event::listen()`) listens to Laravel's `Illuminate\Auth\Events\{Login,Logout,Failed}` and writes `user.logged_in` / `user.logged_out` / `user.login_failed` audit entries, scoped to accounts that can access the admin panel so patient-mobile activity never pollutes this trail. A failed attempt against an *unknown* email writes nothing (only known accounts are audited, to prevent flooding). `last_login_at` is updated on every successful login and shown as a "Last Login" column on Staff Accounts.
 - **Password/lifecycle audit events.** `UserObserver` additionally writes `user.password_changed` (on any password change) and `user.deactivated`/`user.reactivated` (on `is_active` transitions), alongside its existing `user.created`/`user.role_changed`.
 
-Deliberately out of scope for now: a formal staff invitation flow (mirroring `PatientInvitation`) and the optometrist-as-credential correction (PRC license number; unifying the `is_optometrist` capability check, which currently has some call sites reading the raw boolean instead of `hasOptometristCapability()`) — both real, both independent of the above.
+Deliberately out of scope for now: a formal staff invitation flow (mirroring `PatientInvitation`) and professional credential capture (PRC license number) — both real, both independent of the above.
 
 ---
 
@@ -181,8 +192,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Role | Email | Notes |
 |---|---|---|
-| Admin (optometrist) | admin@eyecare.test | Dr. Maria Santos |
-| Staff (optometrist) | staff@eyecare.test | Dr. Juan dela Cruz |
+| Admin + Optometrist | admin@eyecare.test | Dr. Maria Santos — dual-role owner |
+| Optometrist | staff@eyecare.test | Dr. Juan dela Cruz — sole clinician |
 | Patient (linked) | customer@eyecare.test | Ana Reyes |
 | Patient (walk-in) | — | Pedro Cruz, no account |
 
@@ -194,7 +205,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Values |
 |---|---|
-| `roles` | admin, staff, patient |
+| `roles` | admin, optometrist, staff, patient |
 | `appointment_statuses` | scheduled, checked_in, fulfilled, cancelled, no_show |
 | `appointment_types` | New Patient (30m), Follow-up (15m), Routine Check-up (30m), Referral (30m) |
 | `inventory_movement_types` | restock, manual_adjustment, reservation_allocation, reservation_release, order_commitment, order_reversal, damaged |
@@ -205,7 +216,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `is_optometrist` capability flag. `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Team Accounts Filament form requires email (needed for `->passwordReset()`). `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
+| `role_user` | Many-to-many pivot between `users` and `roles`. Unique `(role_id, user_id)`. Supports multi-role assignments: `admin + optometrist` for dual-duty accounts. |
 | `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `personal_access_tokens` | Sanctum mobile tokens. Device-labelled, expiring tokens with optional `installation_id` for trusted-device login and same-installation replacement. |
@@ -269,7 +281,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 ## Filament Panel
 
-URL: `/admin` — accessible to `staff` and `admin` roles only. `canAccessPanel()` also requires `is_active`, so a deactivated account is blocked regardless of role.
+URL: `/admin` — accessible to users with at least one of `admin`, `optometrist`, or `staff` roles. `canAccessPanel()` also requires `is_active`, so a deactivated account is blocked regardless of role.
 
 Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, `->passwordReset()`, and `->multiFactorAuthentication([AppAuthentication::make()], isRequired: app()->isProduction())` (TOTP, required in production, optional and enrollable via the profile page otherwise). `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
 
@@ -280,7 +292,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Optical — Quotations, Optical Orders, Frame Reservations, Frame Ratings
 - Billing — Billing & Payments, Appointments Report
 - Catalog — Products, Inventory History, Reorder Report, Brands, Lens Categories, Product Categories, Services
-- Admin — Staff Accounts, SMS Log, Audit Logs
+- Admin — Team Accounts, SMS Log, Audit Logs
 
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).
 
@@ -457,6 +469,7 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |
 | `ProcessPrivacyRequest` | `app/Actions/Privacy/` | Records disposition, no auto-deletion |
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata, ip_address, user_agent — the latter two default from the current request when not passed explicitly) |
+| `SyncUserRoles` | `app/Actions/Users/` | Validates and synchronizes multi-role pivot assignments; blocks self-role mutation, rejects invalid role combinations, protects last active admin, and emits `user.role_changed` audit events with old/new role names |
 | `RecordAuthenticationAudit` | `app/Listeners/` | Listens to `Illuminate\Auth\Events\{Login,Logout,Failed}`, scoped to panel-capable accounts; writes login/logout/failed-login audit entries and updates `last_login_at` |
 | `SaveVisitRating` | `app/Actions/Ratings/` | Create or revise a patient's visit rating; snapshots optometrist and services at submission time |
 | `ModerateVisitRating` | `app/Actions/Ratings/` | Hide/restore a visit rating comment while preserving the star value |
