@@ -7,7 +7,6 @@ use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -63,24 +62,24 @@ class UserForm
                 // ── Sidebar (1/3) ────────────────────────────────────
                 Grid::make(1)->columnSpan(1)->schema([
                     Section::make('Role & Access')->schema([
-                        Select::make('role_id')
-                            ->label('Role')
-                            ->options(fn () => Role::query()
-                                ->whereIn('name', ['admin', 'staff'])
-                                ->pluck('name', 'id')
-                                ->mapWithKeys(fn ($name, $id) => [$id => ucfirst($name)])
-                                ->toArray()
-                            )
+                        Select::make('roles')
+                            ->label('Roles')
+                            ->multiple()
+                            ->options([
+                                Role::Admin => 'Admin',
+                                Role::Optometrist => 'Optometrist',
+                                Role::Staff => 'Staff',
+                            ])
                             ->required()
+                            ->minItems(1)
+                            ->maxItems(2)
                             ->disabled(fn (?User $record): bool => $record?->id === auth()->id())
                             ->dehydrated(fn (?User $record): bool => $record?->id !== auth()->id())
                             ->helperText(fn (?User $record): ?string => $record?->id === auth()->id()
                                 ? 'You cannot change your own role.'
-                                : null
-                            ),
-                        Toggle::make('is_optometrist')
-                            ->label('Optometrist')
-                            ->default(false),
+                                : 'Select one or two roles. Admin+Optometrist is valid for dual-duty accounts.'
+                            )
+                            ->validationAttribute('role combination'),
                     ]),
 
                     Section::make('Timeline')

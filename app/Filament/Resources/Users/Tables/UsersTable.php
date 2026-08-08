@@ -29,18 +29,16 @@ class UsersTable
                 TextColumn::make('phone')
                     ->searchable()
                     ->toggleable(),
-                TextColumn::make('role.name')
-                    ->label('Role')
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                TextColumn::make('roles')
+                    ->label('Roles')
+                    ->formatStateUsing(fn ($record): string => $record->roles->pluck('name')->map(fn ($name) => ucfirst($name))->implode(', '))
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'admin' => 'danger',
-                        'staff' => 'info',
-                        default => 'gray',
+                    ->color(fn ($record): string => match (true) {
+                        $record->isAdmin() && $record->isOptometrist() => 'warning',
+                        $record->isAdmin() => 'danger',
+                        $record->isOptometrist() => 'success',
+                        default => 'info',
                     }),
-                IconColumn::make('is_optometrist')
-                    ->label('Optometrist')
-                    ->boolean(),
                 IconColumn::make('is_active')
                     ->label('Active')
                     ->boolean(),
@@ -56,8 +54,9 @@ class UsersTable
                     ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('role')
-                    ->relationship('role', 'name', fn ($query) => $query->whereIn('name', ['admin', 'staff'])),
+                SelectFilter::make('roles')
+                    ->label('Role')
+                    ->relationship('roles', 'name', fn ($query) => $query->whereIn('name', ['admin', 'staff', 'optometrist'])),
                 TernaryFilter::make('is_active')
                     ->label('Status')
                     ->trueLabel('Active')
