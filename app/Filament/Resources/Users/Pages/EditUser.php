@@ -39,10 +39,10 @@ class EditUser extends EditRecord
         return $data;
     }
 
-    /** @param array<string, mixed> $data */
-    protected function afterSave(array $data): void
+    protected function afterSave(): void
     {
         $record = $this->getRecord();
+        $data = $this->data;
 
         if (isset($data['roles'])) {
             // Update legacy columns for backward compatibility.

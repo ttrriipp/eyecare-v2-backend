@@ -27,11 +27,11 @@ Structure context from most persistent to most transient:
 ├─────────────────────────────────────┤
 │  2. Spec / Architecture Docs        │ ← Loaded per feature/session
 ├─────────────────────────────────────┤
-│  3. Relevant Source Files           │ ← Loaded per task
+│  3. Relevant Source Files            │ ← Loaded per task
 ├─────────────────────────────────────┤
-│  4. Error Output / Test Results     │ ← Loaded per iteration
+│  4. Error Output / Test Results      │ ← Loaded per iteration
 ├─────────────────────────────────────┤
-│  5. Conversation History            │ ← Accumulates, compacts
+│  5. Conversation History             │ ← Accumulates, compacts
 └─────────────────────────────────────┘
 ```
 

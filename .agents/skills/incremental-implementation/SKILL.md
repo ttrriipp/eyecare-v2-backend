@@ -157,7 +157,25 @@ if (ENABLE_TASK_SHARING) {
 }
 ```
 
-This lets you merge small increments to the main branch without exposing incomplete work. (new files, new functions) are easy to revert
+This lets you merge small increments to the main branch without exposing incomplete work.
+
+### Rule 4: Safe Defaults
+
+New code should default to safe, conservative behavior:
+
+```typescript
+// Safe: disabled by default, opt-in
+export function createTask(data: TaskInput, options?: { notify?: boolean }) {
+  const shouldNotify = options?.notify ?? false;
+  // ...
+}
+```
+
+### Rule 5: Rollback-Friendly
+
+Each increment should be independently revertable:
+
+- Additive changes (new files, new functions) are easy to revert
 - Modifications to existing code should be minimal and focused
 - Database migrations should have corresponding rollback migrations
 - Avoid deleting something in one commit and replacing it in the same commit — separate them
@@ -172,21 +190,21 @@ When directing an agent to implement incrementally:
 Start with just the database schema change and the API endpoint.
 Don't touch the UI yet — we'll do that in the next increment.
 
-After implementing, run `npm test` and `npm run build` to verify
-nothing is broken."
+After implementing, run the repository's test and build commands to
+verify nothing is broken."
 ```
 
 Be explicit about what's in scope and what's NOT in scope for each increment.
 
 ## Increment Checklist
 
-After each increment, verify:
+After each increment, verify with the repository's own commands (see the test-driven-development skill's Discover the Stack First section):
 
 - [ ] The change does one thing and does it completely
-- [ ] All existing tests still pass (`npm test`)
-- [ ] The build succeeds (`npm run build`)
-- [ ] Type checking passes (`npx tsc --noEmit`)
-- [ ] Linting passes (`npm run lint`)
+- [ ] All existing tests still pass (the repository's test command: `npm test`, `./gradlew test`, `pytest`, ...)
+- [ ] The build succeeds (the repository's build command)
+- [ ] Type checking passes, where the stack has one (`npx tsc --noEmit`, `mypy`, ...)
+- [ ] Linting passes (the repository's lint command)
 - [ ] The new functionality works as expected
 - [ ] The change is committed with a descriptive message
 
@@ -226,20 +244,6 @@ After completing all increments for a task:
 - [ ] The feature works end-to-end as specified
 - [ ] No uncommitted changes remain
 
-### Rule 4: Safe Defaults
+## See Also
 
-New code should default to safe, conservative behavior:
-
-```typescript
-// Safe: disabled by default, opt-in
-export function createTask(data: TaskInput, options?: { notify?: boolean }) {
-  const shouldNotify = options?.notify ?? false;
-  // ...
-}
-```
-
-### Rule 5: Rollback-Friendly
-
-Each increment should be independently revertable:
-
-- Additive changes
+Per-increment verification is the local check. Before declaring a task done, apply the project-wide Definition of Done as the final gate, the standing bar every increment clears regardless of the task. See `references/definition-of-done.md`.
