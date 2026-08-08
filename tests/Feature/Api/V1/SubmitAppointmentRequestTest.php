@@ -3,7 +3,6 @@
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\PatientAccountContact;
-use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
@@ -23,7 +22,7 @@ beforeEach(function () {
 afterEach(fn () => Carbon::setTestNow());
 
 test('unlinked account can read appointment request availability', function () {
-    $user = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $user = User::factory()->patient()->create();
 
     $response = $this->actingAs($user)
         ->getJson('/api/v1/appointment-request-availability?date=2026-07-13');
@@ -111,8 +110,7 @@ test('linked account can submit an appointment request', function () {
 });
 
 test('unlinked account can submit an appointment request', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
+    $user = User::factory()->patient()->create([
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
@@ -141,8 +139,7 @@ test('unlinked account can submit an appointment request', function () {
 });
 
 test('unlinked account snapshots its expanded appointment identity', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
+    $user = User::factory()->patient()->create([
         'email' => null,
     ]);
 
@@ -193,8 +190,7 @@ test('unlinked account snapshots its expanded appointment identity', function ()
 });
 
 test('unlinked account can submit an appointment identity without an email', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
+    $user = User::factory()->patient()->create([
         'email' => null,
     ]);
 
@@ -225,9 +221,7 @@ test('unlinked account can submit an appointment identity without an email', fun
 });
 
 test('expanded appointment identity requires all non-email fields', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
-    ]);
+    $user = User::factory()->patient()->create();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')
@@ -256,9 +250,7 @@ test('expanded appointment identity requires all non-email fields', function () 
 });
 
 test('appointment identity rejects unknown patient claims', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
-    ]);
+    $user = User::factory()->patient()->create();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')
@@ -287,9 +279,7 @@ test('appointment identity rejects unknown patient claims', function () {
 });
 
 test('unlinked appointment identity phone must match the verified account phone', function () {
-    $user = User::factory()->create([
-        'role_id' => Role::where('name', 'patient')->first()->id,
-    ]);
+    $user = User::factory()->patient()->create();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')

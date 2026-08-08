@@ -80,8 +80,6 @@ test('a second admin can still be deactivated', function () {
 // ─── Forced first-login password change ──────────────────────────────────────
 
 test('a newly created user is forced to change their password before reaching anything else', function () {
-    $staffRole = Role::where('name', 'staff')->firstOrFail();
-
     $this->actingAs($this->admin);
 
     Livewire::test(CreateUser::class)
@@ -90,7 +88,7 @@ test('a newly created user is forced to change their password before reaching an
             'last_name' => 'Staff Member',
             'email' => 'newstaff@example.com',
             'phone' => '9171234567',
-            'role_id' => $staffRole->id,
+            'roles' => [Role::Staff],
             'password' => 'password',
         ])
         ->call('create')

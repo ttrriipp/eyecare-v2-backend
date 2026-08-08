@@ -95,7 +95,7 @@ test('rating outside 1-5 is rejected', function () {
 });
 
 test('optometrist is snapshotted on create', function () {
-    $optometrist = User::factory()->create(['is_optometrist' => true]);
+    $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->create([
         'appointment_id' => $this->appointment->id,
         'patient_id' => $this->patient->id,
@@ -112,7 +112,7 @@ test('optometrist is snapshotted on create', function () {
 });
 
 test('optometrist is not recomputed on revise', function () {
-    $optometrist1 = User::factory()->create(['is_optometrist' => true]);
+    $optometrist1 = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->create([
         'appointment_id' => $this->appointment->id,
         'patient_id' => $this->patient->id,
@@ -127,7 +127,7 @@ test('optometrist is not recomputed on revise', function () {
     );
 
     // Change the encounter's optometrist
-    $optometrist2 = User::factory()->create(['is_optometrist' => true]);
+    $optometrist2 = User::factory()->optometrist()->create();
     $encounter->update(['optometrist_id' => $optometrist2->id]);
 
     // Revise the rating

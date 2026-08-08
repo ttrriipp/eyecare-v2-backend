@@ -12,7 +12,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
     $this->admin = User::factory()->admin()->create();
 });
@@ -46,28 +46,24 @@ test('admin can see all users in the table', function () {
         ->assertCanSeeTableRecords($users);
 });
 
-test('user table identifies optometrists', function () {
-    $optometrist = User::factory()->staff()->create([
-        'is_optometrist' => true,
-    ]);
+test('user table displays roles from pivot', function () {
+    $optometrist = User::factory()->optometrist()->create();
 
     $this->actingAs($this->admin);
 
     Livewire::test(ListUsers::class)
-        ->assertTableColumnStateSet('is_optometrist', true, record: $optometrist);
+        ->assertCanSeeTableRecords([$optometrist]);
 });
 
 test('table can be filtered by role', function () {
-    $staffRole = Role::where('name', 'staff')->first();
-    $patientRole = Role::where('name', 'patient')->first();
-
     $staff = User::factory()->staff()->create();
     $patient = User::factory()->patient()->create();
+    $staffRoleId = Role::where('name', Role::Staff)->value('id');
 
     $this->actingAs($this->admin);
 
     Livewire::test(ListUsers::class)
-        ->filterTable('role', $staffRole->id)
+        ->filterTable('roles', $staffRoleId)
         ->assertCanSeeTableRecords([$staff])
         ->assertCanNotSeeTableRecords([$patient]);
 });
@@ -75,8 +71,6 @@ test('table can be filtered by role', function () {
 // ─── Create ───────────────────────────────────────────────────────────────────
 
 test('admin can create a user', function () {
-    $staffRole = Role::where('name', 'staff')->first();
-
     $this->actingAs($this->admin);
 
     Livewire::test(CreateUser::class)
@@ -84,8 +78,8 @@ test('admin can create a user', function () {
             'first_name' => 'New',
             'last_name' => 'Staff Member',
             'email' => 'newstaff@example.com',
-            'phone' => '09171234567',
-            'role_id' => $staffRole->id,
+            'phone' => '9171234567',
+            'roles' => [Role::Staff],
             'password' => 'password',
         ])
         ->call('create')
@@ -93,17 +87,12 @@ test('admin can create a user', function () {
         ->assertHasNoFormErrors()
         ->assertRedirect();
 
-    $this->assertDatabaseHas(User::class, [
-        'first_name' => 'New',
-        'last_name' => 'Staff Member',
-        'email' => 'newstaff@example.com',
-        'role_id' => $staffRole->id,
-    ]);
+    $user = User::query()->where('email', 'newstaff@example.com')->firstOrFail();
+    expect($user->first_name)->toBe('New')
+        ->and($user->roles->pluck('name')->all())->toBe([Role::Staff]);
 });
 
 test('admin can create an optometrist', function () {
-    $staffRole = Role::where('name', 'staff')->firstOrFail();
-
     $this->actingAs($this->admin);
 
     Livewire::test(CreateUser::class)
@@ -111,18 +100,38 @@ test('admin can create an optometrist', function () {
             'first_name' => 'Clinic',
             'last_name' => 'Optometrist',
             'email' => 'optometrist@example.com',
-            'phone' => '09171234568',
-            'role_id' => $staffRole->id,
+            'phone' => '9171234568',
+            'roles' => [Role::Optometrist],
             'password' => 'password',
-            'is_optometrist' => true,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
 
-    expect(User::query()->where('email', 'optometrist@example.com')->firstOrFail()->is_optometrist)->toBeTrue();
+    $user = User::query()->where('email', 'optometrist@example.com')->firstOrFail();
+    expect($user->isOptometrist())->toBeTrue();
 });
 
-test('create form requires name, phone, role, and password', function () {
+test('admin can create a dual-role admin optometrist', function () {
+    $this->actingAs($this->admin);
+
+    Livewire::test(CreateUser::class)
+        ->fillForm([
+            'first_name' => 'Dual',
+            'last_name' => 'Role',
+            'email' => 'dualrole@example.com',
+            'phone' => '9171234569',
+            'roles' => [Role::Admin, Role::Optometrist],
+            'password' => 'password',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $user = User::query()->where('email', 'dualrole@example.com')->firstOrFail();
+    expect($user->isAdmin())->toBeTrue()
+        ->and($user->isOptometrist())->toBeTrue();
+});
+
+test('create form requires name, phone, roles, and password', function () {
     $this->actingAs($this->admin);
 
     Livewire::test(CreateUser::class)
@@ -130,18 +139,17 @@ test('create form requires name, phone, role, and password', function () {
             'first_name' => null,
             'last_name' => null,
             'phone' => null,
-            'role_id' => null,
+            'roles' => null,
             'password' => null,
         ])
         ->call('create')
-        ->assertHasFormErrors(['first_name', 'last_name', 'phone', 'role_id', 'password']);
+        ->assertHasFormErrors(['first_name', 'last_name', 'phone', 'roles', 'password']);
 });
 
 // ─── Edit ─────────────────────────────────────────────────────────────────────
 
 test('admin can edit a user name and role', function () {
-    $user = User::factory()->staff()->create(['phone' => '09171111111']);
-    $adminRole = Role::where('name', 'admin')->first();
+    $user = User::factory()->staff()->create(['phone' => '+639171111111']);
 
     $this->actingAs($this->admin);
 
@@ -149,8 +157,8 @@ test('admin can edit a user name and role', function () {
         ->fillForm([
             'first_name' => 'Updated',
             'last_name' => 'Name',
-            'role_id' => $adminRole->id,
-            'phone' => '09171111111',
+            'roles' => [Role::Admin],
+            'phone' => '9171111111',
             'password' => null,
         ])
         ->call('save')
@@ -159,43 +167,44 @@ test('admin can edit a user name and role', function () {
 
     expect($user->fresh()->first_name)->toBe('Updated')
         ->and($user->fresh()->last_name)->toBe('Name')
-        ->and($user->fresh()->role->name)->toBe('admin');
+        ->and($user->fresh()->isAdmin())->toBeTrue();
 });
 
-test('admin can mark an existing staff user as an optometrist', function () {
-    $user = User::factory()->staff()->create(['phone' => '09171111112']);
+test('admin can assign dual-role to existing user', function () {
+    $user = User::factory()->staff()->create(['phone' => '+639171111112']);
 
     $this->actingAs($this->admin);
 
     Livewire::test(EditUser::class, ['record' => $user->id])
         ->fillForm([
-            'phone' => '09171111112',
+            'phone' => '9171111112',
             'password' => null,
-            'is_optometrist' => true,
+            'roles' => [Role::Admin, Role::Optometrist],
         ])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect($user->fresh()->is_optometrist)->toBeTrue();
+    expect($user->fresh()->isAdmin())->toBeTrue()
+        ->and($user->fresh()->isOptometrist())->toBeTrue();
 });
 
-test('optometrist scope excludes customer users even when their flag is set', function () {
-    $staffOptometrist = User::factory()->staff()->create(['is_optometrist' => true]);
-    $customer = User::factory()->customer()->create(['is_optometrist' => true]);
+test('optometrist scope excludes inactive users', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $inactiveOptometrist = User::factory()->optometrist()->create(['is_active' => false]);
 
     expect(User::query()->optometrists()->pluck('id')->all())
-        ->toContain($staffOptometrist->id)
-        ->not->toContain($customer->id);
+        ->toContain($optometrist->id)
+        ->not->toContain($inactiveOptometrist->id);
 });
 
 test('password is not changed when left blank on edit', function () {
-    $user = User::factory()->staff()->create(['phone' => '09172222222']);
+    $user = User::factory()->staff()->create(['phone' => '+639172222222']);
     $originalHash = $user->password;
 
     $this->actingAs($this->admin);
 
     Livewire::test(EditUser::class, ['record' => $user->id])
-        ->fillForm(['phone' => '09172222222', 'password' => ''])
+        ->fillForm(['phone' => '9172222222', 'password' => '', 'roles' => [Role::Staff]])
         ->call('save')
         ->assertHasNoFormErrors()
         ->assertNotified();
@@ -204,13 +213,13 @@ test('password is not changed when left blank on edit', function () {
 });
 
 test('password is updated when provided on edit', function () {
-    $user = User::factory()->staff()->create(['phone' => '09173333333']);
+    $user = User::factory()->staff()->create(['phone' => '+639173333333']);
     $originalHash = $user->password;
 
     $this->actingAs($this->admin);
 
     Livewire::test(EditUser::class, ['record' => $user->id])
-        ->fillForm(['phone' => '09173333333', 'password' => 'newpassword123'])
+        ->fillForm(['phone' => '9173333333', 'password' => 'newpassword123', 'roles' => [Role::Staff]])
         ->call('save')
         ->assertHasNoFormErrors()
         ->assertNotified();
@@ -219,8 +228,6 @@ test('password is updated when provided on edit', function () {
 });
 
 test('created user password can authenticate', function () {
-    $staffRole = Role::where('name', 'staff')->first();
-
     $this->actingAs($this->admin);
 
     Livewire::test(CreateUser::class)
@@ -228,8 +235,8 @@ test('created user password can authenticate', function () {
             'first_name' => 'Login',
             'last_name' => 'Test User',
             'email' => 'logintest@example.com',
-            'phone' => '09179999999',
-            'role_id' => $staffRole->id,
+            'phone' => '9179999999',
+            'roles' => [Role::Staff],
             'password' => 'secret123',
         ])
         ->call('create')

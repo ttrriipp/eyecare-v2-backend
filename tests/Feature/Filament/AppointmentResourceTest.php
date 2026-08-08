@@ -254,7 +254,7 @@ test('no show action is hidden for future appointments', function () {
 
 test('unavailable optometrist assignment is rejected', function () {
     $staff = User::factory()->staff()->create();
-    $nonOptometrist = User::factory()->staff()->create(['is_optometrist' => false]);
+    $nonOptometrist = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
 
     $this->actingAs($staff);

@@ -100,7 +100,7 @@ test('an optometrist can create a prescription from the encounter wizard', funct
 
 test('prescription form is hidden outside an active encounter wizard', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $receptionist = User::factory()->staff()->create(['is_optometrist' => false]);
+    $receptionist = User::factory()->staff()->create();
     $planned = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
     $inProgress = Encounter::factory()->inProgress()->create();
     $completed = Encounter::factory()->completed()->create();
@@ -121,7 +121,7 @@ test('prescription form is hidden outside an active encounter wizard', function 
 
 test('direct prescription creation rejects unauthorized or inactive encounter access', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $receptionist = User::factory()->staff()->create(['is_optometrist' => false]);
+    $receptionist = User::factory()->staff()->create();
     $planned = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
     $inProgress = Encounter::factory()->inProgress()->create();
 
@@ -184,7 +184,7 @@ test('a finalized prescription is read only and offers amendment to optometrists
 });
 
 test('a receptionist can view but cannot amend a finalized prescription', function () {
-    $receptionist = User::factory()->staff()->create(['is_optometrist' => false]);
+    $receptionist = User::factory()->staff()->create();
     $prescription = Prescription::factory()
         ->linkedToEncounter(Encounter::factory()->completed()->create())
         ->create();

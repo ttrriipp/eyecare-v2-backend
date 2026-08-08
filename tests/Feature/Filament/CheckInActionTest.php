@@ -68,7 +68,7 @@ test('optometrist can start and complete encounter', function () {
 });
 
 test('receptionist cannot start encounter', function () {
-    $staff = User::factory()->staff()->create(['is_optometrist' => false]);
+    $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
 
     $this->actingAs($staff);
@@ -78,7 +78,7 @@ test('receptionist cannot start encounter', function () {
 });
 
 test('receptionist cannot complete encounter', function () {
-    $staff = User::factory()->staff()->create(['is_optometrist' => false]);
+    $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
 
     $this->actingAs($staff);

@@ -16,7 +16,11 @@ beforeEach(function () {
 
 test('linking an account to a patient record does not revoke its existing tokens', function () {
     $admin = User::factory()->admin()->create();
-    $patientAccount = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    // Create a user with patient role but without an auto-linked Patient record.
+    $patientAccount = User::factory()->create();
+    $patientAccount->roles()->sync(
+        Role::query()->where('name', Role::Patient)->pluck('id'),
+    );
     $token = $patientAccount->createToken('mobile');
     $patient = Patient::factory()->create(['user_id' => null]);
 

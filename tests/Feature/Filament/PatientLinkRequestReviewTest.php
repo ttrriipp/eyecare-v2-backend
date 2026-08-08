@@ -18,7 +18,12 @@ beforeEach(function () {
 
 function unlinkedPatientAccount(): User
 {
-    return User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $user = User::factory()->create();
+    $user->roles()->sync(
+        Role::query()->where('name', Role::Patient)->pluck('id'),
+    );
+
+    return $user;
 }
 
 test('staff sees ranked candidates on the link request page', function () {
