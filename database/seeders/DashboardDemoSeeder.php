@@ -3,11 +3,13 @@
 namespace Database\Seeders;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\JobOrderStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
+use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -53,7 +55,7 @@ class DashboardDemoSeeder extends Seeder
 
         $patientIds = $this->patientPool(12);
         $staffId = User::query()
-            ->whereHas('role', fn ($query) => $query->where('name', 'staff'))
+            ->whereHas('roles', fn ($query) => $query->where('name', 'staff'))
             ->value('id');
 
         for ($offset = -30; $offset <= 7; $offset++) {
@@ -100,7 +102,7 @@ class DashboardDemoSeeder extends Seeder
 
         $patientIds = $this->patientPool(12);
         $staffId = User::query()
-            ->whereHas('role', fn ($query) => $query->where('name', 'staff'))
+            ->whereHas('roles', fn ($query) => $query->where('name', 'staff'))
             ->value('id');
 
         if (! $staffId) {
@@ -118,10 +120,10 @@ class DashboardDemoSeeder extends Seeder
                 $paidAt = $date->copy()->setTime(fake()->numberBetween(9, 17), fake()->randomElement([0, 30]));
 
                 $billingRecord = BillingRecord::query()->create([
-                    'billing_record_number' => 'BR-DASH-' . str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
-                    'job_order_id' => \App\Models\JobOrder::factory()->create([
+                    'billing_record_number' => 'BR-DASH-'.str_pad((string) $sequence, 5, '0', STR_PAD_LEFT),
+                    'job_order_id' => JobOrder::factory()->create([
                         'patient_id' => fake()->randomElement($patientIds),
-                        'status' => \App\Enums\JobOrderStatus::Dispensed,
+                        'status' => JobOrderStatus::Dispensed,
                     ])->id,
                     'patient_id' => fake()->randomElement($patientIds),
                     'status' => BillingRecordStatus::Paid,

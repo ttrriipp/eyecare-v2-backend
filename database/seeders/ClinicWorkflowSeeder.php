@@ -66,7 +66,8 @@ class ClinicWorkflowSeeder extends Seeder
         $scheduled = AppointmentStatus::query()->where('name', 'scheduled')->firstOrFail();
         $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
 
-        $appointment = Appointment::query()->firstOrCreate(
+        // Scheduled appointment (no encounter yet)
+        Appointment::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'appointment_type_id' => $appointmentType->id],
             [
                 'appointment_number' => 'APT-2026-000001',
@@ -78,9 +79,9 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
-        // Create a fulfilled appointment for history
+        // Fulfilled appointment (with encounter)
         $fulfilled = AppointmentStatus::query()->where('name', 'fulfilled')->firstOrFail();
-        Appointment::query()->firstOrCreate(
+        $appointment = Appointment::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'appointment_number' => 'APT-2026-000002'],
             [
                 'created_by' => $staff->id,
