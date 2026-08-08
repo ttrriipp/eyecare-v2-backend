@@ -126,6 +126,32 @@ class UserFactory extends Factory
     }
 
     /**
+     * Dual-role owner: admin + optometrist. Represents a clinic owner who also practices.
+     */
+    public function adminOptometrist(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'role_id' => $this->fixedRoleId('admin'),
+            'is_optometrist' => true,
+        ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->whereIn('name', [Role::Admin, Role::Optometrist])->pluck('id'),
+            );
+            if ($user->providerHours()->count() === 0) {
+                foreach (range(0, 6) as $weekday) {
+                    ProviderHour::factory()->create([
+                        'user_id' => $user->id,
+                        'weekday' => $weekday,
+                        'start_time' => '09:00',
+                        'end_time' => '17:00',
+                        'enabled' => true,
+                    ]);
+                }
+            }
+        });
+    }
+
+    /**
      * Walk-in patient: structured name + phone only, no email, no password. Cannot log in to the API.
      */
     public function walkIn(): static

@@ -42,6 +42,7 @@ test('user factories can create users for each fixed role', function (string $fa
     'optometrist' => ['optometrist', ['optometrist']],
     'staff' => ['staff', ['staff']],
     'patient' => ['patient', ['patient']],
+    'admin+optometrist' => ['adminOptometrist', ['admin', 'optometrist']],
 ]);
 
 test('hasRole checks for a specific role', function () {
