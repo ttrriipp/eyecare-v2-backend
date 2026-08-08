@@ -13,7 +13,7 @@ class UpdateAppointmentStatusRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return in_array($this->user()?->role->name, ['admin', 'staff'], true);
+        return $this->user()?->hasPanelRole() ?? false;
     }
 
     /**

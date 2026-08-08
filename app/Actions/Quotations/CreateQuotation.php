@@ -33,7 +33,7 @@ class CreateQuotation
         ?Encounter $encounter = null,
         ?Prescription $prescription = null,
     ): Quotation {
-        if (! in_array($creator->role->name, ['admin', 'staff'], true)) {
+        if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
                 'creator' => ['Only clinic staff can create a quotation.'],
             ]);

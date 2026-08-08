@@ -28,7 +28,7 @@ class FinalizePrescription
         ?Prescription $previousPrescription = null,
         ?string $amendmentReason = null,
     ): Prescription {
-        if (! $author->hasOptometristCapability()) {
+        if (! $author->isOptometrist()) {
             throw ValidationException::withMessages([
                 'author' => ['Only an optometrist can finalize a prescription.'],
             ]);

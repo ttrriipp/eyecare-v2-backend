@@ -2,28 +2,22 @@
 
 namespace App\Policies;
 
-use App\Models\PrivacyRequest;
 use App\Models\User;
 
 class PrivacyRequestPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->role->name === 'admin';
+        return $user->isAdmin();
     }
 
-    public function view(User $user, PrivacyRequest $privacyRequest): bool
+    public function view(User $user): bool
     {
-        return $user->role->name === 'admin';
+        return $user->isAdmin();
     }
 
-    public function create(User $user): bool
+    public function handle(User $user): bool
     {
-        return true; // Any authenticated user can submit a request
-    }
-
-    public function process(User $user, PrivacyRequest $privacyRequest): bool
-    {
-        return $user->role->name === 'admin';
+        return $user->isAdmin();
     }
 }

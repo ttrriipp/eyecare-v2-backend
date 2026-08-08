@@ -35,7 +35,7 @@ class OptometristHours extends AvailabilityClusterPage
     {
         $user = auth()->user();
 
-        if ($user?->is_optometrist && $user->role->name !== 'admin') {
+        if ($user?->isOptometrist() && ! $user->isAdmin()) {
             $this->selectedOptometristId = $user->id;
         } else {
             $firstOptometrist = User::query()->optometrists()->first();

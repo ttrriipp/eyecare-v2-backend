@@ -9,26 +9,26 @@ class FrameReservationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function view(User $user, FrameReservation $frameReservation): bool
+    public function view(User $user, FrameReservation $reservation): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function reserveFrames(User $user): bool
+    public function create(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function addFrame(User $user, FrameReservation $frameReservation): bool
+    public function update(User $user, FrameReservation $reservation): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function removeFrame(User $user, FrameReservation $frameReservation): bool
+    public function addOrRemoveItems(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 }

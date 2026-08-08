@@ -130,7 +130,7 @@ class EditEncounter extends EditRecord
 
             if ($shouldFinalizePrescription) {
                 $author = auth()->user();
-                abort_unless($author instanceof User && $author->hasOptometristCapability(), 403);
+                abort_unless($author instanceof User && $author->isOptometrist(), 403);
 
                 $record->update($data);
 

@@ -9,25 +9,25 @@ class BillingRecordPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
     public function view(User $user, BillingRecord $billingRecord): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function recordPayment(User $user, BillingRecord $billingRecord): bool
+    public function recordPayment(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function correctPayment(User $user, BillingRecord $billingRecord): bool
+    public function voidPayment(User $user): bool
     {
         return $user->isAdmin();
     }
 
-    public function void(User $user, BillingRecord $billingRecord): bool
+    public function correctPayment(User $user): bool
     {
         return $user->isAdmin();
     }

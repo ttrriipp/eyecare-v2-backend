@@ -9,12 +9,12 @@ class PatientPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
     public function view(User $user, Patient $patient): bool
     {
-        if (in_array($user->role->name, ['admin', 'staff'], true)) {
+        if ($user->hasPanelRole()) {
             return true;
         }
 
@@ -23,25 +23,25 @@ class PatientPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
     public function update(User $user, Patient $patient): bool
     {
-        if (in_array($user->role->name, ['admin', 'staff'], true)) {
+        if ($user->hasPanelRole()) {
             return true;
         }
 
         return $user->patient?->id === $patient->id;
     }
 
-    public function delete(User $user, Patient $patient): bool
+    public function delete(User $user): bool
     {
-        return $user->role->name === 'admin';
+        return $user->isAdmin();
     }
 
-    public function restore(User $user, Patient $patient): bool
+    public function restore(User $user): bool
     {
-        return $user->role->name === 'admin';
+        return $user->isAdmin();
     }
 }

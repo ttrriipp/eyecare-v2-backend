@@ -88,7 +88,7 @@ class ConversationController extends Controller
 
         $message->load(['attachments', 'contextLinks']);
 
-        if ($request->user()->role->name === 'patient') {
+        if ($request->user()->isPatient()) {
             $this->notifyStaffOfMessage($conversation, $message);
         }
 
@@ -125,7 +125,7 @@ class ConversationController extends Controller
     private function notifyStaffOfMessage(Conversation $conversation, Message $message): void
     {
         $recipients = User::query()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()
@@ -142,7 +142,7 @@ class ConversationController extends Controller
 
     private function canAccessConversation(User $user, Conversation $conversation): bool
     {
-        if ($user->role->name === 'patient') {
+        if ($user->isPatient()) {
             return $conversation->patient_id === $user->patient?->id;
         }
 
@@ -154,13 +154,13 @@ class ConversationController extends Controller
         return match ($type) {
             'appointment' => Appointment::query()
                 ->when(
-                    $user->role->name === 'patient',
+                    $user->isPatient(),
                     fn (Builder $query): Builder => $query->where('patient_id', $user->patient?->id),
                 )
                 ->find($id),
             'job_order' => JobOrder::query()
                 ->when(
-                    $user->role->name === 'patient',
+                    $user->isPatient(),
                     fn (Builder $query): Builder => $query->where('patient_id', $user->patient?->id),
                 )
                 ->find($id),

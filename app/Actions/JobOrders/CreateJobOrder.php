@@ -19,7 +19,7 @@ class CreateJobOrder
 {
     public function handle(Quotation $quotation, User $creator): JobOrder
     {
-        if (! in_array($creator->role?->name, ['admin', 'staff'], true)) {
+        if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
                 'creator' => ['Only clinic staff can create a job order.'],
             ]);

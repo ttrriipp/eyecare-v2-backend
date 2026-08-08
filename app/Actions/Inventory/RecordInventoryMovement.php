@@ -84,7 +84,7 @@ class RecordInventoryMovement
     private function notifyLowStock(ProductVariant $variant): void
     {
         $recipients = User::query()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()

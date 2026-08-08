@@ -166,7 +166,7 @@ class EditPatient extends EditRecord
                                 ->pluck('user_id')
                                 ->toArray();
 
-                            return User::whereHas('role', fn ($q) => $q->where('name', 'patient'))
+                            return User::whereHas('roles', fn ($q) => $q->where('name', 'patient'))
                                 ->whereNotIn('id', $linkedUserIds)
                                 ->get()
                                 ->mapWithKeys(fn ($user) => [

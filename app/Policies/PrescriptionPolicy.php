@@ -9,7 +9,7 @@ class PrescriptionPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
     public function view(User $user, Prescription $prescription): bool
@@ -19,17 +19,17 @@ class PrescriptionPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasOptometristCapability();
+        return $user->isOptometrist();
     }
 
     public function finalize(User $user): bool
     {
-        return $user->hasOptometristCapability();
+        return $user->isOptometrist();
     }
 
     public function amend(User $user, Prescription $prescription): bool
     {
-        return $user->hasOptometristCapability() && ! $prescription->trashed();
+        return $user->isOptometrist() && ! $prescription->trashed();
     }
 
     public function update(User $user, Prescription $prescription): bool

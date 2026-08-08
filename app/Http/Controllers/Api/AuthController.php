@@ -40,7 +40,7 @@ class AuthController extends Controller
         $data = $request->validated();
 
         [$user, $patient] = DB::transaction(function () use ($data): array {
-            $patientRole = Role::query()->where('name', 'patient')->firstOrFail();
+            $patientRole = Role::query()->where('name', Role::Patient)->firstOrFail();
 
             $nameParts = explode(' ', trim($data['name']), 2);
             $firstName = $nameParts[0] ?? '';

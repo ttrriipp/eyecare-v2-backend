@@ -72,9 +72,9 @@ class UsersTable
                     ->requiresConfirmation()
                     ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
                     ->action(function (User $record): void {
-                        if ($record->is_active && $record->role->name === 'admin') {
+                        if ($record->is_active && $record->isAdmin()) {
                             $activeAdminCount = User::query()
-                                ->whereHas('role', fn ($q) => $q->where('name', 'admin'))
+                                ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
                                 ->where('is_active', true)
                                 ->count();
 

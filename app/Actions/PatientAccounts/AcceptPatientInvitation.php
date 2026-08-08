@@ -88,7 +88,7 @@ class AcceptPatientInvitation
                 }
             } else {
                 // Create new account
-                $role = Role::where('name', 'patient')->firstOrFail();
+                $role = Role::where('name', Role::Patient)->firstOrFail();
 
                 $user = User::create([
                     'first_name' => $firstName,

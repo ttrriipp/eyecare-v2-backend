@@ -35,7 +35,7 @@ class SendDailySummaryCommand extends Command
             ->count();
 
         $admins = User::query()
-            ->whereHas('role', fn ($q) => $q->where('name', 'admin'))
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
             ->get();
 
         if ($admins->isEmpty()) {

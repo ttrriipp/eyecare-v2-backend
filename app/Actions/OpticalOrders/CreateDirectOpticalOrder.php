@@ -47,7 +47,7 @@ class CreateDirectOpticalOrder
         ?string $depositReference = null,
         ?string $recipientName = null,
     ): array {
-        if (! in_array($creator->role->name, ['admin', 'staff'], true)) {
+        if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
                 'creator' => ['Only clinic staff can create an optical order.'],
             ]);

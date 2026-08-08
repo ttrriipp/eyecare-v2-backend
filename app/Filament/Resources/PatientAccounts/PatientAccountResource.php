@@ -44,7 +44,7 @@ class PatientAccountResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereHas('role', fn (Builder $q) => $q->where('name', 'patient'));
+            ->whereHas('roles', fn (Builder $q) => $q->where('name', 'patient'));
     }
 
     public static function form(Schema $schema): Schema

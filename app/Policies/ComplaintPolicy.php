@@ -7,13 +7,13 @@ use App\Models\User;
 
 class ComplaintPolicy
 {
-    public function create(User $user): bool
+    public function viewAny(User $user): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 
-    public function restartWorkflow(User $user, Complaint $complaint): bool
+    public function view(User $user, Complaint $complaint): bool
     {
-        return in_array($user->role->name, ['admin', 'staff'], true);
+        return $user->hasPanelRole();
     }
 }

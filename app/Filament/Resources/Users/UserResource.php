@@ -36,7 +36,7 @@ class UserResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['admin', 'staff']));
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'staff', 'optometrist']));
     }
 
     public static function form(Schema $schema): Schema

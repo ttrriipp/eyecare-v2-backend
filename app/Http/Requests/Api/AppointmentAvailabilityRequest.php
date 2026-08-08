@@ -13,7 +13,7 @@ class AppointmentAvailabilityRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role->name === 'patient';
+        return $this->user()?->isPatient();
     }
 
     /**

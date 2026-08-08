@@ -59,7 +59,7 @@ class AppointmentController extends Controller
         );
 
         $staff = User::query()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()
@@ -112,7 +112,7 @@ class AppointmentController extends Controller
         $appointment->load(['appointmentType', 'status', 'patient', 'latestReschedule']);
 
         $staff = User::query()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()
@@ -157,7 +157,7 @@ class AppointmentController extends Controller
         );
 
         $staff = User::query()
-            ->whereHas('role', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
         Notification::make()

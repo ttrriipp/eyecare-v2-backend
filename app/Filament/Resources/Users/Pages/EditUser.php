@@ -20,9 +20,9 @@ class EditUser extends EditRecord
         $newRoleId = $data['role_id'] ?? $record->role_id;
         $newRole = Role::find($newRoleId);
 
-        if ($record->role->name === 'admin' && $newRole?->name !== 'admin') {
+        if ($record->isAdmin() && $newRole?->name !== 'admin') {
             $adminCount = User::query()
-                ->whereHas('role', fn ($q) => $q->where('name', 'admin'))
+                ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
                 ->count();
 
             if ($adminCount <= 1) {

@@ -29,7 +29,7 @@ class CreatePrescription extends CreateRecord
         $previousPrescription = $this->getPreviousPrescription();
 
         abort_unless(
-            auth()->user()?->hasOptometristCapability() === true
+            auth()->user()?->isOptometrist() === true
                 && $this->canCreateForEncounter($encounterRecord, $previousPrescription),
             403,
         );
@@ -52,7 +52,7 @@ class CreatePrescription extends CreateRecord
         $encounter = $this->getEncounter();
         $author = auth()->user();
 
-        abort_unless($author?->hasOptometristCapability() === true, 403);
+        abort_unless($author?->isOptometrist() === true, 403);
 
         return app(FinalizePrescription::class)->handle(
             patient: $encounter->patient,

@@ -28,7 +28,7 @@ class PrescriptionForm
     {
         $disabledForExistingPrescription = $forEncounter
             ? fn (Encounter $record): bool => $record->prescriptions()->withTrashed()->exists()
-                || auth()->user()?->hasOptometristCapability() !== true
+                || auth()->user()?->isOptometrist() !== true
             : false;
 
         $patientInformation = $forEncounter

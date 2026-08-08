@@ -181,7 +181,7 @@ class RegisterPatientAccount
                 ];
             }
 
-            $role = Role::where('name', 'patient')->firstOrFail();
+            $role = Role::where('name', Role::Patient)->firstOrFail();
 
             $middleName = $data['middle_name'] ?? null;
 
