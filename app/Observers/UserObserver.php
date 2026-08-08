@@ -38,18 +38,5 @@ class UserObserver
                 $user->is_active ? 'user.reactivated' : 'user.deactivated',
             );
         }
-
-        if (! $user->wasChanged('role_id')) {
-            return;
-        }
-
-        app(CreateAuditLog::class)->handle(
-            subject: $user,
-            action: 'user.role_changed',
-            metadata: [
-                'from_role_id' => $user->getOriginal('role_id'),
-                'to_role_id' => $user->role_id,
-            ],
-        );
     }
 }
