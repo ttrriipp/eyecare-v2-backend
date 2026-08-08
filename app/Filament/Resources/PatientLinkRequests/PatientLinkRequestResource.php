@@ -37,6 +37,20 @@ class PatientLinkRequestResource extends Resource
         return false;
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = PatientLinkRequest::query()
+            ->where('status', 'pending')
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
     public static function form(Schema $schema): Schema
     {
         return PatientLinkRequestForm::configure($schema);

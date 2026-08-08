@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders;
 
+use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderForm;
@@ -34,6 +35,20 @@ class OpticalOrderResource extends Resource
     protected static ?string $modelLabel = 'Optical Order';
 
     protected static ?string $pluralModelLabel = 'Optical Orders';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = JobOrder::query()
+            ->where('status', JobOrderStatus::ReadyForDispensing)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'success';
+    }
 
     public static function form(Schema $schema): Schema
     {

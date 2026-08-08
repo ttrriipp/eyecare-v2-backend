@@ -22,6 +22,21 @@ class ReorderReport extends Page
 
     protected string $view = 'filament.pages.reports.reorder';
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = ProductVariant::query()
+            ->active()
+            ->needsReorder()
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'danger';
+    }
+
     public static function canAccess(): bool
     {
         $user = auth()->user();

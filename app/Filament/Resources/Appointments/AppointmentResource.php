@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
@@ -44,6 +45,21 @@ class AppointmentResource extends Resource
     public static function getGlobalSearchResultTitle(Model $record): string
     {
         return $record->appointment_number ?? "Appointment #{$record->id}";
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Appointment::query()
+            ->whereDate('scheduled_at', today())
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', ['cancelled', 'no_show']))
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'info';
     }
 
     public static function form(Schema $schema): Schema

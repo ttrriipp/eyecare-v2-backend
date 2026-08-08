@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Quotations;
 
+use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\Pages\CreateQuotation;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
@@ -35,6 +36,20 @@ class QuotationResource extends Resource
     protected static ?string $recordTitleAttribute = 'quotation_number';
 
     protected static bool $isGloballySearchable = true;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Quotation::query()
+            ->where('status', QuotationStatus::Presented)
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
 
     public static function form(Schema $schema): Schema
     {

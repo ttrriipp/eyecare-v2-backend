@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AppointmentRequests;
 
+use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
 use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
 use App\Filament\Resources\AppointmentRequests\Schemas\AppointmentRequestForm;
@@ -29,6 +30,21 @@ class AppointmentRequestResource extends Resource
     public static function canCreate(): bool
     {
         return false; // Requests are created by patients via API
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = AppointmentRequest::query()
+            ->where('status', AppointmentRequestStatus::Pending)
+            ->where('expires_at', '>', now())
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function form(Schema $schema): Schema

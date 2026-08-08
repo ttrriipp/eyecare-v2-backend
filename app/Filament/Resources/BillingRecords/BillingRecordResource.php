@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BillingRecords;
 
+use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\Pages\EditBillingRecord;
 use App\Filament\Resources\BillingRecords\Pages\ListBillingRecords;
 use App\Filament\Resources\BillingRecords\RelationManagers\PaymentsRelationManager;
@@ -29,6 +30,20 @@ class BillingRecordResource extends Resource
     protected static ?string $recordTitleAttribute = 'billing_record_number';
 
     protected static bool $isGloballySearchable = true;
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = BillingRecord::query()
+            ->whereIn('status', [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid])
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
 
     public static function form(Schema $schema): Schema
     {

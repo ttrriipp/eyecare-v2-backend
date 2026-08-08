@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\FrameReservations;
 
+use App\Enums\ReservationStatus;
 use App\Filament\Resources\FrameReservations\Pages\EditFrameReservation;
 use App\Filament\Resources\FrameReservations\Pages\ListFrameReservations;
 use App\Filament\Resources\FrameReservations\RelationManagers\ItemsRelationManager;
@@ -30,6 +31,24 @@ class FrameReservationResource extends Resource
     protected static ?int $navigationSort = 30;
 
     protected static string|UnitEnum|null $navigationGroup = 'Optical';
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = FrameReservation::query()
+            ->whereIn('status', [
+                ReservationStatus::Requested,
+                ReservationStatus::Prepared,
+                ReservationStatus::TriedOn,
+            ])
+            ->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'info';
+    }
 
     public static function form(Schema $schema): Schema
     {
