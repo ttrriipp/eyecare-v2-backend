@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -63,11 +64,21 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * @deprecated Use roles() instead. Retained temporarily for backward compatibility.
+     *
      * @return BelongsTo<Role, $this>
      */
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * @return BelongsToMany<Role, $this>
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class);
     }
 
     /**
@@ -125,11 +136,61 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         );
     }
 
-    public function isAdmin(): bool
+    /**
+     * Check if the user has a specific role by name.
+     */
+    public function hasRole(string $role): bool
     {
-        return $this->role->name === 'admin';
+        return $this->roles()
+            ->where('name', $role)
+            ->exists();
     }
 
+    /**
+     * Check if the user has the admin role.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(Role::Admin);
+    }
+
+    /**
+     * Check if the user has the optometrist role.
+     */
+    public function isOptometrist(): bool
+    {
+        return $this->hasRole(Role::Optometrist);
+    }
+
+    /**
+     * Check if the user has the staff role.
+     */
+    public function isStaff(): bool
+    {
+        return $this->hasRole(Role::Staff);
+    }
+
+    /**
+     * Check if the user has the patient role.
+     */
+    public function isPatient(): bool
+    {
+        return $this->hasRole(Role::Patient);
+    }
+
+    /**
+     * Check if the user has at least one panel role (admin, optometrist, or staff).
+     */
+    public function hasPanelRole(): bool
+    {
+        return $this->roles()
+            ->whereIn('name', [Role::Admin, Role::Optometrist, Role::Staff])
+            ->exists();
+    }
+
+    /**
+     * @deprecated Use isOptometrist() instead. Retained temporarily for backward compatibility.
+     */
     public function hasOptometristCapability(): bool
     {
         return $this->is_optometrist
@@ -146,20 +207,19 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             return false;
         }
 
-        return in_array($this->role->name, ['admin', 'staff'], true);
+        return $this->hasPanelRole();
     }
 
     public function scopeOptometrists(Builder $query): Builder
     {
         return $query
-            ->where('is_optometrist', true)
             ->where('is_active', true)
-            ->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->whereIn('name', ['admin', 'staff']));
+            ->whereHas('roles', fn (Builder $roleQuery): Builder => $roleQuery->where('name', Role::Optometrist));
     }
 
     public function scopePatients(Builder $query): Builder
     {
-        return $query->whereHas('role', fn (Builder $roleQuery): Builder => $roleQuery->where('name', 'patient'));
+        return $query->whereHas('roles', fn (Builder $roleQuery): Builder => $roleQuery->where('name', Role::Patient));
     }
 
     /**

@@ -60,14 +60,22 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'role_id' => $this->fixedRoleId('admin'),
-        ]);
+        ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->where('name', Role::Admin)->pluck('id'),
+            );
+        });
     }
 
     public function staff(): static
     {
         return $this->state(fn (array $attributes): array => [
             'role_id' => $this->fixedRoleId('staff'),
-        ]);
+        ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->where('name', Role::Staff)->pluck('id'),
+            );
+        });
     }
 
     public function patient(): static
@@ -75,6 +83,9 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'role_id' => $this->fixedRoleId('patient'),
         ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->where('name', Role::Patient)->pluck('id'),
+            );
             if ($user->patient === null) {
                 Patient::factory()->create(['user_id' => $user->id]);
             }
@@ -92,9 +103,13 @@ class UserFactory extends Factory
 
     public function optometrist(): static
     {
-        return $this->staff()->state(fn (array $attributes): array => [
+        return $this->state(fn (array $attributes): array => [
+            'role_id' => $this->fixedRoleId('optometrist'),
             'is_optometrist' => true,
         ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->where('name', Role::Optometrist)->pluck('id'),
+            );
             // Create provider hours for all weekdays if none exist
             if ($user->providerHours()->count() === 0) {
                 foreach (range(0, 6) as $weekday) {
@@ -122,6 +137,9 @@ class UserFactory extends Factory
             'remember_token' => null,
             'role_id' => $this->fixedRoleId('patient'),
         ])->afterCreating(function (User $user): void {
+            $user->roles()->syncWithoutDetaching(
+                Role::query()->where('name', Role::Patient)->pluck('id'),
+            );
             if ($user->patient === null) {
                 Patient::factory()->walkIn()->create(['user_id' => $user->id]);
             }

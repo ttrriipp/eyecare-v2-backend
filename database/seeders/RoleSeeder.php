@@ -32,7 +32,7 @@ class RoleSeeder extends Seeder
                 $legacyCustomerRole->delete();
             }
 
-            collect(['admin', 'staff', 'patient'])
+            collect([Role::Admin, Role::Optometrist, Role::Staff, Role::Patient])
                 ->each(fn (string $name) => Role::query()->firstOrCreate([
                     'name' => $name,
                 ]));

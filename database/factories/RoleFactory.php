@@ -29,10 +29,24 @@ class RoleFactory extends Factory
         ]);
     }
 
+    public function optometrist(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'name' => 'optometrist',
+        ]);
+    }
+
     public function staff(): static
     {
         return $this->state(fn (array $attributes): array => [
             'name' => 'staff',
+        ]);
+    }
+
+    public function patient(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'name' => 'patient',
         ]);
     }
 
