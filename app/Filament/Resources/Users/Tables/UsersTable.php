@@ -29,9 +29,9 @@ class UsersTable
                 TextColumn::make('phone')
                     ->searchable()
                     ->toggleable(),
-                TextColumn::make('roles')
+                TextColumn::make('roles_display')
                     ->label('Roles')
-                    ->formatStateUsing(fn ($record): string => $record->roles->pluck('name')->map(fn ($name) => ucfirst($name))->implode(', '))
+                    ->getStateUsing(fn ($record): string => $record->roles->pluck('name')->map(fn ($name) => ucfirst($name))->implode(', '))
                     ->badge()
                     ->color(fn ($record): string => match (true) {
                         $record->isAdmin() && $record->isOptometrist() => 'warning',
