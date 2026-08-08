@@ -21,7 +21,7 @@ class UpdateProviderHours
     ): ProviderHour {
         $user = User::query()->findOrFail($userId);
 
-        if (! $user->is_optometrist) {
+        if (! $user->isOptometrist()) {
             throw ValidationException::withMessages([
                 'user_id' => ['Only optometrists can have provider hours.'],
             ]);

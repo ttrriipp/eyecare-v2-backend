@@ -23,8 +23,8 @@ class CompleteEncounter
             ]);
         }
 
-        // Normally requires the assigned optometrist; admin override requires optometrist capability
-        if ($encounter->optometrist_id !== $actor->id && ! $actor->is_optometrist) {
+        // Normally requires the assigned optometrist; dual-role admin optometrist can also complete
+        if ($encounter->optometrist_id !== $actor->id && ! $actor->isOptometrist()) {
             throw ValidationException::withMessages([
                 'actor' => ['Only the assigned optometrist or an admin optometrist can complete this encounter.'],
             ]);

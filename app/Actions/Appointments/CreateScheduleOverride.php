@@ -110,7 +110,7 @@ class CreateScheduleOverride
             ]);
         }
 
-        if (! $optometrist->is_optometrist) {
+        if (! $optometrist->isOptometrist()) {
             throw ValidationException::withMessages([
                 'user_id' => ['Only optometrists can have a provider absence.'],
             ]);

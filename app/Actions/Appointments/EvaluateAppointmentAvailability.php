@@ -220,7 +220,7 @@ class EvaluateAppointmentAvailability
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
     ): bool {
-        if (! $optometrist->is_optometrist) {
+        if (! $optometrist->isOptometrist()) {
             return false;
         }
 

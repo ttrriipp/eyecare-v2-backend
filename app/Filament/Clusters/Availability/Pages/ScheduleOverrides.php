@@ -178,7 +178,7 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
     {
         $user = auth()->user();
 
-        if (! $user?->isAdmin() && ! $user?->is_optometrist) {
+        if (! $user?->isAdmin() && ! $user?->isOptometrist()) {
             Notification::make()->title('You don\'t have permission to manage schedule overrides')->danger()->send();
 
             return;

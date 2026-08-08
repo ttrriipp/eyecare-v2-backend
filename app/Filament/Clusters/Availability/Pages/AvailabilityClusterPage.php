@@ -16,7 +16,7 @@ abstract class AvailabilityClusterPage extends Page
     {
         $user = auth()->user();
 
-        return $user?->isAdmin() || $user?->is_optometrist;
+        return $user?->isAdmin() || $user?->isOptometrist();
     }
 
     /**

@@ -300,7 +300,7 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-play')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
-                    && auth()->user()?->is_optometrist === true)
+                    && auth()->user()?->isOptometrist() === true)
                 ->requiresConfirmation()
                 ->schema(fn (): array => [
                     Select::make('optometrist_id')

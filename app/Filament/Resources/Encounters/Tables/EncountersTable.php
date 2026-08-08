@@ -80,7 +80,7 @@ class EncountersTable
                         ->icon('heroicon-o-play')
                         ->color('warning')
                         ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned
-                            && auth()->user()?->is_optometrist === true)
+                            && auth()->user()?->isOptometrist() === true)
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
                         ->modalDescription('Select the optometrist and start the consultation.')

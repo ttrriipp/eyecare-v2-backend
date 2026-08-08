@@ -23,7 +23,7 @@ class StartEncounter
             ]);
         }
 
-        if (! $optometrist->is_optometrist) {
+        if (! $optometrist->isOptometrist()) {
             throw ValidationException::withMessages([
                 'optometrist_id' => ['The selected user is not an optometrist.'],
             ]);
