@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
  * Demo accounts for local development.
  *
  * Credentials (all passwords: password):
- *   Admin + Optometrist — admin-optometrist@eyecare.test / password
+ *   Admin + Optometrist — owner@eyecare.test / password
  *   Admin (plain)       — admin@eyecare.test / password
  *   Optometrist         — optometrist@eyecare.test / password
  *   Staff               — staff@eyecare.test / password
@@ -34,7 +34,7 @@ class DemoUserSeeder extends Seeder
     private function createAdminOptometrist(): void
     {
         $user = User::query()->firstOrCreate(
-            ['email' => 'admin-optometrist@eyecare.test'],
+            ['email' => 'owner@eyecare.test'],
             [
                 'first_name' => 'Maria',
                 'last_name' => 'Santos',
