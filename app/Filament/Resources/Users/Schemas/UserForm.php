@@ -75,10 +75,6 @@ class UserForm
                             ->maxItems(2)
                             ->disabled(fn (?User $record): bool => $record?->id === auth()->id())
                             ->dehydrated(fn (?User $record): bool => $record?->id !== auth()->id())
-                            ->helperText(fn (?User $record): ?string => $record?->id === auth()->id()
-                                ? 'You cannot change your own role.'
-                                : 'Select one or two roles. Admin+Optometrist is valid for dual-duty accounts.'
-                            )
                             ->validationAttribute('role combination'),
                     ]),
 
