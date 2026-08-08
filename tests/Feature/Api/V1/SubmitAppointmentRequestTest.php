@@ -3,6 +3,7 @@
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\PatientAccountContact;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
@@ -11,6 +12,20 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
+
+/**
+ * Create a user with the patient role but without a linked Patient record.
+ * Simulates an unlinked patient account for appointment request testing.
+ */
+function unlinkedPatientUser(array $attributes = []): User
+{
+    $user = User::factory()->create($attributes);
+    $user->roles()->sync(
+        Role::query()->where('name', Role::Patient)->pluck('id'),
+    );
+
+    return $user;
+}
 
 beforeEach(function () {
     Carbon::setTestNow('2026-07-10 08:00:00');
@@ -22,7 +37,7 @@ beforeEach(function () {
 afterEach(fn () => Carbon::setTestNow());
 
 test('unlinked account can read appointment request availability', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
 
     $response = $this->actingAs($user)
         ->getJson('/api/v1/appointment-request-availability?date=2026-07-13');
@@ -110,7 +125,7 @@ test('linked account can submit an appointment request', function () {
 });
 
 test('unlinked account can submit an appointment request', function () {
-    $user = User::factory()->patient()->create([
+    $user = unlinkedPatientUser([
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
@@ -139,7 +154,7 @@ test('unlinked account can submit an appointment request', function () {
 });
 
 test('unlinked account snapshots its expanded appointment identity', function () {
-    $user = User::factory()->patient()->create([
+    $user = unlinkedPatientUser([
         'email' => null,
     ]);
 
@@ -190,7 +205,7 @@ test('unlinked account snapshots its expanded appointment identity', function ()
 });
 
 test('unlinked account can submit an appointment identity without an email', function () {
-    $user = User::factory()->patient()->create([
+    $user = unlinkedPatientUser([
         'email' => null,
     ]);
 
@@ -221,7 +236,7 @@ test('unlinked account can submit an appointment identity without an email', fun
 });
 
 test('expanded appointment identity requires all non-email fields', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')
@@ -250,7 +265,7 @@ test('expanded appointment identity requires all non-email fields', function () 
 });
 
 test('appointment identity rejects unknown patient claims', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')
@@ -279,7 +294,7 @@ test('appointment identity rejects unknown patient claims', function () {
 });
 
 test('unlinked appointment identity phone must match the verified account phone', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
 
     PatientAccountContact::factory()
         ->phone('+639171234567')
@@ -307,7 +322,7 @@ test('unlinked appointment identity phone must match the verified account phone'
 });
 
 test('request requires reason for visit', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/appointment-requests', [
@@ -319,7 +334,7 @@ test('request requires reason for visit', function () {
 });
 
 test('request rejects unavailable slot', function () {
-    $user = User::factory()->patient()->create();
+    $user = unlinkedPatientUser();
     $optometrist = User::factory()->optometrist()->create();
 
     // Create an existing appointment at 10:00
