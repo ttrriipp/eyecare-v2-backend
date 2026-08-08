@@ -55,6 +55,8 @@ class AuthController extends Controller
                 'role_id' => $patientRole->id,
             ]);
 
+            $user->roles()->sync([$patientRole->id]);
+
             $patient = Patient::query()->create([
                 'user_id' => $user->id,
                 'first_name' => $firstName,

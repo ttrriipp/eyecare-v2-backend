@@ -199,6 +199,8 @@ class RegisterPatientAccount
                 'privacy_acknowledged_at' => now(),
             ]);
 
+            $user->roles()->sync([$role->id]);
+
             PatientAccountContact::create([
                 'user_id' => $user->id,
                 'type' => $contactType,

@@ -97,6 +97,8 @@ class AcceptPatientInvitation
                     'role_id' => $role->id,
                 ]);
 
+                $user->roles()->sync([$role->id]);
+
                 PatientAccountContact::create([
                     'user_id' => $user->id,
                     'type' => $invitation->channel,
