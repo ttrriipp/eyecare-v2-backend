@@ -99,7 +99,8 @@ class EditAppointment extends EditRecord
                 ->icon('heroicon-o-play')
                 ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in'
-                    && $this->getRecord()->encounter?->status === EncounterStatus::Planned)
+                    && $this->getRecord()->encounter?->status === EncounterStatus::Planned
+                    && auth()->user()?->isOptometrist() === true)
                 ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
                 ->modalDescription('Select the optometrist and start the consultation.')

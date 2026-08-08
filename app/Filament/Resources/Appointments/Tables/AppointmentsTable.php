@@ -133,7 +133,8 @@ class AppointmentsTable
                         ->icon('heroicon-o-play')
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in'
-                            && $record->encounter?->status === EncounterStatus::Planned)
+                            && $record->encounter?->status === EncounterStatus::Planned
+                            && auth()->user()?->isOptometrist() === true)
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
                         ->modalDescription('Select the optometrist and start the consultation.')

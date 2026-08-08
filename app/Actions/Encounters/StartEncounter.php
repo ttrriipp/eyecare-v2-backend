@@ -23,6 +23,12 @@ class StartEncounter
             ]);
         }
 
+        if (! $actor->isOptometrist()) {
+            throw ValidationException::withMessages([
+                'actor' => ['Only an optometrist can start an encounter.'],
+            ]);
+        }
+
         if (! $optometrist->isOptometrist()) {
             throw ValidationException::withMessages([
                 'optometrist_id' => ['The selected user is not an optometrist.'],
