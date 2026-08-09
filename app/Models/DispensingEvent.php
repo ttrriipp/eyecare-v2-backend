@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'recipient_name',
     'notes',
     'dispensed_at',
+    'released_balance_amount',
+    'balance_override_by',
+    'balance_override_reason',
+    'balance_due_date',
 ])]
 class DispensingEvent extends Model
 {
@@ -44,12 +48,22 @@ class DispensingEvent extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function balanceOverrideBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'balance_override_by');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'dispensed_at' => 'datetime',
+            'released_balance_amount' => 'decimal:2',
+            'balance_due_date' => 'date',
         ];
     }
 }

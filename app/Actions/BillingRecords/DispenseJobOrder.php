@@ -34,6 +34,9 @@ class DispenseJobOrder
         ?float $pickupPaymentAmount = null,
         ?string $pickupPaymentMethod = null,
         ?string $pickupPaymentReference = null,
+        ?bool $adminOverride = false,
+        ?string $overrideReason = null,
+        ?string $overrideDueDate = null,
     ): DispensingEvent {
         if ($jobOrder->status !== JobOrderStatus::ReadyForDispensing) {
             throw ValidationException::withMessages([
@@ -41,7 +44,7 @@ class DispenseJobOrder
             ]);
         }
 
-        return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $pickupPaymentAmount, $pickupPaymentMethod, $pickupPaymentReference): DispensingEvent {
+        return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $pickupPaymentAmount, $pickupPaymentMethod, $pickupPaymentReference, $adminOverride, $overrideReason, $overrideDueDate): DispensingEvent {
             // Require existing active billing record (created at confirmation)
             $billingRecord = BillingRecord::query()
                 ->where('job_order_id', $jobOrder->id)
@@ -78,9 +81,24 @@ class DispenseJobOrder
 
             // Routine dispensing requires zero balance
             if ((float) $billingRecord->balance_due > 0) {
-                throw ValidationException::withMessages([
-                    'billing_record' => ['The billing record has an outstanding balance of '.number_format((float) $billingRecord->balance_due, 2).'. Record full payment before dispensing.'],
-                ]);
+                if ($adminOverride && $dispenser->isAdmin()) {
+                    // Admin override: require reason and due date
+                    if (blank($overrideReason)) {
+                        throw ValidationException::withMessages([
+                            'override_reason' => ['Provide a reason for releasing with an outstanding balance.'],
+                        ]);
+                    }
+
+                    if (blank($overrideDueDate)) {
+                        throw ValidationException::withMessages([
+                            'override_due_date' => ['Provide a payment due date for the outstanding balance.'],
+                        ]);
+                    }
+                } else {
+                    throw ValidationException::withMessages([
+                        'billing_record' => ['The billing record has an outstanding balance of '.number_format((float) $billingRecord->balance_due, 2).'. Record full payment before dispensing.'],
+                    ]);
+                }
             }
 
             // Update job order status to dispensed
@@ -93,6 +111,10 @@ class DispenseJobOrder
                 'dispensed_by' => $dispenser->id,
                 'recipient_name' => $recipientName,
                 'notes' => $notes,
+                'released_balance_amount' => (float) $billingRecord->balance_due,
+                'balance_override_by' => $adminOverride ? $dispenser->id : null,
+                'balance_override_reason' => $adminOverride ? $overrideReason : null,
+                'balance_due_date' => $adminOverride ? $overrideDueDate : null,
             ]);
 
             // Audit
