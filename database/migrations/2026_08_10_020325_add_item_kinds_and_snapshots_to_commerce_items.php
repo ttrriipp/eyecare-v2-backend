@@ -23,11 +23,11 @@ return new class extends Migration
         $this->backfillItemKinds();
 
         Schema::table('quotation_items', function (Blueprint $table) {
-            $table->string('item_kind', 30)->nullable(false)->change();
+            $table->string('item_kind', 30)->default(CommercialItemKind::CustomProduct->value)->nullable(false)->change();
         });
 
         Schema::table('job_order_items', function (Blueprint $table) {
-            $table->string('item_kind', 30)->nullable(false)->change();
+            $table->string('item_kind', 30)->default(CommercialItemKind::CustomProduct->value)->nullable(false)->change();
         });
     }
 
