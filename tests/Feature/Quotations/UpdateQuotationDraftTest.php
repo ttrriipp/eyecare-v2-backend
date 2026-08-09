@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Quotations\UpdateQuotationDraft;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -30,6 +31,7 @@ test('draft quotation items and totals can be updated', function () {
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $variant = ProductVariant::factory()->create();
@@ -63,6 +65,7 @@ test('valid_until and notes can be cleared by omitting them from the payload', f
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
@@ -96,6 +99,7 @@ test('editing presented quotation returns it to draft and clears presentation me
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
@@ -146,8 +150,8 @@ test('items are replaced atomically on update', function () {
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
 
     $quotation->items()->createMany([
-        ['description' => 'Old item 1', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000],
-        ['description' => 'Old item 2', 'quantity' => 1, 'unit_price' => 2000, 'amount' => 2000],
+        ['description' => 'Old item 1', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000, 'item_kind' => CommercialItemKind::CustomProduct],
+        ['description' => 'Old item 2', 'quantity' => 1, 'unit_price' => 2000, 'amount' => 2000, 'item_kind' => CommercialItemKind::CustomProduct],
     ]);
 
     app(UpdateQuotationDraft::class)->handle($quotation, [

@@ -41,6 +41,13 @@ class UpdateQuotationDraft
                 $hasProductReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
                 $itemType = $hasProductReference ? TransactionItemType::Product : TransactionItemType::Service;
 
+                // Build immutable catalog snapshot
+                $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
+                    productVariantId: $item['product_variant_id'] ?? null,
+                    lensCategoryId: $item['lens_category_id'] ?? null,
+                    serviceId: $item['service_id'] ?? null,
+                );
+
                 return [
                     'description' => trim($item['description']),
                     'quantity' => (int) $item['quantity'],
@@ -50,6 +57,8 @@ class UpdateQuotationDraft
                     'lens_category_id' => $item['lens_category_id'] ?? null,
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_type' => $itemType,
+                    'item_kind' => $snapshotResult['item_kind'],
+                    'item_snapshot' => $snapshotResult['item_snapshot'],
                     'amount_in_cents' => $amountInCents,
                 ];
             });

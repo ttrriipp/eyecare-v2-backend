@@ -2,6 +2,7 @@
 
 use App\Actions\Quotations\CreateQuotation;
 use App\Actions\Quotations\UpdateQuotationDraft;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\Encounter;
@@ -114,6 +115,7 @@ test('update preserves item types', function () {
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
