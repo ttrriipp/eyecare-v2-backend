@@ -51,4 +51,28 @@ class QuotationItemFactory extends Factory
             'item_kind' => CommercialItemKind::Service,
         ]);
     }
+
+    public function frame(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Product,
+            'item_kind' => CommercialItemKind::Frame,
+        ]);
+    }
+
+    public function lensPackage(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Product,
+            'item_kind' => CommercialItemKind::LensPackage,
+        ]);
+    }
+
+    public function contactLens(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'item_type' => TransactionItemType::Product,
+            'item_kind' => CommercialItemKind::ContactLens,
+        ]);
+    }
 }

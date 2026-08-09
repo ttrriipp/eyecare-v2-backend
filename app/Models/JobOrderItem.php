@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CommercialItemKind;
 use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'product_variant_id',
     'lens_category_id',
     'item_type',
+    'item_kind',
+    'item_snapshot',
 ])]
 class JobOrderItem extends Model
 {
@@ -36,6 +39,8 @@ class JobOrderItem extends Model
     {
         return [
             'item_type' => TransactionItemType::class,
+            'item_kind' => CommercialItemKind::class,
+            'item_snapshot' => 'array',
         ];
     }
 

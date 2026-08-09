@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CommercialItemKind;
 use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'lens_category_id',
     'service_id',
     'item_type',
+    'item_kind',
+    'item_snapshot',
 ])]
 class QuotationItem extends Model
 {
@@ -50,6 +53,8 @@ class QuotationItem extends Model
     {
         return [
             'item_type' => TransactionItemType::class,
+            'item_kind' => CommercialItemKind::class,
+            'item_snapshot' => 'array',
         ];
     }
 
