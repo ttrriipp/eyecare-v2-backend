@@ -79,14 +79,7 @@ test('overpayment is rejected', function () {
         recorder: $recorder,
         chargesReviewed: true,
     );
-
-    $record->refresh();
-
-    // Overpayment is allowed - balance goes to 0
-    expect($record->amount_paid)->toBe('6000.00')
-        ->and($record->balance_due)->toBe('0.00')
-        ->and($record->status)->toBe(BillingRecordStatus::Paid);
-});
+})->throws(ValidationException::class, 'exceeds the current balance');
 
 test('zero amount payment is rejected', function () {
     $recorder = User::factory()->create();

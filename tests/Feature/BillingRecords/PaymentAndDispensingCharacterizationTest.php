@@ -104,10 +104,8 @@ test('exact-balance payment sets status to paid', function () {
 
 // ─── Overpayment characterization ────────────────────────────────────────────
 
-test('overpayment currently clamps balance to zero instead of rejecting', function () {
-    // CHARACTERIZATION: This captures the current behavior where overpayment
-    // is allowed and balance clamps to zero. The spec requires this to be
-    // rejected (Task 25).
+test('overpayment is rejected', function () {
+    // UPDATED: Overpayment is now rejected per spec (Task 25).
     $record = BillingRecord::factory()->create([
         'total_amount' => 5000,
         'amount_paid' => 0,
@@ -122,14 +120,7 @@ test('overpayment currently clamps balance to zero instead of rejecting', functi
         recorder: $this->staff,
         chargesReviewed: true,
     );
-
-    $record->refresh();
-
-    // Current: overpayment is allowed, balance clamps to 0
-    expect((float) $record->amount_paid)->toBe(6000.0)
-        ->and((float) $record->balance_due)->toBe(0.0)
-        ->and($record->status)->toBe(BillingRecordStatus::Paid);
-});
+})->throws(ValidationException::class, 'exceeds the current balance');
 
 // ─── First payment charge locking ────────────────────────────────────────────
 

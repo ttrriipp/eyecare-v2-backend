@@ -57,7 +57,14 @@ class RecordBillingPayment
                 ]);
             }
 
-            $newBalance = max($locked->balance_due - $amount, 0);
+            // Reject overpayment
+            if ($amount > (float) $locked->balance_due) {
+                throw ValidationException::withMessages([
+                    'amount' => ['Payment amount exceeds the current balance of '.number_format((float) $locked->balance_due, 2).'.'],
+                ]);
+            }
+
+            $newBalance = (float) $locked->balance_due - $amount;
 
             $payment = BillingPayment::query()->create([
                 'billing_record_id' => $locked->id,
