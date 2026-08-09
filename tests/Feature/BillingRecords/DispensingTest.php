@@ -35,12 +35,8 @@ test('dispensing reuses existing billing record', function () {
         'supplier_invoice_number' => 'INV-001',
     ]);
 
-    $billingRecord = BillingRecord::factory()->create([
+    $billingRecord = BillingRecord::factory()->paid()->create([
         'job_order_id' => $jobOrder->id,
-        'status' => BillingRecordStatus::Unpaid,
-        'total_amount' => 5000,
-        'amount_paid' => 0,
-        'balance_due' => 5000,
     ]);
 
     $event = app(DispenseJobOrder::class)->handle(
@@ -118,7 +114,7 @@ test('dispensing records event with recipient and notes', function () {
         'supplier_invoice_number' => 'INV-005',
     ]);
 
-    BillingRecord::factory()->create([
+    BillingRecord::factory()->paid()->create([
         'job_order_id' => $jobOrder->id,
     ]);
 

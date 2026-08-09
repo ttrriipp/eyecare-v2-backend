@@ -61,6 +61,28 @@ class DispenseJobOrder
                 ]);
             }
 
+            // Record pickup payment first (if any) to clear balance
+            if ($pickupPaymentAmount !== null && $pickupPaymentAmount > 0) {
+                app(RecordBillingPayment::class)->handle(
+                    billingRecord: $billingRecord,
+                    amount: $pickupPaymentAmount,
+                    paymentMethod: $pickupPaymentMethod ?? 'cash',
+                    recorder: $dispenser,
+                    referenceNumber: $pickupPaymentReference,
+                    notes: 'Payment at dispensing',
+                    chargesReviewed: true,
+                );
+
+                $billingRecord->refresh();
+            }
+
+            // Routine dispensing requires zero balance
+            if ((float) $billingRecord->balance_due > 0) {
+                throw ValidationException::withMessages([
+                    'billing_record' => ['The billing record has an outstanding balance of '.number_format((float) $billingRecord->balance_due, 2).'. Record full payment before dispensing.'],
+                ]);
+            }
+
             // Update job order status to dispensed
             $this->updateJobOrderStatus->handle($jobOrder, 'dispensed');
 
@@ -72,19 +94,6 @@ class DispenseJobOrder
                 'recipient_name' => $recipientName,
                 'notes' => $notes,
             ]);
-
-            // Record optional pickup payment
-            if ($pickupPaymentAmount !== null && $pickupPaymentAmount > 0) {
-                app(RecordBillingPayment::class)->handle(
-                    billingRecord: $billingRecord,
-                    amount: $pickupPaymentAmount,
-                    paymentMethod: $pickupPaymentMethod ?? 'cash',
-                    recorder: $dispenser,
-                    referenceNumber: $pickupPaymentReference,
-                    notes: 'Payment at dispensing',
-                    chargesReviewed: true,
-                );
-            }
 
             // Audit
             app(CreateAuditLog::class)->handle(
