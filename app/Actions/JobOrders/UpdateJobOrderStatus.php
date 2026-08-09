@@ -60,6 +60,17 @@ class UpdateJobOrderStatus
             }
         }
 
+        // Corrective orders require verification before Ready for Pickup
+        if ($newStatus === JobOrderStatus::ReadyForDispensing) {
+            $spec = $jobOrder->eyewearSpecification;
+
+            if ($spec !== null && ! $spec->isVerified()) {
+                throw ValidationException::withMessages([
+                    'status' => ['Verify the completed eyewear before marking ready for pickup.'],
+                ]);
+            }
+        }
+
         return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
             $attributes = ['status' => $newStatus];
 
