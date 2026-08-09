@@ -37,7 +37,7 @@ test('Service quotation item cannot have lens category', function () {
     QuotationItem::factory()->create([
         'item_type' => TransactionItemType::Service,
         'product_variant_id' => null,
-        'lens_category_id' => LensCategory::factory()->create()->id,
+        'lens_category_id' => LensCategory::factory()->withPrice()->create()->id,
     ]);
 });
 
@@ -55,7 +55,7 @@ test('Product quotation item can have lens category', function () {
     $item = QuotationItem::factory()->create([
         'item_type' => TransactionItemType::Product,
         'product_variant_id' => null,
-        'lens_category_id' => LensCategory::factory()->create()->id,
+        'lens_category_id' => LensCategory::factory()->withPrice()->create()->id,
     ]);
 
     expect($item->item_type)->toBe(TransactionItemType::Product);

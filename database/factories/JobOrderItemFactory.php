@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\CommercialItemKind;
 use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
@@ -31,6 +32,7 @@ class JobOrderItemFactory extends Factory
             'product_variant_id' => null,
             'lens_category_id' => null,
             'item_type' => TransactionItemType::Product,
+            'item_kind' => CommercialItemKind::CustomProduct,
         ];
     }
 
@@ -38,6 +40,7 @@ class JobOrderItemFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'item_type' => TransactionItemType::Product,
+            'item_kind' => CommercialItemKind::CustomProduct,
         ]);
     }
 
@@ -45,6 +48,7 @@ class JobOrderItemFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'item_type' => TransactionItemType::Service,
+            'item_kind' => CommercialItemKind::Service,
         ]);
     }
 }
