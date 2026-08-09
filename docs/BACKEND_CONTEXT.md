@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-07.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-09.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -10,42 +10,72 @@
 > with explicit charge provenance have been implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
-> Filament cluster (Clinic Hours, Optometrist Hours, Schedule Overrides —
-> the "Today" resolved-availability sub-page was built and then removed),
-> and a Service catalog was added so clinical/service charges no longer
-> need a product/lens-category workaround. `JobOrderResource` was folded
-> into `OpticalOrderResource` (index + edit only; creation happens via
-> quotation confirm-sale or the new "New Direct Order" direct-creation
-> flow). Quotation confirm-sale, Encounter service charges, and direct
-> Billing Record charges now share one open checkout per patient
-> visit instead of creating duplicate billing records per source. Staff
-> can reserve frames from any scheduled appointment regardless of source
-> (mobile, walk-in, or manually created), not just mobile-originated ones.
-> A frame reservation is a strictly before-the-visit tool — an appointment
-> gets exactly one, ever (DB-level unique constraint on `appointment_id`);
-> staff can add/remove candidate frames on that one reservation up to
-> `tried_on`, mark it tried on, and reservation expiration is now actually
-> wired up (`expires_at` is stamped at prepare time and `reservations:expire`
-> runs on a schedule — both existed structurally before but neither was
-> connected). Confirm Sale converts a selected reservation's held stock into
-> the resulting Optical Order instead of committing it a second time. The
-> Patient record gained Encounters, Optical Orders, and Billing tabs
-> alongside the existing Prescriptions/Appointments/Health Record/Invitation
-> History ones, so staff no longer have to leave the patient page to see
-> commercial history. Patient app-invitation delivery is phone/SMS only
-> (email invitation delivery was removed) so the invitation-acceptance trust
-> anchor matches the verified login contact. The API contract includes 53
-> routes (8 public, 24 account-only, 21 active-link) — 52 after the
-> `job-order-items/{id}/rating` legacy alias was added to the count on
-> 2026-08-07, then 53 once visit feedback's `POST /appointments/{id}/rating`
-> shipped the same day. Legacy intake routes,
-> direct booking, job-orders, eyewear, and billing-records API routes have
-> been removed. All accounts use structured first/middle/last names.
-> Staff/admin accounts now own their own credentials (Filament `->profile()`
-> and `->passwordReset()`, replacing admin-typed passwords), support
-> forced-password-change on admin-issued credentials, can be deactivated
-> without being deleted, and have login/logout/failed-login activity
-> audited — see "Account ownership and lifecycle" below.
+> Filament cluster (Clinic Hours, Optometrist Hours, Schedule Overrides,
+> Appointment Types — the "Today" resolved-availability sub-page was built
+> and then removed), and a Service catalog was added so clinical/service
+> charges no longer need a product/lens-category workaround.
+> `JobOrderResource` was folded into `OpticalOrderResource` (index + edit
+> only; creation happens via quotation confirm-sale or the new "New Direct
+> Order" direct-creation flow). Quotation confirm-sale, Encounter service
+> charges, and direct Billing Record charges now share one open checkout
+> per patient visit instead of creating duplicate billing records per
+> source. Staff can reserve frames from any scheduled appointment
+> regardless of source (mobile, walk-in, or manually created), not just
+> mobile-originated ones. A frame reservation is a strictly
+> before-the-visit tool — an appointment gets exactly one, ever (DB-level
+> unique constraint on `appointment_id`); staff can add/remove candidate
+> frames on that one reservation up to `tried_on`, mark it tried on, and
+> reservation expiration is now actually wired up (`expires_at` is stamped
+> at prepare time and `reservations:expire` runs on a schedule — both
+> existed structurally before but neither was connected). Confirm Sale
+> converts a selected reservation's held stock into the resulting Optical
+> Order instead of committing it a second time. The Patient record gained
+> Encounters, Optical Orders, and Billing tabs alongside the existing
+> Prescriptions/Appointments/Health Record/Invitation History ones, so
+> staff no longer have to leave the patient page to see commercial history.
+> Patient app-invitation delivery is phone/SMS only (email invitation
+> delivery was removed) so the invitation-acceptance trust anchor matches
+> the verified login contact.
+>
+> **Shipped (2026-08-09): variable-duration appointment scheduling.**
+> Patients now select an active, patient-visible appointment type before
+> choosing time preferences. Availability uses that type's duration on a
+> 15-minute start grid. Pending requests are non-binding and never consume
+> capacity. Acceptance atomically creates one conflict-free appointment
+> with a final provider, start time, type, and duration snapshot. Six
+> canonical types are seeded: New Patient (45m), Follow-up (15m), Routine
+> Check-up (30m), Problem/Urgent Visit (30m), Contact Lens Consultation
+> (45m), Referral (45m, requires referral source). The API contract
+> includes 55 routes (8 public, 26 account-only, 21 active-link). New
+> endpoints: `GET /appointment-types` (restored, patient-visible catalog),
+> `GET /appointment-optometrists` (patient-safe provider catalog). Modified
+> endpoints: `GET /appointment-request-availability` (now requires
+> `appointment_type_id`), `POST
+> /appointment-requests` (now requires `appointment_type_id`, accepts
+> alternatives, conditional referral source). The
+> admin Availability cluster gained an Appointment Types resource for
+> type configuration (admin-only). Staff appointment forms now expose an
+> editable duration field with 5-minute increments. Request acceptance
+> requires final provider assignment under schedule-date lock with
+> deadlock retries.
+>
+> **Shipped (2026-08-09): practical clinical encounter workflow.**
+> Refactored encounter lifecycle into a provider-owned, four-step
+> autosaving wizard (History, Examination, Assessment & Plan, Review &
+> Complete). Check-in no longer attaches PatientIntake; copies assigned
+> provider and prefills chief complaint from appointment reason. Start
+> uses self-claim pattern (actor becomes provider when unassigned).
+> `EncounterPolicy` enforces the full role matrix. Completion requires
+> `chief_complaint`, `findings`, `assessment`, and `plan`; only the
+> assigned active optometrist can complete. Optional prescription
+> finalizes atomically in the same transaction. New columns: encrypted
+> `assessment` and `supporting_test_results` on `encounters`. New table:
+> `encounter_addenda` for immutable post-completion corrections
+> (original author only) and supplements (any active optometrist).
+> Print route at `GET /encounters/{id}/print` with audit logging.
+> New actions: `SaveEncounterDraft`, `AssignEncounterOptometrist`,
+> `TransferEncounter`, `CreateEncounterAddendum`.
+> Spec/plan/tasks live in `docs/specs/encounter-workflow-{spec,plan,tasks}.md`.
 >
 > **Shipped (2026-08-07): patient-submitted visit feedback.** One 1–5 star
 > rating + optional comment per *fulfilled appointment*, with the optometrist
@@ -150,7 +180,15 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Appointments: view, create, check-in, reschedule, cancel, no-show | Yes | Yes | Yes |
 | Appointments: bulk cancellation | No | No | Yes |
 | Encounters: view | Yes | Yes | Yes |
-| Encounters: start and complete | No | Yes | No |
+| Encounters: assign planned | Yes | Yes | Yes |
+| Encounters: start (assigned/self-claim) | No | Yes | No |
+| Encounters: edit in-progress draft | No | Assigned only | No |
+| Encounters: complete | No | Assigned only | No |
+| Encounters: transfer as provider | No | Yes | No |
+| Encounters: transfer as admin | No | No | Yes |
+| Encounters: add correction | No | Original completer | No |
+| Encounters: add supplement | No | Yes | No |
+| Encounters: print | Yes | Yes | Yes |
 | Prescriptions: view | Yes | Yes | Yes |
 | Prescriptions: create, finalize, and amend | No | Yes | No |
 | Quotations: create, revise, present, decide, confirm sale | Yes | Yes | Yes |
@@ -164,6 +202,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Team accounts and role assignments | No | No | Yes |
 | Audit logs and privacy administration | No | No | Yes |
 | Clinic-wide availability configuration | No | No | Yes |
+| Appointment type configuration | No | No | Yes |
 | Own provider hours and own provider absences | No | Yes | No |
 | Any provider's hours/absence overrides | No | No | Yes |
 
@@ -207,7 +246,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 |---|---|
 | `roles` | admin, optometrist, staff, patient |
 | `appointment_statuses` | scheduled, checked_in, fulfilled, cancelled, no_show |
-| `appointment_types` | New Patient (30m), Follow-up (15m), Routine Check-up (30m), Referral (30m) |
+| `appointment_types` | New Patient (45m), Follow-up (15m), Routine Check-up (30m), Problem/Urgent Visit (30m), Contact Lens Consultation (45m), Referral (45m, requires referral). Added `patient_label`, `patient_description`, `is_patient_visible` for mobile catalog. |
 | `inventory_movement_types` | restock, manual_adjustment, reservation_allocation, reservation_release, order_commitment, order_reversal, damaged |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
 | `notification_statuses` | queued, sent, failed, cancelled |
@@ -224,12 +263,13 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id`, `appointment_id` (unique), `scheduled_at`, `provisional_duration_minutes`, encrypted `reason_for_visit`, encrypted `identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at`, `resolved_by_user_id`, `resolved_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (unique), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required when type requires referral), `encrypted_identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time for new requests), `resolved_by_user_id`, `resolved_at`. Pending requests are non-binding and never consume capacity. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
-| `encounters` | `patient_id`, `appointment_id`, `patient_intake_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `completed_by`. |
+| `encounters` | `patient_id`, `appointment_id`, `patient_intake_id` (nullable, legacy), `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
+| `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `service_id`, `item_type` (product/service). |
@@ -267,7 +307,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Appointments:** `scheduled → checked_in → fulfilled` (terminal). `cancelled` and `no_show` are terminal from `scheduled` or `checked_in`. Check-in creates an Encounter transactionally.
 
-**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only optometrists can start/complete. The in-progress Encounter page is the only normal entry point for finalizing its first prescription.
+**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only active assigned optometrists can start (self-claim if unassigned) and complete. Starting synchronizes provider to Appointment. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; fulfills the Appointment atomically. Optional prescription finalizes in the same transaction. Completed encounters are immutable; corrections/supplements use append-only addenda.
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create job orders. No revisions.
 
@@ -288,7 +328,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 **Navigation groups (in order), workflow-shaped rather than by data domain:**
 - Today — Appointments, Appointment Requests, Availability (cluster)
 - Patients — Patient Records, Patient Accounts, Link Requests, Conversations, Visit Feedback
-- Clinical — Encounters, Prescriptions
+- Clinical — Encounters (4-step wizard, provider-owned), Prescriptions
 - Optical — Quotations, Optical Orders, Frame Reservations, Frame Ratings
 - Billing — Billing & Payments, Appointments Report
 - Catalog — Products, Inventory History, Reorder Report, Brands, Lens Categories, Product Categories, Services
@@ -300,6 +340,7 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 - **Clinic Hours** — weekly `clinic_hours` schedule.
 - **Optometrist Hours** — per-optometrist `provider_hours` schedule.
 - **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete; the upcoming-overrides list is a real Filament table (`HasTable`/`InteractsWithTable` on the page), not hand-rolled HTML.
+- **Appointment Types** (admin-only resource) — manages appointment type labels, description, duration (5-minute step, 5–240 range), referral requirement, patient visibility, and active state. Referenced types cannot be destructively deleted.
 
 **Patient Record tabs** (`app/Filament/Resources/Patients/RelationManagers/`): Prescriptions, Appointments, **Encounters**, **Optical Orders**, **Billing**, Health Record, Invitation History — all read-only lists with a `ViewAction` linking out to the full resource page. Encounters/Optical Orders reuse the existing `Patient::encounters()`/`jobOrders()` relations; Billing required a new `Patient::billingRecords()` relation.
 
@@ -395,7 +436,12 @@ POST   /api/v1/optical-order-items/{id}/rating
 POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (same controller)
 ```
 
-**Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**
+**Route count:** 8 public + 26 account-only + 21 active-link = **55 routes total.**
+
+> **Updated 2026-08-09 (was 53).** Added `GET /appointment-types` (restored
+> patient-visible catalog) and `GET /appointment-optometrists` (patient-safe
+> provider catalog) to the account-only tier. Both are account-only, no
+> active link required.
 
 > **Corrected 2026-08-07 (was 51).** `routes/api.php` registers the frame-rating
 > endpoint twice — under both `optical-order-items/{item}/rating` and
@@ -409,9 +455,10 @@ POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (s
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
-- `GET /appointment-types` removed (internal only)
 - Direct `POST /appointments` removed (use appointment requests)
 - Three intake routes removed (retired)
+- `GET /appointment-types` restored as patient-visible (was previously removed as internal-only)
+- `POST /appointment-requests` now requires `appointment_type_id` (coordinated contract change)
 
 All patient-specific clinical resource access is scoped through the authenticated account's linked patient identity. The frame catalog is account-level catalog data; unlinked accounts may browse it but cannot create frame reservations. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
 
@@ -437,10 +484,10 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Verifies OTP, creates/reuses account, activates link |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
-| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with hold, validates slot availability, persists encrypted identity snapshot for unlinked accounts |
+| `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with type-based duration snapshot, validates all time preferences for availability, persists alternatives, encrypted referral source, and latest-preference expiry; does NOT create capacity holds |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Ownership check, status validation |
-| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment, copies reason, idempotent; re-validates availability against the chosen appointment type's real duration before creating it, since the mobile request only ever held a provisional 30-minute block and the real type/duration is picked here |
+| `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment with final provider, type, duration, and start under schedule-date lock with deadlock retries; enforces referral and outside-preference contact note rules; idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
@@ -464,6 +511,10 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `AddEncounterChargesToBilling` | `app/Actions/BillingRecords/` | Adds service-line charges from the Encounter edit page's "Add Service Charge" action to the visit's open Billing Record |
 | `AddDirectServiceChargesToBilling` | `app/Actions/BillingRecords/` | Adds service-line charges directly from the Billing Records list, independent of an encounter or optical order |
 | `AuditLegacyPatientIntakes` | `app/Actions/Encounters/` | Reports cleanup readiness for legacy intake data |
+| `SaveEncounterDraft` | `app/Actions/Encounters/` | Validates and persists partial encounter drafts; trims and caps narrative at 10,000 characters; enforces assigned-optometrist-only access |
+| `AssignEncounterOptometrist` | `app/Actions/Encounters/` | Assigns an active optometrist to a planned Encounter and synchronizes Appointment provider in one locked transaction |
+| `TransferEncounter` | `app/Actions/Encounters/` | Transfers in-progress Encounter to a different active optometrist; preserves draft data; audit-logs identifiers and reason category only |
+| `CreateEncounterAddendum` | `app/Actions/Encounters/` | Creates append-only correction or supplement on a completed Encounter; locks parent for sequence allocation; enforces type-specific authorization |
 | `PrunePatientAccountData` | `app/Actions/PatientAccounts/` | Prunes expired OTPs, tokens, invitations, terminal requests |
 | `CreateScheduledAppointment` | `app/Actions/Appointments/` | Creates appointment from mobile API with availability checks |
 | `VerifyPatientIntake` | `app/Actions/Intakes/` | Records verifier/time, locks snapshot |
@@ -486,12 +537,15 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 
 - **Phone number format:** All phone numbers are stored in `+63XXXXXXXXXX` format. The `Patient` and `User` models have mutators that automatically normalize phone numbers using `NormalizeContact::phone()`. Filament forms display a non-removable `+63` prefix and store the full formatted value.
 - **Appointment source values:** `mobile` (patient books via Android app), `walk_in` (patient physically at clinic), `manual` (staff creates in admin panel). Set automatically — not a user-facing dropdown.
-- **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Referring source appears when appointment type is Referral. Notes is a single staff_notes field.
-- **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type, date/time, referring source, notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment.
+- **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Appointment type select applies default duration reactively; duration is editable in 5-minute increments (5–240) for scheduled appointments. Referring source appears when the selected type `requires_referral`. Notes is a single staff_notes field. Walk-ins remain exempt from grid and future-time validation.
+- **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type (applies default duration on change), duration (editable in 5-minute increments), date/time, referring source (conditional on type), notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment. Changing type, duration, time, or provider before check-in must revalidate availability under the schedule lock.
 - **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, and date. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
 - **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant or lens category. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category pickers; an item may reference at most one of the three, and inactive services are rejected at validation time.
 - **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
 - **Encounter "Create Quotation":** The in-progress/completed Encounter edit page also offers **Create Quotation**, opening `CreateQuotation` with `?encounter=` — distinct from the Prescription-page path: it requires the encounter's current prescription to be finalized, and is capped at one quotation per encounter (hidden once one exists). The Prescription-page path has no such cap.
+- **Encounter workflow:** Four-step autosaving wizard (History, Examination, Assessment & Plan, Review & Complete). Check-in creates a planned Encounter without attaching PatientIntake, copies assigned provider, and prefills chief complaint from appointment reason. Start uses self-claim pattern — the actor becomes the provider when unassigned; only the assigned optometrist can start otherwise. Draft saves via `SaveEncounterDraft` trim and cap narrative at 10,000 characters. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; only the assigned active optometrist can complete. Optional prescription finalizes atomically in the same transaction. Completed encounters are immutable; corrections (original author only) and supplements (any active optometrist) use append-only `encounter_addenda` records.
+- **Encounter provider assignment:** Staff, optometrists, and admins can assign an active optometrist to a planned Encounter. In-progress transfer requires the current provider or admin. Encounter and Appointment provider IDs are always synchronized.
+- **Encounter printing:** `GET /encounters/{id}/print` returns an authenticated Blade view of the completed record with addenda. Each print records an `encounter.printed` audit event with identifiers only.
 - **Encounter billing:** The Encounter edit page offers **Add Service Charge** (posts service-line charges via `AddEncounterChargesToBilling`) and **View Billing Record**, both resolving to the single open Billing Record for that patient visit via `ResolveOpenCheckoutBillingRecord` — charges added after a Quotation sale is confirmed land on the same record instead of opening a second one.
 - **Reserve Frames:** The Appointment edit page offers a staff-initiated **Reserve Frames** action for any scheduled, not-yet-elapsed appointment without an active reservation, regardless of `source` (mobile/walk-in/manual) — reuses `CreateFrameReservation`, the same action the mobile API uses.
 - **Patient app invitations:** "Send App Invitation" is phone/SMS only; email is not an invitation delivery channel, since the verified phone is also the account's login contact. In `local`/`testing`, invitation codes are logged for `sail artisan pail` visibility, mirroring OTP delivery.
@@ -499,7 +553,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
-- **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks use Laravel's `encrypted` cast. Not queryable.
+- **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks/assessment/supporting_test_results/addenda reason/content use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.
 - **Inventory:** `stock_quantity` represents available stock. Preparing a reservation reduces available stock. Dispensing does not deduct again.
 - **Legacy tables:** `orders`, `order_items`, `order_statuses`, `billings`, `billing_items`, `billing_statuses`, `discount_types`, `payments`, `service_records` remain in the schema but have no canonical application consumers. They will be removed in a future cleanup migration.

@@ -19,6 +19,7 @@ class AppointmentRequestAvailabilityRequest extends FormRequest
     {
         return [
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'appointment_type_id' => ['required', 'integer', 'exists:appointment_types,id'],
         ];
     }
 }

@@ -67,6 +67,61 @@ test('shortened provider availability removes only affected capacity', function 
     expect($capacity)->toBe(2);
 });
 
+test('per-interval capacity excludes optometrists whose hours do not cover the interval', function () {
+    $opt1 = User::factory()->optometrist()->create();
+    $opt2 = User::factory()->optometrist()->create();
+
+    $date = Carbon::now()->next('monday');
+
+    // opt2 works only until 12:00
+    $opt2->providerHours()->where('weekday', 1)->update(['end_time' => '12:00']);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+
+    // Morning interval: both optometrists available
+    $morningStart = $date->copy()->setTime(10, 0);
+    $morningEnd = $date->copy()->setTime(10, 30);
+    expect($evaluator->eligibleOptometristCapacity($morningStart, $morningEnd))->toBe(2);
+
+    // Afternoon interval: only opt1 available
+    $afternoonStart = $date->copy()->setTime(13, 0);
+    $afternoonEnd = $date->copy()->setTime(13, 30);
+    expect($evaluator->eligibleOptometristCapacity($afternoonStart, $afternoonEnd))->toBe(1);
+});
+
+test('partial absence affects only overlapping intervals', function () {
+    $opt1 = User::factory()->optometrist()->create();
+    $opt2 = User::factory()->optometrist()->create();
+
+    $date = Carbon::now()->next('monday');
+
+    // opt2 has a partial absence from 10:00 to 12:00
+    ScheduleOverride::factory()->create([
+        'user_id' => $opt2->id,
+        'override_date' => $date->toDateString(),
+        'type' => 'provider_absence',
+        'start_time' => '10:00',
+        'end_time' => '12:00',
+    ]);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+
+    // Before absence: both available
+    $beforeStart = $date->copy()->setTime(9, 0);
+    $beforeEnd = $date->copy()->setTime(9, 30);
+    expect($evaluator->eligibleOptometristCapacity($beforeStart, $beforeEnd))->toBe(2);
+
+    // During absence: only opt1 available
+    $duringStart = $date->copy()->setTime(10, 0);
+    $duringEnd = $date->copy()->setTime(10, 30);
+    expect($evaluator->eligibleOptometristCapacity($duringStart, $duringEnd))->toBe(1);
+
+    // After absence: both available
+    $afterStart = $date->copy()->setTime(12, 0);
+    $afterEnd = $date->copy()->setTime(12, 30);
+    expect($evaluator->eligibleOptometristCapacity($afterStart, $afterEnd))->toBe(2);
+});
+
 test('patient API has no preferred-provider selection', function () {
     $user = User::factory()->patient()->create();
 

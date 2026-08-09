@@ -14,12 +14,17 @@ class StartEncounter
 {
     public function handle(
         Encounter $encounter,
-        User $optometrist,
         User $actor,
     ): Encounter {
         if ($encounter->status !== EncounterStatus::Planned) {
             throw ValidationException::withMessages([
                 'encounter' => ['Only planned encounters can be started.'],
+            ]);
+        }
+
+        if (! $actor->is_active) {
+            throw ValidationException::withMessages([
+                'actor' => ['Inactive accounts cannot start encounters.'],
             ]);
         }
 
@@ -29,13 +34,7 @@ class StartEncounter
             ]);
         }
 
-        if (! $optometrist->isOptometrist()) {
-            throw ValidationException::withMessages([
-                'optometrist_id' => ['The selected user is not an optometrist.'],
-            ]);
-        }
-
-        return DB::transaction(function () use ($encounter, $optometrist, $actor): Encounter {
+        return DB::transaction(function () use ($encounter, $actor): Encounter {
             $appointment = $encounter->appointment;
 
             if ($appointment === null || $appointment->status->name !== 'checked_in') {
@@ -44,12 +43,26 @@ class StartEncounter
                 ]);
             }
 
-            // Atomically update encounter
-            // Appointment stays checked_in while encounter is in_progress
+            // If assigned, only the assigned optometrist can start
+            if ($encounter->optometrist_id !== null && $encounter->optometrist_id !== $actor->id) {
+                throw ValidationException::withMessages([
+                    'actor' => ['Only the assigned optometrist can start this encounter.'],
+                ]);
+            }
+
+            // Self-claim if unassigned, otherwise keep existing assignment
+            $optometristId = $encounter->optometrist_id ?? $actor->id;
+
+            // Update encounter
             $encounter->update([
                 'status' => EncounterStatus::InProgress,
-                'optometrist_id' => $optometrist->id,
+                'optometrist_id' => $optometristId,
                 'started_at' => now(),
+            ]);
+
+            // Synchronize appointment provider
+            $appointment->update([
+                'optometrist_id' => $optometristId,
             ]);
 
             // Audit
@@ -58,7 +71,7 @@ class StartEncounter
                 action: AuditEvent::EncounterStarted->value,
                 metadata: [
                     'appointment_id' => $appointment->id,
-                    'optometrist_id' => $optometrist->id,
+                    'optometrist_id' => $optometristId,
                     'actor_id' => $actor->id,
                 ],
             );

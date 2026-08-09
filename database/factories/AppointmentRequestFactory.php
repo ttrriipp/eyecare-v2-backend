@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -17,14 +18,16 @@ class AppointmentRequestFactory extends Factory
     public function definition(): array
     {
         return [
-            'request_number' => null, // auto-generated
+            'request_number' => null,
             'user_id' => User::factory()->patient(),
             'patient_id' => null,
-            'appointment_type_id' => null,
+            'appointment_type_id' => AppointmentType::factory(),
             'appointment_id' => null,
             'scheduled_at' => now()->addDay(),
+            'alternative_scheduled_times' => null,
             'provisional_duration_minutes' => 30,
             'encrypted_reason_for_visit' => fake()->sentence(),
+            'encrypted_referring_source' => null,
             'encrypted_identity_snapshot' => null,
             'status' => AppointmentRequestStatus::Pending,
             'expires_at' => now()->addHours(24),
@@ -92,6 +95,25 @@ class AppointmentRequestFactory extends Factory
                 'verified_contact_hash' => hash('sha256', '09171234567'),
                 'submitted_at' => now()->toIso8601String(),
             ],
+        ]);
+    }
+
+    public function withAlternatives(): static
+    {
+        return $this->state([
+            'alternative_scheduled_times' => [
+                now()->addDay()->setTime(10, 30)->toISOString(),
+                now()->addDays(2)->setTime(9, 0)->toISOString(),
+            ],
+        ]);
+    }
+
+    public function legacy(): static
+    {
+        return $this->state([
+            'appointment_type_id' => null,
+            'alternative_scheduled_times' => null,
+            'encrypted_referring_source' => null,
         ]);
     }
 }

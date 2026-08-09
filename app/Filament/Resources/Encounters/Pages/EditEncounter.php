@@ -4,10 +4,15 @@ namespace App\Filament\Resources\Encounters\Pages;
 
 use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Actions\Encounters\CompleteEncounter;
+use App\Actions\Encounters\CreateEncounterAddendum;
+use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
+use App\Actions\Encounters\TransferEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\BillingRecordStatus;
+use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
+use App\Enums\EncounterTransferReason;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
@@ -22,6 +27,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -80,6 +86,53 @@ class EditEncounter extends EditRecord
     }
 
     /**
+     * Resume at the last saved wizard step.
+     */
+    protected function getSavedStep(): int
+    {
+        return $this->record->last_wizard_step ?? 1;
+    }
+
+    /**
+     * Save a partial draft via the domain action.
+     */
+    public function saveDraft(int $lastWizardStep): void
+    {
+        // Use $this->data which already contains form state without re-validation
+        $data = $this->data;
+
+        $prescriptionData = $data['prescription'] ?? [];
+        unset($data['prescription']);
+
+        try {
+            // Save clinical narrative fields via domain action
+            app(SaveEncounterDraft::class)->handle(
+                encounter: $this->record,
+                actor: auth()->user(),
+                data: $data,
+                lastWizardStep: $lastWizardStep,
+            );
+
+            // Save prescription draft separately (JSON field, not in clinical narrative)
+            $hasPrescriptionData = collect(self::PRESCRIPTION_FIELDS)
+                ->contains(fn (string $field): bool => filled($prescriptionData[$field] ?? null));
+
+            $this->record->update([
+                'prescription_draft' => $hasPrescriptionData ? $prescriptionData : null,
+            ]);
+
+            // Refresh the record to pick up saved data
+            $this->record->refresh();
+        } catch (ValidationException $e) {
+            Notification::make()
+                ->title('Cannot save draft')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
@@ -113,8 +166,6 @@ class EditEncounter extends EditRecord
         unset($data['prescription']);
 
         // Only process prescription data when explicitly saving a draft or completing the visit
-        // This prevents other wizard steps (Consultation, Examination) from accidentally
-        // finalizing prescription data that's still in Livewire state
         if ($this->isSavingDraft) {
             // Save prescription draft
             $hasPrescriptionData = collect(self::PRESCRIPTION_FIELDS)
@@ -258,6 +309,14 @@ class EditEncounter extends EditRecord
                     'record' => $this->latestBillingRecord(),
                 ])),
 
+            Action::make('printEncounter')
+                ->label('Print Encounter')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
+                ->url(fn (): string => route('encounters.print', ['encounter' => $this->record->id]))
+                ->openUrlInNewTab(),
+
             Action::make('createQuotation')
                 ->label('Create Quotation')
                 ->icon('heroicon-o-document-currency-dollar')
@@ -300,24 +359,16 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-play')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
-                    && auth()->user()?->isOptometrist() === true)
+                    && auth()->user()?->isOptometrist() === true
+                    && ($this->record->optometrist_id === null || $this->record->optometrist_id === auth()->id()))
                 ->requiresConfirmation()
-                ->schema(fn (): array => [
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
-                        ->default(auth()->id())
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                ])
-                ->action(function (array $data): void {
+                ->modalHeading('Start Consultation')
+                ->modalDescription('You will become the treating optometrist for this encounter.')
+                ->modalSubmitActionLabel('Start')
+                ->action(function (): void {
                     try {
-                        $optometrist = User::query()->findOrFail($data['optometrist_id']);
-
                         app(StartEncounter::class)->handle(
                             encounter: $this->record,
-                            optometrist: $optometrist,
                             actor: auth()->user(),
                         );
 
@@ -325,6 +376,58 @@ class EditEncounter extends EditRecord
                         $this->refreshFormData(['status', 'started_at', 'optometrist_id']);
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            Action::make('transferEncounter')
+                ->label('Transfer Encounter')
+                ->icon('heroicon-o-arrow-right-start-on-rectangle')
+                ->color('warning')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
+                    && (
+                        ($this->record->optometrist_id === auth()->id() && auth()->user()?->isOptometrist())
+                        || auth()->user()?->isAdmin()
+                    ))
+                ->requiresConfirmation()
+                ->modalHeading('Transfer Encounter')
+                ->modalDescription('Transfer this encounter to another optometrist. The new optometrist will become the treating provider.')
+                ->modalSubmitActionLabel('Transfer')
+                ->schema([
+                    Select::make('new_optometrist_id')
+                        ->label('New Optometrist')
+                        ->options(fn () => User::query()
+                            ->optometrists()
+                            ->where('id', '!=', $this->record->optometrist_id)
+                            ->orderBy('first_name')
+                            ->orderBy('last_name')
+                            ->get()
+                            ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
+                        ->required()
+                        ->searchable()
+                        ->preload(),
+                    Select::make('reason')
+                        ->label('Reason')
+                        ->options(collect(EncounterTransferReason::cases())->mapWithKeys(
+                            fn (EncounterTransferReason $case): array => [$case->value => str($case->value)->replace('_', ' ')->title()],
+                        ))
+                        ->required(),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $newOptometrist = User::query()->findOrFail($data['new_optometrist_id']);
+                        $reason = EncounterTransferReason::from($data['reason']);
+
+                        app(TransferEncounter::class)->handle(
+                            encounter: $this->record,
+                            actor: auth()->user(),
+                            newOptometrist: $newOptometrist,
+                            reason: $reason,
+                        );
+
+                        Notification::make()->title('Encounter transferred')->success()->send();
+                        $this->refreshFormData(['optometrist_id']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot transfer encounter')->body($e->getMessage())->danger()->send();
                     }
                 }),
 
@@ -460,6 +563,86 @@ class EditEncounter extends EditRecord
                     $this->record->update(['optometrist_id' => $data['optometrist_id']]);
                     Notification::make()->title('Optometrist assigned')->success()->send();
                     $this->refreshFormData(['optometrist_id']);
+                }),
+
+            Action::make('addCorrection')
+                ->label('Add Correction')
+                ->icon('heroicon-o-pencil-square')
+                ->color('warning')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
+                    && $this->record->completed_by === auth()->id()
+                    && auth()->user()?->isOptometrist())
+                ->requiresConfirmation()
+                ->modalHeading('Add Correction')
+                ->modalDescription('This will append a correction note to the completed encounter. The original record will remain unchanged.')
+                ->modalSubmitActionLabel('Add Correction')
+                ->schema([
+                    Textarea::make('reason')
+                        ->label('Reason for Correction')
+                        ->required()
+                        ->maxLength(1000)
+                        ->rows(2),
+                    Textarea::make('content')
+                        ->label('Correction Content')
+                        ->required()
+                        ->maxLength(10000)
+                        ->rows(4),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(CreateEncounterAddendum::class)->handle(
+                            encounter: $this->record,
+                            actor: auth()->user(),
+                            type: EncounterAddendumType::Correction,
+                            reason: $data['reason'],
+                            content: $data['content'],
+                        );
+
+                        Notification::make()->title('Correction added')->success()->send();
+                        $this->refreshFormData([]);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot add correction')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            Action::make('addSupplement')
+                ->label('Add Supplement')
+                ->icon('heroicon-o-plus-circle')
+                ->color('info')
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
+                    && auth()->user()?->isOptometrist()
+                    && $this->record->completed_by !== auth()->id())
+                ->requiresConfirmation()
+                ->modalHeading('Add Supplement')
+                ->modalDescription('This will append a supplementary note to the completed encounter. The original record will remain unchanged.')
+                ->modalSubmitActionLabel('Add Supplement')
+                ->schema([
+                    Textarea::make('reason')
+                        ->label('Reason')
+                        ->required()
+                        ->maxLength(1000)
+                        ->rows(2),
+                    Textarea::make('content')
+                        ->label('Content')
+                        ->required()
+                        ->maxLength(10000)
+                        ->rows(4),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(CreateEncounterAddendum::class)->handle(
+                            encounter: $this->record,
+                            actor: auth()->user(),
+                            type: EncounterAddendumType::Supplement,
+                            reason: $data['reason'],
+                            content: $data['content'],
+                        );
+
+                        Notification::make()->title('Supplement added')->success()->send();
+                        $this->refreshFormData([]);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot add supplement')->body($e->getMessage())->danger()->send();
+                    }
                 }),
         ];
     }

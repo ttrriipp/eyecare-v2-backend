@@ -68,11 +68,13 @@ test('canonical seed data creates appointment types with durations', function ()
 
     $types = AppointmentType::query()->pluck('duration_minutes', 'name');
 
-    expect($types)->toHaveKeys(['New Patient', 'Follow-up', 'Routine Check-up', 'Referral'])
-        ->and($types['New Patient'])->toBe(30)
+    expect($types)->toHaveKeys(['New Patient', 'Follow-up', 'Routine Check-up', 'Referral', 'Problem/Urgent Visit', 'Contact Lens Consultation'])
+        ->and($types['New Patient'])->toBe(45)
         ->and($types['Follow-up'])->toBe(15)
         ->and($types['Routine Check-up'])->toBe(30)
-        ->and($types['Referral'])->toBe(30);
+        ->and($types['Referral'])->toBe(45)
+        ->and($types['Problem/Urgent Visit'])->toBe(30)
+        ->and($types['Contact Lens Consultation'])->toBe(45);
 });
 
 test('canonical seed data creates appointments with duration snapshots', function () {

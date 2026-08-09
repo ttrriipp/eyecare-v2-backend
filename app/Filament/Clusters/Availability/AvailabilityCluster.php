@@ -11,7 +11,7 @@ class AvailabilityCluster extends Cluster
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
-    protected static ?string $navigationLabel = 'Availability';
+    protected static ?string $navigationLabel = 'Scheduling';
 
     protected static ?int $navigationSort = 30;
 

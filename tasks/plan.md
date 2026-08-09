@@ -1,244 +1,385 @@
-# Implementation Plan: Panel Role Model
+# Implementation Plan: Practical Clinical Encounter Workflow
 
-Status: Approved
-Spec status: Approved 2026-08-08
-Plan approved: 2026-08-08
+**Status:** Approved
+**Spec:** `docs/specs/encounter-workflow-spec.md`
+**Spec approved:** 2026-08-09
+**Plan approved:** 2026-08-09
+**Implementation:** Not started
 
 ## Overview
 
-Implement the approved role contract in
-`docs/specs/panel-role-model-spec.md`: three fixed Filament panel roles
-(`admin`, `optometrist`, and `staff`), an exclusive mobile-only `patient`
-role, and one supported multi-role combination (`admin + optometrist`).
+Implement the approved optometrist-owned encounter workflow as a sequence of
+small, testable vertical slices. The work keeps the four-step Filament wizard,
+adds assessment and device-neutral supporting results, enforces treating-provider
+ownership, makes completion atomic, supports explicit provider transfer, and
+adds immutable post-completion addenda and printing.
 
-The work replaces `users.role_id` and `users.is_optometrist` with a fixed
-many-to-many assignment model. It preserves patient API contracts and user
-IDs, centralizes authorization, migrates existing owner-optometrists without
-splitting accounts, and ensures plain administrators cannot perform clinical
-actions.
+The implementation does not add mobile intake, structured eye measurements,
+autorefractor-specific fields, uploads, diagnosis codes, configurable clinical
+templates, external services, or dependencies.
 
 ## Architecture Decisions
 
-1. **Use an additive-then-contract migration.** First create and backfill
-   `role_user` while retaining legacy columns. Remove `role_id` and
-   `is_optometrist` only after all callers, factories, and seeders use the new
-   contract. This reduces MySQL DDL risk and permits verification before the
-   destructive step.
-
-2. **Keep four fixed role records without a permission package.** Role names
-   and valid combinations remain application constants and validation rules.
-   No dynamic permission tables or user-defined roles are introduced.
-
-3. **Compose dual-duty access as a union.** `admin + optometrist` receives
-   both roles' permissions. Neither role silently implies the other, and no
-   owner-specific flag or one-owner constraint exists.
-
-4. **Centralize role checks on `User`.** Policies, actions, Filament pages,
-   API guards, scopes, and queries use `hasRole()`, `isAdmin()`,
-   `isOptometrist()`, `isPatient()`, and `hasPanelRole()` rather than raw role
-   strings, `role_id`, or `is_optometrist`.
-
-5. **Centralize runtime assignment changes in one action.** Team Accounts
-   creation/editing validates role sets, protects the current and last active
-   administrator, synchronizes the pivot, refreshes loaded relations, and
-   audits old/new role names. Filament relationship auto-sync must not bypass
-   this action.
-
-6. **Preserve the mobile contract explicitly.** Patient creation attaches the
-   exclusive `patient` role, patient-only guards call `isPatient()`, and
-   existing mobile resources continue returning `role: "patient"`. No mobile
-   endpoint gains panel access.
-
-7. **Authorize twice for sensitive workflows.** Filament visibility improves
-   usability, but clinical and administrative actions must enforce roles at
-   the policy/action boundary as well.
-
-8. **Do not rewrite historical specs or migrations.** Older documents remain
-   historical records of the superseded capability design. The new forward
-   migrations, approved spec, ADR, and `BACKEND_CONTEXT.md` describe the new
-   runtime contract.
+1. **Keep the existing Encounter aggregate and lifecycle.** Continue using
+   `planned`, `in_progress`, `completed`, and `cancelled`; use **Waiting** only as
+   the UI label for `planned`.
+2. **Use additive clinical schema changes.** Add nullable encrypted assessment
+   and supporting-results fields so drafts and historical rows remain valid.
+3. **Treat Patient Intake as inactive legacy behavior.** Stop attaching Intake
+   during check-in and do not consume it in the Encounter UI. Do not drop its
+   schema in this feature.
+4. **Centralize mutation contracts in actions and an Encounter policy.** Page
+   closures configure UI and delegate state changes; they do not directly
+   update provider ownership or clinical lifecycle state.
+5. **Bind authorship to the assigned provider.** Starting an unassigned
+   Encounter claims it as the current optometrist. Starting on behalf of
+   another provider is removed.
+6. **Synchronize treating provider across Encounter and Appointment.** Planned
+   assignment, self-claim, and in-progress transfer update both records inside
+   a locked transaction.
+7. **Make completion one atomic boundary.** Final clinical state, optional
+   prescription finalization, Encounter completion, Appointment fulfillment,
+   and audit attribution either all succeed or all roll back.
+8. **Use append-only addenda rather than reopening.** Corrections and
+   supplements are separate encrypted records with constrained authorship and
+   no edit/delete path.
+9. **Keep audit metadata non-clinical.** Store IDs, enum categories, states, and
+   timestamps only; clinical narrative stays in encrypted domain columns.
+10. **Use an authenticated Blade print view.** Reuse existing print conventions
+    and avoid a new PDF/rendering dependency.
 
 ## Dependency Graph
 
 ```text
-Approved role specification
-    |
-    v
-Additive role_user migration + deterministic backfill
-    |
-    v
-User/Role many-to-many contract + centralized helpers
-    |
-    +--> Validated/audited role-assignment action
-    |
-    +--> Factories + fixed role seeding
-    |       |
-    |       +--> Patient account creation and mobile role compatibility
-    |       +--> Common policies and operational actions
-    |       +--> Provider and clinical workflows
-    |       +--> Filament clinical/availability authorization
-    |       +--> Team Accounts role management
-    |       +--> Demo/canonical seeders
-    |
-    v
-Repository-wide legacy-reference cleanup and regression tests
-    |
-    v
-Contraction migration removes role_id/is_optometrist
-    |
-    v
-Documentation + full verification
+Approved specification and characterization tests
+    -> encrypted Encounter clinical fields
+        -> EncounterPolicy
+            -> provider-owned check-in and start
+                -> draft action and four-step wizard
+                    -> atomic completion and prescription finalization
+                        -> planned assignment and in-progress transfer
+                            -> append-only addenda
+                                -> completed summary and print
+                                    -> documentation reconciliation and full regression
 ```
 
-## Implementation Phases
+Schema and core contracts are sequential prerequisites. Once those contracts
+are stable, UI tests and print presentation can be developed independently, but
+no concurrent agent work is assumed or required.
 
-### Phase 1: Additive Foundation
+## Task List
 
-- Task 1: Add and verify the additive `role_user` migration.
-- Task 2: Add many-to-many model relationships and centralized role helpers.
-- Task 3: Add validated and audited runtime role synchronization.
-- Task 4: Update fixed-role seeding and factory states.
+The executable checklist is maintained in `tasks/todo.md`:
 
-#### Checkpoint: Foundation
+### Phase 1: Characterize and Extend the Clinical Draft
 
-- The pivot contains deterministic assignments for every legacy state.
-- Existing legacy columns are still present.
-- Role helpers and scopes pass focused tests for all approved role sets.
-- Invalid role combinations are rejected.
+- [ ] Task 1: Characterize the existing Encounter lifecycle.
+- [ ] Task 2: Persist assessment and device-neutral supporting results.
 
-### Phase 2: Application Authorization Contract
+### Phase 2: Enforce Provider-Owned Entry into Care
 
-- Task 5: Move patient account creation to role assignments.
-- Task 6: Preserve patient API guards and serialized role values.
-- Task 7: Update common operational policies.
-- Task 8: Update patient, privacy, and prescription policies.
-- Task 9: Update operational workflow action authorization.
-- Task 10: Update reports, notification recipients, and conversation routing.
+- [ ] Task 3: Enforce the Encounter role and assignment policy.
+- [ ] Task 4: Check in without active Patient Intake consumption.
+- [ ] Task 5: Start as the authenticated treating optometrist.
 
-#### Checkpoint: Application Contract
+### Phase 3: Deliver the Four-Step Autosaving Wizard
 
-- Patient authentication and API contract tests pass unchanged externally.
-- Staff, optometrist, admin, and dual-role policy matrix tests pass.
-- Common operations include all panel roles.
-- Admin-only operations exclude optometrist-only and staff-only accounts.
+- [ ] Task 6: Save partial drafts through a domain action.
+- [ ] Task 7: Deliver the autosaving four-step Filament workflow.
 
-### Phase 3: Provider and Clinical Workflows
+### Phase 4: Complete the Encounter Atomically
 
-- Task 11: Replace provider eligibility checks in appointment actions.
-- Task 12: Enforce explicit optometrist authority in clinical actions.
-- Task 13: Update Encounter Filament authorization.
-- Task 14: Update Prescription Filament authorization.
-- Task 15: Apply clinic-wide versus own-provider availability boundaries.
+- [ ] Task 8: Complete required clinical care atomically.
+- [ ] Task 9: Finalize an optional prescription in the completion transaction.
+- [ ] Task 10: Complete from the Filament review step.
 
-#### Checkpoint: Clinical Separation
+### Phase 5: Coordinate Provider Assignment and Transfer
 
-- A plain administrator cannot start/complete encounters or author
-  prescriptions.
-- An optometrist can complete clinical workflows.
-- A dual-role owner can complete both admin and clinical workflows using one
-  user ID.
-- Provider selectors exclude inactive/non-optometrist users.
+- [ ] Task 11: Assign a planned Encounter through an authorized action.
+- [ ] Task 12: Transfer in-progress ownership with an allowlisted audit event.
+- [ ] Task 13: Expose transfer as a confirmed Filament action.
 
-### Phase 4: Team Account Management and Demo Data
+### Phase 6: Add Immutable Corrections and Supplements
 
-- Task 16: Build the Team Accounts role-assignment form and save flow.
-- Task 17: Update Team Accounts listing, filtering, and lifecycle safeguards.
-- Task 18: Update the canonical demo accounts.
-- Task 19: Update secondary/demo workflow seeders.
+- [ ] Task 14: Persist encrypted append-only addenda.
+- [ ] Task 15: Create authorized corrections through an append-only action.
+- [ ] Task 16: Create attributed supplements safely under concurrency.
 
-#### Checkpoint: Account Administration
+### Phase 7: Present and Print the Signed Record
 
-- Only admins can manage Team Accounts.
-- The UI can submit only approved role sets.
-- Self-role and last-active-admin protections hold.
-- Role changes contain auditable old/new role names.
-- Demo data includes staff, optometrist, dual-role owner, and patient.
+- [ ] Task 17: Render the completed record and addendum actions.
+- [ ] Task 18: Print the authenticated signed clinical record.
+- [ ] Task 19: Audit successful printing without clinical metadata.
 
-### Phase 5: Compatibility Cleanup and Contract Migration
+### Phase 8: Reconcile and Release
 
-- Task 20: Update patient and appointment regression fixtures.
-- Task 21: Update Filament patient-link regression fixtures.
-- Task 22: Update remaining domain and end-to-end fixtures.
-- Task 23: Update remaining patient/model/rating fixtures.
-- Task 24: Remove remaining legacy role reads/writes from application code.
-- Task 25: Add and verify the contraction migration.
+- [ ] Task 20: Reconcile backend context and verify the release candidate.
 
-#### Checkpoint: Legacy Removal
+Checkpoints in `tasks/todo.md` occur after every two or three tasks. Each task
+has no more than three acceptance criteria, identifies dependencies and focused
+verification, and is limited to five likely files.
 
-- Static searches find no active `role_id`, `is_optometrist`,
-  `hasOptometristCapability()`, singular `role` relationship, or legacy
-  `whereHas('role', ...)` usage outside historical migrations/docs and
-  deliberate migration tests.
-- Fresh migrations and upgrade migrations both produce the target schema.
-- `users` no longer contains `role_id` or `is_optometrist`.
-- Every user has one valid role set in `role_user`.
+## Vertical Slice Detail
 
-### Phase 6: Documentation and Release Verification
+### Slice 1: Characterize Current Behavior and Add the Data Foundation
 
-- Task 26: Record the decision and update canonical backend context.
-- Task 27: Run formatting, focused suites, the full suite, and final static
-  checks.
+Capture the behavior that must survive before changing it, then add the two
+Encounter clinical columns, encrypted casts, and factory support. Addendum
+storage is deferred until the completed-record correction slice needs it.
 
-#### Checkpoint: Complete
+Key outcomes:
 
-- Every success criterion in the approved spec is met.
-- Focused and full Pest suites pass.
-- Modified PHP files pass Pint.
-- Documentation matches runtime behavior.
-- No unrelated worktree change has been overwritten.
+- current check-in, start, draft, prescription, and completion behavior is
+  characterized;
+- `assessment` and `supporting_test_results` exist as nullable encrypted text;
+- existing completed rows remain readable without backfill.
+
+Likely areas:
+
+- `database/migrations/`
+- `app/Models/Encounter.php`
+- `database/factories/`
+- `tests/Feature/Encounters/`
+
+### Checkpoint A: Data Foundation
+
+- Focused migration/model/encryption tests pass.
+- A fresh test database migrates successfully.
+- No existing Encounter or Prescription characterization test regresses.
+- No Patient Intake table or data is dropped.
+
+### Slice 2: Establish Provider-Owned Check-In and Start
+
+Introduce `EncounterPolicy`, remove active Intake attachment from check-in,
+copy the Appointment provider into the new planned Encounter, and change start
+to operate as the authenticated optometrist rather than accepting an arbitrary
+provider selection.
+
+Key outcomes:
+
+- check-in creates exactly one planned Encounter with no Intake attachment;
+- Appointment reason prefills chief complaint when present;
+- assigned optometrist can start;
+- unassigned Encounter can be claimed by the starting optometrist;
+- assignment synchronizes back to the Appointment;
+- staff, plain admin, inactive users, and other optometrists are denied at the
+  server boundary.
+
+Likely areas:
+
+- `app/Actions/Encounters/CheckInAppointment.php`
+- `app/Actions/Encounters/StartEncounter.php`
+- `app/Policies/EncounterPolicy.php`
+- Encounter model/resource authorization wiring
+- focused lifecycle and role-matrix tests
+
+### Slice 3: Reshape the Autosaving Four-Step Wizard
+
+Add a dedicated draft-save action and reshape the current wizard into History,
+Examination, Assessment & Plan, and Review & Complete. Keep incomplete drafts
+valid and enforce narrative length and step boundaries at the action boundary.
+
+Key outcomes:
+
+- history is authored directly in the Encounter;
+- examination exposes required findings and optional device-neutral supporting
+  results;
+- assessment and plan are distinct fields;
+- prescription remains optional within Assessment & Plan;
+- step transitions save data and `last_wizard_step`;
+- reopening resumes the saved step;
+- Back navigation preserves state;
+- staff/plain admin cannot invoke draft saves directly.
+
+Likely areas:
+
+- `app/Actions/Encounters/SaveEncounterDraft.php`
+- `app/Filament/Resources/Encounters/Schemas/EncounterForm.php`
+- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
+- `resources/views/filament/encounters/`
+- focused Filament and action tests
+
+### Checkpoint B: Authoring Workflow
+
+- Start-to-draft flow works for the assigned optometrist.
+- All four steps render with the approved fields.
+- Draft saves and resume behavior pass focused tests.
+- Role tests prove that view access does not grant authorship.
+- Modified PHP passes Pint.
+
+### Slice 4: Make Completion and Optional Prescription Atomic
+
+Move the final form persistence and optional prescription finalization behind
+the completion boundary. Lock and revalidate Encounter and Appointment before
+performing any terminal state changes.
+
+Key outcomes:
+
+- chief complaint, findings, assessment, and plan are required only at
+  completion;
+- only the assigned active optometrist can complete;
+- a valid optional prescription finalizes with the Encounter;
+- an invalid prescription or stale state rolls back all effects;
+- successful completion records author/time, clears finalized draft data, and
+  fulfills the Appointment;
+- deadlock retries use Laravel's transaction attempts rather than manual sleeps
+  or exception-message parsing.
+
+Likely areas:
+
+- `app/Actions/Encounters/CompleteEncounter.php`
+- `app/Actions/Prescriptions/FinalizePrescription.php`
+- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
+- completion, prescription, transaction, and role tests
+
+### Slice 5: Add Planned Assignment and In-Progress Transfer
+
+Replace direct provider updates with authorized assignment and transfer actions.
+Use the approved reason enum and audit allowlist.
+
+Key outcomes:
+
+- planned assignment is available to panel operational roles;
+- in-progress transfer is limited to current provider or administrator;
+- target must be a different active optometrist;
+- draft and prescription data survive transfer;
+- Encounter and Appointment providers stay synchronized;
+- only the new provider may continue authoring/completion;
+- audit metadata contains IDs and the reason category, never clinical text.
+
+Likely areas:
+
+- assignment action used by Encounter UI
+- `app/Actions/Encounters/TransferEncounter.php`
+- `app/Enums/EncounterTransferReason.php`
+- Encounter page/table actions
+- transfer and audit tests
+
+### Checkpoint C: Lifecycle Integrity
+
+- Check-in, start, draft, transfer, and completion pass as one end-to-end flow.
+- Concurrent/stale transition tests prove invalid state cannot be committed.
+- Appointment and Encounter provider/status invariants remain consistent.
+- Plain admin operational transfer does not grant clinical authorship.
+- Modified PHP passes Pint.
+
+### Slice 6: Add Immutable Corrections and Supplements
+
+Create the addendum action and UI on completed Encounters. Enforce type-specific
+authorship and sequence allocation under a parent Encounter lock.
+
+Key outcomes:
+
+- original completing optometrist may add a correction;
+- another active optometrist may add a clearly attributed supplement;
+- staff/plain admin cannot add either type;
+- reason and content are encrypted and length-limited;
+- sequence is stable and unique under concurrent creation;
+- no supported edit, delete, archive, or reopen path exists;
+- prescription corrections remain inaccessible through Encounter addenda.
+
+Likely areas:
+
+- `app/Actions/Encounters/CreateEncounterAddendum.php`
+- `app/Models/EncounterAddendum.php`
+- `app/Policies/EncounterPolicy.php`
+- completed Encounter page/schema
+- addendum authorization, encryption, and immutability tests
+
+### Slice 7: Complete Read-Only Presentation and Printing
+
+Render completed Encounters as a cohesive one-page summary followed by addenda,
+and add the authenticated print path using existing Blade conventions.
+
+Key outcomes:
+
+- completed and cancelled records do not render an editable wizard;
+- summary includes all approved clinical and authorship fields;
+- print displays the original signed record before chronological addenda;
+- each addendum is unmistakably labeled as leaving the original unchanged;
+- print authorization follows panel read access;
+- print audit contains identifiers only;
+- all patient-authored or clinical text is escaped.
+
+Likely areas:
+
+- Encounter schema/page read-only presentation
+- `resources/views/filament/encounters/`
+- authenticated web route or controller
+- print and audit tests
+
+### Checkpoint D: Release Candidate
+
+- All specification success criteria have focused test coverage.
+- Encounter, Prescription, Appointment, role, and printing suites pass.
+- Full Pest suite passes.
+- Pint passes on changed PHP.
+- Frontend assets build only if bundled assets changed.
+- `docs/BACKEND_CONTEXT.md` matches the implemented behavior.
+- No deferred intake, device, structured-measurement, upload, or diagnosis scope
+  has entered the implementation.
+
+## Migration and Compatibility Strategy
+
+- Use additive, reversible migrations for Encounter fields and addenda.
+- Keep new Encounter narrative columns nullable for drafts and historical rows.
+- Enforce new required fields only when completing a new/in-progress Encounter.
+- Display an em dash for absent fields on historical completed records.
+- Do not backfill synthetic clinical narrative.
+- Stop creating new `patient_intake_id` links but retain legacy schema until a
+  separately approved cleanup.
+- Do not change patient APIs or appointment-request contracts.
 
 ## Verification Strategy
 
-1. Run the task-specific Pest file or filter after each task.
-2. Run checkpoint suites after every phase rather than waiting for the end.
-3. Use a dedicated migration test to prove all five legacy mappings and
-   invalid-data failure before dropping columns.
-4. Use a role permission matrix test for common, clinical, and admin-only
-   behavior.
-5. Run targeted Filament tests for Team Accounts, Encounters, Prescriptions,
-   and Availability.
-6. Run patient authentication and API contract suites to prove no external
-   mobile contract change.
-7. Before the contraction migration, run repository-wide static searches for
-   every legacy symbol.
-8. Run `vendor/bin/sail bin pint --dirty --format agent`, then the focused
-   suite and `vendor/bin/sail artisan test --compact`.
+Run the narrowest relevant test after each task, the enclosing focused suites at
+each checkpoint, and the full suite only at the final checkpoint.
 
-## Sequential and Parallel Work
+Primary commands:
 
-### Must remain sequential
+```bash
+vendor/bin/sail artisan test --compact tests/Feature/Encounters
+vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterResourceTest.php
+vendor/bin/sail artisan test --compact tests/Feature/Encounters/PrescriptionLifecycleTest.php
+vendor/bin/sail bin pint --dirty --format agent
+vendor/bin/sail artisan test --compact
+```
 
-- Tasks 1–4 establish the schema and domain contract.
-- Task 3 must precede Team Accounts save-flow work.
-- Tasks 5–24 must complete before Task 25 removes legacy columns.
-- Documentation and final verification follow the target schema.
-
-### Independent after the foundation
-
-After Tasks 1–4, the policy, patient API, operational action, clinical UI,
-availability, and seeder workstreams are logically independent. They may be
-worked in separate sessions, but shared edits to `User`, shared role matrix
-tests, and the dirty `ClinicWorkflowSeeder.php` require coordination.
+Migration verification must use test databases or an explicitly disposable
+development database. Do not run destructive migration commands against an
+unverified target.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| MySQL DDL leaves a partial migration | High | Use additive/backfill and contraction migrations; validate all assignments before dropping columns |
-| Pivot changes bypass the existing `UserObserver` | High | Route runtime changes through one transactional synchronization action that writes the audit event |
-| A plain admin retains a raw boolean clinical bypass | High | Central helper/action guards, role matrix tests, and a zero-reference static scan |
-| Patient API resources assume one singular role | High | Serialize the exclusive patient role explicitly and run auth/contract regression suites |
-| Filament relationship auto-sync accepts invalid combinations | High | Use a constrained role-set input and custom save hooks backed by the synchronization action |
-| Removing an admin role locks out the clinic | High | Block self-role mutation and removal/deactivation of the last active admin; test both |
-| Removing optometrist rewrites or hides history | Medium | Change only pivot assignments; preserve all existing user foreign keys and historical records |
-| Factories cannot attach roles until a model is persisted | Medium | Use explicit post-creation role attachment and ensure tests requiring authorization use `create()`, not unsaved `make()` models |
-| Role relation caches remain stale after sync | Medium | Unset/reload `roles` after synchronization and test immediate authorization behavior |
-| Broad singular-role usage is missed | Medium | Search for relationship loading, serialization, raw strings, `role_id`, and `is_optometrist` before contraction |
-| Existing dirty `ClinicWorkflowSeeder.php` is overwritten | High | Inspect and integrate with the current working copy; never replace or revert unrelated edits |
-| Legacy historical specs contradict the new model | Low | Leave them historical; add an accepted ADR and update only canonical current context |
+| Existing page currently coordinates draft, prescription, and completion directly | High | Characterize first, introduce actions incrementally, and make completion atomic before UI cleanup. |
+| Current start action can select another provider | High | Change the action contract and add direct-invocation authorization tests before reshaping UI. |
+| Any optometrist can currently complete another provider's Encounter | High | Enforce assigned-provider checks after row lock and cover every role/assignment combination. |
+| Concurrent start/transfer/completion causes split Appointment and Encounter state | High | Lock both records in a consistent order and update them in one transaction. |
+| Encrypted narrative cannot be searched | Medium | Keep clinical columns out of search/filter configuration and document the constraint. |
+| Historical completed rows lack new required fields | Medium | Keep columns nullable, enforce only at future completion, and render missing values safely. |
+| Addendum sequence races | Medium | Lock the parent Encounter and retain a unique composite database constraint. |
+| Audit metadata leaks health details | High | Use enum reason categories and explicit metadata allowlists; test raw audit payloads. |
+| Legacy Intake code confuses implementation scope | Medium | Remove only active Encounter consumption now; handle table/model deletion in a separate approved cleanup. |
+| Appointment implementation changes overlap shared files | Medium | Re-read each file before editing and preserve unrelated uncommitted changes. |
+| Existing appointment planning records must remain available | Medium | Preserve them in `tasks/appointment-scheduling-plan.md` and `tasks/appointment-scheduling-todo.md`. |
+
+## Parallelization and Coordination
+
+No parallel agent execution is assumed. If parallel work is later explicitly
+authorized, only independent tests or print presentation should branch after
+the schema and action contracts are fixed. Schema, Encounter policy, shared page
+code, and lifecycle actions must remain sequential or be tightly coordinated.
+
+## Phase 3 Output
+
+The detailed checklist now lives at the required canonical path,
+`tasks/todo.md`. The prior appointment-scheduling plan and checklist remain
+preserved under feature-specific filenames in the same directory.
 
 ## Open Questions
 
-None. Any discovery that requires a role combination, permission, patient API
-change, credential field, dependency, or owner-specific rule outside the
-approved spec returns to the specification phase for approval.
+There are no blocking plan questions. Structured examination measurements and
+legacy Intake deletion remain deliberately outside this feature and require
+separate approval.

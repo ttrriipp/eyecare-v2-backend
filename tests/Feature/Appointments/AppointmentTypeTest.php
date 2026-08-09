@@ -13,15 +13,17 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('appointment type seeder creates the four canonical types', function () {
+test('appointment type seeder creates six canonical types', function () {
     $this->seed(AppointmentTypeSeeder::class);
 
     $types = AppointmentType::query()->orderBy('name')->get();
 
-    expect($types)->toHaveCount(4)
+    expect($types)->toHaveCount(6)
         ->and($types->pluck('name')->all())->toBe([
+            'Contact Lens Consultation',
             'Follow-up',
             'New Patient',
+            'Problem/Urgent Visit',
             'Referral',
             'Routine Check-up',
         ]);
@@ -35,10 +37,10 @@ test('each appointment type has a configurable duration', function () {
     $routine = AppointmentType::query()->where('name', 'Routine Check-up')->first();
     $referral = AppointmentType::query()->where('name', 'Referral')->first();
 
-    expect($newPatient->duration_minutes)->toBe(30)
+    expect($newPatient->duration_minutes)->toBe(45)
         ->and($followUp->duration_minutes)->toBe(15)
         ->and($routine->duration_minutes)->toBe(30)
-        ->and($referral->duration_minutes)->toBe(30);
+        ->and($referral->duration_minutes)->toBe(45);
 });
 
 test('appointment types have an active state', function () {
@@ -99,7 +101,7 @@ test('appointment stores a booked duration snapshot from appointment type', func
         'duration_minutes' => $type->duration_minutes,
     ]);
 
-    expect($appointment->duration_minutes)->toBe(30);
+    expect($appointment->duration_minutes)->toBe(45);
 });
 
 test('changing appointment type default does not alter existing appointments', function () {
@@ -113,10 +115,62 @@ test('changing appointment type default does not alter existing appointments', f
         'duration_minutes' => $type->duration_minutes,
     ]);
 
-    expect($appointment->duration_minutes)->toBe(30);
+    expect($appointment->duration_minutes)->toBe(45);
 
-    $type->update(['duration_minutes' => 45]);
+    $type->update(['duration_minutes' => 60]);
 
-    expect($appointment->fresh()->duration_minutes)->toBe(30)
-        ->and($type->fresh()->duration_minutes)->toBe(45);
+    expect($appointment->fresh()->duration_minutes)->toBe(45)
+        ->and($type->fresh()->duration_minutes)->toBe(60);
+});
+
+test('patient label falls back to internal name when null', function () {
+    $type = AppointmentType::factory()->create([
+        'name' => 'New Patient',
+        'patient_label' => null,
+    ]);
+
+    expect($type->patient_label)->toBe('New Patient');
+});
+
+test('patient label returns explicit label when set', function () {
+    $type = AppointmentType::factory()->create([
+        'name' => 'New Patient',
+        'patient_label' => 'First eye examination',
+    ]);
+
+    expect($type->patient_label)->toBe('First eye examination');
+});
+
+test('patient-visible scope returns only active and visible types', function () {
+    AppointmentType::factory()->create(['is_active' => true, 'is_patient_visible' => true]);
+    AppointmentType::factory()->internalOnly()->create(['is_active' => true]);
+    AppointmentType::factory()->inactive()->create(['is_patient_visible' => true]);
+
+    $visible = AppointmentType::patientVisible()->get();
+
+    expect($visible)->toHaveCount(1)
+        ->and($visible->first()->is_active)->toBeTrue()
+        ->and($visible->first()->is_patient_visible)->toBeTrue();
+});
+
+test('active scope returns all active types including internal-only', function () {
+    AppointmentType::factory()->create(['is_active' => true, 'is_patient_visible' => true]);
+    AppointmentType::factory()->internalOnly()->create(['is_active' => true]);
+    AppointmentType::factory()->inactive()->create();
+
+    $active = AppointmentType::active()->get();
+
+    expect($active)->toHaveCount(2);
+});
+
+test('is_patient_visible defaults to true', function () {
+    $type = AppointmentType::factory()->create();
+
+    expect($type->is_patient_visible)->toBeTrue();
+});
+
+test('is_patient_visible can be set to false', function () {
+    $type = AppointmentType::factory()->internalOnly()->create();
+
+    expect($type->is_patient_visible)->toBeFalse();
 });

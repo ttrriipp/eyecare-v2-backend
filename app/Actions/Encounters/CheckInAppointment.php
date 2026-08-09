@@ -5,11 +5,9 @@ namespace App\Actions\Encounters;
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
-use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\Encounter;
-use App\Models\PatientIntake;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -57,25 +55,15 @@ class CheckInAppointment
                 return $existingEncounter;
             }
 
-            // Snapshot the verified intake for this encounter
-            $verifiedIntake = PatientIntake::query()
-                ->where('patient_id', $lockedAppointment->patient_id)
-                ->where('status', IntakeStatus::Verified)
-                ->when($lockedAppointment->id, fn ($query) => $query
-                    ->where('appointment_id', $lockedAppointment->id)
-                    ->orWhereNull('appointment_id'))
-                ->latest('verified_at')
-                ->first();
-
-            // Create encounter linked to the appointment and intake
-            // Prefill chief complaint from appointment reason for visit
+            // Create encounter linked to the appointment
+            // Copy assigned provider and prefill chief complaint from appointment reason
             $encounter = Encounter::query()->create([
                 'patient_id' => $lockedAppointment->patient_id,
                 'appointment_id' => $lockedAppointment->id,
-                'patient_intake_id' => $verifiedIntake?->id,
+                'patient_intake_id' => null,
+                'optometrist_id' => $lockedAppointment->optometrist_id,
                 'status' => EncounterStatus::Planned,
-                'chief_complaint' => $lockedAppointment->reason_for_visit
-                    ?? $verifiedIntake?->chief_complaint,
+                'chief_complaint' => $lockedAppointment->reason_for_visit,
             ]);
 
             // Audit the check-in event

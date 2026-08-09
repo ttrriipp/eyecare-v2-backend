@@ -67,10 +67,12 @@ class EncounterForm
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
             Wizard::make([
-                Step::make('Consultation & History')
+                Step::make('History')
                     ->schema([
                         Textarea::make('chief_complaint')
                             ->label('Chief Complaint')
+                            ->required()
+                            ->validationAttribute('Chief Complaint')
                             ->rows(3)
                             ->columnSpanFull(),
                         Textarea::make('past_ocular_history')
@@ -91,45 +93,54 @@ class EncounterForm
                     ])
                     ->columns(2)
                     ->afterValidation(function (EditEncounter $livewire): void {
-                        $livewire->save(
-                            shouldRedirect: false,
-                            shouldSendSavedNotification: false,
-                        );
+                        $livewire->saveDraft(1);
                     }),
 
                 Step::make('Examination')
                     ->schema([
                         Textarea::make('findings')
                             ->label('Examination Findings')
+                            ->required()
+                            ->validationAttribute('Examination Findings')
                             ->rows(6)
                             ->columnSpanFull(),
-                        Textarea::make('remarks')
-                            ->label('Remarks')
+                        Textarea::make('supporting_test_results')
+                            ->label('Supporting Test Results')
                             ->rows(4)
                             ->columnSpanFull(),
                     ])
                     ->afterValidation(function (EditEncounter $livewire): void {
-                        $livewire->save(
-                            shouldRedirect: false,
-                            shouldSendSavedNotification: false,
-                        );
+                        $livewire->saveDraft(2);
                     }),
 
-                Step::make('Prescription (Optional)')
+                Step::make('Assessment & Plan')
                     ->schema([
-                        Group::make(PrescriptionForm::components(forEncounter: true))
-                            ->statePath('prescription')
+                        Textarea::make('assessment')
+                            ->label('Assessment')
+                            ->required()
+                            ->validationAttribute('Assessment')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                        Textarea::make('plan')
+                            ->label('Plan')
+                            ->required()
+                            ->validationAttribute('Plan')
+                            ->rows(4)
+                            ->columnSpanFull(),
+                        Section::make('Prescription (Optional)')
+                            ->schema([
+                                Group::make(PrescriptionForm::components(forEncounter: true))
+                                    ->statePath('prescription')
+                                    ->columnSpanFull(),
+                            ])
                             ->columnSpanFull(),
                     ])
+                    ->columns(2)
                     ->afterValidation(function (EditEncounter $livewire): void {
-                        $livewire->isSavingDraft = true;
-                        $livewire->save(
-                            shouldRedirect: false,
-                            shouldSendSavedNotification: false,
-                        );
+                        $livewire->saveDraft(3);
                     }),
 
-                Step::make('Encounter Summary')
+                Step::make('Review & Complete')
                     ->schema([
                         Section::make('Patient')
                             ->schema([
@@ -155,50 +166,38 @@ class EncounterForm
                             ])
                             ->columns(3),
 
-                        Section::make('Consultation')
+                        Section::make('History')
                             ->schema([
                                 Placeholder::make('summary_chief_complaint')
                                     ->label('Chief Complaint')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'chief_complaint',
-                                        $record->chief_complaint,
+                                        $get, 'chief_complaint', $record->chief_complaint,
                                     ))
                                     ->columnSpanFull(),
                                 Placeholder::make('summary_past_ocular_history')
                                     ->label('Past Ocular History')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'past_ocular_history',
-                                        $record->past_ocular_history,
+                                        $get, 'past_ocular_history', $record->past_ocular_history,
                                     )),
                                 Placeholder::make('summary_past_surgical_history')
                                     ->label('Past Surgical History')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'past_surgical_history',
-                                        $record->past_surgical_history,
+                                        $get, 'past_surgical_history', $record->past_surgical_history,
                                     )),
                                 Placeholder::make('summary_past_medical_history')
                                     ->label('Past Medical History')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'past_medical_history',
-                                        $record->past_medical_history,
+                                        $get, 'past_medical_history', $record->past_medical_history,
                                     )),
                                 Placeholder::make('summary_allergies')
                                     ->label('Allergies')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'allergies',
-                                        $record->allergies,
+                                        $get, 'allergies', $record->allergies,
                                     )),
                                 Placeholder::make('summary_medications')
                                     ->label('Current Medications')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'medications',
-                                        $record->medications,
+                                        $get, 'medications', $record->medications,
                                     )),
                             ])
                             ->columns(2),
@@ -208,17 +207,29 @@ class EncounterForm
                                 Placeholder::make('summary_findings')
                                     ->label('Findings')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'findings',
-                                        $record->findings,
+                                        $get, 'findings', $record->findings,
                                     ))
                                     ->columnSpanFull(),
-                                Placeholder::make('summary_remarks')
-                                    ->label('Remarks')
+                                Placeholder::make('summary_supporting_test_results')
+                                    ->label('Supporting Test Results')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get,
-                                        'remarks',
-                                        $record->remarks,
+                                        $get, 'supporting_test_results', $record->supporting_test_results,
+                                    ))
+                                    ->columnSpanFull(),
+                            ]),
+
+                        Section::make('Assessment & Plan')
+                            ->schema([
+                                Placeholder::make('summary_assessment')
+                                    ->label('Assessment')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get, 'assessment', $record->assessment,
+                                    ))
+                                    ->columnSpanFull(),
+                                Placeholder::make('summary_plan')
+                                    ->label('Plan')
+                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
+                                        $get, 'plan', $record->plan,
                                     ))
                                     ->columnSpanFull(),
                             ]),
@@ -233,23 +244,17 @@ class EncounterForm
                                                 Placeholder::make('summary_main_od_value')
                                                     ->label('O.D.')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_od_value',
-                                                        self::latestPrescription($record)?->main_od_value,
+                                                        $get, 'main_od_value', self::latestPrescription($record)?->main_od_value,
                                                     )),
                                                 Placeholder::make('summary_main_od_sphere')
                                                     ->label('SPH')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_od_sphere',
-                                                        self::latestPrescription($record)?->main_od_sphere,
+                                                        $get, 'main_od_sphere', self::latestPrescription($record)?->main_od_sphere,
                                                     )),
                                                 Placeholder::make('summary_main_od_cylinder')
                                                     ->label('CX')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_od_cylinder',
-                                                        self::latestPrescription($record)?->main_od_cylinder,
+                                                        $get, 'main_od_cylinder', self::latestPrescription($record)?->main_od_cylinder,
                                                     )),
                                             ]),
                                         Grid::make(3)
@@ -257,23 +262,17 @@ class EncounterForm
                                                 Placeholder::make('summary_main_os_value')
                                                     ->label('O.S.')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_os_value',
-                                                        self::latestPrescription($record)?->main_os_value,
+                                                        $get, 'main_os_value', self::latestPrescription($record)?->main_os_value,
                                                     )),
                                                 Placeholder::make('summary_main_os_sphere')
                                                     ->label('SPH')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_os_sphere',
-                                                        self::latestPrescription($record)?->main_os_sphere,
+                                                        $get, 'main_os_sphere', self::latestPrescription($record)?->main_os_sphere,
                                                     )),
                                                 Placeholder::make('summary_main_os_cylinder')
                                                     ->label('CX')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'main_os_cylinder',
-                                                        self::latestPrescription($record)?->main_os_cylinder,
+                                                        $get, 'main_os_cylinder', self::latestPrescription($record)?->main_os_cylinder,
                                                     )),
                                             ]),
                                     ]),
@@ -285,23 +284,17 @@ class EncounterForm
                                                 Placeholder::make('summary_add_od_value')
                                                     ->label('O.D.')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_od_value',
-                                                        self::latestPrescription($record)?->add_od_value,
+                                                        $get, 'add_od_value', self::latestPrescription($record)?->add_od_value,
                                                     )),
                                                 Placeholder::make('summary_add_od_sphere')
                                                     ->label('SPH')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_od_sphere',
-                                                        self::latestPrescription($record)?->add_od_sphere,
+                                                        $get, 'add_od_sphere', self::latestPrescription($record)?->add_od_sphere,
                                                     )),
                                                 Placeholder::make('summary_add_od_cylinder')
                                                     ->label('CX')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_od_cylinder',
-                                                        self::latestPrescription($record)?->add_od_cylinder,
+                                                        $get, 'add_od_cylinder', self::latestPrescription($record)?->add_od_cylinder,
                                                     )),
                                             ]),
                                         Grid::make(3)
@@ -309,23 +302,17 @@ class EncounterForm
                                                 Placeholder::make('summary_add_os_value')
                                                     ->label('O.S.')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_os_value',
-                                                        self::latestPrescription($record)?->add_os_value,
+                                                        $get, 'add_os_value', self::latestPrescription($record)?->add_os_value,
                                                     )),
                                                 Placeholder::make('summary_add_os_sphere')
                                                     ->label('SPH')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_os_sphere',
-                                                        self::latestPrescription($record)?->add_os_sphere,
+                                                        $get, 'add_os_sphere', self::latestPrescription($record)?->add_os_sphere,
                                                     )),
                                                 Placeholder::make('summary_add_os_cylinder')
                                                     ->label('CX')
                                                     ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                        $get,
-                                                        'add_os_cylinder',
-                                                        self::latestPrescription($record)?->add_os_cylinder,
+                                                        $get, 'add_os_cylinder', self::latestPrescription($record)?->add_os_cylinder,
                                                     )),
                                             ]),
                                     ]),
@@ -335,9 +322,7 @@ class EncounterForm
                                         Placeholder::make('summary_prescription_remarks')
                                             ->label('Remarks')
                                             ->content(fn (Get $get, Encounter $record): string => self::formPrescriptionValue(
-                                                $get,
-                                                'remarks',
-                                                self::latestPrescription($record)?->remarks,
+                                                $get, 'remarks', self::latestPrescription($record)?->remarks,
                                             ))
                                             ->columnSpanFull(),
                                     ]),
@@ -441,10 +426,49 @@ class EncounterForm
                         ->label('Findings')
                         ->content(fn (Encounter $record): string => $record->findings ?? '—')
                         ->columnSpanFull(),
-                    Placeholder::make('view_remarks')
-                        ->label('Remarks')
-                        ->content(fn (Encounter $record): string => $record->remarks ?? '—')
+                    Placeholder::make('view_supporting_test_results')
+                        ->label('Supporting Test Results')
+                        ->content(fn (Encounter $record): string => $record->supporting_test_results ?? '—')
                         ->columnSpanFull(),
+                ]),
+
+            Section::make('Assessment & Plan')
+                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
+                ->schema([
+                    Placeholder::make('view_assessment')
+                        ->label('Assessment')
+                        ->content(fn (Encounter $record): string => $record->assessment ?? '—')
+                        ->columnSpanFull(),
+                    Placeholder::make('view_plan')
+                        ->label('Plan')
+                        ->content(fn (Encounter $record): string => $record->plan ?? '—')
+                        ->columnSpanFull(),
+                ]),
+
+            Section::make('Addenda')
+                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Completed && $record->addenda()->exists())
+                ->schema([
+                    Placeholder::make('addenda_list')
+                        ->label('')
+                        ->hiddenLabel()
+                        ->columnSpanFull()
+                        ->content(function (Encounter $record): string {
+                            $addenda = $record->addenda()->with('author')->get();
+
+                            if ($addenda->isEmpty()) {
+                                return '—';
+                            }
+
+                            $lines = $addenda->map(function ($addendum): string {
+                                $type = $addendum->type->value === 'correction' ? 'Correction' : 'Supplement';
+                                $author = $addendum->author?->full_name ?? '—';
+                                $date = $addendum->authored_at?->format('M j, Y g:i A') ?? '—';
+
+                                return "**[{$type}] #{$addendum->sequence_number}** — {$author} ({$date})\n{$addendum->reason}\n{$addendum->content}";
+                            });
+
+                            return $lines->implode("\n\n");
+                        }),
                 ]),
         ]);
     }

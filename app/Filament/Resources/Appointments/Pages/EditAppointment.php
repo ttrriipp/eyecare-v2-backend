@@ -140,7 +140,6 @@ class EditAppointment extends EditRecord
                     try {
                         app(StartEncounter::class)->handle(
                             encounter: $encounter,
-                            optometrist: $optometrist,
                             actor: auth()->user(),
                         );
 

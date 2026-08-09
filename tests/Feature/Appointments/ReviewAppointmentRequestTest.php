@@ -21,17 +21,15 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
-    // AcceptAppointmentRequest re-checks availability against the chosen
-    // appointment type's real duration, which needs an optometrist with
-    // provider hours covering the slot (auto-created for every weekday).
-    User::factory()->optometrist()->create();
+    $this->optometrist = User::factory()->optometrist()->create();
+    $this->appointmentType = AppointmentType::where('name', 'New Patient')->first();
 });
 
 afterEach(fn () => Carbon::setTestNow());
 
 // --- Accept ---
 
-test('accepting a request creates a scheduled appointment', function () {
+test('accepting a request creates a scheduled appointment with provider', function () {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();
 
@@ -45,11 +43,17 @@ test('accepting a request creates a scheduled appointment', function () {
     $appointment = app(AcceptAppointmentRequest::class)->handle(
         request: $request,
         reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
     );
 
     expect($appointment)->toBeInstanceOf(Appointment::class)
         ->and($appointment->status->name)->toBe('scheduled')
-        ->and($appointment->patient_id)->toBe($user->patient->id);
+        ->and($appointment->patient_id)->toBe($user->patient->id)
+        ->and($appointment->optometrist_id)->toBe($this->optometrist->id)
+        ->and($appointment->duration_minutes)->toBe(45);
 
     expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Accepted)
         ->and($request->fresh()->appointment_id)->toBe($appointment->id);
@@ -66,8 +70,23 @@ test('accepting is idempotent - returns same appointment on repeat', function ()
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    $first = app(AcceptAppointmentRequest::class)->handle($request, $reviewer);
-    $second = app(AcceptAppointmentRequest::class)->handle($request->fresh(), $reviewer);
+    $first = app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
+
+    $second = app(AcceptAppointmentRequest::class)->handle(
+        request: $request->fresh(),
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
 
     expect($first->id)->toBe($second->id);
 });
@@ -80,8 +99,37 @@ test('accepting requires a resolved patient', function () {
         'status' => AppointmentRequestStatus::Pending,
     ]);
 
-    expect(fn () => app(AcceptAppointmentRequest::class)->handle($request, $reviewer))
-        ->toThrow(ValidationException::class);
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
+});
+
+test('accepting requires an active optometrist', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $inactiveOptometrist = User::factory()->optometrist()->create(['is_active' => false]);
+
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $inactiveOptometrist,
+    ))->toThrow(ValidationException::class);
 });
 
 test('accepting copies reason for visit', function () {
@@ -96,7 +144,14 @@ test('accepting copies reason for visit', function () {
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    $appointment = app(AcceptAppointmentRequest::class)->handle($request, $reviewer);
+    $appointment = app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
 
     expect($appointment->reason_for_visit)->toBe('Blurred vision');
 });
@@ -105,11 +160,9 @@ test('accepting rejects a type whose real duration now conflicts with another ap
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();
 
-    // The mobile request only held a provisional 30-minute slot at 10:00.
-    // Since then, another appointment was booked into 10:15-10:30 with the
-    // clinic's only optometrist — a 30-minute type starting at 10:00 would
-    // now overlap it, even though the original hold didn't conflict.
+    // Create an existing appointment at 10:15 with the same optometrist
     Appointment::factory()->create([
+        'optometrist_id' => $this->optometrist->id,
         'scheduled_at' => '2026-07-13 10:15:00',
         'duration_minutes' => 15,
     ]);
@@ -121,16 +174,91 @@ test('accepting rejects a type whose real duration now conflicts with another ap
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    $routineCheckup = AppointmentType::where('name', 'Routine Check-up')->firstOrFail();
-
     expect(fn () => app(AcceptAppointmentRequest::class)->handle(
         request: $request,
         reviewer: $reviewer,
-        appointmentTypeId: $routineCheckup->id,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
     ))->toThrow(ValidationException::class);
 
     expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
     $this->assertDatabaseCount('appointments', 1);
+});
+
+test('accepting requires referral source when type requires it', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $referralType = AppointmentType::where('name', 'Referral')->first();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $referralType,
+        durationMinutes: $referralType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
+});
+
+test('accepting copies referral source when provided', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $referralType = AppointmentType::where('name', 'Referral')->first();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $appointment = app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $referralType,
+        durationMinutes: $referralType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+        referringSource: 'Dr. Garcia - City Hospital',
+    );
+
+    expect($appointment->referring_source)->toBe('Dr. Garcia - City Hospital');
+});
+
+test('accepting outside submitted preferences succeeds without contact note', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    // Accept at a different time without contact note - should succeed
+    $appointment = app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 11:00:00'), // Different from submitted 10:00
+        optometrist: $this->optometrist,
+    );
+
+    expect($appointment)->toBeInstanceOf(Appointment::class)
+        ->and($appointment->scheduled_at->format('H:i'))->toBe('11:00');
 });
 
 // --- Reject ---

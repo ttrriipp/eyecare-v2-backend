@@ -8,7 +8,8 @@ use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\User;
-use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -16,13 +17,24 @@ class AcceptAppointmentRequest
 {
     public function __construct(
         private readonly EvaluateAppointmentAvailability $evaluateAvailability,
+        private readonly LockAppointmentScheduleDate $lockScheduleDate,
     ) {}
 
+    /**
+     * Accept an appointment request, creating a confirmed appointment.
+     *
+     * Requires final provider, type, duration, and start. Uses schedule-date
+     * lock and retries on deadlock.
+     */
     public function handle(
         AppointmentRequest $request,
         User $reviewer,
-        ?int $appointmentTypeId = null,
-        ?string $adjustedScheduledAt = null,
+        AppointmentType $appointmentType,
+        int $durationMinutes,
+        CarbonInterface $scheduledAt,
+        User $optometrist,
+        ?string $referringSource = null,
+        ?string $contactNote = null,
     ): Appointment {
         // Idempotent: return existing appointment if already accepted
         if ($request->status === AppointmentRequestStatus::Accepted && $request->appointment_id !== null) {
@@ -41,17 +53,72 @@ class AcceptAppointmentRequest
             ]);
         }
 
-        // Determine appointment type
-        $appointmentType = $appointmentTypeId !== null
-            ? AppointmentType::findOrFail($appointmentTypeId)
-            : AppointmentType::where('name', 'New Patient')->firstOrFail();
+        // Validate the optometrist is active
+        if (! $optometrist->isOptometrist() || ! $optometrist->is_active) {
+            throw ValidationException::withMessages([
+                'optometrist_id' => ['The selected optometrist is not available.'],
+            ]);
+        }
 
-        $scheduledAt = $adjustedScheduledAt !== null
-            ? Carbon::parse($adjustedScheduledAt)
-            : $request->scheduled_at;
+        // Validate referral source if required
+        if ($appointmentType->requires_referral && empty($referringSource)) {
+            throw ValidationException::withMessages([
+                'referring_source' => ['Referring source is required for this appointment type.'],
+            ]);
+        }
 
-        return DB::transaction(function () use ($request, $reviewer, $appointmentType, $scheduledAt) {
-            // Lock the request
+        $maxRetries = 3;
+
+        for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
+            try {
+                return $this->attemptAcceptance(
+                    request: $request,
+                    reviewer: $reviewer,
+                    appointmentType: $appointmentType,
+                    durationMinutes: $durationMinutes,
+                    scheduledAt: $scheduledAt,
+                    optometrist: $optometrist,
+                    referringSource: $referringSource,
+                    contactNote: $contactNote,
+                );
+            } catch (QueryException $e) {
+                if ($attempt === $maxRetries - 1 || ! str_contains($e->getMessage(), 'Deadlock')) {
+                    throw $e;
+                }
+
+                usleep(100 * ($attempt + 1)); // Exponential backoff
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'request' => ['Unable to accept request due to concurrent modification. Please try again.'],
+        ]);
+    }
+
+    private function attemptAcceptance(
+        AppointmentRequest $request,
+        User $reviewer,
+        AppointmentType $appointmentType,
+        int $durationMinutes,
+        CarbonInterface $scheduledAt,
+        User $optometrist,
+        ?string $referringSource,
+        ?string $contactNote,
+    ): Appointment {
+        return DB::transaction(function () use (
+            $request,
+            $reviewer,
+            $appointmentType,
+            $durationMinutes,
+            $scheduledAt,
+            $optometrist,
+            $referringSource,
+            $contactNote,
+        ) {
+            // Lock the schedule date
+            $this->lockScheduleDate->handle($scheduledAt);
+
+            // Lock the request row
             $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if ($request->status !== AppointmentRequestStatus::Pending) {
@@ -64,17 +131,23 @@ class AcceptAppointmentRequest
                 ]);
             }
 
-            // The mobile request only held a provisional slot; the appointment type
-            // (and its real duration) is chosen here, so re-check availability
-            // against the actual duration before committing to it.
+            // Recheck the provider interval under the lock
+            if (! $this->evaluateAvailability->isOptometristEligible($optometrist, $scheduledAt, $scheduledAt->copy()->addMinutes($durationMinutes))) {
+                throw ValidationException::withMessages([
+                    'optometrist_id' => ['The selected optometrist is no longer available for this time slot.'],
+                ]);
+            }
+
+            // Recheck general availability
             $decision = $this->evaluateAvailability->handle(
                 startsAt: $scheduledAt,
-                durationMinutes: $appointmentType->duration_minutes,
+                durationMinutes: $durationMinutes,
+                optometrist: $optometrist,
             );
 
             if (! $decision->available) {
                 throw ValidationException::withMessages([
-                    'appointment_type_id' => ["This appointment type no longer fits this time slot ({$decision->reason})."],
+                    'scheduled_at' => ["This time slot is no longer available ({$decision->reason})."],
                 ]);
             }
 
@@ -85,11 +158,13 @@ class AcceptAppointmentRequest
                 'patient_id' => $request->patient_id,
                 'appointment_type_id' => $appointmentType->id,
                 'appointment_status_id' => $scheduledStatus->id,
+                'optometrist_id' => $optometrist->id,
                 'scheduled_at' => $scheduledAt,
-                'duration_minutes' => $appointmentType->duration_minutes,
+                'duration_minutes' => $durationMinutes,
                 'source' => 'mobile',
                 'reason_for_visit' => $request->encrypted_reason_for_visit,
-                'contact_notes' => null,
+                'referring_source' => $referringSource,
+                'contact_notes' => $contactNote,
                 'staff_notes' => null,
             ]);
 
@@ -102,7 +177,7 @@ class AcceptAppointmentRequest
                 'resolved_at' => now(),
             ]);
 
-            return $appointment->load(['appointmentType', 'status', 'patient']);
+            return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });
     }
 }

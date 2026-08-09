@@ -19,6 +19,7 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\TextSize;
 use Illuminate\Support\HtmlString;
@@ -228,6 +229,24 @@ class AppointmentForm
                                 ->required()
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
+                                ->dehydrated()
+                                ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                    $type = AppointmentType::find($state);
+                                    if ($type) {
+                                        $set('duration_minutes', $type->duration_minutes);
+                                    }
+                                }),
+
+                            TextInput::make('duration_minutes')
+                                ->label('Duration (minutes)')
+                                ->numeric()
+                                ->minValue(5)
+                                ->maxValue(240)
+                                ->step(5)
+                                ->default(30)
+                                ->required()
+                                ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
+                                ->hidden(fn (Get $get): bool => $get('is_walk_in') === 'walk_in')
                                 ->dehydrated(),
                             TextEntry::make('current_status')
                                 ->label('Status')

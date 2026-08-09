@@ -10,8 +10,10 @@ use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Models\AppointmentType;
 use App\Models\Patient;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -19,6 +21,8 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -178,20 +182,71 @@ class ViewAppointmentRequest extends ViewRecord
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->visible(fn () => $this->record->status === AppointmentRequestStatus::Pending && $this->record->patient_id !== null)
-                ->schema([
-                    Select::make('appointment_type_id')
-                        ->label('Appointment Type')
-                        ->options(AppointmentType::pluck('name', 'id'))
-                        ->required(),
-                    Textarea::make('reason')
-                        ->label('Staff Notes (optional)'),
-                ])
+                ->schema(function (): array {
+                    $defaultType = $this->record->appointmentType ?? AppointmentType::where('name', 'New Patient')->first();
+
+                    return [
+                        Select::make('appointment_type_id')
+                            ->label('Appointment Type')
+                            ->options(AppointmentType::active()->pluck('name', 'id'))
+                            ->default($defaultType?->id)
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $type = AppointmentType::find($state);
+                                if ($type) {
+                                    $set('duration_minutes', $type->duration_minutes);
+                                }
+                            }),
+
+                        TextInput::make('duration_minutes')
+                            ->label('Duration (minutes)')
+                            ->numeric()
+                            ->default($defaultType?->duration_minutes ?? 30)
+                            ->minValue(5)
+                            ->maxValue(240)
+                            ->step(5)
+                            ->required(),
+
+                        Select::make('optometrist_id')
+                            ->label('Optometrist')
+                            ->options(User::query()->optometrists()->pluck('full_name', 'id'))
+                            ->default($this->record->preferredOptometrist?->id)
+                            ->required()
+                            ->searchable(),
+
+                        DateTimePicker::make('scheduled_at')
+                            ->label('Final Date/Time')
+                            ->default($this->record->scheduled_at)
+                            ->required()
+                            ->seconds(false),
+
+                        TextInput::make('referring_source')
+                            ->label('Referring Source')
+                            ->maxLength(255)
+                            ->visible(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
+                            ->required(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false),
+
+                        Textarea::make('contact_notes')
+                            ->label('Contact Note')
+                            ->helperText('Required if the final time differs from all submitted preferences.')
+                            ->rows(2),
+                    ];
+                })
                 ->action(function (array $data): void {
                     try {
+                        $appointmentType = AppointmentType::findOrFail($data['appointment_type_id']);
+                        $optometrist = User::findOrFail($data['optometrist_id']);
+
                         $appointment = app(AcceptAppointmentRequest::class)->handle(
                             request: $this->record,
                             reviewer: auth()->user(),
-                            appointmentTypeId: $data['appointment_type_id'],
+                            appointmentType: $appointmentType,
+                            durationMinutes: (int) $data['duration_minutes'],
+                            scheduledAt: Carbon::parse($data['scheduled_at']),
+                            optometrist: $optometrist,
+                            referringSource: $data['referring_source'] ?? null,
+                            contactNote: $data['contact_notes'] ?? null,
                         );
 
                         $this->record->refresh();

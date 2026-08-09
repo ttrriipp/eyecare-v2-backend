@@ -2,6 +2,7 @@
 
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentType;
 use App\Models\PatientAccountContact;
 use App\Models\Role;
 use App\Models\User;
@@ -27,6 +28,20 @@ function unlinkedPatientUser(array $attributes = []): User
     return $user;
 }
 
+/**
+ * Get the default valid request data for appointment request submission.
+ */
+function defaultRequestData(array $overrides = []): array
+{
+    $type = AppointmentType::where('name', 'New Patient')->first();
+
+    return array_merge([
+        'appointment_type_id' => $type->id,
+        'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        'reason_for_visit' => 'Blurred vision in left eye',
+    ], $overrides);
+}
+
 beforeEach(function () {
     Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(RoleSeeder::class);
@@ -38,9 +53,13 @@ afterEach(fn () => Carbon::setTestNow());
 
 test('unlinked account can read appointment request availability', function () {
     $user = unlinkedPatientUser();
+    $type = AppointmentType::where('name', 'New Patient')->first();
 
     $response = $this->actingAs($user)
-        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13');
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]));
 
     $response->assertOk()
         ->assertJsonStructure([
@@ -49,6 +68,8 @@ test('unlinked account can read appointment request availability', function () {
                 'timezone',
                 'interval_minutes',
                 'slot_duration_minutes',
+                'visit_duration_minutes',
+                'appointment_type_id',
                 'day_status',
                 'generated_at',
                 'slots' => [
@@ -58,19 +79,24 @@ test('unlinked account can read appointment request availability', function () {
         ])
         ->assertJsonPath('data.date', '2026-07-13')
         ->assertJsonPath('data.timezone', 'Asia/Manila')
-        ->assertJsonPath('data.interval_minutes', 30)
-        ->assertJsonPath('data.slot_duration_minutes', 30)
+        ->assertJsonPath('data.interval_minutes', 15)
+        ->assertJsonPath('data.slot_duration_minutes', 45)
+        ->assertJsonPath('data.visit_duration_minutes', 45)
+        ->assertJsonPath('data.appointment_type_id', $type->id)
         ->assertJsonPath('data.day_status', 'open')
         ->assertJsonPath('data.slots.0.starts_at', '2026-07-13T09:00:00+08:00')
-        ->assertJsonPath('data.slots.0.ends_at', '2026-07-13T09:30:00+08:00')
+        ->assertJsonPath('data.slots.0.ends_at', '2026-07-13T09:45:00+08:00')
         ->assertJsonPath('data.slots.0.available', true)
         ->assertJsonPath('data.slots.0.reason', null);
 
-    expect($response->json('data.slots'))->toHaveCount(16);
+    // 15-minute cadence, 45-minute visit, 9:00-17:00 clinic hours
+    // Slots: 9:00, 9:15, 9:30, ..., 16:15 (last that fits 45 min before 17:00)
+    expect($response->json('data.slots'))->toHaveCount(30);
 });
 
 test('appointment request availability requires a current or future date', function () {
     $user = User::factory()->create();
+    $type = AppointmentType::where('name', 'New Patient')->first();
 
     $this->actingAs($user)
         ->getJson('/api/v1/appointment-request-availability')
@@ -78,18 +104,34 @@ test('appointment request availability requires a current or future date', funct
         ->assertJsonValidationErrors(['date']);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/appointment-request-availability?date=2026-07-09')
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-09',
+            'appointment_type_id' => $type->id,
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['date']);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13T00:00:00+08:00')
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-13T00:00:00+08:00',
+            'appointment_type_id' => $type->id,
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['date']);
 });
 
-test('appointment request availability includes active request holds', function () {
+test('appointment request availability requires appointment type', function () {
     $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});
+
+test('pending requests do not block availability', function () {
+    $user = User::factory()->create();
+    $type = AppointmentType::where('name', 'New Patient')->first();
 
     AppointmentRequest::factory()->create([
         'user_id' => $user->id,
@@ -100,10 +142,12 @@ test('appointment request availability includes active request holds', function 
     ]);
 
     $this->actingAs($user)
-        ->getJson('/api/v1/appointment-request-availability?date=2026-07-13')
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]))
         ->assertOk()
-        ->assertJsonPath('data.slots.2.available', false)
-        ->assertJsonPath('data.slots.2.reason', 'capacity_reached');
+        ->assertJsonPath('data.slots.4.available', true);
 });
 
 test('appointment request availability requires authentication', function () {
@@ -115,10 +159,7 @@ test('linked account can submit an appointment request', function () {
     $user = User::factory()->patient()->create();
 
     $response = $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
-            'reason_for_visit' => 'Blurred vision in left eye',
-        ]);
+        ->postJson('/api/v1/appointment-requests', defaultRequestData());
 
     $response->assertCreated()
         ->assertJsonStructure(['data' => ['id', 'request_number', 'status', 'scheduled_at', 'reason_for_visit']]);
@@ -142,10 +183,7 @@ test('unlinked account can submit an appointment request', function () {
     ]);
 
     $response = $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
-            'reason_for_visit' => 'Eye exam',
-        ]);
+        ->postJson('/api/v1/appointment-requests', defaultRequestData());
 
     $response->assertCreated();
 
@@ -164,8 +202,7 @@ test('unlinked account snapshots its expanded appointment identity', function ()
         ->create(['user_id' => $user->id]);
 
     $response = $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'reason_for_visit' => 'Eye exam',
             'identity' => [
                 'phone' => '09171234567',
@@ -178,7 +215,7 @@ test('unlinked account snapshots its expanded appointment identity', function ()
                 'occupation' => 'Teacher',
                 'address' => '123 Main St, Manila',
             ],
-        ]);
+        ]));
 
     $response->assertCreated()
         ->assertJsonMissingPath('data.identity')
@@ -215,8 +252,7 @@ test('unlinked account can submit an appointment identity without an email', fun
         ->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'reason_for_visit' => 'Eye exam',
             'identity' => [
                 'phone' => '+639171234567',
@@ -227,7 +263,7 @@ test('unlinked account can submit an appointment identity without an email', fun
                 'occupation' => 'Teacher',
                 'address' => '123 Main St, Manila',
             ],
-        ])
+        ]))
         ->assertCreated();
 
     $request = AppointmentRequest::query()->where('user_id', $user->id)->firstOrFail();
@@ -244,15 +280,14 @@ test('expanded appointment identity requires all non-email fields', function () 
         ->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'reason_for_visit' => 'Eye exam',
             'identity' => [
                 'first_name' => 'Ana',
                 'last_name' => 'Reyes',
                 'date_of_birth' => '1990-05-15',
             ],
-        ])
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors([
             'identity.phone',
@@ -273,8 +308,7 @@ test('appointment identity rejects unknown patient claims', function () {
         ->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'reason_for_visit' => 'Eye exam',
             'identity' => [
                 'phone' => '+639171234567',
@@ -286,7 +320,7 @@ test('appointment identity rejects unknown patient claims', function () {
                 'address' => '123 Main St, Manila',
                 'patient_id' => 123,
             ],
-        ])
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['identity']);
 
@@ -302,8 +336,7 @@ test('unlinked appointment identity phone must match the verified account phone'
         ->create(['user_id' => $user->id]);
 
     $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'reason_for_visit' => 'Eye exam',
             'identity' => [
                 'phone' => '09170000000',
@@ -314,7 +347,7 @@ test('unlinked appointment identity phone must match the verified account phone'
                 'occupation' => 'Teacher',
                 'address' => '123 Main St, Manila',
             ],
-        ])
+        ]))
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['identity.phone']);
 
@@ -323,9 +356,11 @@ test('unlinked appointment identity phone must match the verified account phone'
 
 test('request requires reason for visit', function () {
     $user = unlinkedPatientUser();
+    $type = AppointmentType::where('name', 'New Patient')->first();
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/appointment-requests', [
+            'appointment_type_id' => $type->id,
             'scheduled_at' => '2026-07-13T10:00:00+08:00',
         ]);
 
@@ -345,10 +380,9 @@ test('request rejects unavailable slot', function () {
     ]);
 
     $response = $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
             'scheduled_at' => '2026-07-13T10:00:00+08:00',
-            'reason_for_visit' => 'Eye exam',
-        ]);
+        ]));
 
     $response->assertUnprocessable()
         ->assertJsonValidationErrors(['scheduled_at']);
@@ -358,10 +392,7 @@ test('linked request copies patient_id', function () {
     $user = User::factory()->patient()->create();
 
     $response = $this->actingAs($user)
-        ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => '2026-07-13T10:00:00+08:00',
-            'reason_for_visit' => 'Eye exam',
-        ]);
+        ->postJson('/api/v1/appointment-requests', defaultRequestData());
 
     $response->assertCreated()
         ->assertJsonPath('data.patient_id', $user->patient->id);

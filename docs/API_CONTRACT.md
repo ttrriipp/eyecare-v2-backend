@@ -861,16 +861,70 @@ Verifies the OTP and activates the patient link.
 
 ## 8. Appointment Requests
 
+### GET `/appointment-types`
+
+Returns active, patient-visible appointment types.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "First eye examination",
+      "description": "For your first examination at the clinic.",
+      "duration_minutes": 45,
+      "requires_referral": false
+    }
+  ]
+}
+```
+
+**Notes:**
+- Only active, patient-visible types are returned.
+- `name` is the patient label (falls back to internal name if patient label is null).
+- Inactive types and internal-only types are excluded.
+
+---
+
+### GET `/appointment-optometrists`
+
+Returns active optometrists with stable ID and display name.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 8,
+      "name": "Dr. Ana Santos"
+    }
+  ]
+}
+```
+
+**Notes:**
+- Only active optometrists are returned.
+- Contact, role, schedule, and other private fields are excluded.
+- Dual-role admin+optometrist accounts are included.
+
+---
+
 ### GET `/appointment-request-availability`
 
-Returns server-generated time slots for a given date, accounting for clinic hours, provider hours, existing appointments, and unexpired pending request holds.
+Returns server-generated time slots for a given date and appointment type.
 
-**Auth:** Required (Sanctum token). No active patient link required; linked and unlinked patient accounts may use this endpoint.
+**Auth:** Required (Sanctum token). No active patient link required.
 
 **Query parameters:**
 | Param | Type | Required | Rules |
 |---|---|---|---|
 | `date` | string | yes | `date_format:Y-m-d`, `after_or_equal:today` |
+| `appointment_type_id` | integer | yes | Must reference an active, patient-visible type |
 
 **Response (200):**
 ```json
@@ -878,22 +932,18 @@ Returns server-generated time slots for a given date, accounting for clinic hour
   "data": {
     "date": "2026-07-28",
     "timezone": "Asia/Manila",
-    "interval_minutes": 30,
-    "slot_duration_minutes": 30,
+    "interval_minutes": 15,
+    "slot_duration_minutes": 45,
+    "visit_duration_minutes": 45,
+    "appointment_type_id": 1,
     "day_status": "open",
     "generated_at": "2026-07-27T10:00:00+08:00",
     "slots": [
       {
         "starts_at": "2026-07-28T09:00:00+08:00",
-        "ends_at": "2026-07-28T09:30:00+08:00",
+        "ends_at": "2026-07-28T09:45:00+08:00",
         "available": true,
         "reason": null
-      },
-      {
-        "starts_at": "2026-07-28T09:30:00+08:00",
-        "ends_at": "2026-07-28T10:00:00+08:00",
-        "available": false,
-        "reason": "capacity_reached"
       }
     ]
   }
@@ -901,9 +951,10 @@ Returns server-generated time slots for a given date, accounting for clinic hour
 ```
 
 **Notes:**
-- Uses a server-owned provisional duration (30 minutes) for availability calculation.
-- Unexpired pending request holds are included in capacity calculations.
-- Patient does not select appointment type; the type is resolved by staff at acceptance.
+- `interval_minutes` is the clinic slot cadence (15 minutes).
+- `visit_duration_minutes` is the selected type's duration.
+- Slots use the 15-minute grid; each slot's end uses the type's duration.
+- Pending requests do NOT consume capacity (non-blocking).
 
 ---
 
@@ -954,25 +1005,31 @@ Creates a new appointment request.
 **Request:**
 ```json
 {
-  "scheduled_at": "datetime (required, must match a returned available slot)",
-  "reason_for_visit": "string (required, max:1000)",
-  "identity": {
-    "phone": "string (required when identity is supplied; must match the account's verified phone)",
-    "email": "string (optional, nullable, valid email, max:255)",
-    "first_name": "string (required when identity is supplied, max:255)",
-    "middle_name": "string (nullable, max:255)",
-    "last_name": "string (required when identity is supplied, max:255)",
-    "date_of_birth": "date (required when identity is supplied, before:today, Y-m-d)",
-    "gender": "male | female | other (required when identity is supplied)",
-    "occupation": "string (required when identity is supplied, max:255)",
-    "address": "string (required when identity is supplied, max:255; home address)"
-  }
+  "appointment_type_id": 1,
+  "scheduled_at": "2026-07-28T09:15:00+08:00",
+  "alternative_scheduled_times": [
+    "2026-07-28T10:30:00+08:00",
+    "2026-07-29T09:00:00+08:00"
+  ],
+  "reason_for_visit": "Blurred vision in left eye",
+  "referring_source": null,
+  "identity": null
 }
 ```
 
+**Request fields:**
+| Field | Type | Required | Rules |
+|---|---|---|---|
+| `appointment_type_id` | integer | yes | Must reference an active, patient-visible type |
+| `scheduled_at` | datetime | yes | ISO 8601, must be future, grid-aligned, available |
+| `alternative_scheduled_times` | array | no | Max 2 values, distinct, future, grid-aligned, available |
+| `reason_for_visit` | string | yes | Max 1000 characters |
+| `referring_source` | string | conditional | Required when type `requires_referral` is true |
+| `identity` | object | no | For unlinked accounts only (see below) |
+
 **Identity object rules:**
 - `identity` is optional for unlinked accounts. When omitted, the server uses the account's current structured name, date of birth, phone, optional email, and address as fallback; unavailable demographic fields remain `null` in the staff-only snapshot.
-- When `identity` is present, phone, first name, last name, date of birth, gender, occupation, and home address are required. Middle name is nullable and email is optional.
+- When `identity` is present, phone, first name, last_name, date of birth, gender, occupation, and home address are required. Middle name is nullable and email is optional.
 - `identity` is **prohibited** when the account is already linked to a patient. Linked requests use the authoritative Patient record.
 - Unknown keys inside `identity` fail validation.
 - Client-supplied `patient_id` or verification fields are not accepted.
@@ -987,9 +1044,21 @@ Creates a new appointment request.
     "request_number": "APR-2026-000001",
     "status": "pending",
     "patient_id": null,
-    "scheduled_at": "2026-07-28T10:00:00+08:00",
+    "appointment_type": {
+      "id": 1,
+      "name": "First eye examination",
+      "duration_minutes": 45
+    },
+    "scheduled_at": "2026-07-28T09:15:00+08:00",
+    "alternative_scheduled_times": [
+      "2026-07-28T10:30:00+08:00",
+      "2026-07-29T09:00:00+08:00"
+    ],
+    "provisional_duration_minutes": 45,
     "reason_for_visit": "Blurred vision in left eye",
-    "expires_at": "2026-07-29T10:00:00+08:00",
+    "referring_source": null,
+    "expires_at": "2026-07-29T09:00:00+08:00",
+    "time_preferences_are_reserved": false,
     "created_at": "2026-07-27T10:00:00+08:00",
     "appointment": null
   }
@@ -999,12 +1068,16 @@ Creates a new appointment request.
 **Notes:**
 - The response does not include identity, contact, or snapshot data.
 - Identity and contact snapshots are stored encrypted and are staff-only.
+- `time_preferences_are_reserved` is always `false` (pending requests never reserve capacity).
 
 **Behavior:**
-- Creates a 24-hour capacity hold on the requested slot.
+- All submitted time preferences are validated for current availability.
+- Duration is snapshot from the selected appointment type.
+- `expires_at` is the latest submitted preference time.
+- Pending requests do NOT create capacity holds.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
-- For unlinked accounts, an encrypted identity snapshot is stored containing phone, optional email, all structured name fields, date of birth, gender, occupation, home address, and server-derived verified-contact metadata.
+- For unlinked accounts, an encrypted identity snapshot is stored.
 - Maximum 2 active pending requests per account.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
@@ -2121,7 +2194,6 @@ The following routes are **removed** in the coordinated Android cutover:
 |---|---|
 | `POST /register` | Two-stage: `POST /auth/registration/otp` → `POST /auth/registration/verify` → `POST /auth/register` |
 | `POST /login` | `POST /auth/login` → `POST /auth/login/verify` |
-| `GET /appointment-types` | Internal only; no patient-facing replacement |
 | `POST /appointments` | `POST /appointment-requests` |
 | `GET /appointments/{id}/intake` | Retired; no replacement |
 | `PUT /appointments/{id}/intake` | Retired; no replacement |
@@ -2340,6 +2412,8 @@ POST   /api/v1/patient-link-requests          Submit link request
 GET    /api/v1/patient-link-requests/current   Get current link request
 POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
+GET    /api/v1/appointment-types              List patient-visible appointment types
+GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request

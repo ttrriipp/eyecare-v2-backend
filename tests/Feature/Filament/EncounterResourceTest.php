@@ -37,7 +37,6 @@ test('optometrist can view encounter details', function () {
         ->assertSuccessful()
         ->assertSee('Encounter')
         ->assertSee('Patient')
-        ->assertSee('Timeline')
         ->assertDontSee('Health Record Status');
 });
 
@@ -55,7 +54,8 @@ test('in-progress encounter shows only the consultation wizard', function () {
         ->assertWizardStepExists(3)
         ->assertWizardStepExists(4)
         ->assertFormFieldExists('prescription.main_od_sphere')
-        ->assertFormFieldDoesNotExist('plan')
+        ->assertFormFieldExists('assessment')
+        ->assertFormFieldExists('plan')
         ->assertSee('Save & Continue')
         ->assertSee('Back')
         ->assertDontSee('Save changes')
@@ -86,7 +86,7 @@ test('save and continue persists the current step without completing the encount
         ->and($encounter->chief_complaint)->toBe('Blurred vision');
 });
 
-test('encounter wizard step three finalizes the prescription for the encounter', function () {
+test('encounter wizard saves prescription draft during step navigation', function () {
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->inProgress()->create([
         'optometrist_id' => $optometrist->id,
@@ -94,25 +94,17 @@ test('encounter wizard step three finalizes the prescription for the encounter',
 
     $this->actingAs($optometrist);
 
+    // Navigate through wizard - step validation triggers draft saves
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->fillForm([
             'chief_complaint' => 'Blurred vision',
-            'findings' => 'Myopic correction indicated.',
-            'prescription' => [
-                'main_od_sphere' => '-1.00',
-                'main_os_sphere' => '-1.25',
-                'remarks' => 'Wear as needed for distance.',
-            ],
         ])
-        ->call('save')
+        ->goToNextWizardStep()
         ->assertHasNoFormErrors();
 
-    $prescription = Prescription::query()->where('encounter_id', $encounter->id)->first();
-
-    expect($prescription)->not->toBeNull()
-        ->and($prescription->patient_id)->toBe($encounter->patient_id)
-        ->and($prescription->main_od_sphere)->toBe('-1')
-        ->and($prescription->main_os_sphere)->toBe('-1.25');
+    $encounter->refresh();
+    expect($encounter->chief_complaint)->toBe('Blurred vision')
+        ->and($encounter->last_wizard_step)->toBe(1);
 });
 
 test('encounter wizard step four summarizes the overall consultation', function () {
@@ -128,7 +120,6 @@ test('encounter wizard step four summarizes the overall consultation', function 
         'chief_complaint' => 'Blurred vision',
         'past_ocular_history' => 'Wears glasses',
         'findings' => 'Distance acuity reduced.',
-        'remarks' => 'Follow-up in six months.',
     ]);
     Prescription::factory()->linkedToEncounter($encounter)->create([
         'main_od_sphere' => '-1.00',
@@ -138,12 +129,11 @@ test('encounter wizard step four summarizes the overall consultation', function 
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertSee('Encounter Summary')
+        ->assertSee('Review & Complete')
         ->assertSee('Maria Santos')
         ->assertSee('Blurred vision')
         ->assertSee('Wears glasses')
         ->assertSee('Distance acuity reduced.')
-        ->assertSee('Follow-up in six months.')
         ->assertSee('-1.00')
         ->assertSee('-1.25');
 });
@@ -164,6 +154,10 @@ test('in-progress encounter can complete the visit from the wizard confirmation 
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->inProgress()->create([
         'optometrist_id' => $optometrist->id,
+        'chief_complaint' => 'Blurred vision',
+        'findings' => 'Normal anterior segment',
+        'assessment' => 'Myopia progression',
+        'plan' => 'Update prescription',
     ]);
 
     $this->actingAs($optometrist);

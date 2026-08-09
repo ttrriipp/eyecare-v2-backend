@@ -29,6 +29,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'allergies',
     'medications',
     'plan',
+    'assessment',
+    'supporting_test_results',
     'last_wizard_step',
     'draft_saved_at',
     'prescription_draft',
@@ -92,11 +94,27 @@ class Encounter extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function completedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    /**
      * @return HasMany<Prescription, $this>
      */
     public function prescriptions(): HasMany
     {
         return $this->hasMany(Prescription::class);
+    }
+
+    /**
+     * @return HasMany<EncounterAddendum, $this>
+     */
+    public function addenda(): HasMany
+    {
+        return $this->hasMany(EncounterAddendum::class)->orderBy('sequence_number');
     }
 
     /**
@@ -117,6 +135,8 @@ class Encounter extends Model
             'allergies' => 'encrypted',
             'medications' => 'encrypted',
             'plan' => 'encrypted',
+            'assessment' => 'encrypted',
+            'supporting_test_results' => 'encrypted',
             'draft_saved_at' => 'datetime',
             'prescription_draft' => 'array',
         ];

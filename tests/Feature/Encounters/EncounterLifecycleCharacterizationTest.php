@@ -7,9 +7,11 @@ use App\Enums\EncounterStatus;
 use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
+use App\Models\AuditLog;
 use App\Models\Encounter;
 use App\Models\PatientIntake;
 use App\Models\Prescription;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
@@ -74,13 +76,13 @@ test('cancelled appointments cannot be checked in', function () {
     app(CheckInAppointment::class)->handle($appointment);
 })->throws(ValidationException::class);
 
-// --- Intake Snapshot ---
+// --- Intake No Longer Attached ---
 
-test('check-in snapshots verified intake on the encounter', function () {
+test('check-in does not attach patient intake', function () {
     $appointment = Appointment::factory()->create();
     $this->actingAs($this->staff);
 
-    $intake = PatientIntake::factory()->verified()->create([
+    PatientIntake::factory()->verified()->create([
         'patient_id' => $appointment->patient_id,
         'appointment_id' => $appointment->id,
         'status' => IntakeStatus::Verified,
@@ -88,7 +90,7 @@ test('check-in snapshots verified intake on the encounter', function () {
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
 
-    expect($encounter->patient_intake_id)->toBe($intake->id);
+    expect($encounter->patient_intake_id)->toBeNull();
 });
 
 test('check-in works without a verified intake', function () {
@@ -107,9 +109,9 @@ test('start encounter transitions to in_progress', function () {
     $this->actingAs($this->staff);
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $this->optometrist->id]);
     $encounter = app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $this->optometrist,
+        encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
 
@@ -119,15 +121,15 @@ test('start encounter transitions to in_progress', function () {
 });
 
 test('start encounter leaves appointment checked_in', function () {
-    // NEW BEHAVIOR: Starting consultation leaves the appointment checked_in.
+    // Starting consultation leaves the appointment checked_in.
     // The appointment is only fulfilled when the encounter is completed.
     $appointment = Appointment::factory()->create();
     $this->actingAs($this->staff);
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $this->optometrist->id]);
     app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $this->optometrist,
+        encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
 
@@ -140,9 +142,15 @@ test('complete encounter transitions to completed', function () {
     $this->actingAs($this->staff);
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update([
+        'optometrist_id' => $this->optometrist->id,
+        'chief_complaint' => 'Blurred vision',
+        'findings' => 'Normal anterior segment',
+        'assessment' => 'Myopia progression',
+        'plan' => 'Update prescription',
+    ]);
     $encounter = app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $this->optometrist,
+        encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
     $encounter = app(CompleteEncounter::class)->handle(
@@ -159,16 +167,15 @@ test('only planned encounters can be started', function () {
     $this->actingAs($this->staff);
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $this->optometrist->id]);
     app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $this->optometrist,
+        encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
 
     // Try to start again
     app(StartEncounter::class)->handle(
         encounter: $encounter->fresh(),
-        optometrist: $this->optometrist,
         actor: $this->optometrist,
     );
 })->throws(ValidationException::class);
@@ -242,13 +249,141 @@ test('start encounter creates an audit event', function () {
     $this->actingAs($this->staff);
 
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $this->optometrist->id]);
     app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $this->optometrist,
+        encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
 
     $this->assertDatabaseHas('audit_logs', [
         'action' => 'encounter.started',
     ]);
+});
+
+// --- LEGACY BEHAVIORS: These tests document current behavior that later tasks intentionally replace ---
+
+test('legacy: start encounter no longer accepts a separate optometrist parameter (changed to self-claim only)', function () {
+    // This behavior changed in Task 5: StartEncounter now only accepts actor.
+    // The actor becomes the provider (self-claim) or must be the assigned provider.
+    $appointment = Appointment::factory()->create();
+    $this->actingAs($this->staff);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $this->optometrist->id]);
+
+    // The assigned optometrist starts (self-claim pattern)
+    $encounter = app(StartEncounter::class)->handle(
+        encounter: $encounter->fresh(),
+        actor: $this->optometrist,
+    );
+
+    expect($encounter->optometrist_id)->toBe($this->optometrist->id);
+});
+
+test('legacy: admin optometrist can no longer complete another providers encounter (restricted to assigned only)', function () {
+    // This behavior changed in Task 8: only the assigned optometrist can complete.
+    $adminOptometrist = User::factory()->optometrist()->create();
+    $adminOptometrist->roles()->attach(
+        Role::query()->where('name', 'admin')->firstOrFail()
+    );
+
+    $appointment = Appointment::factory()->create();
+    $this->actingAs($this->staff);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update([
+        'optometrist_id' => $this->optometrist->id,
+        'chief_complaint' => 'Blurred vision',
+        'findings' => 'Normal anterior segment',
+        'assessment' => 'Myopia progression',
+        'plan' => 'Update prescription',
+    ]);
+    $encounter = app(StartEncounter::class)->handle(
+        encounter: $encounter->fresh(),
+        actor: $this->optometrist,
+    );
+
+    // Admin optometrist (not the assigned one) cannot complete
+    app(CompleteEncounter::class)->handle(
+        encounter: $encounter->fresh(),
+        actor: $adminOptometrist,
+    );
+})->throws(ValidationException::class);
+
+test('check-in no longer attaches patient intake (previously attached verified intake)', function () {
+    // This behavior changed in Task 4: check-in no longer attaches PatientIntake.
+    $appointment = Appointment::factory()->create();
+    $this->actingAs($this->staff);
+
+    PatientIntake::factory()->verified()->create([
+        'patient_id' => $appointment->patient_id,
+        'appointment_id' => $appointment->id,
+        'status' => IntakeStatus::Verified,
+    ]);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+
+    expect($encounter->patient_intake_id)->toBeNull();
+});
+
+test('completion fulfills the appointment and records attribution', function () {
+    $appointment = Appointment::factory()->create();
+    $this->actingAs($this->staff);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update([
+        'optometrist_id' => $this->optometrist->id,
+        'chief_complaint' => 'Blurred vision',
+        'findings' => 'Normal anterior segment',
+        'assessment' => 'Myopia progression',
+        'plan' => 'Update prescription',
+    ]);
+    $encounter = app(StartEncounter::class)->handle(
+        encounter: $encounter->fresh(),
+        actor: $this->optometrist,
+    );
+    $encounter = app(CompleteEncounter::class)->handle(
+        encounter: $encounter,
+        actor: $this->optometrist,
+    );
+
+    $appointment->refresh();
+    expect($appointment->status->name)->toBe('fulfilled')
+        ->and($appointment->fulfilled_at)->not->toBeNull()
+        ->and($encounter->completed_by)->toBe($this->optometrist->id)
+        ->and($encounter->completed_at)->not->toBeNull();
+});
+
+test('completion creates an audit event with identifiers only', function () {
+    $appointment = Appointment::factory()->create();
+    $this->actingAs($this->staff);
+
+    $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update([
+        'optometrist_id' => $this->optometrist->id,
+        'chief_complaint' => 'Blurred vision',
+        'findings' => 'Normal anterior segment',
+        'assessment' => 'Myopia progression',
+        'plan' => 'Update prescription',
+    ]);
+    $encounter = app(StartEncounter::class)->handle(
+        encounter: $encounter->fresh(),
+        actor: $this->optometrist,
+    );
+    app(CompleteEncounter::class)->handle(
+        encounter: $encounter,
+        actor: $this->optometrist,
+    );
+
+    $this->assertDatabaseHas('audit_logs', [
+        'action' => 'encounter.completed',
+    ]);
+
+    $auditLog = AuditLog::query()
+        ->where('action', 'encounter.completed')
+        ->first();
+
+    expect($auditLog->metadata)->toHaveKey('appointment_id')
+        ->and($auditLog->metadata)->toHaveKey('optometrist_id')
+        ->and($auditLog->metadata)->toHaveKey('actor_id');
 });

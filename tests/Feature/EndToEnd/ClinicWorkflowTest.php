@@ -53,14 +53,14 @@ test('scheduled patient journey: appointment through dispensing', function () {
 
     $this->actingAs($staff);
     $encounter = app(CheckInAppointment::class)->handle($appointment);
+    $encounter->update(['optometrist_id' => $optometrist->id]);
 
     expect($encounter->status)->toBe(EncounterStatus::Planned)
         ->and($encounter->patient_id)->toBe($patient->id)
         ->and($appointment->fresh()->status->name)->toBe('checked_in');
 
     $encounter = app(StartEncounter::class)->handle(
-        encounter: $encounter,
-        optometrist: $optometrist,
+        encounter: $encounter->fresh(),
         actor: $optometrist,
     );
 

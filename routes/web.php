@@ -1,7 +1,11 @@
 <?php
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
+use App\Enums\EncounterStatus;
 use App\Http\Controllers\MessageAttachmentPreviewController;
 use App\Models\Appointment;
+use App\Models\Encounter;
 use App\Models\Prescription;
 use App\Services\PdfService;
 use Filament\Facades\Filament;
@@ -45,4 +49,27 @@ Route::middleware(['auth', 'web'])->group(function () {
             'intake' => $appointment->intake,
         ]);
     })->name('appointments.health-record.print');
+
+    Route::get('/encounters/{encounter}/print', function (Encounter $encounter) {
+        abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
+        abort_unless($encounter->status === EncounterStatus::Completed, 403);
+
+        $encounter->load(['patient', 'appointment.appointmentType', 'optometrist', 'addenda.author', 'completedBy', 'prescriptions']);
+
+        // Audit the print event
+        app(CreateAuditLog::class)->handle(
+            subject: $encounter,
+            action: AuditEvent::EncounterPrinted->value,
+            metadata: [
+                'encounter_id' => $encounter->id,
+                'appointment_id' => $encounter->appointment_id,
+                'patient_id' => $encounter->patient_id,
+                'actor_id' => Auth::id(),
+            ],
+        );
+
+        return view('filament.encounters.print', [
+            'encounter' => $encounter,
+        ]);
+    })->name('encounters.print');
 });

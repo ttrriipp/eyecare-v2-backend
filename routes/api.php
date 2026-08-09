@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\Api\AppointmentAvailabilityController;
 use App\Http\Controllers\Api\AppointmentController;
+use App\Http\Controllers\Api\AppointmentOptometristController;
 use App\Http\Controllers\Api\AppointmentRequestAvailabilityController;
 use App\Http\Controllers\Api\AppointmentRequestController;
+use App\Http\Controllers\Api\AppointmentTypeController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
@@ -66,6 +68,12 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(functi
     // Patient link requests
     Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);
     Route::get('patient-link-requests/current', [PatientLinkRequestController::class, 'current']);
+
+    // Appointment types (patient-visible catalog)
+    Route::get('appointment-types', [AppointmentTypeController::class, 'index']);
+
+    // Appointment optometrists (patient-safe catalog)
+    Route::get('appointment-optometrists', [AppointmentOptometristController::class, 'index']);
 
     // Appointment requests
     Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);

@@ -77,7 +77,9 @@ class CreateAppointment extends CreateRecord
         unset($data['is_walk_in']);
 
         $appointmentType = AppointmentType::query()->findOrFail($data['appointment_type_id']);
-        $data['duration_minutes'] = $appointmentType->duration_minutes;
+
+        // Use form-provided duration if available, otherwise use type default
+        $data['duration_minutes'] = $data['duration_minutes'] ?? $appointmentType->duration_minutes;
 
         if ($isWalkIn) {
             $data['source'] = 'walk_in';

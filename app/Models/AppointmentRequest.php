@@ -20,8 +20,10 @@ class AppointmentRequest extends Model
         'appointment_type_id',
         'appointment_id',
         'scheduled_at',
+        'alternative_scheduled_times',
         'provisional_duration_minutes',
         'encrypted_reason_for_visit',
+        'encrypted_referring_source',
         'encrypted_identity_snapshot',
         'status',
         'expires_at',
@@ -35,7 +37,9 @@ class AppointmentRequest extends Model
         return [
             'status' => AppointmentRequestStatus::class,
             'scheduled_at' => 'datetime',
+            'alternative_scheduled_times' => 'array',
             'encrypted_reason_for_visit' => 'encrypted',
+            'encrypted_referring_source' => 'encrypted',
             'encrypted_identity_snapshot' => 'encrypted:array',
             'expires_at' => 'datetime',
             'resolved_at' => 'datetime',
@@ -126,19 +130,11 @@ class AppointmentRequest extends Model
             && $this->status === AppointmentRequestStatus::Pending;
     }
 
-    /**
-     * Check if this request has an identity snapshot (unlinked at submission).
-     */
     public function hasIdentitySnapshot(): bool
     {
         return $this->encrypted_identity_snapshot !== null;
     }
 
-    /**
-     * Get the display name from the identity snapshot.
-     *
-     * Returns null for linked requests (no snapshot).
-     */
     public function getSnapshotDisplayName(): ?string
     {
         $snapshot = $this->encrypted_identity_snapshot;
@@ -156,27 +152,16 @@ class AppointmentRequest extends Model
         return implode(' ', $parts) ?: null;
     }
 
-    /**
-     * Get the unmasked phone from the identity snapshot, for staff use.
-     */
     public function getSnapshotPhone(): ?string
     {
         return $this->getSnapshotValue('phone');
     }
 
-    /**
-     * Get the unmasked optional email from the identity snapshot, for staff use.
-     */
     public function getSnapshotEmail(): ?string
     {
         return $this->getSnapshotValue('email');
     }
 
-    /**
-     * Get the date of birth from the identity snapshot.
-     *
-     * Returns null for linked requests (no snapshot).
-     */
     public function getSnapshotDateOfBirth(): ?string
     {
         $snapshot = $this->encrypted_identity_snapshot;
@@ -188,9 +173,6 @@ class AppointmentRequest extends Model
         return $snapshot['date_of_birth'] ?? null;
     }
 
-    /**
-     * Get a demographic value from the identity snapshot.
-     */
     public function getSnapshotGender(): ?string
     {
         return $this->getSnapshotValue('gender');
@@ -204,6 +186,22 @@ class AppointmentRequest extends Model
     public function getSnapshotAddress(): ?string
     {
         return $this->getSnapshotValue('address');
+    }
+
+    /**
+     * Get all submitted time preferences (primary + alternatives) in order.
+     *
+     * @return array<int, string>
+     */
+    public function getAllTimePreferences(): array
+    {
+        $times = [$this->scheduled_at->toISOString()];
+
+        if ($this->alternative_scheduled_times !== null) {
+            $times = array_merge($times, $this->alternative_scheduled_times);
+        }
+
+        return $times;
     }
 
     private function getSnapshotValue(string $key): ?string

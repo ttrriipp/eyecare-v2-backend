@@ -37,6 +37,8 @@ class EncounterFactory extends Factory
             'allergies' => null,
             'medications' => null,
             'plan' => null,
+            'assessment' => null,
+            'supporting_test_results' => null,
             'last_wizard_step' => null,
             'draft_saved_at' => null,
             'completed_by' => null,

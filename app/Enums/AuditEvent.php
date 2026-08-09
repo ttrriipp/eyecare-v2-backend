@@ -19,6 +19,8 @@ enum AuditEvent: string
     case EncounterStarted = 'encounter.started';
     case EncounterCompleted = 'encounter.completed';
     case EncounterAmended = 'encounter.amended';
+    case EncounterProviderAssigned = 'encounter.provider_assigned';
+    case EncounterTransferred = 'encounter.transferred';
 
     case PrescriptionFinalized = 'prescription.finalized';
     case PrescriptionAmended = 'prescription.amended';
@@ -51,6 +53,7 @@ enum AuditEvent: string
     case RatingModerated = 'rating.moderated';
 
     case HealthRecordPrinted = 'health_record.printed';
+    case EncounterPrinted = 'encounter.printed';
     case UserCreated = 'user.created';
     case UserRoleChanged = 'user.role_changed';
 

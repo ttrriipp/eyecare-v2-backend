@@ -7,6 +7,7 @@ use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -41,10 +42,16 @@ class AppointmentRequestController extends Controller
 
     public function store(StoreAppointmentRequest $request, SubmitAppointmentRequest $submit): JsonResponse
     {
+        $appointmentType = AppointmentType::query()
+            ->findOrFail($request->validated('appointment_type_id'));
+
         $appointmentRequest = $submit->handle(
             account: $request->user(),
-            scheduledAt: Carbon::parse($request->validated('scheduled_at')),
+            appointmentType: $appointmentType,
+            scheduledAt: Carbon::parse($request->validated('scheduled_at'), config('app.timezone')),
             reasonForVisit: $request->validated('reason_for_visit'),
+            alternativeScheduledTimes: $request->validated('alternative_scheduled_times'),
+            referringSource: $request->validated('referring_source'),
             identity: $request->validated('identity'),
         );
 
@@ -80,10 +87,19 @@ class AppointmentRequestController extends Controller
             'request_number' => $request->request_number,
             'status' => $request->status->value ?? $request->status,
             'patient_id' => $request->patient_id,
+            'appointment_type' => $request->appointmentType ? [
+                'id' => $request->appointmentType->id,
+                'name' => $request->appointmentType->patient_label ?? $request->appointmentType->name,
+                'duration_minutes' => $request->appointmentType->duration_minutes,
+            ] : null,
             'scheduled_at' => $request->scheduled_at->toISOString(),
+            'alternative_scheduled_times' => $request->alternative_scheduled_times,
+            'provisional_duration_minutes' => $request->provisional_duration_minutes,
             'reason_for_visit' => $request->encrypted_reason_for_visit,
+            'referring_source' => $request->encrypted_referring_source,
             'expires_at' => $request->expires_at->toISOString(),
             'created_at' => $request->created_at->toISOString(),
+            'time_preferences_are_reserved' => false,
             'appointment' => $request->appointment_id ? [
                 'id' => $request->appointment?->id,
                 'appointment_number' => $request->appointment?->appointment_number,

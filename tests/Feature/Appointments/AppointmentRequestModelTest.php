@@ -44,12 +44,10 @@ test('snapshot is encrypted at rest', function () {
         'encrypted_identity_snapshot' => $snapshot,
     ]);
 
-    // Read raw database value
     $raw = DB::table('appointment_requests')
         ->where('id', $request->id)
         ->value('encrypted_identity_snapshot');
 
-    // Raw value should not contain plaintext PII
     expect($raw)->not->toContain('Ana')
         ->and($raw)->not->toContain('Reyes')
         ->and($raw)->not->toContain('1990-05-15')
@@ -109,4 +107,78 @@ test('factory withSnapshot creates valid snapshot', function () {
         ->and($request->getSnapshotDisplayName())->toBeString()
         ->and($request->getSnapshotPhone())->toBeString()
         ->and($request->getSnapshotDateOfBirth())->toBeString();
+});
+
+test('alternative scheduled times cast to array', function () {
+    $times = [
+        '2026-08-20T10:30:00+08:00',
+        '2026-08-21T09:00:00+08:00',
+    ];
+
+    $request = AppointmentRequest::factory()->create([
+        'alternative_scheduled_times' => $times,
+    ]);
+
+    expect($request->fresh()->alternative_scheduled_times)->toBeArray()
+        ->and($request->fresh()->alternative_scheduled_times)->toHaveCount(2);
+});
+
+test('alternative scheduled times are null by default', function () {
+    $request = AppointmentRequest::factory()->create();
+
+    expect($request->fresh()->alternative_scheduled_times)->toBeNull();
+});
+
+test('encrypted referring source is cast correctly', function () {
+    $request = AppointmentRequest::factory()->create([
+        'encrypted_referring_source' => 'Dr. Garcia - City Hospital',
+    ]);
+
+    expect($request->fresh()->encrypted_referring_source)->toBe('Dr. Garcia - City Hospital');
+});
+
+test('referring source is encrypted at rest', function () {
+    $request = AppointmentRequest::factory()->create([
+        'encrypted_referring_source' => 'Dr. Garcia - City Hospital',
+    ]);
+
+    $raw = DB::table('appointment_requests')
+        ->where('id', $request->id)
+        ->value('encrypted_referring_source');
+
+    expect($raw)->not->toContain('Dr. Garcia');
+});
+
+test('get all time preferences returns primary and alternatives', function () {
+    $primary = now()->addDays(3)->setTime(9, 15);
+
+    $request = AppointmentRequest::factory()->create([
+        'scheduled_at' => $primary,
+        'alternative_scheduled_times' => [
+            now()->addDays(3)->setTime(10, 30)->toISOString(),
+            now()->addDays(4)->setTime(9, 0)->toISOString(),
+        ],
+    ]);
+
+    $preferences = $request->getAllTimePreferences();
+
+    expect($preferences)->toHaveCount(3);
+});
+
+test('get all time preferences returns only primary when no alternatives', function () {
+    $request = AppointmentRequest::factory()->create([
+        'alternative_scheduled_times' => null,
+    ]);
+
+    $preferences = $request->getAllTimePreferences();
+
+    expect($preferences)->toHaveCount(1);
+});
+
+test('legacy request with null new fields is readable', function () {
+    $request = AppointmentRequest::factory()->legacy()->create();
+
+    expect($request->alternative_scheduled_times)->toBeNull()
+        ->and($request->encrypted_referring_source)->toBeNull()
+        ->and($request->appointment_type_id)->toBeNull();
 });
