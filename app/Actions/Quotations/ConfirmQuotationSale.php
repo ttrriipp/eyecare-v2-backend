@@ -9,6 +9,8 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
+use App\Enums\CommercialItemKind;
+use App\Enums\FrameSource;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -19,6 +21,7 @@ use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -77,7 +80,7 @@ class ConfirmQuotationSale
                 ? Prescription::find($quotation->prescription_id)
                 : null;
 
-            app(ValidateOpticalQuotation::class)->handle(
+            $validationResult = app(ValidateOpticalQuotation::class)->handle(
                 items: $productItems->map(fn ($item) => [
                     'item_kind' => $item->item_kind,
                     'product_variant_id' => $item->product_variant_id,
@@ -135,6 +138,11 @@ class ConfirmQuotationSale
 
                     // Commit inventory for catalog-backed items not already covered above
                     app(CommitJobOrderInventory::class)->handle($opticalOrder, excludeProductVariantIds: $reservedVariantIds);
+
+                    // Create eyewear specification shell for corrective orders
+                    if ($validationResult['is_corrective'] && $prescription !== null) {
+                        $this->createEyewearSpecificationShell($opticalOrder, $prescription, $productItems);
+                    }
                 }
             }
 
@@ -194,5 +202,33 @@ class ConfirmQuotationSale
                 'billing_record' => $billingRecord->fresh(),
             ];
         });
+    }
+
+    /**
+     * Create an empty eyewear specification shell for a corrective order.
+     */
+    private function createEyewearSpecificationShell(
+        JobOrder $opticalOrder,
+        Prescription $prescription,
+        Collection $productItems,
+    ): void {
+        $frameItem = $productItems->firstWhere('item_kind', CommercialItemKind::Frame);
+        $lensPackageItem = $productItems->firstWhere('item_kind', CommercialItemKind::LensPackage);
+
+        if ($lensPackageItem === null) {
+            return;
+        }
+
+        // Idempotent: don't create a second specification
+        if ($opticalOrder->eyewearSpecification()->exists()) {
+            return;
+        }
+
+        $opticalOrder->eyewearSpecification()->create([
+            'prescription_id' => $prescription->id,
+            'frame_job_order_item_id' => $frameItem?->id,
+            'lens_package_job_order_item_id' => $lensPackageItem->id,
+            'frame_source' => $frameItem !== null ? FrameSource::Catalog : FrameSource::PatientSupplied,
+        ]);
     }
 }
