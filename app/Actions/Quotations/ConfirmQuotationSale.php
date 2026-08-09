@@ -15,6 +15,7 @@ use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\FrameReservation;
 use App\Models\JobOrder;
+use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -70,6 +71,20 @@ class ConfirmQuotationSale
             $serviceItems = $quotation->items()
                 ->where('item_type', TransactionItemType::Service)
                 ->get();
+
+            // Validate optical build before any mutation
+            $prescription = $quotation->prescription_id
+                ? Prescription::find($quotation->prescription_id)
+                : null;
+
+            app(ValidateOpticalQuotation::class)->handle(
+                items: $productItems->map(fn ($item) => [
+                    'item_kind' => $item->item_kind,
+                    'product_variant_id' => $item->product_variant_id,
+                ])->values(),
+                patient: $quotation->patient,
+                prescription: $prescription,
+            );
 
             // Create Optical Order only if there are Product lines
             $opticalOrder = null;
