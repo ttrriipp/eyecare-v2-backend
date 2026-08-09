@@ -21,4 +21,12 @@ class QuotationPolicy
     {
         return $user->hasPanelRole();
     }
+
+    /**
+     * Only admin or dual-role owner can apply or change a nonzero discount.
+     */
+    public function manageDiscount(User $user): bool
+    {
+        return $user->isAdmin();
+    }
 }

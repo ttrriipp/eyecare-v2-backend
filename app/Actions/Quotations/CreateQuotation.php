@@ -139,6 +139,13 @@ class CreateQuotation
             $subtotalInCents = $itemSnapshots->sum('amount_in_cents');
             $discountInCents = (int) round(((float) ($validated['discount_amount'] ?? 0)) * 100);
 
+            // Only admin can apply a nonzero discount
+            if ($discountInCents > 0 && ! $creator->isAdmin()) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Only an admin can apply a discount.'],
+                ]);
+            }
+
             if ($discountInCents > $subtotalInCents) {
                 throw ValidationException::withMessages([
                     'discount_amount' => ['The discount cannot exceed the quotation subtotal.'],

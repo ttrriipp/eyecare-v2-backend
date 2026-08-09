@@ -6,6 +6,7 @@ use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -22,7 +23,7 @@ class UpdateQuotationDraft
      *
      * @param  array<string, mixed>  $data
      */
-    public function handle(Quotation $quotation, array $data): Quotation
+    public function handle(Quotation $quotation, array $data, ?User $editor = null): Quotation
     {
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented], true)) {
             throw ValidationException::withMessages([
@@ -32,7 +33,7 @@ class UpdateQuotationDraft
 
         $validated = $this->validate($data);
 
-        return DB::transaction(function () use ($quotation, $validated): Quotation {
+        return DB::transaction(function () use ($quotation, $validated, $editor): Quotation {
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -65,6 +66,13 @@ class UpdateQuotationDraft
 
             $subtotalInCents = $itemSnapshots->sum('amount_in_cents');
             $discountInCents = (int) round(((float) ($validated['discount_amount'] ?? 0)) * 100);
+
+            // Only admin can apply a nonzero discount
+            if ($discountInCents > 0 && $editor !== null && ! $editor->isAdmin()) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Only an admin can apply a discount.'],
+                ]);
+            }
 
             if ($discountInCents > $subtotalInCents) {
                 throw ValidationException::withMessages([

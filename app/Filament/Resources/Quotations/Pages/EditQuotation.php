@@ -79,7 +79,7 @@ class EditQuotation extends EditRecord
                     // patient again before it can move forward — the action
                     // itself reverts status to Draft when this applies.
                     try {
-                        app(UpdateQuotationDraft::class)->handle($this->record, $data);
+                        app(UpdateQuotationDraft::class)->handle($this->record, $data, auth()->user());
                     } catch (ValidationException $e) {
                         Notification::make()
                             ->title('Cannot revise quotation')
