@@ -276,10 +276,8 @@ test('successful dispensing records exactly one dispensing event', function () {
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed);
 });
 
-test('dispensing currently allows nonzero balance', function () {
-    // CHARACTERIZATION: This captures the current behavior where dispensing
-    // proceeds even with a remaining balance. The spec requires this to be
-    // gated (Task 28).
+test('dispensing rejects nonzero balance', function () {
+    // UPDATED: Dispensing now requires zero balance per spec (Task 28).
     $jobOrder = JobOrder::factory()->create([
         'status' => JobOrderStatus::ReadyForDispensing,
         'total_amount' => 5000,
@@ -294,15 +292,11 @@ test('dispensing currently allows nonzero balance', function () {
         'status' => BillingRecordStatus::Unpaid,
     ]);
 
-    $event = app(DispenseJobOrder::class)->handle(
+    app(DispenseJobOrder::class)->handle(
         $jobOrder,
         $this->staff,
     );
-
-    // Currently succeeds even with unpaid balance
-    expect($event)->toBeInstanceOf(DispensingEvent::class)
-        ->and($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed);
-});
+})->throws(ValidationException::class, 'outstanding balance');
 
 test('dispensing with pickup payment updates billing atomically', function () {
     $jobOrder = JobOrder::factory()->create([

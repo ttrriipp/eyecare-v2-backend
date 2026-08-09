@@ -23,7 +23,7 @@ beforeEach(function () {
 });
 
 test('staff creates a draft quotation with direct items from an encounter prescription', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create(); // Admin needed for discount
     $encounter = Encounter::factory()->inProgress()->create();
     $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
     $variant = ProductVariant::factory()->create();

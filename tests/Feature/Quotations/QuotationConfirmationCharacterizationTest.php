@@ -17,9 +17,11 @@ use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
+use App\Models\Encounter;
 use App\Models\InventoryMovement;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
+use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\Service;
@@ -39,11 +41,16 @@ beforeEach(function () {
 // ─── Direct Draft confirmation ────────────────────────────────────────────────
 
 test('direct draft confirmation creates one accepted quotation, optical order, and billing record', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $lensCategory = LensCategory::factory()->withPrice(3000)->create();
 
     $quotation = Quotation::factory()->create([
         'status' => QuotationStatus::Draft,
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+        'prescription_id' => $prescription->id,
         'subtotal' => 8000,
         'discount_amount' => 0,
         'total' => 8000,

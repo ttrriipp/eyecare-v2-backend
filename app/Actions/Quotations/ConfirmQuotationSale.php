@@ -212,10 +212,13 @@ class ConfirmQuotationSale
         Prescription $prescription,
         Collection $productItems,
     ): void {
-        $frameItem = $productItems->firstWhere('item_kind', CommercialItemKind::Frame);
-        $lensPackageItem = $productItems->firstWhere('item_kind', CommercialItemKind::LensPackage);
+        // Find the JobOrderItems that correspond to the frame and lens package
+        $jobOrderItems = $opticalOrder->items()->get();
 
-        if ($lensPackageItem === null) {
+        $frameQuotationItem = $productItems->firstWhere('item_kind', CommercialItemKind::Frame);
+        $lensPackageQuotationItem = $productItems->firstWhere('item_kind', CommercialItemKind::LensPackage);
+
+        if ($lensPackageQuotationItem === null) {
             return;
         }
 
@@ -224,11 +227,26 @@ class ConfirmQuotationSale
             return;
         }
 
+        // Find corresponding JobOrderItems by matching description and product_variant_id
+        $frameJobOrderItem = $frameQuotationItem !== null
+            ? $jobOrderItems->first(fn ($item) => $item->product_variant_id === $frameQuotationItem->product_variant_id
+                && $item->item_kind === CommercialItemKind::Frame
+            )
+            : null;
+
+        $lensPackageJobOrderItem = $jobOrderItems->first(fn ($item) => $item->lens_category_id === $lensPackageQuotationItem->lens_category_id
+            && $item->item_kind === CommercialItemKind::LensPackage
+        );
+
+        if ($lensPackageJobOrderItem === null) {
+            return;
+        }
+
         $opticalOrder->eyewearSpecification()->create([
             'prescription_id' => $prescription->id,
-            'frame_job_order_item_id' => $frameItem?->id,
-            'lens_package_job_order_item_id' => $lensPackageItem->id,
-            'frame_source' => $frameItem !== null ? FrameSource::Catalog : FrameSource::PatientSupplied,
+            'frame_job_order_item_id' => $frameJobOrderItem?->id,
+            'lens_package_job_order_item_id' => $lensPackageJobOrderItem->id,
+            'frame_source' => $frameJobOrderItem !== null ? FrameSource::Catalog : FrameSource::PatientSupplied,
         ]);
     }
 }
