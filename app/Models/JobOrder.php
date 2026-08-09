@@ -122,6 +122,14 @@ class JobOrder extends Model
     }
 
     /**
+     * @return HasOne<JobOrderEyewearSpecification, $this>
+     */
+    public function eyewearSpecification(): HasOne
+    {
+        return $this->hasOne(JobOrderEyewearSpecification::class);
+    }
+
+    /**
      * @return HasMany<DispensingEvent, $this>
      */
     public function dispensingEvents(): HasMany
