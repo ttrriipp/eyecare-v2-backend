@@ -99,6 +99,8 @@ class ConfirmQuotationSale
                             'product_variant_id' => $item->product_variant_id,
                             'lens_category_id' => $item->lens_category_id,
                             'item_type' => TransactionItemType::Product,
+                            'item_kind' => $item->item_kind,
+                            'item_snapshot' => $item->item_snapshot,
                         ]);
                     }
 

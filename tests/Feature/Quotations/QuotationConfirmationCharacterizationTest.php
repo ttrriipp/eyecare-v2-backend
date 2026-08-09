@@ -12,6 +12,7 @@
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -55,6 +56,7 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::Frame,
     ]);
 
     $quotation->items()->create([
@@ -64,6 +66,7 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -112,6 +115,7 @@ test('presented confirmation creates one accepted quotation, optical order, and 
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -147,6 +151,7 @@ test('product lines enter optical order while only selected services enter billi
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $serviceItem = $quotation->items()->create([
@@ -155,6 +160,7 @@ test('product lines enter optical order while only selected services enter billi
         'unit_price' => 750,
         'amount' => 750,
         'item_type' => TransactionItemType::Service,
+        'item_kind' => CommercialItemKind::Service,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -201,6 +207,7 @@ test('unselected services do not enter billing', function () {
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $quotation->items()->create([
@@ -209,6 +216,7 @@ test('unselected services do not enter billing', function () {
         'unit_price' => 750,
         'amount' => 750,
         'item_type' => TransactionItemType::Service,
+        'item_kind' => CommercialItemKind::Service,
     ]);
 
     // No performedServiceItemIds passed
@@ -242,6 +250,7 @@ test('retried confirmation creates no duplicate order, billing item, payment, in
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     // First confirmation
@@ -295,6 +304,7 @@ test('service-only confirmation creates no optical order', function () {
         'unit_price' => 750,
         'amount' => 750,
         'item_type' => TransactionItemType::Service,
+        'item_kind' => CommercialItemKind::Service,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -333,6 +343,7 @@ test('confirmation commits inventory for product variants', function () {
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     app(ConfirmQuotationSale::class)->handle(
@@ -370,6 +381,7 @@ test('eyewear key is stable across quotation, optical order', function () {
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -400,6 +412,7 @@ test('quotation discount is reflected in billing record', function () {
         'amount' => 10000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(
@@ -431,6 +444,7 @@ test('optional deposit is recorded during confirmation', function () {
         'amount' => 5000,
         'product_variant_id' => $variant->id,
         'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
     $result = app(ConfirmQuotationSale::class)->handle(

@@ -37,7 +37,7 @@ test('quotation_items table has item_kind and item_snapshot columns', function (
 
     $item->refresh();
 
-    expect($item->item_kind)->toBe(CommercialItemKind::Frame->value)
+    expect($item->item_kind)->toBe(CommercialItemKind::Frame)
         ->and(json_decode($item->item_snapshot, true))->toBe(['name' => 'Test Frame']);
 });
 
@@ -49,7 +49,7 @@ test('job_order_items table has item_kind and item_snapshot columns', function (
 
     $item->refresh();
 
-    expect($item->item_kind)->toBe(CommercialItemKind::Frame->value)
+    expect($item->item_kind)->toBe(CommercialItemKind::Frame)
         ->and(json_decode($item->item_snapshot, true))->toBe(['sku' => 'FRM-001']);
 });
 
@@ -111,7 +111,7 @@ test('backfill derives item_kind from controlled foreign keys', function () {
         'item_kind' => CommercialItemKind::CustomProduct->value,
     ]);
 
-    expect($serviceItem->item_kind)->toBe(CommercialItemKind::Service->value)
-        ->and($lensItem->item_kind)->toBe(CommercialItemKind::LensPackage->value)
-        ->and($productItem->item_kind)->toBe(CommercialItemKind::CustomProduct->value);
+    expect($serviceItem->item_kind)->toBe(CommercialItemKind::Service)
+        ->and($lensItem->item_kind)->toBe(CommercialItemKind::LensPackage)
+        ->and($productItem->item_kind)->toBe(CommercialItemKind::CustomProduct);
 });
