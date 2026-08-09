@@ -49,6 +49,17 @@ class UpdateJobOrderStatus
             ]);
         }
 
+        // Corrective orders require approved specification before Processing
+        if ($newStatus === JobOrderStatus::InProgress) {
+            $spec = $jobOrder->eyewearSpecification;
+
+            if ($spec !== null && ! $spec->isApproved()) {
+                throw ValidationException::withMessages([
+                    'status' => ['Approve the eyewear specification before starting processing.'],
+                ]);
+            }
+        }
+
         return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
             $attributes = ['status' => $newStatus];
 
