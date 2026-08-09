@@ -3,6 +3,8 @@
 namespace App\Actions\Quotations;
 
 use App\Enums\CommercialItemKind;
+use App\Models\Patient;
+use App\Models\Prescription;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -16,18 +18,20 @@ final class ValidateOpticalQuotation
      * - At most one frame (catalog or patient-supplied)
      * - Lens options only when a lens_package exists
      * - Service-only, non-corrective Product-only, and mixed remain valid
+     * - Corrective eyewear requires a current Patient-owned Prescription
      *
      * @param  Collection<int, array{item_kind: CommercialItemKind, ...}>  $items
      * @return array{is_corrective: bool, has_frame: bool, has_lens_package: bool}
      */
-    public function handle(Collection $items): array
-    {
+    public function handle(
+        Collection $items,
+        ?Patient $patient = null,
+        ?Prescription $prescription = null,
+    ): array {
         $lensPackages = $items->where('item_kind', CommercialItemKind::LensPackage);
         $frames = $items->whereIn('item_kind', [CommercialItemKind::Frame, CommercialItemKind::CustomProduct])
             ->filter(fn (array $item): bool => filled($item['product_variant_id'] ?? null));
         $lensOptions = $items->where('item_kind', CommercialItemKind::LensOption);
-        $contactLenses = $items->where('item_kind', CommercialItemKind::ContactLens);
-        $accessories = $items->where('item_kind', CommercialItemKind::Accessory);
 
         $isCorrective = $lensPackages->isNotEmpty();
 
@@ -52,10 +56,36 @@ final class ValidateOpticalQuotation
             ]);
         }
 
+        // Corrective eyewear requires a current Patient-owned Prescription
+        if ($isCorrective) {
+            $this->validatePrescription($patient, $prescription);
+        }
+
         return [
             'is_corrective' => $isCorrective,
             'has_frame' => $frames->isNotEmpty(),
             'has_lens_package' => $lensPackages->isNotEmpty(),
         ];
+    }
+
+    private function validatePrescription(?Patient $patient, ?Prescription $prescription): void
+    {
+        if ($prescription === null) {
+            throw ValidationException::withMessages([
+                'prescription' => ['A current prescription is required for corrective eyewear.'],
+            ]);
+        }
+
+        if ($patient === null || $prescription->patient_id !== $patient->id) {
+            throw ValidationException::withMessages([
+                'prescription' => ['The prescription must belong to this patient.'],
+            ]);
+        }
+
+        if (! $prescription->isCurrentVersion()) {
+            throw ValidationException::withMessages([
+                'prescription' => ['The prescription has been superseded. Use the current version.'],
+            ]);
+        }
     }
 }

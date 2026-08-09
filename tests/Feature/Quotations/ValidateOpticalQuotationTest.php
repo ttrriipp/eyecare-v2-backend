@@ -8,7 +8,17 @@
 
 use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\CommercialItemKind;
+use App\Models\Patient;
+use App\Models\Prescription;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+
+uses(RefreshDatabase::class);
+
+beforeEach(function () {
+    $this->patient = Patient::factory()->create();
+    $this->prescription = Prescription::factory()->create(['patient_id' => $this->patient->id]);
+});
 
 test('corrective eyewear requires exactly one lens package', function () {
     $items = collect([
@@ -16,7 +26,7 @@ test('corrective eyewear requires exactly one lens package', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items);
+    app(ValidateOpticalQuotation::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
 })->throws(ValidationException::class, 'exactly one lens package');
 
 test('corrective eyewear with one lens package is valid', function () {
@@ -25,7 +35,11 @@ test('corrective eyewear with one lens package is valid', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
 
     expect($result['is_corrective'])->toBeTrue()
         ->and($result['has_frame'])->toBeTrue()
@@ -39,7 +53,7 @@ test('at most one frame is allowed', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items);
+    app(ValidateOpticalQuotation::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
 })->throws(ValidationException::class, 'at most one frame');
 
 test('patient-supplied frame is accepted without a fake product', function () {
@@ -47,7 +61,11 @@ test('patient-supplied frame is accepted without a fake product', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
 
     expect($result['is_corrective'])->toBeTrue()
         ->and($result['has_frame'])->toBeFalse();
@@ -69,7 +87,11 @@ test('lens options with lens package are valid', function () {
         ['item_kind' => CommercialItemKind::LensOption, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
 
     expect($result['is_corrective'])->toBeTrue();
 });
@@ -103,7 +125,11 @@ test('mixed quotation with products and services is valid', function () {
         ['item_kind' => CommercialItemKind::Service, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
 
     expect($result['is_corrective'])->toBeTrue();
 });
@@ -116,7 +142,11 @@ test('contact lenses and accessories alongside corrective build are valid', func
         ['item_kind' => CommercialItemKind::Accessory, 'product_variant_id' => 3],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
 
     expect($result['is_corrective'])->toBeTrue();
 });
