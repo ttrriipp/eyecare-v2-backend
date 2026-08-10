@@ -232,7 +232,6 @@ class AppointmentForm
                                         ->where('is_active', true)
                                         ->when($state, fn ($q) => $q->orWhere('id', $state)),
                                 )
-                                ->getOptionLabelFromRecordUsing(fn (AppointmentType $record): string => "{$record->name} ({$record->duration_minutes}m)")
                                 ->required()
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
