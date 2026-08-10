@@ -3,16 +3,18 @@
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\FrameSource;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -95,6 +97,72 @@ class OpticalOrderForm
                                 ->label('Notes')
                                 ->columnSpanFull(),
                         ]),
+
+                    // Eyewear Specification (only for corrective orders)
+                    Section::make('Eyewear Specification')
+                        ->schema([
+                            Select::make('eyewearSpecification.frame_source')
+                                ->label('Frame Source')
+                                ->options(FrameSource::class)
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.lens_design_snapshot')
+                                ->label('Lens Design')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.lens_material_snapshot')
+                                ->label('Material')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.refractive_index_snapshot')
+                                ->label('Refractive Index')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.lens_options_snapshot')
+                                ->label('Lens Options')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.distance_pd_mode')
+                                ->label('PD Mode')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.distance_pd_binocular')
+                                ->label('Binocular PD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.distance_pd_od')
+                                ->label('OD PD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.distance_pd_os')
+                                ->label('OS PD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.near_pd_binocular')
+                                ->label('Near PD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.fitting_height_od')
+                                ->label('Fitting Height OD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.fitting_height_os')
+                                ->label('Fitting Height OS (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.segment_height_od')
+                                ->label('Segment Height OD (mm)')
+                                ->disabled(),
+                            TextInput::make('eyewearSpecification.segment_height_os')
+                                ->label('Segment Height OS (mm)')
+                                ->disabled(),
+                            Textarea::make('eyewearSpecification.lab_instructions')
+                                ->label('Lab Instructions')
+                                ->disabled()
+                                ->columnSpanFull(),
+                            Placeholder::make('eyewearSpecification.approved_by')
+                                ->label('Approved By')
+                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->approver?->full_name ?? 'Not approved'),
+                            Placeholder::make('eyewearSpecification.approved_at')
+                                ->label('Approved At')
+                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->approved_at?->format('M j, Y g:i A') ?? '—'),
+                            Placeholder::make('eyewearSpecification.verified_by')
+                                ->label('Verified By')
+                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->verifier?->full_name ?? 'Not verified'),
+                            Placeholder::make('eyewearSpecification.verified_at')
+                                ->label('Verified At')
+                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->verified_at?->format('M j, Y g:i A') ?? '—'),
+                        ])
+                        ->columns(2)
+                        ->visible(fn (JobOrder $record): bool => $record->eyewearSpecification !== null),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────
