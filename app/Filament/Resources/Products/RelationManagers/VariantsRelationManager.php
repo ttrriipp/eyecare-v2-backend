@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Get as FormGet;
 use Filament\Schemas\Schema;
@@ -97,7 +98,57 @@ class VariantsRelationManager extends RelationManager
                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
                 ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
-                ->columnSpanFull(),
+                ->label('Attributes')
+                ->columnSpanFull()
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type !== 'contact_lens'),
+
+            // Contact-lens specific fields
+            Section::make('Contact Lens Parameters')
+                ->schema([
+                    TextInput::make('attributes.power')
+                        ->label('Power')
+                        ->placeholder('-2.00')
+                        ->maxLength(20),
+                    TextInput::make('attributes.base_curve')
+                        ->label('Base Curve')
+                        ->placeholder('8.6')
+                        ->numeric()
+                        ->minValue(7)
+                        ->maxValue(12),
+                    TextInput::make('attributes.diameter')
+                        ->label('Diameter (mm)')
+                        ->placeholder('14.0')
+                        ->numeric()
+                        ->minValue(10)
+                        ->maxValue(20),
+                    TextInput::make('attributes.cylinder')
+                        ->label('Cylinder')
+                        ->placeholder('-1.25')
+                        ->maxLength(20),
+                    TextInput::make('attributes.axis')
+                        ->label('Axis')
+                        ->placeholder('180')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(180),
+                    TextInput::make('attributes.add')
+                        ->label('Add')
+                        ->placeholder('+2.00')
+                        ->maxLength(20),
+                    TextInput::make('attributes.color')
+                        ->label('Color')
+                        ->placeholder('Blue')
+                        ->maxLength(50),
+                    TextInput::make('attributes.pack_size')
+                        ->label('Pack Size')
+                        ->placeholder('30')
+                        ->numeric()
+                        ->minValue(1)
+                        ->maxValue(999),
+                ])
+                ->columns(4)
+                ->columnSpanFull()
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
             FileUpload::make('images')
                 ->disk('public')
                 ->directory('variants')
