@@ -228,9 +228,7 @@ class AppointmentForm
                                 ->relationship(
                                     name: 'appointmentType',
                                     titleAttribute: 'name',
-                                    modifyQueryUsing: fn ($query, $state) => $query
-                                        ->where('is_active', true)
-                                        ->when($state, fn ($q) => $q->orWhere('id', $state)),
+                                    modifyQueryUsing: fn ($query) => $query->where('is_active', true),
                                 )
                                 ->required()
                                 ->live()
