@@ -56,8 +56,7 @@ class VariantsRelationManager extends RelationManager
             TextInput::make('cost_price')
                 ->label('Cost Price')
                 ->numeric()
-                ->prefix('₱')
-                ->helperText('Internal only — not shown to customers.'),
+                ->prefix('₱'),
             TextInput::make('stock_quantity')
                 ->required()
                 ->numeric()
@@ -72,19 +71,13 @@ class VariantsRelationManager extends RelationManager
                 ->default(0),
             TextInput::make('target_stock_level')
                 ->label('Target Stock Level')
-                ->helperText('Optional. When set, restock suggestions replenish inventory to this level.')
                 ->nullable()
                 ->integer()
                 ->minValue(0)
                 ->gte('low_stock_threshold')
                 ->default(null),
             Toggle::make('is_active')
-                ->label('Visibility')
-                ->helperText(
-                    fn (bool $state): string => $state
-                        ? 'This variant is available to customers.'
-                        : 'This variant will be hidden from all sales channels.'
-                )
+                ->label('Active')
                 ->default(true),
             Toggle::make('ar_eligible')
                 ->live()
