@@ -225,8 +225,11 @@ class AppointmentForm
                                 ->hiddenOn('edit'),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
-                                ->relationship('appointmentType', 'name')
-                                ->modifyOptionsQueryUsing(fn ($query) => $query->where('is_active', true))
+                                ->relationship(
+                                    name: 'appointmentType',
+                                    titleAttribute: 'name',
+                                    modifyQueryUsing: fn ($query) => $query->where('is_active', true),
+                                )
                                 ->getOptionLabelFromRecordUsing(fn (AppointmentType $record): string => "{$record->name} ({$record->duration_minutes}m)")
                                 ->required()
                                 ->live()
