@@ -159,18 +159,18 @@ class OpticalOrderForm
                                 ->label('Lab Instructions')
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true)
                                 ->columnSpanFull(),
-                            Placeholder::make('eyewearSpecification.approved_by')
+                            Placeholder::make('approved_by')
                                 ->label('Approved By')
-                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->approver?->full_name ?? 'Not approved'),
-                            Placeholder::make('eyewearSpecification.approved_at')
+                                ->content(fn ($record): string => $record?->approver?->full_name ?? 'Not approved'),
+                            Placeholder::make('approved_at')
                                 ->label('Approved At')
-                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->approved_at?->format('M j, Y g:i A') ?? '—'),
-                            Placeholder::make('eyewearSpecification.verified_by')
+                                ->content(fn ($record): string => $record?->approved_at?->format('M j, Y g:i A') ?? '—'),
+                            Placeholder::make('verified_by')
                                 ->label('Verified By')
-                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->verifier?->full_name ?? 'Not verified'),
-                            Placeholder::make('eyewearSpecification.verified_at')
+                                ->content(fn ($record): string => $record?->verifier?->full_name ?? 'Not verified'),
+                            Placeholder::make('verified_at')
                                 ->label('Verified At')
-                                ->content(fn (JobOrder $record): string => $record->eyewearSpecification?->verified_at?->format('M j, Y g:i A') ?? '—'),
+                                ->content(fn ($record): string => $record?->verified_at?->format('M j, Y g:i A') ?? '—'),
                         ])
                         ->columns(2)
                         ->visible(fn (JobOrder $record): bool => $record->eyewearSpecification !== null),
