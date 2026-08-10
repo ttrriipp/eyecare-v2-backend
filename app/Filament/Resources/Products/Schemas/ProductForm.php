@@ -7,7 +7,6 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
-use Filament\Forms\Components\Section as FormSection;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -167,7 +166,7 @@ class ProductForm
                                 ->visible(fn (Get $get): bool => $get('../../product_type') !== 'contact_lens'),
 
                             // Contact-lens specific fields
-                            FormSection::make('Contact Lens Parameters')
+                            Section::make('Contact Lens Parameters')
                                 ->schema([
                                     TextInput::make('attributes.power')
                                         ->label('Power')
