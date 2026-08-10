@@ -229,6 +229,7 @@ class AppointmentForm
                                 ->searchable()
                                 ->required()
                                 ->live()
+                                ->dehydrated()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->afterStateUpdated(function (Set $set, ?string $state): void {
                                     $type = AppointmentType::find($state);
