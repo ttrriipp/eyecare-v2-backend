@@ -5,6 +5,7 @@ namespace App\Actions\Quotations;
 use App\Enums\CommercialItemKind;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
+use App\Services\ContactLensAttributeValidator;
 use Illuminate\Validation\ValidationException;
 
 final class BuildQuotationItemSnapshot
@@ -118,9 +119,15 @@ final class BuildQuotationItemSnapshot
             'product_type' => $variant->product->product_type,
         ];
 
-        // Include relevant physical attributes (e.g. temple length for frames)
+        // Include relevant physical attributes
         if (is_array($variant->attributes)) {
-            $snapshot['attributes'] = $variant->attributes;
+            // For contact lenses, include only canonical applicable parameters
+            if ($variant->product->product_type === 'contact_lens') {
+                $validator = app(ContactLensAttributeValidator::class);
+                $snapshot['attributes'] = $validator->getApplicableAttributes($variant->attributes);
+            } else {
+                $snapshot['attributes'] = $variant->attributes;
+            }
         }
 
         return $snapshot;
