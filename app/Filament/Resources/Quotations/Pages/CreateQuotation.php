@@ -227,10 +227,6 @@ class CreateQuotation extends CreateRecord
                 ->label('Save Draft')
                 ->icon('heroicon-o-document')
                 ->color('gray')
-                ->requiresConfirmation()
-                ->modalHeading('Save as Draft')
-                ->modalDescription('Save this quotation as a draft. You can edit and present it later.')
-                ->modalSubmitActionLabel('Save Draft')
                 ->action(function (): void {
                     $this->creationMode = 'draft';
                     $this->create();
