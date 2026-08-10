@@ -561,6 +561,12 @@ class EditEncounter extends EditRecord
                 ])
                 ->action(function (array $data): void {
                     $this->record->update(['optometrist_id' => $data['optometrist_id']]);
+
+                    // Sync to linked appointment
+                    if ($this->record->appointment !== null) {
+                        $this->record->appointment->update(['optometrist_id' => $data['optometrist_id']]);
+                    }
+
                     Notification::make()->title('Optometrist assigned')->success()->send();
                     $this->refreshFormData(['optometrist_id']);
                 }),

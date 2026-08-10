@@ -124,6 +124,12 @@ class EncountersTable
                         ])
                         ->action(function (Encounter $record, array $data): void {
                             $record->update(['optometrist_id' => $data['optometrist_id']]);
+
+                            // Sync to linked appointment
+                            if ($record->appointment !== null) {
+                                $record->appointment->update(['optometrist_id' => $data['optometrist_id']]);
+                            }
+
                             Notification::make()->title('Optometrist assigned')->success()->send();
                         }),
 
