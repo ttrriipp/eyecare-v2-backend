@@ -15,7 +15,6 @@ use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -105,49 +104,49 @@ class OpticalOrderForm
                             Select::make('eyewearSpecification.frame_source')
                                 ->label('Frame Source')
                                 ->options(FrameSource::class)
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.lens_design_snapshot')
                                 ->label('Lens Design')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.lens_material_snapshot')
                                 ->label('Material')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.refractive_index_snapshot')
                                 ->label('Refractive Index')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.lens_options_snapshot')
                                 ->label('Lens Options')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_mode')
                                 ->label('PD Mode')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_binocular')
                                 ->label('Binocular PD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_od')
                                 ->label('OD PD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_os')
                                 ->label('OS PD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.near_pd_binocular')
                                 ->label('Near PD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.fitting_height_od')
                                 ->label('Fitting Height OD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.fitting_height_os')
                                 ->label('Fitting Height OS (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.segment_height_od')
                                 ->label('Segment Height OD (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.segment_height_os')
                                 ->label('Segment Height OS (mm)')
-                                ->disabled(),
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             Textarea::make('eyewearSpecification.lab_instructions')
                                 ->label('Lab Instructions')
-                                ->disabled()
+                                ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true)
                                 ->columnSpanFull(),
                             Placeholder::make('eyewearSpecification.approved_by')
                                 ->label('Approved By')
