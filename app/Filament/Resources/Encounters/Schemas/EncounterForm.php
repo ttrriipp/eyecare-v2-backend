@@ -122,11 +122,13 @@ class EncounterForm
                             ->required()
                             ->validationAttribute('Examination Findings')
                             ->rows(6)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('supporting_test_results')
                             ->label('Supporting Test Results')
                             ->rows(4)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled(self::isClinicalFieldDisabled()),
                     ])
                     ->afterValidation(function (EditEncounter $livewire): void {
                         $livewire->saveDraft(2);
@@ -139,13 +141,15 @@ class EncounterForm
                             ->required()
                             ->validationAttribute('Assessment')
                             ->rows(4)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('plan')
                             ->label('Plan')
                             ->required()
                             ->validationAttribute('Plan')
                             ->rows(4)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Section::make('Prescription (Optional)')
                             ->schema([
                                 Group::make(PrescriptionForm::components(forEncounter: true))
