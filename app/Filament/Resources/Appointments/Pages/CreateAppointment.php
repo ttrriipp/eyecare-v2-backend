@@ -160,6 +160,7 @@ class CreateAppointment extends CreateRecord
                     'appointment_id' => $appointment->id,
                     'optometrist_id' => $appointment->optometrist_id,
                     'status' => EncounterStatus::Planned,
+                    'chief_complaint' => $appointment->reason_for_visit,
                 ]);
             }
 
