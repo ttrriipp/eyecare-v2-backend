@@ -103,15 +103,19 @@ class EditAppointment extends EditRecord
                     && auth()->user()?->isOptometrist() === true)
                 ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
-                ->modalDescription('Select the optometrist and start the consultation.')
-                ->schema([
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                ])
+                ->modalDescription(fn (): string => $this->getRecord()->optometrist_id !== null
+                    ? "Start consultation with {$this->getRecord()->optometrist?->full_name}?"
+                    : 'You will be assigned as the optometrist for this encounter.')
+                ->schema(fn (): array => $this->getRecord()->optometrist_id !== null
+                    ? [] // No selector needed — optometrist already assigned
+                    : [
+                        Select::make('optometrist_id')
+                            ->label('Optometrist')
+                            ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
+                            ->required()
+                            ->searchable()
+                            ->preload(),
+                    ])
                 ->action(function (array $data): void {
                     $encounter = $this->getRecord()->encounter;
 
@@ -126,16 +130,6 @@ class EditAppointment extends EditRecord
 
                         return;
                     }
-
-                    $optometristId = $data['optometrist_id'] ?? null;
-
-                    if (empty($optometristId)) {
-                        Notification::make()->title('No optometrist selected')->body('Please select an optometrist.')->danger()->send();
-
-                        return;
-                    }
-
-                    $optometrist = User::findOrFail($optometristId);
 
                     try {
                         app(StartEncounter::class)->handle(
