@@ -113,7 +113,14 @@ class EncountersTable
                         ->label('Assign Optometrist')
                         ->icon('heroicon-o-user-plus')
                         ->color('info')
-                        ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned)
+                        ->visible(fn (Encounter $record): bool => match (true) {
+                            // Admin/owner: may assign or reassign at any time
+                            auth()->user()->isAdmin() => true,
+                            // Staff: may assign or reassign before consultation starts
+                            auth()->user()->isStaff() => $record->status === EncounterStatus::Planned,
+                            // Optometrist: cannot reassign
+                            default => false,
+                        })
                         ->form([
                             Select::make('optometrist_id')
                                 ->label('Optometrist')

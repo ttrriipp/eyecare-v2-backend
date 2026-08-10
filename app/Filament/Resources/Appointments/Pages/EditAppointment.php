@@ -100,7 +100,18 @@ class EditAppointment extends EditRecord
                 ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in'
                     && $this->getRecord()->encounter?->status === EncounterStatus::Planned
-                    && auth()->user()?->isOptometrist() === true)
+                    && (
+                        // Admin/owner: always allowed
+                        auth()->user()->isAdmin()
+                        // Optometrist: only if assigned to them or unassigned (self-claim)
+                        || (
+                            auth()->user()->isOptometrist()
+                            && (
+                                $this->getRecord()->optometrist_id === null
+                                || $this->getRecord()->optometrist_id === auth()->id()
+                            )
+                        )
+                    ))
                 ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
                 ->modalDescription(fn (): string => $this->getRecord()->optometrist_id !== null

@@ -550,7 +550,14 @@ class EditEncounter extends EditRecord
                 ->label('Assign Optometrist')
                 ->icon('heroicon-o-user-plus')
                 ->color('info')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned)
+                ->visible(fn (): bool => match (true) {
+                    // Admin/owner: may assign or reassign at any time
+                    auth()->user()->isAdmin() => true,
+                    // Staff: may assign or reassign before consultation starts
+                    auth()->user()->isStaff() => $this->record->status === EncounterStatus::Planned,
+                    // Optometrist: cannot reassign
+                    default => false,
+                })
                 ->schema(fn (): array => [
                     Select::make('optometrist_id')
                         ->label('Optometrist')
