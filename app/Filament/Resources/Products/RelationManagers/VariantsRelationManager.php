@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -149,6 +150,27 @@ class VariantsRelationManager extends RelationManager
                 ->columns(4)
                 ->columnSpanFull()
                 ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
+
+            // Lot information for contact-lens variants
+            Section::make('Lots')
+                ->schema([
+                    Placeholder::make('lot_summary')
+                        ->label('')
+                        ->content(function ($record): string {
+                            if ($record === null || $record->lots->isEmpty()) {
+                                return 'No lots recorded.';
+                            }
+
+                            $total = $record->lots->sum('quantity_on_hand');
+                            $expired = $record->lots->filter(fn ($lot) => $lot->isExpired())->count();
+
+                            return "{$total} units across {$record->lots->count()} lot(s)".
+                                ($expired > 0 ? " ({$expired} expired)" : '');
+                        }),
+                ])
+                ->columnSpanFull()
+                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
+
             FileUpload::make('images')
                 ->disk('public')
                 ->directory('variants')
