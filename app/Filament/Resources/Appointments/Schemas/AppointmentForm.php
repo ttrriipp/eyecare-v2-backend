@@ -228,12 +228,11 @@ class AppointmentForm
                                 ->relationship(
                                     name: 'appointmentType',
                                     titleAttribute: 'name',
-                                    modifyQueryUsing: fn ($query) => $query->where('is_active', true),
                                 )
+                                ->options(AppointmentType::where('is_active', true)->pluck('name', 'id'))
                                 ->required()
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
-                                ->dehydrated()
                                 ->afterStateUpdated(function (Set $set, ?string $state): void {
                                     $type = AppointmentType::find($state);
                                     if ($type) {
