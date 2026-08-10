@@ -226,6 +226,7 @@ class AppointmentForm
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
                                 ->relationship('appointmentType', 'name')
+                                ->getOptionLabelFromRecordUsing(fn (AppointmentType $record): string => "{$record->name} ({$record->duration_minutes}m)")
                                 ->required()
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
