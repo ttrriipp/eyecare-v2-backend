@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
+use App\Actions\Inventory\ReceiveContactLensStock;
 use App\Actions\Inventory\RecordInventoryMovement;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -14,14 +15,12 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Get as FormGet;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
@@ -399,11 +398,11 @@ class VariantsRelationManager extends RelationManager
                                 ->minValue(1),
                             TextInput::make('lot_number')
                                 ->label('Lot Number')
-                                ->required(fn (FormGet $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
+                                ->required(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
                                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
                             DatePicker::make('expires_on')
                                 ->label('Expiration Date')
-                                ->required(fn (FormGet $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
+                                ->required(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
                                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
                                 ->native(false),
                             TextInput::make('source_reference')
@@ -416,7 +415,7 @@ class VariantsRelationManager extends RelationManager
                             $isContactLens = $record->product?->product_type === 'contact_lens';
 
                             if ($isContactLens) {
-                                app(\App\Actions\Inventory\ReceiveContactLensStock::class)->handle(
+                                app(ReceiveContactLensStock::class)->handle(
                                     variant: $record,
                                     quantity: (int) $data['quantity'],
                                     lotNumber: $data['lot_number'],
