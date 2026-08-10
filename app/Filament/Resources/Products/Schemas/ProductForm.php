@@ -133,7 +133,15 @@ class ProductForm
                                 ->required()
                                 ->numeric()
                                 ->minValue(0)
-                                ->default(0),
+                                ->default(0)
+                                ->visible(fn (Get $get): bool => $get('../../product_type') !== 'contact_lens'),
+                            TextInput::make('stock_quantity')
+                                ->label('Stock Quantity')
+                                ->default(0)
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->helperText('Receive stock after creation using the Receive Stock action.')
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
                             TextInput::make('low_stock_threshold')
                                 ->required()
                                 ->numeric()
