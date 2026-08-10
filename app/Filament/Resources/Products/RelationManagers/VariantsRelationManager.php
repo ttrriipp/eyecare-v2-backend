@@ -16,6 +16,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -184,6 +185,12 @@ class VariantsRelationManager extends RelationManager
                 ->schema([
                     Repeater::make('lots')
                         ->relationship()
+                        ->table([
+                            TableColumn::make('Lot #'),
+                            TableColumn::make('Expires'),
+                            TableColumn::make('Qty'),
+                            TableColumn::make('Status'),
+                        ])
                         ->schema([
                             TextInput::make('lot_number')
                                 ->label('Lot #')
@@ -207,8 +214,7 @@ class VariantsRelationManager extends RelationManager
                         ->disableItemCreation()
                         ->disableItemDeletion()
                         ->disableItemMovement()
-                        ->collapsible()
-                        ->itemLabel(fn (array $state): ?string => $state['lot_number'] ?? null),
+                        ->compact(),
                 ])
                 ->columnSpanFull()
                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
