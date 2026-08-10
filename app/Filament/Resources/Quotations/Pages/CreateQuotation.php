@@ -236,10 +236,6 @@ class CreateQuotation extends CreateRecord
                 ->label('Present Quotation')
                 ->icon('heroicon-o-paper-airplane')
                 ->color('primary')
-                ->requiresConfirmation()
-                ->modalHeading('Present Quotation')
-                ->modalDescription('Save and present this quotation to the patient.')
-                ->modalSubmitActionLabel('Present')
                 ->action(function (): void {
                     $this->creationMode = 'presented';
                     $this->create();
@@ -249,10 +245,6 @@ class CreateQuotation extends CreateRecord
                 ->label('Accept & Continue')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->requiresConfirmation()
-                ->modalHeading('Accept Quotation')
-                ->modalDescription('Save and mark this quotation as accepted.')
-                ->modalSubmitActionLabel('Accept')
                 ->action(function (): void {
                     $this->creationMode = 'accepted';
                     $this->create();
