@@ -140,7 +140,6 @@ class ProductForm
                                 ->default(0)
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->helperText('Receive stock after creation using the Receive Stock action.')
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
                             TextInput::make('low_stock_threshold')
                                 ->required()
