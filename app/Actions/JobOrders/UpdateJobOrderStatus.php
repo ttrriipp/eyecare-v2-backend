@@ -3,6 +3,7 @@
 namespace App\Actions\JobOrders;
 
 use App\Enums\JobOrderStatus;
+use App\Models\InventoryLot;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
@@ -115,11 +116,11 @@ class UpdateJobOrderStatus
             }
 
             // Find unreversed commitments for this variant/job order
-            $committedQty = InventoryMovement::query()
+            $commitmentMovements = InventoryMovement::query()
                 ->where('job_order_id', $jobOrder->id)
                 ->where('product_variant_id', $item->product_variant_id)
                 ->where('inventory_movement_type_id', $commitmentType->id)
-                ->sum('quantity_change');
+                ->get();
 
             $reversedQty = InventoryMovement::query()
                 ->where('job_order_id', $jobOrder->id)
@@ -127,6 +128,7 @@ class UpdateJobOrderStatus
                 ->where('inventory_movement_type_id', $reversalType->id)
                 ->sum('quantity_change');
 
+            $committedQty = $commitmentMovements->sum('quantity_change');
             $netCommitment = abs($committedQty) - abs($reversedQty);
 
             if ($netCommitment <= 0) {
@@ -145,9 +147,24 @@ class UpdateJobOrderStatus
             $previousStock = $variant->stock_quantity;
             $variant->increment('stock_quantity', $netCommitment);
 
+            // Restore lot quantities for lot-tracked variants
+            $lotId = null;
+            if ($variant->product->product_type === 'contact_lens') {
+                $originalMovement = $commitmentMovements->first();
+                $lotId = $originalMovement?->inventory_lot_id;
+
+                if ($lotId !== null) {
+                    InventoryLot::query()
+                        ->whereKey($lotId)
+                        ->lockForUpdate()
+                        ->increment('quantity_on_hand', $netCommitment);
+                }
+            }
+
             InventoryMovement::query()->create([
                 'product_variant_id' => $variant->id,
                 'job_order_id' => $jobOrder->id,
+                'inventory_lot_id' => $lotId,
                 'inventory_movement_type_id' => $reversalType->id,
                 'quantity_change' => $netCommitment,
                 'previous_stock' => $previousStock,
