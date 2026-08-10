@@ -181,41 +181,38 @@ class VariantsRelationManager extends RelationManager
                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
 
             // Lot information for contact-lens variants
-            Section::make('Lots')
-                ->schema([
-                    Repeater::make('lots')
-                        ->relationship()
-                        ->table([
-                            TableColumn::make('Lot #'),
-                            TableColumn::make('Expires'),
-                            TableColumn::make('Qty'),
-                            TableColumn::make('Status'),
-                        ])
-                        ->schema([
-                            TextInput::make('lot_number')
-                                ->label('Lot #')
-                                ->disabled(),
-                            DatePicker::make('expires_on')
-                                ->label('Expires')
-                                ->disabled(),
-                            TextInput::make('quantity_on_hand')
-                                ->label('Qty')
-                                ->disabled(),
-                            Placeholder::make('status')
-                                ->label('Status')
-                                ->content(fn ($record): string => match (true) {
-                                    $record === null => '—',
-                                    $record->isExpired() => 'Expired',
-                                    $record->expires_on->diffInDays(now()) <= 30 => 'Near Expiry',
-                                    default => 'OK',
-                                }),
-                        ])
-                        ->columns(4)
-                        ->disableItemCreation()
-                        ->disableItemDeletion()
-                        ->disableItemMovement()
-                        ->compact(),
+            Repeater::make('lots')
+                ->relationship()
+                ->table([
+                    TableColumn::make('Lot #'),
+                    TableColumn::make('Expires'),
+                    TableColumn::make('Qty'),
+                    TableColumn::make('Status'),
                 ])
+                ->schema([
+                    TextInput::make('lot_number')
+                        ->label('Lot #')
+                        ->disabled(),
+                    DatePicker::make('expires_on')
+                        ->label('Expires')
+                        ->disabled(),
+                    TextInput::make('quantity_on_hand')
+                        ->label('Qty')
+                        ->disabled(),
+                    Placeholder::make('status')
+                        ->label('Status')
+                        ->content(fn ($record): string => match (true) {
+                            $record === null => '—',
+                            $record->isExpired() => 'Expired',
+                            $record->expires_on->diffInDays(now()) <= 30 => 'Near Expiry',
+                            default => 'OK',
+                        }),
+                ])
+                ->columns(4)
+                ->disableItemCreation()
+                ->disableItemDeletion()
+                ->disableItemMovement()
+                ->compact()
                 ->columnSpanFull()
                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
 
