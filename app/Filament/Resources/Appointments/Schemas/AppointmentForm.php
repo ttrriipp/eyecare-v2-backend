@@ -225,11 +225,8 @@ class AppointmentForm
                                 ->hiddenOn('edit'),
                             Select::make('appointment_type_id')
                                 ->label('Appointment Type')
-                                ->relationship(
-                                    name: 'appointmentType',
-                                    titleAttribute: 'name',
-                                )
-                                ->options(AppointmentType::where('is_active', true)->pluck('name', 'id'))
+                                ->options(fn () => AppointmentType::where('is_active', true)->pluck('name', 'id'))
+                                ->searchable()
                                 ->required()
                                 ->live()
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
