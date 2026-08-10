@@ -171,16 +171,19 @@ class ProductForm
                                     TextInput::make('attributes.power')
                                         ->label('Power')
                                         ->placeholder('-2.00')
+                                        ->required()
                                         ->maxLength(20),
                                     TextInput::make('attributes.base_curve')
                                         ->label('Base Curve')
                                         ->placeholder('8.6')
+                                        ->required()
                                         ->numeric()
                                         ->minValue(7)
                                         ->maxValue(12),
                                     TextInput::make('attributes.diameter')
                                         ->label('Diameter (mm)')
                                         ->placeholder('14.0')
+                                        ->required()
                                         ->numeric()
                                         ->minValue(10)
                                         ->maxValue(20),
@@ -205,6 +208,7 @@ class ProductForm
                                     TextInput::make('attributes.pack_size')
                                         ->label('Pack Size')
                                         ->placeholder('30')
+                                        ->required()
                                         ->numeric()
                                         ->minValue(1)
                                         ->maxValue(999),
