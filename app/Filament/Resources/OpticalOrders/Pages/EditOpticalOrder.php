@@ -29,9 +29,17 @@ class EditOpticalOrder extends EditRecord
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::Queued)
                 ->requiresConfirmation()
+                ->modalHeading('Start Processing')
+                ->modalDescription('Begin processing this optical order.')
+                ->modalSubmitActionLabel('Start')
                 ->action(function (): void {
-                    app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress');
-                    $this->refreshFormData(['status', 'started_at']);
+                    try {
+                        app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress');
+                        Notification::make()->title('Order started')->success()->send();
+                        $this->refreshFormData(['status', 'started_at']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot start order')->body($e->getMessage())->danger()->send();
+                    }
                 }),
 
             Action::make('markReady')
@@ -40,6 +48,9 @@ class EditOpticalOrder extends EditRecord
                 ->color('info')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::InProgress)
                 ->requiresConfirmation()
+                ->modalHeading('Mark Ready for Pickup')
+                ->modalDescription('Mark this order as ready for patient pickup.')
+                ->modalSubmitActionLabel('Mark Ready')
                 ->schema([
                     TextInput::make('supplier_invoice_number')
                         ->label('Supplier Invoice Number')
@@ -48,11 +59,16 @@ class EditOpticalOrder extends EditRecord
                         ->maxLength(100),
                 ])
                 ->action(function (array $data): void {
-                    $this->record->update([
-                        'supplier_invoice_number' => $data['supplier_invoice_number'],
-                    ]);
-                    app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing');
-                    $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
+                    try {
+                        $this->record->update([
+                            'supplier_invoice_number' => $data['supplier_invoice_number'],
+                        ]);
+                        app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing');
+                        Notification::make()->title('Order marked ready')->success()->send();
+                        $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot mark ready')->body($e->getMessage())->danger()->send();
+                    }
                 }),
 
             Action::make('cancel')
