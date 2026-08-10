@@ -1,642 +1,1338 @@
-# Task List: Practical Clinical Encounter Workflow
+# Task Checklist: Practical Optical Commerce and Dispensing
 
-**Status:** Approved — implementation not started
-**Spec:** `docs/specs/encounter-workflow-spec.md`
+**Status:** Complete
+**Specification:** `docs/specs/optical-commerce-and-dispensing-spec.md`
 **Plan:** `tasks/plan.md`
-**Spec approved:** 2026-08-09
-**Plan approved:** 2026-08-09
-**Task list approved:** 2026-08-09
-**Implementation:** Not started
+**Specification approved:** 2026-08-10
+**Plan approved:** 2026-08-10
+**Tasks approved:** 2026-08-10
+**Implementation:** Complete (2026-08-10)
 
-Implementation begins only after this checklist receives separate approval.
+## Execution Rules
 
-## Standing Definition of Done
+- Implement tasks in dependency order unless this checklist explicitly marks
+  work as independent.
+- Do not begin a task until its dependencies and preceding checkpoint pass.
+- Use Laravel Boost `search-docs` before every Laravel, Filament, Livewire, or
+  Pest implementation change.
+- Use Sail-prefixed Artisan generators with `--no-interaction` for new Laravel
+  files where an appropriate generator exists.
+- Write or update the focused Pest test before changing behavior.
+- Run the listed focused verification before checking off a task.
+- Run `vendor/bin/sail bin pint --dirty --format agent` after PHP changes.
+- Do not add a dependency, public route, top-level directory, deferred feature,
+  or Prescription-field interpretation without returning to the project owner.
+- No task may silently change the clinic-facing term **Optical Order** back to
+  Job Order.
 
-Every task must:
+## Phase 1: Characterize the Existing Boundaries
 
-- search installed-version Laravel or Filament documentation before changing
-  that domain;
-- write or update the focused Pest expectation before changing behavior;
-- use Sail for PHP, Artisan, Composer, Node, tests, and formatting;
-- use Artisan or Filament generators for framework-owned files;
-- preserve unrelated worktree changes and re-read shared files before editing;
-- keep mutations behind policies and typed action classes;
-- run its focused verification command; and
-- leave the application in a working, testable state.
+## Task 1: Characterize Quotation confirmation
 
-Run `vendor/bin/sail bin pint --dirty --format agent` after every task that
-changes PHP. Stop and return to planning if a task would exceed five files,
-change an approved contract, or require a dependency.
-
-## Phase 1: Characterize and Extend the Clinical Draft
-
-### Task 1: Characterize the existing Encounter lifecycle
-
-**Description:** Protect the valid check-in, draft, optional-prescription, and
-completion behavior before refactoring. Do not encode the known cross-provider
-authorization defects or active Intake attachment as desired behavior.
+**Description:** Protect the currently working direct and presented Quotation
+paths before changing item semantics or confirmation validation.
 
 **Acceptance criteria:**
 
-- [ ] Scheduled and walk-in check-in still produce exactly one planned Encounter.
-- [ ] Draft, prescription, completion attribution, and Appointment fulfillment are covered.
-- [ ] Tests clearly mark legacy behavior that later tasks intentionally replace.
+- [ ] Direct Draft confirmation and Presented confirmation each create at most
+  one accepted Quotation, Optical Order, and Billing Record.
+- [ ] Product lines enter the Optical Order while only explicitly selected
+  performed Services enter Billing.
+- [ ] Retried confirmation creates no duplicate order, billing item, payment,
+  inventory movement, or reservation conversion.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterLifecycleCharacterizationTest.php tests/Feature/Encounters/PrescriptionLifecycleTest.php tests/Feature/Encounters/CheckInTransactionTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/QuotationLifecycleTest.php tests/Feature/Quotations/CreateQuotationTest.php tests/Feature/OpticalOrders/FrameReservationJobOrderLinkTest.php`
 
 **Dependencies:** None
 
 **Files likely touched:**
 
-- `tests/Feature/Encounters/EncounterLifecycleCharacterizationTest.php`
-- `tests/Feature/Encounters/PrescriptionLifecycleTest.php`
-- `tests/Feature/Encounters/CheckInTransactionTest.php`
+- `tests/Feature/Quotations/QuotationLifecycleTest.php`
+- `tests/Feature/Quotations/CreateQuotationTest.php`
+- `tests/Feature/OpticalOrders/FrameReservationJobOrderLinkTest.php`
 
-**Estimated scope:** Medium (3 files)
+**Estimated scope:** Medium
 
-### Task 2: Persist assessment and device-neutral supporting results
+## Task 2: Characterize valid payment and dispensing behavior
 
-**Description:** Generate an additive migration, update Encounter and its
-factory, and prove that drafts can store assessment and optional supporting
-test narrative without introducing device-specific fields.
+**Description:** Protect deposits, partial payments, corrections, charge-set
+locking, and valid Ready-to-Completed behavior before tightening their
+invariants.
 
 **Acceptance criteria:**
 
-- [ ] Nullable `TEXT` columns preserve historical rows and require no backfill.
-- [ ] Both attributes use encrypted casts and raw storage hides submitted narrative.
-- [ ] The factory supports complete and partial clinical drafts.
+- [ ] Valid deposits, later partial payments, and exact-balance payments retain
+  their current ledger and status behavior.
+- [ ] First payment continues locking the Billing charge set.
+- [ ] Payment correction remains append-only and successful valid dispensing
+  records exactly one Dispensing Event.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterClinicalFieldsTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/BillingRecords/PaymentLifecycleTest.php tests/Feature/BillingRecords/BillingRecordLedgerTest.php tests/Feature/BillingRecords/DispensingTest.php`
+
+**Dependencies:** None
+
+**Files likely touched:**
+
+- `tests/Feature/BillingRecords/PaymentLifecycleTest.php`
+- `tests/Feature/BillingRecords/BillingRecordLedgerTest.php`
+- `tests/Feature/BillingRecords/DispensingTest.php`
+
+**Estimated scope:** Medium
+
+## Task 3: Characterize inventory and patient privacy
+
+**Description:** Protect aggregate stock, reservation conversion, cancellation
+reversal, and the existing patient-safe commercial resources.
+
+**Acceptance criteria:**
+
+- [ ] Order commitment and cancellation remain quantity-safe and idempotent.
+- [ ] Converted Frame Reservations do not commit the selected frame twice.
+- [ ] Patient resources expose current commercial information while excluding
+  supplier and internal notes.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/InventoryLedgerTest.php tests/Feature/Reservations/ConvertFrameReservationToJobOrderTest.php tests/Feature/Api/V1/WorkflowReadsTest.php`
+
+**Dependencies:** None
+
+**Files likely touched:**
+
+- `tests/Feature/Inventory/InventoryLedgerTest.php`
+- `tests/Feature/Reservations/ConvertFrameReservationToJobOrderTest.php`
+- `tests/Feature/Api/V1/WorkflowReadsTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint A: Existing behavior baseline
+
+- [ ] Tasks 1–3 focused suites pass without intentional production behavior
+  changes.
+- [ ] No current test was deleted merely because later behavior will change.
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations tests/Feature/OpticalOrders tests/Feature/BillingRecords tests/Feature/Inventory tests/Feature/Reservations` passes.
+
+## Phase 2: Establish Optical Item Contracts
+
+## Task 4: Persist commercial item kinds
+
+**Description:** Add the stable item-kind enum and additive Quotation/Job Order
+item columns with a deterministic historical backfill.
+
+**Acceptance criteria:**
+
+- [ ] The enum contains exactly frame, lens package, lens option, contact lens,
+  accessory, custom product, and service kinds.
+- [ ] Existing controlled foreign keys backfill deterministically; ambiguous
+  Product lines become custom product without parsing descriptions.
+- [ ] Fresh and upgraded schemas expose nullable snapshot storage and required
+  item-kind storage without removing existing columns.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Commerce/OpticalItemKindSchemaTest.php tests/Feature/Database/CanonicalSchemaTest.php`
 
 **Dependencies:** Task 1
 
 **Files likely touched:**
 
-- `database/migrations/*_add_assessment_and_supporting_test_results_to_encounters_table.php`
-- `app/Models/Encounter.php`
-- `database/factories/EncounterFactory.php`
-- `tests/Feature/Encounters/EncounterClinicalFieldsTest.php`
+- `app/Enums/CommercialItemKind.php`
+- `database/migrations/*_add_item_kinds_and_snapshots_to_commerce_items.php`
+- `tests/Feature/Commerce/OpticalItemKindSchemaTest.php`
+- `tests/Feature/Database/CanonicalSchemaTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-## Checkpoint A: Characterized Data Foundation — Tasks 1–2
+## Task 5: Cast item kinds and snapshots
 
-- [ ] Focused tests for Tasks 1–2 pass.
-- [ ] `vendor/bin/sail artisan migrate --no-interaction` succeeds on a verified development database.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] Existing rows remain readable and no Patient Intake data is removed.
-
-## Phase 2: Enforce Provider-Owned Entry into Care
-
-### Task 3: Enforce the Encounter role and assignment policy
-
-**Description:** Generate an Encounter policy implementing the approved role
-matrix. Optometrist role and assigned-provider identity remain independent
-requirements; plain administrator access is operational, not clinical.
+**Description:** Teach transaction item models and factories to persist the
+new enum and JSON snapshots without weakening the Product/Service invariant.
 
 **Acceptance criteria:**
 
-- [ ] View, assign, start, draft, complete, transfer, addendum, and print abilities match the spec matrix.
-- [ ] Inactive accounts are denied mutation abilities.
-- [ ] Staff and plain administrators never receive clinical authorship.
+- [ ] Quotation and Job Order items cast item kind to the enum and snapshots to
+  arrays.
+- [ ] Job Order items remain Product-only and Service items reject Product
+  references.
+- [ ] Factory states produce valid representative kinds and snapshots.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterPolicyTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/QuotationItemTypeTest.php tests/Feature/OpticalOrders/TransactionItemTypeTest.php tests/Feature/Commerce/OpticalItemKindSchemaTest.php`
 
-**Dependencies:** Task 2
+**Dependencies:** Task 4
 
 **Files likely touched:**
 
-- `app/Policies/EncounterPolicy.php`
-- `tests/Feature/Encounters/EncounterPolicyTest.php`
+- `app/Models/QuotationItem.php`
+- `app/Models/JobOrderItem.php`
+- `database/factories/QuotationItemFactory.php`
+- `database/factories/JobOrderItemFactory.php`
+- `tests/Feature/Commerce/OpticalItemKindSchemaTest.php`
 
-**Estimated scope:** Small (2 files)
+**Estimated scope:** Medium
 
-### Task 4: Check in without active Patient Intake consumption
+## Task 6: Build immutable catalog snapshots
 
-**Description:** Update the check-in slice from Appointment through planned
-Encounter: stop Intake lookup/attachment, copy assigned provider, and prefill
-chief complaint from the Appointment reason.
+**Description:** Add one focused builder that converts controlled catalog
+selections into stable transaction snapshots.
 
 **Acceptance criteria:**
 
-- [ ] Check-in creates exactly one planned Encounter with a null Intake link.
-- [ ] Provider and reason are copied without preventing later clinical editing.
-- [ ] Existing transaction rollback and duplicate-check-in safeguards remain intact.
+- [ ] Frame/accessory/contact variants snapshot SKU, names, Product type, and
+  applicable attributes.
+- [ ] Lens Categories snapshot package identity and patient-facing name.
+- [ ] Custom lines accept only an explicit permitted kind and never infer it
+  from description text.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterCheckInTest.php tests/Feature/Encounters/CheckInTransactionTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/BuildQuotationItemSnapshotTest.php`
 
-**Dependencies:** Tasks 2 and 3
+**Dependencies:** Task 5
 
 **Files likely touched:**
 
-- `app/Actions/Encounters/CheckInAppointment.php`
-- `tests/Feature/Encounters/EncounterCheckInTest.php`
-- `tests/Feature/Encounters/CheckInTransactionTest.php`
+- `app/Actions/Quotations/BuildQuotationItemSnapshot.php`
+- `app/Models/ProductVariant.php`
+- `app/Models/LensCategory.php`
+- `tests/Feature/Quotations/BuildQuotationItemSnapshotTest.php`
 
-**Estimated scope:** Medium (3 files)
+**Estimated scope:** Medium
 
-### Task 5: Start as the authenticated treating optometrist
+## Checkpoint B: Item foundation
 
-**Description:** Refactor StartEncounter to accept only Encounter and actor.
-Authorize and lock the transition, allow self-claim when unassigned, and keep
-Encounter and Appointment provider assignments synchronized.
+- [ ] Tasks 4–6 focused tests pass on fresh and upgraded test databases.
+- [ ] No snapshot builder reads clinical Prescription values.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent` completes cleanly.
 
-**Acceptance criteria:**
+## Task 7: Assign kinds during Quotation creation
 
-- [ ] The assigned optometrist can start, and an unassigned Encounter can be self-claimed.
-- [ ] Nobody can start for another provider or start another provider's Encounter.
-- [ ] Successful and failed transitions preserve Encounter/Appointment assignment consistency.
-
-**Verification:**
-
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/StartEncounterTest.php`
-
-**Dependencies:** Tasks 3 and 4
-
-**Files likely touched:**
-
-- `app/Actions/Encounters/StartEncounter.php`
-- `tests/Feature/Encounters/StartEncounterTest.php`
-
-**Estimated scope:** Small (2 files)
-
-## Checkpoint B: Provider-Owned Start — Tasks 3–5
-
-- [ ] Policy, check-in, and start focused tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] Check-in through start works for assigned and self-claim scenarios.
-- [ ] Direct action invocation cannot bypass role or assignment checks.
-
-## Phase 3: Deliver the Four-Step Autosaving Wizard
-
-### Task 6: Save partial drafts through a domain action
-
-**Description:** Add SaveEncounterDraft with policy and state enforcement,
-narrative trimming and limits, and wizard-step validation. Completion-only
-requirements must not invalidate a partial draft.
+**Description:** Route every new Quotation line through controlled item-kind
+and snapshot construction.
 
 **Acceptance criteria:**
 
-- [ ] Only the assigned active optometrist can save an in-progress draft.
-- [ ] Narrative is trimmed, capped at 10,000 characters, and remains encrypted.
-- [ ] `last_wizard_step` accepts 1–4 while incomplete drafts remain valid.
+- [ ] Catalog, Lens Category, Service, and custom selections persist the
+  expected item type, item kind, and snapshot.
+- [ ] Invalid kind/reference combinations fail before the Quotation is saved.
+- [ ] Existing totals and one-to-fifty line validation remain unchanged.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/SaveEncounterDraftTest.php`
-
-**Dependencies:** Tasks 2, 3, and 5
-
-**Files likely touched:**
-
-- `app/Actions/Encounters/SaveEncounterDraft.php`
-- `tests/Feature/Encounters/SaveEncounterDraftTest.php`
-
-**Estimated scope:** Small (2 files)
-
-### Task 7: Deliver the autosaving four-step Filament workflow
-
-**Description:** Recompose the Encounter form and edit page into History,
-Examination, Assessment & Plan, and Review & Complete. Delegate step saves to
-SaveEncounterDraft and resume at the saved step.
-
-**Acceptance criteria:**
-
-- [ ] The approved fields, optional prescription, and persistent Encounter context appear in the correct steps.
-- [ ] Forward navigation saves, Back preserves state, and reopening resumes the saved step.
-- [ ] Only an authorized in-progress Encounter renders an editable wizard.
-
-**Verification:**
-
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterWizardTest.php tests/Feature/Filament/EncounterDraftWorkflowTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/CreateQuotationTest.php tests/Feature/Filament/QuotationCreationTest.php`
 
 **Dependencies:** Task 6
 
 **Files likely touched:**
 
-- `app/Filament/Resources/Encounters/Schemas/EncounterForm.php`
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- `resources/views/filament/encounters/complete-visit-button.blade.php`
-- `tests/Feature/Filament/EncounterWizardTest.php`
-- `tests/Feature/Filament/EncounterDraftWorkflowTest.php`
+- `app/Actions/Quotations/CreateQuotation.php`
+- `app/Filament/Resources/Quotations/Schemas/QuotationCreationForm.php`
+- `tests/Feature/Quotations/CreateQuotationTest.php`
+- `tests/Feature/Filament/QuotationCreationTest.php`
 
-**Estimated scope:** Medium (5 files)
+**Estimated scope:** Medium
 
-## Checkpoint C: Draft Authoring — Tasks 6–7
+## Task 8: Preserve kinds during Draft updates
 
-- [ ] Draft-action and Filament workflow tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] The treating optometrist can save, leave, and resume every wizard step.
-- [ ] View access still does not grant clinical edit access.
-
-## Phase 4: Complete the Encounter Atomically
-
-### Task 8: Complete required clinical care atomically
-
-**Description:** Make CompleteEncounter the sole terminal boundary. Lock and
-revalidate state, actor, assignment, required fields, and Appointment before
-recording attribution and fulfilling the Appointment in one transaction.
+**Description:** Apply the same controlled item contract when an editable
+Draft or Presented Quotation is revised.
 
 **Acceptance criteria:**
 
-- [ ] Chief complaint, findings, assessment, and plan are required only at completion.
-- [ ] Only the assigned active optometrist can complete and receive attribution.
-- [ ] Stale or failed completion leaves Encounter and Appointment unchanged.
+- [ ] Updates rebuild snapshots from explicit submitted references and kinds.
+- [ ] Editing a Presented Quotation still returns it to Draft.
+- [ ] Accepted or otherwise terminal Quotations remain immutable.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/CompleteEncounterTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/UpdateQuotationDraftTest.php tests/Feature/Filament/QuotationResourceTest.php`
 
-**Dependencies:** Tasks 5 and 6
+**Dependencies:** Task 7
 
 **Files likely touched:**
 
-- `app/Actions/Encounters/CompleteEncounter.php`
-- `tests/Feature/Encounters/CompleteEncounterTest.php`
+- `app/Actions/Quotations/UpdateQuotationDraft.php`
+- `app/Filament/Resources/Quotations/Pages/EditQuotation.php`
+- `tests/Feature/Quotations/UpdateQuotationDraftTest.php`
+- `tests/Feature/Filament/QuotationResourceTest.php`
 
-**Estimated scope:** Small (2 files)
+**Estimated scope:** Medium
 
-### Task 9: Finalize an optional prescription in the completion transaction
+## Task 9: Copy Product snapshots at confirmation
 
-**Description:** Integrate the existing optional prescription finalizer into
-the Encounter completion transaction. Invalid prescription data must roll back
-the prescription, Encounter, and Appointment together.
+**Description:** Copy the frozen Quotation Product kind and snapshot into Job
+Order items without re-reading the catalog.
 
 **Acceptance criteria:**
 
-- [ ] Encounter completion succeeds without a prescription.
-- [ ] A valid draft prescription finalizes with the Encounter.
-- [ ] Any prescription or completion failure produces no partial effects.
+- [ ] Every created Job Order item matches its source Quotation Product line's
+  kind and snapshot.
+- [ ] A catalog edit between Quotation creation and confirmation does not alter
+  the commercial snapshot being confirmed.
+- [ ] Confirmation retries remain duplicate-free.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/PrescriptionLifecycleTest.php tests/Feature/Encounters/EncounterCompletionTransactionTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/ConfirmQuotationSnapshotTest.php tests/Feature/Quotations/QuotationLifecycleTest.php`
 
 **Dependencies:** Task 8
 
 **Files likely touched:**
 
-- `app/Actions/Encounters/CompleteEncounter.php`
-- `app/Actions/Prescriptions/FinalizePrescription.php`
+- `app/Actions/Quotations/ConfirmQuotationSale.php`
+- `app/Models/QuotationItem.php`
+- `app/Models/JobOrderItem.php`
+- `tests/Feature/Quotations/ConfirmQuotationSnapshotTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint C: Transaction snapshots
+
+- [ ] Tasks 7–9 focused tests pass.
+- [ ] Existing unified checkout and reservation tests remain green.
+- [ ] Confirmed Product lines remain understandable after catalog mutation.
+
+## Phase 3: Enforce the Optical Quotation Shape
+
+## Task 10: Restrict discounts to admin authority
+
+**Description:** Enforce the approved nonzero-discount permission in the
+Quotation policy and mutation actions.
+
+**Acceptance criteria:**
+
+- [ ] Staff and optometrist accounts cannot create or update a nonzero
+  discount unless the account also holds admin.
+- [ ] Admin and dual-role owner can apply a valid discount that does not exceed
+  subtotal.
+- [ ] Direct action calls and Filament submissions enforce the same rule.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/QuotationDiscountAuthorizationTest.php tests/Feature/Filament/QuotationCreationTest.php`
+
+**Dependencies:** Task 8
+
+**Files likely touched:**
+
+- `app/Policies/QuotationPolicy.php`
+- `app/Actions/Quotations/CreateQuotation.php`
+- `app/Actions/Quotations/UpdateQuotationDraft.php`
+- `tests/Feature/Quotations/QuotationDiscountAuthorizationTest.php`
+- `tests/Feature/Filament/QuotationCreationTest.php`
+
+**Estimated scope:** Medium
+
+## Task 11: Validate one corrective-eyewear build
+
+**Description:** Add a reusable server-side validator for the approved
+single-build optical item matrix.
+
+**Acceptance criteria:**
+
+- [ ] Corrective eyewear requires exactly one lens package, at most one frame,
+  and lens options only when that package exists.
+- [ ] A patient-supplied frame is accepted without a fake zero-price Product.
+- [ ] Service-only, non-corrective Product-only, and allowed mixed Quotations
+  remain valid.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/ValidateOpticalQuotationTest.php`
+
+**Dependencies:** Task 9
+
+**Files likely touched:**
+
+- `app/Actions/Quotations/ValidateOpticalQuotation.php`
+- `app/Enums/FrameSource.php`
+- `tests/Feature/Quotations/ValidateOpticalQuotationTest.php`
+
+**Estimated scope:** Medium
+
+## Task 12: Require a current Patient prescription
+
+**Description:** Extend the optical validator with current-version,
+Patient-ownership, and non-contact-lens Prescription rules.
+
+**Acceptance criteria:**
+
+- [ ] A corrective lens package cannot confirm without the Patient's current
+  non-superseded Prescription.
+- [ ] Another Patient's or a superseded Prescription is rejected.
+- [ ] Contact-lens-only and other non-corrective Product Quotations do not
+  present the spectacle Prescription as contact-lens authorization.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/QuotationPrescriptionInvariantTest.php tests/Feature/Encounters/PrescriptionLifecycleTest.php`
+
+**Dependencies:** Task 11
+
+**Files likely touched:**
+
+- `app/Actions/Quotations/ValidateOpticalQuotation.php`
+- `app/Models/Prescription.php`
+- `tests/Feature/Quotations/QuotationPrescriptionInvariantTest.php`
 - `tests/Feature/Encounters/PrescriptionLifecycleTest.php`
-- `tests/Feature/Encounters/EncounterCompletionTransactionTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-### Task 10: Complete from the Filament review step
+## Checkpoint D: Optical domain validation
 
-**Description:** Display the current full draft in Review & Complete and
-delegate confirmed submission to CompleteEncounter. Surface safe validation
-errors and transition successful completion to the read-only record.
+- [ ] Tasks 10–12 focused tests pass.
+- [ ] The clinic Prescription field names and semantics remain unchanged.
+- [ ] Plain admin cannot exercise optometrist-only clinical authority merely
+  because discount authority is administrative.
+
+## Task 13: Present an optical Quotation form
+
+**Description:** Refine the existing Filament creation/edit form so staff
+selects a frame, lens package, lens options, related Products, and Services
+through the approved commercial structure.
 
 **Acceptance criteria:**
 
-- [ ] Review displays all approved clinical sections and optional prescription.
-- [ ] Missing required fields block completion without echoing clinical content.
-- [ ] Successful and direct Livewire submissions obey the same action authorization.
+- [ ] The form displays the linked Prescription separately from commercial
+  lines and never requests OD/OS values in the item repeater.
+- [ ] Patient-supplied frame and lens-option dependencies are understandable
+  and validated.
+- [ ] Human-facing lens package quantity reads as one pair while the persisted
+  integer quantity remains one.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterCompletionWorkflowTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/OpticalQuotationFormTest.php tests/Feature/Filament/CreateQuotationPageTest.php`
 
-**Dependencies:** Tasks 7–9
+**Dependencies:** Tasks 10–12
 
 **Files likely touched:**
 
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- `app/Filament/Resources/Encounters/Schemas/EncounterForm.php`
-- `resources/views/filament/encounters/complete-visit-button.blade.php`
-- `tests/Feature/Filament/EncounterCompletionWorkflowTest.php`
+- `app/Filament/Resources/Quotations/Schemas/QuotationCreationForm.php`
+- `app/Filament/Resources/Quotations/Schemas/QuotationForm.php`
+- `app/Filament/Resources/Quotations/Pages/CreateQuotation.php`
+- `tests/Feature/Filament/OpticalQuotationFormTest.php`
+- `tests/Feature/Filament/CreateQuotationPageTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-## Checkpoint D: Atomic Completion — Tasks 8–10
+## Task 14: Validate the build inside Confirm Sale
 
-- [ ] Domain, prescription, and Filament completion tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] End-to-end check-in, start, draft, review, and completion succeeds.
-- [ ] Failure injection proves there are no partial terminal states.
-
-## Phase 5: Coordinate Provider Assignment and Transfer
-
-### Task 11: Assign a planned Encounter through an authorized action
-
-**Description:** Add a typed planned-assignment action and route the Encounter
-table control through it. Resolve an active optometrist and update Encounter
-and Appointment under one locked transaction.
+**Description:** Invoke the approved validator under the locked confirmation
+transaction before any Optical Order, Billing, payment, reservation, or stock
+mutation.
 
 **Acceptance criteria:**
 
-- [ ] Every approved operational role can assign an active optometrist while planned.
-- [ ] Stale, invalid-provider, and post-start assignments are rejected atomically.
-- [ ] No inline editable assignment control bypasses the action.
+- [ ] Invalid build, Prescription, or discount state leaves every downstream
+  aggregate unchanged.
+- [ ] Valid verbal Draft and Presented confirmation paths still work.
+- [ ] Concurrent or repeated confirmation remains idempotent.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/AssignEncounterOptometristTest.php tests/Feature/Filament/EncounterResourceTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/ConfirmOpticalQuotationTest.php tests/Feature/Quotations/QuotationLifecycleTest.php`
 
-**Dependencies:** Tasks 3 and 4
+**Dependencies:** Task 13
 
 **Files likely touched:**
 
-- `app/Actions/Encounters/AssignEncounterOptometrist.php`
-- `app/Filament/Resources/Encounters/Tables/EncountersTable.php`
-- `tests/Feature/Encounters/AssignEncounterOptometristTest.php`
-- `tests/Feature/Filament/EncounterResourceTest.php`
+- `app/Actions/Quotations/ConfirmQuotationSale.php`
+- `app/Actions/Quotations/ValidateOpticalQuotation.php`
+- `tests/Feature/Quotations/ConfirmOpticalQuotationTest.php`
+- `tests/Feature/Quotations/QuotationLifecycleTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-### Task 12: Transfer in-progress ownership with an allowlisted audit event
+## Checkpoint E: Optical Quotation workflow
 
-**Description:** Add the transfer-reason enum and TransferEncounter action.
-Permit only the current provider or administrator, synchronize both records,
-preserve drafts, and audit identifiers plus the reason category only.
+- [ ] Tasks 13–14 focused Filament and domain tests pass.
+- [ ] Product-only, Service-only, and mixed checkout regressions pass.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent` completes cleanly.
+
+## Phase 4: Build the Eyewear Specification
+
+## Task 15: Persist eyewear specifications
+
+**Description:** Add the one-to-one encrypted specification record, model,
+factory, relationships, and schema tests.
 
 **Acceptance criteria:**
 
-- [ ] A permitted actor can transfer to a different active optometrist atomically.
-- [ ] Draft and prescription data survives; only the target can subsequently author.
-- [ ] Audit metadata contains the approved identifiers and enum, never clinical text.
+- [ ] One Job Order may have at most one eyewear specification referencing the
+  same Prescription and relevant frame/lens items.
+- [ ] Measurements and lab/verification notes use encrypted storage with null
+  rather than fabricated zero defaults.
+- [ ] Approval and verification attribution use nullable foreign keys and
+  timestamps without adding a second Order status enum.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/TransferEncounterTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/EyewearSpecificationModelTest.php tests/Feature/Database/CanonicalSchemaTest.php`
 
-**Dependencies:** Tasks 3, 5, and 9
+**Dependencies:** Task 14
 
 **Files likely touched:**
 
-- `app/Enums/EncounterTransferReason.php`
-- `app/Actions/Encounters/TransferEncounter.php`
-- `app/Enums/AuditEvent.php`
-- `tests/Feature/Encounters/TransferEncounterTest.php`
+- `database/migrations/*_create_job_order_eyewear_specifications_table.php`
+- `app/Models/JobOrderEyewearSpecification.php`
+- `app/Models/JobOrder.php`
+- `database/factories/JobOrderEyewearSpecificationFactory.php`
+- `tests/Feature/OpticalOrders/EyewearSpecificationModelTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-### Task 13: Expose transfer as a confirmed Filament action
+## Task 16: Create specification shells at confirmation
 
-**Description:** Add a modal using active-optometrist choices and the approved
-reason enum. Delegate entirely to TransferEncounter and refresh the ownership
-context after success.
-
-**Acceptance criteria:**
-
-- [ ] Only the current provider or administrator sees and can invoke transfer.
-- [ ] Server-side action validation rejects forged target or reason values.
-- [ ] Plain administrator transfer does not grant clinical authorship afterward.
-
-**Verification:**
-
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterTransferActionTest.php`
-
-**Dependencies:** Task 12
-
-**Files likely touched:**
-
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- `tests/Feature/Filament/EncounterTransferActionTest.php`
-
-**Estimated scope:** Small (2 files)
-
-## Checkpoint E: Ownership Changes — Tasks 11–13
-
-- [ ] Assignment, transfer, audit, and Filament tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] Appointment and Encounter provider IDs remain synchronized through every path.
-- [ ] Stale and concurrent ownership changes cannot produce split state.
-
-## Phase 6: Add Immutable Corrections and Supplements
-
-### Task 14: Persist encrypted append-only addenda
-
-**Description:** Generate the addendum table, enum, model, and factory. Prove
-encrypted narrative, restrictive foreign keys, stable timestamps, and unique
-per-Encounter sequencing without adding update or delete semantics.
+**Description:** Create exactly one empty specification shell only for a valid
+corrective-eyewear Optical Order.
 
 **Acceptance criteria:**
 
-- [ ] Schema matches the approved columns, constraints, and absence of `updated_at`/soft deletes.
-- [ ] Reason and content are encrypted and type/authored time are typed casts.
-- [ ] Sequence uniqueness and restrictive foreign keys are enforced by the database.
+- [ ] Corrective confirmation creates a specification linked to the same
+  Prescription and frozen lens/frame items.
+- [ ] Ordinary immediate Product and Service-only transactions create no
+  specification.
+- [ ] Confirmation retry creates no second specification.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterAddendumModelTest.php`
-
-**Dependencies:** Task 2
-
-**Files likely touched:**
-
-- `database/migrations/*_create_encounter_addenda_table.php`
-- `app/Enums/EncounterAddendumType.php`
-- `app/Models/EncounterAddendum.php`
-- `database/factories/EncounterAddendumFactory.php`
-- `tests/Feature/Encounters/EncounterAddendumModelTest.php`
-
-**Estimated scope:** Medium (5 files)
-
-### Task 15: Create authorized corrections through an append-only action
-
-**Description:** Add the ordered Encounter relationship and addendum action.
-Lock the completed parent, allocate sequence, validate narrative, and permit a
-correction only from the original completing optometrist.
-
-**Acceptance criteria:**
-
-- [ ] Only the original completing optometrist can correct a completed Encounter.
-- [ ] Required reason/content obey 1,000/10,000-character limits and remain encrypted.
-- [ ] No supported update, delete, archive, or reopen path is introduced.
-
-**Verification:**
-
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/CreateEncounterCorrectionTest.php`
-
-**Dependencies:** Tasks 3, 8, and 14
-
-**Files likely touched:**
-
-- `app/Models/Encounter.php`
-- `app/Actions/Encounters/CreateEncounterAddendum.php`
-- `app/Policies/EncounterPolicy.php`
-- `tests/Feature/Encounters/CreateEncounterCorrectionTest.php`
-
-**Estimated scope:** Medium (4 files)
-
-### Task 16: Create attributed supplements safely under concurrency
-
-**Description:** Extend the same action contract for supplements by active
-optometrists with record access, and prove locked sequence allocation under
-concurrent attempts.
-
-**Acceptance criteria:**
-
-- [ ] Active optometrists can supplement while staff and plain admin cannot.
-- [ ] Supplements remain attributed and cannot masquerade as corrections or prescription amendments.
-- [ ] Concurrent creation yields unique, monotonic per-Encounter sequences.
-
-**Verification:**
-
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/CreateEncounterSupplementTest.php tests/Feature/Encounters/EncounterAddendumConcurrencyTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/ConfirmEyewearSpecificationTest.php`
 
 **Dependencies:** Task 15
 
 **Files likely touched:**
 
-- `app/Actions/Encounters/CreateEncounterAddendum.php`
-- `tests/Feature/Encounters/CreateEncounterSupplementTest.php`
-- `tests/Feature/Encounters/EncounterAddendumConcurrencyTest.php`
+- `app/Actions/Quotations/ConfirmQuotationSale.php`
+- `app/Models/JobOrderEyewearSpecification.php`
+- `tests/Feature/Quotations/ConfirmEyewearSpecificationTest.php`
 
-**Estimated scope:** Medium (3 files)
+**Estimated scope:** Medium
 
-## Checkpoint F: Immutable Addenda — Tasks 14–16
+## Task 17: Save conditional dispensing measurements
 
-- [ ] Model, correction, supplement, and concurrency tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] Raw storage and audit payload inspection reveals no clinical narrative.
-- [ ] Completed Encounter and addendum records expose no mutation path.
-
-## Phase 7: Present and Print the Signed Record
-
-### Task 17: Render the completed record and addendum actions
-
-**Description:** Replace the disabled terminal wizard with one read-only
-clinical summary followed by chronological addenda. Add the confirmed addendum
-modal only for actors and types allowed by policy.
+**Description:** Add one action that validates and saves lens construction,
+frame source, PD representation, required heights, and lab instructions.
 
 **Acceptance criteria:**
 
-- [ ] Original record remains visually distinct and unchanged before labeled addenda.
-- [ ] Historical nulls render safely and all authored narrative is escaped.
-- [ ] Completed/cancelled records have no edit, delete, or reopen control.
+- [ ] The action accepts either binocular distance PD or both monocular values,
+  without requiring both forms.
+- [ ] Near PD and fitting/segment heights are required only for applicable lens
+  designs.
+- [ ] It rejects cross-order item references and never mutates the clinical
+  Prescription.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/CompletedEncounterViewTest.php tests/Feature/Filament/EncounterAddendumActionTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/SaveEyewearSpecificationTest.php`
 
-**Dependencies:** Tasks 10, 15, and 16
+**Dependencies:** Task 16
 
 **Files likely touched:**
 
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- `app/Filament/Resources/Encounters/Schemas/EncounterForm.php`
-- `tests/Feature/Filament/CompletedEncounterViewTest.php`
-- `tests/Feature/Filament/EncounterAddendumActionTest.php`
+- `app/Actions/JobOrders/SaveEyewearSpecification.php`
+- `app/Models/JobOrderEyewearSpecification.php`
+- `tests/Feature/OpticalOrders/SaveEyewearSpecificationTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-### Task 18: Print the authenticated signed clinical record
+## Checkpoint F: Eyewear data foundation
 
-**Description:** Add a named authenticated route, thin controller, and escaped
-Blade print view using existing conventions. Print the original record before
-chronological addenda without adding a rendering dependency.
+- [ ] Tasks 15–17 focused tests pass.
+- [ ] Raw database assertions prove sensitive fields are encrypted.
+- [ ] Prescription form, API, printing, and amendment tests remain green.
+
+## Task 18: Render the specification form
+
+**Description:** Add a conditional Eyewear Specification section to the
+existing Optical Order page and delegate saves to the domain action.
 
 **Acceptance criteria:**
 
-- [ ] Authorized panel roles can print completed Encounters only.
-- [ ] Output contains approved original attribution and unchanged-record addendum labels.
-- [ ] Unauthorized, incomplete, and malicious-content scenarios are safely rejected/rendered.
+- [ ] Corrective orders show frame, lens, conditional measurement, and lab
+  fields; ordinary orders do not.
+- [ ] Saved values reload correctly using millimetre-friendly decimal inputs.
+- [ ] The page exposes no editable confirmed commercial prices or clinical
+  Prescription values.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterPrintTest.php`
-- [ ] `vendor/bin/sail artisan route:list --except-vendor --name=encounters.print`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EyewearSpecificationFormTest.php tests/Feature/Filament/OpticalOrderResourceTest.php`
 
 **Dependencies:** Task 17
 
 **Files likely touched:**
 
-- `routes/web.php`
-- `app/Http/Controllers/EncounterPrintController.php`
-- `resources/views/filament/encounters/print.blade.php`
-- `tests/Feature/Encounters/EncounterPrintTest.php`
+- `app/Filament/Resources/OpticalOrders/Schemas/OpticalOrderForm.php`
+- `app/Filament/Resources/OpticalOrders/Pages/EditOpticalOrder.php`
+- `tests/Feature/Filament/EyewearSpecificationFormTest.php`
+- `tests/Feature/Filament/OpticalOrderResourceTest.php`
 
-**Estimated scope:** Medium (4 files)
+**Estimated scope:** Medium
 
-## Checkpoint G: Signed Presentation — Tasks 17–18
+## Task 19: Approve specifications as an optometrist
 
-- [ ] Completed-view, addendum-action, and print tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent` passes.
-- [ ] The original record and chronological addenda are readable and clearly attributed.
-- [ ] Print authorization matches the approved role contract.
-
-### Task 19: Audit successful printing without clinical metadata
-
-**Description:** Add the print audit event and record identifier-only metadata
-after successful authorization. Failed or unauthorized requests must not appear
-as successful prints.
+**Description:** Add server-side approval authorization and a locked approval
+action tied to the exact saved specification state.
 
 **Acceptance criteria:**
 
-- [ ] Every successful print records the event and actor.
-- [ ] Metadata is limited to approved stable identifiers with no clinical narrative.
-- [ ] Failed and unauthorized print attempts do not record successful-print events.
+- [ ] Active optometrist and dual-role owner may approve a complete
+  specification.
+- [ ] Staff, plain admin, inactive optometrist, and cross-Patient invalid state
+  are rejected.
+- [ ] Editing approved construction, measurements, or instructions clears
+  approval and writes a non-clinical audit event.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters/EncounterPrintAuditTest.php`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/ApproveEyewearSpecificationTest.php`
 
 **Dependencies:** Task 18
 
 **Files likely touched:**
 
-- `app/Enums/AuditEvent.php`
-- `app/Http/Controllers/EncounterPrintController.php`
-- `tests/Feature/Encounters/EncounterPrintAuditTest.php`
+- `app/Actions/JobOrders/ApproveEyewearSpecification.php`
+- `app/Actions/JobOrders/SaveEyewearSpecification.php`
+- `app/Policies/JobOrderPolicy.php`
+- `tests/Feature/OpticalOrders/ApproveEyewearSpecificationTest.php`
 
-**Estimated scope:** Medium (3 files)
+**Estimated scope:** Medium
 
-## Phase 8: Reconcile and Release
+## Task 20: Expose approval in Filament
 
-### Task 20: Reconcile backend context and verify the release candidate
-
-**Description:** After implementation is true, update backend context and run
-the complete focused and regression checks. Do not use this task to remove
-legacy Intake schema or introduce deferred clinical scope.
+**Description:** Add an optometrist-only approval action and clear clinic-facing
+state indicators without moving domain rules into the page.
 
 **Acceptance criteria:**
 
-- [ ] `docs/BACKEND_CONTEXT.md` accurately describes the shipped workflow and deferrals.
-- [ ] All focused tests, the full Pest suite, and Pint pass.
-- [ ] No deferred feature or new dependency entered the implementation.
+- [ ] Only authorized users see and can invoke Approve Specification.
+- [ ] The page shows Draft, Approved, and approval-cleared states with actor and
+  timestamp.
+- [ ] Direct Livewire calls by unauthorized accounts remain rejected.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterResourceTest.php tests/Feature/Filament/EncounterWizardTest.php tests/Feature/Filament/EncounterDraftWorkflowTest.php tests/Feature/Filament/EncounterCompletionWorkflowTest.php tests/Feature/Filament/EncounterTransferActionTest.php tests/Feature/Filament/CompletedEncounterViewTest.php tests/Feature/Filament/EncounterAddendumActionTest.php`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/EyewearSpecificationApprovalTest.php`
 
-**Dependencies:** Tasks 1–19
+**Dependencies:** Task 19
+
+**Files likely touched:**
+
+- `app/Filament/Resources/OpticalOrders/Pages/EditOpticalOrder.php`
+- `app/Filament/Resources/OpticalOrders/Schemas/OpticalOrderForm.php`
+- `tests/Feature/Filament/EyewearSpecificationApprovalTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint G: Specification approval
+
+- [ ] Tasks 18–20 Filament and action tests pass.
+- [ ] Role matrix covers staff, optometrist, admin, and dual-role owner.
+- [ ] Audit metadata contains no measurements or lab-note text.
+
+## Phase 5: Gate Optical Fulfillment
+
+## Task 21: Require approval before Processing
+
+**Description:** Refine the status action so corrective eyewear cannot start
+production without a complete approved specification.
+
+**Acceptance criteria:**
+
+- [ ] Corrective Confirmed-to-Processing fails when the specification is
+  missing, incomplete, or unapproved.
+- [ ] Approved corrective work transitions once and stamps `started_at`.
+- [ ] Ordinary non-corrective and immediate-order behavior remains unchanged.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/OpticalOrderSpecificationGateTest.php tests/Feature/OpticalOrders/CompleteImmediateOpticalOrderTest.php`
+
+**Dependencies:** Task 19
+
+**Files likely touched:**
+
+- `app/Actions/JobOrders/UpdateJobOrderStatus.php`
+- `app/Models/JobOrder.php`
+- `tests/Feature/OpticalOrders/OpticalOrderSpecificationGateTest.php`
+- `tests/Feature/OpticalOrders/CompleteImmediateOpticalOrderTest.php`
+
+**Estimated scope:** Medium
+
+## Task 22: Verify completed eyewear
+
+**Description:** Add a locked verification action that records who compared
+the finished eyewear with the approved specification.
+
+**Acceptance criteria:**
+
+- [ ] Only an approved in-Processing corrective order can be verified.
+- [ ] Verification records actor, time, and encrypted optional notes without
+  modifying Prescription values.
+- [ ] A retry does not create duplicate verification state or audit entries.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/VerifyEyewearTest.php`
+
+**Dependencies:** Task 21
+
+**Files likely touched:**
+
+- `app/Actions/JobOrders/VerifyEyewear.php`
+- `app/Models/JobOrderEyewearSpecification.php`
+- `tests/Feature/OpticalOrders/VerifyEyewearTest.php`
+
+**Estimated scope:** Medium
+
+## Task 23: Require verification before Ready
+
+**Description:** Gate Ready for Pickup on completed verification and required
+external laboratory references.
+
+**Acceptance criteria:**
+
+- [ ] Unverified corrective work cannot become Ready for Pickup.
+- [ ] External work additionally requires supplier/lab name and external job or
+  invoice reference.
+- [ ] Verified Ready specifications reject silent further edits.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders/ReadyForPickupGateTest.php tests/Feature/JobOrders/JobOrderSupplierRequirementTest.php`
+
+**Dependencies:** Task 22
+
+**Files likely touched:**
+
+- `app/Actions/JobOrders/UpdateJobOrderStatus.php`
+- `app/Actions/JobOrders/SaveEyewearSpecification.php`
+- `app/Models/JobOrder.php`
+- `tests/Feature/OpticalOrders/ReadyForPickupGateTest.php`
+- `tests/Feature/JobOrders/JobOrderSupplierRequirementTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint H: Fulfillment integrity
+
+- [ ] Tasks 21–23 focused tests pass.
+- [ ] Confirmed -> Processing -> Verified -> Ready succeeds end to end.
+- [ ] Missing approval, verification, or supplier reference produces no partial
+  transition.
+
+## Task 24: Expose verification and Ready actions
+
+**Description:** Wire Start Processing, Verify Eyewear, and Mark Ready to the
+existing Optical Order page using the tested domain actions.
+
+**Acceptance criteria:**
+
+- [ ] Only the action valid for the current state is shown.
+- [ ] Validation errors identify the missing approval, measurement,
+  verification, or supplier requirement.
+- [ ] The page displays verification actor/time while keeping notes internal.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/OpticalOrderFulfillmentActionsTest.php`
+
+**Dependencies:** Task 23
+
+**Files likely touched:**
+
+- `app/Filament/Resources/OpticalOrders/Pages/EditOpticalOrder.php`
+- `app/Filament/Resources/OpticalOrders/Schemas/OpticalOrderForm.php`
+- `app/Filament/Resources/OpticalOrders/Tables/OpticalOrdersTable.php`
+- `tests/Feature/Filament/OpticalOrderFulfillmentActionsTest.php`
+
+**Estimated scope:** Medium
+
+## Phase 6: Harden Billing and Dispensing
+
+## Task 25: Reject payment overages under lock
+
+**Description:** Add the failing overpayment/concurrency cases and enforce the
+balance comparison against the locked Billing Record.
+
+**Acceptance criteria:**
+
+- [ ] Zero, negative, and greater-than-balance payments are rejected without a
+  payment row or ledger mutation.
+- [ ] Concurrent attempts cannot make posted amount exceed Billing total.
+- [ ] Valid deposits, partial payments, exact payments, and corrections retain
+  their existing behavior.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/BillingRecords/PaymentLifecycleTest.php tests/Feature/BillingRecords/PaymentConcurrencyTest.php`
+
+**Dependencies:** Task 2
+
+**Files likely touched:**
+
+- `app/Actions/BillingRecords/RecordBillingPayment.php`
+- `tests/Feature/BillingRecords/PaymentLifecycleTest.php`
+- `tests/Feature/BillingRecords/PaymentConcurrencyTest.php`
+
+**Estimated scope:** Medium
+
+## Task 26: Prevent invalid payment submission in Filament
+
+**Description:** Align Billing and confirmation payment forms with the strict
+domain limit while retaining server-side enforcement.
+
+**Acceptance criteria:**
+
+- [ ] Payment inputs communicate and validate the current maximum balance.
+- [ ] Confirmation rejects an excessive deposit before any aggregate is
+  persisted.
+- [ ] A forged Livewire call cannot bypass the action rule.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/BillingPaymentLimitTest.php tests/Feature/Quotations/QuotationLifecycleTest.php`
+
+**Dependencies:** Task 25
+
+**Files likely touched:**
+
+- `app/Filament/Resources/BillingRecords/RelationManagers/PaymentsRelationManager.php`
+- `app/Filament/Resources/Quotations/Pages/EditQuotation.php`
+- `app/Actions/Quotations/ConfirmQuotationSale.php`
+- `tests/Feature/Filament/BillingPaymentLimitTest.php`
+- `tests/Feature/Quotations/QuotationLifecycleTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint I: Payment integrity
+
+- [ ] Tasks 25–26 focused tests pass.
+- [ ] `amount_paid` cannot exceed total through any tested entry point.
+- [ ] First-payment charge locking and append-only correction tests remain
+  green.
+
+## Task 27: Persist release-with-balance attribution
+
+**Description:** Add additive Dispensing Event fields for balance at release,
+admin override attribution, encrypted reason, and due-date snapshot.
+
+**Acceptance criteria:**
+
+- [ ] Existing Dispensing Events migrate with zero released balance and null
+  override fields.
+- [ ] New override foreign key and due-date fields are nullable and indexed as
+  appropriate.
+- [ ] Override reason is encrypted and excluded from mass serialization.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/BillingRecords/DispensingOverrideSchemaTest.php tests/Feature/Database/CanonicalSchemaTest.php`
+
+**Dependencies:** Task 2
+
+**Files likely touched:**
+
+- `database/migrations/*_add_balance_override_to_dispensing_events.php`
+- `app/Models/DispensingEvent.php`
+- `database/factories/DispensingEventFactory.php`
+- `tests/Feature/BillingRecords/DispensingOverrideSchemaTest.php`
+
+**Estimated scope:** Medium
+
+## Task 28: Require payment before routine dispensing
+
+**Description:** Reorder Dispense so a pickup payment is prevalidated to clear
+the balance and committed atomically with the Dispensing Event.
+
+**Acceptance criteria:**
+
+- [ ] Routine actors cannot dispense while a balance remains.
+- [ ] Exact pickup payment plus dispensing commits both effects once, while an
+  insufficient pickup amount commits neither within Dispense.
+- [ ] Staff may still record an ordinary separate partial payment through
+  Billing before trying to dispense.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/BillingRecords/PaidBeforeDispensingTest.php tests/Feature/BillingRecords/DispensingTest.php`
+
+**Dependencies:** Tasks 25 and 27
+
+**Files likely touched:**
+
+- `app/Actions/BillingRecords/DispenseJobOrder.php`
+- `app/Actions/BillingRecords/RecordBillingPayment.php`
+- `tests/Feature/BillingRecords/PaidBeforeDispensingTest.php`
+- `tests/Feature/BillingRecords/DispensingTest.php`
+
+**Estimated scope:** Medium
+
+## Task 29: Authorize the admin balance override
+
+**Description:** Add the explicit domain exception for an admin releasing an
+order with a documented remaining balance.
+
+**Acceptance criteria:**
+
+- [ ] Only admin or dual-role owner may override; staff and optometrist-only
+  accounts are rejected.
+- [ ] Override requires a nonblank reason and current/future due date.
+- [ ] The Dispensing Event snapshots remaining balance, actor, reason, and due
+  date with a non-clinical audit entry.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/BillingRecords/ReleaseWithBalanceTest.php`
+
+**Dependencies:** Task 28
+
+**Files likely touched:**
+
+- `app/Actions/BillingRecords/DispenseJobOrder.php`
+- `app/Policies/BillingRecordPolicy.php`
+- `app/Models/DispensingEvent.php`
+- `tests/Feature/BillingRecords/ReleaseWithBalanceTest.php`
+
+**Estimated scope:** Medium
+
+## Task 30: Expose the dispensing exception safely
+
+**Description:** Update the Optical Order dispensing modal to collect final
+payment or, for admins only, an override reason and due date.
+
+**Acceptance criteria:**
+
+- [ ] Routine users see the remaining balance and can enter only a sufficient
+  final payment in the Dispense action.
+- [ ] Only admins see release-with-balance controls and required confirmation.
+- [ ] Patient-facing and ordinary staff views do not expose the internal
+  override reason.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/OpticalOrderDispensingPolicyTest.php tests/Feature/Api/V1/JobOrderTest.php`
+
+**Dependencies:** Task 29
+
+**Files likely touched:**
+
+- `app/Filament/Resources/OpticalOrders/Pages/EditOpticalOrder.php`
+- `app/Filament/Resources/OpticalOrders/Schemas/OpticalOrderForm.php`
+- `tests/Feature/Filament/OpticalOrderDispensingPolicyTest.php`
+- `tests/Feature/Api/V1/JobOrderTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint J: Billing and dispensing
+
+- [ ] Tasks 27–30 focused tests pass.
+- [ ] Exact-payment and admin-override dispensing both produce one event.
+- [ ] Routine balance release, overpayment, and internal-data leakage are
+  rejected.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent` completes cleanly.
+
+## Phase 7: Structure Contact-Lens Catalog Data
+
+## Task 31: Validate canonical contact-lens attributes
+
+**Description:** Replace unrestricted contact-lens KeyValue entry with
+conditional fields backed by the approved attribute keys while retaining JSON
+storage.
+
+**Acceptance criteria:**
+
+- [ ] Contact-lens variants accept applicable power, base curve, diameter,
+  cylinder, axis, add, color, and pack-size values.
+- [ ] Invalid ranges or incompatible values fail validation without affecting
+  frame/accessory/lens variants.
+- [ ] Existing valid attribute JSON remains readable.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Products/ContactLensVariantAttributesTest.php tests/Feature/Filament/ContactLensVariantFormTest.php`
+
+**Dependencies:** Task 6
+
+**Files likely touched:**
+
+- `app/Models/ProductVariant.php`
+- `app/Filament/Resources/Products/Schemas/ProductForm.php`
+- `app/Filament/Resources/Products/RelationManagers/VariantsRelationManager.php`
+- `tests/Feature/Products/ContactLensVariantAttributesTest.php`
+- `tests/Feature/Filament/ContactLensVariantFormTest.php`
+
+**Estimated scope:** Medium
+
+## Task 32: Snapshot contact-lens parameters
+
+**Description:** Extend the item snapshot builder and tests so confirmed
+contact-lens lines retain the exact sellable variant parameters.
+
+**Acceptance criteria:**
+
+- [ ] Quotation contact-lens snapshots contain only canonical applicable
+  parameters plus Product/variant identity.
+- [ ] Confirmation copies the same parameters to the Job Order item.
+- [ ] Later Product Variant edits do not change either transaction snapshot.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations/ContactLensSnapshotTest.php`
+
+**Dependencies:** Tasks 9 and 31
+
+**Files likely touched:**
+
+- `app/Actions/Quotations/BuildQuotationItemSnapshot.php`
+- `tests/Feature/Quotations/ContactLensSnapshotTest.php`
+
+**Estimated scope:** Small
+
+## Checkpoint K: Contact-lens catalog contract
+
+- [ ] Tasks 31–32 focused tests pass.
+- [ ] Contact-lens parameters are commercial Product data, not fields on the
+  spectacle Prescription.
+- [ ] Existing frame, lens, accessory, and catalog API tests remain green.
+
+## Phase 8: Add Contact-Lens Lot Traceability
+
+## Task 33: Persist inventory lots
+
+**Description:** Add the contact-lens lot table, movement reference, model,
+factory, relationships, and database constraints.
+
+**Acceptance criteria:**
+
+- [ ] Variant/lot number is unique and lot quantities cannot be negative.
+- [ ] Movements may reference an exact lot while existing non-lot movements
+  remain valid.
+- [ ] Lot receipt/expiry values use date/time types and identify receiving
+  actor without adding purchasing tables.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/InventoryLotSchemaTest.php tests/Feature/Database/CanonicalSchemaTest.php`
+
+**Dependencies:** Task 32
+
+**Files likely touched:**
+
+- `database/migrations/*_create_inventory_lots_and_link_movements.php`
+- `app/Models/InventoryLot.php`
+- `app/Models/InventoryMovement.php`
+- `database/factories/InventoryLotFactory.php`
+- `tests/Feature/Inventory/InventoryLotSchemaTest.php`
+
+**Estimated scope:** Medium
+
+## Task 34: Reconcile existing contact stock
+
+**Description:** Add an admin-only action that partitions an existing
+contact-lens aggregate across real lots without changing total stock.
+
+**Acceptance criteria:**
+
+- [ ] Allocations require real lot/expiry values and sum exactly to the locked
+  current aggregate.
+- [ ] The action creates no restock and no fabricated legacy lot.
+- [ ] Reconciliation is atomic, auditable, idempotent, and rejects non-admin
+  actors.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/ReconcileContactLensLotsTest.php`
+
+**Dependencies:** Task 33
+
+**Files likely touched:**
+
+- `app/Actions/Inventory/ReconcileContactLensLots.php`
+- `app/Models/ProductVariant.php`
+- `app/Policies/InventoryLotPolicy.php`
+- `tests/Feature/Inventory/ReconcileContactLensLotsTest.php`
+
+**Estimated scope:** Medium
+
+## Task 35: Expose lot reconciliation to admins
+
+**Description:** Add a conditional reconciliation action to the existing
+Product Variant inventory interface.
+
+**Acceptance criteria:**
+
+- [ ] Only unreconciled contact-lens variants with nonzero stock offer the
+  action.
+- [ ] The form requires allocations summing to displayed aggregate stock and
+  identifies expired dates before submission.
+- [ ] Unauthorized or forged calls fail at the action boundary.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/ContactLensLotReconciliationTest.php`
+
+**Dependencies:** Task 34
+
+**Files likely touched:**
+
+- `app/Filament/Resources/Products/RelationManagers/VariantsRelationManager.php`
+- `app/Filament/Resources/Products/Pages/EditProduct.php`
+- `tests/Feature/Filament/ContactLensLotReconciliationTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint L: Lot foundation
+
+- [ ] Tasks 33–35 focused tests pass on fresh and upgraded databases.
+- [ ] Existing stock is never increased or assigned fake traceability data.
+- [ ] Unreconciled nonzero contact stock is identifiable and cannot proceed to
+  allocation in later tasks.
+
+## Task 36: Receive stock into a lot
+
+**Description:** Extend the existing stock movement path so contact-lens
+receipts atomically update a real lot, aggregate quantity, and movement.
+
+**Acceptance criteria:**
+
+- [ ] Contact-lens receipt requires positive quantity, nonblank lot, and
+  non-expired expiration date.
+- [ ] Frame/accessory receipt retains its simple aggregate-only path.
+- [ ] Failed or concurrent receipt cannot drift aggregate and lot totals.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/ReceiveContactLensStockTest.php tests/Feature/Inventory/InventoryLedgerTest.php`
+
+**Dependencies:** Task 35
+
+**Files likely touched:**
+
+- `app/Actions/Inventory/RecordInventoryMovement.php`
+- `app/Models/InventoryLot.php`
+- `app/Filament/Resources/Products/RelationManagers/VariantsRelationManager.php`
+- `tests/Feature/Inventory/ReceiveContactLensStockTest.php`
+- `tests/Feature/Inventory/InventoryLedgerTest.php`
+
+**Estimated scope:** Medium
+
+## Task 37: Allocate contact stock by FEFO
+
+**Description:** Make order commitment choose the earliest-expiring eligible
+lot by default or honor an explicitly selected eligible physical lot.
+
+**Acceptance criteria:**
+
+- [ ] Default allocation is deterministic FEFO across non-expired lots.
+- [ ] Explicit selection accepts only a reconciled non-expired lot belonging to
+  the ordered variant.
+- [ ] Concurrent allocations cannot make variant or lot stock negative and
+  preserve their sum invariant.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/CommitContactLensLotTest.php tests/Feature/JobOrders/JobOrderInventoryAtomicTest.php`
+
+**Dependencies:** Task 36
+
+**Files likely touched:**
+
+- `app/Actions/JobOrders/CommitJobOrderInventory.php`
+- `app/Models/InventoryLot.php`
+- `tests/Feature/Inventory/CommitContactLensLotTest.php`
+- `tests/Feature/JobOrders/JobOrderInventoryAtomicTest.php`
+
+**Estimated scope:** Medium
+
+## Task 38: Restore the source lot on cancellation
+
+**Description:** Extend idempotent cancellation reversal to return each
+contact-lens commitment to the exact lot it consumed.
+
+**Acceptance criteria:**
+
+- [ ] Cancellation restores aggregate and source-lot quantity once.
+- [ ] Repeated cancellation/reversal attempts create no duplicate restoration.
+- [ ] Frame/accessory reversal and Frame Reservation conversion remain
+  unchanged.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Inventory/ReverseContactLensLotTest.php tests/Feature/JobOrders/JobOrderInventoryTest.php tests/Feature/Reservations/ConvertFrameReservationToJobOrderTest.php`
+
+**Dependencies:** Task 37
+
+**Files likely touched:**
+
+- `app/Actions/JobOrders/UpdateJobOrderStatus.php`
+- `app/Models/InventoryMovement.php`
+- `tests/Feature/Inventory/ReverseContactLensLotTest.php`
+- `tests/Feature/JobOrders/JobOrderInventoryTest.php`
+- `tests/Feature/Reservations/ConvertFrameReservationToJobOrderTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint M: Lot-aware stock lifecycle
+
+- [ ] Tasks 36–38 focused and concurrency tests pass.
+- [ ] Receive -> allocate -> cancel preserves aggregate/lot equality.
+- [ ] Expired, unreconciled, foreign, and insufficient lots are rejected
+  without partial movements.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent` completes cleanly.
+
+## Task 39: Display contact-lens lots and expiry
+
+**Description:** Add read-only per-lot visibility and expired/near-expiry
+indicators inside the existing inventory/product workspace.
+
+**Acceptance criteria:**
+
+- [ ] Staff can see lot number, expiration, and remaining quantity for a
+  contact-lens variant.
+- [ ] Expired and configurable near-expiry lots have distinct labels without
+  adding notification delivery.
+- [ ] Non-contact Products do not show empty lot-management UI.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/ContactLensLotVisibilityTest.php`
+
+**Dependencies:** Task 38
+
+**Files likely touched:**
+
+- `app/Filament/Resources/Products/RelationManagers/InventoryLotsRelationManager.php`
+- `app/Filament/Resources/Products/ProductResource.php`
+- `config/inventory.php`
+- `tests/Feature/Filament/ContactLensLotVisibilityTest.php`
+
+**Estimated scope:** Medium
+
+## Checkpoint N: Inventory operations
+
+- [ ] Task 39 Filament tests pass with the lot lifecycle suites from Checkpoint
+  M.
+- [ ] Contact-lens lots are operationally visible without introducing purchase
+  orders, supplier balances, or notification delivery.
+- [ ] Non-contact Product workflows remain free of lot-specific UI.
+
+## Phase 9: Protect Patient Contracts and Finish the Workflow
+
+## Task 40: Serialize stable patient-facing item data
+
+**Description:** Expose only the stable commercial item information needed by
+existing patient Quotation and Optical Order screens.
+
+**Acceptance criteria:**
+
+- [ ] Patient resources retain descriptions, quantities, prices, item kind,
+  status, total, due date, and payment summary where currently applicable.
+- [ ] Eyewear measurements, lab instructions, lots, supplier references,
+  approval/verification metadata, and override reason remain absent.
+- [ ] Ownership and Draft visibility rules remain unchanged.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/QuotationTest.php tests/Feature/Api/V1/JobOrderTest.php tests/Feature/Api/V1/OpticalCommercePrivacyTest.php`
+
+**Dependencies:** Tasks 24, 30, 32, and 39
+
+**Files likely touched:**
+
+- `app/Http/Resources/QuotationResource.php`
+- `app/Http/Resources/Api/OpticalOrderResource.php`
+- `tests/Feature/Api/V1/OpticalCommercePrivacyTest.php`
+- `tests/Feature/Api/V1/QuotationTest.php`
+- `tests/Feature/Api/V1/JobOrderTest.php`
+
+**Estimated scope:** Medium
+
+## Task 41: Prove the complete prepared-eyewear journey
+
+**Description:** Extend the end-to-end clinic workflow through optical
+quotation, deposit, approved specification, fulfillment, verification, final
+payment, and dispensing.
+
+**Acceptance criteria:**
+
+- [ ] One realistic corrective-eyewear path crosses every approved aggregate
+  without duplicate records or inconsistent totals.
+- [ ] External fulfillment cannot become Ready without verification and the
+  required supplier/lab reference.
+- [ ] Final payment clears the balance before ordinary dispensing completes.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/EndToEnd/OpticalCommerceWorkflowTest.php tests/Feature/EndToEnd/ClinicWorkflowTest.php`
+
+**Dependencies:** Task 40
+
+**Files likely touched:**
+
+- `tests/Feature/EndToEnd/OpticalCommerceWorkflowTest.php`
+- `tests/Feature/EndToEnd/ClinicWorkflowTest.php`
+- `database/seeders/ClinicWorkflowSeeder.php`
+- `database/factories/JobOrderFactory.php`
+- `database/factories/QuotationFactory.php`
+
+**Estimated scope:** Medium
+
+## Task 42: Reconcile canonical documentation
+
+**Description:** Update canonical backend and API documentation only after all
+implemented behavior and route/resource contracts are verified.
+
+**Acceptance criteria:**
+
+- [ ] Backend context describes item kinds, eyewear specification, approval,
+  verification, payment release policy, and lot traceability accurately.
+- [ ] API documentation lists only patient-visible fields and explicitly omits
+  internal optical data.
+- [ ] Older conflicting specs remain historical and point to the approved
+  specification where needed.
+
+**Verification:**
+
+- [ ] `git diff --check`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php tests/Feature/Database/CanonicalSchemaTest.php`
+
+**Dependencies:** Task 41
 
 **Files likely touched:**
 
 - `docs/BACKEND_CONTEXT.md`
+- `docs/API_CONTRACT.md`
+- `docs/specs/optical-commerce-and-dispensing-spec.md`
+- `tasks/plan.md`
+- `tasks/todo.md`
 
-**Estimated scope:** Small (1 documentation file plus verification)
+**Estimated scope:** Medium
 
-## Checkpoint H: Release Candidate — Tasks 19–20
+## Final Checkpoint: Release candidate
 
-- [ ] Every approved success criterion has focused test coverage.
-- [ ] Encounter, Appointment, Prescription, role, addendum, audit, and print suites pass.
-- [ ] Full Pest suite and Pint pass.
-- [ ] Print audit metadata contains no clinical narrative.
-- [ ] Human review confirms readiness to ship.
+- [ ] Every task and intermediate checkpoint is complete.
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Quotations tests/Feature/OpticalOrders tests/Feature/JobOrders tests/Feature/BillingRecords tests/Feature/Inventory tests/Feature/Reservations tests/Feature/Api/V1` passes.
+- [ ] `vendor/bin/sail artisan test --compact` passes.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent` completes cleanly.
+- [ ] `git diff --check` passes.
+- [ ] No dependency, public route, top-level directory, Prescription-field
+  interpretation, partial fulfillment, purchasing, insurance, return/remake,
+  or lab-integration scope was introduced.
+- [ ] Specification, plan, checklist, backend context, and API contract match
+  the implemented state.
+- [ ] Implementation is ready for code review and project-owner acceptance; it
+  is not automatically committed or deployed.
 
-## Explicitly Deferred
+## Phase 3 Approval Gate
 
-- Mobile or appointment-request intake.
-- Removal of legacy Patient Intake tables, models, or nullable foreign keys.
-- Structured refraction, visual-acuity, intraocular-pressure, or diagnosis fields.
-- Autorefractor integration or machine-specific fields.
-- Attachments, uploads, OCR, and external services.
-- PRC license or other professional credential fields.
-- Reopening or editing completed Encounters.
-- New dependencies.
+Implementation must not begin until the project owner approves this checklist.
+Approval means the implementation may proceed task by task in dependency order
+with the listed checkpoints; it does not authorize deployment, destructive
+database resets, dependency changes, or deferred features.
