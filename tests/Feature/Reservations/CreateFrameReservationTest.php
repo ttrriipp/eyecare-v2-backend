@@ -193,7 +193,7 @@ test('non-frame variant is rejected', function () {
     $appointment = createEligibleAppointment($user->patient);
     $brand = Brand::factory()->create();
     $product = Product::factory()->create([
-        'product_type' => 'lens',
+        'product_type' => 'accessory',
         'is_active' => true,
         'brand_id' => $brand->id,
     ]);

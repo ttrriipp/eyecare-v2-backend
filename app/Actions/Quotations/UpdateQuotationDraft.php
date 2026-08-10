@@ -39,14 +39,22 @@ class UpdateQuotationDraft
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
                 // Derive item type
-                $hasProductReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
-                $itemType = $hasProductReference ? TransactionItemType::Product : TransactionItemType::Service;
+                $hasProductReference = filled($item['product_variant_id'] ?? null)
+                    || filled($item['lens_category_id'] ?? null)
+                    || filled($item['lens_option_id'] ?? null);
+                $itemType = match (true) {
+                    $hasProductReference => TransactionItemType::Product,
+                    ($item['item_type'] ?? null) === 'custom_product' => TransactionItemType::Product,
+                    default => TransactionItemType::Service,
+                };
 
                 // Build immutable catalog snapshot
                 $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
+                    explicitKind: ($item['item_type'] ?? null) === 'custom_product' ? 'custom_product' : (($item['item_type'] ?? null) === 'custom_service' ? 'service' : null),
                     serviceId: $item['service_id'] ?? null,
+                    lensOptionId: $item['lens_option_id'] ?? null,
                 );
 
                 return [
@@ -56,6 +64,7 @@ class UpdateQuotationDraft
                     'amount' => self::formatMoney($amountInCents),
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'lens_option_id' => $item['lens_option_id'] ?? null,
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_type' => $itemType,
                     'item_kind' => $snapshotResult['item_kind'],
@@ -63,6 +72,14 @@ class UpdateQuotationDraft
                     'amount_in_cents' => $amountInCents,
                 ];
             });
+
+            app(ValidateOpticalQuotation::class)->handle(
+                items: $itemSnapshots->map(fn (array $item): array => [
+                    'item_kind' => $item['item_kind'],
+                    'product_variant_id' => $item['product_variant_id'],
+                ])->values(),
+                requirePrescription: false,
+            );
 
             $subtotalInCents = $itemSnapshots->sum('amount_in_cents');
             $discountInCents = (int) round(((float) ($validated['discount_amount'] ?? 0)) * 100);
@@ -124,6 +141,7 @@ class UpdateQuotationDraft
             'notes' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.item_type' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
             'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
@@ -135,26 +153,57 @@ class UpdateQuotationDraft
                     ->where('is_active', true),
             ],
             'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.lens_option_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lens_options', 'id')->where('is_active', true),
+            ],
             'items.*.service_id' => ['nullable', 'integer', Rule::exists('services', 'id')->where('is_active', true)],
         ]);
 
         $validator->after(function ($validator) use ($data): void {
             foreach ($data['items'] ?? [] as $index => $item) {
-                if (filled($item['product_variant_id'] ?? null) && filled($item['lens_category_id'] ?? null)) {
+                $references = collect([
+                    'product_variant_id' => $item['product_variant_id'] ?? null,
+                    'lens_category_id' => $item['lens_category_id'] ?? null,
+                    'lens_option_id' => $item['lens_option_id'] ?? null,
+                    'service_id' => $item['service_id'] ?? null,
+                ])->filter(fn (mixed $reference): bool => filled($reference));
+
+                if ($references->count() > 1) {
                     $validator->errors()->add(
-                        "items.{$index}.product_variant_id",
-                        'A quotation item can reference either a catalog item or a lens category, not both.',
+                        "items.{$index}.item_type",
+                        'A quotation item can reference only one catalog entry.',
                     );
                 }
 
-                $hasCatalogReference = filled($item['product_variant_id'] ?? null) || filled($item['lens_category_id'] ?? null);
-
-                if ($hasCatalogReference && filled($item['service_id'] ?? null)) {
+                if (filled($item['lens_option_id'] ?? null)
+                    && filled($item['item_type'] ?? null)
+                    && $item['item_type'] !== 'lens_option') {
                     $validator->errors()->add(
-                        "items.{$index}.service_id",
-                        'An item cannot reference both a service and a catalog item or lens category.',
+                        "items.{$index}.lens_option_id",
+                        'A lens option must use the Lens Option item type.',
                     );
                 }
+
+                if (($item['item_type'] ?? null) === 'lens_option' && blank($item['lens_option_id'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.lens_option_id",
+                        'A Lens Option item requires a catalog lens option.',
+                    );
+                }
+            }
+
+            $optionIds = collect($data['items'] ?? [])
+                ->pluck('lens_option_id')
+                ->filter()
+                ->map(fn (mixed $id): int => (int) $id);
+
+            foreach ($optionIds->duplicates()->unique() as $duplicateOptionId) {
+                $validator->errors()->add(
+                    'items',
+                    "Lens option {$duplicateOptionId} may be selected only once per quotation.",
+                );
             }
 
             $variantIds = collect($data['items'] ?? [])

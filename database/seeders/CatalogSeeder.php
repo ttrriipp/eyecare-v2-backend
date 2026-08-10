@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Brand;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
@@ -17,85 +18,103 @@ class CatalogSeeder extends Seeder
             ['name' => 'Single Vision', 'description' => 'Standard single vision lenses.', 'price' => 2500.00],
             ['name' => 'Progressive', 'description' => 'Progressive multifocal lenses.', 'price' => 6500.00],
             ['name' => 'Bifocal', 'description' => 'Bifocal lenses with visible segment.', 'price' => 4500.00],
+            [
+                'name' => 'Essilor Varilux Progressive 1.67',
+                'description' => 'Premium externally prepared progressive lens package with 1.67 refractive index.',
+                'price' => 6500.00,
+            ],
+            [
+                'name' => 'Zeiss Single Vision 1.50',
+                'description' => 'High-clarity externally prepared single vision lens package with 1.50 refractive index.',
+                'price' => 2800.00,
+            ],
         ])->each(fn (array $attributes) => LensCategory::query()->firstOrCreate(
             ['name' => $attributes['name']],
             ['description' => $attributes['description'], 'price' => $attributes['price']],
         ));
 
+        LensOption::query()->firstOrCreate(
+            ['name' => 'Anti-Reflective'],
+            [
+                'description' => 'Reduces glare and improves visual clarity on prescription lenses.',
+                'price' => 1000.00,
+                'is_active' => true,
+            ],
+        );
+
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
         $category = ProductCategory::query()->firstOrCreate(['name' => 'Frames']);
-        $lensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lenses']);
+        $contactLensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Contact Lenses']);
         $accessoryCategory = ProductCategory::query()->firstOrCreate(['name' => 'Accessories']);
 
-        $progressiveLensCategory = LensCategory::query()->where('name', 'Progressive')->first();
-        $singleVisionLensCategory = LensCategory::query()->where('name', 'Single Vision')->first();
-
-        // Lens products
-        $lensProducts = [
+        // Contact-lens products
+        $contactLensProduct = Product::query()->firstOrCreate(
+            ['slug' => 'acuvue-oasys'],
             [
-                'name' => 'Essilor Varilux Progressive',
-                'slug' => 'essilor-varilux-progressive',
-                'description' => 'Premium progressive lenses.',
-                'product_type' => 'lens',
-                'lens_category_id' => $progressiveLensCategory?->id,
-                'category_id' => $lensCategory->id,
-                'variants' => [
-                    [
-                        'name' => '1.67 Anti-Reflective',
-                        'sku' => 'EVP-167-AR',
-                        'price' => 7500.00,
-                        'stock_quantity' => 20,
-                        'low_stock_threshold' => 5,
-                    ],
+                'brand_id' => $brand->id,
+                'category_id' => $contactLensCategory->id,
+                'name' => 'Acuvue Oasys',
+                'description' => 'Reusable contact lenses with clear and toric prescription variants.',
+                'is_active' => true,
+                'product_type' => 'contact_lens',
+                'images' => [],
+            ],
+        );
+
+        foreach ([
+            [
+                'name' => 'Clear -2.00 / 6-pack',
+                'sku' => 'ACOASYS-200-6PK',
+                'price' => 1299.00,
+                'attributes' => [
+                    'power' => '-2.00',
+                    'base_curve' => 8.4,
+                    'diameter' => 14.0,
+                    'cylinder' => null,
+                    'axis' => null,
+                    'add' => null,
+                    'color' => null,
+                    'pack_size' => 6,
                 ],
+                'stock_quantity' => 18,
+                'low_stock_threshold' => 4,
+                'target_stock_level' => 24,
             ],
             [
-                'name' => 'Zeiss Single Vision',
-                'slug' => 'zeiss-single-vision',
-                'description' => 'High clarity single vision lenses.',
-                'product_type' => 'lens',
-                'lens_category_id' => $singleVisionLensCategory?->id,
-                'category_id' => $lensCategory->id,
-                'variants' => [
-                    [
-                        'name' => '1.50 Standard',
-                        'sku' => 'ZSV-150-STD',
-                        'price' => 2800.00,
-                        'stock_quantity' => 30,
-                        'low_stock_threshold' => 5,
-                    ],
+                'name' => 'Toric -3.00 / -1.25 x 180 / 6-pack',
+                'sku' => 'ACOASYS-TORIC-300-125-180',
+                'price' => 1699.00,
+                'attributes' => [
+                    'power' => '-3.00',
+                    'base_curve' => 8.7,
+                    'diameter' => 14.5,
+                    'cylinder' => '-1.25',
+                    'axis' => 180,
+                    'add' => null,
+                    'color' => null,
+                    'pack_size' => 6,
                 ],
+                'stock_quantity' => 12,
+                'low_stock_threshold' => 3,
+                'target_stock_level' => 18,
             ],
-        ];
-
-        foreach ($lensProducts as $productData) {
-            $product = Product::query()->firstOrCreate(
-                ['slug' => $productData['slug']],
+        ] as $variantData) {
+            ProductVariant::query()->firstOrCreate(
+                ['sku' => $variantData['sku']],
                 [
-                    'brand_id' => $brand->id,
-                    'category_id' => $productData['category_id'],
-                    'lens_category_id' => $productData['lens_category_id'],
-                    'name' => $productData['name'],
-                    'description' => $productData['description'],
+                    'product_id' => $contactLensProduct->id,
+                    'name' => $variantData['name'],
                     'is_active' => true,
-                    'product_type' => $productData['product_type'],
+                    'price' => $variantData['price'],
+                    'attributes' => $variantData['attributes'],
+                    'stock_quantity' => $variantData['stock_quantity'],
+                    'low_stock_threshold' => $variantData['low_stock_threshold'],
+                    'target_stock_level' => $variantData['target_stock_level'],
+                    'ar_eligible' => false,
+                    'ar_asset_reference' => null,
+                    'images' => [],
                 ],
             );
-
-            foreach ($productData['variants'] as $variantData) {
-                ProductVariant::query()->firstOrCreate(
-                    ['sku' => $variantData['sku']],
-                    [
-                        'product_id' => $product->id,
-                        'name' => $variantData['name'],
-                        'is_active' => true,
-                        'price' => $variantData['price'],
-                        'stock_quantity' => $variantData['stock_quantity'],
-                        'low_stock_threshold' => $variantData['low_stock_threshold'],
-                        'ar_eligible' => false,
-                    ],
-                );
-            }
         }
 
         // Accessory products

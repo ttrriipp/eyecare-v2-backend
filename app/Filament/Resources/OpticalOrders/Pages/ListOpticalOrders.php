@@ -7,6 +7,7 @@ use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Widgets\OpticalOrderStatsWidget;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
@@ -54,7 +55,7 @@ class ListOpticalOrders extends ListRecords
 
                     Select::make('prescription_id')
                         ->label('Corrective Prescription')
-                        ->helperText('Required only if the order includes lens category items.')
+                        ->helperText('Required only if the order includes lens package items.')
                         ->options(fn (Get $get): array => filled($get('patient_id'))
                             ? Prescription::query()
                                 ->where('patient_id', $get('patient_id'))
@@ -77,6 +78,7 @@ class ListOpticalOrders extends ListRecords
                                 ->options([
                                     'catalog' => 'Catalog Item',
                                     'lens' => 'Lens Category',
+                                    'lens_option' => 'Lens Option',
                                     'custom' => 'Custom Item',
                                 ])
                                 ->default('catalog')
@@ -85,6 +87,7 @@ class ListOpticalOrders extends ListRecords
                                 ->afterStateUpdated(function (Set $set): void {
                                     $set('product_variant_id', null);
                                     $set('lens_category_id', null);
+                                    $set('lens_option_id', null);
                                     $set('description', null);
                                     $set('unit_price', null);
                                 }),
@@ -140,6 +143,29 @@ class ListOpticalOrders extends ListRecords
                                     if ($lensCategory->price !== null) {
                                         $set('unit_price', $lensCategory->price);
                                     }
+                                }),
+
+                            Select::make('lens_option_id')
+                                ->label('Lens Option')
+                                ->options(fn (): array => LensOption::query()
+                                    ->active()
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
+                                    ->all())
+                                ->searchable()
+                                ->preload()
+                                ->required(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                ->visible(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                ->live()
+                                ->afterStateUpdated(function (Set $set, mixed $state): void {
+                                    $lensOption = LensOption::query()->active()->find($state);
+
+                                    if ($lensOption === null) {
+                                        return;
+                                    }
+
+                                    $set('description', $lensOption->name);
+                                    $set('unit_price', $lensOption->price);
                                 }),
 
                             TextInput::make('description')

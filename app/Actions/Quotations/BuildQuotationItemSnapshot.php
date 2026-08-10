@@ -4,6 +4,7 @@ namespace App\Actions\Quotations;
 
 use App\Enums\CommercialItemKind;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\ProductVariant;
 use App\Services\ContactLensAttributeValidator;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,34 @@ final class BuildQuotationItemSnapshot
         ?int $lensCategoryId = null,
         ?string $explicitKind = null,
         ?int $serviceId = null,
+        ?int $lensOptionId = null,
     ): array {
+        $catalogReferenceCount = collect([
+            $productVariantId,
+            $lensCategoryId,
+            $lensOptionId,
+            $serviceId,
+        ])->filter(fn (mixed $reference): bool => $reference !== null)->count();
+
+        if ($catalogReferenceCount > 1) {
+            throw ValidationException::withMessages([
+                'items' => ['A transaction item can reference only one catalog entry.'],
+            ]);
+        }
+
+        // Lens Option -> lens_option
+        if ($lensOptionId !== null) {
+            $lensOption = LensOption::query()->findOrFail($lensOptionId);
+
+            return [
+                'item_kind' => CommercialItemKind::LensOption,
+                'item_snapshot' => [
+                    'lens_option_id' => $lensOption->id,
+                    'lens_option_name' => $lensOption->name,
+                ],
+            ];
+        }
+
         // Lens Category -> lens_package
         if ($lensCategoryId !== null) {
             $lensCategory = LensCategory::query()->findOrFail($lensCategoryId);

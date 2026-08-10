@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
+use App\Models\LensOption;
 use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
@@ -68,6 +71,34 @@ test('quotation item exposes its catalog reference and type', function () {
         ->assertJsonPath('data.revision.items.0.service_id', $service->id)
         ->assertJsonPath('data.revision.items.0.product_variant_id', null)
         ->assertJsonPath('data.revision.items.0.lens_category_id', null);
+});
+
+test('quotation option presentation includes its kind and reference without exposing the catalog snapshot', function (): void {
+    $user = User::factory()->patient()->create();
+    $option = LensOption::factory()->create(['name' => 'Anti-reflective coating']);
+    $quotation = Quotation::factory()->presented()->create(['patient_id' => $user->patient->id]);
+    $quotation->items()->create([
+        'description' => 'Confirmed coating description',
+        'quantity' => 1,
+        'unit_price' => 850,
+        'amount' => 850,
+        'lens_option_id' => $option->id,
+        'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::LensOption,
+        'item_snapshot' => [
+            'lens_option_id' => $option->id,
+            'lens_option_name' => $option->name,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/quotations/{$quotation->id}")
+        ->assertOk()
+        ->assertJsonPath('data.revision.items.0.description', 'Confirmed coating description')
+        ->assertJsonPath('data.revision.items.0.unit_price', '850.00')
+        ->assertJsonPath('data.revision.items.0.item_kind', 'lens_option')
+        ->assertJsonPath('data.revision.items.0.lens_option_id', $option->id)
+        ->assertJsonMissingPath('data.revision.items.0.item_snapshot');
 });
 
 test('draft quotations are excluded from patient list', function () {

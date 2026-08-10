@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Quotations\Schemas;
 
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\ProductVariant;
 use App\Models\Service;
 use Filament\Forms\Components\DatePicker;
@@ -57,6 +58,7 @@ class QuotationCreationForm
                                         ->options([
                                             'catalog' => 'Catalog Item',
                                             'lens' => 'Lens Category',
+                                            'lens_option' => 'Lens Option',
                                             'service' => 'Service',
                                             'custom_product' => 'Custom Item',
                                             'custom_service' => 'Custom Service',
@@ -67,6 +69,7 @@ class QuotationCreationForm
                                         ->afterStateUpdated(function (Set $set): void {
                                             $set('product_variant_id', null);
                                             $set('lens_category_id', null);
+                                            $set('lens_option_id', null);
                                             $set('service_id', null);
                                             $set('description', null);
                                             $set('unit_price', null);
@@ -129,6 +132,32 @@ class QuotationCreationForm
                                                     2,
                                                 ));
                                             }
+                                        }),
+                                    Select::make('lens_option_id')
+                                        ->label('Lens Option')
+                                        ->options(fn (): array => LensOption::query()
+                                            ->active()
+                                            ->orderBy('name')
+                                            ->pluck('name', 'id')
+                                            ->all())
+                                        ->searchable()
+                                        ->preload()
+                                        ->required(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                        ->visible(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                            $lensOption = LensOption::query()->active()->find($state);
+
+                                            if ($lensOption === null) {
+                                                return;
+                                            }
+
+                                            $set('description', $lensOption->name);
+                                            $set('unit_price', $lensOption->price);
+                                            $set('line_total', number_format(
+                                                ((float) ($get('quantity') ?? 1)) * ((float) $lensOption->price),
+                                                2,
+                                            ));
                                         }),
                                     Select::make('service_id')
                                         ->label('Service')

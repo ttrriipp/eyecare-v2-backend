@@ -69,8 +69,9 @@ Job Orders or Invoices.
 
 ### Product taxonomy
 
-- `product_type` is a fixed behavioral classification: frame, lens, contact
-  lens, or accessory.
+- `product_type` is a fixed physical-product classification: frame,
+  contact_lens, or accessory. The legacy lens Product type represented physical
+  lens blanks and is retained only as inactive historical data.
 - A product has at most one optional display/reporting category; no
   many-to-many category pivot is introduced.
 - Categories group within a type rather than duplicating types with generic
@@ -80,7 +81,8 @@ Job Orders or Invoices.
 - No `tracks_inventory` flag is added. Non-stock lens configurations, services,
   and custom charges remain outside physical Product inventory.
 - Lens design configuration such as Single Vision, Bifocal, and Progressive is
-  treated as a lens type/configuration, not a general product category.
+  represented by LensCategory packages; separately billed treatments use
+  LensOption. Neither is a physical Product category.
 - Legacy direct-order constants and accessory-inclusive mobile scopes are
   removed; mobile catalog queries return frames only.
 

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'amount',
     'product_variant_id',
     'lens_category_id',
+    'lens_option_id',
     'service_id',
     'item_type',
     'item_kind',
@@ -30,10 +31,25 @@ class QuotationItem extends Model
     protected static function booted(): void
     {
         static::saving(function (QuotationItem $item): void {
+            $catalogReferenceCount = collect([
+                $item->product_variant_id,
+                $item->lens_category_id,
+                $item->lens_option_id,
+                $item->service_id,
+            ])->filter(fn (mixed $reference): bool => $reference !== null)->count();
+
+            if ($catalogReferenceCount > 1) {
+                throw new \InvalidArgumentException('Quotation items can reference only one catalog entry.');
+            }
+
             // Service items cannot have catalog references
             if ($item->item_type === TransactionItemType::Service) {
                 if ($item->product_variant_id !== null || $item->lens_category_id !== null) {
                     throw new \InvalidArgumentException('Service items cannot reference a product variant or lens category.');
+                }
+
+                if ($item->lens_option_id !== null) {
+                    throw new \InvalidArgumentException('Service items cannot reference a lens option.');
                 }
             }
 
@@ -43,8 +59,22 @@ class QuotationItem extends Model
             }
 
             // Product items with catalog references auto-set item_type
-            if ($item->item_type === null && ($item->product_variant_id !== null || $item->lens_category_id !== null)) {
+            if ($item->item_type === null && ($item->product_variant_id !== null || $item->lens_category_id !== null || $item->lens_option_id !== null)) {
                 $item->item_type = TransactionItemType::Product;
+            }
+
+            if ($item->lens_option_id !== null && $item->item_type !== TransactionItemType::Product) {
+                throw new \InvalidArgumentException('Lens option items must be Product items.');
+            }
+
+            if ($item->lens_option_id !== null
+                && $item->item_kind !== null
+                && $item->item_kind !== CommercialItemKind::LensOption) {
+                throw new \InvalidArgumentException('Lens option items must have the LensOption item kind.');
+            }
+
+            if ($item->lens_option_id !== null && $item->item_kind === null) {
+                $item->item_kind = CommercialItemKind::LensOption;
             }
         });
     }
@@ -80,6 +110,14 @@ class QuotationItem extends Model
     public function lensCategory(): BelongsTo
     {
         return $this->belongsTo(LensCategory::class, 'lens_category_id');
+    }
+
+    /**
+     * @return BelongsTo<LensOption, $this>
+     */
+    public function lensOption(): BelongsTo
+    {
+        return $this->belongsTo(LensOption::class);
     }
 
     /**

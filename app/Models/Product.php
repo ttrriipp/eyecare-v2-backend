@@ -31,7 +31,6 @@ class Product extends Model
     /** @var array<string, string> */
     public const array TYPE_OPTIONS = [
         'frame' => 'Frame',
-        'lens' => 'Lens',
         'contact_lens' => 'Contact Lens',
         'accessory' => 'Accessory',
     ];

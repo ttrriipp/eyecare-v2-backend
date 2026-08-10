@@ -1,6 +1,10 @@
 # Spec: Product Taxonomy, Order Flow & Billing Rework
 
-> **Superseded in part:** The three-type product taxonomy in this completed historical specification is superseded by `docs/specs/product-type-expansion-spec.md`. The order-flow and billing decisions remain current.
+> **Historical:** The Product taxonomy and prescription-lens inventory decisions
+> in this completed specification are superseded by
+> `docs/specs/product-type-expansion-spec.md`. The order-flow and billing
+> decisions remain current. Do not use the historical `lens`/`general`
+> Product values for new records.
 
 ## Objective
 

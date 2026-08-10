@@ -7,6 +7,7 @@ use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
+use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -15,6 +16,7 @@ use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
+use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -69,6 +71,17 @@ class CompleteImmediateOpticalOrder
                 ->where('item_type', TransactionItemType::Product)
                 ->get();
 
+            app(ValidateOpticalQuotation::class)->handle(
+                items: $productItems->map(fn ($item): array => [
+                    'item_kind' => $item->item_kind,
+                    'product_variant_id' => $item->product_variant_id,
+                ])->values(),
+                patient: $quotation->patient,
+                prescription: $quotation->prescription_id !== null
+                    ? Prescription::query()->find($quotation->prescription_id)
+                    : null,
+            );
+
             if ($jobOrder === null && $productItems->isNotEmpty()) {
                 // Create in queued state for inventory commitment
                 $jobOrder = JobOrder::create([
@@ -92,7 +105,10 @@ class CompleteImmediateOpticalOrder
                         'amount' => $item->amount,
                         'product_variant_id' => $item->product_variant_id,
                         'lens_category_id' => $item->lens_category_id,
+                        'lens_option_id' => $item->lens_option_id,
                         'item_type' => TransactionItemType::Product,
+                        'item_kind' => $item->item_kind,
+                        'item_snapshot' => $item->item_snapshot,
                     ]);
                 }
 

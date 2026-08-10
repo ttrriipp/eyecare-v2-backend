@@ -116,6 +116,7 @@ class ConfirmQuotationSale
                             'amount' => $item->amount,
                             'product_variant_id' => $item->product_variant_id,
                             'lens_category_id' => $item->lens_category_id,
+                            'lens_option_id' => $item->lens_option_id,
                             'item_type' => TransactionItemType::Product,
                             'item_kind' => $item->item_kind,
                             'item_snapshot' => $item->item_snapshot,
@@ -247,6 +248,14 @@ class ConfirmQuotationSale
             'frame_job_order_item_id' => $frameJobOrderItem?->id,
             'lens_package_job_order_item_id' => $lensPackageJobOrderItem->id,
             'frame_source' => $frameJobOrderItem !== null ? FrameSource::Catalog : FrameSource::PatientSupplied,
+            'lens_options_snapshot' => $productItems
+                ->where('item_kind', CommercialItemKind::LensOption)
+                ->map(fn ($item): ?string => is_array($item->item_snapshot)
+                    ? ($item->item_snapshot['lens_option_name'] ?? null)
+                    : null)
+                ->filter()
+                ->values()
+                ->all(),
         ]);
     }
 }

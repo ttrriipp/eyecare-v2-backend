@@ -27,6 +27,7 @@ final class ValidateOpticalQuotation
         Collection $items,
         ?Patient $patient = null,
         ?Prescription $prescription = null,
+        bool $requirePrescription = true,
     ): array {
         $lensPackages = $items->where('item_kind', CommercialItemKind::LensPackage);
         $frames = $items->whereIn('item_kind', [CommercialItemKind::Frame, CommercialItemKind::CustomProduct])
@@ -57,7 +58,7 @@ final class ValidateOpticalQuotation
         }
 
         // Corrective eyewear requires a current Patient-owned Prescription
-        if ($isCorrective) {
+        if ($isCorrective && $requirePrescription) {
             $this->validatePrescription($patient, $prescription);
         }
 

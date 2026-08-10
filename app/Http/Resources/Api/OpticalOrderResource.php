@@ -41,6 +41,8 @@ class OpticalOrderResource extends JsonResource
                 'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
                 'amount' => number_format((float) $item->amount, 2, '.', ''),
                 'product_variant_id' => $item->product_variant_id,
+                'item_kind' => $item->item_kind?->value,
+                'lens_option_id' => $item->lens_option_id,
                 'is_rateable' => $this->isItemRateable($item),
                 'rating' => $this->getItemRating($item, $ratingsByVariant, $request),
             ]),

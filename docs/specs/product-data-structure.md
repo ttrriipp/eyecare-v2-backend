@@ -3,11 +3,29 @@
 Status: Complete — implemented in commit b5133f7
 Phase: Done
 
-> **Taxonomy update:** Product type guidance in this historical refactor is superseded by `docs/specs/product-type-expansion-spec.md`. The product/variant ownership decision remains current.
+> **Taxonomy update:** The current Product and prescription-catalog taxonomy is defined in
+> `docs/specs/product-type-expansion-spec.md`. Products are limited to `frame`,
+> `contact_lens`, and `accessory`; prescription packages and enhancements use the
+> separate LensCategory and LensOption catalogs.
 
 ## Decision
 
 Removed `price` and `dimensions` from the `products` table. These fields now exist exclusively on `product_variants`.
+
+## Current Catalog Taxonomy
+
+The products table represents stocked physical products only:
+
+- frame
+- contact_lens
+- accessory
+
+Prescription lens packages are LensCategory records, separately billed lens
+enhancements are LensOption records, and billable clinical charges are Service
+records. The legacy lens Product type represented physical lens blanks and is
+no longer offered for creation or seeded for new installations. Existing legacy
+rows remain inactive for historical compatibility. The products.lens_category_id
+column is retained temporarily and must not be reused for contact lenses.
 
 ## Rationale
 

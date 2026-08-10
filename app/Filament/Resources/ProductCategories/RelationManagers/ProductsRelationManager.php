@@ -31,7 +31,6 @@ class ProductsRelationManager extends RelationManager
                     ->formatStateUsing(fn (string $state): string => Product::TYPE_OPTIONS[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
                         'frame' => 'info',
-                        'lens' => 'success',
                         'contact_lens' => 'warning',
                         'accessory' => 'gray',
                         default => 'gray',

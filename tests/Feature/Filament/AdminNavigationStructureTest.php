@@ -103,12 +103,12 @@ test('items are ordered within each group', function () {
     $navigation = adminNavigation(User::factory()->admin()->create());
 
     expect($navigation)->toMatchArray([
-        'Today' => ['Appointments', 'Appointment Requests', 'Availability'],
+        'Today' => ['Appointments', 'Appointment Requests', 'Scheduling'],
         'Patients' => ['Patient Records', 'Patient Accounts', 'Link Requests', 'Conversations', 'Visit Feedback'],
         'Clinical' => ['Encounters', 'Prescriptions'],
         'Optical' => ['Quotations', 'Optical Orders', 'Frame Reservations', 'Frame Ratings'],
         'Billing' => ['Billing & Payments', 'Appointments Report'],
-        'Catalog' => ['Products', 'Inventory History', 'Reorder Report', 'Brands', 'Lens Categories', 'Product Categories', 'Services'],
+        'Catalog' => ['Products', 'Inventory History', 'Reorder Report', 'Brands', 'Lens Categories', 'Lens Options', 'Product Categories', 'Services'],
         'Admin' => ['Staff Accounts', 'SMS Log', 'Audit Logs'],
     ]);
 });

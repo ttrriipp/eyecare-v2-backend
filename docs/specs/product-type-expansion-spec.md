@@ -1,466 +1,126 @@
-# Spec: Product Type Expansion
+# Spec: Product and Prescription Catalog Taxonomy
 
-Status: Implemented - focused verification complete; unrelated full-suite failures recorded
+Status: Implemented
 Phase: Done
+
+> This specification supersedes the earlier four-type Product taxonomy. Prescription
+> lens packages and enhancements are catalog records of their own; they are not
+> physical Product inventory.
 
 ## Objective
 
-Replace the broad `general` product type with two explicit product types so clinic staff and API consumers can distinguish contact lenses from accessories without relying on product category names.
+Keep the Product catalog limited to physical items the clinic intentionally stocks:
 
-The fixed product types will be:
+- 'frame' — eyewear frames
+- 'contact_lens' — stocked contact lenses
+- 'accessory' — cases, solutions, cleaning kits, and other stocked accessories
 
-- `frame` - eyewear frames; supports AR-specific variant fields
-- `lens` - optical lenses assigned by staff to frame order items; never directly orderable
-- `contact_lens` - directly orderable contact lenses
-- `accessory` - directly orderable solutions, cases, cleaning kits, and other optical accessories
+Prescription lens packages, lens enhancements, and clinical charges belong to
+separate catalogs:
 
-**Users:** Clinic staff and administrators managing products in Filament, and authenticated customers consuming the mobile catalog and order APIs.
+- LensCategory — the base prescription lens package
+- LensOption — a separately billed enhancement such as Anti-Reflective,
+  Photochromic, Blue-light filter, or Tint
+- Service — a billable clinical or operational service
 
-**API contract change:** `general` is removed from newly returned and accepted product data. The mobile catalog and order APIs expose `frame`, `contact_lens`, and `accessory`; `lens` remains excluded from direct ordering.
+The old 'lens' Product type represented physical lens blanks and is no longer a
+supported creation or seeding option. Existing product_type = 'lens' records
+remain for historical references and are marked inactive by the forward migration
+2026_08_10_193536_deactivate_legacy_lens_products.php.
 
-## Tech Stack
+## Current Catalog Contract
 
-- PHP 8.5
-- Laravel 13
-- Filament 5
-- Laravel Sanctum 4
-- Pest 4 and PHPUnit 12
-- MySQL through Laravel Sail
-- No new dependencies
+| Catalog | Supported records | Inventory |
+|---|---|---|
+| Product | 'frame', 'contact_lens', 'accessory' | Yes, through Product variants |
+| Lens Category | Prescription lens packages | No |
+| Lens Option | Separately billed lens enhancements | No |
+| Service | Billable clinical or operational services | No |
 
-## Commands
+products.lens_category_id remains in the schema and Product model temporarily
+for compatibility with historical data. It is not used to create new Products and
+must not be reused for contact lenses.
 
-```text
-Start services: vendor/bin/sail up -d
-Create migration: vendor/bin/sail artisan make:migration replace_general_product_type --no-interaction
-Run migration: vendor/bin/sail artisan migrate --no-interaction
-Focused tests: vendor/bin/sail artisan test --compact tests/Feature/ProductTypeTest.php tests/Feature/CatalogSchemaTest.php tests/Feature/Api/ProductCatalogTest.php tests/Feature/Api/OrderRequestTest.php tests/Feature/Filament/OrderResourceTest.php
-Format PHP: vendor/bin/sail bin pint --dirty --format agent
-Full tests: vendor/bin/sail artisan test --compact
-```
+Lens Option lines in quotations and optical orders use the existing transaction
+architecture with item_type = product and item_kind = lens_option. They carry
+their own commercial line snapshot and do not create inventory movements.
 
-## Project Structure
+## Product Management
 
-```text
-app/Filament/Resources/Products/       -> Product type selection, badges, and filters
-app/Filament/Resources/Brands/         -> Product type display in brand relationships
-app/Filament/Resources/ProductCategories/ -> Product type display in category relationships
-app/Filament/Resources/Orders/         -> Directly orderable product selectors
-app/Http/Controllers/Api/              -> Mobile catalog visibility
-app/Http/Requests/Api/                 -> Mobile order item validation
-app/Models/Product.php                 -> Product model and type semantics
-database/factories/                    -> Product factory states
-database/migrations/                   -> Forward-only product data migration
-database/seeders/                      -> Catalog demo data
-tests/Feature/                         -> Schema, API, and Filament behavior tests
-docs/BACKEND_CONTEXT.md                -> Canonical backend contract
-docs/specs/                            -> Feature specifications and product model rationale
-```
+The Filament Product resource uses Product::TYPE_OPTIONS, which exposes exactly
+Frame, Contact Lens, and Accessory. Product type remains disabled after creation.
+The form does not offer the legacy Lens type or a Lens Category selector.
 
-## Functional Requirements
+Product tables, filters, brand relationships, and category relationships use the
+same three-type allowlist. Historical 'lens' rows can remain readable by their
+stored value while inactive, but they cannot be created through the current form.
 
-### Product Management
+Frame-only AR fields continue to describe augmented-reality try-on eligibility.
+They must never be reused to represent Anti-Reflective coating.
 
-- The Filament product create form offers exactly Frame, Lens, Contact Lens, and Accessory.
-- Product type remains disabled after creation.
-- Lens Category is visible and applicable only when the product type is `lens`.
-- Frame-only AR fields remain visible only for `frame` products.
-- Product tables, filters, brand relationships, and category relationships display the four types with readable labels.
-- No UI offers `general` as a product type.
+## Seed Data and Migration
 
-### Catalog API
+CatalogSeeder:
 
-- `GET /api/products` returns active `frame`, `contact_lens`, and `accessory` products.
-- `GET /api/products` excludes `lens` products.
-- `GET /api/products/{product}` returns active `frame`, `contact_lens`, and `accessory` products.
-- Product detail requests for `lens` products return 404.
-- API resources return the stored snake-case value in `product_type`.
-- Existing brand, category, stock, price, search, sorting, and pagination behavior remains unchanged.
+- creates the generic and converted prescription packages in LensCategory,
+  including Essilor Varilux Progressive 1.67 and Zeiss Single Vision 1.50;
+- creates Anti-Reflective in LensOption;
+- creates frame, contact-lens, and accessory Products only;
+- does not create Lens Products, Lens Product variants, or a Lenses Product
+  category.
 
-### Ordering
+The legacy migration is intentionally forward-only:
 
-- Filament order selectors allow active variants belonging to `frame`, `contact_lens`, and `accessory` products.
-- Mobile order validation accepts active variants belonging to `frame`, `contact_lens`, and `accessory` products.
-- Direct order lines using a `lens` product variant remain rejected.
-- Prescription and lens-assignment rules for frame orders remain unchanged.
-- Contact lenses are ordinary direct order items and do not use `lens_category_id` or `lens_product_variant_id` assignment behavior.
+    DB::table('products')
+        ->where('product_type', 'lens')
+        ->update(['is_active' => false]);
 
-### Existing Data
+It preserves the Product, its variants, its historical references, and its
+lens_category_id. Its down() method does not reactivate every legacy record,
+because that could change an intentionally inactive historical Product.
 
-- The current inspected database contains no `general` products, so the expected migration performs no local data update.
-- The previous consolidation migration destroyed the original contact-lens/accessory distinction. Therefore, an environment containing `general` rows must classify those rows explicitly before this change is deployed.
-- The implementation must not infer product type from free-form names, descriptions, or attributes.
-- The implementation must not silently map every `general` row to `accessory`.
-- The database column remains a string; this feature adds no enum column or check constraint.
+No existing lens Product or variant is deleted. If a deployment contains
+historical lens records, they remain available only for historical/reference
+purposes and are excluded from active catalog and ordering flows by their
+inactive state.
 
-### Compatibility
+## APIs and Orders
 
-- This is an intentional breaking API contract change for clients that only recognize `general`.
-- Android implementation and release coordination are outside this backend specification.
-- The backend will not emit a legacy `general` alias or duplicate compatibility field.
+The existing patient frame catalog remains frame-only: /api/v1/frames returns
+active frame Products and excludes contact lenses, accessories, and legacy lens
+Products. Optical quotations and orders use LensCategory and LensOption lines for
+prescription builds.
 
-## Code Style
+Product factories default to frame and expose contactLens() and accessory()
+states. There is no supported lens() or general() factory state.
 
-Follow existing Laravel and Filament conventions: explicit return types, descriptive method names, array validation rules, static `make()` component construction, and singular snake-case stored values.
+## Testing and Verification
 
-Factory states should follow the existing state pattern:
+The taxonomy coverage includes:
 
-```php
-public function contactLens(): static
-{
-    return $this->state(fn (array $attributes): array => [
-        'product_type' => 'contact_lens',
-    ]);
-}
-```
+- Product type options contain only frame, contact_lens, and accessory;
+- a fresh CatalogSeeder creates no Lens Products or variants and creates the
+  converted LensCategory and LensOption records;
+- the legacy migration deactivates Lens Products without clearing
+  lens_category_id;
+- frame catalog behavior continues to exclude non-frame Product types;
+- existing Product, contact-lens, lens-package, Service, and optical-commerce
+  tests remain green.
 
-Use exact allowlists wherever behavior is security- or workflow-sensitive:
+Run the focused tests first, then formatting and the full suite:
 
-```php
-->whereIn('product_type', ['frame', 'contact_lens', 'accessory'])
-```
-
-Do not treat every non-`lens` value as orderable; explicit allowlists prevent malformed or legacy values from entering orders.
-
-## Testing Strategy
-
-- Use Pest feature tests and `RefreshDatabase`, following existing test conventions.
-- Update factory coverage so `contactLens()` and `accessory()` produce the correct stored values and remove the `general()` state.
-- Test catalog list and detail visibility for all four product types.
-- Test mobile order validation accepts contact lenses and accessories while rejecting optical lenses.
-- Test each Filament order selector includes contact lenses and accessories and excludes lenses.
-- Test Filament product creation supports both new types and validation/display behavior remains correct.
-- Update schema-level assertions that currently expect `general`.
-- Run the focused test set first, then the full suite.
-- Since this phase changes documentation only, no application test run is required until implementation begins.
+    vendor/bin/sail artisan test --compact tests/Feature/ProductCatalogTaxonomyTest.php tests/Feature/Api/V1/CatalogTaxonomyTest.php tests/Feature/Reservations/CreateFrameReservationTest.php tests/Feature/Seeders/CanonicalSeederTest.php
+    vendor/bin/sail bin pint --dirty --format agent
+    vendor/bin/sail artisan test --compact
 
 ## Boundaries
 
-### Always
-
-- Use a new forward migration; do not rewrite previously executed migrations.
-- Keep `lens` staff-assigned and excluded from direct ordering.
-- Preserve existing product variant pricing, stock, attributes, images, and AR behavior.
-- Preserve unrelated worktree changes, including the existing modification to `ProductForm.php`.
-- Update `docs/BACKEND_CONTEXT.md` and the existing product data structure specification during implementation.
-- Add or update focused Pest tests for every changed behavior.
-- Run Pint after modifying PHP files.
-
-### Ask First
-
-- Proceeding with deployment if any target environment contains `general` products that have not been explicitly classified.
-- Adding a PHP enum, database constraint, dependency, or new API endpoint.
-- Expanding the scope to Android client changes.
-- Making product type editable after creation.
-
-### Never
-
-- Guess whether an existing `general` product is a contact lens or accessory.
-- Return or accept `lens` as a directly orderable catalog item.
-- Reuse `lens_category_id` for contact lenses.
-- Delete tests to accommodate the new behavior.
-- Revert unrelated user changes in the worktree.
-
-## Success Criteria
-
-- The backend recognizes exactly `frame`, `lens`, `contact_lens`, and `accessory` in all product-management UI.
-- No application code, factory, seeder, active documentation, or test uses `general` as a supported product type, except historical migration commentary or an explicit legacy-data guard.
-- Catalog endpoints return frames, contact lenses, and accessories and continue to hide optical lenses.
-- Filament and mobile order creation accept frames, contact lenses, and accessories and reject optical lenses as direct line items.
-- Lens-category and lens-assignment behavior applies only to optical `lens` products.
-- Existing frame AR behavior remains unchanged.
-- Existing `general` data is either absent or explicitly reclassified before deployment.
-- Focused tests and the full Pest suite pass.
-- Modified PHP files pass Pint formatting.
-- `docs/BACKEND_CONTEXT.md` describes the new four-type contract and the breaking API change.
-
-## Open Questions
-
-None. The product taxonomy, ordering behavior, compatibility posture, and data-migration boundary were approved before this specification was written.
-
-## Phase 2: Implementation Plan
-
-### Architecture Decisions
-
-1. **Keep `product_type` as a string column.** The database already stores product types in an unconstrained string, so the new values require no schema alteration, enum, or dependency.
-
-2. **Add a forward-only legacy-data guard migration.** The migration checks for any remaining `general` products and throws a descriptive exception if it finds them. This stops deployment before ambiguous data is silently reclassified. Its `down()` method is a no-op because it changes no schema or data. Fresh installations pass because seed data is created after migrations; the currently inspected database also passes because it contains no `general` rows.
-
-3. **Define behavior-oriented type constants on `Product`.** A single `DIRECTLY_ORDERABLE_TYPES` constant will contain `frame`, `contact_lens`, and `accessory`. Catalog queries, order selectors, and API validation will use this constant instead of repeating allowlists. A separate type-to-label constant will provide the four management labels without introducing a PHP enum.
-
-4. **Continue using explicit allowlists.** Directly orderable products will not be defined as "anything except lens." Unknown or historical values must remain excluded by default.
-
-5. **Preserve the existing lens distinction.** `lens` means an optical lens inventory product assigned to an order item by staff. `contact_lens` is a normal directly purchased product and does not participate in lens-category or lens-assignment behavior.
-
-6. **Make the API contract break explicit rather than transitional.** The backend will return the new stored values immediately and will not emit `general` compatibility aliases. Client release coordination remains outside this work.
-
-7. **Integrate with the dirty product form instead of replacing it.** Only the product type options in `ProductForm.php` will change. The existing RichEditor toolbar modification remains intact.
-
-### Component Sequence
-
-#### 1. Type Contract and Data Safety
-
-- Write failing factory/model tests for `contact_lens`, `accessory`, the four management labels, and the directly orderable allowlist.
-- Generate the forward migration through Sail.
-- Implement the `Product` constants and replace the `general()` factory state with `contactLens()` and `accessory()` states.
-- Add migration coverage proving it passes without legacy rows and rejects ambiguous `general` rows without modifying them.
-
-**Dependency:** None.
-
-**Checkpoint:** Product type contract tests pass, and the migration guard is proven non-destructive.
-
-#### 2. Mobile Catalog and Ordering Slice
-
-- Write failing API tests covering list visibility, detail visibility, returned `product_type`, and direct order validation for all four types.
-- Update `ProductController` catalog allowlists and `StoreOrderRequest` order validation to use `Product::DIRECTLY_ORDERABLE_TYPES`.
-- Confirm inactive-product and inactive-variant behavior remains unchanged.
-
-**Dependency:** Type contract constants and factory states.
-
-**Checkpoint:** Product catalog and mobile order request tests pass end to end.
-
-#### 3. Filament Product Management Slice
-
-- Write or update failing Filament tests for the four create-form options and product-type filtering/display.
-- Replace General with Contact Lens and Accessory in the product form, products table, brand relation manager, and product-category relation manager.
-- Use consistent labels and badges: Frame=`info`, Lens=`success`, Contact Lens=`warning`, Accessory=`gray`.
-- Verify lens-category visibility remains exclusive to `lens`, while AR controls remain exclusive to `frame`.
-
-**Dependency:** Type contract constants.
-
-**Checkpoint:** Product resource tests pass and the pre-existing RichEditor toolbar diff is unchanged.
-
-#### 4. Filament Ordering Slice
-
-- Write or update failing tests proving all Filament order selectors include frame, contact-lens, and accessory variants and exclude lens variants.
-- Update the create wizard, edit form, and order-items relation manager to use the directly orderable type constant.
-- Replace general-product edit coverage with separate contact-lens and accessory coverage where behavior differs by item type.
-
-**Dependency:** Type contract constants and factory states.
-
-**Checkpoint:** Filament order resource tests pass, including existing prescription and lens-assignment tests.
-
-#### 5. Documentation and Final Verification
-
-- Update `docs/BACKEND_CONTEXT.md` product table, product model rules, Filament resource description, and completed-spec index.
-- Update the existing product data structure specification so contact lenses and accessories are no longer described as `general`.
-- Mark this specification complete only after implementation verification succeeds.
-- Search active application code, tests, seeders, and current documentation for unsupported `general` references; retain only historical migration rationale and the new guard.
-- Run focused tests, Pint, then the full Pest suite.
-
-**Dependency:** All implementation slices.
-
-**Checkpoint:** Every success criterion passes and documentation matches runtime behavior.
-
-### Dependency Graph
-
-```text
-Type contract + migration guard
-    |-- Mobile catalog and order API
-    |-- Filament product management
-    `-- Filament order selectors
-             |
-             `-- Documentation + full verification
-```
-
-### Verification Checkpoints
-
-1. **Foundation:** Factory/model and migration-guard tests pass.
-2. **API:** Catalog and order-request tests pass for all four product types.
-3. **Filament:** Product and order resource tests pass without disturbing unrelated form changes.
-4. **Complete:** Focused suite passes, Pint reports clean formatting, full Pest suite passes, and no active `general` support remains.
-
-### Risks and Mitigations
-
-| Risk | Impact | Mitigation |
-|---|---|---|
-| A deployed environment contains ambiguous `general` rows | High: deployment could produce incorrect product behavior | Guard migration stops before mutation; classify records explicitly before retrying |
-| Android only recognizes `general` | High: catalog parsing or filtering may fail | Treat as an announced breaking contract; coordinate Android separately before deployment |
-| One of several duplicated order selectors retains the old allowlist | Medium: inconsistent staff ordering behavior | Use one model constant and test create, edit, and relation-manager paths |
-| Contact lenses accidentally trigger optical-lens assignment | Medium: incorrect order workflow | Keep all special behavior keyed strictly to `lens` and add regression tests |
-| Existing `ProductForm.php` work is overwritten | Medium: unrelated UI regression | Patch only the type options and compare the RichEditor diff before finalizing |
-| Historical `general` text is removed from old migrations | Low: lost migration context | Retain historical migration comments; remove only active support and current documentation claims |
-
-### Parallelization
-
-The API and Filament slices are logically independent after the type contract exists, but they share factories, model constants, and test fixtures. Sequential implementation is preferred for this small change to avoid unnecessary merge coordination. Documentation remains last so it records verified behavior.
-
-### Phase 2 Open Questions
-
-None. The plan follows the approved Phase 1 boundaries.
-
-## Phase 3: Task Checklist
-
-### Task 1: Establish the Product Type Contract and Legacy Guard
-
-**Description:** Introduce the four supported management types and the directly orderable allowlist, replace the general factory state, and add a non-destructive migration guard for ambiguous legacy data. Follow TDD by updating the focused tests before implementation.
-
-**Acceptance criteria:**
-
-- [x] `Product` exposes labels for exactly `frame`, `lens`, `contact_lens`, and `accessory` and an allowlist containing exactly the three directly orderable types.
-- [x] `ProductFactory` provides `contactLens()` and `accessory()` states and no longer provides `general()`.
-- [x] A new forward migration passes when no `general` products exist and fails descriptively without mutating data when they do.
-
-**Verification:**
-
-- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/ProductTypeTest.php tests/Feature/CatalogSchemaTest.php`.
-- [x] Run `vendor/bin/sail artisan migrate --no-interaction` against the inspected local database after the guard test passes.
-
-**Dependencies:** None.
-
-**Files:**
-
-- `app/Models/Product.php`
-- `database/factories/ProductFactory.php`
-- `database/migrations/<timestamp>_guard_against_legacy_general_product_type.php`
-- `tests/Feature/ProductTypeTest.php`
-- `tests/Feature/CatalogSchemaTest.php`
-
-**Estimated scope:** Medium, 5 files.
-
-### Checkpoint 1: Foundation
-
-- [x] The type-contract and schema tests pass.
-- [x] The migration guard has been exercised for both safe and blocked states.
-- [x] No existing product data changed during the migration.
-
-### Task 2: Expand the Mobile Catalog and Direct Ordering Contract
-
-**Description:** Make contact lenses and accessories visible and directly orderable through the authenticated mobile API while continuing to exclude optical lens products. Add the four-type API cases before updating the implementation.
-
-**Acceptance criteria:**
-
-- [x] Catalog list and detail endpoints return active frames, contact lenses, and accessories with their exact stored type values.
-- [x] Catalog list and detail endpoints continue to hide or reject optical lenses and inactive products.
-- [x] Mobile order requests accept active frame, contact-lens, and accessory variants and reject optical-lens variants.
-
-**Verification:**
-
-- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Api/ProductCatalogTest.php tests/Feature/Api/OrderRequestTest.php`.
-
-**Dependencies:** Task 1.
-
-**Files:**
-
-- `app/Http/Controllers/Api/ProductController.php`
-- `app/Http/Requests/Api/StoreOrderRequest.php`
-- `tests/Feature/Api/ProductCatalogTest.php`
-- `tests/Feature/Api/OrderRequestTest.php`
-
-**Estimated scope:** Medium, 4 files.
-
-### Checkpoint 2: API
-
-- [x] Product catalog tests pass for all four types.
-- [x] Mobile order validation tests pass for all directly orderable types and optical-lens rejection.
-- [x] Existing search, sorting, pagination, stock, and authentication assertions remain green.
-
-### Task 3: Expand Filament Product Management
-
-**Description:** Replace General with Contact Lens and Accessory across product creation, product tables, filters, and related brand/category product lists. Preserve the unrelated RichEditor toolbar modification already present in the product form.
-
-**Acceptance criteria:**
-
-- [x] Product creation offers exactly Frame, Lens, Contact Lens, and Accessory.
-- [x] Product list filtering and all product type badges show the four readable labels with the planned colors.
-- [x] Lens Category remains lens-only, AR fields remain frame-only, and the RichEditor toolbar change is untouched.
-
-**Verification:**
-
-- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/CatalogResourceTest.php`.
-- [x] Compare `git diff -- app/Filament/Resources/Products/Schemas/ProductForm.php` and confirm the pre-existing RichEditor change remains present.
-
-**Dependencies:** Task 1.
-
-**Files:**
-
-- `app/Filament/Resources/Products/Schemas/ProductForm.php`
-- `app/Filament/Resources/Products/Tables/ProductsTable.php`
-- `app/Filament/Resources/Brands/RelationManagers/ProductsRelationManager.php`
-- `app/Filament/Resources/ProductCategories/RelationManagers/ProductsRelationManager.php`
-- `tests/Feature/Filament/CatalogResourceTest.php`
-
-**Estimated scope:** Medium, 5 files.
-
-### Task 4: Expand Filament Direct Order Selectors
-
-**Description:** Update every staff order-item selector to use the shared directly orderable type contract, with tests covering create, edit, and relation-manager paths.
-
-**Acceptance criteria:**
-
-- [x] Create-order and edit-order selectors include active frame, contact-lens, and accessory variants.
-- [x] The order-items relation manager uses the same allowlist for create and edit actions.
-- [x] Optical lens variants remain excluded, and existing frame lens-assignment behavior remains green.
-
-**Verification:**
-
-- [x] Run `vendor/bin/sail artisan test --compact tests/Feature/Filament/OrderResourceTest.php`.
-
-**Dependencies:** Task 1.
-
-**Files:**
-
-- `app/Filament/Resources/Orders/Pages/CreateOrder.php`
-- `app/Filament/Resources/Orders/Schemas/OrderForm.php`
-- `app/Filament/Resources/Orders/RelationManagers/ItemsRelationManager.php`
-- `tests/Feature/Filament/OrderResourceTest.php`
-
-**Estimated scope:** Medium, 4 files.
-
-### Checkpoint 3: Filament
-
-- [x] Catalog resource tests pass.
-- [x] Order resource tests pass.
-- [x] Product form type-specific visibility behaves as before for frames and optical lenses.
-- [x] The unrelated ProductForm RichEditor modification remains intact.
-
-### Task 5: Align Documentation and Complete Verification
-
-**Description:** Update the canonical backend context, record that the earlier three-type decision is superseded, then run formatting and the complete regression suite. Mark this specification complete only after every check succeeds.
-
-**Acceptance criteria:**
-
-- [x] Current documentation describes the four types and the new catalog/order behavior.
-- [x] Historical specifications remain available and clearly point to this superseding specification where their taxonomy is outdated.
-- [x] Active code and tests contain no supported `general` behavior outside the historical consolidation migration and the new legacy-data guard.
-
-**Verification:**
-
-- [x] Run `rg -n "general" app database/factories database/seeders tests docs/BACKEND_CONTEXT.md` and review every remaining match.
-- [x] Run `vendor/bin/sail bin pint --dirty --format agent`.
-- [x] Re-run the focused tests listed in Tasks 1-4.
-- [x] Run `vendor/bin/sail artisan test --compact`.
-
-**Dependencies:** Tasks 1-4.
-
-**Files:**
-
-- `docs/BACKEND_CONTEXT.md`
-- `docs/specs/product-data-structure.md`
-- `docs/specs/product-order-billing-rework-spec.md`
-- `docs/specs/product-type-expansion-spec.md`
-
-**Estimated scope:** Medium, 4 files.
-
-### Final Checkpoint
-
-- [ ] All specification success criteria are satisfied; the repository-wide suite has unrelated appointment failures detailed below.
-- [x] The legacy-data guard passes on the inspected database.
-- [x] Focused product-type Pest suite passes.
-- [ ] Full Pest suite passes; two unrelated appointment tests fail consistently.
-- [x] Pint has formatted all modified PHP files.
-- [x] No unrelated worktree changes were reverted or overwritten.
-- [x] The specification status accurately records implementation and verification exceptions.
-
-### Verification Results
-
-- Focused product-type suite: 81 tests passed, 309 assertions, 0 failures.
-- Full suite: 672 tests executed, 669 passed, 1 failure, and 2 errors.
-- The booking deadlock error passed when isolated and was transient.
-- `AppointmentStaffAuditTest` consistently expects a Filament notification that is not sent by the current appointment flow.
-- `CalendarInteractivityTest` consistently calls rescheduling without the now-required reason and receives the expected validation exception.
-- Neither persistent failure executes product-type code or touches files changed by this feature. They were not modified because appointment behavior is outside this specification.
-
-### Phase 3 Open Questions
-
-None. Every task is bounded to five files or fewer and includes an explicit verification step.
+- Do not reintroduce lens as a Product type for prescription lens blanks.
+- Do not delete products.lens_category_id until historical and application
+  references have been confirmed obsolete.
+- Do not add stock, SKU, variants, or lots to LensCategory or LensOption.
+- Do not introduce package-option compatibility matrices or package-specific
+  option pricing in this change.
+- Do not use ar_eligible for Anti-Reflective coating.
+- If the clinic later stocks physical lens blanks, introduce that as an explicit
+  inventory feature with its own taxonomy and workflows.

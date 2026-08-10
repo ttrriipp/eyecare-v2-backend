@@ -43,7 +43,7 @@ test('mobile catalog returns active frames only', function () {
         ->assertJsonPath('data.0.product_type', 'frame');
 });
 
-test('mobile catalog excludes accessories and lenses', function () {
+test('mobile catalog excludes accessories and contact lenses', function () {
     $user = User::factory()->patient()->create();
 
     $accessory = Product::factory()->create([
@@ -53,11 +53,11 @@ test('mobile catalog excludes accessories and lenses', function () {
     ]);
     ProductVariant::factory()->create(['product_id' => $accessory->id, 'is_active' => true]);
 
-    $lens = Product::factory()->create([
-        'product_type' => 'lens',
+    $contactLens = Product::factory()->contactLens()->create([
         'is_active' => true,
         'brand_id' => $this->brand->id,
     ]);
+    ProductVariant::factory()->create(['product_id' => $contactLens->id, 'is_active' => true]);
 
     $this->actingAs($user)
         ->getJson('/api/v1/frames')
@@ -93,9 +93,10 @@ test('mobile catalog excludes cost price and stock counts', function () {
         ->and($variant)->not->toHaveKey('low_stock_threshold');
 });
 
-test('direct order constants are absent from product model', function () {
-    // These constants were removed
-    expect(class_exists(Product::class))->toBeTrue();
-    expect(property_exists(Product::class, 'DIRECTLY_ORDERABLE_TYPES'))->toBeFalse();
-    expect(property_exists(Product::class, 'CUSTOMER_ORDERABLE_TYPES'))->toBeFalse();
+test('product model exposes the current physical product taxonomy', function () {
+    expect(Product::TYPE_OPTIONS)->toBe([
+        'frame' => 'Frame',
+        'contact_lens' => 'Contact Lens',
+        'accessory' => 'Accessory',
+    ]);
 });

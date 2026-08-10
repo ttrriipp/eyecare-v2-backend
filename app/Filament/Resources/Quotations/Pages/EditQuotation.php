@@ -7,6 +7,7 @@ use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Actions\Quotations\UpdateQuotationDraft;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\TransactionItemType;
@@ -58,6 +59,7 @@ class EditQuotation extends EditRecord
                     'notes' => $this->record->notes,
                     'items' => $this->record->items->map(fn ($item): array => [
                         'item_type' => match (true) {
+                            $item->item_kind === CommercialItemKind::LensOption || filled($item->lens_option_id) => 'lens_option',
                             filled($item->product_variant_id) => 'catalog',
                             filled($item->lens_category_id) => 'lens',
                             filled($item->service_id) => 'service',
@@ -66,6 +68,7 @@ class EditQuotation extends EditRecord
                         },
                         'product_variant_id' => $item->product_variant_id,
                         'lens_category_id' => $item->lens_category_id,
+                        'lens_option_id' => $item->lens_option_id,
                         'service_id' => $item->service_id,
                         'description' => $item->description,
                         'quantity' => $item->quantity,

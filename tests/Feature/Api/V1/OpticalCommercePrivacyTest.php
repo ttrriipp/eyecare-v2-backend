@@ -6,9 +6,13 @@
  * @see tasks/todo.md Task 40
  */
 
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\JobOrderEyewearSpecification;
+use App\Models\JobOrderItem;
+use App\Models\LensOption;
 use App\Models\Quotation;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -42,6 +46,37 @@ test('patient resources retain descriptions, quantities, prices, and status', fu
             ],
         ],
     ]);
+});
+
+test('patient optical order resources present confirmed lens options additively', function (): void {
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $this->patient->patient->id,
+    ]);
+    $option = LensOption::factory()->create();
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'description' => 'Confirmed coating description',
+        'unit_price' => 850,
+        'amount' => 850,
+        'lens_option_id' => $option->id,
+        'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::LensOption,
+        'item_snapshot' => [
+            'lens_option_id' => $option->id,
+            'lens_option_name' => $option->name,
+        ],
+    ]);
+
+    $this->actingAs($this->patient)
+        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
+        ->assertOk()
+        ->assertJsonPath('data.items.0.description', 'Confirmed coating description')
+        ->assertJsonPath('data.items.0.unit_price', '850.00')
+        ->assertJsonPath('data.items.0.item_kind', 'lens_option')
+        ->assertJsonPath('data.items.0.lens_option_id', $option->id)
+        ->assertJsonMissingPath('data.items.0.item_snapshot');
+
+    expect($item->exists)->toBeTrue();
 });
 
 test('eyewear measurements are absent from patient resources', function () {
