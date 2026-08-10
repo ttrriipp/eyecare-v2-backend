@@ -97,11 +97,11 @@ class VariantsRelationManager extends RelationManager
                 ->rules(['nullable', 'file', 'extensions:png,glb,gltf,obj'])
                 ->helperText('PNG overlay or 3D model (.glb, .gltf, .obj)')
                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
-                ->visible(fn (Get $get): bool => $this->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
+                ->visible(fn (Get $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
             KeyValue::make('attributes')
                 ->label('Attributes')
                 ->columnSpanFull()
-                ->visible(fn (): bool => $this->getOwnerRecord()->product_type !== 'contact_lens'),
+                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type !== 'contact_lens'),
 
             // Contact-lens specific fields
             Section::make('Contact Lens Parameters')
@@ -149,7 +149,7 @@ class VariantsRelationManager extends RelationManager
                 ])
                 ->columns(4)
                 ->columnSpanFull()
-                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
+                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
 
             // Lot information for contact-lens variants
             Section::make('Lots')
@@ -169,7 +169,7 @@ class VariantsRelationManager extends RelationManager
                         }),
                 ])
                 ->columnSpanFull()
-                ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
+                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
 
             FileUpload::make('images')
                 ->disk('public')
