@@ -101,6 +101,7 @@ class OpticalOrderForm
 
                     // Eyewear Specification (only for corrective orders)
                     Section::make('Eyewear Specification')
+                        ->relationship('eyewearSpecification')
                         ->schema([
                             Select::make('eyewearSpecification.frame_source')
                                 ->label('Frame Source')
