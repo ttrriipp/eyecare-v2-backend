@@ -9,9 +9,11 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -154,19 +156,33 @@ class VariantsRelationManager extends RelationManager
             // Lot information for contact-lens variants
             Section::make('Lots')
                 ->schema([
-                    Placeholder::make('lot_summary')
-                        ->label('')
-                        ->content(function ($record): string {
-                            if ($record === null || $record->lots->isEmpty()) {
-                                return 'No lots recorded.';
-                            }
-
-                            $total = $record->lots->sum('quantity_on_hand');
-                            $expired = $record->lots->filter(fn ($lot) => $lot->isExpired())->count();
-
-                            return "{$total} units across {$record->lots->count()} lot(s)".
-                                ($expired > 0 ? " ({$expired} expired)" : '');
-                        }),
+                    Repeater::make('lots')
+                        ->relationship()
+                        ->schema([
+                            TextInput::make('lot_number')
+                                ->label('Lot #')
+                                ->disabled(),
+                            DatePicker::make('expires_on')
+                                ->label('Expires')
+                                ->disabled(),
+                            TextInput::make('quantity_on_hand')
+                                ->label('Qty')
+                                ->disabled(),
+                            Placeholder::make('status')
+                                ->label('Status')
+                                ->content(fn ($record): string => match (true) {
+                                    $record === null => '—',
+                                    $record->isExpired() => 'Expired',
+                                    $record->expires_on->diffInDays(now()) <= 30 => 'Near Expiry',
+                                    default => 'OK',
+                                }),
+                        ])
+                        ->columns(4)
+                        ->disableItemCreation()
+                        ->disableItemDeletion()
+                        ->disableItemMovement()
+                        ->collapsible()
+                        ->itemLabel(fn (array $state): ?string => $state['lot_number'] ?? null),
                 ])
                 ->columnSpanFull()
                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
