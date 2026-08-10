@@ -37,12 +37,6 @@ class ProductForm
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->columnSpanFull(),
-                            Select::make('lens_category_id')
-                                ->label('Lens Category')
-                                ->relationship('lensCategory', 'name')
-                                ->searchable()
-                                ->preload()
-                                ->visible(fn (Get $get): bool => $get('product_type') === 'lens'),
                             TextInput::make('name')
                                 ->required()
                                 ->maxLength(255)
@@ -206,44 +200,36 @@ class ProductForm
                                 ->schema([
                                     TextInput::make('attributes.power')
                                         ->label('Power')
-                                        ->placeholder('-2.00')
                                         ->required()
                                         ->maxLength(20),
                                     TextInput::make('attributes.base_curve')
                                         ->label('Base Curve')
-                                        ->placeholder('8.6')
                                         ->required()
                                         ->numeric()
                                         ->minValue(7)
                                         ->maxValue(12),
                                     TextInput::make('attributes.diameter')
                                         ->label('Diameter (mm)')
-                                        ->placeholder('14.0')
                                         ->required()
                                         ->numeric()
                                         ->minValue(10)
                                         ->maxValue(20),
                                     TextInput::make('attributes.cylinder')
                                         ->label('Cylinder')
-                                        ->placeholder('-1.25')
                                         ->maxLength(20),
                                     TextInput::make('attributes.axis')
                                         ->label('Axis')
-                                        ->placeholder('180')
                                         ->numeric()
                                         ->minValue(0)
                                         ->maxValue(180),
                                     TextInput::make('attributes.add')
                                         ->label('Add')
-                                        ->placeholder('+2.00')
                                         ->maxLength(20),
                                     TextInput::make('attributes.color')
                                         ->label('Color')
-                                        ->placeholder('Blue')
                                         ->maxLength(50),
                                     TextInput::make('attributes.pack_size')
                                         ->label('Pack Size')
-                                        ->placeholder('30')
                                         ->required()
                                         ->numeric()
                                         ->minValue(1)
