@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Actions\BillingRecords\DispenseJobOrder;
+use App\Actions\JobOrders\ApproveEyewearSpecification;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
+use App\Actions\JobOrders\VerifyEyewear;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -23,6 +25,62 @@ class EditOpticalOrder extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('approveSpecification')
+                ->label('Approve Specification')
+                ->icon('heroicon-o-check-badge')
+                ->color('success')
+                ->visible(fn (): bool => $this->record->eyewearSpecification !== null
+                    && ! $this->record->eyewearSpecification->isApproved()
+                    && auth()->user()->isOptometrist())
+                ->requiresConfirmation()
+                ->modalHeading('Approve Eyewear Specification')
+                ->modalDescription('Approve this corrective-eyewear specification. Only optometrists can approve.')
+                ->modalSubmitActionLabel('Approve')
+                ->action(function (): void {
+                    try {
+                        app(ApproveEyewearSpecification::class)->handle(
+                            $this->record->eyewearSpecification,
+                            auth()->user(),
+                        );
+                        Notification::make()->title('Specification approved')->success()->send();
+                        $this->refreshFormData(['status']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot approve')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            Action::make('verifyEyewear')
+                ->label('Verify Eyewear')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->color('info')
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::InProgress
+                    && $this->record->eyewearSpecification !== null
+                    && $this->record->eyewearSpecification->isApproved()
+                    && ! $this->record->eyewearSpecification->isVerified())
+                ->requiresConfirmation()
+                ->modalHeading('Verify Completed Eyewear')
+                ->modalDescription('Confirm the completed eyewear matches the approved specification.')
+                ->modalSubmitActionLabel('Verify')
+                ->schema([
+                    Textarea::make('verification_notes')
+                        ->label('Notes')
+                        ->nullable()
+                        ->maxLength(1000),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(VerifyEyewear::class)->handle(
+                            $this->record,
+                            auth()->user(),
+                            $data['verification_notes'] ?? null,
+                        );
+                        Notification::make()->title('Eyewear verified')->success()->send();
+                        $this->refreshFormData(['status']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot verify')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
             Action::make('start')
                 ->label('Start')
                 ->icon('heroicon-o-play')
