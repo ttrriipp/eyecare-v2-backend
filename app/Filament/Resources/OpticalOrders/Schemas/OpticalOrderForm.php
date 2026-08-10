@@ -127,18 +127,22 @@ class OpticalOrderForm
                                     'monocular' => 'Monocular',
                                 ])
                                 ->required()
+                                ->live()
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
                             TextInput::make('distance_pd_binocular')
                                 ->label('Binocular PD (mm)')
-                                ->required(fn (Get $get): bool => $get('distance_pd_mode') === 'binocular')
+                                ->required()
+                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'binocular')
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
                             TextInput::make('distance_pd_od')
                                 ->label('OD PD (mm)')
-                                ->required(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
+                                ->required()
+                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
                             TextInput::make('distance_pd_os')
                                 ->label('OS PD (mm)')
-                                ->required(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
+                                ->required()
+                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
                             TextInput::make('near_pd_binocular')
                                 ->label('Near PD (mm)')
