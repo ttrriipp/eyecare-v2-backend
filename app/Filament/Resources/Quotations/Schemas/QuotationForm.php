@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Quotations\Schemas;
 
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Models\Quotation;
 use Filament\Forms\Components\DatePicker;
@@ -69,7 +70,11 @@ class QuotationForm
                                         ->hiddenLabel()
                                         ->wrap(),
                                     TextEntry::make('quantity')
-                                        ->hiddenLabel(),
+                                        ->hiddenLabel()
+                                        ->formatStateUsing(fn ($state, $record): string => match ($record?->item_kind) {
+                                            CommercialItemKind::LensPackage => "{$state} pair",
+                                            default => (string) $state,
+                                        }),
                                     TextEntry::make('unit_price')
                                         ->hiddenLabel()
                                         ->money('PHP'),
