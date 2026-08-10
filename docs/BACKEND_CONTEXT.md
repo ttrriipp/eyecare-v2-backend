@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-09.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-10.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -36,6 +36,65 @@
 > Patient app-invitation delivery is phone/SMS only (email invitation
 > delivery was removed) so the invitation-acceptance trust anchor matches
 > the verified login contact.
+>
+> **Shipped (2026-08-10): practical optical commerce and dispensing.**
+> The implemented commercial workflow now supports real small-clinic optical
+> operations. Key additions:
+>
+> - **Stable item classification.** `CommercialItemKind` enum (`frame`,
+>   `lens_package`, `lens_option`, `contact_lens`, `accessory`,
+>   `custom_product`, `service`) is persisted on `quotation_items` and
+>   `job_order_items` alongside nullable JSON `item_snapshot` for immutable
+>   catalog data. `BuildQuotationItemSnapshot` derives kinds from controlled
+>   catalog selections; custom lines require explicit kind.
+>
+> - **Optical quotation shape.** `ValidateOpticalQuotation` enforces
+>   single-build structure: exactly one lens package, at most one frame,
+>   lens options require a package. Corrective eyewear requires a current
+>   Patient-owned Prescription at confirmation. Contact-lens-only and
+>   non-corrective quotations do not require the spectacle Prescription.
+>
+> - **Eyewear specification.** `job_order_eyewear_specifications` table
+>   stores one-to-one dispensing data per corrective Optical Order:
+>   prescription reference, frame source (catalog/patient-supplied), lens
+>   construction snapshots, encrypted dispensing measurements (PD, heights),
+>   lab instructions, optometrist approval, and verification attribution.
+>   Created as an empty shell at corrective confirmation; staff saves
+>   measurements; optometrist approves; editing clears approval.
+>
+> - **Fulfillment gates.** Corrective orders cannot enter Processing
+>   without an approved specification. Ready for Pickup requires completed
+>   verification and, for external work, the supplier/lab reference.
+>   Non-corrective and immediate orders skip these stages.
+>
+> - **Discount authorization.** Only admin or dual-role owner can apply
+>   or change a nonzero discount. Staff and optometrist accounts are
+>   rejected at the action boundary.
+>
+> - **Payment hardening.** Overpayments are rejected (balance no longer
+>   clamps to zero). Zero, negative, and over-balance payments fail under
+>   the Billing Record row lock. First posted payment locks the charge set.
+>   Corrections remain append-only (reverse + replace).
+>
+> - **Dispensing balance policy.** Routine dispensing requires zero balance.
+>   A pickup payment is prevalidated and committed atomically with the
+>   Dispensing Event. Admin may release with a remaining balance only with
+>   a nonblank reason and a current/future payment due date. The Dispensing
+>   Event snapshots remaining balance, override actor, reason, and due date.
+>
+> - **Contact-lens lot traceability.** `inventory_lots` table tracks
+>   lot_number, expires_on, received_quantity, quantity_on_hand per
+>   contact-lens variant. FEFO allocation by default; explicit eligible lot
+>   selection allowed. Cancellation restores quantity to the source lot.
+>   Existing nonzero contact-lens stock requires admin-only reconciliation
+>   before sale. Non-contact products continue using aggregate stock.
+>
+> - **Contact-lens parameter validation.** `ContactLensAttributeValidator`
+>   enforces canonical keys (power, base_curve, diameter, cylinder, axis,
+>   add, color, pack_size) with range validation. Confirmed snapshots retain
+>   only applicable parameters.
+>
+> Spec/plan/tasks live in `docs/specs/optical-commerce-and-dispensing-{spec,plan,tasks}.md`.
 >
 > **Shipped (2026-08-09): variable-duration appointment scheduling.**
 > Patients now select an active, patient-visible appointment type before
@@ -192,10 +251,17 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Prescriptions: view | Yes | Yes | Yes |
 | Prescriptions: create, finalize, and amend | No | Yes | No |
 | Quotations: create, revise, present, decide, confirm sale | Yes | Yes | Yes |
+| Quotations: apply or change nonzero discount | No | No | Yes |
 | Optical Orders: create and advance operational workflow | Yes | Yes | Yes |
+| Optical Orders: prepare eyewear specification | Yes | Yes | Yes |
+| Optical Orders: approve corrective-eyewear specification | No | Yes | No, unless also optometrist |
+| Optical Orders: verify completed eyewear | Yes | Yes | Yes |
 | Frame Reservations: operational workflow | Yes | Yes | Yes |
 | Billing: view and record payment | Yes | Yes | Yes |
 | Billing: void/correct payment | No | No | Yes |
+| Billing: release with outstanding balance | No | No | Yes |
+| Inventory: receive stock and select contact-lens lot | Yes | Yes | Yes |
+| Inventory: reconcile existing contact-lens lots | No | No | Yes |
 | Patients: create and edit | Yes | Yes | Yes |
 | Patients/products: archive and restore | No | No | Yes |
 | Catalog: create, edit, and manage variants | Yes | Yes | Yes |
@@ -272,14 +338,16 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
-| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `service_id`, `item_type` (product/service). |
+| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `service_id`, `item_type` (product/service), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
 | `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
-| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product only for new records). |
+| `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `item_type` (product only for new records), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product), `item_snapshot` (nullable JSON snapshot of catalog data). |
+| `job_order_eyewear_specifications` | One-to-one with `job_orders`. `job_order_id` (unique), `prescription_id`, `frame_job_order_item_id` (nullable), `lens_package_job_order_item_id`, `frame_source` (catalog/patient_supplied), lens construction snapshots (`lens_design_snapshot`, `lens_material_snapshot`, `refractive_index_snapshot`, `lens_options_snapshot` JSON), encrypted dispensing measurements (`distance_pd_mode`, `distance_pd_binocular`/`od`/`os`, `near_pd_*`, `fitting_height_*`, `segment_height_*`), encrypted `lab_instructions`, `approved_by` (nullable FK users), `approved_at`, `verified_by` (nullable FK users), `verified_at`, encrypted `verification_notes`. |
 | `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `quotation_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
 | `billing_record_items` | `billing_record_id`, `item_type` (product/service), `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `service_id` (nullable), `encounter_id` (nullable). |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
-| `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`. |
+| `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`, `released_balance_amount` (default 0), `balance_override_by` (nullable FK users), encrypted `balance_override_reason`, `balance_due_date` (nullable date). |
+| `inventory_lots` | Contact-lens lot tracking. `product_variant_id`, `lot_number`, `expires_on` (date), `received_quantity`, `quantity_on_hand`, `received_at`, `received_by` (FK users), `source_reference` (nullable). Unique `(product_variant_id, lot_number)`. Nonnegative quantity constraint. |
 | `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete, **unique** — one reservation per appointment, ever), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at` (null until `Prepared`, then the appointment day's clinic close time). |
 | `frame_reservation_items` | `product_variant_id`. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
@@ -290,7 +358,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `conversations` | `patient_id` — one per patient. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
-| `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
+| `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_lot_id` (nullable FK inventory_lots), `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
 | `clinic_hours` | `weekday` (0-6), `open_time`, `close_time`, `enabled`. |
@@ -311,9 +379,9 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create job orders. No revisions.
 
-**Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path.
+**Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory (including source lot for contact-lens variants). `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path. Corrective orders cannot enter Processing without an approved eyewear specification. Ready for Pickup requires completed verification and, for external work, the supplier/lab reference. Non-corrective and immediate orders skip these stages.
 
-**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates.
+**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. Overpayments are rejected; the balance comparison occurs under the Billing Record row lock. First posted payment locks the charge set. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates. Routine dispensing requires zero balance. Admin may release with an outstanding balance only with a nonblank reason and a current/future payment due date; the Dispensing Event snapshots the override attribution.
 
 **Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. A reservation is strictly a before-the-visit tool: an appointment gets exactly one, ever (`frame_reservations.appointment_id` is unique at the DB level). Prepared reservations allocate stock and stamp `expires_at` at that day's clinic close time; the `reservations:expire` command (scheduled every 15 minutes in `routes/console.php`) releases any `Prepared` reservation past its `expires_at`, restoring stock. Release restores stock. Staff can add/remove candidate frames on the one reservation up to `tried_on` via `AddFrameReservationItem`/`RemoveFrameReservationItem`, exposed as header/row actions on the `ItemsRelationManager` (FrameReservations resource) and the `FrameReservationItemsRelationManager` (Appointment resource) — both gated by `FrameReservationPolicy`.
 
@@ -503,9 +571,17 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `PrepareFrameReservation` | `app/Actions/Reservations/` | Allocates stock for a `Requested` reservation's items and stamps `expires_at` at the appointment day's clinic close time |
 | `ReleaseFrameReservation` | `app/Actions/Reservations/` | Restores allocated stock (if any) and sets a terminal status; accepts a `targetStatus` param (default `Released`) so callers that mean `Cancelled` can request it directly instead of writing `Released` then immediately overwriting it |
 | `AcceptAndStartOpticalOrder` | `app/Actions/OpticalOrders/` | Legacy accept-quotation flow (creates Job Order + Billing Record); still covered by tests but no longer reachable from the Filament UI, superseded by `ConfirmQuotationSale` |
-| `ConfirmQuotationSale` | `app/Actions/Quotations/` | Current confirm-sale flow used by the Quotation edit page: accepts the quotation, creates an Optical Order from product lines only, copies selected performed service lines into billing, and records an optional deposit — idempotent |
+| `ConfirmQuotationSale` | `app/Actions/Quotations/` | Current confirm-sale flow used by the Quotation edit page: accepts the quotation, creates an Optical Order from product lines only, copies selected performed service lines into billing, records an optional deposit, validates optical build and prescription invariants, and creates eyewear specification shell for corrective orders — idempotent |
+| `ValidateOpticalQuotation` | `app/Actions/Quotations/` | Validates optical item matrix: exactly one lens package, at most one frame, lens options require package, corrective eyewear requires current Patient-owned Prescription |
+| `BuildQuotationItemSnapshot` | `app/Actions/Quotations/` | Converts controlled catalog selections into stable transaction snapshots with item_kind and identifying data |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order directly for a patient without a preceding Quotation ("New Direct Order") |
-| `CreateQuotation` | `app/Actions/Quotations/` | Creates a quotation for a patient, from an in-progress encounter or, independently, from any current-version prescription (`?Prescription $prescription`); validates `service_id` items against active services |
+| `CreateQuotation` | `app/Actions/Quotations/` | Creates a quotation for a patient, from an in-progress or completed encounter or, independently, from any current-version prescription; assigns item_kind and snapshot via `BuildQuotationItemSnapshot`; validates `service_id` items against active services |
+| `UpdateQuotationDraft` | `app/Actions/Quotations/` | Updates a draft or presented quotation; editing a Presented quotation returns it to Draft; assigns item_kind and snapshot; enforces admin-only discount |
+| `SaveEyewearSpecification` | `app/Actions/JobOrders/` | Validates and saves lens construction, frame source, PD representation, required heights, and lab instructions; clears approval on edit |
+| `ApproveEyewearSpecification` | `app/Actions/JobOrders/` | Active optometrist approves a corrective-eyewear specification; creates audit event |
+| `VerifyEyewear` | `app/Actions/JobOrders/` | Records who checked completed eyewear against the approved specification, when, and optional notes |
+| `ReceiveContactLensStock` | `app/Actions/Inventory/` | Receives stock into a lot for contact-lens variants; atomically updates lot, aggregate quantity, and movement |
+| `ReconcileContactLensLots` | `app/Actions/Inventory/` | Admin-only action that partitions an existing contact-lens aggregate across real lots without changing total stock |
 | `CancelOpticalOrder` | `app/Actions/OpticalOrders/` | Reverses inventory, voids unpaid billing, preserves payments |
 | `ResolveOpenCheckoutBillingRecord` | `app/Actions/BillingRecords/` | Resolves or reuses the one open Billing Record for a patient visit (matched by `job_order_id`/`encounter_id`) instead of creating a separate record per charge source |
 | `AddEncounterChargesToBilling` | `app/Actions/BillingRecords/` | Adds service-line charges from the Encounter edit page's "Add Service Charge" action to the visit's open Billing Record |
