@@ -161,9 +161,45 @@ class ProductForm
                                 ->maxLength(255)
                                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
+
+                            // Frame specific fields
+                            Section::make('Frame Dimensions')
+                                ->schema([
+                                    TextInput::make('attributes.bridge')
+                                        ->label('Bridge (mm)')
+                                        ->numeric()
+                                        ->minValue(10)
+                                        ->maxValue(30),
+                                    TextInput::make('attributes.temple')
+                                        ->label('Temple (mm)')
+                                        ->numeric()
+                                        ->minValue(100)
+                                        ->maxValue(160),
+                                    TextInput::make('attributes.lens_width')
+                                        ->label('Lens Width (mm)')
+                                        ->numeric()
+                                        ->minValue(30)
+                                        ->maxValue(70),
+                                    TextInput::make('attributes.lens_height')
+                                        ->label('Lens Height (mm)')
+                                        ->numeric()
+                                        ->minValue(20)
+                                        ->maxValue(60),
+                                    TextInput::make('attributes.color')
+                                        ->label('Color')
+                                        ->maxLength(50),
+                                    TextInput::make('attributes.material')
+                                        ->label('Material')
+                                        ->maxLength(50),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull()
+                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
+
+                            // Generic attributes for other product types
                             KeyValue::make('attributes')
                                 ->columnSpanFull()
-                                ->visible(fn (Get $get): bool => $get('../../product_type') !== 'contact_lens'),
+                                ->visible(fn (Get $get): bool => ! in_array($get('../../product_type'), ['contact_lens', 'frame'])),
 
                             // Contact-lens specific fields
                             Section::make('Contact Lens Parameters')

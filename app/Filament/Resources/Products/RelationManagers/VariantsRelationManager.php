@@ -100,10 +100,46 @@ class VariantsRelationManager extends RelationManager
                 ->helperText('PNG overlay or 3D model (.glb, .gltf, .obj)')
                 ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
                 ->visible(fn (Get $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'frame' && (bool) $get('ar_eligible')),
+
+            // Frame specific fields
+            Section::make('Frame Dimensions')
+                ->schema([
+                    TextInput::make('attributes.bridge')
+                        ->label('Bridge (mm)')
+                        ->numeric()
+                        ->minValue(10)
+                        ->maxValue(30),
+                    TextInput::make('attributes.temple')
+                        ->label('Temple (mm)')
+                        ->numeric()
+                        ->minValue(100)
+                        ->maxValue(160),
+                    TextInput::make('attributes.lens_width')
+                        ->label('Lens Width (mm)')
+                        ->numeric()
+                        ->minValue(30)
+                        ->maxValue(70),
+                    TextInput::make('attributes.lens_height')
+                        ->label('Lens Height (mm)')
+                        ->numeric()
+                        ->minValue(20)
+                        ->maxValue(60),
+                    TextInput::make('attributes.color')
+                        ->label('Color')
+                        ->maxLength(50),
+                    TextInput::make('attributes.material')
+                        ->label('Material')
+                        ->maxLength(50),
+                ])
+                ->columns(3)
+                ->columnSpanFull()
+                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'frame'),
+
+            // Generic attributes for other product types
             KeyValue::make('attributes')
                 ->label('Attributes')
                 ->columnSpanFull()
-                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type !== 'contact_lens'),
+                ->visible(fn (RelationManager $livewire): bool => ! in_array($livewire->getOwnerRecord()->product_type, ['contact_lens', 'frame'])),
 
             // Contact-lens specific fields
             Section::make('Contact Lens Parameters')
@@ -282,6 +318,37 @@ class VariantsRelationManager extends RelationManager
                     ->wrap()
                     ->limit(100)
                     ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'contact_lens'),
+                TextColumn::make('frame_dimensions')
+                    ->label('Dimensions')
+                    ->state(function ($record): ?string {
+                        if ($record->product?->product_type !== 'frame') {
+                            return null;
+                        }
+
+                        $attrs = $record->attributes ?? [];
+                        $parts = [];
+
+                        if (filled($attrs['lens_width'] ?? null)) {
+                            $parts[] = "{$attrs['lens_width']}mm";
+                        }
+                        if (filled($attrs['bridge'] ?? null)) {
+                            $parts[] = "{$attrs['bridge']} bridge";
+                        }
+                        if (filled($attrs['temple'] ?? null)) {
+                            $parts[] = "{$attrs['temple']} temple";
+                        }
+                        if (filled($attrs['color'] ?? null)) {
+                            $parts[] = $attrs['color'];
+                        }
+                        if (filled($attrs['material'] ?? null)) {
+                            $parts[] = $attrs['material'];
+                        }
+
+                        return filled($parts) ? implode(' / ', $parts) : '—';
+                    })
+                    ->wrap()
+                    ->limit(100)
+                    ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
             ])
             ->headerActions([
                 CreateAction::make(),
