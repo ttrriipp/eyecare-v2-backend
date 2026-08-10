@@ -228,7 +228,9 @@ class AppointmentForm
                                 ->relationship(
                                     name: 'appointmentType',
                                     titleAttribute: 'name',
-                                    modifyQueryUsing: fn ($query) => $query->where('is_active', true),
+                                    modifyQueryUsing: fn ($query, $state) => $query
+                                        ->where('is_active', true)
+                                        ->when($state, fn ($q) => $q->orWhere('id', $state)),
                                 )
                                 ->getOptionLabelFromRecordUsing(fn (AppointmentType $record): string => "{$record->name} ({$record->duration_minutes}m)")
                                 ->required()
