@@ -85,7 +85,8 @@ class EditOpticalOrder extends EditRecord
                 ->label('Start')
                 ->icon('heroicon-o-play')
                 ->color('warning')
-                ->visible(fn (): bool => $this->record->status === JobOrderStatus::Queued)
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::Queued
+                    && ($this->record->eyewearSpecification === null || $this->record->eyewearSpecification->isApproved()))
                 ->requiresConfirmation()
                 ->modalHeading('Start Processing')
                 ->modalDescription('Begin processing this optical order.')
