@@ -293,7 +293,7 @@ class AppointmentForm
                                 ->label('Appointment time')
                                 ->required(fn (string $operation, Get $get): bool => $operation === 'create' && $get('is_walk_in') !== 'walk_in')
                                 ->seconds(false)
-                                ->minutesStep(1)
+                                ->minutesStep(15)
                                 ->format('H:i')
                                 ->suffixIcon('heroicon-o-clock')
                                 ->afterStateHydrated(function (TimePicker $component, ?Appointment $record): void {
