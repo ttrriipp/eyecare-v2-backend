@@ -59,6 +59,9 @@ class EncounterForm
                             Placeholder::make('appointment_type')
                                 ->label('Appointment Type')
                                 ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                            Placeholder::make('optometrist_name')
+                                ->label('Optometrist')
+                                ->content(fn (Encounter $record): string => $record->optometrist?->full_name ?? 'Not assigned'),
                             Placeholder::make('started_at')
                                 ->label('Started')
                                 ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
