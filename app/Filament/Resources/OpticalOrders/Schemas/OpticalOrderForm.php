@@ -117,8 +117,12 @@ class OpticalOrderForm
                             TextInput::make('eyewearSpecification.lens_options_snapshot')
                                 ->label('Lens Options')
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
-                            TextInput::make('eyewearSpecification.distance_pd_mode')
+                            Select::make('eyewearSpecification.distance_pd_mode')
                                 ->label('PD Mode')
+                                ->options([
+                                    'binocular' => 'Binocular',
+                                    'monocular' => 'Monocular',
+                                ])
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_binocular')
                                 ->label('Binocular PD (mm)')
