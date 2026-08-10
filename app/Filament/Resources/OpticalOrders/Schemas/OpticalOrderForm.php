@@ -107,6 +107,7 @@ class OpticalOrderForm
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.lens_design_snapshot')
                                 ->label('Lens Design')
+                                ->required()
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.lens_material_snapshot')
                                 ->label('Material')
@@ -123,15 +124,19 @@ class OpticalOrderForm
                                     'binocular' => 'Binocular',
                                     'monocular' => 'Monocular',
                                 ])
+                                ->required()
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_binocular')
                                 ->label('Binocular PD (mm)')
+                                ->required(fn (Get $get): bool => $get('eyewearSpecification.distance_pd_mode') === 'binocular')
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_od')
                                 ->label('OD PD (mm)')
+                                ->required(fn (Get $get): bool => $get('eyewearSpecification.distance_pd_mode') === 'monocular')
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.distance_pd_os')
                                 ->label('OS PD (mm)')
+                                ->required(fn (Get $get): bool => $get('eyewearSpecification.distance_pd_mode') === 'monocular')
                                 ->disabled(fn (JobOrder $record): bool => $record->eyewearSpecification?->isVerified() ?? true),
                             TextInput::make('eyewearSpecification.near_pd_binocular')
                                 ->label('Near PD (mm)')
