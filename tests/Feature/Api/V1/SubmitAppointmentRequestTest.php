@@ -129,6 +129,32 @@ test('appointment request availability requires appointment type', function () {
         ->assertJsonValidationErrors(['appointment_type_id']);
 });
 
+test('appointment request availability rejects inactive appointment type', function () {
+    $user = User::factory()->create();
+    $type = AppointmentType::factory()->inactive()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});
+
+test('appointment request availability rejects non-patient-visible appointment type', function () {
+    $user = User::factory()->create();
+    $type = AppointmentType::factory()->internalOnly()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-request-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});
+
 test('pending requests do not block availability', function () {
     $user = User::factory()->create();
     $type = AppointmentType::where('name', 'New Patient')->first();
@@ -396,4 +422,32 @@ test('linked request copies patient_id', function () {
 
     $response->assertCreated()
         ->assertJsonPath('data.patient_id', $user->patient->id);
+});
+
+// --- Linked-patient appointment-availability endpoint ---
+
+test('linked appointment availability rejects inactive appointment type', function () {
+    $user = User::factory()->patient()->create();
+    $type = AppointmentType::factory()->inactive()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});
+
+test('linked appointment availability rejects non-patient-visible appointment type', function () {
+    $user = User::factory()->patient()->create();
+    $type = AppointmentType::factory()->internalOnly()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_type_id' => $type->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
 });
