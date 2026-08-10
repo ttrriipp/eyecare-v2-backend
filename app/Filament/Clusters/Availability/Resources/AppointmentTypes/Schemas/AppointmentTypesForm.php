@@ -33,7 +33,7 @@ class AppointmentTypesForm
                                     ->maxLength(65535)
                                     ->columnSpanFull(),
                             ])
-                            ->columnSpan(2),
+                            ->columnSpanFull(),
 
                         Section::make('Scheduling')
                             ->schema([
@@ -58,7 +58,7 @@ class AppointmentTypesForm
                                     ->label('Active')
                                     ->default(true),
                             ])
-                            ->columnSpan(1),
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

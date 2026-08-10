@@ -1,385 +1,669 @@
-# Implementation Plan: Practical Clinical Encounter Workflow
+# Implementation Plan: Practical Optical Commerce and Dispensing
 
 **Status:** Approved
-**Spec:** `docs/specs/encounter-workflow-spec.md`
-**Spec approved:** 2026-08-09
-**Plan approved:** 2026-08-09
+**Specification:** `docs/specs/optical-commerce-and-dispensing-spec.md`
+**Specification approved:** 2026-08-10
+**Plan approved:** 2026-08-10
+**Task breakdown:** Approved 2026-08-10
 **Implementation:** Not started
 
 ## Overview
 
-Implement the approved optometrist-owned encounter workflow as a sequence of
-small, testable vertical slices. The work keeps the four-step Filament wizard,
-adds assessment and device-neutral supporting results, enforces treating-provider
-ownership, makes completion atomic, supports explicit provider transfer, and
-adds immutable post-completion addenda and printing.
+Implement the approved optical-commerce refinements as a sequence of tested
+vertical slices over the existing Quotation, `JobOrder`/Optical Order, unified
+Billing Record, payment, and inventory architecture.
 
-The implementation does not add mobile intake, structured eye measurements,
-autorefractor-specific fields, uploads, diagnosis codes, configurable clinical
-templates, external services, or dependencies.
+The implementation adds stable optical item classifications and snapshots, one
+structured eyewear specification per corrective-eyewear order, optometrist
+approval and fulfillment verification, contact-lens lot/expiration
+traceability, strict overpayment prevention, and an auditable admin-only
+release-with-balance exception.
+
+It does not replace the existing aggregates, reinterpret the clinic
+Prescription, introduce a contact-lens clinical record, or build purchasing,
+supplier accounting, insurance, tax documents, lab integration, remakes,
+returns, partial fulfillment, or multi-location inventory.
+
+## Planning Gate
+
+This Phase 2 document defines architecture, dependency order, vertical slices,
+risks, and verification checkpoints. Approval authorizes Phase 3 task
+breakdown only. It does not authorize application-code changes.
+
+The executable checklist in `tasks/todo.md` must not be replaced with this
+feature's tasks until this plan is approved.
+
+## Current-State Constraints
+
+The plan adapts these implemented behaviors rather than rebuilding them:
+
+- Quotations and Optical Orders are separate Filament resources and tables.
+- `JobOrder` remains the internal model behind the **Optical Order** label.
+- Confirm Sale atomically accepts a Quotation, creates one Optical Order for
+  Product lines, commits inventory, resolves unified checkout, appends selected
+  Services, and optionally records a deposit.
+- Job Order items contain only Product lines.
+- Billing Records already support deposits, partial payments, append-only
+  payment correction, charge-set locking after the first payment, and unified
+  Product/Service checkout.
+- Inventory movements already provide row-locked aggregate quantity changes,
+  Frame Reservation conversion, commitment reversal, and audit attribution.
+- Product types are `frame`, `lens`, `contact_lens`, and `accessory`.
+- The Prescription form intentionally preserves one clinically unidentified
+  neutral value and excludes PD and axis; this feature cannot reinterpret it.
+- Patient Quotation and Optical Order resources already enforce patient
+  ownership and hide internal supplier data.
 
 ## Architecture Decisions
 
-1. **Keep the existing Encounter aggregate and lifecycle.** Continue using
-   `planned`, `in_progress`, `completed`, and `cancelled`; use **Waiting** only as
-   the UI label for `planned`.
-2. **Use additive clinical schema changes.** Add nullable encrypted assessment
-   and supporting-results fields so drafts and historical rows remain valid.
-3. **Treat Patient Intake as inactive legacy behavior.** Stop attaching Intake
-   during check-in and do not consume it in the Encounter UI. Do not drop its
-   schema in this feature.
-4. **Centralize mutation contracts in actions and an Encounter policy.** Page
-   closures configure UI and delegate state changes; they do not directly
-   update provider ownership or clinical lifecycle state.
-5. **Bind authorship to the assigned provider.** Starting an unassigned
-   Encounter claims it as the current optometrist. Starting on behalf of
-   another provider is removed.
-6. **Synchronize treating provider across Encounter and Appointment.** Planned
-   assignment, self-claim, and in-progress transfer update both records inside
-   a locked transaction.
-7. **Make completion one atomic boundary.** Final clinical state, optional
-   prescription finalization, Encounter completion, Appointment fulfillment,
-   and audit attribution either all succeed or all roll back.
-8. **Use append-only addenda rather than reopening.** Corrections and
-   supplements are separate encrypted records with constrained authorship and
-   no edit/delete path.
-9. **Keep audit metadata non-clinical.** Store IDs, enum categories, states, and
-   timestamps only; clinical narrative stays in encrypted domain columns.
-10. **Use an authenticated Blade print view.** Reuse existing print conventions
-    and avoid a new PDF/rendering dependency.
+### 1. Preserve the aggregate boundaries
+
+Keep `Quotation`, `JobOrder`, `BillingRecord`, and `InventoryMovement` as
+separate canonical records. Add the eyewear specification as a one-to-one
+child of `JobOrder`; do not create a replacement sale aggregate or rename the
+existing tables and foreign keys.
+
+### 2. Add stable item-kind snapshots
+
+Retain `TransactionItemType` (`product` or `service`) for the high-level
+financial boundary. Add an optical commercial item-kind enum and persisted
+snapshot fields to Quotation and Job Order items:
+
+```text
+frame
+lens_package
+lens_option
+contact_lens
+accessory
+custom_product
+service
+```
+
+Catalog selections derive their initial kind from controlled relationships,
+but every transaction persists the kind plus relevant names, SKU, physical
+attributes, and contact-lens parameters. Confirmation copies the frozen
+Quotation snapshot rather than re-reading mutable catalog data.
+
+### 3. Model one eyewear specification per corrective order
+
+Add one `JobOrderEyewearSpecification` record only when a confirmed order has a
+prescription lens package. It references the immutable Prescription and the
+relevant Job Order items, and stores:
+
+- catalog or patient-supplied frame source;
+- lens design/package, material, index, and option snapshots;
+- conditional PD and height measurements;
+- internal lab instructions;
+- optometrist approval attribution; and
+- completed-eyewear verification attribution.
+
+Use encrypted text storage for patient-linked measurements and narrative
+notes. Do not query or sort by those values.
+
+### 4. Keep clinical and dispensing semantics separate
+
+The existing Prescription remains the source of clinical values and immutable
+version history. The eyewear specification adds dispensing measurements and
+selected construction only. No action, migration, label, serializer, or test
+may infer axis or another meaning for `main_*_value` or `add_*_value`.
+
+### 5. Gate corrective-eyewear fulfillment in domain actions
+
+Staff may draft measurements, but an active optometrist must approve the
+specification. Starting Processing requires valid approved data. Marking Ready
+requires completed verification and the external supplier reference when
+applicable. Mutating an approved specification clears approval. Filament pages
+delegate to reusable actions; UI visibility is not the authorization boundary.
+
+### 6. Keep one fulfillment unit
+
+An Optical Order contains at most one corrective-eyewear build and may contain
+related Product lines. There is one order-level fulfillment status. Partial
+line fulfillment is not introduced. Separate prescription pairs require
+separate Quotations and Optical Orders.
+
+### 7. Use lot-aware inventory only where required
+
+Frames and accessories continue using aggregate variant stock. Contact-lens
+variants gain `InventoryLot` records and lot-aware movements. The variant
+aggregate remains the fast existing stock value, while the sum of contact-lens
+lot quantities is a transactionally maintained invariant.
+
+Use FEFO allocation by default under row locks, allow an explicit eligible lot
+selection, restore cancellation quantity to the source lot, and prohibit
+expired-lot allocation.
+
+### 8. Reconcile existing contact-lens stock explicitly
+
+Do not fabricate historical lots or expirations. An admin-only initialization
+workflow allocates each existing nonzero contact-lens aggregate across real
+physical lots. Allocations must sum exactly to the current aggregate and do not
+increase stock or create a fake restock. Until reconciliation succeeds, the
+variant cannot be committed to an order.
+
+### 9. Extend the existing Receive Stock action
+
+Refactor stock mutation behind the existing inventory action instead of adding
+a parallel ledger. Ordinary products require positive quantity and notes as
+currently appropriate. Contact lenses additionally require lot number and
+expiration and atomically update the lot, aggregate, and movement.
+
+### 10. Enforce payment and release invariants under locks
+
+Change payment recording to reject an amount greater than the locked balance;
+never clamp the balance while allowing `amount_paid` to exceed the total.
+Preserve first-payment charge locking and append-only corrections.
+
+Change dispensing so a pickup payment is prevalidated to clear the balance and
+then recorded with dispensing in one transaction. A remaining balance requires
+an admin-only override with due date and reason snapshotted onto the Dispensing
+Event. Ordinary partial payments remain a separate Billing action.
+
+### 11. Add no new public workflow
+
+Keep existing API routes and response envelopes. Add only patient-useful item
+snapshot fields if required for stable display. Eyewear measurements, internal
+lab data, lots, approval, verification, supplier reference, and balance-
+override metadata remain server-internal.
+
+### 12. Use additive forward migrations
+
+Introduce new tables and nullable/backfillable columns without resetting the
+database or rewriting historical records destructively. Existing Quotation and
+Job Order lines receive deterministic item kinds from their controlled foreign
+keys where possible; ambiguous custom Product rows become `custom_product`
+rather than being guessed from their descriptions.
 
 ## Dependency Graph
 
 ```text
-Approved specification and characterization tests
-    -> encrypted Encounter clinical fields
-        -> EncounterPolicy
-            -> provider-owned check-in and start
-                -> draft action and four-step wizard
-                    -> atomic completion and prescription finalization
-                        -> planned assignment and in-progress transfer
-                            -> append-only addenda
-                                -> completed summary and print
-                                    -> documentation reconciliation and full regression
+Approved specification
+    -> current-behavior characterization
+        -> item-kind enum + transaction snapshot schema
+            -> quotation creation/update validation
+                -> atomic confirmation snapshot copying
+                    -> eyewear-specification persistence
+                        -> measurement validation + optometrist approval
+                            -> Processing/Ready fulfillment gates
+
+Current-behavior characterization
+    -> payment overage lock tests
+        -> strict payment action
+            -> paid-before-dispense + admin override
+
+Item-kind contract
+    -> canonical contact-lens attributes
+        -> inventory-lot schema
+            -> existing-stock reconciliation
+                -> Receive Stock
+                    -> FEFO/explicit-lot commitment
+                        -> same-lot cancellation reversal
+
+All domain slices
+    -> Filament integration
+        -> patient API privacy/regression
+            -> end-to-end commerce workflow
+                -> documentation reconciliation and release verification
 ```
 
-Schema and core contracts are sequential prerequisites. Once those contracts
-are stable, UI tests and print presentation can be developed independently, but
-no concurrent agent work is assumed or required.
+The item-kind contract is the common prerequisite for Quotation validation,
+eyewear-specification creation, and deciding when lot-aware inventory applies.
+Payment work is mostly independent after characterization. Inventory lots are
+independent of eyewear measurements after the item-kind contract is stable.
 
-## Task List
+## Vertical Implementation Slices
 
-The executable checklist is maintained in `tasks/todo.md`:
+### Slice 1: Characterize the implemented transaction boundaries
 
-### Phase 1: Characterize and Extend the Clinical Draft
-
-- [ ] Task 1: Characterize the existing Encounter lifecycle.
-- [ ] Task 2: Persist assessment and device-neutral supporting results.
-
-### Phase 2: Enforce Provider-Owned Entry into Care
-
-- [ ] Task 3: Enforce the Encounter role and assignment policy.
-- [ ] Task 4: Check in without active Patient Intake consumption.
-- [ ] Task 5: Start as the authenticated treating optometrist.
-
-### Phase 3: Deliver the Four-Step Autosaving Wizard
-
-- [ ] Task 6: Save partial drafts through a domain action.
-- [ ] Task 7: Deliver the autosaving four-step Filament workflow.
-
-### Phase 4: Complete the Encounter Atomically
-
-- [ ] Task 8: Complete required clinical care atomically.
-- [ ] Task 9: Finalize an optional prescription in the completion transaction.
-- [ ] Task 10: Complete from the Filament review step.
-
-### Phase 5: Coordinate Provider Assignment and Transfer
-
-- [ ] Task 11: Assign a planned Encounter through an authorized action.
-- [ ] Task 12: Transfer in-progress ownership with an allowlisted audit event.
-- [ ] Task 13: Expose transfer as a confirmed Filament action.
-
-### Phase 6: Add Immutable Corrections and Supplements
-
-- [ ] Task 14: Persist encrypted append-only addenda.
-- [ ] Task 15: Create authorized corrections through an append-only action.
-- [ ] Task 16: Create attributed supplements safely under concurrency.
-
-### Phase 7: Present and Print the Signed Record
-
-- [ ] Task 17: Render the completed record and addendum actions.
-- [ ] Task 18: Print the authenticated signed clinical record.
-- [ ] Task 19: Audit successful printing without clinical metadata.
-
-### Phase 8: Reconcile and Release
-
-- [ ] Task 20: Reconcile backend context and verify the release candidate.
-
-Checkpoints in `tasks/todo.md` occur after every two or three tasks. Each task
-has no more than three acceptance criteria, identifies dependencies and focused
-verification, and is limited to five likely files.
-
-## Vertical Slice Detail
-
-### Slice 1: Characterize Current Behavior and Add the Data Foundation
-
-Capture the behavior that must survive before changing it, then add the two
-Encounter clinical columns, encrypted casts, and factory support. Addendum
-storage is deferred until the completed-record correction slice needs it.
+Add focused characterization tests before changing behavior. Cover direct and
+presented confirmation, Product/Service separation, frame-reservation
+conversion, unified checkout reuse, deposit creation, immediate/prepared
+orders, cancellation reversal, current patient serialization, and current
+authorization.
 
 Key outcomes:
 
-- current check-in, start, draft, prescription, and completion behavior is
-  characterized;
-- `assessment` and `supporting_test_results` exist as nullable encrypted text;
-- existing completed rows remain readable without backfill.
+- the implementation preserves known-good commerce behavior;
+- existing gaps are reproduced explicitly: generic optical lines, overpayment
+  clamping, and dispensing without a balance check; and
+- later slices can distinguish intentional refinements from regressions.
 
 Likely areas:
 
-- `database/migrations/`
-- `app/Models/Encounter.php`
-- `database/factories/`
-- `tests/Feature/Encounters/`
+- `tests/Feature/Quotations/`
+- `tests/Feature/OpticalOrders/`
+- `tests/Feature/BillingRecords/`
+- `tests/Feature/Inventory/`
+- `tests/Feature/Api/V1/`
 
-### Checkpoint A: Data Foundation
+### Checkpoint A: Characterization baseline
 
-- Focused migration/model/encryption tests pass.
-- A fresh test database migrates successfully.
-- No existing Encounter or Prescription characterization test regresses.
-- No Patient Intake table or data is dropped.
+- Existing targeted suites pass without production-code changes.
+- Each approved behavior being changed has a failing or characterization test.
+- No test is deleted merely because it conflicts with the new direction; it is
+  replaced only when the corresponding vertical slice lands.
 
-### Slice 2: Establish Provider-Owned Check-In and Start
+### Slice 2: Introduce optical item kinds and stable snapshots
 
-Introduce `EncounterPolicy`, remove active Intake attachment from check-in,
-copy the Appointment provider into the new planned Encounter, and change start
-to operate as the authenticated optometrist rather than accepting an arbitrary
-provider selection.
+Add the enum, additive transaction-item columns, model casts/factory states,
+safe historical backfill, and item-kind validation. Update Quotation creation
+and draft editing so catalog selections derive controlled kinds and custom
+choices require an explicit kind. Preserve the current Product/Service
+boundary.
+
+Then update confirmation to copy the frozen Product snapshot into Job Order
+items and Billing to continue copying only its concise financial snapshot.
 
 Key outcomes:
 
-- check-in creates exactly one planned Encounter with no Intake attachment;
-- Appointment reason prefills chief complaint when present;
-- assigned optometrist can start;
-- unassigned Encounter can be claimed by the starting optometrist;
-- assignment synchronizes back to the Appointment;
-- staff, plain admin, inactive users, and other optometrists are denied at the
-  server boundary.
+- behavior no longer depends on matching free-text descriptions;
+- frames, lens packages, lens options, contacts, accessories, custom products,
+  and Services are distinguishable after catalog changes;
+- confirmed item snapshots are immutable; and
+- retries do not duplicate snapshots or records.
 
 Likely areas:
 
-- `app/Actions/Encounters/CheckInAppointment.php`
-- `app/Actions/Encounters/StartEncounter.php`
-- `app/Policies/EncounterPolicy.php`
-- Encounter model/resource authorization wiring
-- focused lifecycle and role-matrix tests
+- new migration under `database/migrations/`
+- new enum under `app/Enums/`
+- `app/Models/QuotationItem.php`
+- `app/Models/JobOrderItem.php`
+- `app/Actions/Quotations/`
+- Quotation forms and focused tests
 
-### Slice 3: Reshape the Autosaving Four-Step Wizard
+### Slice 3: Enforce one optical-build quotation
 
-Add a dedicated draft-save action and reshape the current wizard into History,
-Examination, Assessment & Plan, and Review & Complete. Keep incomplete drafts
-valid and enforce narrative length and step boundaries at the action boundary.
+Build server-side validation for the approved quotation shape and expose the
+same guidance in Filament:
+
+- exactly one lens package for corrective eyewear;
+- at most one frame, with patient-supplied frame as a separate choice;
+- lens options only with the package;
+- current Patient-owned Prescription required at confirmation; and
+- no use of a spectacle Prescription as contact-lens authorization.
+
+Keep Service-only, ordinary Product-only, mixed, verbal direct-confirmation,
+and optional-presentation paths working.
 
 Key outcomes:
 
-- history is authored directly in the Encounter;
-- examination exposes required findings and optional device-neutral supporting
-  results;
-- assessment and plan are distinct fields;
-- prescription remains optional within Assessment & Plan;
-- step transitions save data and `last_wizard_step`;
-- reopening resumes the saved step;
-- Back navigation preserves state;
-- staff/plain admin cannot invoke draft saves directly.
+- invalid optical builds fail before inventory, Billing, or payment mutation;
+- Quotation output is commercially readable and does not expose OD/OS values;
+  and
+- direct non-corrective sales do not receive unnecessary specification data.
 
 Likely areas:
 
-- `app/Actions/Encounters/SaveEncounterDraft.php`
-- `app/Filament/Resources/Encounters/Schemas/EncounterForm.php`
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- `resources/views/filament/encounters/`
-- focused Filament and action tests
+- dedicated Quotation validation action/class
+- `CreateQuotation`, `UpdateQuotationDraft`, and `ConfirmQuotationSale`
+- Quotation Filament schemas/pages
+- Quotation policy for admin-only discounts
+- focused Quotation/Filament tests
 
-### Checkpoint B: Authoring Workflow
+### Checkpoint B: Commercial contract
 
-- Start-to-draft flow works for the assigned optometrist.
-- All four steps render with the approved fields.
-- Draft saves and resume behavior pass focused tests.
-- Role tests prove that view access does not grant authorship.
+- Draft, Present, Edit, Decline/Expire, and Confirm flows pass.
+- Corrective and non-corrective item combinations follow the approved matrix.
+- Non-admin discounts fail at the server boundary.
+- Confirmation remains atomic and idempotent.
 - Modified PHP passes Pint.
 
-### Slice 4: Make Completion and Optional Prescription Atomic
+### Slice 4: Persist and prepare the eyewear specification
 
-Move the final form persistence and optional prescription finalization behind
-the completion boundary. Lock and revalidate Encounter and Appointment before
-performing any terminal state changes.
-
-Key outcomes:
-
-- chief complaint, findings, assessment, and plan are required only at
-  completion;
-- only the assigned active optometrist can complete;
-- a valid optional prescription finalizes with the Encounter;
-- an invalid prescription or stale state rolls back all effects;
-- successful completion records author/time, clears finalized draft data, and
-  fulfills the Appointment;
-- deadlock retries use Laravel's transaction attempts rather than manual sleeps
-  or exception-message parsing.
-
-Likely areas:
-
-- `app/Actions/Encounters/CompleteEncounter.php`
-- `app/Actions/Prescriptions/FinalizePrescription.php`
-- `app/Filament/Resources/Encounters/Pages/EditEncounter.php`
-- completion, prescription, transaction, and role tests
-
-### Slice 5: Add Planned Assignment and In-Progress Transfer
-
-Replace direct provider updates with authorized assignment and transfer actions.
-Use the approved reason enum and audit allowlist.
+Add the one-to-one specification model, migration, factory, encrypted casts,
+relationships, and creation shell at corrective-order confirmation. Implement
+conditional measurement and reference validation through focused actions.
 
 Key outcomes:
 
-- planned assignment is available to panel operational roles;
-- in-progress transfer is limited to current provider or administrator;
-- target must be a different active optometrist;
-- draft and prescription data survive transfer;
-- Encounter and Appointment providers stay synchronized;
-- only the new provider may continue authoring/completion;
-- audit metadata contains IDs and the reason category, never clinical text.
+- each corrective Optical Order has exactly one specification;
+- ordinary immediate Product orders have none;
+- the specification references the same current Prescription as the Optical
+  Order;
+- binocular or monocular PD is accepted correctly;
+- lens-design-dependent heights are enforced without fabricated values; and
+- sensitive measurements and notes are encrypted.
 
 Likely areas:
 
-- assignment action used by Encounter UI
-- `app/Actions/Encounters/TransferEncounter.php`
-- `app/Enums/EncounterTransferReason.php`
-- Encounter page/table actions
-- transfer and audit tests
+- new migration and model/factory
+- `app/Models/JobOrder.php`
+- specification validation/save action
+- `ConfirmQuotationSale`
+- specification model/action tests
 
-### Checkpoint C: Lifecycle Integrity
+### Slice 5: Add optometrist approval and safe mutation
 
-- Check-in, start, draft, transfer, and completion pass as one end-to-end flow.
-- Concurrent/stale transition tests prove invalid state cannot be committed.
-- Appointment and Encounter provider/status invariants remain consistent.
-- Plain admin operational transfer does not grant clinical authorship.
+Add an approval action and policy rules. Staff/admin operational users may save
+draft specification data, but only an active optometrist may approve. Any
+allowed edit after approval clears approval and emits a non-clinical audit
+event.
+
+Key outcomes:
+
+- staff cannot approve through direct action calls;
+- plain admin cannot approve;
+- optometrist and dual-role owner can approve;
+- approval is tied to the exact saved state; and
+- audit metadata contains only identifiers, states, and timestamps.
+
+Likely areas:
+
+- approval/save actions under `app/Actions/JobOrders/`
+- Optical Order policy or focused specification policy
+- audit integration
+- role-matrix and state-transition tests
+
+### Slice 6: Gate Processing, verification, and Ready for Pickup
+
+Refine the existing status action so a corrective order cannot enter Processing
+without an approved specification and cannot become Ready without verification.
+Add verification attribution and require the external supplier/lab reference
+for external work. Keep immediate Product-only completion unchanged.
+
+Expose the workflow in the existing Optical Order edit page as separate Save,
+Approve, Start Processing, Verify, and Mark Ready actions.
+
+Key outcomes:
+
+- order status cannot outrun its optical work;
+- verified specification becomes immutable at Ready;
+- external references remain internal; and
+- existing immediate orders avoid artificial stages.
+
+Likely areas:
+
+- `UpdateJobOrderStatus`
+- new verification action
+- `OpticalOrderForm` and `EditOpticalOrder`
+- Optical Order table badges/actions
+- fulfillment and Filament tests
+
+### Checkpoint C: Corrective-eyewear fulfillment
+
+- Confirm -> specification -> approval -> Processing -> verification -> Ready
+  passes end to end.
+- Invalid role, missing measurement, missing approval, and missing external
+  reference paths fail without partial state changes.
+- Immediate non-corrective order behavior remains green.
+- Patient resources expose no new internal data.
+
+### Slice 7: Reject overpayments safely
+
+Write the concurrency-focused payment tests, then change payment recording to
+compare against the locked current balance. Preserve first-payment charge
+acknowledgement, status recalculation, reversal history, and ordinary deposits
+and partial payments.
+
+Key outcomes:
+
+- single and concurrent overpayments fail;
+- `amount_paid` never exceeds total for active posted payments;
+- valid deposits and exact-balance payments still work; and
+- no public or Filament entry point can bypass the action invariant.
+
+Likely areas:
+
+- `RecordBillingPayment`
+- Billing payment Filament relation manager/action
+- confirmation deposit validation
+- `PaymentLifecycleTest` and focused Filament tests
+
+### Slice 8: Enforce paid-before-dispense with admin exception
+
+Add the Dispensing Event snapshot fields, domain validation, admin-only
+override path, and UI. Reorder the pickup-payment flow so an entered payment is
+validated as sufficient before payment and dispensing are committed together.
+
+Key outcomes:
+
+- routine actors cannot dispense with a balance;
+- exact pickup payment and dispensing succeed atomically;
+- insufficient pickup payment directs staff to record a separate partial
+  payment and causes no mutation in the Dispense action;
+- admin release requires a due date and reason; and
+- the Dispensing Event retains balance-at-release and override attribution.
+
+Likely areas:
+
+- new dispensing-event migration
+- `DispenseJobOrder`
+- Billing/Optical Order dispensing modal
+- policy/action authorization
+- dispensing and Filament tests
+
+### Checkpoint D: Financial integrity
+
+- Deposit, partial, exact, correction, void, and concurrency tests pass.
+- Charge-set locking still works across unified checkout sources.
+- Routine dispensing requires zero balance.
+- Admin override is fully attributed and patient-safe.
 - Modified PHP passes Pint.
 
-### Slice 6: Add Immutable Corrections and Supplements
+### Slice 9: Canonicalize contact-lens parameters and snapshots
 
-Create the addendum action and UI on completed Encounters. Enforce type-specific
-authorship and sequence allocation under a parent Encounter lock.
-
-Key outcomes:
-
-- original completing optometrist may add a correction;
-- another active optometrist may add a clearly attributed supplement;
-- staff/plain admin cannot add either type;
-- reason and content are encrypted and length-limited;
-- sequence is stable and unique under concurrent creation;
-- no supported edit, delete, archive, or reopen path exists;
-- prescription corrections remain inaccessible through Encounter addenda.
-
-Likely areas:
-
-- `app/Actions/Encounters/CreateEncounterAddendum.php`
-- `app/Models/EncounterAddendum.php`
-- `app/Policies/EncounterPolicy.php`
-- completed Encounter page/schema
-- addendum authorization, encryption, and immutability tests
-
-### Slice 7: Complete Read-Only Presentation and Printing
-
-Render completed Encounters as a cohesive one-page summary followed by addenda,
-and add the authenticated print path using existing Blade conventions.
+Add conditional Product Variant validation and Filament fields for the approved
+contact-lens attribute keys. Continue storing them in the existing attributes
+JSON. Snapshot the applicable values into Quotation and Job Order items.
 
 Key outcomes:
 
-- completed and cancelled records do not render an editable wizard;
-- summary includes all approved clinical and authorship fields;
-- print displays the original signed record before chronological addenda;
-- each addendum is unmistakably labeled as leaving the original unchanged;
-- print authorization follows panel read access;
-- print audit contains identifiers only;
-- all patient-authored or clinical text is escaped.
+- contact-lens SKUs record only applicable power, base curve, diameter,
+  cylinder, axis, add, color, and pack-size fields;
+- frame/accessory forms are unaffected;
+- catalog edits cannot change a confirmed contact-lens order; and
+- the system does not label the spectacle Prescription as contact-lens
+  authorization.
 
 Likely areas:
 
-- Encounter schema/page read-only presentation
-- `resources/views/filament/encounters/`
-- authenticated web route or controller
-- print and audit tests
+- Product model/validation helper
+- Product/variant Filament forms
+- snapshot builder used by Quotation actions
+- factories and catalog/Filament tests
 
-### Checkpoint D: Release Candidate
+### Slice 10: Add lots and reconcile existing contact stock
 
-- All specification success criteria have focused test coverage.
-- Encounter, Prescription, Appointment, role, and printing suites pass.
-- Full Pest suite passes.
-- Pint passes on changed PHP.
-- Frontend assets build only if bundled assets changed.
-- `docs/BACKEND_CONTEXT.md` matches the implemented behavior.
-- No deferred intake, device, structured-measurement, upload, or diagnosis scope
-  has entered the implementation.
+Add the inventory-lot table/model/factory, lot reference on movements, and
+admin-only existing-stock reconciliation. Block sale allocation for a nonzero
+contact variant whose aggregate has not been fully allocated to real lots.
 
-## Migration and Compatibility Strategy
+Key outcomes:
 
-- Use additive, reversible migrations for Encounter fields and addenda.
-- Keep new Encounter narrative columns nullable for drafts and historical rows.
-- Enforce new required fields only when completing a new/in-progress Encounter.
-- Display an em dash for absent fields on historical completed records.
-- Do not backfill synthetic clinical narrative.
-- Stop creating new `patient_intake_id` links but retain legacy schema until a
-  separately approved cleanup.
-- Do not change patient APIs or appointment-request contracts.
+- real lot and expiration values are required;
+- existing aggregate quantity is partitioned without increasing stock;
+- fake legacy lot values are never generated;
+- duplicate variant/lot numbers fail; and
+- aggregate/lot equality is established before sale.
 
-## Verification Strategy
+Likely areas:
 
-Run the narrowest relevant test after each task, the enclosing focused suites at
-each checkpoint, and the full suite only at the final checkpoint.
+- inventory migrations
+- `InventoryLot` model/factory
+- reconciliation action
+- inventory policy/UI action
+- lot schema and reconciliation tests
 
-Primary commands:
+### Slice 11: Receive and allocate contact-lens stock
 
-```bash
-vendor/bin/sail artisan test --compact tests/Feature/Encounters
-vendor/bin/sail artisan test --compact tests/Feature/Filament/EncounterResourceTest.php
-vendor/bin/sail artisan test --compact tests/Feature/Encounters/PrescriptionLifecycleTest.php
+Extend Receive Stock to update aggregate stock, lot quantity, and movement in
+one transaction. Add FEFO allocation and explicit eligible-lot selection to
+order confirmation, then make cancellation restore the exact source lot.
+
+Key outcomes:
+
+- contact receipt requires lot and expiration;
+- frames/accessories keep their simple aggregate receipt path;
+- expired lots cannot sell;
+- concurrent allocations cannot make any quantity negative;
+- FEFO and explicit selection are deterministic; and
+- cancellation is idempotent at aggregate and lot levels.
+
+Likely areas:
+
+- `RecordInventoryMovement` and/or dedicated Receive Stock action
+- `CommitJobOrderInventory`
+- `UpdateJobOrderStatus` cancellation reversal
+- Inventory and Quotation/Optical Order Filament forms
+- inventory concurrency and lifecycle tests
+
+### Checkpoint E: Inventory traceability
+
+- Receive -> allocate -> cancel flows preserve aggregate/lot equality.
+- Existing stock reconciliation is auditable and quantity-neutral.
+- Expired and near-expiry lots render correctly.
+- Frame Reservation conversion still avoids double commitment.
+- Full Inventory, Reservation, and Optical Order suites pass.
+
+### Slice 12: Reconcile API, privacy, and the complete clinic workflow
+
+Update existing serializers only where stable patient-facing snapshots need to
+be exposed. Explicitly test that specification measurements, internal lab
+data, lot values, supplier references, approval/verification metadata, and
+balance-override reasons remain absent.
+
+Extend the end-to-end clinic workflow test through:
+
+```text
+Encounter/current Prescription
+    -> optical Quotation
+    -> Confirm Sale + deposit
+    -> approved eyewear specification
+    -> external or local fulfillment
+    -> verification and Ready
+    -> final payment
+    -> dispense
+```
+
+Finish by reconciling `docs/BACKEND_CONTEXT.md` and API documentation with only
+the behavior actually implemented.
+
+Key outcomes:
+
+- patient ownership and privacy remain intact;
+- one realistic flow proves the cross-aggregate contract;
+- all focused and full tests pass; and
+- canonical documentation matches the shipped state.
+
+Likely areas:
+
+- `app/Http/Resources/QuotationResource.php`
+- `app/Http/Resources/Api/OpticalOrderResource.php`
+- API and end-to-end tests
+- `docs/BACKEND_CONTEXT.md`
+- existing API contract documentation
+
+### Checkpoint F: Release candidate
+
+- Every specification success criterion has a corresponding passing test or
+  explicit verified UI behavior.
+- Focused suites pass through Sail.
+- Full `vendor/bin/sail artisan test --compact` passes.
+- Changed PHP is formatted with
+  `vendor/bin/sail bin pint --dirty --format agent`.
+- No dependency, route, top-level directory, or deferred workflow was added.
+- Documentation describes only implemented behavior.
+- The implementation is ready for code review, not automatically deployed.
+
+## Implementation Order
+
+The required sequential spine is:
+
+1. Characterization baseline
+2. Item kinds and snapshots
+3. Optical-build quotation validation
+4. Eyewear specification persistence
+5. Optometrist approval
+6. Processing/verification/Ready gates
+7. Strict payment validation
+8. Dispensing balance policy
+9. Contact-lens parameter contract
+10. Lot schema and reconciliation
+11. Lot-aware receipt, allocation, and reversal
+12. API/privacy/end-to-end/documentation reconciliation
+
+Do not begin with Filament layout changes. Each UI change follows the tested
+domain action it invokes.
+
+## Parallelization Opportunities
+
+No parallel agent work is assumed. If explicitly authorized later:
+
+- Payment/dispensing slices may proceed independently of eyewear specification
+  work after characterization, but both touch the final Dispense flow and need
+  integration review.
+- Contact-lens Product-form work may proceed after the item-kind contract while
+  eyewear-specification actions are developed.
+- API privacy tests may be written against approved contracts while internal
+  domain slices proceed, but serializer changes wait for stable snapshots.
+- Migrations, shared item enums, `ConfirmQuotationSale`,
+  `CommitJobOrderInventory`, and end-to-end tests require sequential ownership.
+
+## Verification Commands
+
+```text
+Start services:
+vendor/bin/sail up -d
+
+Focused Quotations and Orders:
+vendor/bin/sail artisan test --compact tests/Feature/Quotations tests/Feature/OpticalOrders tests/Feature/JobOrders
+
+Focused Billing:
+vendor/bin/sail artisan test --compact tests/Feature/BillingRecords
+
+Focused Inventory and Reservations:
+vendor/bin/sail artisan test --compact tests/Feature/Inventory tests/Feature/Reservations
+
+Focused Filament:
+vendor/bin/sail artisan test --compact tests/Feature/Filament/QuotationResourceTest.php tests/Feature/Filament/OpticalOrderResourceTest.php tests/Feature/Filament/InventoryResourceTest.php tests/Feature/Filament/BillingRecordResourceTest.php
+
+Focused patient API:
+vendor/bin/sail artisan test --compact tests/Feature/Api/V1/QuotationTest.php tests/Feature/Api/V1/JobOrderTest.php tests/Feature/Api/V1/WorkflowReadsTest.php
+
+Format PHP:
 vendor/bin/sail bin pint --dirty --format agent
+
+Full regression:
 vendor/bin/sail artisan test --compact
 ```
 
-Migration verification must use test databases or an explicitly disposable
-development database. Do not run destructive migration commands against an
-unverified target.
+Before each implementation slice, use Laravel Boost `search-docs` for the
+relevant Laravel, Filament, Livewire, or Pest behavior and use Sail-prefixed
+Artisan generators for new Laravel classes, models, migrations, policies, and
+tests where available.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Existing page currently coordinates draft, prescription, and completion directly | High | Characterize first, introduce actions incrementally, and make completion atomic before UI cleanup. |
-| Current start action can select another provider | High | Change the action contract and add direct-invocation authorization tests before reshaping UI. |
-| Any optometrist can currently complete another provider's Encounter | High | Enforce assigned-provider checks after row lock and cover every role/assignment combination. |
-| Concurrent start/transfer/completion causes split Appointment and Encounter state | High | Lock both records in a consistent order and update them in one transaction. |
-| Encrypted narrative cannot be searched | Medium | Keep clinical columns out of search/filter configuration and document the constraint. |
-| Historical completed rows lack new required fields | Medium | Keep columns nullable, enforce only at future completion, and render missing values safely. |
-| Addendum sequence races | Medium | Lock the parent Encounter and retain a unique composite database constraint. |
-| Audit metadata leaks health details | High | Use enum reason categories and explicit metadata allowlists; test raw audit payloads. |
-| Legacy Intake code confuses implementation scope | Medium | Remove only active Encounter consumption now; handle table/model deletion in a separate approved cleanup. |
-| Appointment implementation changes overlap shared files | Medium | Re-read each file before editing and preserve unrelated uncommitted changes. |
-| Existing appointment planning records must remain available | Medium | Preserve them in `tasks/appointment-scheduling-plan.md` and `tasks/appointment-scheduling-todo.md`. |
+| Item-kind backfill misclassifies historical custom lines | High | Derive only from controlled foreign keys; use `custom_product` for ambiguity; never parse descriptions |
+| Eyewear fields accidentally reinterpret the clinic Prescription | High | Keep explicit dispensing names, no migration of neutral values, and regression tests for prescription labels/contracts |
+| Confirmation grows into an unsafe monolithic action | High | Extract focused validators/snapshot builders while retaining one outer transaction and idempotency tests |
+| Aggregate and contact-lens lot stock drift | High | One mutation path, row locks, atomic dual updates, sum-invariant tests after every operation |
+| Existing stock receives invented traceability data | High | Require real admin reconciliation; block sale until exact allocation; never auto-create a fake lot |
+| Concurrent payments overpay a bill | High | Compare against the freshly locked balance and add concurrent-attempt tests |
+| Pickup payment is posted but dispensing fails | High | Prevalidate sufficient amount, then record payment and dispensing inside one transaction |
+| Plain admin performs clinical approval | High | Require active optometrist role in the domain action; test dual-role owner separately |
+| Internal optical data leaks through patient serializers | High | Explicit resource allowlists and negative privacy assertions |
+| One-order fulfillment becomes awkward for two pairs | Medium | Enforce one build now and direct staff to create two orders; keep multi-build and combined multi-order billing deferred |
+| Lot/expiry UI becomes a purchasing module | Medium | Limit it to Receive Stock, reconciliation, allocation, and read-only lot visibility |
+| Older specs conflict with the new direction | Medium | Treat the approved specification as authoritative and update canonical context only after implementation |
 
-## Parallelization and Coordination
+## Phase 2 Open Questions
 
-No parallel agent execution is assumed. If parallel work is later explicitly
-authorized, only independent tests or print presentation should branch after
-the schema and action contracts are fixed. Schema, Encounter policy, shared page
-code, and lifecycle actions must remain sequential or be tightly coordinated.
+There are no unresolved product decisions. Phase 3 may choose exact class,
+table, enum, and test filenames while keeping tasks within five likely files
+and preserving this dependency order.
 
-## Phase 3 Output
+## Phase 2 Approval Gate
 
-The detailed checklist now lives at the required canonical path,
-`tasks/todo.md`. The prior appointment-scheduling plan and checklist remain
-preserved under feature-specific filenames in the same directory.
+Before Phase 3 task breakdown begins, the project owner must confirm that:
 
-## Open Questions
-
-There are no blocking plan questions. Structured examination measurements and
-legacy Intake deletion remain deliberately outside this feature and require
-separate approval.
+1. the architecture decisions preserve the intended clinic workflow;
+2. the slice order addresses the highest-risk invariants early enough;
+3. the inventory-lot reconciliation is acceptable without fabricated legacy
+   data;
+4. the plan remains intentionally limited to one corrective-eyewear build per
+   Optical Order; and
+5. no implementation should begin until the later task checklist is separately
+   reviewed and approved.

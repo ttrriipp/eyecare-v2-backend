@@ -10,9 +10,9 @@ use App\Filament\Clusters\Availability\Resources\AppointmentTypes\Schemas\Appoin
 use App\Filament\Clusters\Availability\Resources\AppointmentTypes\Tables\AppointmentTypesTable;
 use App\Models\AppointmentType;
 use BackedEnum;
-use Filament\Enums\MaxWidth;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Table;
 
 class AppointmentTypesResource extends Resource
@@ -32,9 +32,9 @@ class AppointmentTypesResource extends Resource
         return auth()->user()?->isAdmin() ?? false;
     }
 
-    public static function getMaxContentWidth(): ?MaxWidth
+    public static function getMaxContentWidth(): Width|string|null
     {
-        return MaxWidth::ScreenLarge;
+        return Width::SevenExtraLarge;
     }
 
     public static function form(Schema $schema): Schema

@@ -48,20 +48,33 @@ class EditEncounter extends EditRecord
 
     /**
      * Only the assigned optometrist can edit an in-progress encounter.
-     * Admin and staff can view but not edit clinical contents.
+     * Others can view but the form fields will be disabled.
      */
     public function authorizeAccess(): void
     {
         parent::authorizeAccess();
+    }
 
+    /**
+     * Check if the current user is the assigned optometrist for this encounter.
+     */
+    public function isAssignedOptometrist(): bool
+    {
         $user = auth()->user();
 
-        if ($this->record->status === EncounterStatus::InProgress) {
-            // Only the assigned optometrist can edit clinical contents
-            if (! $user->isOptometrist() || $this->record->optometrist_id !== $user->id) {
-                abort(403, 'Only the assigned optometrist can edit this encounter.');
-            }
+        return $user->isOptometrist() && $this->record->optometrist_id === $user->id;
+    }
+
+    /**
+     * Check if the current user can edit this encounter's clinical contents.
+     */
+    public function canEditClinicalContents(): bool
+    {
+        if ($this->record->status !== EncounterStatus::InProgress) {
+            return true; // Planned encounters can be edited by authorized users
         }
+
+        return $this->isAssignedOptometrist();
     }
 
     /**

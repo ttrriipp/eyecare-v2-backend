@@ -25,6 +25,16 @@ use Illuminate\Support\Str;
 class EncounterForm
 {
     /**
+     * Check if clinical fields should be disabled for the current user.
+     * Returns true if the encounter is in progress and the user is not the assigned optometrist.
+     */
+    private static function isClinicalFieldDisabled(): \Closure
+    {
+        return fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress
+            && !(auth()->user()->isOptometrist() && $record->optometrist_id === auth()->id());
+    }
+
+    /**
      * @var array<int, string>
      */
     private const PRESCRIPTION_DATA_FIELDS = [
@@ -77,22 +87,28 @@ class EncounterForm
                             ->required()
                             ->validationAttribute('Chief Complaint')
                             ->rows(3)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('past_ocular_history')
                             ->label('Past Ocular History')
-                            ->rows(2),
+                            ->rows(2)
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('past_surgical_history')
                             ->label('Past Surgical History')
-                            ->rows(2),
+                            ->rows(2)
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('past_medical_history')
                             ->label('Past Medical History')
-                            ->rows(2),
+                            ->rows(2)
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('allergies')
                             ->label('Allergies')
-                            ->rows(2),
+                            ->rows(2)
+                            ->disabled(self::isClinicalFieldDisabled()),
                         Textarea::make('medications')
                             ->label('Current Medications')
-                            ->rows(2),
+                            ->rows(2)
+                            ->disabled(self::isClinicalFieldDisabled()),
                     ])
                     ->columns(2)
                     ->afterValidation(function (EditEncounter $livewire): void {
