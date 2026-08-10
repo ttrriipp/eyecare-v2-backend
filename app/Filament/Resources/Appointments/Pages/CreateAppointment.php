@@ -51,17 +51,27 @@ class CreateAppointment extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Create patient from new patient fields if mode is 'new'
-        if (empty($data['patient_id']) && filled($data['new_patient_first_name'] ?? null)) {
+        if (empty($data['patient_id']) && ($data['patient_mode'] ?? null) === 'new') {
+            $first = $this->data['new_patient_first_name'] ?? null;
+            $last = $this->data['new_patient_last_name'] ?? null;
+
+            if (blank($first) || blank($last)) {
+                throw ValidationException::withMessages([
+                    'data.new_patient_first_name' => ['First name is required for new patients.'],
+                    'data.new_patient_last_name' => ['Last name is required for new patients.'],
+                ]);
+            }
+
             $patient = Patient::create([
-                'first_name' => $data['new_patient_first_name'],
-                'middle_name' => $data['new_patient_middle_name'] ?? null,
-                'last_name' => $data['new_patient_last_name'],
-                'phone' => $data['new_patient_phone'] ?? null,
-                'contact_email' => $data['new_patient_contact_email'] ?? null,
-                'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
-                'gender' => $data['new_patient_gender'] ?? null,
-                'occupation' => $data['new_patient_occupation'] ?? null,
-                'address' => $data['new_patient_address'] ?? null,
+                'first_name' => $first,
+                'middle_name' => $this->data['new_patient_middle_name'] ?? null,
+                'last_name' => $last,
+                'phone' => $this->data['new_patient_phone'] ?? null,
+                'contact_email' => $this->data['new_patient_contact_email'] ?? null,
+                'date_of_birth' => $this->data['new_patient_date_of_birth'] ?? null,
+                'gender' => $this->data['new_patient_gender'] ?? null,
+                'occupation' => $this->data['new_patient_occupation'] ?? null,
+                'address' => $this->data['new_patient_address'] ?? null,
             ]);
             $data['patient_id'] = $patient->getKey();
         }
