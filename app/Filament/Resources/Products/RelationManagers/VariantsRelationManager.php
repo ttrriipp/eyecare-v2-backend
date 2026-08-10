@@ -388,45 +388,56 @@ class VariantsRelationManager extends RelationManager
                         ]))
                         ->successNotificationTitle('Prices updated'),
                     Action::make('adjustStock')
-                        ->label('Adjust Stock')
+                        ->label('Receive Stock')
                         ->icon('heroicon-o-archive-box')
                         ->color('success')
                         ->schema([
-                            Select::make('type')
-                                ->label('Movement Type')
-                                ->options([
-                                    'restock' => 'Restock (add units)',
-                                    'manual_adjustment' => 'Manual Adjustment (remove units)',
-                                ])
-                                ->required()
-                                ->live(),
                             TextInput::make('quantity')
-                                ->label(
-                                    fn (FormGet $get): string => $get('type') === 'restock'
-                                        ? 'Units to add'
-                                        : 'Units to remove'
-                                )
+                                ->label('Quantity')
                                 ->required()
                                 ->numeric()
                                 ->minValue(1),
+                            TextInput::make('lot_number')
+                                ->label('Lot Number')
+                                ->required(fn (FormGet $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
+                                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
+                            DatePicker::make('expires_on')
+                                ->label('Expiration Date')
+                                ->required(fn (FormGet $get, RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
+                                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
+                                ->native(false),
+                            TextInput::make('source_reference')
+                                ->label('Reference')
+                                ->placeholder('PO number or supplier reference'),
                             TextInput::make('notes')
                                 ->placeholder('Optional notes'),
                         ])
                         ->action(function (array $data, $record): void {
-                            $isAddition = $data['type'] === 'restock';
-                            $quantityChange = $isAddition ? (int) $data['quantity'] : -(int) $data['quantity'];
+                            $isContactLens = $record->product?->product_type === 'contact_lens';
 
-                            app(RecordInventoryMovement::class)->handle(
-                                variant: $record,
-                                quantityChange: $quantityChange,
-                                type: $data['type'],
-                                notes: $data['notes'] ?? null,
-                                actingUser: auth()->user(),
-                            );
+                            if ($isContactLens) {
+                                app(\App\Actions\Inventory\ReceiveContactLensStock::class)->handle(
+                                    variant: $record,
+                                    quantity: (int) $data['quantity'],
+                                    lotNumber: $data['lot_number'],
+                                    expiresOn: $data['expires_on'],
+                                    receiver: auth()->user(),
+                                    sourceReference: $data['source_reference'] ?? null,
+                                    notes: $data['notes'] ?? null,
+                                );
+                            } else {
+                                app(RecordInventoryMovement::class)->handle(
+                                    variant: $record,
+                                    quantityChange: (int) $data['quantity'],
+                                    type: 'restock',
+                                    notes: $data['notes'] ?? null,
+                                    actingUser: auth()->user(),
+                                );
+                            }
 
                             $updatedStock = $record->fresh()->stock_quantity;
 
-                            if ($isAddition && $record->target_stock_level !== null && $updatedStock > $record->target_stock_level) {
+                            if ($record->target_stock_level !== null && $updatedStock > $record->target_stock_level) {
                                 Notification::make()
                                     ->title('Stock exceeds target')
                                     ->body("Stock was updated to {$updatedStock}; the configured target is {$record->target_stock_level}.")
@@ -434,7 +445,7 @@ class VariantsRelationManager extends RelationManager
                                     ->send();
                             } else {
                                 Notification::make()
-                                    ->title('Stock updated')
+                                    ->title('Stock received')
                                     ->success()
                                     ->send();
                             }
