@@ -7,9 +7,6 @@ use App\Enums\AppointmentRequestStatus;
 use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
-use Filament\Infolists\Components\RepeatableEntry;
-use Filament\Infolists\Components\RepeatableEntry\TableColumn;
-use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
@@ -60,46 +57,24 @@ class AppointmentRequestForm
                             ->label('Referral Context')
                             ->content(fn ($record): string => $record?->encrypted_referring_source ?? 'None'),
 
-                        RepeatableEntry::make('time_preferences')
+                        Placeholder::make('submitted_times')
                             ->label('Submitted Time Preferences')
-                            ->state(function ($record): array {
+                            ->content(function ($record): string {
                                 if ($record === null) {
-                                    return [];
+                                    return '—';
                                 }
 
-                                $rows = collect();
-
-                                $rows->push([
-                                    'label' => 'Primary',
-                                    'time' => $record->scheduled_at?->format('M j, Y g:i A') ?? '—',
-                                    'is_primary' => true,
-                                ]);
+                                $lines = [];
+                                $lines[] = 'Primary: '.$record->scheduled_at?->format('M j, Y g:i A') ?? '—';
 
                                 if (! empty($record->alternative_scheduled_times)) {
                                     foreach ($record->alternative_scheduled_times as $index => $time) {
-                                        $rows->push([
-                                            'label' => 'Alt '.($index + 1),
-                                            'time' => Carbon::parse($time)->format('M j, Y g:i A'),
-                                            'is_primary' => false,
-                                        ]);
+                                        $lines[] = 'Alt '.($index + 1).': '.Carbon::parse($time)->format('M j, Y g:i A');
                                     }
                                 }
 
-                                return $rows->all();
+                                return implode("\n", $lines);
                             })
-                            ->table([
-                                TableColumn::make('label'),
-                                TableColumn::make('time'),
-                            ])
-                            ->schema([
-                                TextEntry::make('label')
-                                    ->hiddenLabel()
-                                    ->badge()
-                                    ->color(fn (array $state): string => $state['is_primary'] ?? false ? 'primary' : 'gray'),
-                                TextEntry::make('time')
-                                    ->hiddenLabel(),
-                            ])
-                            ->columns(2)
                             ->columnSpanFull(),
 
                         Textarea::make('encrypted_reason_for_visit')
