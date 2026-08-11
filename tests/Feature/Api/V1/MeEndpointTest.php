@@ -63,3 +63,14 @@ test('me endpoint returns 404 when no patient linked', function () {
         ->getJson('/api/v1/me')
         ->assertSuccessful();
 });
+
+test('me endpoint tolerates a normal mobile bootstrap burst', function () {
+    $user = User::factory()->patient()->create();
+    $token = $user->createToken('mobile')->plainTextToken;
+
+    foreach (range(1, 61) as $attempt) {
+        $this->withToken($token)
+            ->getJson('/api/v1/me')
+            ->assertSuccessful();
+    }
+});

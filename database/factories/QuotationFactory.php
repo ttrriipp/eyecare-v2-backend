@@ -26,6 +26,7 @@ class QuotationFactory extends Factory
             'patient_id' => Patient::factory(),
             'encounter_id' => null,
             'prescription_id' => null,
+            'frame_reservation_id' => null,
             'status' => QuotationStatus::Draft,
             'valid_until' => fake()->dateTimeBetween('+7 days', '+30 days'),
             'subtotal' => 0,

@@ -78,6 +78,6 @@ class QuotationResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['patient', 'items', 'prescription.author']);
+            ->with(['patient', 'items', 'prescription.author', 'frameReservation']);
     }
 }

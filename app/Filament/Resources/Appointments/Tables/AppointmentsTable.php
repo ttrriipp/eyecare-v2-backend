@@ -17,9 +17,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -28,7 +26,6 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -118,11 +115,6 @@ class AppointmentsTable
                             fn (Builder $query, string $date): Builder => $query->whereDate('scheduled_at', $date),
                         );
                     }),
-                TrashedFilter::make()
-                    ->label('Show Archived')
-                    ->placeholder('Active only')
-                    ->trueLabel('Active and archived')
-                    ->falseLabel('Archived only'),
             ])
             ->recordActions([
                 ActionGroup::make([
@@ -330,8 +322,6 @@ class AppointmentsTable
                                 Notification::make()->title('Cannot cancel')->body($message)->danger()->send();
                             }
                         }),
-                    RestoreAction::make()->label('Restore')->color('success')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()->label('Archive')->color('gray')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive appointment')->modalDescription('This will hide the appointment from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (Appointment $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
             ])
             ->toolbarActions([

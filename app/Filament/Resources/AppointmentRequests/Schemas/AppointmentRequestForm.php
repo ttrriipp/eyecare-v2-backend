@@ -19,15 +19,12 @@ class AppointmentRequestForm
     {
         return $schema
             ->components([
-                Section::make('Request Details')
+                // ── 1. Request Summary ──────────────────────────────────────
+                Section::make('Request Summary')
                     ->schema([
-                        Placeholder::make('request_number')
-                            ->label('Request #')
-                            ->content(fn ($record): string => $record?->request_number ?? '—'),
-
                         Placeholder::make('account_owner')
-                            ->label('Account Owner')
-                            ->content(fn ($record): string => $record?->user?->full_name ?? '—'),
+                            ->label('Account / Patient')
+                            ->content(fn ($record): string => $record?->patient?->full_name ?? $record?->user?->full_name ?? '—'),
 
                         Placeholder::make('account_status')
                             ->label('Account Status')
@@ -35,13 +32,34 @@ class AppointmentRequestForm
                             ->badge()
                             ->color(fn ($record): string => $record?->patient_id !== null ? 'success' : 'warning'),
 
-                        Placeholder::make('appointment_type')
-                            ->label('Patient Appointment Type')
-                            ->content(fn ($record): string => $record?->appointmentType?->patient_label ?? '—'),
+                        Placeholder::make('status')
+                            ->label('Request Status')
+                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—'))
+                            ->badge()
+                            ->color(fn ($record): string => match ($record?->status) {
+                                AppointmentRequestStatus::Pending => 'warning',
+                                AppointmentRequestStatus::Accepted => 'success',
+                                AppointmentRequestStatus::Rejected => 'danger',
+                                AppointmentRequestStatus::Cancelled => 'gray',
+                                AppointmentRequestStatus::Expired => 'gray',
+                                default => 'gray',
+                            }),
 
-                        Placeholder::make('internal_appointment_type')
-                            ->label('Internal Appointment Type')
-                            ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
+                        Placeholder::make('appointment_type')
+                            ->label('Appointment Type')
+                            ->content(function ($record): HtmlString {
+                                $patientLabel = $record?->appointmentType?->patient_label ?? '—';
+                                $internalName = $record?->appointmentType?->name;
+
+                                if ($internalName === null || $internalName === $patientLabel) {
+                                    return new HtmlString(e($patientLabel));
+                                }
+
+                                return new HtmlString(
+                                    '<span class="font-medium">'.e($patientLabel).'</span>'
+                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">'.e($internalName).'</span>'
+                                );
+                            }),
 
                         Placeholder::make('provisional_duration')
                             ->label('Provisional Duration')
@@ -49,12 +67,43 @@ class AppointmentRequestForm
                                 ? "{$record->provisional_duration_minutes} minutes"
                                 : '—'),
 
-                        Placeholder::make('referral_context')
-                            ->label('Referral Context')
-                            ->content(fn ($record): string => $record?->encrypted_referring_source ?? 'None'),
+                        Placeholder::make('submitted_at')
+                            ->label('Submitted')
+                            ->content(function ($record): HtmlString {
+                                if ($record === null) {
+                                    return new HtmlString('—');
+                                }
 
+                                $snapshot = $record->encrypted_identity_snapshot;
+                                $submittedAt = (isset($snapshot['submitted_at']))
+                                    ? Carbon::parse($snapshot['submitted_at'])
+                                    : $record->created_at;
+
+                                if ($submittedAt === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                $formatted = $submittedAt->format('M j, Y \a\t g:i A');
+                                $relative = $submittedAt->diffForHumans();
+
+                                return new HtmlString(
+                                    '<span>'.e($formatted).'</span>'
+                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">'.e($relative).'</span>'
+                                );
+                            }),
+
+                        Textarea::make('encrypted_reason_for_visit')
+                            ->label('Reason for Visit')
+                            ->disabled()
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(3),
+
+                // ── 2. Requested Schedule ───────────────────────────────────
+                Section::make('Requested Schedule')
+                    ->schema([
                         Placeholder::make('submitted_times')
-                            ->label('Submitted Time Preferences')
+                            ->label('Preferred Time')
                             ->content(function ($record): HtmlString {
                                 if ($record === null) {
                                     return new HtmlString('—');
@@ -82,76 +131,32 @@ class AppointmentRequestForm
                             })
                             ->columnSpanFull(),
 
-                        Textarea::make('encrypted_reason_for_visit')
-                            ->label('Reason for Visit')
-                            ->disabled()
-                            ->columnSpanFull(),
-                    ])
-                    ->columns(2),
-
-                Section::make('Status')
-                    ->schema([
-                        Placeholder::make('status')
-                            ->label('Request Status')
-                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—'))
-                            ->badge()
-                            ->color(fn ($record): string => match ($record?->status) {
-                                AppointmentRequestStatus::Pending => 'warning',
-                                AppointmentRequestStatus::Accepted => 'success',
-                                AppointmentRequestStatus::Rejected => 'danger',
-                                AppointmentRequestStatus::Cancelled => 'gray',
-                                AppointmentRequestStatus::Expired => 'gray',
-                                default => 'gray',
-                            }),
-
-                        Placeholder::make('expires_at')
-                            ->label('Expires')
+                        Placeholder::make('latest_requested_time')
+                            ->label('Latest Requested Time')
                             ->content(fn ($record): string => $record?->expires_at?->format('M j, Y g:i A') ?? '—'),
-
-                        Placeholder::make('request_age')
-                            ->label('Request Age')
-                            ->content(fn ($record): string => $record?->created_at?->diffForHumans() ?? '—'),
-
-                        Placeholder::make('overdue')
-                            ->label('Overdue')
-                            ->content(fn ($record): string => $record?->status === AppointmentRequestStatus::Pending
-                                && $record?->expires_at?->isPast() ? 'Yes' : 'No')
-                            ->badge()
-                            ->color(fn ($record): string => $record?->status === AppointmentRequestStatus::Pending
-                                && $record?->expires_at?->isPast() ? 'danger' : 'gray'),
-
-                        Placeholder::make('resolved_by')
-                            ->label('Resolved By')
-                            ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—')
-                            ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
-
-                        Placeholder::make('resolved_at')
-                            ->label('Resolved At')
-                            ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
-                            ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending),
-
-                        Placeholder::make('submitted_at')
-                            ->label('Submitted')
-                            ->content(function ($record): string {
-                                $snapshot = $record?->encrypted_identity_snapshot;
-                                if ($snapshot === null || ! isset($snapshot['submitted_at'])) {
-                                    return $record?->created_at?->format('M j, Y g:i A') ?? '—';
-                                }
-
-                                return Carbon::parse($snapshot['submitted_at'])->format('M j, Y g:i A');
-                            }),
-
-                        Placeholder::make('rejection_reason')
-                            ->label('Rejection Reason')
-                            ->content(fn ($record): string => $record?->rejection_reason ?? '—')
-                            ->visible(fn ($record): bool => $record?->status === AppointmentRequestStatus::Rejected)
-                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
-                // Patient information section - only for unlinked snapshotted requests
+                // ── 3. Referral Source ──────────────────────────────────────
+                Section::make('Referral')
+                    ->visible(fn ($record): bool => ! empty($record?->encrypted_referring_source))
+                    ->schema([
+                        Placeholder::make('referral_context')
+                            ->label('Referral Source')
+                            ->content(fn ($record): string => $record?->encrypted_referring_source ?? '—'),
+                    ]),
+
+                // ── 4. Patient Information ──────────────────────────────────
                 Section::make('Patient Information')
-                    ->visible(fn ($record): bool => $record?->hasIdentitySnapshot() ?? false)
+                    ->visible(fn ($record): bool => $record?->patient_id !== null)
+                    ->schema([
+                        Placeholder::make('linked_patient_name')
+                            ->label('Linked Patient')
+                            ->content(fn ($record): string => $record?->patient?->full_name ?? '—'),
+                    ]),
+
+                Section::make('Patient Information')
+                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
                     ->schema([
                         Placeholder::make('snapshot_name')
                             ->label('Name')
@@ -184,7 +189,7 @@ class AppointmentRequestForm
                     ])
                     ->columns(2),
 
-                // Potential matches section - only for unlinked snapshotted requests
+                // ── Potential Matches ───────────────────────────────────────
                 Section::make('Potential Matches')
                     ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
                     ->schema([
@@ -202,6 +207,28 @@ class AppointmentRequestForm
                             })
                             ->columnSpanFull(),
                     ]),
+
+                // ── 5. Decision Details ─────────────────────────────────────
+                Section::make('Decision Details')
+                    ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending)
+                    ->schema([
+                        Placeholder::make('resolved_by')
+                            ->label('Resolved By')
+                            ->content(fn ($record): string => $record?->resolvedBy?->full_name ?? '—')
+                            ->visible(fn ($record): bool => $record?->resolvedBy !== null),
+
+                        Placeholder::make('resolved_at')
+                            ->label('Resolved At')
+                            ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
+                            ->visible(fn ($record): bool => $record?->resolved_at !== null),
+
+                        Placeholder::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->content(fn ($record): string => $record?->rejection_reason ?? '—')
+                            ->visible(fn ($record): bool => $record?->status === AppointmentRequestStatus::Rejected && ! empty($record?->rejection_reason))
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
             ]);
     }
 }

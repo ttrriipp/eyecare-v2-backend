@@ -49,7 +49,7 @@ class AppointmentRequestsTable
                     ->sortable(),
 
                 TextColumn::make('expires_at')
-                    ->label('Expires')
+                    ->label('Latest Requested Time')
                     ->dateTime('M j, g:i A')
                     ->sortable()
                     ->color(fn (AppointmentRequest $record) => $record->expires_at->isPast() ? 'danger' : null),

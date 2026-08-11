@@ -8,4 +8,5 @@ enum EncounterStatus: string
     case InProgress = 'in_progress';
     case Completed = 'completed';
     case Cancelled = 'cancelled';
+    case Voided = 'voided';
 }

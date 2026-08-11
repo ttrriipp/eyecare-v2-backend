@@ -10,7 +10,7 @@ use App\Models\JobOrder;
 use App\Models\ProductVariant;
 use Illuminate\Validation\ValidationException;
 
-test('converting a requested reservation commits inventory normally', function () {
+test('converting a requested reservation does not commit inventory itself', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
     $reservation->items()->create(['product_variant_id' => $variant->id]);
@@ -27,12 +27,13 @@ test('converting a requested reservation commits inventory normally', function (
 
     app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
 
-    expect($variant->fresh()->stock_quantity)->toBe(9)
+    expect($variant->fresh()->stock_quantity)->toBe(10)
         ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted)
-        ->and($jobOrder->fresh()->frame_reservation_id)->toBe($reservation->id);
+        ->and($jobOrder->fresh()->frame_reservation_id)->toBe($reservation->id)
+        ->and(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(0);
 });
 
-test('converting a prepared reservation transfers the existing allocation with no net stock change', function () {
+test('converting a prepared reservation releases its existing allocation', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 9]); // already decremented by "prepare"
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Prepared]);
     $reservation->items()->create(['product_variant_id' => $variant->id]);
@@ -41,12 +42,12 @@ test('converting a prepared reservation transfers the existing allocation with n
 
     app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
 
-    expect($variant->fresh()->stock_quantity)->toBe(9)
+    expect($variant->fresh()->stock_quantity)->toBe(10)
         ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted)
-        ->and(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(2);
+        ->and(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(1);
 });
 
-test('converting a tried-on reservation also transfers the existing allocation with no net stock change', function () {
+test('converting a tried-on reservation also releases its existing allocation', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 9]);
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);
     $reservation->items()->create(['product_variant_id' => $variant->id]);
@@ -55,8 +56,9 @@ test('converting a tried-on reservation also transfers the existing allocation w
 
     app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
 
-    expect($variant->fresh()->stock_quantity)->toBe(9)
-        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted);
+    expect($variant->fresh()->stock_quantity)->toBe(10)
+        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted)
+        ->and(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(1);
 });
 
 test('a converted reservation cannot be converted again', function () {

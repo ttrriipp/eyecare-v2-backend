@@ -10,6 +10,8 @@ use Livewire\Attributes\On;
 
 class EncounterStatsWidget extends BaseWidget
 {
+    protected static bool $isDiscovered = false;
+
     protected static bool $isLazy = false;
 
     protected ?string $pollingInterval = null;

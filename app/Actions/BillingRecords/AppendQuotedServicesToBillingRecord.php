@@ -28,13 +28,6 @@ class AppendQuotedServicesToBillingRecord
             return;
         }
 
-        // Validate no posted payments (charge set lock)
-        if ($billingRecord->payments()->where('status', 'posted')->exists()) {
-            throw ValidationException::withMessages([
-                'billing_record' => ['Cannot add items to a Billing Record with posted payments.'],
-            ]);
-        }
-
         DB::transaction(function () use ($billingRecord, $quotationItemIds) {
             // Get existing quotation item IDs (idempotent)
             $existingItemIds = $billingRecord->items()
@@ -43,6 +36,18 @@ class AppendQuotedServicesToBillingRecord
                 ->toArray();
 
             $newItemIds = array_diff($quotationItemIds, $existingItemIds);
+
+            if ($newItemIds === []) {
+                return;
+            }
+
+            // Validate no posted payments (charge set lock) only when a new
+            // service charge would actually be added.
+            if ($billingRecord->payments()->where('status', 'posted')->exists()) {
+                throw ValidationException::withMessages([
+                    'billing_record' => ['Cannot add items to a Billing Record with posted payments.'],
+                ]);
+            }
 
             // Load the quotation items
             $items = QuotationItem::query()

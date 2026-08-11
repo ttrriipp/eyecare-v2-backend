@@ -24,6 +24,7 @@ class RecordQuotationDecision
         Quotation $quotation,
         string $decision,
         User $recorder,
+        ?string $reason = null,
     ): Quotation {
         $targetStatus = QuotationStatus::from($decision);
 
@@ -35,6 +36,10 @@ class RecordQuotationDecision
         if ($targetStatus === QuotationStatus::Accepted) {
             $attributes['confirmed_by'] = $recorder->id;
             $attributes['confirmed_at'] = Carbon::now();
+        }
+
+        if ($targetStatus === QuotationStatus::Declined) {
+            $attributes['decline_reason'] = $reason;
         }
 
         $quotation->update($attributes);

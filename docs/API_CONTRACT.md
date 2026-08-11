@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-11) — optical commerce and dispensing implementation complete, with resilient patient invitation linking and additive API rate-limit errors. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-12) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, additive API rate-limit errors, and the staff-side single-reserved-frame quotation conversion flow. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons, and reservation-to-order linkage) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -19,6 +19,17 @@
 > Invitation and API rate-limit responses now include stable error codes and a
 > `Retry-After` header; middleware-backed limits retain the standard
 > `X-RateLimit-*` headers.
+
+> **Shipped 2026-08-12: staff-side reservation-to-sale refinement.** The
+> Filament quotation workflow can select one eligible `FrameReservationItem`
+> for the quotation's patient and exact catalog Frame line. The quotation
+> stores its nullable reservation source internally; Confirm Sale and Accept &
+> Continue validate the patient, reservation status, exact variant, and
+> existing Optical Order link atomically. Prepared/Tried On reservations
+> release all candidate allocations before the normal order commitment, while
+> Requested reservations have no allocation to release. This is an internal
+> admin workflow change: no patient API route, request, or response field was
+> added, and patient quotations and reservations remain read-only snapshots.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -1536,6 +1547,8 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 - `status` values: `requested`, `prepared`, `tried_on`, `converted`, `released`, `cancelled`.
 - `expires_at` is `null` until the reservation reaches `prepared` (staff have pulled the frames and stock is allocated); it's then set to the appointment day's clinic close time, and an automatic sweep releases the reservation if it's still `prepared` past that time.
 - An appointment can have at most one frame reservation, ever — the reservation exists only to hold stock before the visit; frames tried on in person flow directly into the eventual order without a reservation.
+- The patient API does not select a candidate frame or convert a reservation. Staff make that choice in the quotation workflow; the response continues to expose every reservation item, including unselected candidates.
+- After a staff conversion, the reservation status is `converted` and its item rows remain historical evidence. The patient API does not expose a per-item selected/sold status or the internal quotation/order reservation links.
 
 ---
 
@@ -1742,6 +1755,7 @@ never returned. Invalid `filter` values return `422`.
 - `optical_order` is populated only when `status` is `accepted` and an order was created.
 - Items include both product and service lines because they are part of the proposal.
 - Each item carries its catalog reference: `product_variant_id`, `lens_category_id`, and `service_id` are mutually exclusive — exactly one is non-null for a given item (or none, for legacy free-text lines), matching `item_type`.
+- The internal nullable `frame_reservation_id` source is intentionally absent from patient-facing quotation responses. It identifies the reservation that supplied the quotation's single Frame line and is used only by staff-side quotation confirmation; patients cannot create, revise, select a reserved candidate, or confirm quotations through this API.
 - All monetary values are strings with two decimal places.
 
 **Read-only.** Patients cannot create, accept, or decline quotations via the API.
@@ -1786,7 +1800,13 @@ Returns a single quotation with items.
 
 Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
-record. Service-only accepted quotations do not create Optical Orders.
+record. Service-only accepted quotations do not create Optical Orders. When a
+staff member confirms a reservation-backed quotation, the resulting order
+contains the quotation's selected Frame and every other quoted
+inventory-backed product exactly once; the internal
+`job_orders.frame_reservation_id` link and candidate-selection details are not
+returned by the patient resource. Reservation item rows are retained in the
+reservation history rather than exposed as order item statuses.
 
 
 ### GET `/optical-orders`

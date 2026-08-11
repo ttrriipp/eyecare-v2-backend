@@ -20,6 +20,19 @@ class Message extends Model
     /** @use HasFactory<MessageFactory> */
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::created(function (Message $message): void {
+            // Auto-restore conversation to inbox when a new message arrives
+            if ($message->conversation_id) {
+                $conversation = Conversation::find($message->conversation_id);
+                if ($conversation) {
+                    $conversation->autoRestoreOnNewMessage();
+                }
+            }
+        });
+    }
+
     /**
      * @return BelongsTo<Conversation, $this>
      */

@@ -40,7 +40,7 @@ class FrameReservationForm
                                     ReservationStatus::Cancelled => 'danger',
                                 }),
                             Textarea::make('staff_notes')
-                                ->label('Staff Notes')
+                                ->label('Notes')
                                 ->columnSpanFull(),
                         ])
                         ->columns(2),

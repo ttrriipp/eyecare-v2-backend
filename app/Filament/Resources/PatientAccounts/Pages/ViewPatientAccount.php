@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PatientAccounts\Pages;
 
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Filament\Resources\PatientAccounts\PatientAccountResource;
 use App\Models\Patient;
@@ -10,6 +11,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ViewPatientAccount extends ViewRecord
@@ -65,7 +67,10 @@ class ViewPatientAccount extends ViewRecord
                     }
 
                     // Activate the link
-                    $patient->update(['user_id' => $this->record->id]);
+                    DB::transaction(function () use ($patient): void {
+                        $patient->update(['user_id' => $this->record->id]);
+                        app(AssociateAccountConversation::class)->handle($this->record, $patient);
+                    });
 
                     // Revoke tokens to force re-authentication with link
                     $this->record->tokens()->delete();

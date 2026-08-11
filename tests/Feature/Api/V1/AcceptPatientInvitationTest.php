@@ -5,6 +5,7 @@ use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Enums\OtpPurpose;
 use App\Enums\PatientInvitationStatus;
 use App\Filament\Resources\Patients\PatientResource;
+use App\Models\Conversation;
 use App\Models\OtpChallenge;
 use App\Models\Patient;
 use App\Models\PatientAccountContact;
@@ -120,6 +121,11 @@ test('invitation acceptance activates patient link', function () {
     PatientAccountContact::factory()->email('patient@example.com')->verified()->primary()->create([
         'user_id' => $user->id,
     ]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $user->id,
+        'patient_id' => null,
+    ]);
+    $challenge->update(['user_id' => $user->id]);
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/accept', [
@@ -132,10 +138,11 @@ test('invitation acceptance activates patient link', function () {
         ->assertJsonPath('data.status', 'linked');
 
     expect($patient->fresh()->user_id)->toBe($user->id);
+    expect($conversation->fresh()->patient_id)->toBe($patient->id);
     expect($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted);
 });
 
-test('invitation acceptance returns token for new users', function () {
+test('invitation acceptance returns a token for an unlinked account', function () {
     $lookupHash = app(CreateContactLookupHash::class);
 
     $patient = Patient::factory()->create([
@@ -165,6 +172,10 @@ test('invitation acceptance returns token for new users', function () {
     $user = User::factory()->create([
         'role_id' => Role::where('name', 'patient')->first()->id,
     ]);
+    PatientAccountContact::factory()->email('newuser@example.com')->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+    $challenge->update(['user_id' => $user->id]);
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/patient-invitations/accept', [
@@ -175,6 +186,104 @@ test('invitation acceptance returns token for new users', function () {
 
     $response->assertOk()
         ->assertJsonStructure(['data' => ['token', 'user', 'status']]);
+});
+
+test('invitation acceptance is idempotent for the authenticated account and keeps the token linked', function () {
+    $lookupHash = app(CreateContactLookupHash::class);
+    $email = 'repeat@example.com';
+
+    $patient = Patient::factory()->create([
+        'contact_email' => $email,
+        'contact_email_lookup_hash' => $lookupHash->forEmail($email),
+        'user_id' => null,
+    ]);
+
+    $staff = User::factory()->staff()->create();
+    $invitation = app(IssuePatientInvitation::class)->handle(
+        patient: $patient,
+        channel: 'email',
+        sender: $staff,
+    );
+
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+
+    PatientAccountContact::factory()->email($email)->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $code = '123456';
+    $challenge = OtpChallenge::factory()->pending()->create([
+        'user_id' => $user->id,
+        'code_digest' => Hash::make($code),
+        'purpose' => OtpPurpose::InvitationAcceptance,
+        'channel' => 'email',
+        'encrypted_destination' => $email,
+        'destination_hash' => $lookupHash->forEmail($email),
+    ]);
+    $token = $user->createToken('mobile')->plainTextToken;
+    $payload = [
+        'invitation_code' => $invitation->invitation_code,
+        'challenge_id' => $challenge->public_id,
+        'code' => $code,
+    ];
+
+    $this->withToken($token)
+        ->postJson('/api/v1/patient-invitations/accept', $payload)
+        ->assertOk()
+        ->assertJsonPath('data.status', 'linked')
+        ->assertJsonPath('data.user.link_status', 'linked');
+
+    $this->withToken($token)
+        ->getJson('/api/v1/me')
+        ->assertOk()
+        ->assertJsonPath('data.link_status', 'linked')
+        ->assertJsonPath('data.linked_patient.patient_number', $patient->patient_number);
+
+    $this->withToken($token)
+        ->postJson('/api/v1/patient-invitations/accept', $payload)
+        ->assertOk()
+        ->assertJsonPath('data.status', 'linked');
+
+    expect($patient->fresh()->user_id)->toBe($user->id)
+        ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted)
+        ->and($invitation->fresh()->accepted_by_user_id)->toBe($user->id)
+        ->and($challenge->fresh()->consumed_at)->not->toBeNull();
+});
+
+test('invitation OTP throttling returns a machine-readable response with retry information', function () {
+    $patient = Patient::factory()->create([
+        'contact_email' => 'rate-limit@example.com',
+    ]);
+    $staff = User::factory()->staff()->create();
+    $invitation = app(IssuePatientInvitation::class)->handle(
+        patient: $patient,
+        channel: 'email',
+        sender: $staff,
+    );
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+    $token = $user->createToken('mobile')->plainTextToken;
+
+    foreach (range(1, 5) as $attempt) {
+        $this->withToken($token)
+            ->postJson('/api/v1/patient-invitations/acceptance/otp', [
+                'invitation_code' => $invitation->invitation_code,
+            ])
+            ->assertOk();
+    }
+
+    $response = $this->withToken($token)
+        ->postJson('/api/v1/patient-invitations/acceptance/otp', [
+            'invitation_code' => $invitation->invitation_code,
+        ]);
+
+    $response->assertTooManyRequests()
+        ->assertJsonPath('error.code', 'OTP_RATE_LIMIT_REACHED');
+
+    expect($response->headers->get('Retry-After'))->not->toBeNull();
 });
 
 // --- Filament Actions ---

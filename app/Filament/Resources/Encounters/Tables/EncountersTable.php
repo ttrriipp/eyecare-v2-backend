@@ -20,6 +20,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\ValidationException;
 
 class EncountersTable
@@ -71,6 +72,11 @@ class EncountersTable
             ->filters([
                 SelectFilter::make('status')
                     ->options(EncounterStatus::class),
+                SelectFilter::make('optometrist')
+                    ->relationship('optometrist', 'first_name', fn (Builder $query): Builder => $query->optometrists())
+                    ->getOptionLabelFromRecordUsing(fn (User $user): string => $user->full_name)
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 ActionGroup::make([

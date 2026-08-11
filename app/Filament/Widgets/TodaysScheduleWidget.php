@@ -2,71 +2,120 @@
 
 namespace App\Filament\Widgets;
 
-use App\Enums\JobOrderStatus;
+use App\Enums\AppointmentStatusName;
+use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Models\Appointment;
-use App\Models\JobOrder;
+use App\Models\AppointmentStatus;
+use App\Models\Role;
+use Filament\Actions\Action;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class TodaysScheduleWidget extends TableWidget
 {
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     protected int|string|array $columnSpan = 'full';
 
     public function getHeading(): string
     {
-        $readyCount = JobOrder::query()
-            ->where('status', JobOrderStatus::ReadyForDispensing)
+        $roleNames = auth()->user()?->loadMissing('roles')->roles->pluck('name') ?? collect();
+        $isOptometristOnly = $roleNames->contains(Role::Optometrist)
+            && $roleNames->intersect([Role::Admin, Role::Staff])->isEmpty();
+        $appointmentCount = Appointment::query()
+            ->where('scheduled_at', '>=', today()->startOfDay())
+            ->where('scheduled_at', '<', today()->addDay()->startOfDay())
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', [
+                AppointmentStatusName::Cancelled->value,
+                AppointmentStatusName::NoShow->value,
+            ]))
+            ->when(
+                $isOptometristOnly,
+                fn (Builder $query): Builder => $query->where('optometrist_id', auth()->id()),
+            )
             ->count();
 
-        $heading = "Today's Schedule";
-
-        if ($readyCount > 0) {
-            $heading .= " · {$readyCount} job order".($readyCount > 1 ? 's' : '').' ready for dispensing';
-        }
-
-        return $heading;
+        return "Today's Patient Flow · {$appointmentCount} ".($appointmentCount === 1 ? 'appointment' : 'appointments');
     }
 
     public function table(Table $table): Table
     {
+        $roleNames = auth()->user()?->loadMissing('roles')->roles->pluck('name') ?? collect();
+        $isOptometristOnly = $roleNames->contains(Role::Optometrist)
+            && $roleNames->intersect([Role::Admin, Role::Staff])->isEmpty();
+        $checkedInStatusId = AppointmentStatus::query()
+            ->where('name', AppointmentStatusName::CheckedIn->value)
+            ->value('id') ?? 0;
+
         return $table
+            ->heading($this->getHeading())
+            ->description('Checked-in patients appear first, followed by upcoming appointments. Updates every 30 seconds.')
+            ->headerActions([
+                Action::make('viewFullSchedule')
+                    ->label('View Full Schedule')
+                    ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                    ->color('gray')
+                    ->url(AppointmentResource::getUrl('index', [
+                        'tableFilters' => [
+                            'scheduled_date' => ['scheduled_on' => today()->toDateString()],
+                        ],
+                    ])),
+            ])
             ->query(
                 Appointment::query()
-                    ->with(['patient', 'appointmentType', 'status'])
-                    ->whereDate('scheduled_at', today())
-                    ->whereHas('status', fn ($q) => $q->whereIn('name', ['pending', 'confirmed', 'arrived', 'scheduled', 'checked_in']))
+                    ->with(['patient', 'appointmentType', 'status', 'optometrist'])
+                    ->where('scheduled_at', '>=', today()->startOfDay())
+                    ->where('scheduled_at', '<', today()->addDay()->startOfDay())
+                    ->whereHas('status', fn (Builder $query): Builder => $query->whereIn('name', [
+                        AppointmentStatusName::Scheduled->value,
+                        AppointmentStatusName::CheckedIn->value,
+                    ]))
+                    ->where(fn (Builder $query): Builder => $query
+                        ->where('appointment_status_id', $checkedInStatusId)
+                        ->orWhere('scheduled_at', '>=', now()))
+                    ->when(
+                        $isOptometristOnly,
+                        fn (Builder $query): Builder => $query->where('optometrist_id', auth()->id()),
+                    )
+                    ->orderByRaw('CASE WHEN appointment_status_id = ? THEN 0 ELSE 1 END', [$checkedInStatusId])
                     ->orderBy('scheduled_at')
                     ->limit(5)
             )
+            ->poll('30s')
             ->paginated(false)
+            ->recordUrl(fn (Appointment $record): string => AppointmentResource::getUrl('edit', [
+                'record' => $record,
+            ]))
             ->columns([
                 TextColumn::make('scheduled_at')
                     ->label('Time')
                     ->time('g:i A'),
-                TextColumn::make('patient.first_name')
-                    ->label('Patient'),
+                TextColumn::make('patient.full_name')
+                    ->label('Patient')
+                    ->description(fn (Appointment $record): string => $record->patient?->patient_number ?? 'No patient number')
+                    ->weight('medium'),
                 TextColumn::make('patient.phone')
                     ->label('Phone')
-                    ->default('—'),
+                    ->placeholder('—'),
                 TextColumn::make('appointmentType.name')
-                    ->label('Appointment Type'),
+                    ->label('Visit')
+                    ->wrap(),
+                TextColumn::make('optometrist.full_name')
+                    ->label('Optometrist')
+                    ->state(fn (Appointment $record): string => $record->optometrist?->full_name ?? 'Unassigned')
+                    ->visible(! $isOptometristOnly),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pending' => 'warning',
-                        'confirmed' => 'info',
-                        'arrived' => 'warning',
-                        'scheduled' => 'info',
-                        'checked_in' => 'warning',
-                        default => 'gray',
-                    }),
+                    ->formatStateUsing(fn (string $state): string => AppointmentStatusName::tryFrom($state)?->getLabel() ?? Str::headline($state))
+                    ->color(fn (string $state): string => AppointmentStatusName::tryFrom($state)?->getColor() ?? 'gray'),
             ])
-            ->emptyStateHeading('No appointments today')
-            ->emptyStateDescription('All clear — no upcoming appointments scheduled for today.')
-            ->emptyStateIcon('heroicon-o-calendar');
+            ->emptyStateHeading('No patients waiting or due today')
+            ->emptyStateDescription('New appointments and checked-in patients will appear here automatically.')
+            ->emptyStateIcon(Heroicon::OutlinedCalendarDays);
     }
 }

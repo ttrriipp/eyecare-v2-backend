@@ -29,6 +29,18 @@ test('appointments list is paginated', function () {
         ]);
 });
 
+test('appointment resources serialize for patient accounts', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/appointments/{$appointment->id}")
+        ->assertSuccessful()
+        ->assertJsonPath('data.id', $appointment->id);
+});
+
 test('every appointment is linked-patient scoped', function () {
     $userA = User::factory()->patient()->create();
     $userB = User::factory()->patient()->create();

@@ -60,6 +60,8 @@ class PatientInvitationController extends Controller
             invitationCode: $request->input('invitation_code'),
             challengeId: $request->input('challenge_id'),
             code: $request->input('code'),
+            authenticatedUser: $request->user(),
+            ip: $request->ip(),
         );
 
         $user = $result['user'];

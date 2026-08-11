@@ -1,8 +1,12 @@
 <?php
 
 use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Enums\ReservationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
+use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
@@ -42,6 +46,7 @@ test('confirmation commits inventory for catalog-backed items', function () {
 });
 
 test('confirmation does not affect inventory for service items', function () {
+    $initialMovementCount = InventoryMovement::count();
     $quotation = Quotation::factory()->presented()->create(['total' => 750]);
     $quotation->items()->create([
         'description' => 'Fitting service',
@@ -52,7 +57,7 @@ test('confirmation does not affect inventory for service items', function () {
 
     app(AcceptAndStartOpticalOrder::class)->handle($quotation);
 
-    expect(InventoryMovement::count())->toBe(0);
+    expect(InventoryMovement::count())->toBe($initialMovementCount);
 });
 
 test('insufficient stock rolls back entire confirmation', function () {
@@ -113,4 +118,35 @@ test('multiple variants each have inventory committed', function () {
 
     expect($variant1->fresh()->stock_quantity)->toBe(8)
         ->and($variant2->fresh()->stock_quantity)->toBe(16);
+});
+
+test('legacy acceptance validates and converts the selected reservation once', function () {
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
+    $reservation->items()->create(['product_variant_id' => $variant->id]);
+
+    $quotation = Quotation::factory()->presented()->create([
+        'patient_id' => $reservation->patient_id,
+        'total' => 5000,
+    ]);
+    $quotation->items()->create([
+        'description' => 'Reserved frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+        'product_variant_id' => $variant->id,
+        'item_type' => TransactionItemType::Product,
+        'item_kind' => CommercialItemKind::Frame,
+    ]);
+
+    $result = app(AcceptAndStartOpticalOrder::class)->handle(
+        $quotation,
+        frameReservationId: $reservation->id,
+    );
+
+    expect($result['quotation']->frame_reservation_id)->toBe($reservation->id)
+        ->and($result['job_order']->frame_reservation_id)->toBe($reservation->id)
+        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Converted)
+        ->and($variant->fresh()->stock_quantity)->toBe(9)
+        ->and(InventoryMovement::where('product_variant_id', $variant->id)->count())->toBe(1);
 });

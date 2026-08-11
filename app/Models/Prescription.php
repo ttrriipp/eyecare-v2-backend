@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'previous_prescription_id',
     'amendment_reason',
     'created_by',
+    'voided_by',
+    'voided_at',
+    'void_reason',
     'main_od_value',
     'main_od_sphere',
     'main_od_cylinder',
@@ -116,6 +119,19 @@ class Prescription extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -140,6 +156,7 @@ class Prescription extends Model
             'amendment_reason' => 'encrypted',
             // Date
             'prescribed_at' => 'date',
+            'voided_at' => 'datetime',
         ];
     }
 }

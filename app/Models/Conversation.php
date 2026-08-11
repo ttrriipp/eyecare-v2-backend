@@ -19,6 +19,13 @@ class Conversation extends Model
     /** @use HasFactory<ConversationFactory> */
     use HasFactory, SoftDeletes;
 
+    protected function casts(): array
+    {
+        return [
+            'inbox_archived_at' => 'datetime',
+        ];
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */
@@ -56,5 +63,39 @@ class Conversation extends Model
     public function isHistorical(): bool
     {
         return $this->account_user_id === null && $this->patient_id !== null;
+    }
+
+    /**
+     * Archive the conversation from the staff inbox.
+     */
+    public function archiveInbox(): void
+    {
+        $this->update(['inbox_archived_at' => now()]);
+    }
+
+    /**
+     * Restore the conversation to the staff inbox.
+     */
+    public function restoreToInbox(): void
+    {
+        $this->update(['inbox_archived_at' => null]);
+    }
+
+    /**
+     * Check if the conversation is archived from the inbox.
+     */
+    public function isInboxArchived(): bool
+    {
+        return $this->inbox_archived_at !== null;
+    }
+
+    /**
+     * Automatically restore to inbox when a new message arrives.
+     */
+    public function autoRestoreOnNewMessage(): void
+    {
+        if ($this->isInboxArchived()) {
+            $this->restoreToInbox();
+        }
     }
 }

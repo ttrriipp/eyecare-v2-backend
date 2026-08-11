@@ -2,6 +2,7 @@
 
 namespace App\Actions\Auth;
 
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
 use App\Enums\OtpPurpose;
@@ -306,6 +307,7 @@ class RegisterPatientAccount
         }
 
         $patient->update(['user_id' => $user->id]);
+        app(AssociateAccountConversation::class)->handle($user, $patient);
         $invitation->accept($user);
     }
 

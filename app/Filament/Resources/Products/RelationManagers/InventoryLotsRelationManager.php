@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Products\RelationManagers;
 
 use App\Models\InventoryLot;
 use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
@@ -87,7 +86,6 @@ class InventoryLotsRelationManager extends RelationManager
             ])
             ->actions([
                 EditAction::make(),
-                DeleteAction::make(),
             ])
             ->bulkActions([]);
     }

@@ -3,6 +3,7 @@
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
+use App\Models\Conversation;
 use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
@@ -15,12 +16,17 @@ test('staff links a pending request to a patient and links the requesting accoun
     $account = User::factory()->create(['role_id' => Role::firstOrCreate(['name' => 'patient'])->id]);
     $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null, 'user_id' => $account->id]);
     $patient = Patient::factory()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $account->id,
+        'patient_id' => null,
+    ]);
 
     $updated = app(LinkAppointmentRequestToPatient::class)->handle($request, $patient);
 
     expect($updated->patient_id)->toBe($patient->id)
         ->and($updated->status)->toBe(AppointmentRequestStatus::Pending)
-        ->and($patient->fresh()->user_id)->toBe($account->id);
+        ->and($patient->fresh()->user_id)->toBe($account->id)
+        ->and($conversation->fresh()->patient_id)->toBe($patient->id);
 });
 
 test('cannot link an already-linked request', function () {

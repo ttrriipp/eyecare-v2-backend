@@ -6,6 +6,7 @@ use App\Actions\Reservations\AddFrameReservationItem;
 use App\Actions\Reservations\RemoveFrameReservationItem;
 use App\Enums\ReservationStatus;
 use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
 use App\Models\ProductVariant;
@@ -105,6 +106,40 @@ class ItemsRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->recordActions([
+                Action::make('useInQuotation')
+                    ->label('Use in Quotation')
+                    ->icon('heroicon-o-document-plus')
+                    ->color('success')
+                    ->visible(function (FrameReservationItem $record): bool {
+                        $reservation = $this->getOwnerRecord();
+                        $variant = $record->variant;
+
+                        return in_array($reservation->status, [
+                            ReservationStatus::Requested,
+                            ReservationStatus::Prepared,
+                            ReservationStatus::TriedOn,
+                        ], true)
+                            && ! $reservation->jobOrder()->exists()
+                            && $variant?->is_active === true
+                            && $variant->product?->is_active === true
+                            && $variant->product?->product_type === 'frame';
+                    })
+                    ->url(function (FrameReservationItem $record): string {
+                        $reservation = $this->getOwnerRecord();
+                        $encounter = $reservation->appointment?->encounter;
+                        $prescription = $encounter?->prescriptions()
+                            ->whereDoesntHave('nextPrescription')
+                            ->latest('id')
+                            ->first();
+
+                        return QuotationResource::getUrl('create', array_filter([
+                            'patient' => $reservation->patient_id,
+                            'reservation' => $reservation->id,
+                            'frame_reservation_item' => $record->id,
+                            'encounter' => $encounter?->id,
+                            'prescription' => $prescription?->id,
+                        ], fn (mixed $value): bool => $value !== null));
+                    }),
                 Action::make('removeFrame')
                     ->label('Remove')
                     ->icon('heroicon-o-x-mark')

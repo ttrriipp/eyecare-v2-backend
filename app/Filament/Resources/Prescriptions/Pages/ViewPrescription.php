@@ -2,18 +2,22 @@
 
 namespace App\Filament\Resources\Prescriptions\Pages;
 
+use App\Actions\Prescriptions\VoidPrescription;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class ViewPrescription extends ViewRecord
 {
@@ -182,6 +186,38 @@ class ViewPrescription extends ViewRecord
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion())
                 ->url(fn () => route('pdf.prescription', $this->getRecord()))
                 ->openUrlInNewTab(),
+
+            Action::make('voidPrescription')
+                ->label('Void Prescription')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => ! $this->getRecord()->isVoided()
+                    && auth()->user()?->isOptometrist() === true)
+                ->requiresConfirmation()
+                ->modalHeading('Void Prescription')
+                ->modalDescription('This will mark the prescription as voided. This action cannot be undone.')
+                ->modalSubmitActionLabel('Void Prescription')
+                ->schema([
+                    Textarea::make('reason')
+                        ->label('Reason for Voiding')
+                        ->required()
+                        ->maxLength(1000)
+                        ->rows(3),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(VoidPrescription::class)->handle(
+                            prescription: $this->getRecord(),
+                            actor: auth()->user(),
+                            reason: $data['reason'],
+                        );
+
+                        Notification::make()->title('Prescription voided')->success()->send();
+                        $this->refreshFormData([]);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot void prescription')->body($e->getMessage())->danger()->send();
+                    }
+                }),
         ];
     }
 }

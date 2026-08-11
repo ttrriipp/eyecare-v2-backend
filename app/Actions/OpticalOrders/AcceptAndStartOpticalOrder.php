@@ -6,11 +6,12 @@ use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
+use App\Actions\Quotations\ValidateQuotationFrameReservation;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
+use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
-use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\Quotation;
 use App\Models\User;
@@ -38,6 +39,7 @@ class AcceptAndStartOpticalOrder
         ?int $frameReservationId = null,
         string $fulfillmentMode = 'prepared',
         bool $usesExternalSupplier = false,
+        ?int $frameReservationItemId = null,
     ): array {
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
@@ -48,20 +50,49 @@ class AcceptAndStartOpticalOrder
         /** @var User $confirmer */
         $confirmer = auth()->user();
 
-        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $fulfillmentMode, $usesExternalSupplier, $confirmer) {
-            // Lock and accept the quotation if not already
+        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $fulfillmentMode, $usesExternalSupplier, $frameReservationItemId, $confirmer): array {
+            // Lock before validating the reservation or mutating acceptance.
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+            $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
+            $quotation->load('items');
 
-            if ($quotation->status !== QuotationStatus::Accepted) {
+            // Create or return existing Job Order (idempotent via direct quotation_id)
+            $jobOrder = JobOrder::query()
+                ->where('quotation_id', $quotation->id)
+                ->lockForUpdate()
+                ->first();
+
+            $legacyReservationId = $frameReservationId;
+
+            if ($legacyReservationId === null
+                && $frameReservationItemId === null
+                && $jobOrder?->frame_reservation_id !== null) {
+                $legacyReservationId = $jobOrder->frame_reservation_id;
+            }
+
+            $productItems = $quotation->items
+                ->where('item_type', TransactionItemType::Product)
+                ->values();
+
+            $reservation = app(ValidateQuotationFrameReservation::class)->handle(
+                quotation: $quotation,
+                productItems: $productItems,
+                legacyReservationItemId: $frameReservationItemId,
+                legacyReservationId: $legacyReservationId,
+                existingOpticalOrder: $jobOrder,
+            );
+
+            if ($reservation !== null && $quotation->frame_reservation_id === null) {
+                $quotation->update(['frame_reservation_id' => $reservation->id]);
+            }
+
+            if (! $wasAlreadyAccepted) {
                 $quotation->update([
                     'status' => QuotationStatus::Accepted,
                     'confirmed_by' => $confirmer->id,
                     'confirmed_at' => now(),
                 ]);
             }
-
-            // Create or return existing Job Order (idempotent via direct quotation_id)
-            $jobOrder = JobOrder::where('quotation_id', $quotation->id)->first();
 
             if ($jobOrder === null) {
                 $jobOrder = JobOrder::create([
@@ -89,16 +120,25 @@ class AcceptAndStartOpticalOrder
                     ]);
                 }
 
-                // Commit inventory for catalog-backed items
+                if ($reservation !== null) {
+                    app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
+                }
+
+                // Commit every catalog-backed order item exactly once.
                 app(CommitJobOrderInventory::class)->handle($jobOrder);
             }
 
-            // Resolve or create the Billing Record using the unified engine
-            $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
+            $jobOrder->refresh();
+
+            $billingRecord = $jobOrder->billingRecord()->first();
+
+            $billingRecord ??= app(ResolveOpenCheckoutBillingRecord::class)->handle(
                 patient: $quotation->patient,
                 jobOrder: $jobOrder,
                 encounter: $quotation->encounter,
             );
+
+            $billingRecord->update(['quotation_id' => $quotation->id]);
 
             // Snapshot Job Order items into Billing Record
             app(AppendJobOrderItemsToBillingRecord::class)->handle(
@@ -116,7 +156,12 @@ class AcceptAndStartOpticalOrder
             }
 
             // Record optional initial deposit
-            if ($depositAmount !== null && $depositAmount > 0) {
+            $alreadyRecordedInitialDeposit = $billingRecord->payments()
+                ->where('status', 'posted')
+                ->where('notes', 'Initial deposit at confirmation')
+                ->exists();
+
+            if ($depositAmount !== null && $depositAmount > 0 && ! $alreadyRecordedInitialDeposit) {
                 app(RecordBillingPayment::class)->handle(
                     billingRecord: $billingRecord,
                     amount: $depositAmount,
@@ -126,14 +171,6 @@ class AcceptAndStartOpticalOrder
                     notes: 'Initial deposit at confirmation',
                     chargesReviewed: true,
                 );
-            }
-
-            // Convert frame reservation if provided
-            if ($frameReservationId !== null) {
-                $reservation = FrameReservation::find($frameReservationId);
-                if ($reservation !== null) {
-                    app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
-                }
             }
 
             return [

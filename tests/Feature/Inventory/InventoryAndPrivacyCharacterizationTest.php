@@ -127,7 +127,7 @@ test('repeated cancellation does not double-restore stock', function () {
 
 // ─── Frame reservation conversion does not double-commit ─────────────────────
 
-test('converted frame reservation does not commit the selected frame twice', function () {
+test('converted frame reservation releases allocation for the normal order commitment', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 9]); // already decremented by prepare
     $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Prepared]);
     $reservation->items()->create(['product_variant_id' => $variant->id]);
@@ -144,13 +144,14 @@ test('converted frame reservation does not commit the selected frame twice', fun
 
     app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
 
-    // Stock unchanged - transfer, not double-commit
+    // The converter releases the held allocation. The normal Optical Order
+    // commitment runs separately and commits only the quoted frame.
     $variant->refresh();
-    expect($variant->stock_quantity)->toBe(9);
+    expect($variant->stock_quantity)->toBe(10);
 
-    // Two movements (release + commitment) but net zero
+    // Only the reservation release belongs to this action.
     $movements = InventoryMovement::where('product_variant_id', $variant->id)->count();
-    expect($movements)->toBe(2);
+    expect($movements)->toBe(1);
 });
 
 // ─── Cancellation voids billing when no payments exist ────────────────────────

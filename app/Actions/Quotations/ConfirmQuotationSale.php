@@ -15,7 +15,6 @@ use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
-use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -46,6 +45,7 @@ class ConfirmQuotationSale
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
         ?int $frameReservationId = null,
+        ?int $frameReservationItemId = null,
     ): array {
         // Validate status
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
@@ -54,17 +54,11 @@ class ConfirmQuotationSale
             ]);
         }
 
-        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId) {
-            // Lock and accept the quotation if not already
+        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $frameReservationItemId): array {
+            // Lock the quotation before validating any reservation or creating
+            // downstream records. The status changes only after validation.
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
-
-            if ($quotation->status !== QuotationStatus::Accepted) {
-                $quotation->update([
-                    'status' => QuotationStatus::Accepted,
-                    'confirmed_by' => $confirmer->id,
-                    'confirmed_at' => now(),
-                ]);
-            }
+            $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
 
             // Separate Product and Service items
             $productItems = $quotation->items()
@@ -89,11 +83,35 @@ class ConfirmQuotationSale
                 prescription: $prescription,
             );
 
-            // Create Optical Order only if there are Product lines
-            $opticalOrder = null;
-            if ($productItems->isNotEmpty()) {
-                $opticalOrder = JobOrder::where('quotation_id', $quotation->id)->first();
+            $opticalOrder = $productItems->isNotEmpty()
+                ? JobOrder::query()
+                    ->where('quotation_id', $quotation->id)
+                    ->lockForUpdate()
+                    ->first()
+                : null;
 
+            $reservation = app(ValidateQuotationFrameReservation::class)->handle(
+                quotation: $quotation,
+                productItems: $productItems,
+                legacyReservationItemId: $frameReservationItemId,
+                legacyReservationId: $frameReservationId,
+                existingOpticalOrder: $opticalOrder,
+            );
+
+            if ($reservation !== null && $quotation->frame_reservation_id === null) {
+                $quotation->update(['frame_reservation_id' => $reservation->id]);
+            }
+
+            if (! $wasAlreadyAccepted) {
+                $quotation->update([
+                    'status' => QuotationStatus::Accepted,
+                    'confirmed_by' => $confirmer->id,
+                    'confirmed_at' => now(),
+                ]);
+            }
+
+            // Create Optical Order only if there are Product lines
+            if ($productItems->isNotEmpty()) {
                 if ($opticalOrder === null) {
                     $opticalOrder = JobOrder::create([
                         'patient_id' => $quotation->patient_id,
@@ -123,22 +141,16 @@ class ConfirmQuotationSale
                         ]);
                     }
 
-                    // Convert the frame reservation first, if one was selected — its
-                    // variants already have stock allocated, so they must be excluded
-                    // from the normal commitment below to avoid double-committing.
-                    $reservedVariantIds = [];
-
-                    if ($frameReservationId !== null) {
-                        $reservation = FrameReservation::find($frameReservationId);
-
-                        if ($reservation !== null) {
-                            app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $opticalOrder);
-                            $reservedVariantIds = $reservation->items->pluck('product_variant_id')->all();
-                        }
+                    if ($reservation !== null) {
+                        app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $opticalOrder);
                     }
 
-                    // Commit inventory for catalog-backed items not already covered above
-                    app(CommitJobOrderInventory::class)->handle($opticalOrder, excludeProductVariantIds: $reservedVariantIds);
+                    // Commit every quoted catalog item exactly once. A prepared
+                    // reservation has already released all of its candidates;
+                    // only the selected frame is present in these order items.
+                    app(CommitJobOrderInventory::class)->handle($opticalOrder);
+
+                    $opticalOrder->refresh();
 
                     // Create eyewear specification shell for corrective orders
                     if ($validationResult['is_corrective'] && $prescription !== null) {
@@ -148,7 +160,19 @@ class ConfirmQuotationSale
             }
 
             // Resolve or create the Billing Record
-            $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
+            $billingRecord = BillingRecord::query()
+                ->where('quotation_id', $quotation->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($billingRecord === null && $opticalOrder !== null) {
+                $billingRecord = BillingRecord::query()
+                    ->where('job_order_id', $opticalOrder->id)
+                    ->lockForUpdate()
+                    ->first();
+            }
+
+            $billingRecord ??= app(ResolveOpenCheckoutBillingRecord::class)->handle(
                 patient: $quotation->patient,
                 jobOrder: $opticalOrder,
                 encounter: $quotation->encounter,
@@ -174,7 +198,7 @@ class ConfirmQuotationSale
             $billingRecord->update([
                 'quotation_id' => $quotation->id,
                 'discount_amount' => $quotation->discount_amount,
-                'payment_due_date' => $paymentDueDate,
+                'payment_due_date' => $paymentDueDate ?? $billingRecord->payment_due_date,
             ]);
 
             // Recalculate totals
@@ -185,7 +209,12 @@ class ConfirmQuotationSale
             );
 
             // Record optional deposit
-            if ($depositAmount !== null && $depositAmount > 0) {
+            $alreadyRecordedInitialDeposit = $billingRecord->payments()
+                ->where('status', 'posted')
+                ->where('notes', 'Initial deposit at confirmation')
+                ->exists();
+
+            if ($depositAmount !== null && $depositAmount > 0 && ! $alreadyRecordedInitialDeposit) {
                 app(RecordBillingPayment::class)->handle(
                     billingRecord: $billingRecord,
                     amount: $depositAmount,

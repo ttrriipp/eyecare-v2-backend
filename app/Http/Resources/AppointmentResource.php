@@ -67,7 +67,7 @@ class AppointmentResource extends JsonResource
     /**
      * Format the visit rating for the API response.
      */
-    private function formatVisitRating(?mixed $patient): ?array
+    private function formatVisitRating(mixed $patient): ?array
     {
         $rating = $this->visitRating;
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Patients\Pages;
 
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EditPatient extends EditRecord
@@ -215,7 +217,10 @@ class EditPatient extends EditRecord
                     }
 
                     // Activate the link
-                    $patient->update(['user_id' => $user->id]);
+                    DB::transaction(function () use ($patient, $user): void {
+                        $patient->update(['user_id' => $user->id]);
+                        app(AssociateAccountConversation::class)->handle($user, $patient);
+                    });
 
                     $this->record->refresh();
 

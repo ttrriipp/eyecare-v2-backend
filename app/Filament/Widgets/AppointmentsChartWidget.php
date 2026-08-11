@@ -2,8 +2,11 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
+use App\Models\Role;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 
 class AppointmentsChartWidget extends ChartWidget
@@ -12,17 +15,26 @@ class AppointmentsChartWidget extends ChartWidget
 
     protected ?string $pollingInterval = null;
 
-    protected ?string $heading = 'Appointment volume';
-
-    protected ?string $maxHeight = '300px';
+    protected ?string $heading = 'Appointment trend';
 
     protected int|string|array $columnSpan = 'full';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 4;
+
+    public static function canView(): bool
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        return $user->loadMissing('roles')->roles->pluck('name')->contains(Role::Admin);
+    }
 
     public function getDescription(): ?string
     {
-        return 'Daily appointments over the last 30 days.';
+        return 'Daily non-cancelled appointments over the last 30 days.';
     }
 
     protected function getType(): string
@@ -35,18 +47,23 @@ class AppointmentsChartWidget extends ChartWidget
      */
     protected function getData(): array
     {
-        return Cache::remember('dashboard.appointments_chart', now()->addMinutes(5), function () {
-            $days = 30;
-            $start = today()->subDays($days - 1);
+        $days = 30;
+        $start = today()->subDays($days - 1)->startOfDay();
+        $end = today()->addDay()->startOfDay();
+        $cacheKey = "dashboard.appointments_chart.{$start->toDateString()}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($days, $start, $end): array {
 
             $countsByDay = Appointment::query()
-                ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
-                ->whereDate('scheduled_at', '>=', $start)
-                ->whereDate('scheduled_at', '<=', today())
-                ->get(['scheduled_at'])
-                ->groupBy(fn (Appointment $appointment): string => $appointment->scheduled_at->toDateString())
-                ->map
-                ->count();
+                ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', [
+                    AppointmentStatusName::Cancelled->value,
+                    AppointmentStatusName::NoShow->value,
+                ]))
+                ->where('scheduled_at', '>=', $start)
+                ->where('scheduled_at', '<', $end)
+                ->selectRaw('DATE(scheduled_at) as appointment_date, COUNT(*) as appointment_count')
+                ->groupBy('appointment_date')
+                ->pluck('appointment_count', 'appointment_date');
 
             $labels = [];
             $data = [];
@@ -54,7 +71,7 @@ class AppointmentsChartWidget extends ChartWidget
             for ($offset = 0; $offset < $days; $offset++) {
                 $date = $start->copy()->addDays($offset);
                 $labels[] = $date->format('M j');
-                $data[] = $countsByDay->get($date->toDateString(), 0);
+                $data[] = (int) $countsByDay->get($date->toDateString(), 0);
             }
 
             return [

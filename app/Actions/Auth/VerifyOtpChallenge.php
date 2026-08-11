@@ -3,6 +3,7 @@
 namespace App\Actions\Auth;
 
 use App\Enums\OtpPurpose;
+use App\Exceptions\OtpRateLimitReached;
 use App\Models\OtpChallenge;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,7 +24,7 @@ class VerifyOtpChallenge
             $query->where('user_id', $expectedUserId);
         }
 
-        $challenge = $query->first();
+        $challenge = $query->lockForUpdate()->first();
 
         if ($challenge === null) {
             throw ValidationException::withMessages([
@@ -81,15 +82,11 @@ class VerifyOtpChallenge
         $windowMinutes = config('patient_accounts.otp.window_minutes', 15);
 
         if (RateLimiter::tooManyAttempts($destinationKey, $destinationLimit)) {
-            throw ValidationException::withMessages([
-                'code' => ['Too many verification attempts. Please try again later.'],
-            ]);
+            throw new OtpRateLimitReached(RateLimiter::availableIn($destinationKey));
         }
 
         if ($ip !== null && RateLimiter::tooManyAttempts($ipKey, $ipLimit)) {
-            throw ValidationException::withMessages([
-                'code' => ['Too many verification attempts. Please try again later.'],
-            ]);
+            throw new OtpRateLimitReached(RateLimiter::availableIn($ipKey));
         }
 
         RateLimiter::hit($destinationKey, $windowMinutes * 60);

@@ -2,6 +2,7 @@
 
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Enums\OtpPurpose;
+use App\Exceptions\OtpRateLimitReached;
 use App\Models\OtpChallenge;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -103,6 +104,25 @@ test('wrong code increments attempts', function () {
     }
 
     expect($challenge->fresh()->attempts)->toBe(1);
+});
+
+test('verification rate limits expose a stable OTP exception', function () {
+    $challenge = OtpChallenge::factory()->pending()->create([
+        'code_digest' => Hash::make('123456'),
+    ]);
+    $key = 'otp_verify:'.$challenge->destination_hash;
+    $limit = config('patient_accounts.otp.verification_limit_per_destination_per_window', 10);
+    $window = config('patient_accounts.otp.window_minutes', 15) * 60;
+
+    foreach (range(1, $limit) as $attempt) {
+        RateLimiter::hit($key, $window);
+    }
+
+    expect(fn () => app(VerifyOtpChallenge::class)->handle(
+        challengeId: $challenge->public_id,
+        code: '123456',
+        expectedPurpose: OtpPurpose::Registration,
+    ))->toThrow(OtpRateLimitReached::class);
 });
 
 test('exhausted attempts invalidate the challenge', function () {

@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'patient_id',
     'encounter_id',
     'prescription_id',
+    'frame_reservation_id',
     'status',
     'valid_until',
     'subtotal',
@@ -27,6 +28,7 @@ use Illuminate\Support\Str;
     'presented_at',
     'confirmed_by',
     'confirmed_at',
+    'decline_reason',
     'notes',
     'internal_notes',
     'eyewear_key',
@@ -72,6 +74,14 @@ class Quotation extends Model
     public function prescription(): BelongsTo
     {
         return $this->belongsTo(Prescription::class);
+    }
+
+    /**
+     * @return BelongsTo<FrameReservation, $this>
+     */
+    public function frameReservation(): BelongsTo
+    {
+        return $this->belongsTo(FrameReservation::class);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
@@ -54,6 +55,8 @@ class LinkAppointmentRequestToPatient
                 ]);
             }
 
+            app(AssociateAccountConversation::class)->handle($account, $patient);
+
             return;
         }
 
@@ -68,5 +71,7 @@ class LinkAppointmentRequestToPatient
         if ($patient->user_id === null) {
             $patient->update(['user_id' => $account->id]);
         }
+
+        app(AssociateAccountConversation::class)->handle($account, $patient);
     }
 }

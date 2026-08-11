@@ -29,13 +29,6 @@ class AppendJobOrderItemsToBillingRecord
             ]);
         }
 
-        // Validate no posted payments (charge set lock)
-        if ($billingRecord->payments()->where('status', 'posted')->exists()) {
-            throw ValidationException::withMessages([
-                'billing_record' => ['Cannot add items to a Billing Record with posted payments.'],
-            ]);
-        }
-
         // Check for existing items from this job order (idempotent)
         $existingItemIds = $billingRecord->items()
             ->whereNotNull('job_order_item_id')
@@ -45,6 +38,26 @@ class AppendJobOrderItemsToBillingRecord
         $newItems = $jobOrder->items()
             ->whereNotIn('id', $existingItemIds)
             ->get();
+
+        if ($newItems->isEmpty()) {
+            if (! $jobOrder->items()->exists()
+                && $billingRecord->payments()->where('status', 'posted')->exists()) {
+                throw ValidationException::withMessages([
+                    'billing_record' => ['Cannot add items to a Billing Record with posted payments.'],
+                ]);
+            }
+
+            return;
+        }
+
+        // Validate no posted payments (charge set lock) only when a new charge
+        // would actually be added. Replaying an already snapshotted order is
+        // intentionally idempotent, including after a deposit is posted.
+        if ($billingRecord->payments()->where('status', 'posted')->exists()) {
+            throw ValidationException::withMessages([
+                'billing_record' => ['Cannot add items to a Billing Record with posted payments.'],
+            ]);
+        }
 
         foreach ($newItems as $item) {
             BillingRecordItem::create([

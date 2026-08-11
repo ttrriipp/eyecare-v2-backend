@@ -9,6 +9,7 @@ use App\Actions\Encounters\CreateEncounterAddendum;
 use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
+use App\Actions\Encounters\VoidEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
@@ -678,6 +679,39 @@ class EditEncounter extends EditRecord
                             ->send();
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
+            // ── Void encounter ──
+            Action::make('voidEncounter')
+                ->label('Void Encounter')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)
+                    && (auth()->user()?->isAdmin() || auth()->user()?->isOptometrist()))
+                ->requiresConfirmation()
+                ->modalHeading('Void Encounter')
+                ->modalDescription('This will mark the encounter as voided. This action cannot be undone.')
+                ->modalSubmitActionLabel('Void Encounter')
+                ->schema([
+                    Textarea::make('reason')
+                        ->label('Reason for Voiding')
+                        ->required()
+                        ->maxLength(1000)
+                        ->rows(3),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        app(VoidEncounter::class)->handle(
+                            encounter: $this->record,
+                            actor: auth()->user(),
+                            reason: $data['reason'],
+                        );
+
+                        Notification::make()->title('Encounter voided')->success()->send();
+                        $this->refreshFormData(['status']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot void encounter')->body($e->getMessage())->danger()->send();
                     }
                 }),
         ];

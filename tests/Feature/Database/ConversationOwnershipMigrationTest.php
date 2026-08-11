@@ -8,6 +8,7 @@
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -61,4 +62,20 @@ test('messages and attachments survive migration', function () {
     // Messages are preserved
     expect($conversation->messages()->count())->toBe(1)
         ->and($conversation->messages->first()->body)->toBe('Test message');
+});
+
+test('account-owned conversations are reconciled to the current patient link', function () {
+    $account = User::factory()->create();
+    $patient = Patient::factory()->create([
+        'user_id' => $account->id,
+    ]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $account->id,
+        'patient_id' => null,
+    ]);
+
+    $migration = require base_path('database/migrations/2026_08_11_183952_reconcile_account_owned_conversation_patient_links.php');
+    $migration->up();
+
+    expect($conversation->fresh()->patient_id)->toBe($patient->id);
 });
