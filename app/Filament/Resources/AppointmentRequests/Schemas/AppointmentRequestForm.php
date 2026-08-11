@@ -59,9 +59,35 @@ class AppointmentRequestForm
 
                         Placeholder::make('alternative_preferences')
                             ->label('Submitted Time Preferences')
-                            ->content(fn ($record): string => collect($record?->getAllTimePreferences() ?? [])
-                                ->map(fn (string $time): string => Carbon::parse($time)->format('M j, Y g:i A'))
-                                ->implode('; ') ?: '—')
+                            ->content(function ($record): HtmlString {
+                                if ($record === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                $rows = [];
+
+                                // Primary time
+                                $rows[] = '<tr>'
+                                    .'<td class="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">Primary</td>'
+                                    .'<td class="px-2 py-1 text-sm font-medium text-gray-800 dark:text-gray-100">'
+                                    .e($record->scheduled_at?->format('M j, Y g:i A') ?? '—')
+                                    .'</td></tr>';
+
+                                // Alternative times
+                                if (! empty($record->alternative_scheduled_times)) {
+                                    foreach ($record->alternative_scheduled_times as $index => $time) {
+                                        $rows[] = '<tr>'
+                                            .'<td class="px-2 py-1 text-xs text-gray-500 dark:text-gray-400">Alt '.($index + 1).'</td>'
+                                            .'<td class="px-2 py-1 text-sm text-gray-700 dark:text-gray-200">'
+                                            .e(Carbon::parse($time)->format('M j, Y g:i A'))
+                                            .'</td></tr>';
+                                    }
+                                }
+
+                                return new HtmlString(
+                                    '<table class="text-sm"><tbody>'.implode('', $rows).'</tbody></table>'
+                                );
+                            })
                             ->columnSpanFull(),
 
                         Textarea::make('encrypted_reason_for_visit')
