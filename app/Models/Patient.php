@@ -44,10 +44,16 @@ class Patient extends Model
         });
 
         static::saving(function (Patient $patient): void {
-            if ($patient->isDirty('phone')) {
-                $patient->phone_lookup_hash = filled($patient->phone)
-                    ? app(CreateContactLookupHash::class)->forPhone($patient->phone)
-                    : null;
+            if ($patient->isDirty('phone') && filled($patient->phone)) {
+                try {
+                    $patient->phone_lookup_hash = app(CreateContactLookupHash::class)->forPhone($patient->phone);
+                } catch (\InvalidArgumentException) {
+                    throw ValidationException::withMessages([
+                        'phone' => ['Please enter a valid Philippine phone number (e.g., 9171234567).'],
+                    ]);
+                }
+            } elseif ($patient->isDirty('phone')) {
+                $patient->phone_lookup_hash = null;
             }
 
             if ($patient->isDirty('contact_email')) {
