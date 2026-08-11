@@ -49,7 +49,9 @@ class PatientForm
                             ->dehydrateStateUsing(fn (?string $state): ?string => $state !== null
                                 ? '+63'.preg_replace('/[^0-9]/', '', $state)
                                 : null
-                            ),
+                            )
+                            ->rule('regex:/^[0-9]{10}$/')
+                            ->validationAttribute('phone number'),
                         TextInput::make('contact_email')
                             ->label('Email')
                             ->email()
