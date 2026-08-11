@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\VisitRatings\Tables;
 
 use App\Actions\Ratings\ModerateVisitRating;
+use App\Filament\Resources\VisitRatings\VisitRatingResource;
 use App\Models\VisitRating;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -48,11 +49,6 @@ class VisitRatingsTable
                     })
                     ->formatStateUsing(fn (int $state): string => str_repeat('★', $state).str_repeat('☆', 5 - $state)),
 
-                TextColumn::make('comment')
-                    ->label('Comment')
-                    ->limit(50)
-                    ->wrap(),
-
                 IconColumn::make('is_hidden')
                     ->label('Hidden')
                     ->boolean()
@@ -78,6 +74,11 @@ class VisitRatingsTable
                     ->query(fn (Builder $query) => $query->where('is_hidden', true)),
             ])
             ->recordActions([
+                Action::make('view')
+                    ->label('View')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn (VisitRating $record) => VisitRatingResource::getUrl('view', ['record' => $record])),
+
                 Action::make('hideComment')
                     ->label('Hide Comment')
                     ->icon('heroicon-o-eye-slash')

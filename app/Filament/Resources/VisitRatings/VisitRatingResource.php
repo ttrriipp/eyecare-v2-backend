@@ -3,10 +3,13 @@
 namespace App\Filament\Resources\VisitRatings;
 
 use App\Filament\Resources\VisitRatings\Pages\ListVisitRatings;
+use App\Filament\Resources\VisitRatings\Pages\ViewVisitRating;
+use App\Filament\Resources\VisitRatings\Schemas\VisitRatingInfolist;
 use App\Filament\Resources\VisitRatings\Tables\VisitRatingsTable;
 use App\Models\VisitRating;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
@@ -32,15 +35,26 @@ class VisitRatingResource extends Resource
         return false; // Feedback originates from mobile only
     }
 
+    public static function infolist(Schema $schema): Schema
+    {
+        return VisitRatingInfolist::configure($schema);
+    }
+
     public static function table(Table $table): Table
     {
         return VisitRatingsTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListVisitRatings::route('/'),
+            'view' => ViewVisitRating::route('/{record}'),
         ];
     }
 }
