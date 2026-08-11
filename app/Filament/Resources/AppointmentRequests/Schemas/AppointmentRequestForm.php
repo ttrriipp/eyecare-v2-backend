@@ -7,6 +7,9 @@ use App\Enums\AppointmentRequestStatus;
 use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
+use Filament\Infolists\Components\RepeatableEntry;
+use Filament\Infolists\Components\RepeatableEntry\TableColumn;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
@@ -57,37 +60,46 @@ class AppointmentRequestForm
                             ->label('Referral Context')
                             ->content(fn ($record): string => $record?->encrypted_referring_source ?? 'None'),
 
-                        Placeholder::make('alternative_preferences')
+                        RepeatableEntry::make('time_preferences')
                             ->label('Submitted Time Preferences')
-                            ->content(function ($record): HtmlString {
+                            ->state(function ($record): array {
                                 if ($record === null) {
-                                    return new HtmlString('—');
+                                    return [];
                                 }
 
-                                $rows = [];
+                                $rows = collect();
 
-                                // Primary time
-                                $rows[] = '<tr>'
-                                    .'<td class="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">Primary</td>'
-                                    .'<td class="px-2 py-1 text-sm font-medium text-gray-800 dark:text-gray-100">'
-                                    .e($record->scheduled_at?->format('M j, Y g:i A') ?? '—')
-                                    .'</td></tr>';
+                                $rows->push([
+                                    'label' => 'Primary',
+                                    'time' => $record->scheduled_at?->format('M j, Y g:i A') ?? '—',
+                                    'is_primary' => true,
+                                ]);
 
-                                // Alternative times
                                 if (! empty($record->alternative_scheduled_times)) {
                                     foreach ($record->alternative_scheduled_times as $index => $time) {
-                                        $rows[] = '<tr>'
-                                            .'<td class="px-2 py-1 text-xs text-gray-500 dark:text-gray-400">Alt '.($index + 1).'</td>'
-                                            .'<td class="px-2 py-1 text-sm text-gray-700 dark:text-gray-200">'
-                                            .e(Carbon::parse($time)->format('M j, Y g:i A'))
-                                            .'</td></tr>';
+                                        $rows->push([
+                                            'label' => 'Alt '.($index + 1),
+                                            'time' => Carbon::parse($time)->format('M j, Y g:i A'),
+                                            'is_primary' => false,
+                                        ]);
                                     }
                                 }
 
-                                return new HtmlString(
-                                    '<table class="text-sm"><tbody>'.implode('', $rows).'</tbody></table>'
-                                );
+                                return $rows->all();
                             })
+                            ->table([
+                                TableColumn::make('label'),
+                                TableColumn::make('time'),
+                            ])
+                            ->schema([
+                                TextEntry::make('label')
+                                    ->hiddenLabel()
+                                    ->badge()
+                                    ->color(fn (array $state): string => $state['is_primary'] ?? false ? 'primary' : 'gray'),
+                                TextEntry::make('time')
+                                    ->hiddenLabel(),
+                            ])
+                            ->columns(2)
                             ->columnSpanFull(),
 
                         Textarea::make('encrypted_reason_for_visit')
