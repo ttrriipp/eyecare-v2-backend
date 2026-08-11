@@ -64,7 +64,7 @@ class EncounterForm
         return $schema->columns(1)->components([
             Section::make()
                 ->schema([
-                    Grid::make(4)
+                    Grid::make(5)
                         ->schema([
                             Placeholder::make('encounter_number')
                                 ->label('Encounter #')
