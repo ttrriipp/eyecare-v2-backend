@@ -563,6 +563,126 @@ class EditEncounter extends EditRecord
                         }
                     }
 
+                    // Completed: add service charge
+                    if ($this->record->status === EncounterStatus::Completed) {
+                        $latestBilling = $this->latestBillingRecord();
+                        $label = $latestBilling?->status !== null
+                            && in_array($latestBilling->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true)
+                            ? 'Add Another Service Charge'
+                            : 'Add Service Charge';
+
+                        $actions[] = Action::make('addCharge')
+                            ->label($label)
+                            ->icon('heroicon-o-plus-circle')
+                            ->color('warning')
+                            ->schema([
+                                Repeater::make('items')
+                                    ->hiddenLabel()
+                                    ->schema([
+                                        Select::make('service_id')
+                                            ->label('Service')
+                                            ->options(fn (): array => Service::query()
+                                                ->active()
+                                                ->orderBy('name')
+                                                ->get()
+                                                ->mapWithKeys(fn (Service $service): array => [
+                                                    $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
+                                                ])
+                                                ->all())
+                                            ->nullable()
+                                            ->helperText('Optional. Leave blank for a custom service charge.')
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->columnSpanFull()
+                                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                                $service = Service::query()->find($state);
+
+                                                if ($service === null) {
+                                                    return;
+                                                }
+
+                                                $set('description', $service->name);
+                                                $set('unit_price', $service->price);
+                                                $set('line_total', number_format(
+                                                    ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                                    2,
+                                                ));
+                                            }),
+                                        TextInput::make('description')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->columnSpanFull(),
+                                        Grid::make(3)
+                                            ->columnSpanFull()
+                                            ->schema([
+                                                TextInput::make('quantity')
+                                                    ->numeric()
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->default(1)
+                                                    ->required()
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                                        $set('line_total', number_format(
+                                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                            2,
+                                                        ));
+                                                    }),
+                                                TextInput::make('unit_price')
+                                                    ->label('Unit Price')
+                                                    ->numeric()
+                                                    ->prefix('₱')
+                                                    ->minValue(0)
+                                                    ->required()
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                                        $set('line_total', number_format(
+                                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                            2,
+                                                        ));
+                                                    }),
+                                                TextInput::make('line_total')
+                                                    ->label('Line Total')
+                                                    ->prefix('₱')
+                                                    ->disabled()
+                                                    ->dehydrated(false),
+                                            ]),
+                                    ])
+                                    ->columns(2)
+                                    ->defaultItems(0)
+                                    ->minItems(1)
+                                    ->addActionLabel('Add Service Line'),
+
+                                Placeholder::make('total')
+                                    ->label('Total')
+                                    ->content(function (Get $get): string {
+                                        $total = collect($get('items') ?? [])->sum(
+                                            fn (array $item): float => ((float) ($item['quantity'] ?? 0))
+                                                * ((float) ($item['unit_price'] ?? 0)),
+                                        );
+
+                                        return '₱'.number_format($total, 2);
+                                    }),
+                            ])
+                            ->action(function (array $data): void {
+                                try {
+                                    $billingRecord = app(AddEncounterChargesToBilling::class)->handle(
+                                        encounter: $this->record,
+                                        items: $data['items'],
+                                    );
+
+                                    Notification::make()
+                                        ->title('Charge added')
+                                        ->body("Billing Record: {$billingRecord->billing_record_number}")
+                                        ->success()
+                                        ->send();
+                                } catch (ValidationException $e) {
+                                    Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
+                                }
+                            });
+                    }
+
                     return $actions;
                 }),
         ];
