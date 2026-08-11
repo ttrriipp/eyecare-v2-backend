@@ -2,7 +2,7 @@
 
 > **Backend version:** Current repository state (2026-08-11) — optical commerce and dispensing implementation complete, with resilient patient invitation linking and additive API rate-limit errors. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
-> **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
+> **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
 > **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped. `?filter=` works on both quotations and optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
 >
@@ -915,6 +915,7 @@ Returns active, patient-visible appointment types.
 - Only active, patient-visible types are returned.
 - `name` is the patient label (falls back to internal name if patient label is null).
 - Inactive types and internal-only types are excluded.
+- Results are ordered by the internal appointment type name in ascending order; internal names are not exposed when a patient label is configured.
 
 ---
 
@@ -1006,6 +1007,7 @@ Paginated list of the authenticated account's appointment requests.
       "patient_id": null,
       "scheduled_at": "2026-07-28T10:00:00+08:00",
       "reason_for_visit": "Blurred vision in left eye",
+      "rejection_reason": null,
       "expires_at": "2026-07-29T10:00:00+08:00",
       "created_at": "2026-07-27T10:00:00+08:00",
       "appointment": null
@@ -1021,6 +1023,7 @@ Paginated list of the authenticated account's appointment requests.
 **Notes:**
 - `patient_id` is `null` for unlinked accounts.
 - `appointment` is populated only when `status` is `accepted`.
+- `rejection_reason` is `null` for non-rejected requests; contains the staff-provided reason when `status` is `rejected`.
 - Identity snapshots and contact details are excluded from list responses.
 
 ---
@@ -2305,6 +2308,8 @@ The following routes are **removed** in the coordinated Android cutover:
 | `GET /patient-link-requests/current` | Get current link request |
 | `POST /patient-invitations/acceptance/otp` | Request invitation OTP |
 | `POST /patient-invitations/accept` | Accept invitation and activate link |
+| `GET /appointment-types` | List active, patient-visible appointment types |
+| `GET /appointment-optometrists` | List active optometrists with patient-safe fields |
 | `GET /appointment-request-availability` | Get available slots for requests |
 | `GET /appointment-requests` | List own requests |
 | `POST /appointment-requests` | Create request |
@@ -2335,7 +2340,6 @@ The following old mobile features/routes are **intentionally retired**:
 | Feature | Status |
 |---|---|
 | Direct `POST /appointments` | Retired. All mobile bookings use appointment requests. |
-| Patient-selectable `GET /appointment-types` | Retired. Type is internal, resolved by staff at acceptance. |
 | Patient intake routes (`/appointments/{id}/intake`) | Retired. Clinical data moves to Encounter. |
 | Patient-completed intake forms | Retired. Only free-text reason for visit at booking. |
 | Accessories and orders (`/orders`, `/accessories`) | Retired. |
@@ -2373,8 +2377,8 @@ authenticated unlinked account may browse frames but cannot reserve one. The
 ### Appointment requests vs confirmed appointments
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
 
-### No appointment type selection by patients
-The mobile API does not expose `appointment_type_id` for booking. The internal Appointment Type is resolved by staff when accepting the request. The system may prefill `New Patient` when the resolved patient has no fulfilled clinical visit.
+### Appointment type selection by patients
+The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
 
 ### Reason for visit
 Appointment requests require a free-text `reason_for_visit` (max 1000 characters). This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
@@ -2539,10 +2543,12 @@ POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above
 ```
 
-**Route count:** 8 public + 24 account-only + 21 active-link = **53 routes total.**
+**Route count:** 8 public + 29 account-only + 18 active-link = **55 routes total.**
 
-> **Corrected 2026-08-07 (was 51).** `POST /api/v1/job-order-items/{id}/rating` is a
+> **Historical correction (2026-08-07).** `POST /api/v1/job-order-items/{id}/rating` is a
 > **legacy alias** of `POST /api/v1/optical-order-items/{id}/rating` — same controller,
 > same behavior — kept for Android builds predating the Optical Order rename. It was
-> undocumented, which is why the count was one short. **New clients should use
+> undocumented, which is why the route count previously read 51 instead of 52, then
+> 53 after the visit-rating route was added. The current count is 55 after the two
+> account-only appointment catalog routes were added. **New clients should use
 > `optical-order-items`;** the alias is retained but will not gain new behavior.

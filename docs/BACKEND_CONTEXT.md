@@ -152,10 +152,13 @@ server-side rules.
 > 15-minute start grid. Pending requests are non-binding and never consume
 > capacity. Acceptance atomically creates one conflict-free appointment
 > with a final provider, start time, type, and duration snapshot. Six
-> canonical types are seeded: New Patient (45m), Follow-up (15m), Routine
-> Check-up (30m), Problem/Urgent Visit (30m), Contact Lens Consultation
-> (45m), Referral (45m, requires referral source). The API contract
-> includes 55 routes (8 public, 26 account-only, 21 active-link). New
+> canonical types are seeded; the API exposes patient-facing labels: New Patient
+> → First eye examination (45m), Follow-up → Follow-up requested by the
+> optometrist (15m), Routine Check-up → Regular eye examination (30m),
+> Problem/Urgent Visit → New or worsening eye concern (30m), Contact Lens
+> Consultation → Contact lens consultation (45m), and Referral → Referral
+> (45m, requires referral source). The API contract includes 55 routes (8
+> public, 29 account-only, 18 active-link). New
 > endpoints: `GET /appointment-types` (restored, patient-visible catalog),
 > `GET /appointment-optometrists` (patient-safe provider catalog). Modified
 > endpoints: `GET /appointment-request-availability` (now requires
@@ -379,7 +382,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (unique), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required when type requires referral), `encrypted_identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time for new requests), `resolved_by_user_id`, `resolved_at`. Pending requests are non-binding and never consume capacity. Deferred: `preferred_optometrist_id`, `review_due_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (unique), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required when type requires referral), `encrypted_identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time for new requests), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
@@ -521,6 +524,8 @@ POST   /api/v1/patient-link-requests
 GET    /api/v1/patient-link-requests/current
 POST   /api/v1/patient-invitations/acceptance/otp
 POST   /api/v1/patient-invitations/accept
+GET    /api/v1/appointment-types              List patient-visible appointment types
+GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
@@ -568,10 +573,10 @@ minute, active-link routes allow 120 per minute, invitation OTP requests allow
 responses include `Retry-After`; middleware-backed limits also include the
 standard `X-RateLimit-*` headers.
 
-> **Updated 2026-08-09 (was 53).** Added `GET /appointment-types` (restored
-> patient-visible catalog) and `GET /appointment-optometrists` (patient-safe
-> provider catalog) to the account-only tier. Both are account-only, no
-> active link required.
+> **Appointment catalog update (2026-08-09).** Added `GET /appointment-types`
+> (restored patient-visible catalog) and `GET /appointment-optometrists`
+> (patient-safe provider catalog) to the account-only tier. Both are
+> account-only, require authentication, and do not require an active link.
 
 > **Corrected 2026-08-07 (was 51).** `routes/api.php` registers the frame-rating
 > endpoint twice — under both `optical-order-items/{item}/rating` and
@@ -580,8 +585,9 @@ standard `X-RateLimit-*` headers.
 > predating the `JobOrder` → Optical Order rename; it was previously undocumented in
 > both this file and `API_CONTRACT.md`, which is why the count read 51.
 > **Decision: keep the alias**, since removing it breaks any un-migrated client.
-> `RouteContractTest` asserts the exact route list; it now counts 53, including
-> the `appointments/{id}/rating` route visit feedback added the same day.
+> The historical 2026-08-07 inventory counted 53 after the
+> `appointments/{id}/rating` route added visit feedback. The current inventory
+> is 55 after the two account-only appointment catalog routes were added.
 
 Breaking changes from coordinated Android cutover:
 - `POST /register` and `POST /login` removed (replaced by two-stage auth/register)
