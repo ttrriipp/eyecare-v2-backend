@@ -331,9 +331,11 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Encounters: transfer as admin | No | No | Yes |
 | Encounters: add correction | No | Original completer | No |
 | Encounters: add supplement | No | Yes | No |
+| Encounters: void | No | Yes | Yes |
 | Encounters: print | Yes | Yes | Yes |
 | Prescriptions: view | Yes | Yes | Yes |
 | Prescriptions: create, finalize, and amend | No | Yes | No |
+| Prescriptions: void | No | Yes | No |
 | Quotations: create, revise, present, decide, confirm sale | Yes | Yes | Yes |
 | Quotations: apply or change nonzero discount | No | No | Yes |
 | Optical Orders: create and advance operational workflow | Yes | Yes | Yes |
@@ -347,7 +349,8 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Inventory: receive stock and select contact-lens lot | Yes | Yes | Yes |
 | Inventory: reconcile existing contact-lens lots | No | No | Yes |
 | Patients: create and edit | Yes | Yes | Yes |
-| Patients/products: archive and restore | No | No | Yes |
+| Patients: archive (duplicate/erroneous/deceased) | No | No | Yes |
+| Catalog (brands/categories/products): archive and restore | No | No | Yes |
 | Catalog: create, edit, and manage variants | Yes | Yes | Yes |
 | Team accounts and role assignments | No | No | Yes |
 | Audit logs and privacy administration | No | No | Yes |
@@ -418,11 +421,11 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `patient_intakes` | `patient_id`, `appointment_id`, `status` (draft/submitted/verified), demographics snapshot, encrypted clinical narrative fields (`chief_complaint`, `past_ocular_history`, etc.), `submitted_by`, `verified_by`. |
-| `encounters` | `patient_id`, `appointment_id`, `patient_intake_id` (nullable, legacy), `optometrist_id`, `status` (planned/in_progress/completed/cancelled), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
+| `encounters` | `patient_id`, `appointment_id`, `patient_intake_id` (nullable, legacy), `optometrist_id`, `status` (planned/in_progress/completed/cancelled/voided), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
-| `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
+| `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `products` | Stocked physical catalog entries. New Products use only `product_type` values `frame`, `contact_lens`, or `accessory`; variants own price, dimensions, SKU, and stock. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. `lens_category_id` remains temporarily for historical compatibility. |
-| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `frame_reservation_id` (nullable FK to the reservation source), `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
+| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `frame_reservation_id` (nullable FK to the reservation source), `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_type` (product/service), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
 | `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
@@ -440,7 +443,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `current_revision_id`, `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
 | `visit_rating_revisions` | `visit_rating_id`, `revision_number`, `rating`, `comment`, `revised_by`, `revised_at`. |
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
-| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. |
+| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_lot_id` (nullable FK inventory_lots), `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
@@ -452,7 +455,19 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 ### Soft Deletes
 
-These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appointment`, `Prescription`, `Conversation`, `BillingRecord`, `JobOrder`, `Complaint`, `VisitRating`.
+These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`, `ProductCategory`, `LensCategory`, `Appointment`, `Prescription`, `Conversation`, `BillingRecord`, `JobOrder`, `Complaint`, `VisitRating`.
+
+### Record Lifecycle Patterns
+
+**Archive (soft delete + restore).** For reusable master/catalog data that should be hidden from active lists but preserved for historical relationships: `Brand`, `ProductCategory`, `LensCategory`, `Product`, `ProductVariant`. Admin-only archive/restore actions with `TrashedFilter` support. Archived records are excluded from default queries but remain accessible via "Show Archived" filter.
+
+**Deactivate (is_active toggle).** For records that are still valid but unavailable for new activity: `User`, `AppointmentType`, `Service`, `LensOption`. Toggle via `is_active` boolean; deactivated records fail `canAccessPanel()` (Users) or are excluded from active selection (types/services/options).
+
+**Void (status-based irreversible).** For records created in error that require a reason, actor, timestamp, and audit log: `Encounter` (status: `voided`), `Prescription` (void fields), `BillingRecord` (status: `voided`), `Quotation` (status: `declined` with `decline_reason`). Voided records are terminal and immutable.
+
+**Inbox Archive (conversations).** Removes conversation from staff inbox without soft-deleting. Uses `inbox_archived_at` timestamp. Auto-restores when new message arrives. Patient still sees the conversation. Never creates a second conversation.
+
+**No destructive actions.** Historical/ledger records have no delete/archive: `AuditLog`, `InventoryMovement`, `InventoryLot`, `SmsNotification`.
 
 ---
 
@@ -460,9 +475,9 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Appoint
 
 **Appointments:** `scheduled → checked_in → fulfilled` (terminal). `cancelled` and `no_show` are terminal from `scheduled` or `checked_in`. Check-in creates an Encounter transactionally.
 
-**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. Only active assigned optometrists can start (self-claim if unassigned) and complete. Starting synchronizes provider to Appointment. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; fulfills the Appointment atomically. Optional prescription finalizes in the same transaction. Completed encounters are immutable; corrections/supplements use append-only addenda.
+**Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. `voided` is terminal from `planned` or `completed` (requires reason, actor, timestamp, audit log). Only active assigned optometrists can start (self-claim if unassigned) and complete. Starting synchronizes provider to Appointment. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; fulfills the Appointment atomically. Optional prescription finalizes in the same transaction. Completed encounters are immutable; corrections/supplements use append-only addenda.
 
-**Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create Optical Orders. A reservation-backed quotation persists one `frame_reservation_id` source and must contain exactly one catalog-backed Frame item whose variant is present on that patient's eligible reservation. Legacy quotations without a source may select an exact matching reservation item during confirmation. Removing or changing the selected Frame during draft/revision clears the reservation source rather than preserving an invalid pairing. No revisions.
+**Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create Optical Orders. Declined quotations require a `decline_reason`. A reservation-backed quotation persists one `frame_reservation_id` source and must contain exactly one catalog-backed Frame item whose variant is present on that patient's eligible reservation. Legacy quotations without a source may select an exact matching reservation item during confirmation. Removing or changing the selected Frame during draft/revision clears the reservation source rather than preserving an invalid pairing. No revisions.
 
 **Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory (including source lot for contact-lens variants). `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path. Corrective orders cannot enter Processing without an approved eyewear specification. Ready for Pickup requires completed verification and, for external work, the supplier/lab reference. Non-corrective and immediate orders skip these stages.
 
