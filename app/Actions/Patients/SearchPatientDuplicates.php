@@ -23,20 +23,28 @@ class SearchPatientDuplicates
 
         // Search by email
         if (! empty($data['contact_email'])) {
-            $hash = $this->lookupHash->forEmail($data['contact_email']);
-            $patients = Patient::query()
-                ->where('contact_email_lookup_hash', $hash)
-                ->get();
-            $candidates = $candidates->merge($patients);
+            try {
+                $hash = $this->lookupHash->forEmail($data['contact_email']);
+                $patients = Patient::query()
+                    ->where('contact_email_lookup_hash', $hash)
+                    ->get();
+                $candidates = $candidates->merge($patients);
+            } catch (\InvalidArgumentException) {
+                // Invalid email format, skip search
+            }
         }
 
         // Search by phone
         if (! empty($data['phone'])) {
-            $hash = $this->lookupHash->forPhone($data['phone']);
-            $patients = Patient::query()
-                ->where('phone_lookup_hash', $hash)
-                ->get();
-            $candidates = $candidates->merge($patients);
+            try {
+                $hash = $this->lookupHash->forPhone($data['phone']);
+                $patients = Patient::query()
+                    ->where('phone_lookup_hash', $hash)
+                    ->get();
+                $candidates = $candidates->merge($patients);
+            } catch (\InvalidArgumentException) {
+                // Invalid phone format, skip search
+            }
         }
 
         // Search by name + DOB
