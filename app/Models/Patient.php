@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 #[Fillable([
     'user_id',
@@ -62,9 +63,19 @@ class Patient extends Model
      */
     protected function setPhoneAttribute(?string $value): void
     {
-        $this->attributes['phone'] = $value !== null
-            ? app(NormalizeContact::class)->phone($value)
-            : null;
+        if ($value === null) {
+            $this->attributes['phone'] = null;
+
+            return;
+        }
+
+        try {
+            $this->attributes['phone'] = app(NormalizeContact::class)->phone($value);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages([
+                'phone' => ['Please enter a valid Philippine phone number (e.g., 9171234567).'],
+            ]);
+        }
     }
 
     /**
