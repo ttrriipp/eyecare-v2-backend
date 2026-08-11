@@ -22,9 +22,9 @@ class AddFrameReservationItem
      */
     public function handle(FrameReservation $reservation, int $productVariantId): FrameReservationItem
     {
-        if (! in_array($reservation->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true)) {
+        if (! in_array($reservation->status, [ReservationStatus::Requested, ReservationStatus::Prepared, ReservationStatus::Released], true)) {
             throw ValidationException::withMessages([
-                'reservation' => ['Frames can only be added to a requested or prepared reservation.'],
+                'reservation' => ['Frames can only be added to a requested, prepared, or released reservation.'],
             ]);
         }
 
@@ -32,6 +32,16 @@ class AddFrameReservationItem
 
         return DB::transaction(function () use ($reservation, $productVariantId): FrameReservationItem {
             $reservation = FrameReservation::query()->lockForUpdate()->findOrFail($reservation->id);
+
+            // Reactivate released reservation
+            if ($reservation->status === ReservationStatus::Released) {
+                $reservation->update([
+                    'status' => ReservationStatus::Requested,
+                    'released_at' => null,
+                    'released_by' => null,
+                    'release_reason' => null,
+                ]);
+            }
 
             $item = FrameReservationItem::query()->create([
                 'frame_reservation_id' => $reservation->id,

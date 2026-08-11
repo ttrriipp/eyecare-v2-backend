@@ -30,6 +30,16 @@ class CreateFrameReservation
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Check for existing released reservation to reactivate
+            $existingReleased = FrameReservation::query()
+                ->where('appointment_id', $appointment->id)
+                ->where('status', ReservationStatus::Released)
+                ->first();
+
+            if ($existingReleased !== null) {
+                return $this->reactivateReservation($existingReleased, $items);
+            }
+
             $this->assertNoExistingReservation($appointment);
 
             $reservation = FrameReservation::query()->create([
@@ -47,6 +57,28 @@ class CreateFrameReservation
 
             return $reservation->load(['items.variant.product', 'appointment']);
         });
+    }
+
+    /**
+     * Reactivate a released reservation with new frames.
+     */
+    private function reactivateReservation(FrameReservation $reservation, array $items): FrameReservation
+    {
+        $reservation->update([
+            'status' => ReservationStatus::Requested,
+            'released_at' => null,
+            'released_by' => null,
+            'release_reason' => null,
+        ]);
+
+        foreach ($items as $item) {
+            FrameReservationItem::query()->create([
+                'frame_reservation_id' => $reservation->id,
+                'product_variant_id' => $item['product_variant_id'],
+            ]);
+        }
+
+        return $reservation->load(['items.variant.product', 'appointment']);
     }
 
     private function validateEligibility(Patient $patient, Appointment $appointment, array $items): void
@@ -119,22 +151,22 @@ class CreateFrameReservation
     }
 
     /**
-     * A reservation holds stock for a patient who isn't at the clinic yet —
-     * that problem only exists once, before the visit. A frame reservation
-     * is a before-the-visit tool, so an appointment gets exactly one, ever,
-     * regardless of how it was resolved (matches the DB-level unique
-     * constraint on appointment_id). Anything tried on in person after that
-     * flows straight into the sale without going through this action again.
+     * An appointment can have one active reservation at a time.
+     * Released reservations can be reactivated.
      */
     private function assertNoExistingReservation(Appointment $appointment): void
     {
-        $hasExisting = FrameReservation::query()
+        $hasActive = FrameReservation::query()
             ->where('appointment_id', $appointment->id)
+            ->whereNotIn('status', [
+                ReservationStatus::Released,
+                ReservationStatus::Cancelled,
+            ])
             ->exists();
 
-        if ($hasExisting) {
+        if ($hasActive) {
             throw ValidationException::withMessages([
-                'appointment_id' => ['This appointment already has a frame reservation.'],
+                'appointment_id' => ['This appointment already has an active frame reservation.'],
             ]);
         }
     }
