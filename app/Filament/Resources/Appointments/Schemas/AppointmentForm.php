@@ -68,7 +68,7 @@ class AppointmentForm
                             TextInput::make('new_patient_phone')
                                 ->label('Phone')
                                 ->tel()
-                                ->nullable()
+                                ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                                 ->prefix('+63')
                                 ->formatStateUsing(fn (?string $state): ?string => $state !== null
                                     ? preg_replace('/^\+63/', '', $state)
@@ -90,7 +90,7 @@ class AppointmentForm
                                 ->dehydrated(false),
                             DatePicker::make('new_patient_date_of_birth')
                                 ->label('Date of Birth')
-                                ->nullable()
+                                ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                                 ->maxDate(now())
                                 ->hidden(fn (Get $get): bool => $get('patient_mode') !== 'new')
                                 ->live(onBlur: true)
