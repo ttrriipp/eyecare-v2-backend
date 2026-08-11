@@ -40,59 +40,70 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
 });
 
 // Authenticated account-only routes (no active link required)
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function (): void {
-    Route::post('logout', [AuthController::class, 'logout']);
-    Route::post('logout-all', [AuthController::class, 'logoutAll']);
-    Route::get('me', [AuthController::class, 'user']);
-    Route::patch('me', [AuthController::class, 'update']);
+Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
+    Route::get('me', [AuthController::class, 'user'])
+        ->middleware('throttle:api-profile');
+    Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp'])
+        ->name('api.v1.patient-invitations.acceptance.otp')
+        ->middleware('throttle:invitation-otp');
+    Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept'])
+        ->name('api.v1.patient-invitations.accept')
+        ->middleware('throttle:invitation-acceptance');
 
-    // Step-up OTP for sensitive changes
-    Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);
-    Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp']);
-    Route::post('auth/password', [AuthController::class, 'changePassword'])
-        ->middleware('require.step-up');
+    Route::middleware('throttle:api-account')->group(function (): void {
+        Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        Route::patch('me', [AuthController::class, 'update']);
 
-    // Contact management - read is free, mutations require step-up
-    Route::get('account/contacts', [AuthController::class, 'listContacts']);
-    Route::post('account/contacts/otp', [AuthController::class, 'requestContactOtp'])
-        ->middleware('require.step-up');
-    Route::post('account/contacts/verify', [AuthController::class, 'verifyContact']);
-    Route::patch('account/contacts/{contact}/primary', [AuthController::class, 'setPrimaryContact'])
-        ->middleware('require.step-up');
-    Route::delete('account/contacts/{contact}', [AuthController::class, 'removeContact'])
-        ->middleware('require.step-up');
+        // Step-up OTP for sensitive changes
+        Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);
+        Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp']);
+        Route::post('auth/password', [AuthController::class, 'changePassword'])
+            ->middleware('require.step-up');
 
-    // Link state
-    Route::get('account/link', [AuthController::class, 'linkStatus']);
+        // Contact management - read is free, mutations require step-up
+        Route::get('account/contacts', [AuthController::class, 'listContacts']);
+        Route::post('account/contacts/otp', [AuthController::class, 'requestContactOtp'])
+            ->middleware('require.step-up');
+        Route::post('account/contacts/verify', [AuthController::class, 'verifyContact']);
+        Route::patch('account/contacts/{contact}/primary', [AuthController::class, 'setPrimaryContact'])
+            ->middleware('require.step-up');
+        Route::delete('account/contacts/{contact}', [AuthController::class, 'removeContact'])
+            ->middleware('require.step-up');
 
-    // Patient link requests
-    Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);
-    Route::get('patient-link-requests/current', [PatientLinkRequestController::class, 'current']);
+        // Link state
+        Route::get('account/link', [AuthController::class, 'linkStatus']);
 
-    // Appointment types (patient-visible catalog)
-    Route::get('appointment-types', [AppointmentTypeController::class, 'index']);
+        // Patient link requests
+        Route::post('patient-link-requests', [PatientLinkRequestController::class, 'store']);
+        Route::get('patient-link-requests/current', [PatientLinkRequestController::class, 'current']);
 
-    // Appointment optometrists (patient-safe catalog)
-    Route::get('appointment-optometrists', [AppointmentOptometristController::class, 'index']);
+        // Conversation - account-owned, no patient link required
+        Route::get('conversation', [ConversationController::class, 'show']);
+        Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
+        Route::post('conversation/messages', [ConversationController::class, 'storeMessage']);
 
-    // Appointment requests
-    Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);
-    Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
-    Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
-    Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
-    Route::post('appointment-requests/{appointmentRequest}/cancel', [AppointmentRequestController::class, 'cancel']);
+        // Appointment types (patient-visible catalog)
+        Route::get('appointment-types', [AppointmentTypeController::class, 'index']);
 
-    // Patient invitations
-    Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp']);
-    Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept']);
+        // Appointment optometrists (patient-safe catalog)
+        Route::get('appointment-optometrists', [AppointmentOptometristController::class, 'index']);
 
-    // Frame catalog browsing does not require a linked patient record.
-    Route::get('frames', [FrameController::class, 'index']);
-    Route::get('frames/{frame}', [FrameController::class, 'show']);
+        // Appointment requests
+        Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);
+        Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
+        Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
+        Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
+        Route::post('appointment-requests/{appointmentRequest}/cancel', [AppointmentRequestController::class, 'cancel']);
+
+        // Frame catalog browsing does not require a linked patient record.
+        Route::get('frames', [FrameController::class, 'index']);
+        Route::get('frames/{frame}', [FrameController::class, 'show']);
+    });
 });
 
 // Authenticated clinical routes (active patient link required)
-Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patient.link'])->group(function (): void {
+Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'require.patient.link'])->group(function (): void {
     Route::get('appointment-availability', AppointmentAvailabilityController::class);
 
     // Confirmed appointments only (no direct booking - use appointment requests)
@@ -116,10 +127,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:60,1', 'require.patie
 
     Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
 
-    Route::get('conversation', [ConversationController::class, 'show']);
-    Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
-    Route::post('conversation/messages', [ConversationController::class, 'storeMessage']);
-
+    // Attachment download requires patient link
     Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
     Route::post('optical-order-items/{item}/rating', [FrameRatingController::class, 'store']);
