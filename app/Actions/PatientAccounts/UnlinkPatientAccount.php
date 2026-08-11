@@ -3,6 +3,7 @@
 namespace App\Actions\PatientAccounts;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Conversations\DetachAccountConversation;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,9 @@ class UnlinkPatientAccount
             $user = User::find($userId);
             if ($user !== null) {
                 $user->tokens()->delete();
+
+                // Detach conversation ownership
+                app(DetachAccountConversation::class)->handle($user);
             }
 
             // Unlink
