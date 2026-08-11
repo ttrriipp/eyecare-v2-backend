@@ -3,7 +3,9 @@
 namespace App\Actions\PatientAccounts;
 
 use App\Actions\Auth\VerifyOtpChallenge;
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\OtpPurpose;
+use App\Enums\PatientInvitationStatus;
 use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
 use App\Models\Role;
@@ -27,68 +29,103 @@ class AcceptPatientInvitation
         ?string $firstName = null,
         ?string $lastName = null,
         ?string $password = null,
+        ?User $authenticatedUser = null,
+        ?string $ip = null,
     ): array {
-        // Find invitation by invitation_code
-        $invitation = PatientInvitation::where('invitation_code', $invitationCode)->first();
+        return DB::transaction(function () use (
+            $invitationCode,
+            $challengeId,
+            $code,
+            $firstName,
+            $lastName,
+            $password,
+            $authenticatedUser,
+            $ip,
+        ): array {
+            $invitation = PatientInvitation::query()
+                ->where('invitation_code', $invitationCode)
+                ->lockForUpdate()
+                ->first();
 
-        if ($invitation === null) {
-            throw ValidationException::withMessages([
-                'invitation_code' => ['The invitation code is invalid.'],
-            ]);
-        }
-
-        if (! $invitation->isPending()) {
-            throw ValidationException::withMessages([
-                'invitation_code' => ['The invitation has expired, been revoked, or already accepted.'],
-            ]);
-        }
-
-        // Verify the OTP
-        $challenge = $this->verifyOtp->handle(
-            challengeId: $challengeId,
-            code: $code,
-            expectedPurpose: OtpPurpose::InvitationAcceptance,
-        );
-
-        return DB::transaction(function () use ($invitation, $firstName, $lastName, $password) {
-            // Re-check invitation under lock
-            $invitation->lockForUpdate();
-
-            if (! $invitation->isPending()) {
+            if ($invitation === null) {
                 throw ValidationException::withMessages([
-                    'invitation_code' => ['The invitation is no longer valid.'],
+                    'invitation_code' => ['The invitation code is invalid.'],
                 ]);
             }
 
-            $patient = $invitation->patient;
+            if (! $invitation->isPending()) {
+                if ($this->isIdempotentRetry($invitation, $authenticatedUser)) {
+                    return $this->resultForAcceptedInvitation($invitation, $authenticatedUser);
+                }
 
-            // Check patient still unlinked
+                throw ValidationException::withMessages([
+                    'invitation_code' => ['The invitation has expired, been revoked, or already accepted.'],
+                ]);
+            }
+
+            $this->verifyOtp->handle(
+                challengeId: $challengeId,
+                code: $code,
+                expectedPurpose: OtpPurpose::InvitationAcceptance,
+                ip: $ip,
+                expectedUserId: $authenticatedUser?->id,
+            );
+
+            $patient = $invitation->patient()
+                ->lockForUpdate()
+                ->firstOrFail();
+
             if ($patient->user_id !== null) {
                 throw ValidationException::withMessages([
                     'invitation_code' => ['The patient is already linked to another account.'],
                 ]);
             }
 
-            // Find or create the user account
             $destination = $invitation->encrypted_destination;
             $destinationHash = $invitation->destination_hash;
-
-            $existingContact = PatientAccountContact::where('lookup_hash', $destinationHash)
+            $existingContact = PatientAccountContact::query()
+                ->where('lookup_hash', $destinationHash)
                 ->where('type', $invitation->channel)
+                ->lockForUpdate()
                 ->first();
 
-            if ($existingContact !== null) {
-                $user = $existingContact->user;
+            if ($authenticatedUser !== null) {
+                $user = User::query()
+                    ->whereKey($authenticatedUser->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-                // Check account not already linked
-                if ($user->patient !== null) {
+                $matchingContact = PatientAccountContact::query()
+                    ->where('user_id', $user->id)
+                    ->where('lookup_hash', $destinationHash)
+                    ->where('type', $invitation->channel)
+                    ->whereNotNull('verified_at')
+                    ->exists();
+
+                if (! $matchingContact || ($existingContact !== null && $existingContact->user_id !== $user->id)) {
+                    throw ValidationException::withMessages([
+                        'invitation_code' => ['The invitation does not match the authenticated account.'],
+                    ]);
+                }
+
+                if ($user->patient()->exists()) {
+                    throw ValidationException::withMessages([
+                        'invitation_code' => ['The account is already linked to a patient.'],
+                    ]);
+                }
+            } elseif ($existingContact !== null) {
+                $user = User::query()
+                    ->whereKey($existingContact->user_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ($user->patient()->exists()) {
                     throw ValidationException::withMessages([
                         'invitation_code' => ['The account is already linked to a patient.'],
                     ]);
                 }
             } else {
-                // Create new account
-                $role = Role::where('name', Role::Patient)->firstOrFail();
+                $role = Role::query()->where('name', Role::Patient)->firstOrFail();
 
                 $user = User::create([
                     'first_name' => $firstName,
@@ -109,20 +146,35 @@ class AcceptPatientInvitation
                 ]);
             }
 
-            // Activate the link
             $patient->update(['user_id' => $user->id]);
-
-            // Accept the invitation
             $invitation->accept($user);
 
-            // Issue token
-            $token = $user->createToken('mobile', ['*'], now()->addDays(30))->plainTextToken;
+            // Associate the account's conversation with the Patient
+            app(AssociateAccountConversation::class)->handle($user, $patient);
 
-            return [
-                'token' => $token,
-                'user' => $user,
-                'invitation' => $invitation,
-            ];
+            return $this->resultForAcceptedInvitation($invitation, $user);
         });
+    }
+
+    private function isIdempotentRetry(PatientInvitation $invitation, ?User $authenticatedUser): bool
+    {
+        return $authenticatedUser !== null
+            && $invitation->status === PatientInvitationStatus::Accepted
+            && $invitation->accepted_by_user_id === $authenticatedUser->id
+            && $invitation->patient()->where('user_id', $authenticatedUser->id)->exists();
+    }
+
+    /**
+     * @return array{token: string, user: User, invitation: PatientInvitation}
+     */
+    private function resultForAcceptedInvitation(PatientInvitation $invitation, User $user): array
+    {
+        $user->load('patient');
+
+        return [
+            'token' => $user->createToken('mobile', ['*'], now()->addDays(30))->plainTextToken,
+            'user' => $user,
+            'invitation' => $invitation,
+        ];
     }
 }

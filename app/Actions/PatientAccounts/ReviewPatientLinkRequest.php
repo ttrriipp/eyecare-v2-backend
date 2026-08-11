@@ -2,6 +2,7 @@
 
 namespace App\Actions\PatientAccounts;
 
+use App\Actions\Conversations\AssociateAccountConversation;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\User;
@@ -36,7 +37,7 @@ class ReviewPatientLinkRequest
             ]);
         }
 
-        return DB::transaction(function () use ($linkRequest, $patient, $reviewer, $note) {
+        return DB::transaction(function () use ($linkRequest, $patient, $reviewer, $note, $account) {
             // Re-check under lock
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
@@ -57,6 +58,9 @@ class ReviewPatientLinkRequest
                 'decision_note' => $note,
                 'reviewed_at' => now(),
             ]);
+
+            // Associate the account's conversation with the Patient
+            app(AssociateAccountConversation::class)->handle($account, $patient);
 
             return $linkRequest->fresh(['user', 'reviewedPatient', 'reviewer']);
         });
