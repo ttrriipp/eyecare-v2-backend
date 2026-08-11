@@ -210,8 +210,13 @@ class ViewAppointmentRequest extends ViewRecord
 
                         Select::make('optometrist_id')
                             ->label('Optometrist')
-                            ->options(User::query()->optometrists()->pluck('full_name', 'id'))
-                            ->default($this->record->preferredOptometrist?->id)
+                            ->options(fn (): array => User::query()
+                                ->optometrists()
+                                ->orderBy('first_name')
+                                ->orderBy('last_name')
+                                ->get()
+                                ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])
+                                ->all())
                             ->required()
                             ->searchable(),
 
@@ -219,6 +224,7 @@ class ViewAppointmentRequest extends ViewRecord
                             ->label('Final Date/Time')
                             ->default($this->record->scheduled_at)
                             ->required()
+                            ->minutesStep(15)
                             ->seconds(false),
 
                         TextInput::make('referring_source')
@@ -230,6 +236,7 @@ class ViewAppointmentRequest extends ViewRecord
                         Textarea::make('contact_notes')
                             ->label('Contact Note')
                             ->helperText('Required if the final time differs from all submitted preferences.')
+                            ->required(fn (Get $get): bool => ! $this->matchesSubmittedPreference($get('scheduled_at')))
                             ->rows(2),
                     ];
                 })
@@ -287,5 +294,21 @@ class ViewAppointmentRequest extends ViewRecord
                     }
                 }),
         ];
+    }
+
+    private function matchesSubmittedPreference(mixed $scheduledAt): bool
+    {
+        if (blank($scheduledAt)) {
+            return false;
+        }
+
+        try {
+            $selected = Carbon::parse($scheduledAt);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return collect($this->record->getAllTimePreferences())
+            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));
     }
 }

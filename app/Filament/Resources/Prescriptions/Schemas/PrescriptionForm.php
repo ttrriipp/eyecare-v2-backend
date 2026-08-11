@@ -24,19 +24,15 @@ class PrescriptionForm
     /**
      * @return array<int, mixed>
      */
-    public static function components(bool $forEncounter = false): array
+    public static function components(bool $forEncounter = false, bool $editable = false): array
     {
+        $useInputs = $forEncounter || $editable;
         $disabledForExistingPrescription = $forEncounter
             ? fn (Encounter $record): bool => $record->prescriptions()->withTrashed()->exists()
                 || auth()->user()?->isOptometrist() !== true
             : false;
 
-        $patientInformation = $forEncounter
-            ? null
-            : null;
-
-        // Use TextInput for encounter wizard, Placeholder for view pages
-        $odFields = $forEncounter
+        $odFields = $useInputs
             ? [
                 TextInput::make('main_od_value')
                     ->label('O.D.')
@@ -69,7 +65,7 @@ class PrescriptionForm
                     ->content(fn ($record) => $record->main_od_cylinder ?? '—'),
             ];
 
-        $osFields = $forEncounter
+        $osFields = $useInputs
             ? [
                 TextInput::make('main_os_value')
                     ->label('O.S.')
@@ -102,7 +98,7 @@ class PrescriptionForm
                     ->content(fn ($record) => $record->main_os_cylinder ?? '—'),
             ];
 
-        $addOdFields = $forEncounter
+        $addOdFields = $useInputs
             ? [
                 TextInput::make('add_od_value')
                     ->label('O.D.')
@@ -135,7 +131,7 @@ class PrescriptionForm
                     ->content(fn ($record) => $record->add_od_cylinder ?? '—'),
             ];
 
-        $addOsFields = $forEncounter
+        $addOsFields = $useInputs
             ? [
                 TextInput::make('add_os_value')
                     ->label('O.S.')
@@ -169,8 +165,6 @@ class PrescriptionForm
             ];
 
         return array_filter([
-            $patientInformation,
-
             Section::make('Prescription')
                 ->schema([
                     Grid::make(3)->schema($odFields),

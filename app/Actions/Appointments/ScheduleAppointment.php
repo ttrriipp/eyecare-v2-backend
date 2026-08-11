@@ -18,6 +18,12 @@ class ScheduleAppointment
         ?Appointment $ignoreAppointment = null,
         bool $enforceGrid = false,
     ): void {
+        if ($durationMinutes < 5 || $durationMinutes > 240 || $durationMinutes % 5 !== 0) {
+            throw ValidationException::withMessages([
+                'duration_minutes' => ['Duration must be between 5 and 240 minutes in 5-minute increments.'],
+            ]);
+        }
+
         $this->validateOptometrist($optometrist);
         $this->validateClinicHours($scheduledAt, $durationMinutes);
         $this->validateAvailability($scheduledAt, $durationMinutes, $optometrist, $ignoreAppointment, $enforceGrid);

@@ -86,10 +86,28 @@ class CreateAppointment extends CreateRecord
         $isWalkIn = ($data['is_walk_in'] ?? null) === 'walk_in';
         unset($data['is_walk_in']);
 
-        $appointmentType = AppointmentType::query()->findOrFail($data['appointment_type_id']);
+        $appointmentType = AppointmentType::query()->find($data['appointment_type_id'] ?? null);
+
+        if ($appointmentType === null || ! $appointmentType->is_active) {
+            throw ValidationException::withMessages([
+                'data.appointment_type_id' => ['The selected appointment type is inactive.'],
+            ]);
+        }
+
+        if ($appointmentType->requires_referral && blank($data['referring_source'] ?? null)) {
+            throw ValidationException::withMessages([
+                'data.referring_source' => ['Referring source is required for this appointment type.'],
+            ]);
+        }
 
         // Use form-provided duration if available, otherwise use type default
         $data['duration_minutes'] = $data['duration_minutes'] ?? $appointmentType->duration_minutes;
+
+        if ($data['duration_minutes'] < 5 || $data['duration_minutes'] > 240 || $data['duration_minutes'] % 5 !== 0) {
+            throw ValidationException::withMessages([
+                'data.duration_minutes' => ['Duration must be between 5 and 240 minutes in 5-minute increments.'],
+            ]);
+        }
 
         if ($isWalkIn) {
             $data['source'] = 'walk_in';
@@ -140,6 +158,7 @@ class CreateAppointment extends CreateRecord
                         optometrist: filled($data['optometrist_id'] ?? null)
                             ? User::query()->findOrFail($data['optometrist_id'])
                             : null,
+                        enforceGrid: true,
                     );
                 } catch (ValidationException $e) {
                     // Remap error keys for Filament form (scheduled_at → data.scheduled_at)

@@ -236,7 +236,7 @@ test('accepting copies referral source when provided', function () {
     expect($appointment->referring_source)->toBe('Dr. Garcia - City Hospital');
 });
 
-test('accepting outside submitted preferences succeeds without contact note', function () {
+test('accepting outside submitted preferences requires a contact note', function () {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();
 
@@ -247,18 +247,62 @@ test('accepting outside submitted preferences succeeds without contact note', fu
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    // Accept at a different time without contact note - should succeed
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 11:00:00'),
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
+});
+
+test('accepting outside submitted preferences succeeds with a contact note', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
     $appointment = app(AcceptAppointmentRequest::class)->handle(
         request: $request,
         reviewer: $reviewer,
         appointmentType: $this->appointmentType,
         durationMinutes: $this->appointmentType->duration_minutes,
-        scheduledAt: Carbon::parse('2026-07-13 11:00:00'), // Different from submitted 10:00
+        scheduledAt: Carbon::parse('2026-07-13 11:00:00'),
         optometrist: $this->optometrist,
+        contactNote: 'Patient confirmed the alternate time by phone.',
     );
 
     expect($appointment)->toBeInstanceOf(Appointment::class)
         ->and($appointment->scheduled_at->format('H:i'))->toBe('11:00');
+});
+
+test('accepting rejects an inactive appointment type', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+    $inactiveType = AppointmentType::factory()->inactive()->create(['duration_minutes' => 30]);
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $inactiveType,
+        durationMinutes: 30,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
 });
 
 // --- Reject ---

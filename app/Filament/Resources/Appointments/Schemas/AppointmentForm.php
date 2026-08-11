@@ -140,7 +140,9 @@ class AppointmentForm
                                     ]);
 
                                     if ($matches->isEmpty()) {
-                                        return new HtmlString('');
+                                        return new HtmlString(
+                                            '<p class="text-sm text-gray-500 dark:text-gray-400">No matching records yet.</p>'
+                                        );
                                     }
 
                                     return PatientDuplicateMatchCard::render(
@@ -274,6 +276,7 @@ class AppointmentForm
                                 ->label('Referring Source')
                                 ->placeholder('Name of referring doctor or clinic')
                                 ->visible(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
+                                ->required(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
                                 ->disabled(fn (?Appointment $record): bool => $record !== null && filled($record->checked_in_at))
                                 ->dehydrated()
                                 ->columnSpanFull(),

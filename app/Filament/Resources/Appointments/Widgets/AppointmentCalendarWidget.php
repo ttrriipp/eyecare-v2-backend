@@ -239,6 +239,7 @@ class AppointmentCalendarWidget extends CalendarWidget
                 durationMinutes: $appointment->duration_minutes,
                 optometrist: $appointment->optometrist,
                 ignoreAppointment: $appointment,
+                enforceGrid: true,
             );
         } catch (ValidationException $exception) {
             Notification::make()

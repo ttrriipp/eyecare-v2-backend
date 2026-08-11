@@ -2,14 +2,12 @@
 
 namespace App\Filament\Resources\AppointmentRequests\Tables;
 
-use App\Actions\Appointments\AcceptAppointmentRequest;
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Models\AppointmentRequest;
-use App\Models\AppointmentType;
 use App\Models\Patient;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -53,6 +51,28 @@ class AppointmentRequestsTable
                         'Needs Link' => 'warning',
                     }),
 
+                TextColumn::make('appointment_type')
+                    ->label('Patient Type')
+                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
+
+                TextColumn::make('internal_appointment_type')
+                    ->label('Internal Type')
+                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->name ?? '—'),
+
+                TextColumn::make('provisional_duration')
+                    ->label('Provisional Duration')
+                    ->state(fn (AppointmentRequest $record): string => $record->provisional_duration_minutes !== null
+                        ? "{$record->provisional_duration_minutes} min"
+                        : '—'),
+
+                TextColumn::make('alternative_count')
+                    ->label('Alternatives')
+                    ->state(fn (AppointmentRequest $record): string => count($record->alternative_scheduled_times ?? []).' alternatives'),
+
+                TextColumn::make('preferred_provider')
+                    ->label('Preferred Provider')
+                    ->state('Not requested'),
+
                 TextColumn::make('scheduled_at')
                     ->label('Preferred Date & Time')
                     ->dateTime('M j, Y g:i A')
@@ -74,6 +94,13 @@ class AppointmentRequestsTable
                         AppointmentRequestStatus::Expired => 'gray',
                     })
                     ->formatStateUsing(fn (AppointmentRequestStatus $state): string => Str::headline($state->value)),
+
+                TextColumn::make('overdue')
+                    ->label('Overdue')
+                    ->state(fn (AppointmentRequest $record): string => $record->status === AppointmentRequestStatus::Pending
+                        && $record->expires_at?->isPast() ? 'Overdue' : '—')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Overdue' ? 'danger' : 'gray'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -152,35 +179,6 @@ class AppointmentRequestsTable
                             } catch (ValidationException $e) {
                                 $message = collect($e->errors())->flatten()->first() ?? 'Cannot link request.';
                                 Notification::make()->title('Cannot link request')->body($message)->danger()->send();
-                            }
-                        }),
-
-                    Action::make('accept')
-                        ->label('Accept')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id !== null)
-                        ->schema([
-                            Select::make('appointment_type_id')
-                                ->label('Appointment Type')
-                                ->options(AppointmentType::pluck('name', 'id'))
-                                ->required(),
-                        ])
-                        ->action(function (AppointmentRequest $record, array $data): void {
-                            try {
-                                $appointment = app(AcceptAppointmentRequest::class)->handle(
-                                    request: $record,
-                                    reviewer: auth()->user(),
-                                    appointmentTypeId: $data['appointment_type_id'],
-                                );
-
-                                Notification::make()
-                                    ->title("Appointment {$appointment->appointment_number} created")
-                                    ->success()
-                                    ->send();
-                            } catch (ValidationException $e) {
-                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot accept.';
-                                Notification::make()->title('Cannot accept')->body($message)->danger()->send();
                             }
                         }),
 

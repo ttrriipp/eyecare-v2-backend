@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-10.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-11.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -37,6 +37,44 @@
 > delivery was removed) so the invitation-acceptance trust anchor matches
 > the verified login contact.
 >
+**Shipped (2026-08-11): admin workflow surfaces aligned with the workflow specs.**
+The Filament entry points now expose the operational context required by the
+appointment scheduling, encounter, and optical commerce workflows while
+keeping the domain actions as the server-side source of truth:
+
+- **Appointment requests and scheduling.** Request review shows the patient
+  and internal appointment-type labels, provisional duration, referral
+  context, all submitted time alternatives, request age, and overdue state.
+  Acceptance and staff-created or edited appointments revalidate active
+  appointment types, 5-minute duration bounds, referral requirements, and
+  schedule-grid availability. A final accepted time outside the submitted
+  preferences requires a contact note. Provider assignment and consultation
+  start use the actor/self-claim rules; rescheduling controls use the
+  15-minute start grid.
+- **Encounters and prescriptions.** Encounter list and edit actions enforce
+  planned/in-progress ownership and role boundaries through the assignment
+  and start actions. Optometrists can reach the quotation flow and add
+  post-completion supplements where permitted. Prescription creation and
+  amendment pages show read-only patient/appointment context, preserve
+  server-derived ownership, and render finalized remarks on the read-only
+  view.
+- **Quotations, Optical Orders, and billing.** Quotation review shows the
+  corrective-eyewear configuration and prescription/version context; the
+  discount control is visibly admin-only. Optical Order pages show immutable
+  product and lens-option snapshots, eyewear-specification state, prescription
+  attribution, billing totals, amount paid, balance, and due date. Dispensing
+  exposes the administrator-only outstanding-balance override with a reason
+  and due date. The first payment requires explicit review of the current
+  immutable charge set, and service-charge entry supports either a catalog
+  Service or a custom line.
+- **Patient and reservation entry points.** Patient records expose a direct
+  Create Quotation action, and appointment/frame-reservation actions use the
+  same policy abilities as their underlying domain operations.
+
+These UI safeguards are additive to the action-level validation and do not
+replace it; hidden or tampered Filament fields remain subject to the same
+server-side rules.
+
 > **Shipped (2026-08-10): practical optical commerce and dispensing.**
 > The implemented commercial workflow now supports real small-clinic optical
 > operations. Key additions:
@@ -616,9 +654,11 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Appointment source values:** `mobile` (patient books via Android app), `walk_in` (patient physically at clinic), `manual` (staff creates in admin panel). Set automatically — not a user-facing dropdown.
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Appointment type select applies default duration reactively; duration is editable in 5-minute increments (5–240) for scheduled appointments. Referring source appears when the selected type `requires_referral`. Notes is a single staff_notes field. Walk-ins remain exempt from grid and future-time validation.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type (applies default duration on change), duration (editable in 5-minute increments), date/time, referring source (conditional on type), notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment. Changing type, duration, time, or provider before check-in must revalidate availability under the schedule lock.
-- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. Patient, appointment, encounter, and author linkage are locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, and date. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
+- **Appointment request review:** Staff review the patient-visible and internal appointment-type labels, provisional duration, referral context, submitted alternatives, request age, and overdue state before accepting or rejecting. Acceptance requires an active type, a valid duration, an assigned provider, a conflict-free 15-minute grid slot, and a contact note when the final time is outside all submitted preferences.
+- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. The create/amend pages display patient and appointment context as read-only fields, while patient, appointment, encounter, and author linkage remain locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, date, and remarks. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
 - **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant, lens category, or lens option. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category/lens-option pickers; an item may reference at most one of the four catalog references (`product_variant_id`, `lens_category_id`, `lens_option_id`, or `service_id`), and inactive services are rejected at validation time.
-- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
+- **Lens option catalog:** `LensOption` is a separately billed enhancement catalog, not a Product, Service, or inventory item. New transactions can select only active options; an option requires exactly one lens package in the same optical build, duplicate selections are rejected, and the transaction stores `item_kind = lens_option` with an immutable name/description/price snapshot. Renaming or deactivating an option does not rewrite confirmed quotation or Optical Order snapshots.
+- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Quotation confirmation surfaces corrective configuration and prescription version/author context. Optical Order pages show immutable item and lens-option snapshots plus eyewear-specification state. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
 - **Encounter "Create Quotation":** The in-progress/completed Encounter edit page also offers **Create Quotation**, opening `CreateQuotation` with `?encounter=` — distinct from the Prescription-page path: it requires the encounter's current prescription to be finalized, and is capped at one quotation per encounter (hidden once one exists). The Prescription-page path has no such cap.
 - **Encounter workflow:** Four-step autosaving wizard (History, Examination, Assessment & Plan, Review & Complete). Check-in creates a planned Encounter without attaching PatientIntake, copies assigned provider, and prefills chief complaint from appointment reason. Start uses self-claim pattern — the actor becomes the provider when unassigned; only the assigned optometrist can start otherwise. Draft saves via `SaveEncounterDraft` trim and cap narrative at 10,000 characters. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; only the assigned active optometrist can complete. Optional prescription finalizes atomically in the same transaction. Completed encounters are immutable; corrections (original author only) and supplements (any active optometrist) use append-only `encounter_addenda` records.
 - **Encounter provider assignment:** Staff, optometrists, and admins can assign an active optometrist to a planned Encounter. In-progress transfer requires the current provider or admin. Encounter and Appointment provider IDs are always synchronized.

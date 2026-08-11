@@ -202,3 +202,20 @@ test('appointment type duration is used for availability check', function () {
 
     expect(true)->toBeTrue();
 });
+
+test('scheduled availability rejects a start time outside the fifteen-minute grid', function () {
+    expect(fn () => app(ScheduleAppointment::class)->handle(
+        scheduledAt: Carbon::parse('2026-07-13 10:05:00'),
+        durationMinutes: 30,
+        optometrist: $this->optometrist,
+        enforceGrid: true,
+    ))->toThrow(ValidationException::class);
+});
+
+test('scheduled availability rejects a duration outside the five-minute step', function () {
+    expect(fn () => app(ScheduleAppointment::class)->handle(
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        durationMinutes: 32,
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
+});

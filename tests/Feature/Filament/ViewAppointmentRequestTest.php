@@ -58,19 +58,27 @@ test('accepting a linked request from the detail page does not error and creates
     $this->seed(AppointmentStatusSeeder::class);
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
-    $request = AppointmentRequest::factory()->create(['patient_id' => $patient->id]);
+    $request = AppointmentRequest::factory()->create([
+        'patient_id' => $patient->id,
+        'scheduled_at' => now()->addDay()->setTime(10, 0),
+    ]);
     $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
     // AcceptAppointmentRequest re-checks availability against the chosen
     // type's real duration, which needs an optometrist with provider hours
     // covering the slot (auto-created for every weekday).
-    User::factory()->optometrist()->create();
+    $optometrist = User::factory()->optometrist()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
         ->assertActionVisible('accept')
         ->assertActionHidden('linkToPatient')
-        ->callAction('accept', ['appointment_type_id' => $appointmentType->id])
+        ->callAction('accept', [
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => 30,
+            'optometrist_id' => $optometrist->id,
+            'scheduled_at' => $request->scheduled_at->format('Y-m-d H:i'),
+        ])
         ->assertHasNoActionErrors()
         ->assertNotified();
 

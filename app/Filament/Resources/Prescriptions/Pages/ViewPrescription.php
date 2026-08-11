@@ -79,6 +79,10 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('prescribed_at')
                             ->label('Prescribed Date')
                             ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
+                        Placeholder::make('remarks')
+                            ->label('Remarks')
+                            ->content($record->remarks ?? '—')
+                            ->columnSpanFull(),
                     ])
                     ->columnSpan(1),
             ]),
@@ -140,7 +144,11 @@ class ViewPrescription extends ViewRecord
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color('success')
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion()
-                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true))
+                    && (
+                        auth()->user()?->isAdmin() === true
+                        || auth()->user()?->isStaff() === true
+                        || auth()->user()?->isOptometrist() === true
+                    ))
                 ->url(fn (): string => QuotationResource::getUrl('create', [
                     'prescription' => $this->getRecord()->id,
                 ])),

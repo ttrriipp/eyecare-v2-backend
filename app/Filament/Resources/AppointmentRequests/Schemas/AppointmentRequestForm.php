@@ -39,6 +39,35 @@ class AppointmentRequestForm
                             ->label('Preferred Time')
                             ->content(fn ($record) => $record?->scheduled_at?->format('M j, Y g:i A') ?? '—'),
 
+                        Placeholder::make('appointment_type')
+                            ->label('Patient Appointment Type')
+                            ->content(fn ($record): string => $record?->appointmentType?->patient_label ?? '—'),
+
+                        Placeholder::make('internal_appointment_type')
+                            ->label('Internal Appointment Type')
+                            ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
+
+                        Placeholder::make('provisional_duration')
+                            ->label('Provisional Duration')
+                            ->content(fn ($record): string => $record?->provisional_duration_minutes !== null
+                                ? "{$record->provisional_duration_minutes} minutes"
+                                : '—'),
+
+                        Placeholder::make('preferred_provider')
+                            ->label('Preferred Provider')
+                            ->content('Not requested — clinic assigns provider'),
+
+                        Placeholder::make('referral_context')
+                            ->label('Referral Context')
+                            ->content(fn ($record): string => $record?->encrypted_referring_source ?? 'None'),
+
+                        Placeholder::make('alternative_preferences')
+                            ->label('Submitted Time Preferences')
+                            ->content(fn ($record): string => collect($record?->getAllTimePreferences() ?? [])
+                                ->map(fn (string $time): string => Carbon::parse($time)->format('M j, Y g:i A'))
+                                ->implode('; ') ?: '—')
+                            ->columnSpanFull(),
+
                         Textarea::make('encrypted_reason_for_visit')
                             ->label('Reason for Visit')
                             ->disabled()
@@ -64,6 +93,18 @@ class AppointmentRequestForm
                         Placeholder::make('expires_at')
                             ->label('Expires')
                             ->content(fn ($record): string => $record?->expires_at?->format('M j, Y g:i A') ?? '—'),
+
+                        Placeholder::make('request_age')
+                            ->label('Request Age')
+                            ->content(fn ($record): string => $record?->created_at?->diffForHumans() ?? '—'),
+
+                        Placeholder::make('overdue')
+                            ->label('Overdue')
+                            ->content(fn ($record): string => $record?->status === AppointmentRequestStatus::Pending
+                                && $record?->expires_at?->isPast() ? 'Yes' : 'No')
+                            ->badge()
+                            ->color(fn ($record): string => $record?->status === AppointmentRequestStatus::Pending
+                                && $record?->expires_at?->isPast() ? 'danger' : 'gray'),
 
                         Placeholder::make('resolved_by')
                             ->label('Resolved By')

@@ -55,6 +55,27 @@ class QuotationForm
                         ])
                         ->columns(2),
 
+                    Section::make('Corrective Eyewear')
+                        ->schema([
+                            Placeholder::make('prescription_number')
+                                ->label('Prescription')
+                                ->content(fn (Quotation $record): string => $record->prescription?->prescription_number ?? '—'),
+                            Placeholder::make('prescription_author')
+                                ->label('Prescribing Optometrist')
+                                ->content(fn (Quotation $record): string => $record->prescription?->author?->full_name ?? '—'),
+                            Placeholder::make('prescription_status')
+                                ->label('Prescription Status')
+                                ->content(fn (Quotation $record): string => $record->prescription === null
+                                    ? '—'
+                                    : ($record->prescription->isCurrentVersion() ? 'Current' : 'Superseded'))
+                                ->badge()
+                                ->color(fn (Quotation $record): string => $record->prescription?->isCurrentVersion() === true
+                                    ? 'success'
+                                    : 'warning'),
+                        ])
+                        ->columns(3)
+                        ->visible(fn (Quotation $record): bool => $record->prescription !== null),
+
                     Section::make('Product Items')
                         ->schema([
                             RepeatableEntry::make('productItems')

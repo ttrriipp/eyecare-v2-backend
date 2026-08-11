@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Encounters\Pages;
 
 use App\Actions\BillingRecords\AddEncounterChargesToBilling;
+use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\CreateEncounterAddendum;
 use App\Actions\Encounters\SaveEncounterDraft;
@@ -353,7 +354,11 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color('success')
                 ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
-                    && in_array(auth()->user()?->role?->name, ['admin', 'staff'], true)
+                    && (
+                        auth()->user()?->isAdmin() === true
+                        || auth()->user()?->isStaff() === true
+                        || auth()->user()?->isOptometrist() === true
+                    )
                     && $this->record->prescriptions()
                         ->whereDoesntHave('nextPrescription')
                         ->exists()
@@ -484,6 +489,8 @@ class EditEncounter extends EditRecord
                                         $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
                                     ])
                                     ->all())
+                                ->nullable()
+                                ->helperText('Optional. Leave blank for a custom service charge.')
                                 ->searchable()
                                 ->preload()
                                 ->live()
@@ -543,7 +550,7 @@ class EditEncounter extends EditRecord
                                 ]),
                         ])
                         ->columns(2)
-                        ->defaultItems(1)
+                        ->defaultItems(0)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
 
@@ -582,12 +589,10 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-user-plus')
                 ->color('info')
                 ->visible(fn (): bool => match (true) {
-                    // Admin/owner: may assign or reassign at any time
-                    auth()->user()->isAdmin() => true,
-                    // Staff: may assign or reassign before consultation starts
-                    auth()->user()->isStaff() => $this->record->status === EncounterStatus::Planned,
-                    // Optometrist: cannot reassign
-                    default => false,
+                    $this->record->status !== EncounterStatus::Planned => false,
+                    default => auth()->user()->isAdmin()
+                        || auth()->user()->isStaff()
+                        || auth()->user()->isOptometrist(),
                 })
                 ->schema(fn (): array => [
                     Select::make('optometrist_id')
@@ -598,15 +603,19 @@ class EditEncounter extends EditRecord
                         ->preload(),
                 ])
                 ->action(function (array $data): void {
-                    $this->record->update(['optometrist_id' => $data['optometrist_id']]);
+                    try {
+                        app(AssignEncounterOptometrist::class)->handle(
+                            encounter: $this->record,
+                            actor: auth()->user(),
+                            optometrist: User::query()->findOrFail($data['optometrist_id']),
+                        );
 
-                    // Sync to linked appointment
-                    if ($this->record->appointment !== null) {
-                        $this->record->appointment->update(['optometrist_id' => $data['optometrist_id']]);
+                        Notification::make()->title('Optometrist assigned')->success()->send();
+                        $this->refreshFormData(['optometrist_id']);
+                    } catch (ValidationException $e) {
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot assign optometrist.';
+                        Notification::make()->title('Cannot assign optometrist')->body($message)->danger()->send();
                     }
-
-                    Notification::make()->title('Optometrist assigned')->success()->send();
-                    $this->refreshFormData(['optometrist_id']);
                 }),
 
             Action::make('addCorrection')
@@ -654,8 +663,7 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-plus-circle')
                 ->color('info')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
-                    && auth()->user()?->isOptometrist()
-                    && $this->record->completed_by !== auth()->id())
+                    && auth()->user()?->isOptometrist())
                 ->requiresConfirmation()
                 ->modalHeading('Add Supplement')
                 ->modalDescription('This will append a supplementary note to the completed encounter. The original record will remain unchanged.')

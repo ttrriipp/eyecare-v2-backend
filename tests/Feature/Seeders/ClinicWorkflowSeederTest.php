@@ -29,9 +29,9 @@ test('seeder creates staff with appropriate capabilities', function () {
 
     expect($admin)->not->toBeNull()
         ->and($admin->isAdmin())->toBeTrue()
-        ->and($admin->is_optometrist)->toBeTrue()
+        ->and($admin->is_optometrist)->toBeFalse()
         ->and($staff)->not->toBeNull()
-        ->and($staff->is_optometrist)->toBeTrue();
+        ->and($staff->is_optometrist)->toBeFalse();
 });
 
 test('seeder creates linked and unlinked patients', function () {

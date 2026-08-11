@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
+use App\Actions\JobOrders\SaveEyewearSpecification;
 use App\Enums\BillingRecordStatus;
 use App\Enums\FrameSource;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
+use App\Models\JobOrderEyewearSpecification;
+use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -102,6 +105,26 @@ class OpticalOrderForm
                     // Eyewear Specification (only for corrective orders)
                     Section::make('Eyewear Specification')
                         ->relationship('eyewearSpecification')
+                        ->saveRelationshipsBeforeChildrenUsing(function (Section $component): void {
+                            $specification = $component->getCachedExistingRecord();
+                            $editor = auth()->user();
+
+                            if (! $specification instanceof JobOrderEyewearSpecification || ! $editor instanceof User) {
+                                return;
+                            }
+
+                            $data = $component->getChildSchema()->getState(shouldCallHooksBefore: false);
+
+                            if (($data['frame_source'] ?? null) instanceof FrameSource) {
+                                $data['frame_source'] = $data['frame_source']->value;
+                            }
+
+                            app(SaveEyewearSpecification::class)->handle(
+                                specification: $specification,
+                                data: $data,
+                                editor: $editor,
+                            );
+                        })
                         ->schema([
                             Select::make('frame_source')
                                 ->label('Frame Source')
@@ -117,9 +140,11 @@ class OpticalOrderForm
                             TextInput::make('refractive_index_snapshot')
                                 ->label('Refractive Index')
                                 ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('lens_options_snapshot')
+                            Placeholder::make('lens_options_snapshot')
                                 ->label('Lens Options')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
+                                ->content(fn (JobOrderEyewearSpecification $record): string => collect($record->lens_options_snapshot ?? [])
+                                    ->filter(fn (mixed $option): bool => is_string($option) && filled($option))
+                                    ->implode(', ') ?: 'None'),
                             Select::make('distance_pd_mode')
                                 ->label('PD Mode')
                                 ->options([
@@ -202,7 +227,15 @@ class OpticalOrderForm
                                 }),
                             Placeholder::make('billing_balance')
                                 ->label('Balance Due')
-                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) $record->billingRecord->balance_due, 2))
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) ($record->billingRecord?->balance_due ?? 0), 2))
+                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                            Placeholder::make('billing_amount_paid')
+                                ->label('Amount Paid')
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) ($record->billingRecord?->amount_paid ?? 0), 2))
+                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                            Placeholder::make('billing_due_date')
+                                ->label('Payment Due Date')
+                                ->content(fn (JobOrder $record): string => $record->billingRecord?->payment_due_date?->format('M j, Y') ?? 'Not set')
                                 ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
                         ]),
 
@@ -216,8 +249,12 @@ class OpticalOrderForm
                             Placeholder::make('prescription_id')
                                 ->label('Prescription')
                                 ->content(fn (JobOrder $record): string => $record->prescription
-                                    ? "#{$record->prescription->id}"
+                                    ? $record->prescription->prescription_number.' ('.($record->prescription->isCurrentVersion() ? 'Current' : 'Superseded').')'
                                     : '—'),
+                            Placeholder::make('prescription_author')
+                                ->label('Prescribing Optometrist')
+                                ->content(fn (JobOrder $record): string => $record->prescription?->author?->full_name ?? '—')
+                                ->visible(fn (JobOrder $record): bool => $record->prescription !== null),
                             Placeholder::make('quotation_id')
                                 ->label('Source Quotation')
                                 ->content(fn (JobOrder $record): string => $record->quotation

@@ -88,6 +88,7 @@ test('staff records a payment through the payments relation manager', function (
             'payment_method' => 'cash',
             'reference_number' => 'OR-100',
             'notes' => 'Down payment',
+            'charges_reviewed' => true,
         ])
         ->assertNotified();
 

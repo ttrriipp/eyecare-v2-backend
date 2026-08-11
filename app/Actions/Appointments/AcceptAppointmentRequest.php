@@ -10,6 +10,7 @@ use App\Models\AppointmentType;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -53,6 +54,18 @@ class AcceptAppointmentRequest
             ]);
         }
 
+        if (! $appointmentType->is_active) {
+            throw ValidationException::withMessages([
+                'appointment_type_id' => ['The selected appointment type is inactive.'],
+            ]);
+        }
+
+        if ($durationMinutes < 5 || $durationMinutes > 240 || $durationMinutes % 5 !== 0) {
+            throw ValidationException::withMessages([
+                'duration_minutes' => ['Duration must be between 5 and 240 minutes in 5-minute increments.'],
+            ]);
+        }
+
         // Validate the optometrist is active
         if (! $optometrist->isOptometrist() || ! $optometrist->is_active) {
             throw ValidationException::withMessages([
@@ -64,6 +77,12 @@ class AcceptAppointmentRequest
         if ($appointmentType->requires_referral && empty($referringSource)) {
             throw ValidationException::withMessages([
                 'referring_source' => ['Referring source is required for this appointment type.'],
+            ]);
+        }
+
+        if (! $this->matchesSubmittedPreference($request, $scheduledAt) && blank($contactNote)) {
+            throw ValidationException::withMessages([
+                'contact_note' => ['A contact note is required when the final time differs from submitted preferences.'],
             ]);
         }
 
@@ -143,6 +162,7 @@ class AcceptAppointmentRequest
                 startsAt: $scheduledAt,
                 durationMinutes: $durationMinutes,
                 optometrist: $optometrist,
+                enforceGrid: true,
             );
 
             if (! $decision->available) {
@@ -179,5 +199,11 @@ class AcceptAppointmentRequest
 
             return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });
+    }
+
+    private function matchesSubmittedPreference(AppointmentRequest $request, CarbonInterface $scheduledAt): bool
+    {
+        return collect($request->getAllTimePreferences())
+            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($scheduledAt));
     }
 }

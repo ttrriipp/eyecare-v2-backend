@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\ReservationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -9,7 +10,10 @@ use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\FrameReservation;
 use App\Models\JobOrder;
+use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
@@ -70,6 +74,63 @@ test('staff can see product and service items on a quotation', function () {
         ->assertSuccessful()
         ->assertSee('Classic Black Frame')
         ->assertSee('4,500.00');
+});
+
+test('quotation details show the linked prescription reference and prescriber', function () {
+    $staff = User::factory()->staff()->create();
+    $author = User::factory()->optometrist()->create([
+        'first_name' => 'Lina',
+        'middle_name' => null,
+        'last_name' => 'Santos',
+    ]);
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create([
+        'patient_id' => $patient->id,
+        'created_by' => $author->id,
+    ]);
+    $quotation = Quotation::factory()->create([
+        'patient_id' => $patient->id,
+        'prescription_id' => $prescription->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertSee($prescription->prescription_number)
+        ->assertSee('Lina Santos')
+        ->assertSee('Current');
+});
+
+test('confirm sale presents the corrective eyewear configuration before confirmation', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+    $lensCategory = LensCategory::factory()->withPrice(5000)->create(['name' => 'Progressive 1.67']);
+    $lensOption = LensOption::factory()->create(['name' => 'Anti-reflective coating']);
+
+    QuotationItem::factory()->lensPackage()->create([
+        'quotation_id' => $quotation->id,
+        'lens_category_id' => $lensCategory->id,
+        'description' => 'Progressive 1.67',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+    ]);
+    QuotationItem::factory()->product()->create([
+        'quotation_id' => $quotation->id,
+        'lens_option_id' => $lensOption->id,
+        'item_kind' => CommercialItemKind::LensOption,
+        'description' => 'Anti-reflective coating',
+        'quantity' => 1,
+        'unit_price' => 800,
+        'amount' => 800,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->mountAction('confirmSale')
+        ->assertMountedActionModalSee('Progressive 1.67')
+        ->assertMountedActionModalSee('Anti-reflective coating');
 });
 
 test('quotation table shows status badges', function () {

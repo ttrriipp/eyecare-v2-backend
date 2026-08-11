@@ -7,10 +7,13 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -79,6 +82,36 @@ class PaymentsRelationManager extends RelationManager
                             BillingRecordStatus::PartiallyPaid,
                         ], true))
                     ->schema([
+                        Placeholder::make('charge_summary')
+                            ->label('Current charge set')
+                            ->content(function (): string {
+                                /** @var BillingRecord $billingRecord */
+                                $billingRecord = $this->getOwnerRecord();
+                                $items = $billingRecord->items()->get();
+
+                                if ($items->isEmpty()) {
+                                    return 'No itemized charges have been recorded.';
+                                }
+
+                                $summary = $items
+                                    ->map(fn (BillingRecordItem $item): string => sprintf(
+                                        '%s × %s — ₱%s',
+                                        $item->description,
+                                        $item->quantity,
+                                        number_format((float) $item->amount, 2),
+                                    ))
+                                    ->implode("\n");
+
+                                return $summary."\nTotal: ₱".number_format((float) $billingRecord->total_amount, 2);
+                            })
+                            ->visible(fn (): bool => ! $this->hasPostedPayments()),
+                        Toggle::make('charges_reviewed')
+                            ->label('I reviewed the current charge set')
+                            ->helperText('Recording this payment will finalize the charges on this bill. Add all expected Optical Order and Service charges first.')
+                            ->default(false)
+                            ->rule('accepted')
+                            ->required()
+                            ->visible(fn (): bool => ! $this->hasPostedPayments()),
                         TextInput::make('amount')
                             ->label('Amount')
                             ->required()
@@ -114,6 +147,7 @@ class PaymentsRelationManager extends RelationManager
                                 recorder: auth()->user(),
                                 referenceNumber: $data['reference_number'] ?? null,
                                 notes: $data['notes'] ?? null,
+                                chargesReviewed: (bool) ($data['charges_reviewed'] ?? false),
                             );
 
                             $billingRecord->refresh();
@@ -183,5 +217,13 @@ class PaymentsRelationManager extends RelationManager
             ->emptyStateHeading('No payments recorded')
             ->emptyStateDescription('Record the first payment when the patient makes one.')
             ->defaultSort('recorded_at', 'desc');
+    }
+
+    private function hasPostedPayments(): bool
+    {
+        return $this->getOwnerRecord()
+            ->payments()
+            ->where('status', 'posted')
+            ->exists();
     }
 }

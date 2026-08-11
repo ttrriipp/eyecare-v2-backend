@@ -22,7 +22,11 @@ uses(RefreshDatabase::class);
 
 test('prescription lists show retained operational columns', function () {
     $optometrist = User::factory()->optometrist()->create(['first_name' => 'Dr.', 'middle_name' => null, 'last_name' => 'Padilla']);
-    $patient = Patient::factory()->create(['first_name' => 'Maria', 'last_name' => 'Santos']);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Maria',
+        'middle_name' => null,
+        'last_name' => 'Santos',
+    ]);
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
         'optometrist_id' => $optometrist->id,
@@ -37,7 +41,7 @@ test('prescription lists show retained operational columns', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(ListPrescriptions::class)
-        ->assertTableColumnStateSet('patient.first_name', 'Maria', record: $prescription)
+        ->assertTableColumnStateSet('patient.full_name', 'Maria Santos', record: $prescription)
         ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
         ->assertTableColumnStateSet('author.first_name', 'Dr. Padilla', record: $prescription)
@@ -86,7 +90,7 @@ test('an optometrist can create a prescription from the encounter wizard', funct
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertFormFieldExists('prescription.main_od_sphere')
         ->assertFormFieldExists('prescription.main_os_sphere')
-        ->assertFormFieldDoesNotExist('plan');
+        ->assertFormFieldExists('plan');
 
     Livewire::test(CreatePrescription::class, ['encounter' => $encounter->id])
         ->assertSuccessful()
@@ -168,15 +172,18 @@ test('prescription creation derives ownership from the encounter', function () {
 
 test('a finalized prescription is read only and offers amendment to optometrists', function () {
     $optometrist = User::factory()->optometrist()->create();
-    $prescription = Prescription::factory()->create();
+    $prescription = Prescription::factory()->create([
+        'main_od_sphere' => '-2.00',
+        'remarks' => 'Stable distance vision.',
+    ]);
 
     $this->actingAs($optometrist);
 
     Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
         ->assertSuccessful()
-        ->assertFormFieldDisabled('patient_id')
-        ->assertFormFieldDisabled('main_od_sphere')
-        ->assertFormFieldDisabled('remarks')
+        ->assertSee($prescription->patient->full_name)
+        ->assertSee('-2.00')
+        ->assertSee('Stable distance vision.')
         ->assertActionVisible('amendPrescription')
         ->assertActionDoesNotExist('edit')
         ->assertActionDoesNotExist('archive')

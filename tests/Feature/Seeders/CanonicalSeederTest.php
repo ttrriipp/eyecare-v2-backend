@@ -21,15 +21,19 @@ uses(RefreshDatabase::class);
 test('canonical seed data creates required users', function () {
     $this->seed(DatabaseSeeder::class);
 
+    $owner = User::query()->where('email', 'owner@eyecare.test')->first();
     $admin = User::query()->where('email', 'admin@eyecare.test')->first();
     $staff = User::query()->where('email', 'staff@eyecare.test')->first();
     $patientUser = User::query()->where('email', 'customer@eyecare.test')->first();
 
-    expect($admin)->not->toBeNull()
-        ->and($admin->is_optometrist)->toBeTrue()
+    expect($owner)->not->toBeNull()
+        ->and($owner->is_optometrist)->toBeTrue()
+        ->and($owner->role->name)->toBe('admin')
+        ->and($admin)->not->toBeNull()
+        ->and($admin->is_optometrist)->toBeFalse()
         ->and($admin->role->name)->toBe('admin')
         ->and($staff)->not->toBeNull()
-        ->and($staff->is_optometrist)->toBeTrue()
+        ->and($staff->is_optometrist)->toBeFalse()
         ->and($staff->role->name)->toBe('staff')
         ->and($patientUser)->not->toBeNull()
         ->and($patientUser->role->name)->toBe('patient');
@@ -38,23 +42,29 @@ test('canonical seed data creates required users', function () {
 test('canonical seeded users use structured names without the legacy name column', function () {
     $this->seed(DatabaseSeeder::class);
 
+    $owner = User::query()->where('email', 'owner@eyecare.test')->firstOrFail();
     $admin = User::query()->where('email', 'admin@eyecare.test')->firstOrFail();
+    $optometrist = User::query()->where('email', 'optometrist@eyecare.test')->firstOrFail();
     $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
     $patientUser = User::query()->where('email', 'customer@eyecare.test')->firstOrFail();
 
     expect(Schema::hasColumn('users', 'name'))->toBeFalse()
-        ->and($admin->first_name)->toBe('Maria')
-        ->and($admin->last_name)->toBe('Santos')
-        ->and($staff->first_name)->toBe('Juan')
-        ->and($staff->last_name)->toBe('dela Cruz')
-        ->and($patientUser->first_name)->toBe('Ana')
-        ->and($patientUser->last_name)->toBe('Reyes');
+        ->and($owner->first_name)->toBe('Maria')
+        ->and($owner->last_name)->toBe('Santos')
+        ->and($admin->first_name)->toBe('Carlos')
+        ->and($admin->last_name)->toBe('Reyes')
+        ->and($optometrist->first_name)->toBe('Juan')
+        ->and($optometrist->last_name)->toBe('dela Cruz')
+        ->and($staff->first_name)->toBe('Ana')
+        ->and($staff->last_name)->toBe('Garcia')
+        ->and($patientUser->first_name)->toBe('Liza')
+        ->and($patientUser->last_name)->toBe('Mendoza');
 });
 
 test('canonical seed data creates linked and walk-in patients', function () {
     $this->seed(DatabaseSeeder::class);
 
-    $linkedPatient = Patient::query()->where('first_name', 'Ana')->where('last_name', 'Reyes')->first();
+    $linkedPatient = Patient::query()->where('first_name', 'Liza')->where('last_name', 'Mendoza')->first();
     $walkInPatient = Patient::query()->where('first_name', 'Pedro')->where('last_name', 'Cruz')->first();
 
     expect($linkedPatient)->not->toBeNull()

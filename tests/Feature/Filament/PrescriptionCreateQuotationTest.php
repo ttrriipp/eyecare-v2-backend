@@ -21,6 +21,16 @@ test('create quotation action is visible without an encounter, using the prescri
         ->assertActionVisible('createQuotation');
 });
 
+test('optometrist can create a quotation from a current prescription', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $prescription = Prescription::factory()->create(['encounter_id' => null]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
+        ->assertActionVisible('createQuotation');
+});
+
 test('create quotation action is hidden on a superseded prescription', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();

@@ -117,7 +117,6 @@ test('appointment table has no generic lifecycle advance actions', function () {
 });
 
 test('checked in appointment exposes start consultation for its planned encounter', function () {
-    $staff = User::factory()->staff()->create();
     $optometrist = User::factory()->optometrist()->create();
     $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
     $appointment = Appointment::factory()->create([
@@ -129,15 +128,13 @@ test('checked in appointment exposes start consultation for its planned encounte
         'patient_id' => $appointment->patient_id,
     ]);
 
-    $this->actingAs($staff);
+    $this->actingAs($optometrist);
 
     Livewire::test(ListAppointments::class)
         ->assertActionVisible(TestAction::make('startConsultation')->table($appointment))
         ->assertActionHidden(TestAction::make('viewEncounter')->table($appointment))
         ->assertActionHidden(TestAction::make('assign')->table($appointment))
-        ->callTableAction('startConsultation', $appointment, [
-            'optometrist_id' => $optometrist->id,
-        ])
+        ->callTableAction('startConsultation', $appointment)
         ->assertRedirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
 
     expect($encounter->fresh()->status)->toBe(EncounterStatus::InProgress)
@@ -145,7 +142,6 @@ test('checked in appointment exposes start consultation for its planned encounte
 });
 
 test('started appointment exposes a dedicated view encounter action', function () {
-    $staff = User::factory()->staff()->create();
     $optometrist = User::factory()->optometrist()->create();
     $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
     $appointment = Appointment::factory()->create([
@@ -158,7 +154,7 @@ test('started appointment exposes a dedicated view encounter action', function (
         'optometrist_id' => $optometrist->id,
     ]);
 
-    $this->actingAs($staff);
+    $this->actingAs($optometrist);
 
     Livewire::test(ListAppointments::class)
         ->assertActionHidden(TestAction::make('startConsultation')->table($appointment))
@@ -295,7 +291,6 @@ test('edit page has no editable status field', function () {
 });
 
 test('edit page starts a planned consultation and views a started encounter', function () {
-    $staff = User::factory()->staff()->create();
     $optometrist = User::factory()->optometrist()->create();
     $checkedIn = AppointmentStatus::query()->firstOrCreate(['name' => 'checked_in']);
     $appointment = Appointment::factory()->create([
@@ -307,14 +302,12 @@ test('edit page starts a planned consultation and views a started encounter', fu
         'patient_id' => $appointment->patient_id,
     ]);
 
-    $this->actingAs($staff);
+    $this->actingAs($optometrist);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionVisible('startConsultation')
         ->assertActionHidden('viewEncounter')
-        ->callAction('startConsultation', [
-            'optometrist_id' => $optometrist->id,
-        ])
+        ->callAction('startConsultation')
         ->assertRedirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
 
     expect($encounter->fresh()->status)->toBe(EncounterStatus::InProgress);

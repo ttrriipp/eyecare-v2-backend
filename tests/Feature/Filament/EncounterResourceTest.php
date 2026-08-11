@@ -4,10 +4,13 @@ use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Encounters\Pages\ListEncounters;
+use App\Models\Appointment;
+use App\Models\AuditLog;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -150,6 +153,68 @@ test('encounter page has no cancel appointment action', function () {
         ->assertActionDoesNotExist('cancelAppointment');
 });
 
+test('an optometrist can create a quotation from an active encounter', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->inProgress()->create([
+        'optometrist_id' => $optometrist->id,
+    ]);
+    Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionVisible('createQuotation');
+});
+
+test('the original completing optometrist can add a supplement', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->completed()->create([
+        'optometrist_id' => $optometrist->id,
+        'completed_by' => $optometrist->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionVisible('addSupplement');
+});
+
+test('assignment is available only while an encounter is planned', function () {
+    $admin = User::factory()->admin()->create();
+    $encounter = Encounter::factory()->inProgress()->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionHidden('assignOptometrist');
+});
+
+test('encounter assignment uses the audited assignment action', function () {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create();
+    $encounter = Encounter::factory()->create([
+        'appointment_id' => $appointment->id,
+        'patient_id' => $appointment->patient_id,
+        'status' => EncounterStatus::Planned,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->callAction('assignOptometrist', ['optometrist_id' => $optometrist->id])
+        ->assertNotified();
+
+    expect($encounter->fresh()->optometrist_id)->toBe($optometrist->id)
+        ->and($appointment->fresh()->optometrist_id)->toBe($optometrist->id);
+
+    expect(AuditLog::query()
+        ->where('subject_type', Encounter::class)
+        ->where('subject_id', $encounter->id)
+        ->where('action', 'encounter.provider_assigned')
+        ->exists())->toBeTrue();
+});
+
 test('in-progress encounter can complete the visit from the wizard confirmation action', function () {
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->inProgress()->create([
@@ -185,6 +250,26 @@ test('encounter table shows status badges', function () {
         ->assertTableColumnFormattedStateSet('status', 'Planned', record: $waiting)
         ->assertTableColumnFormattedStateSet('status', 'In Progress', record: $inProgress)
         ->assertTableColumnFormattedStateSet('status', 'Completed', record: $completed);
+});
+
+test('an optometrist can start an unassigned checked-in encounter from the table', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->checkedIn()->create();
+    $encounter = Encounter::factory()->create([
+        'appointment_id' => $appointment->id,
+        'patient_id' => $appointment->patient_id,
+        'status' => EncounterStatus::Planned,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ListEncounters::class)
+        ->assertActionVisible(TestAction::make('startEncounter')->table($encounter))
+        ->callTableAction('startEncounter', $encounter)
+        ->assertNotified();
+
+    expect($encounter->fresh()->status)->toBe(EncounterStatus::InProgress)
+        ->and($encounter->fresh()->optometrist_id)->toBe($optometrist->id);
 });
 
 test('encounter table can filter by status', function () {

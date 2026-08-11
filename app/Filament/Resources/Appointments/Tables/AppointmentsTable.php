@@ -134,19 +134,12 @@ class AppointmentsTable
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => $record->status?->name === 'checked_in'
                             && $record->encounter?->status === EncounterStatus::Planned
-                            && auth()->user()?->isOptometrist() === true)
+                            && auth()->user()?->isOptometrist() === true
+                            && ($record->optometrist_id === null || $record->optometrist_id === auth()->id()))
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
-                        ->modalDescription('Select the optometrist and start the consultation.')
-                        ->schema([
-                            Select::make('optometrist_id')
-                                ->label('Optometrist')
-                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
-                                ->required()
-                                ->searchable()
-                                ->preload(),
-                        ])
-                        ->action(function (Appointment $record, array $data, Component $livewire): void {
+                        ->modalDescription('You will become the treating optometrist for this encounter.')
+                        ->action(function (Appointment $record, Component $livewire): void {
                             $encounter = $record->encounter;
 
                             if ($encounter === null) {
@@ -164,7 +157,6 @@ class AppointmentsTable
                             try {
                                 app(StartEncounter::class)->handle(
                                     encounter: $encounter,
-                                    optometrist: User::query()->findOrFail($data['optometrist_id']),
                                     actor: auth()->user(),
                                 );
 
@@ -243,7 +235,7 @@ class AppointmentsTable
                                 ->label('New appointment time')
                                 ->required()
                                 ->seconds(false)
-                                ->minutesStep(1)
+                                ->minutesStep(15)
                                 ->format('H:i'),
                             Select::make('reason_category')
                                 ->label('Reason')

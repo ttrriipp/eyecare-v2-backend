@@ -75,7 +75,7 @@ test('accepting creates one job order linked via direct quotation_id', function 
         'total' => 7500,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 1]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,

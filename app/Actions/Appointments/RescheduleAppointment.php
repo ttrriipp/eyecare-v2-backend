@@ -62,7 +62,7 @@ class RescheduleAppointment
                     durationMinutes: $appointment->duration_minutes,
                     optometrist: $appointment->optometrist,
                     ignoreAppointment: $appointment,
-                    enforceGrid: $customerInitiated,
+                    enforceGrid: true,
                 );
             } catch (ValidationException $exception) {
                 $this->throwStructuredSlotUnavailable($exception, $appointment, $scheduledAt);

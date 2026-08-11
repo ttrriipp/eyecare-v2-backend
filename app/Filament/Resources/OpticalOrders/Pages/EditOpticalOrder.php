@@ -10,9 +10,11 @@ use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
@@ -167,6 +169,8 @@ class EditOpticalOrder extends EditRecord
                 ->color('success')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::ReadyForDispensing)
                 ->requiresConfirmation()
+                ->modalHeading('Dispense Order')
+                ->modalDescription('Confirm the recipient, payment, and balance-release decision. Releasing with an outstanding balance requires an administrator, a reason, and a payment due date.')
                 ->schema([
                     TextInput::make('recipient_name')
                         ->label('Recipient Name')
@@ -191,6 +195,23 @@ class EditOpticalOrder extends EditRecord
                         ])
                         ->nullable()
                         ->visible(fn (Get $get): bool => filled($get('initial_payment_amount'))),
+                    Toggle::make('admin_override')
+                        ->label('Release with outstanding balance')
+                        ->helperText('Administrator-only exception. The order will be released while the remaining balance stays due.')
+                        ->default(false)
+                        ->live()
+                        ->visible(fn (): bool => auth()->user()?->isAdmin() === true && $this->outstandingBalance() > 0),
+                    Textarea::make('override_reason')
+                        ->label('Balance Release Reason')
+                        ->required(fn (Get $get): bool => (bool) $get('admin_override'))
+                        ->visible(fn (Get $get): bool => (bool) $get('admin_override'))
+                        ->maxLength(1000),
+                    DatePicker::make('override_due_date')
+                        ->label('Balance Payment Due Date')
+                        ->required(fn (Get $get): bool => (bool) $get('admin_override'))
+                        ->visible(fn (Get $get): bool => (bool) $get('admin_override'))
+                        ->native(false)
+                        ->minDate(today()),
                 ])
                 ->action(function (array $data): void {
                     try {
@@ -201,6 +222,9 @@ class EditOpticalOrder extends EditRecord
                             notes: $data['notes'] ?? null,
                             pickupPaymentAmount: $data['initial_payment_amount'] ?? null,
                             pickupPaymentMethod: $data['initial_payment_method'] ?? null,
+                            adminOverride: (bool) ($data['admin_override'] ?? false),
+                            overrideReason: $data['override_reason'] ?? null,
+                            overrideDueDate: $data['override_due_date'] ?? null,
                         );
 
                         Notification::make()->title('Order dispensed — billing record created')->success()->send();
@@ -210,5 +234,20 @@ class EditOpticalOrder extends EditRecord
                     }
                 }),
         ];
+    }
+
+    private function outstandingBalance(): float
+    {
+        $billingRecord = $this->record->billingRecord;
+
+        if ($billingRecord === null) {
+            $balance = $this->record->billingRecord()
+                ->where('status', '!=', 'voided')
+                ->value('balance_due');
+
+            return (float) ($balance ?? 0);
+        }
+
+        return (float) $billingRecord->balance_due;
     }
 }

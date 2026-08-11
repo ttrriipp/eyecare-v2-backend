@@ -6,10 +6,14 @@ use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Livewire\Attributes\Locked;
@@ -42,6 +46,30 @@ class CreatePrescription extends CreateRecord
             'appointment_id' => $encounterRecord->appointment_id,
             'prescribed_at' => now()->toDateString(),
         ]);
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        $encounter = $this->getEncounter();
+
+        return $schema
+            ->columns(1)
+            ->components([
+                Section::make('Prescription Context')
+                    ->schema([
+                        TextInput::make('patient_id')
+                            ->label('Patient')
+                            ->disabled()
+                            ->dehydrated(false),
+                        TextInput::make('appointment_id')
+                            ->label('Appointment')
+                            ->disabled()
+                            ->dehydrated(false),
+                    ])
+                    ->columns(2),
+
+                ...PrescriptionForm::components(editable: true),
+            ]);
     }
 
     /**
@@ -94,7 +122,7 @@ class CreatePrescription extends CreateRecord
     protected function getEncounter(): Encounter
     {
         return Encounter::query()
-            ->with('patient')
+            ->with(['patient', 'appointment'])
             ->findOrFail($this->encounter);
     }
 

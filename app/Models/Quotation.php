@@ -67,6 +67,14 @@ class Quotation extends Model
     }
 
     /**
+     * @return BelongsTo<Prescription, $this>
+     */
+    public function prescription(): BelongsTo
+    {
+        return $this->belongsTo(Prescription::class);
+    }
+
+    /**
      * Direct items relationship.
      *
      * @return HasMany<QuotationItem, $this>

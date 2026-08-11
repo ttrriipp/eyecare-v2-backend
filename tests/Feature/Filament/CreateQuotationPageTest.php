@@ -25,7 +25,7 @@ test('staff creates a quotation from an encounter query context', function () {
         ->assertFormFieldDoesNotExist('patient_id')
         ->fillForm([
             'valid_until' => now()->addWeek()->toDateString(),
-            'discount_amount' => 250,
+            'discount_amount' => 0,
             'notes' => 'Patient-visible estimate note.',
             'items' => [[
                 'item_type' => 'custom_product',
@@ -42,7 +42,7 @@ test('staff creates a quotation from an encounter query context', function () {
     $quotation = Quotation::query()->where('encounter_id', $encounter->id)->firstOrFail();
 
     expect($quotation->patient_id)->toBe($encounter->patient_id)
-        ->and($quotation->total)->toBe('12250.00')
+        ->and($quotation->total)->toBe('12500.00')
         ->and($quotation->notes)->toBe('Patient-visible estimate note.');
 });
 

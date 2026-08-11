@@ -58,6 +58,8 @@ class ListBillingRecords extends ListRecords
                                         $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
                                     ])
                                     ->all())
+                                ->nullable()
+                                ->helperText('Optional. Leave blank for a custom service charge.')
                                 ->searchable()
                                 ->preload()
                                 ->live()
@@ -117,7 +119,7 @@ class ListBillingRecords extends ListRecords
                                 ]),
                         ])
                         ->columns(2)
-                        ->defaultItems(1)
+                        ->defaultItems(0)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
 

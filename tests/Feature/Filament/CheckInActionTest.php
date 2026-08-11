@@ -57,10 +57,8 @@ test('optometrist can start and complete encounter', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertSee('Start Visit')
-        ->callAction('startEncounter', [
-            'optometrist_id' => $optometrist->id,
-        ])
+        ->assertSee('Start Consultation')
+        ->callAction('startEncounter')
         ->assertHasNoActionErrors();
 
     $encounter->refresh();
@@ -74,7 +72,7 @@ test('receptionist cannot start encounter', function () {
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertDontSee('Start Visit');
+        ->assertDontSee('Start Consultation');
 });
 
 test('receptionist cannot complete encounter', function () {

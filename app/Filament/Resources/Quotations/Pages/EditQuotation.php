@@ -19,6 +19,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -121,7 +122,35 @@ class EditQuotation extends EditRecord
                         ->with('items.variant.product')
                         ->get();
 
+                    $configurationItems = $this->record->productItems()
+                        ->get()
+                        ->filter(fn ($item): bool => $item->item_kind === CommercialItemKind::LensPackage
+                            || $item->item_kind === CommercialItemKind::LensOption
+                            || filled($item->lens_category_id)
+                            || filled($item->lens_option_id))
+                        ->map(fn ($item): string => "{$item->description} × {$item->quantity}")
+                        ->values();
+
+                    $prescription = $this->record->prescription;
+
                     return [
+                        Placeholder::make('corrective_eyewear_summary')
+                            ->label('Corrective Eyewear Configuration')
+                            ->content($configurationItems->isNotEmpty()
+                                ? $configurationItems->implode('; ')
+                                : 'No corrective eyewear configuration selected.')
+                            ->columnSpanFull(),
+
+                        Placeholder::make('prescription_reference')
+                            ->label('Prescription')
+                            ->content($prescription?->prescription_number ?? 'No linked prescription')
+                            ->visible($prescription !== null),
+
+                        Placeholder::make('prescription_author')
+                            ->label('Prescribing Optometrist')
+                            ->content($prescription?->author?->full_name ?? '—')
+                            ->visible($prescription !== null),
+
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
                             ->helperText('Unselected services stay proposed — bill them later from "Bill Remaining Services".')
@@ -173,7 +202,7 @@ class EditQuotation extends EditRecord
                 })
                 ->requiresConfirmation()
                 ->modalHeading('Confirm Sale')
-                ->modalDescription('This creates the Optical Order from product lines and bills any selected services.')
+                ->modalDescription('Review the corrective-eyewear configuration and charges before confirming. This creates the Optical Order from product lines and bills any selected services.')
                 ->action(function (array $data): void {
                     $confirmer = auth()->user();
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Encounters\Tables;
 
+use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\StartEncounter;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
@@ -80,26 +81,15 @@ class EncountersTable
                         ->icon('heroicon-o-play')
                         ->color('warning')
                         ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned
-                            && auth()->user()?->isOptometrist() === true)
+                            && auth()->user()?->isOptometrist() === true
+                            && ($record->optometrist_id === null || $record->optometrist_id === auth()->id()))
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
-                        ->modalDescription('Select the optometrist and start the consultation.')
-                        ->form([
-                            Select::make('optometrist_id')
-                                ->label('Optometrist')
-                                ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
-                                ->default(auth()->id())
-                                ->required()
-                                ->searchable()
-                                ->preload(),
-                        ])
-                        ->action(function (Encounter $record, array $data): void {
+                        ->modalDescription('You will become the treating optometrist for this encounter.')
+                        ->action(function (Encounter $record): void {
                             try {
-                                $optometrist = User::query()->findOrFail($data['optometrist_id']);
-
                                 app(StartEncounter::class)->handle(
                                     encounter: $record,
-                                    optometrist: $optometrist,
                                     actor: auth()->user(),
                                 );
 
@@ -114,12 +104,10 @@ class EncountersTable
                         ->icon('heroicon-o-user-plus')
                         ->color('info')
                         ->visible(fn (Encounter $record): bool => match (true) {
-                            // Admin/owner: may assign or reassign at any time
-                            auth()->user()->isAdmin() => true,
-                            // Staff: may assign or reassign before consultation starts
-                            auth()->user()->isStaff() => $record->status === EncounterStatus::Planned,
-                            // Optometrist: cannot reassign
-                            default => false,
+                            $record->status !== EncounterStatus::Planned => false,
+                            default => auth()->user()->isAdmin()
+                                || auth()->user()->isStaff()
+                                || auth()->user()->isOptometrist(),
                         })
                         ->form([
                             Select::make('optometrist_id')
@@ -130,14 +118,18 @@ class EncountersTable
                                 ->preload(),
                         ])
                         ->action(function (Encounter $record, array $data): void {
-                            $record->update(['optometrist_id' => $data['optometrist_id']]);
+                            try {
+                                app(AssignEncounterOptometrist::class)->handle(
+                                    encounter: $record,
+                                    actor: auth()->user(),
+                                    optometrist: User::query()->findOrFail($data['optometrist_id']),
+                                );
 
-                            // Sync to linked appointment
-                            if ($record->appointment !== null) {
-                                $record->appointment->update(['optometrist_id' => $data['optometrist_id']]);
+                                Notification::make()->title('Optometrist assigned')->success()->send();
+                            } catch (ValidationException $e) {
+                                $message = collect($e->errors())->flatten()->first() ?? 'Cannot assign optometrist.';
+                                Notification::make()->title('Cannot assign optometrist')->body($message)->danger()->send();
                             }
-
-                            Notification::make()->title('Optometrist assigned')->success()->send();
                         }),
 
                     Action::make('viewAppointment')

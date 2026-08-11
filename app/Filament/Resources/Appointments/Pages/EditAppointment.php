@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\Appointments\Pages;
 
 use App\Actions\Appointments\CancelAppointment;
+use App\Actions\Appointments\LockAppointmentScheduleDate;
 use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
+use App\Actions\Appointments\ScheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Reservations\CreateFrameReservation;
@@ -14,6 +16,7 @@ use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use App\Models\Appointment;
+use App\Models\AppointmentType;
 use App\Models\FrameReservation;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -24,11 +27,60 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EditAppointment extends EditRecord
 {
     protected static string $resource = AppointmentResource::class;
+
+    /**
+     * Revalidate schedule-defining edits through the same scheduling boundary
+     * used by appointment creation and rescheduling.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        if (! $record instanceof Appointment || $record->status?->name !== 'scheduled') {
+            return parent::handleRecordUpdate($record, $data);
+        }
+
+        $appointmentType = AppointmentType::query()->find($data['appointment_type_id'] ?? $record->appointment_type_id);
+
+        if ($appointmentType === null || ! $appointmentType->is_active) {
+            throw ValidationException::withMessages([
+                'appointment_type_id' => ['The selected appointment type is inactive or unavailable.'],
+            ]);
+        }
+
+        $durationMinutes = (int) ($data['duration_minutes'] ?? $record->duration_minutes);
+
+        if ($appointmentType->requires_referral && blank($data['referring_source'] ?? $record->referring_source)) {
+            throw ValidationException::withMessages([
+                'referring_source' => ['Referring source is required for this appointment type.'],
+            ]);
+        }
+
+        $optometrist = filled($data['optometrist_id'] ?? null)
+            ? User::query()->findOrFail($data['optometrist_id'])
+            : $record->optometrist;
+
+        return DB::transaction(function () use ($record, $data, $durationMinutes, $optometrist): Model {
+            app(LockAppointmentScheduleDate::class)->handle($record->scheduled_at);
+
+            app(ScheduleAppointment::class)->handle(
+                scheduledAt: $record->scheduled_at,
+                durationMinutes: $durationMinutes,
+                optometrist: $optometrist,
+                ignoreAppointment: $record,
+                enforceGrid: true,
+            );
+
+            return parent::handleRecordUpdate($record, $data);
+        }, attempts: 3);
+    }
 
     protected function getHeaderActions(): array
     {
@@ -100,34 +152,17 @@ class EditAppointment extends EditRecord
                 ->color('info')
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'checked_in'
                     && $this->getRecord()->encounter?->status === EncounterStatus::Planned
+                    && auth()->user()->isOptometrist()
                     && (
-                        // Admin/owner: always allowed
-                        auth()->user()->isAdmin()
-                        // Optometrist: only if assigned to them or unassigned (self-claim)
-                        || (
-                            auth()->user()->isOptometrist()
-                            && (
-                                $this->getRecord()->optometrist_id === null
-                                || $this->getRecord()->optometrist_id === auth()->id()
-                            )
-                        )
+                        $this->getRecord()->optometrist_id === null
+                        || $this->getRecord()->optometrist_id === auth()->id()
                     ))
                 ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
                 ->modalDescription(fn (): string => $this->getRecord()->optometrist_id !== null
                     ? "Start consultation with {$this->getRecord()->optometrist?->full_name}?"
                     : 'You will be assigned as the optometrist for this encounter.')
-                ->schema(fn (): array => $this->getRecord()->optometrist_id !== null
-                    ? [] // No selector needed — optometrist already assigned
-                    : [
-                        Select::make('optometrist_id')
-                            ->label('Optometrist')
-                            ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])->toArray())
-                            ->required()
-                            ->searchable()
-                            ->preload(),
-                    ])
-                ->action(function (array $data): void {
+                ->action(function (): void {
                     $encounter = $this->getRecord()->encounter;
 
                     if ($encounter === null) {
@@ -207,7 +242,7 @@ class EditAppointment extends EditRecord
                         ->label('New appointment time')
                         ->required()
                         ->seconds(false)
-                        ->minutesStep(1)
+                        ->minutesStep(15)
                         ->format('H:i'),
                     Select::make('reason_category')
                         ->label('Reason')

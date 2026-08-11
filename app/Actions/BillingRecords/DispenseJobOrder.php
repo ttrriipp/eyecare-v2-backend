@@ -80,6 +80,8 @@ class DispenseJobOrder
             }
 
             // Routine dispensing requires zero balance
+            $balanceOverrideApplied = false;
+
             if ((float) $billingRecord->balance_due > 0) {
                 if ($adminOverride && $dispenser->isAdmin()) {
                     // Admin override: require reason and due date
@@ -94,6 +96,8 @@ class DispenseJobOrder
                             'override_due_date' => ['Provide a payment due date for the outstanding balance.'],
                         ]);
                     }
+
+                    $balanceOverrideApplied = true;
                 } else {
                     throw ValidationException::withMessages([
                         'billing_record' => ['The billing record has an outstanding balance of '.number_format((float) $billingRecord->balance_due, 2).'. Record full payment before dispensing.'],
@@ -112,9 +116,9 @@ class DispenseJobOrder
                 'recipient_name' => $recipientName,
                 'notes' => $notes,
                 'released_balance_amount' => (float) $billingRecord->balance_due,
-                'balance_override_by' => $adminOverride ? $dispenser->id : null,
-                'balance_override_reason' => $adminOverride ? $overrideReason : null,
-                'balance_due_date' => $adminOverride ? $overrideDueDate : null,
+                'balance_override_by' => $balanceOverrideApplied ? $dispenser->id : null,
+                'balance_override_reason' => $balanceOverrideApplied ? $overrideReason : null,
+                'balance_due_date' => $balanceOverrideApplied ? $overrideDueDate : null,
             ]);
 
             // Audit
