@@ -28,16 +28,13 @@ class PatientLinkRequestsTable
 
                 TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->color(fn (string $state) => match ($state) {
                         'pending' => 'warning',
                         'approved' => 'success',
                         'rejected' => 'danger',
                         default => 'gray',
                     }),
-
-                TextColumn::make('reviewedPatient.full_name')
-                    ->label('Linked Patient')
-                    ->placeholder('—'),
 
                 TextColumn::make('reviewer.first_name')
                     ->label('Reviewed By')
