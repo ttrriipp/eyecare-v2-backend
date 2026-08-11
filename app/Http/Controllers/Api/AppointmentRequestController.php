@@ -98,6 +98,7 @@ class AppointmentRequestController extends Controller
             'reason_for_visit' => $request->encrypted_reason_for_visit,
             'referring_source' => $request->encrypted_referring_source,
             'expires_at' => $request->expires_at->toISOString(),
+            'rejection_reason' => $request->rejection_reason,
             'created_at' => $request->created_at->toISOString(),
             'time_preferences_are_reserved' => false,
             'appointment' => $request->appointment_id ? [
