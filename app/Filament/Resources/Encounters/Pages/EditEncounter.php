@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
+use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\CreateEncounterAddendum;
@@ -9,6 +10,7 @@ use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
@@ -16,12 +18,19 @@ use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
