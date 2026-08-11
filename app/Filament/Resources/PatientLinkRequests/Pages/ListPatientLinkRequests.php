@@ -16,13 +16,10 @@ class ListPatientLinkRequests extends ListRecords
         return [
             'all' => Tab::make(),
             'pending' => Tab::make()
-                ->icon('heroicon-o-clock')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending')),
             'approved' => Tab::make()
-                ->icon('heroicon-o-check-circle')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'approved')),
             'rejected' => Tab::make()
-                ->icon('heroicon-o-x-circle')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'rejected')),
         ];
     }
