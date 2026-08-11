@@ -7,6 +7,7 @@ use App\Models\PatientLinkRequest;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 class PatientLinkRequestsTable
