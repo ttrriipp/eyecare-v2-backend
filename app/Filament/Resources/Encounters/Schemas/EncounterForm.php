@@ -2,16 +2,30 @@
 
 namespace App\Filament\Resources\Encounters\Schemas;
 
+use App\Actions\BillingRecords\AddEncounterChargesToBilling;
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\Prescription;
+use App\Models\Quotation;
+use App\Models\Service;
 use Carbon\CarbonInterface;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
@@ -31,7 +45,7 @@ class EncounterForm
     private static function isClinicalFieldDisabled(): \Closure
     {
         return fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress
-            && !(auth()->user()->isOptometrist() && $record->optometrist_id === auth()->id());
+            && ! (auth()->user()->isOptometrist() && $record->optometrist_id === auth()->id());
     }
 
     /**
@@ -493,6 +507,206 @@ class EncounterForm
                             return $lines->implode("\n\n");
                         }),
                 ]),
+
+            // ── Related Records ──────────────────────────────────────────
+            Section::make('Related Records')
+                ->schema([
+                    Grid::make(4)
+                        ->schema([
+                            Placeholder::make('link_appointment')
+                                ->label('Appointment')
+                                ->content(fn (Encounter $record): string => $record->appointment?->appointment_number ?? '—')
+                                ->url(fn (Encounter $record): ?string => $record->appointment
+                                    ? AppointmentResource::getUrl('edit', ['record' => $record->appointment])
+                                    : null),
+                            Placeholder::make('link_prescription')
+                                ->label('Prescription')
+                                ->content(function (Encounter $record): string {
+                                    $rx = $record->prescriptions()->latest('id')->first();
+
+                                    return $rx?->prescription_number ?? '—';
+                                })
+                                ->url(function (Encounter $record): ?string {
+                                    $rx = $record->prescriptions()->latest('id')->first();
+
+                                    return $rx
+                                        ? PrescriptionResource::getUrl('view', ['record' => $rx])
+                                        : null;
+                                }),
+                            Placeholder::make('link_quotation')
+                                ->label('Quotation / Order')
+                                ->content(function (Encounter $record): string {
+                                    $quotation = Quotation::query()
+                                        ->where('encounter_id', $record->id)
+                                        ->latest('id')
+                                        ->first();
+
+                                    if ($quotation?->jobOrder !== null) {
+                                        return $quotation->jobOrder->job_order_number;
+                                    }
+
+                                    return $quotation?->quotation_number ?? '—';
+                                })
+                                ->url(function (Encounter $record): ?string {
+                                    $quotation = Quotation::query()
+                                        ->where('encounter_id', $record->id)
+                                        ->latest('id')
+                                        ->first();
+
+                                    if ($quotation?->jobOrder !== null) {
+                                        return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
+                                    }
+
+                                    return $quotation
+                                        ? QuotationResource::getUrl('edit', ['record' => $quotation])
+                                        : null;
+                                }),
+                            Placeholder::make('link_billing')
+                                ->label('Billing Record')
+                                ->content(function (Encounter $record): string {
+                                    $billing = BillingRecord::query()
+                                        ->where('encounter_id', $record->id)
+                                        ->whereNull('deleted_at')
+                                        ->latest('id')
+                                        ->first();
+
+                                    return $billing?->billing_record_number ?? '—';
+                                })
+                                ->url(function (Encounter $record): ?string {
+                                    $billing = BillingRecord::query()
+                                        ->where('encounter_id', $record->id)
+                                        ->whereNull('deleted_at')
+                                        ->latest('id')
+                                        ->first();
+
+                                    return $billing
+                                        ? BillingRecordResource::getUrl('edit', ['record' => $billing])
+                                        : null;
+                                }),
+                        ]),
+                ])
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::Planned),
+
+            // ── Add Service Charge (completed encounters only) ──────────
+            Section::make('Service Charges')
+                ->schema([
+                    Actions::make([
+                        Action::make('addCharge')
+                            ->label(fn (Encounter $record): string => self::latestBillingRecord($record)?->status !== null
+                                && in_array(self::latestBillingRecord($record)->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true)
+                                ? 'Add Another Service Charge'
+                                : 'Add Service Charge')
+                            ->icon('heroicon-o-plus-circle')
+                            ->color('warning')
+                            ->schema([
+                                Repeater::make('items')
+                                    ->hiddenLabel()
+                                    ->schema([
+                                        Select::make('service_id')
+                                            ->label('Service')
+                                            ->options(fn (): array => Service::query()
+                                                ->active()
+                                                ->orderBy('name')
+                                                ->get()
+                                                ->mapWithKeys(fn (Service $service): array => [
+                                                    $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
+                                                ])
+                                                ->all())
+                                            ->nullable()
+                                            ->helperText('Optional. Leave blank for a custom service charge.')
+                                            ->searchable()
+                                            ->preload()
+                                            ->live()
+                                            ->columnSpanFull()
+                                            ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                                $service = Service::query()->find($state);
+
+                                                if ($service === null) {
+                                                    return;
+                                                }
+
+                                                $set('description', $service->name);
+                                                $set('unit_price', $service->price);
+                                                $set('line_total', number_format(
+                                                    ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
+                                                    2,
+                                                ));
+                                            }),
+                                        TextInput::make('description')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->columnSpanFull(),
+                                        Grid::make(3)
+                                            ->columnSpanFull()
+                                            ->schema([
+                                                TextInput::make('quantity')
+                                                    ->numeric()
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->default(1)
+                                                    ->required()
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                                        $set('line_total', number_format(
+                                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                            2,
+                                                        ));
+                                                    }),
+                                                TextInput::make('unit_price')
+                                                    ->label('Unit Price')
+                                                    ->numeric()
+                                                    ->prefix('₱')
+                                                    ->minValue(0)
+                                                    ->required()
+                                                    ->live(onBlur: true)
+                                                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                                                        $set('line_total', number_format(
+                                                            ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
+                                                            2,
+                                                        ));
+                                                    }),
+                                                TextInput::make('line_total')
+                                                    ->label('Line Total')
+                                                    ->prefix('₱')
+                                                    ->disabled()
+                                                    ->dehydrated(false),
+                                            ]),
+                                    ])
+                                    ->columns(2)
+                                    ->defaultItems(0)
+                                    ->minItems(1)
+                                    ->addActionLabel('Add Service Line'),
+
+                                Placeholder::make('total')
+                                    ->label('Total')
+                                    ->content(function (Get $get): string {
+                                        $total = collect($get('items') ?? [])->sum(
+                                            fn (array $item): float => ((float) ($item['quantity'] ?? 0))
+                                                * ((float) ($item['unit_price'] ?? 0)),
+                                        );
+
+                                        return '₱'.number_format($total, 2);
+                                    }),
+                            ])
+                            ->action(function (array $data, Encounter $record): void {
+                                try {
+                                    $billingRecord = app(AddEncounterChargesToBilling::class)->handle(
+                                        encounter: $record,
+                                        items: $data['items'],
+                                    );
+
+                                    Notification::make()
+                                        ->title('Charge added')
+                                        ->body("Billing Record: {$billingRecord->billing_record_number}")
+                                        ->success()
+                                        ->send();
+                                } catch (ValidationException $e) {
+                                    Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
+                                }
+                            }),
+                    ]),
+                ])
+                ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::Completed),
         ]);
     }
 

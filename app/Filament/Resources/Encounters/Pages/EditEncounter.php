@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
-use App\Actions\BillingRecords\AddEncounterChargesToBilling;
 use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\CreateEncounterAddendum;
@@ -10,31 +9,19 @@ use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
-use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
-use App\Filament\Resources\Appointments\AppointmentResource;
-use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\Quotation;
-use App\Models\Service;
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
@@ -314,82 +301,7 @@ class EditEncounter extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('viewAppointment')
-                ->label('View Appointment')
-                ->icon('heroicon-o-calendar-days')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->appointment !== null)
-                ->url(fn (): string => AppointmentResource::getUrl('edit', [
-                    'record' => $this->record->appointment,
-                ])),
-
-            Action::make('viewPrescription')
-                ->label('View Prescription')
-                ->icon('heroicon-o-eye')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->prescriptions()->exists())
-                ->url(fn (): string => PrescriptionResource::getUrl('view', [
-                    'record' => $this->record->prescriptions()->latest('id')->value('id'),
-                ])),
-
-            Action::make('viewBillingRecord')
-                ->label('View Billing Record')
-                ->icon('heroicon-o-banknotes')
-                ->color('gray')
-                ->visible(fn (): bool => $this->latestBillingRecord() !== null)
-                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
-                    'record' => $this->latestBillingRecord(),
-                ])),
-
-            Action::make('printEncounter')
-                ->label('Print Encounter')
-                ->icon('heroicon-o-printer')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
-                ->url(fn (): string => route('encounters.print', ['encounter' => $this->record->id]))
-                ->openUrlInNewTab(),
-
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
-                ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
-                    && (
-                        auth()->user()?->isAdmin() === true
-                        || auth()->user()?->isStaff() === true
-                        || auth()->user()?->isOptometrist() === true
-                    )
-                    && $this->record->prescriptions()
-                        ->whereDoesntHave('nextPrescription')
-                        ->exists()
-                    && ! Quotation::query()
-                        ->withTrashed()
-                        ->where('encounter_id', $this->record->id)
-                        ->exists())
-                ->url(fn (): string => QuotationResource::getUrl('create', [
-                    'encounter' => $this->record->id,
-                ])),
-
-            Action::make('viewOpticalOrder')
-                ->label('View Optical Order')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('gray')
-                ->visible(fn (): bool => Quotation::query()
-                    ->where('encounter_id', $this->record->id)
-                    ->exists())
-                ->url(function (): string {
-                    $quotation = Quotation::query()
-                        ->where('encounter_id', $this->record->id)
-                        ->latest('id')
-                        ->first();
-
-                    if ($quotation?->jobOrder !== null) {
-                        return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
-                    }
-
-                    return QuotationResource::getUrl('edit', ['record' => $quotation]);
-                }),
-
+            // ── Planned encounter: primary action ──
             Action::make('startEncounter')
                 ->label('Start Consultation')
                 ->icon('heroicon-o-play')
@@ -413,175 +325,6 @@ class EditEncounter extends EditRecord
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
                     }
-                }),
-
-            Action::make('transferEncounter')
-                ->label('Transfer Encounter')
-                ->icon('heroicon-o-arrow-right-start-on-rectangle')
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
-                    && (
-                        ($this->record->optometrist_id === auth()->id() && auth()->user()?->isOptometrist())
-                        || auth()->user()?->isAdmin()
-                    ))
-                ->requiresConfirmation()
-                ->modalHeading('Transfer Encounter')
-                ->modalDescription('Transfer this encounter to another optometrist. The new optometrist will become the treating provider.')
-                ->modalSubmitActionLabel('Transfer')
-                ->schema([
-                    Select::make('new_optometrist_id')
-                        ->label('New Optometrist')
-                        ->options(fn () => User::query()
-                            ->optometrists()
-                            ->where('id', '!=', $this->record->optometrist_id)
-                            ->orderBy('first_name')
-                            ->orderBy('last_name')
-                            ->get()
-                            ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                    Select::make('reason')
-                        ->label('Reason')
-                        ->options(collect(EncounterTransferReason::cases())->mapWithKeys(
-                            fn (EncounterTransferReason $case): array => [$case->value => str($case->value)->replace('_', ' ')->title()],
-                        ))
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $newOptometrist = User::query()->findOrFail($data['new_optometrist_id']);
-                        $reason = EncounterTransferReason::from($data['reason']);
-
-                        app(TransferEncounter::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            newOptometrist: $newOptometrist,
-                            reason: $reason,
-                        );
-
-                        Notification::make()->title('Encounter transferred')->success()->send();
-                        $this->refreshFormData(['optometrist_id']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot transfer encounter')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
-            Action::make('addCharge')
-                ->label(fn (): string => $this->latestBillingRecord()?->status !== null
-                    && in_array($this->latestBillingRecord()->status, [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid], true)
-                    ? 'Add Another Service Charge'
-                    : 'Add Service Charge')
-                ->icon('heroicon-o-plus-circle')
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
-                ->schema([
-                    Repeater::make('items')
-                        ->hiddenLabel()
-                        ->schema([
-                            Select::make('service_id')
-                                ->label('Service')
-                                ->options(fn (): array => Service::query()
-                                    ->active()
-                                    ->orderBy('name')
-                                    ->get()
-                                    ->mapWithKeys(fn (Service $service): array => [
-                                        $service->id => "{$service->name} (₱".number_format((float) $service->price, 2).')',
-                                    ])
-                                    ->all())
-                                ->nullable()
-                                ->helperText('Optional. Leave blank for a custom service charge.')
-                                ->searchable()
-                                ->preload()
-                                ->live()
-                                ->columnSpanFull()
-                                ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                    $service = Service::query()->find($state);
-
-                                    if ($service === null) {
-                                        return;
-                                    }
-
-                                    $set('description', $service->name);
-                                    $set('unit_price', $service->price);
-                                    $set('line_total', number_format(
-                                        ((float) ($get('quantity') ?? 1)) * ((float) $service->price),
-                                        2,
-                                    ));
-                                }),
-                            TextInput::make('description')
-                                ->required()
-                                ->maxLength(255)
-                                ->columnSpanFull(),
-                            Grid::make(3)
-                                ->columnSpanFull()
-                                ->schema([
-                                    TextInput::make('quantity')
-                                        ->numeric()
-                                        ->integer()
-                                        ->minValue(1)
-                                        ->default(1)
-                                        ->required()
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Set $set, Get $get): void {
-                                            $set('line_total', number_format(
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                                2,
-                                            ));
-                                        }),
-                                    TextInput::make('unit_price')
-                                        ->label('Unit Price')
-                                        ->numeric()
-                                        ->prefix('₱')
-                                        ->minValue(0)
-                                        ->required()
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Set $set, Get $get): void {
-                                            $set('line_total', number_format(
-                                                ((float) ($get('quantity') ?? 0)) * ((float) ($get('unit_price') ?? 0)),
-                                                2,
-                                            ));
-                                        }),
-                                    TextInput::make('line_total')
-                                        ->label('Line Total')
-                                        ->prefix('₱')
-                                        ->disabled()
-                                        ->dehydrated(false),
-                                ]),
-                        ])
-                        ->columns(2)
-                        ->defaultItems(0)
-                        ->minItems(1)
-                        ->addActionLabel('Add Service Line'),
-
-                    Placeholder::make('total')
-                        ->label('Total')
-                        ->content(function (Get $get): string {
-                            $total = collect($get('items') ?? [])->sum(
-                                fn (array $item): float => ((float) ($item['quantity'] ?? 0))
-                                    * ((float) ($item['unit_price'] ?? 0)),
-                            );
-
-                            return '₱'.number_format($total, 2);
-                        }),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $billingRecord = app(AddEncounterChargesToBilling::class)->handle(
-                            encounter: $this->record,
-                            items: $data['items'],
-                        );
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
-
-                        return;
-                    }
-
-                    Notification::make()
-                        ->title('Charge added')
-                        ->body("Billing Record: {$billingRecord->billing_record_number}")
-                        ->success()
-                        ->send();
                 }),
 
             Action::make('assignOptometrist')
@@ -618,83 +361,209 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            Action::make('addCorrection')
-                ->label('Add Correction')
-                ->icon('heroicon-o-pencil-square')
-                ->color('warning')
+            // ── Completed encounter: primary action ──
+            Action::make('createQuotation')
+                ->label('Create Quotation')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('success')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
-                    && $this->record->completed_by === auth()->id()
-                    && auth()->user()?->isOptometrist())
-                ->requiresConfirmation()
-                ->modalHeading('Add Correction')
-                ->modalDescription('This will append a correction note to the completed encounter. The original record will remain unchanged.')
-                ->modalSubmitActionLabel('Add Correction')
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason for Correction')
-                        ->required()
-                        ->maxLength(1000)
-                        ->rows(2),
-                    Textarea::make('content')
-                        ->label('Correction Content')
-                        ->required()
-                        ->maxLength(10000)
-                        ->rows(4),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CreateEncounterAddendum::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            type: EncounterAddendumType::Correction,
-                            reason: $data['reason'],
-                            content: $data['content'],
-                        );
+                    && (
+                        auth()->user()?->isAdmin() === true
+                        || auth()->user()?->isStaff() === true
+                        || auth()->user()?->isOptometrist() === true
+                    )
+                    && $this->record->prescriptions()
+                        ->whereDoesntHave('nextPrescription')
+                        ->exists()
+                    && ! Quotation::query()
+                        ->withTrashed()
+                        ->where('encounter_id', $this->record->id)
+                        ->exists())
+                ->url(fn (): string => QuotationResource::getUrl('create', [
+                    'encounter' => $this->record->id,
+                ])),
 
-                        Notification::make()->title('Correction added')->success()->send();
-                        $this->refreshFormData([]);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add correction')->body($e->getMessage())->danger()->send();
+            // ── More overflow group ──
+            Action::make('more')
+                ->label('More')
+                ->icon('heroicon-o-ellipsis-vertical')
+                ->color('gray')
+                ->dropdown(false)
+                ->action(function () {})
+                ->visible(fn (): bool => $this->record->status !== EncounterStatus::Planned || true)
+                ->schema(function (): array {
+                    $actions = [];
+
+                    // Planned: reassignment (admin/staff only)
+                    if ($this->record->status === EncounterStatus::Planned && (auth()->user()->isAdmin() || auth()->user()->isStaff())) {
+                        $actions[] = Action::make('reassignOptometrist')
+                            ->label('Reassign Optometrist')
+                            ->icon('heroicon-o-user-plus')
+                            ->color('gray')
+                            ->schema(fn (): array => [
+                                Select::make('optometrist_id')
+                                    ->label('Optometrist')
+                                    ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
+                                    ->required()
+                                    ->searchable()
+                                    ->preload(),
+                            ])
+                            ->action(function (array $data): void {
+                                try {
+                                    app(AssignEncounterOptometrist::class)->handle(
+                                        encounter: $this->record,
+                                        actor: auth()->user(),
+                                        optometrist: User::query()->findOrFail($data['optometrist_id']),
+                                    );
+                                    Notification::make()->title('Optometrist reassigned')->success()->send();
+                                    $this->refreshFormData(['optometrist_id']);
+                                } catch (ValidationException $e) {
+                                    $message = collect($e->errors())->flatten()->first() ?? 'Cannot reassign.';
+                                    Notification::make()->title('Cannot reassign')->body($message)->danger()->send();
+                                }
+                            });
                     }
-                }),
 
-            Action::make('addSupplement')
-                ->label('Add Supplement')
-                ->icon('heroicon-o-plus-circle')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
-                    && auth()->user()?->isOptometrist())
-                ->requiresConfirmation()
-                ->modalHeading('Add Supplement')
-                ->modalDescription('This will append a supplementary note to the completed encounter. The original record will remain unchanged.')
-                ->modalSubmitActionLabel('Add Supplement')
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason')
-                        ->required()
-                        ->maxLength(1000)
-                        ->rows(2),
-                    Textarea::make('content')
-                        ->label('Content')
-                        ->required()
-                        ->maxLength(10000)
-                        ->rows(4),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CreateEncounterAddendum::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            type: EncounterAddendumType::Supplement,
-                            reason: $data['reason'],
-                            content: $data['content'],
-                        );
+                    // In-progress: transfer encounter
+                    if ($this->record->status === EncounterStatus::InProgress
+                        && (($this->record->optometrist_id === auth()->id() && auth()->user()?->isOptometrist()) || auth()->user()?->isAdmin())) {
+                        $actions[] = Action::make('transferEncounter')
+                            ->label('Transfer Encounter')
+                            ->icon('heroicon-o-arrow-right-start-on-rectangle')
+                            ->color('warning')
+                            ->requiresConfirmation()
+                            ->modalHeading('Transfer Encounter')
+                            ->modalDescription('Transfer this encounter to another optometrist.')
+                            ->modalSubmitActionLabel('Transfer')
+                            ->schema([
+                                Select::make('new_optometrist_id')
+                                    ->label('New Optometrist')
+                                    ->options(fn () => User::query()
+                                        ->optometrists()
+                                        ->where('id', '!=', $this->record->optometrist_id)
+                                        ->orderBy('first_name')
+                                        ->orderBy('last_name')
+                                        ->get()
+                                        ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
+                                    ->required()
+                                    ->searchable()
+                                    ->preload(),
+                                Select::make('reason')
+                                    ->label('Reason')
+                                    ->options(collect(EncounterTransferReason::cases())->mapWithKeys(
+                                        fn (EncounterTransferReason $case): array => [$case->value => str($case->value)->replace('_', ' ')->title()],
+                                    ))
+                                    ->required(),
+                            ])
+                            ->action(function (array $data): void {
+                                try {
+                                    $newOptometrist = User::query()->findOrFail($data['new_optometrist_id']);
+                                    $reason = EncounterTransferReason::from($data['reason']);
 
-                        Notification::make()->title('Supplement added')->success()->send();
-                        $this->refreshFormData([]);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add supplement')->body($e->getMessage())->danger()->send();
+                                    app(TransferEncounter::class)->handle(
+                                        encounter: $this->record,
+                                        actor: auth()->user(),
+                                        newOptometrist: $newOptometrist,
+                                        reason: $reason,
+                                    );
+
+                                    Notification::make()->title('Encounter transferred')->success()->send();
+                                    $this->refreshFormData(['optometrist_id']);
+                                } catch (ValidationException $e) {
+                                    Notification::make()->title('Cannot transfer encounter')->body($e->getMessage())->danger()->send();
+                                }
+                            });
                     }
+
+                    // Completed: print, correction, supplement
+                    if ($this->record->status === EncounterStatus::Completed) {
+                        $actions[] = Action::make('printEncounter')
+                            ->label('Print Encounter')
+                            ->icon('heroicon-o-printer')
+                            ->color('gray')
+                            ->url(fn (): string => route('encounters.print', ['encounter' => $this->record->id]))
+                            ->openUrlInNewTab();
+
+                        if ($this->record->completed_by === auth()->id() && auth()->user()?->isOptometrist()) {
+                            $actions[] = Action::make('addCorrection')
+                                ->label('Add Correction')
+                                ->icon('heroicon-o-pencil-square')
+                                ->color('warning')
+                                ->requiresConfirmation()
+                                ->modalHeading('Add Correction')
+                                ->modalDescription('Append a correction note. The original record remains unchanged.')
+                                ->modalSubmitActionLabel('Add Correction')
+                                ->schema([
+                                    Textarea::make('reason')
+                                        ->label('Reason for Correction')
+                                        ->required()
+                                        ->maxLength(1000)
+                                        ->rows(2),
+                                    Textarea::make('content')
+                                        ->label('Correction Content')
+                                        ->required()
+                                        ->maxLength(10000)
+                                        ->rows(4),
+                                ])
+                                ->action(function (array $data): void {
+                                    try {
+                                        app(CreateEncounterAddendum::class)->handle(
+                                            encounter: $this->record,
+                                            actor: auth()->user(),
+                                            type: EncounterAddendumType::Correction,
+                                            reason: $data['reason'],
+                                            content: $data['content'],
+                                        );
+
+                                        Notification::make()->title('Correction added')->success()->send();
+                                        $this->refreshFormData([]);
+                                    } catch (ValidationException $e) {
+                                        Notification::make()->title('Cannot add correction')->body($e->getMessage())->danger()->send();
+                                    }
+                                });
+                        }
+
+                        if (auth()->user()?->isOptometrist()) {
+                            $actions[] = Action::make('addSupplement')
+                                ->label('Add Supplement')
+                                ->icon('heroicon-o-plus-circle')
+                                ->color('info')
+                                ->requiresConfirmation()
+                                ->modalHeading('Add Supplement')
+                                ->modalDescription('Append a supplementary note. The original record remains unchanged.')
+                                ->modalSubmitActionLabel('Add Supplement')
+                                ->schema([
+                                    Textarea::make('reason')
+                                        ->label('Reason')
+                                        ->required()
+                                        ->maxLength(1000)
+                                        ->rows(2),
+                                    Textarea::make('content')
+                                        ->label('Content')
+                                        ->required()
+                                        ->maxLength(10000)
+                                        ->rows(4),
+                                ])
+                                ->action(function (array $data): void {
+                                    try {
+                                        app(CreateEncounterAddendum::class)->handle(
+                                            encounter: $this->record,
+                                            actor: auth()->user(),
+                                            type: EncounterAddendumType::Supplement,
+                                            reason: $data['reason'],
+                                            content: $data['content'],
+                                        );
+
+                                        Notification::make()->title('Supplement added')->success()->send();
+                                        $this->refreshFormData([]);
+                                    } catch (ValidationException $e) {
+                                        Notification::make()->title('Cannot add supplement')->body($e->getMessage())->danger()->send();
+                                    }
+                                });
+                        }
+                    }
+
+                    return $actions;
                 }),
         ];
     }
