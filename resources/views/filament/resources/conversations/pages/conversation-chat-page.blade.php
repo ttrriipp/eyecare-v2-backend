@@ -40,9 +40,6 @@
                                     </span>
                                 </div>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                                    {{ $conversation->patient?->contact_email ?? $conversation->account?->email ?? '—' }}
-                                </p>
-                                <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                                     Started {{ $conversation->created_at->diffForHumans() }}
                                 </p>
                             </button>
@@ -67,9 +64,6 @@
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
                             {{ $this->selectedConversation->patient?->full_name ?? $this->selectedConversation->account?->full_name ?? 'Unknown' }}
-                        </p>
-                        <p class="text-xs text-gray-400 dark:text-gray-500">
-                            {{ $this->selectedConversation->patient?->contact_email ?? $this->selectedConversation->account?->email ?? '—' }}
                         </p>
                     </div>
                     @if ($this->selectedConversation->patient_id === null)
