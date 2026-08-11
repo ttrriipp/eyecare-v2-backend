@@ -20,6 +20,14 @@ class Conversation extends Model
     use HasFactory, SoftDeletes;
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'account_user_id');
+    }
+
+    /**
      * @return BelongsTo<Patient, $this>
      */
     public function patient(): BelongsTo
@@ -33,5 +41,20 @@ class Conversation extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(Message::class);
+    }
+
+    public function isUnlinked(): bool
+    {
+        return $this->account_user_id !== null && $this->patient_id === null;
+    }
+
+    public function isLinked(): bool
+    {
+        return $this->account_user_id !== null && $this->patient_id !== null;
+    }
+
+    public function isHistorical(): bool
+    {
+        return $this->account_user_id === null && $this->patient_id !== null;
     }
 }

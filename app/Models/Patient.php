@@ -139,6 +139,16 @@ class Patient extends Model
     }
 
     /**
+     * Get all conversations (including historical after unlink).
+     *
+     * @return HasMany<Conversation, $this>
+     */
+    public function conversations(): HasMany
+    {
+        return $this->hasMany(Conversation::class);
+    }
+
+    /**
      * @return HasMany<Encounter, $this>
      */
     public function encounters(): HasMany

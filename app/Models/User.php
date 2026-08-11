@@ -90,6 +90,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Get the current account-owned conversation.
+     *
+     * @return HasOne<Conversation, $this>
+     */
+    public function conversation(): HasOne
+    {
+        return $this->hasOne(Conversation::class, 'account_user_id');
+    }
+
+    /**
      * @return HasMany<ProviderHour, $this>
      */
     public function providerHours(): HasMany
