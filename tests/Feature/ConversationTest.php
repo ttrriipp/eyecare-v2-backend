@@ -97,3 +97,73 @@ test('patient cannot download another patients conversation attachment', functio
         ->get("/api/v1/conversation/attachments/{$attachment->id}")
         ->assertNotFound();
 });
+
+test('linked patient resolves exactly one conversation', function () {
+    $patient = User::factory()->patient()->create();
+
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation')
+        ->assertSuccessful()
+        ->assertJsonPath('data.patient_id', $patient->patient->id);
+
+    // Second call returns same conversation
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation')
+        ->assertSuccessful()
+        ->assertJsonPath('data.patient_id', $patient->patient->id);
+
+    expect(Conversation::where('patient_id', $patient->patient->id)->count())->toBe(1);
+});
+
+test('linked conversation messages are ordered oldest first', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create(['patient_id' => $patient->patient->id]);
+
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+        'body' => 'First message',
+    ]);
+
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+        'body' => 'Second message',
+    ]);
+
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation/messages')
+        ->assertSuccessful()
+        ->assertJsonPath('data.0.body', 'First message')
+        ->assertJsonPath('data.1.body', 'Second message');
+});
+
+test('cross-account attachment access returns not found', function () {
+    Storage::fake('local');
+
+    $patient1 = User::factory()->patient()->create();
+    $patient2 = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create(['patient_id' => $patient2->patient->id]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient2->id,
+    ]);
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'file_path' => 'attachments/secret.pdf',
+        'original_name' => 'secret.pdf',
+        'mime_type' => 'application/pdf',
+    ]);
+
+    Storage::disk('local')->put($attachment->file_path, 'private-file');
+
+    // Patient1 cannot access Patient2's attachment
+    $this->actingAs($patient1)
+        ->get("/api/v1/conversation/attachments/{$attachment->id}")
+        ->assertNotFound();
+
+    // Non-existent ID also returns 404
+    $this->actingAs($patient1)
+        ->get('/api/v1/conversation/attachments/99999')
+        ->assertNotFound();
+});
