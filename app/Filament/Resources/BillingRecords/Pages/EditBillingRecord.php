@@ -46,7 +46,7 @@ class EditBillingRecord extends EditRecord
                             ->label('Patient')
                             ->content(fn (BillingRecord $record): string => $record->patient?->full_name ?? '—'),
                         Placeholder::make('job_order_number')
-                            ->label('Job Order')
+                            ->label('Optical Order')
                             ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—'),
                         Placeholder::make('status')
                             ->label('Status')
