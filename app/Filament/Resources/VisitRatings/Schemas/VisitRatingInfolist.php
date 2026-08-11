@@ -37,9 +37,6 @@ class VisitRatingInfolist
                 TextEntry::make('created_at')
                     ->label('Submitted')
                     ->dateTime('M j, Y g:i A'),
-
-                TextEntry::make('revision_number')
-                    ->label('Revision'),
             ]);
     }
 }
