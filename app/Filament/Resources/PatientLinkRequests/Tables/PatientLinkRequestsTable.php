@@ -8,8 +8,6 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Filament\Tables\Tabs\Tab;
-use Illuminate\Database\Eloquent\Builder;
 
 class PatientLinkRequestsTable
 {
@@ -51,18 +49,13 @@ class PatientLinkRequestsTable
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
-            ->tabs([
-                Tab::make('All')
-                    ->icon('heroicon-o-queue-list'),
-                Tab::make('Pending')
-                    ->icon('heroicon-o-clock')
-                    ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending')),
-                Tab::make('Approved')
-                    ->icon('heroicon-o-check-circle')
-                    ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'approved')),
-                Tab::make('Rejected')
-                    ->icon('heroicon-o-x-circle')
-                    ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'rejected')),
+            ->filters([
+                SelectFilter::make('status')
+                    ->options([
+                        'pending' => 'Pending',
+                        'approved' => 'Approved',
+                        'rejected' => 'Rejected',
+                    ]),
             ])
             ->recordActions([
                 Action::make('view')
