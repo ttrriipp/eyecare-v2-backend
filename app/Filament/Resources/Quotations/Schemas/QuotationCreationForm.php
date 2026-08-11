@@ -2,10 +2,14 @@
 
 namespace App\Filament\Resources\Quotations\Schemas;
 
+use App\Actions\Quotations\ApplyQuotationFrameReservationSelection;
+use App\Models\FrameReservationItem;
 use App\Models\LensCategory;
 use App\Models\LensOption;
+use App\Models\Patient;
 use App\Models\ProductVariant;
 use App\Models\Service;
+use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
@@ -17,14 +21,19 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class QuotationCreationForm
 {
     /**
      * @return array<int, Section>
      */
-    public static function components(): array
+    public static function components(?Closure $patientIdResolver = null, ?int $defaultReservationItemId = null): array
     {
+        $patientIdResolver ??= fn (Get $get): ?int => filled($get('patient_id'))
+            ? (int) $get('patient_id')
+            : null;
+
         return [
             Section::make('Quotation Details')
                 ->schema([
@@ -45,6 +54,40 @@ class QuotationCreationForm
                             ->dehydrated()
                             ->live(onBlur: true),
                     ]),
+                ]),
+
+            Section::make('Frame Reservation')
+                ->schema([
+                    Select::make('frame_reservation_item_id')
+                        ->label('Reserved Frame')
+                        ->helperText('Selecting a reserved frame adds that exact active frame variant to the quotation.')
+                        ->options(fn (Get $get): array => self::reservationOptions($patientIdResolver($get)))
+                        ->default($defaultReservationItemId)
+                        ->searchable()
+                        ->preload()
+                        ->nullable()
+                        ->live()
+                        ->visible(fn (Get $get): bool => $patientIdResolver($get) !== null)
+                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state) use ($patientIdResolver): void {
+                            if (blank($state)) {
+                                return;
+                            }
+
+                            $patientId = $patientIdResolver($get);
+                            $patient = $patientId !== null ? Patient::query()->find($patientId) : null;
+
+                            if ($patient === null) {
+                                return;
+                            }
+
+                            $selection = app(ApplyQuotationFrameReservationSelection::class)->handle(
+                                patient: $patient,
+                                items: $get('items') ?? [],
+                                reservationItemId: (int) $state,
+                            );
+
+                            $set('items', $selection['items']);
+                        }),
                 ]),
 
             Section::make('Items')
@@ -253,5 +296,31 @@ class QuotationCreationForm
                         ->columnSpanFull(),
                 ]),
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private static function reservationOptions(?int $patientId): array
+    {
+        if ($patientId === null) {
+            return [];
+        }
+
+        return FrameReservationItem::query()
+            ->eligibleForQuotation($patientId)
+            ->with(['reservation', 'variant.product'])
+            ->latest('id')
+            ->get()
+            ->mapWithKeys(fn (FrameReservationItem $item): array => [
+                $item->id => sprintf(
+                    'Reservation #%d — %s / %s — %s',
+                    $item->reservation->id,
+                    $item->variant->product->name,
+                    $item->variant->name,
+                    Str::headline($item->reservation->status->value),
+                ),
+            ])
+            ->all();
     }
 }
