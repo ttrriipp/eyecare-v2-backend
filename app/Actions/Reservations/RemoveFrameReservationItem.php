@@ -17,9 +17,18 @@ class RemoveFrameReservationItem
      * Drop a single candidate frame from a reservation. If the reservation is
      * already Prepared, the item's allocated stock is restored first, so
      * removal never leaks a decremented unit.
+     *
+     * Removing the last frame automatically releases the reservation with
+     * audit information.
      */
     public function handle(FrameReservation $reservation, FrameReservationItem $item): void
     {
+        if ($reservation->status === ReservationStatus::Converted) {
+            throw ValidationException::withMessages([
+                'reservation' => ['This reservation has been converted to an optical order. Change or cancel the optical order instead.'],
+            ]);
+        }
+
         if (! in_array($reservation->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true)) {
             throw ValidationException::withMessages([
                 'reservation' => ['Frames can only be removed from a requested or prepared reservation.'],
@@ -37,7 +46,12 @@ class RemoveFrameReservationItem
 
             // If no frames remain, release the reservation
             if ($reservation->items()->count() === 0) {
-                $reservation->update(['status' => ReservationStatus::Released]);
+                $reservation->update([
+                    'status' => ReservationStatus::Released,
+                    'released_at' => now(),
+                    'released_by' => auth()->id(),
+                    'release_reason' => 'last_frame_removed',
+                ]);
             }
         });
     }

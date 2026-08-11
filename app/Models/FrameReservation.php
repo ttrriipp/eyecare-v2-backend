@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'staff_notes',
     'expires_at',
+    'released_at',
+    'released_by',
+    'release_reason',
 ])]
 class FrameReservation extends Model
 {
@@ -48,6 +51,14 @@ class FrameReservation extends Model
     }
 
     /**
+     * @return BelongsTo<User, $this>
+     */
+    public function releasedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'released_by');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -55,6 +66,7 @@ class FrameReservation extends Model
         return [
             'status' => ReservationStatus::class,
             'expires_at' => 'datetime',
+            'released_at' => 'datetime',
         ];
     }
 }
