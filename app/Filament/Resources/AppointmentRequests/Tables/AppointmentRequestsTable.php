@@ -39,43 +39,13 @@ class AppointmentRequestsTable
                     ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user?->full_name ?? '—')
                     ->searchable(['patient.first_name', 'patient.last_name', 'user.first_name', 'user.last_name']),
 
-                TextColumn::make('link_status')
-                    ->label('Link Status')
-                    ->badge()
-                    ->state(fn (AppointmentRequest $record): string => match (true) {
-                        $record->patient_id !== null => 'Linked',
-                        default => 'Needs Link',
-                    })
-                    ->color(fn (string $state) => match ($state) {
-                        'Linked' => 'success',
-                        'Needs Link' => 'warning',
-                    }),
-
                 TextColumn::make('appointment_type')
-                    ->label('Patient Type')
+                    ->label('Type')
                     ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
 
-                TextColumn::make('internal_appointment_type')
-                    ->label('Internal Type')
-                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->name ?? '—'),
-
-                TextColumn::make('provisional_duration')
-                    ->label('Provisional Duration')
-                    ->state(fn (AppointmentRequest $record): string => $record->provisional_duration_minutes !== null
-                        ? "{$record->provisional_duration_minutes} min"
-                        : '—'),
-
-                TextColumn::make('alternative_count')
-                    ->label('Alternatives')
-                    ->state(fn (AppointmentRequest $record): string => count($record->alternative_scheduled_times ?? []).' alternatives'),
-
-                TextColumn::make('preferred_provider')
-                    ->label('Preferred Provider')
-                    ->state('Not requested'),
-
                 TextColumn::make('scheduled_at')
-                    ->label('Preferred Date & Time')
-                    ->dateTime('M j, Y g:i A')
+                    ->label('Preferred Time')
+                    ->dateTime('M j, g:i A')
                     ->sortable(),
 
                 TextColumn::make('expires_at')
@@ -94,13 +64,6 @@ class AppointmentRequestsTable
                         AppointmentRequestStatus::Expired => 'gray',
                     })
                     ->formatStateUsing(fn (AppointmentRequestStatus $state): string => Str::headline($state->value)),
-
-                TextColumn::make('overdue')
-                    ->label('Overdue')
-                    ->state(fn (AppointmentRequest $record): string => $record->status === AppointmentRequestStatus::Pending
-                        && $record->expires_at?->isPast() ? 'Overdue' : '—')
-                    ->badge()
-                    ->color(fn (string $state): string => $state === 'Overdue' ? 'danger' : 'gray'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
