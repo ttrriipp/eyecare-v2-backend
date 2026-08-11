@@ -15,8 +15,6 @@ class OpticalOrderStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $totalOrders = JobOrder::query()->count();
-
         $confirmedCount = JobOrder::query()
             ->where('status', JobOrderStatus::Queued)
             ->count();
@@ -34,11 +32,14 @@ class OpticalOrderStatsWidget extends BaseWidget
             ->count();
 
         return [
-            Stat::make('Total Orders', number_format($totalOrders)),
-            Stat::make('Confirmed', number_format($confirmedCount)),
-            Stat::make('Processing', number_format($processingCount)),
-            Stat::make('Ready for Pickup', number_format($readyCount)),
-            Stat::make('Completed', number_format($completedCount)),
+            Stat::make('Confirmed', number_format($confirmedCount))
+                ->color('warning'),
+            Stat::make('Processing', number_format($processingCount))
+                ->color('primary'),
+            Stat::make('Ready for Pickup', number_format($readyCount))
+                ->color('success'),
+            Stat::make('Completed', number_format($completedCount))
+                ->color('gray'),
         ];
     }
 }
