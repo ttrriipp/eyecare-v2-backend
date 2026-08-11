@@ -231,6 +231,7 @@ class ClinicWorkflowSeeder extends Seeder
     private function seedConversation(Patient $patient, User $staff, Appointment $appointment): void
     {
         $conversation = Conversation::query()->firstOrCreate(
+            ['account_user_id' => $patient->user_id],
             ['patient_id' => $patient->id],
         );
 
