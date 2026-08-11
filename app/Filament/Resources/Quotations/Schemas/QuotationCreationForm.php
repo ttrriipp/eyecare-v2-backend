@@ -43,7 +43,6 @@ class QuotationCreationForm
                             ->default(0)
                             ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
                             ->dehydrated()
-                            ->helperText('Only administrators can apply a discount.')
                             ->live(onBlur: true),
                     ]),
                 ]),
