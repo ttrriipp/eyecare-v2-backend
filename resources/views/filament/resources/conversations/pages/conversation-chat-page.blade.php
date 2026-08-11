@@ -35,9 +35,11 @@
                                             Unlinked
                                         </span>
                                     @endif
-                                    <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
-                                        {{ $conversation->messages_count }}
-                                    </span>
+                                    @if ($conversation->messages_count > 0)
+                                        <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                                            {{ $conversation->messages_count }}
+                                        </span>
+                                    @endif
                                 </div>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                                     Started {{ $conversation->created_at->diffForHumans() }}
