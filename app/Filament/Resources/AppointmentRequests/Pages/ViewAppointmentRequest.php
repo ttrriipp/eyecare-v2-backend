@@ -89,8 +89,7 @@ class ViewAppointmentRequest extends ViewRecord
                             ]))
                             ->searchable()
                             ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
-                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'existing')
-                            ->helperText('Select which clinical record this request belongs to.'),
+                            ->visible(fn (Get $get): bool => $get('patient_mode') === 'existing'),
 
                         TextInput::make('new_patient_first_name')
                             ->label('First Name')
@@ -110,7 +109,7 @@ class ViewAppointmentRequest extends ViewRecord
                         TextInput::make('new_patient_phone')
                             ->label('Phone')
                             ->default($this->record->getSnapshotPhone())
-                            ->nullable()
+                            ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         TextInput::make('new_patient_contact_email')
                             ->label('Email')
@@ -122,7 +121,7 @@ class ViewAppointmentRequest extends ViewRecord
                             ->label('Date of Birth')
                             ->default($this->record->getSnapshotDateOfBirth())
                             ->maxDate(now())
-                            ->nullable()
+                            ->required(fn (Get $get): bool => $get('patient_mode') === 'new')
                             ->visible(fn (Get $get): bool => $get('patient_mode') === 'new'),
                         Select::make('new_patient_gender')
                             ->label('Gender')

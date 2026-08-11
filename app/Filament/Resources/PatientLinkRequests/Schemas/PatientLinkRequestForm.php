@@ -67,7 +67,6 @@ class PatientLinkRequestForm
                     ]),
 
                 Section::make('Candidate Matches')
-                    ->description('Ranked automatically. "Strong" means an exact contact match plus name or date of birth; review before approving anything weaker.')
                     ->schema([
                         Placeholder::make('candidates_list')
                             ->hiddenLabel()
