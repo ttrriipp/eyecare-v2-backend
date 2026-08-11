@@ -187,7 +187,7 @@ class ListOpticalOrders extends ListRecords
                                 ->prefix('₱'),
                         ])
                         ->columns(3)
-                        ->defaultItems(0)
+                        ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Item'),
 
