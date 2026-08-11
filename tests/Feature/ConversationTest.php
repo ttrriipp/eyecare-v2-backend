@@ -16,7 +16,10 @@ beforeEach(function () {
 
 test('conversation api response uses patient_id not customer_id', function () {
     $patient = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
 
     $this->actingAs($patient)
         ->getJson('/api/v1/conversation')
@@ -27,7 +30,10 @@ test('conversation api response uses patient_id not customer_id', function () {
 
 test('patient can access own conversation', function () {
     $patient = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
 
     $this->actingAs($patient)
         ->getJson('/api/v1/conversation')
@@ -37,7 +43,10 @@ test('patient can access own conversation', function () {
 test('patient conversation messages do not include another patients conversation messages', function () {
     $patient1 = User::factory()->patient()->create();
     $patient2 = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient2->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient2->id,
+        'patient_id' => $patient2->patient->id,
+    ]);
     Message::factory()->create([
         'conversation_id' => $conversation->id,
         'sender_id' => $patient2->id,
@@ -55,7 +64,10 @@ test('patient can download own conversation attachment through singular attachme
     Storage::fake('local');
 
     $patient = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
     $message = Message::factory()->create([
         'conversation_id' => $conversation->id,
         'sender_id' => $patient->id,
@@ -79,7 +91,10 @@ test('patient cannot download another patients conversation attachment', functio
 
     $patient1 = User::factory()->patient()->create();
     $patient2 = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient2->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient2->id,
+        'patient_id' => $patient2->patient->id,
+    ]);
     $message = Message::factory()->create([
         'conversation_id' => $conversation->id,
         'sender_id' => $patient2->id,
@@ -112,12 +127,15 @@ test('linked patient resolves exactly one conversation', function () {
         ->assertSuccessful()
         ->assertJsonPath('data.patient_id', $patient->patient->id);
 
-    expect(Conversation::where('patient_id', $patient->patient->id)->count())->toBe(1);
+    expect(Conversation::where('account_user_id', $patient->id)->count())->toBe(1);
 });
 
 test('linked conversation messages are ordered oldest first', function () {
     $patient = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
 
     Message::factory()->create([
         'conversation_id' => $conversation->id,
@@ -143,7 +161,10 @@ test('cross-account attachment access returns not found', function () {
 
     $patient1 = User::factory()->patient()->create();
     $patient2 = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create(['patient_id' => $patient2->patient->id]);
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient2->id,
+        'patient_id' => $patient2->patient->id,
+    ]);
     $message = Message::factory()->create([
         'conversation_id' => $conversation->id,
         'sender_id' => $patient2->id,
