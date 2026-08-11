@@ -59,21 +59,30 @@ class AppointmentRequestForm
 
                         Placeholder::make('submitted_times')
                             ->label('Submitted Time Preferences')
-                            ->content(function ($record): string {
+                            ->content(function ($record): HtmlString {
                                 if ($record === null) {
-                                    return '—';
+                                    return new HtmlString('—');
                                 }
 
-                                $lines = [];
-                                $lines[] = 'Primary: '.$record->scheduled_at?->format('M j, Y g:i A') ?? '—';
+                                $badges = [];
+
+                                $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-500/15 dark:text-primary-400">'
+                                    .'<span class="font-semibold">Primary</span> '
+                                    .e($record->scheduled_at?->format('M j, g:i A') ?? '—')
+                                    .'</span>';
 
                                 if (! empty($record->alternative_scheduled_times)) {
                                     foreach ($record->alternative_scheduled_times as $index => $time) {
-                                        $lines[] = 'Alt '.($index + 1).': '.Carbon::parse($time)->format('M j, Y g:i A');
+                                        $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-400">'
+                                            .'<span class="font-semibold">Alt '.($index + 1).'</span> '
+                                            .e(Carbon::parse($time)->format('M j, g:i A'))
+                                            .'</span>';
                                     }
                                 }
 
-                                return implode("\n", $lines);
+                                return new HtmlString(
+                                    '<div class="flex flex-wrap gap-2">'.implode('', $badges).'</div>'
+                                );
                             })
                             ->columnSpanFull(),
 
