@@ -53,10 +53,6 @@ class AppointmentRequestForm
                                 ? "{$record->provisional_duration_minutes} minutes"
                                 : '—'),
 
-                        Placeholder::make('preferred_provider')
-                            ->label('Preferred Provider')
-                            ->content('Not requested — clinic assigns provider'),
-
                         Placeholder::make('referral_context')
                             ->label('Referral Context')
                             ->content(fn ($record): string => $record?->encrypted_referring_source ?? 'None'),
