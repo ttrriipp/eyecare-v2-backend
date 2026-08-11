@@ -41,7 +41,8 @@ class VisitRatingInfolist
                             ->label('Submitted')
                             ->dateTime('M j, Y g:i A'),
                     ])
-                    ->columns(2),
+                    ->columns(2)
+                    ->columnSpanFull(),
             ]);
     }
 }
