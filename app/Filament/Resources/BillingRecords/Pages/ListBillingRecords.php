@@ -119,7 +119,7 @@ class ListBillingRecords extends ListRecords
                                 ]),
                         ])
                         ->columns(2)
-                        ->defaultItems(0)
+                        ->defaultItems(1)
                         ->minItems(1)
                         ->addActionLabel('Add Service Line'),
 
