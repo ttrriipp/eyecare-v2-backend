@@ -34,15 +34,6 @@ class VisitRatingInfolist
                     ->placeholder('No comment')
                     ->columnSpanFull(),
 
-                TextEntry::make('is_hidden')
-                    ->label('Hidden')
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Yes' : 'No'),
-
-                TextEntry::make('hidden_reason')
-                    ->label('Hidden Reason')
-                    ->placeholder('—')
-                    ->columnSpanFull(),
-
                 TextEntry::make('created_at')
                     ->label('Submitted')
                     ->dateTime('M j, Y g:i A'),
