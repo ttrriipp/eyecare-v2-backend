@@ -16,7 +16,7 @@ class PatientLinkRequestForm
     {
         return $schema
             ->components([
-                Section::make('Request')
+                Section::make('Request Details')
                     ->columns(2)
                     ->schema([
                         Placeholder::make('request_number')
@@ -41,6 +41,14 @@ class PatientLinkRequestForm
                         Placeholder::make('account_email')
                             ->label('Account Email')
                             ->content(fn ($record) => $record?->user?->email ?? '—'),
+
+                        Placeholder::make('account_phone')
+                            ->label('Account Phone')
+                            ->content(fn ($record) => $record?->user?->phone ?? '—'),
+
+                        Placeholder::make('request_age')
+                            ->label('Request Age')
+                            ->content(fn ($record): string => $record?->created_at?->diffForHumans() ?? '—'),
 
                         Placeholder::make('submitted_identity')
                             ->label('Submitted Identity')
@@ -116,11 +124,16 @@ class PatientLinkRequestForm
                             ->label('Reviewed By')
                             ->content(fn ($record): string => $record?->reviewer?->full_name ?? '—'),
 
+                        Placeholder::make('reviewed_at')
+                            ->label('Reviewed At')
+                            ->content(fn ($record): string => $record?->reviewed_at?->format('M j, Y g:i A') ?? '—'),
+
                         Textarea::make('decision_note')
                             ->label('Decision Note')
                             ->disabled()
                             ->columnSpanFull(),
-                    ]),
+                    ])
+                    ->visible(fn ($record) => $record !== null && $record->status !== 'pending'),
             ]);
     }
 }
