@@ -35,10 +35,6 @@ class AppointmentRequestForm
                             ->badge()
                             ->color(fn ($record): string => $record?->patient_id !== null ? 'success' : 'warning'),
 
-                        Placeholder::make('preferred_time')
-                            ->label('Preferred Time')
-                            ->content(fn ($record) => $record?->scheduled_at?->format('M j, Y g:i A') ?? '—'),
-
                         Placeholder::make('appointment_type')
                             ->label('Patient Appointment Type')
                             ->content(fn ($record): string => $record?->appointmentType?->patient_label ?? '—'),
