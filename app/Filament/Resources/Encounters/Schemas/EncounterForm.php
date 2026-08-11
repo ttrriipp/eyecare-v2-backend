@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Encounters\Schemas;
 
+use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
@@ -26,6 +27,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class EncounterForm
@@ -481,22 +483,47 @@ class EncounterForm
                         ->label('')
                         ->hiddenLabel()
                         ->columnSpanFull()
-                        ->content(function (Encounter $record): string {
+                        ->content(function (Encounter $record): HtmlString {
                             $addenda = $record->addenda()->with('author')->get();
 
                             if ($addenda->isEmpty()) {
-                                return '—';
+                                return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">No addenda.</p>');
                             }
 
-                            $lines = $addenda->map(function ($addendum): string {
-                                $type = $addendum->type->value === 'correction' ? 'Correction' : 'Supplement';
-                                $author = $addendum->author?->full_name ?? '—';
+                            $html = '<div class="space-y-3">';
+
+                            foreach ($addenda as $addendum) {
+                                $isCorrection = $addendum->type === EncounterAddendumType::Correction;
+                                $typeLabel = $isCorrection ? 'Correction' : 'Supplement';
+                                $badgeClass = $isCorrection
+                                    ? 'bg-danger-50 text-danger-700 dark:bg-danger-500/15 dark:text-danger-400'
+                                    : 'bg-info-50 text-info-700 dark:bg-info-500/15 dark:text-info-400';
+                                $borderClass = $isCorrection
+                                    ? 'border-l-danger-500'
+                                    : 'border-l-info-500';
+
+                                $author = e($addendum->author?->full_name ?? '—');
                                 $date = $addendum->authored_at?->format('M j, Y g:i A') ?? '—';
+                                $reason = e($addendum->reason ?? '');
+                                $content = e($addendum->content ?? '');
 
-                                return "**[{$type}] #{$addendum->sequence_number}** — {$author} ({$date})\n{$addendum->reason}\n{$addendum->content}";
-                            });
+                                $html .= '<div class="rounded-lg border border-gray-200 dark:border-white/10 border-l-4 '.$borderClass.' bg-white dark:bg-gray-900 p-4">';
+                                $html .= '<div class="flex items-center gap-2 mb-2">';
+                                $html .= '<span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium '.$badgeClass.'">'.$typeLabel.' #'.$addendum->sequence_number.'</span>';
+                                $html .= '<span class="text-xs text-gray-500 dark:text-gray-400">by '.$author.' · '.$date.'</span>';
+                                $html .= '</div>';
 
-                            return $lines->implode("\n\n");
+                                if ($reason !== '') {
+                                    $html .= '<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">'.$reason.'</p>';
+                                }
+
+                                $html .= '<p class="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">'.$content.'</p>';
+                                $html .= '</div>';
+                            }
+
+                            $html .= '</div>';
+
+                            return new HtmlString($html);
                         }),
                 ]),
 
