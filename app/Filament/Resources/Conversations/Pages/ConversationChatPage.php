@@ -59,7 +59,7 @@ class ConversationChatPage extends Page
     public function conversations(): Collection
     {
         return Conversation::query()
-            ->with('patient')
+            ->with(['patient', 'account'])
             ->withCount('messages')
             ->latest()
             ->get();
@@ -98,6 +98,6 @@ class ConversationChatPage extends Page
             return null;
         }
 
-        return Conversation::with('patient')->find($this->selectedConversationId);
+        return Conversation::with(['patient', 'account'])->find($this->selectedConversationId);
     }
 }

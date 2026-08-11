@@ -28,14 +28,19 @@
                             >
                                 <div class="flex items-center justify-between gap-2">
                                     <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                                        {{ $conversation->patient?->full_name ?? 'Unknown' }}
+                                        {{ $conversation->patient?->full_name ?? $conversation->account?->full_name ?? 'Unknown' }}
                                     </span>
+                                    @if ($conversation->patient_id === null)
+                                        <span class="shrink-0 rounded-full bg-warning-50 px-1.5 py-0.5 text-xs text-warning-600 dark:bg-warning-500/15 dark:text-warning-400">
+                                            Unlinked
+                                        </span>
+                                    @endif
                                     <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
                                         {{ $conversation->messages_count }}
                                     </span>
                                 </div>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                                    {{ $conversation->patient?->contact_email ?? '—' }}
+                                    {{ $conversation->patient?->contact_email ?? $conversation->account?->email ?? '—' }}
                                 </p>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                                     Started {{ $conversation->created_at->diffForHumans() }}
@@ -61,12 +66,17 @@
                 <div class="flex items-center gap-3 border-b border-gray-200 px-5 py-3 dark:border-white/10">
                     <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
-                            {{ $this->selectedConversation->patient?->full_name ?? 'Unknown' }}
+                            {{ $this->selectedConversation->patient?->full_name ?? $this->selectedConversation->account?->full_name ?? 'Unknown' }}
                         </p>
                         <p class="text-xs text-gray-400 dark:text-gray-500">
-                            {{ $this->selectedConversation->patient?->contact_email ?? '—' }}
+                            {{ $this->selectedConversation->patient?->contact_email ?? $this->selectedConversation->account?->email ?? '—' }}
                         </p>
                     </div>
+                    @if ($this->selectedConversation->patient_id === null)
+                        <div class="rounded-lg bg-warning-50 px-3 py-1.5 text-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
+                            Unlinked account — general inquiry only
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Messages --}}
