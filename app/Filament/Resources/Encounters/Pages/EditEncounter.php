@@ -388,7 +388,6 @@ class EditEncounter extends EditRecord
                 ->label('More')
                 ->icon('heroicon-o-ellipsis-vertical')
                 ->color('gray')
-                ->dropdown(false)
                 ->action(function () {})
                 ->visible(fn (): bool => $this->record->status !== EncounterStatus::Planned || true)
                 ->schema(function (): array {
