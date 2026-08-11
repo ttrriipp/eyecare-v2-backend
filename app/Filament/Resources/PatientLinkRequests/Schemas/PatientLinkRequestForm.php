@@ -51,18 +51,15 @@ class PatientLinkRequestForm
                             ->content(fn ($record): string => $record?->created_at?->diffForHumans() ?? '—'),
 
                         Placeholder::make('submitted_identity')
-                            ->label('Submitted Identity')
-                            ->columnSpanFull()
+                            ->label('Date of Birth')
                             ->content(function ($record): string {
                                 if ($record === null) {
                                     return '—';
                                 }
 
                                 $snapshot = $record->encrypted_identity_snapshot ?? [];
-                                $name = trim(($snapshot['first_name'] ?? '').' '.($snapshot['last_name'] ?? ''));
-                                $dob = $snapshot['date_of_birth'] ?? null;
 
-                                return trim($name.($dob ? " — DOB {$dob}" : '')) ?: '—';
+                                return $snapshot['date_of_birth'] ?? '—';
                             }),
                     ]),
 
