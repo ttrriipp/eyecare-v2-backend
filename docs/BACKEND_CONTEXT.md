@@ -37,6 +37,18 @@
 > delivery was removed) so the invitation-acceptance trust anchor matches
 > the verified login contact.
 >
+> **Shipped (2026-08-11): resilient patient invitation linking.** Invitation
+> acceptance is bound to the authenticated account's verified invited contact,
+> verifies the OTP challenge and request IP inside the same transaction, and
+> locks the invitation, challenge, patient, contact, and account rows before
+> linking. The operation is idempotent for retries from the same account after
+> a successful link, so the original Sanctum token remains usable for
+> `GET /api/v1/me` and reports `link_status: linked`. Rate-limit responses are
+> JSON-safe and machine-readable (`OTP_RATE_LIMIT_REACHED`,
+> `INVITATION_RATE_LIMIT_REACHED`, or `API_RATE_LIMIT_REACHED`) with a
+> `Retry-After` header; rate-limit events record route, account, IP, and retry
+> metadata without logging bearer tokens or OTP values.
+
 **Shipped (2026-08-11): admin workflow surfaces aligned with the workflow specs.**
 The Filament entry points now expose the operational context required by the
 appointment scheduling, encounter, and optical commerce workflows while
@@ -394,7 +406,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `current_revision_id`, `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
 | `visit_rating_revisions` | `visit_rating_id`, `revision_number`, `rating`, `comment`, `revised_by`, `revised_at`. |
 | `complaints` | `patient_id`, `original_job_order_id`, `status`, `patient_description`, `resolution_notes`, `new_appointment_id`, `new_encounter_id`. |
-| `conversations` | `patient_id` — one per patient. |
+| `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_lot_id` (nullable FK inventory_lots), `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
@@ -543,7 +555,18 @@ POST   /api/v1/optical-order-items/{id}/rating
 POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above (same controller)
 ```
 
-**Route count:** 8 public + 26 account-only + 21 active-link = **55 routes total.**
+**Route count:** 8 public + 29 account-only + 18 active-link = **55 routes total.**
+
+Conversation routes moved from active-link to account-only tier (no patient
+link required for read/send; attachment download remains active-link).
+
+Authenticated API throttles use separate per-account buckets so a mobile
+bootstrap burst cannot consume the profile and clinical budgets together:
+`GET /me` allows 300 requests per minute, account-only routes allow 120 per
+minute, active-link routes allow 120 per minute, invitation OTP requests allow
+5 per minute, and invitation acceptance allows 120 per minute. Rate-limited
+responses include `Retry-After`; middleware-backed limits also include the
+standard `X-RateLimit-*` headers.
 
 > **Updated 2026-08-09 (was 53).** Added `GET /appointment-types` (restored
 > patient-visible catalog) and `GET /appointment-optometrists` (patient-safe
@@ -589,7 +612,7 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `ReviewPatientLinkRequest` | `app/Actions/PatientAccounts/` | Approve (with row-lock recheck) or reject link request |
 | `UnlinkPatientAccount` | `app/Actions/PatientAccounts/` | Revokes tokens, removes link, creates audit log |
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
-| `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Verifies OTP, creates/reuses account, activates link |
+| `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates request with type-based duration snapshot, validates all time preferences for availability, persists alternatives, encrypted referral source, and latest-preference expiry; does NOT create capacity holds |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
@@ -666,6 +689,7 @@ Filament's "Delete"/"Restore" labels are renamed to **"Archive"/"Restore"** with
 - **Encounter billing:** The Encounter edit page offers **Add Service Charge** (posts service-line charges via `AddEncounterChargesToBilling`) and **View Billing Record**, both resolving to the single open Billing Record for that patient visit via `ResolveOpenCheckoutBillingRecord` — charges added after a Quotation sale is confirmed land on the same record instead of opening a second one.
 - **Reserve Frames:** The Appointment edit page offers a staff-initiated **Reserve Frames** action for any scheduled, not-yet-elapsed appointment without an active reservation, regardless of `source` (mobile/walk-in/manual) — reuses `CreateFrameReservation`, the same action the mobile API uses.
 - **Patient app invitations:** "Send App Invitation" is phone/SMS only; email is not an invitation delivery channel, since the verified phone is also the account's login contact. In `local`/`testing`, invitation codes are logged for `sail artisan pail` visibility, mirroring OTP delivery.
+- **Invitation acceptance:** The mobile API requires the authenticated account to own the verified invited contact. Acceptance is atomic and idempotent for that same account; it never revokes the existing Sanctum token, creates inventory activity, or relinks an already-linked account. Duplicate mobile requests may safely reuse the consumed challenge after the invitation has already been accepted by that account.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.

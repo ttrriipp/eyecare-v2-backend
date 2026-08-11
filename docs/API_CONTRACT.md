@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-10) — optical commerce and dispensing implementation complete. No route or response-shape changes to the patient API. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-11) — optical commerce and dispensing implementation complete, with resilient patient invitation linking and additive API rate-limit errors. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. No route or response-shape changes since 2026-08-05; frame reservation `expires_at` semantics (§12) corrected to match actual behavior.
 >
@@ -9,6 +9,16 @@
 > **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
 > **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. **Known bug:** the aggregate excludes hidden ratings' stars entirely rather than just their comments, contradicting the documented moderation model — see §11.
+>
+> **Shipped 2026-08-11:** patient invitation acceptance is bound to the
+> authenticated account's verified invited contact and committed atomically
+> under row locks. A successful acceptance leaves the original Sanctum token
+> valid, so the same token can immediately call `/me` and receive
+> `link_status: linked`. Retrying acceptance for that same account is
+> idempotent, even when the original OTP challenge has already been consumed.
+> Invitation and API rate-limit responses now include stable error codes and a
+> `Retry-After` header; middleware-backed limits retain the standard
+> `X-RateLimit-*` headers.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -367,6 +377,11 @@ Returns the authenticated account's profile, link state, and (when linked) read-
 
 **Auth:** Required (Sanctum token).
 
+**Rate limit:** 300 requests per minute per authenticated account. A normal
+mobile bootstrap burst may repeat this request; a limit response uses the
+standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
+`Retry-After`.
+
 **Response (200) — linked account:**
 ```json
 {
@@ -473,6 +488,8 @@ Updates account fields. At least one field required.
 - Only `first_name` and `last_name` are editable via this endpoint.
 - Contact changes use `/account/contacts/*` endpoints.
 - Clinical Patient demographics are read-only and never editable via the mobile API.
+
+**Rate limit:** 120 requests per minute per authenticated account.
 
 ---
 
@@ -805,6 +822,9 @@ Requests an OTP for accepting a patient invitation. The invitation code identifi
 
 **Auth:** Required (Sanctum token).
 
+**Rate limit:** 5 requests per minute per authenticated account. A limit
+response is `429 OTP_RATE_LIMIT_REACHED` and includes `Retry-After`.
+
 **Request:**
 ```json
 {
@@ -824,7 +844,7 @@ Requests an OTP for accepting a patient invitation. The invitation code identifi
 
 **Errors:**
 - `422 INVITATION_INVALID`: Token is invalid, expired, revoked, or already consumed.
-- `422 ACCOUNT_ALREADY_LINKED`: The account already has an active patient link.
+- `429 OTP_RATE_LIMIT_REACHED`: Invitation OTP requests exceeded the account limit.
 
 ---
 
@@ -847,17 +867,24 @@ Verifies the OTP and activates the patient link.
 ```json
 {
   "data": {
-    "status": "linked",
-    "linked_at": "2026-07-28T10:00:00+08:00"
+    "token": "1|abc123...",
+    "user": { /* PatientAccountResource with link_status: linked */ },
+    "status": "linked"
   }
 }
 ```
 
 **Behavior:**
-- Rechecks invitation, account, and patient eligibility under locks.
-- If the account doesn't already own the invited contact, that contact is added and verified atomically.
-- Repeated acceptance is idempotent and returns the same link.
-- Already-linked conflicts fail closed without revealing another account.
+- The authenticated account must own the verified contact targeted by the invitation.
+- The invitation, OTP challenge, patient, contact, and account are rechecked under row locks in one transaction.
+- The OTP challenge is bound to the authenticated account and the request IP is included in OTP verification limits.
+- The patient link and invitation acceptance are committed atomically; lens, product, or other inventory movements are not created by this flow.
+- Repeated acceptance from the same account is idempotent and returns `200` with a fresh mobile token and the existing link, even when the original challenge is already consumed.
+- The original Sanctum token is not revoked and can immediately call `GET /me` to receive `link_status: linked`.
+- A different account, an already-linked account, or an invitation for another verified contact is rejected without relinking the patient.
+
+**Rate limit:** 120 requests per minute per authenticated account. A limit
+response is `429 INVITATION_RATE_LIMIT_REACHED` and includes `Retry-After`.
 
 ---
 
@@ -2000,28 +2027,53 @@ star value always counts toward averages regardless of hiding.
 
 ## 16. Conversation
 
-**Active patient link required for all endpoints in this section.**
+**Authenticated account-only (no active patient link required).**
 
-The conversation is the patient's single messaging thread with the clinic.
-Messages may reference an Optical Order or Quotation through optional
-`contexts[]` entries. Context identifiers use the resource type and its
-public ID (e.g., `optical_order:5` or `quotation:12`). The client renders
-context links using the resource type and ID; the API does not return URLs.
+The conversation is the account's single messaging thread with the clinic.
+Linked and unlinked accounts can send text messages. Structured context
+links (`contexts[]`) are retired and rejected with HTTP 422. Messages are
+plain text only, maximum 5,000 characters.
+
+Attachment uploads and downloads require an active patient link. Unlinked
+accounts receive `can_upload_attachments: false` and upload attempts return
+HTTP 422.
 
 ### GET `/conversation`
 
-Returns (or creates) the patient's single conversation.
+Returns (or creates) the account's single conversation.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
-**Response (200):**
+**Response (200) — unlinked account:**
 ```json
 {
   "data": {
     "id": 1,
+    "patient_id": null,
+    "access_level": "general_inquiry",
+    "capabilities": {
+      "can_upload_attachments": false,
+      "can_create_context_links": false
+    },
+    "unread_count": 0,
+    "created_at": "2026-08-11T10:00:00.000000Z"
+  }
+}
+```
+
+**Response (200) — linked account:**
+```json
+{
+  "data": {
+    "id": 2,
     "patient_id": 1,
+    "access_level": "linked_patient",
+    "capabilities": {
+      "can_upload_attachments": true,
+      "can_create_context_links": false
+    },
     "unread_count": 3,
-    "created_at": "2026-07-27T10:00:00+08:00"
+    "created_at": "2026-07-27T10:00:00.000000Z"
   }
 }
 ```
@@ -2030,7 +2082,7 @@ Returns (or creates) the patient's single conversation.
 
 Returns all messages in the conversation (oldest first). NOT paginated.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
 **Response (200):**
 ```json
@@ -2043,9 +2095,6 @@ Returns all messages in the conversation (oldest first). NOT paginated.
       "body": "Your frame is ready for pickup.",
       "read_at": "2026-08-01T10:00:00+08:00",
       "created_at": "2026-08-01T09:00:00+08:00",
-      "contexts": [
-        { "type": "optical_order", "id": 1 }
-      ],
       "attachments": [
         {
           "id": 1,
@@ -2070,10 +2119,7 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 | `body` | string | no | Message text, maximum 5,000 characters |
 | `read_at` | string | yes | ISO 8601 when read by patient |
 | `created_at` | string | no | ISO 8601 creation timestamp |
-| `contexts` | array | no | Referenced resources |
-| `contexts[].type` | string | no | `optical_order` or `quotation` |
-| `contexts[].id` | integer | no | Resource ID |
-| `attachments` | array | no | Attached files |
+| `attachments` | array | no | Attached files (empty array for unlinked accounts) |
 | `attachments[].id` | integer | no | Attachment ID |
 | `attachments[].original_name` | string | no | Original filename |
 | `attachments[].mime_type` | string | no | MIME type |
@@ -2082,19 +2128,32 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 
 ### POST `/conversation/messages`
 
-Sends a message. Supports `multipart/form-data` for attachments.
+Sends a plain text message. Structured context input is rejected.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
 **Request (JSON):**
 ```json
 {
-  "body": "string (required, max:5000)",
-  "contexts": [
-    { "type": "optical_order", "id": 1 }
-  ]
+  "body": "Do you have the Vista Classic frame available?"
 }
 ```
+
+**Validation:**
+- `body`: required, string, maximum 5,000 characters
+- `contexts`: prohibited (returns 422)
+
+**Rate limit:** 10 requests per minute per account. Throttled requests return
+HTTP 429 without creating a partial message.
+
+### GET `/conversation/attachments/{attachment}`
+
+Downloads a message attachment. Requires an active patient link.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+Returns 404 for unlinked accounts, missing files, or attachments from
+other conversations (non-disclosing).
 
 **Request (multipart/form-data):**
 ```
@@ -2160,7 +2219,9 @@ All API errors use one consistent JSON shape:
 |---|---|---|
 | `INVALID_OTP` | 422 | Wrong, expired, or consumed OTP code |
 | `OTP_ATTEMPT_LIMIT_REACHED` | 422 | Too many verification attempts on a challenge |
-| `OTP_RATE_LIMIT_REACHED` | 429 | Too many OTP requests for this destination/IP |
+| `OTP_RATE_LIMIT_REACHED` | 429 | Invitation OTP requests or OTP verification attempts exceeded the applicable account, destination, or IP limit |
+| `INVITATION_RATE_LIMIT_REACHED` | 429 | Invitation acceptance requests exceeded the authenticated account limit |
+| `API_RATE_LIMIT_REACHED` | 429 | A general authenticated API route limit was exceeded |
 | `CONTACT_ALREADY_OWNED` | 422 | Contact is already verified by another account |
 | `INVITATION_INVALID` | 422 | Invitation token is invalid, expired, revoked, or consumed |
 | `ACCOUNT_ALREADY_LINKED` | 422 | Account already has an active patient link |
@@ -2322,7 +2383,12 @@ Appointment requests require a free-text `reason_for_visit` (max 1000 characters
 The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `last_name`) never silently update the clinic Patient record.
 
 ### OTP challenge lifecycle
-Challenges expire after 10 minutes, allow 5 verification attempts, and are consumed on successful verification. Resend invalidates earlier pending challenges for the same purpose/destination. Rate limits: 3 per 15 minutes per destination, 10 per 15 minutes per IP, 10 per destination per day.
+Challenges expire after 10 minutes, allow 5 verification attempts, and are
+consumed on successful verification. Resend invalidates earlier pending
+challenges for the same purpose/destination. OTP verification is limited to
+10 attempts per 15 minutes per destination and 20 attempts per 15 minutes per
+IP when an IP is available. Invitation OTP issuance has a separate limit of 5
+requests per minute per authenticated account.
 
 ### Sanctum token lifecycle
 Tokens are device-labelled, expire after 30 days, and are limited to 5 per patient account. Same-installation replacement is supported. A non-expired token for an installation allows password login without another OTP. Password recovery and primary-contact replacement revoke other patient tokens.
@@ -2424,6 +2490,24 @@ POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 GET    /api/v1/frames                         List frames
 GET    /api/v1/frames/{id}                    Get frame detail
 ```
+
+### Authenticated API rate limits
+
+Authenticated limits are isolated by route group and keyed to the account, so
+duplicate mobile bootstrap requests do not consume the `/me` and clinical
+budgets together:
+
+| Route group | Limit |
+|---|---:|
+| `GET /me` | 300 requests/minute/account |
+| Other account-only routes | 120 requests/minute/account |
+| Active patient-link routes | 120 requests/minute/account |
+| `POST /patient-invitations/acceptance/otp` | 5 requests/minute/account |
+| `POST /patient-invitations/accept` | 120 requests/minute/account |
+
+Rate-limited responses include `Retry-After` in seconds. Middleware-backed
+limits also include `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and
+`X-RateLimit-Reset`.
 
 ### Active Patient Link Required (token + active link)
 
