@@ -37,8 +37,6 @@ class VisitRatingController extends Controller
             comment: $validated['comment'] ?? null,
         );
 
-        $rating->load('currentRevision');
-
         return response()->json(
             ['data' => VisitRatingResource::make($rating)],
             $isNew ? 201 : 200,

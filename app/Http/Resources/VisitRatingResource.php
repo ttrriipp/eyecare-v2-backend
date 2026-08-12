@@ -19,10 +19,7 @@ class VisitRatingResource extends JsonResource
             'id' => $this->id,
             'rating' => $this->rating,
             'comment' => $this->shouldShowComment($isAuthor) ? $this->comment : null,
-            'revision_number' => $this->when(
-                $this->relationLoaded('currentRevision'),
-                fn () => $this->currentRevision?->revision_number ?? 1,
-            ),
+            'revision_number' => 1,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

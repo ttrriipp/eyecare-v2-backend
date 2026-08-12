@@ -38,7 +38,9 @@ test('cancelling appointment releases held stock then deletes', function () {
     $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $brand->id]);
     $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'stock_quantity' => 5]);
 
-    $appointment = Appointment::factory()->create();
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => now()->addDays(3),
+    ]);
     $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
     FrameReservationItem::factory()->create([
         'frame_reservation_id' => $reservation->id,
@@ -81,7 +83,7 @@ test('marking no-show releases held stock then deletes', function () {
 
     $actor = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create([
-        'scheduled_at' => now()->subHour(),
+        'scheduled_at' => now()->addDays(3),
     ]);
     $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
     FrameReservationItem::factory()->create([
@@ -91,6 +93,9 @@ test('marking no-show releases held stock then deletes', function () {
 
     app(AcceptFrameReservation::class)->handle($reservation);
     expect($variant->fresh()->stock_quantity)->toBe(2);
+
+    // Move appointment to the past so MarkAppointmentNoShow accepts it
+    $appointment->update(['scheduled_at' => now()->subHour()]);
 
     app(MarkAppointmentNoShow::class)->handle(
         appointment: $appointment,

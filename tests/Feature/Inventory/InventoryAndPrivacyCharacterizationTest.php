@@ -43,6 +43,7 @@ test('commitment rejects insufficient stock', function () {
         'unit_price' => 1000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -57,6 +58,7 @@ test('stock cannot go negative through commitment', function () {
         'unit_price' => 1000,
         'amount' => 3000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -76,6 +78,7 @@ test('cancellation reversal restores stock exactly once', function () {
         'unit_price' => 1000,
         'amount' => 3000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     // Commit
@@ -105,6 +108,7 @@ test('repeated cancellation does not double-restore stock', function () {
         'unit_price' => 1000,
         'amount' => 2000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -128,6 +132,7 @@ test('cancellation voids billing when no posted payments exist', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     BillingRecord::factory()->create([
@@ -153,6 +158,7 @@ test('cancellation preserves billing when posted payments exist', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
+        'item_kind' => 'frame',
     ]);
 
     $billingRecord = BillingRecord::factory()->create([

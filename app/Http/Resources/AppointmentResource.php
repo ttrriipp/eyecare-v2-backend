@@ -81,7 +81,7 @@ class AppointmentResource extends JsonResource
             'rating' => $rating->rating,
             'comment' => ($rating->is_hidden && ! $isAuthor) ? null : $rating->comment,
             'created_at' => $rating->created_at?->toISOString(),
-            'revision_number' => $rating->currentRevision?->revision_number ?? 1,
+            'revision_number' => 1,
         ];
     }
 }

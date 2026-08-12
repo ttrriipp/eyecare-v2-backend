@@ -48,7 +48,7 @@ test('re-submitting revises the rating', function () {
         ])
         ->assertOk()
         ->assertJsonPath('data.rating', 5)
-        ->assertJsonPath('data.revision_number', 2);
+        ->assertJsonPath('data.revision_number', 1);
 });
 
 test('non-fulfilled appointment is rejected', function () {
@@ -116,8 +116,6 @@ test('hidden comment returns null to non-author', function () {
         'moderation_reason' => 'Test',
         'comment' => 'Hidden text',
     ]);
-
-    $rating->load('currentRevision');
 
     $resource = new VisitRatingResource($rating);
 

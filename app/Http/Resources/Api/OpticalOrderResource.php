@@ -91,7 +91,7 @@ class OpticalOrderResource extends JsonResource
             'rating' => $rating->rating,
             'comment' => ($rating->is_hidden && ! $isAuthor) ? null : $rating->comment,
             'created_at' => $rating->created_at?->toIso8601String(),
-            'revision_number' => $rating->currentRevision?->revision_number ?? 1,
+            'revision_number' => 1,
         ];
     }
 
@@ -120,7 +120,6 @@ class OpticalOrderResource extends JsonResource
         return FrameRating::query()
             ->where('patient_id', $patient->id)
             ->whereIn('product_variant_id', $variantIds)
-            ->with('currentRevision')
             ->get()
             ->keyBy('product_variant_id');
     }

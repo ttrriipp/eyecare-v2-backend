@@ -4,6 +4,7 @@
  * Tests for direct Quotation relationships.
  */
 
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
@@ -87,6 +88,7 @@ test('direct draft with heterogeneous items', function () {
         'unit_price' => 4500,
         'amount' => 4500,
         'product_variant_id' => $variant->id,
+        'item_kind' => CommercialItemKind::Frame,
     ]);
 
     QuotationItem::factory()->create([
@@ -96,6 +98,7 @@ test('direct draft with heterogeneous items', function () {
         'unit_price' => 3000,
         'amount' => 6000,
         'lens_category_id' => $lensCategory->id,
+        'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
     QuotationItem::factory()->create([

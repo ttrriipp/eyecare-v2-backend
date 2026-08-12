@@ -7,7 +7,7 @@
  * - Removes quotation_revisions table
  * - Removes quotation_revision_id columns
  * - Makes quotation_id required on quotation_items
- * - Preserves frame_rating_revisions (unrelated)
+ * - Drops frame_rating_revisions and visit_rating_revisions
  */
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -47,8 +47,8 @@ test('quotation_id is required on quotation_items', function () {
     }
 });
 
-test('frame_rating_revisions table is preserved', function () {
-    expect(Schema::hasTable('frame_rating_revisions'))->toBeTrue();
+test('frame_rating_revisions table is dropped', function () {
+    expect(Schema::hasTable('frame_rating_revisions'))->toBeFalse();
 });
 
 test('direct quotation fields are preserved on quotations', function () {

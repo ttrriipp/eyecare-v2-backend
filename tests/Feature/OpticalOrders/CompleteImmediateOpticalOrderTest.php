@@ -24,6 +24,7 @@ test('immediate service-only completes without dispensing event', function () {
         'quantity' => 1,
         'unit_price' => 1500,
         'amount' => 1500,
+        'item_kind' => 'service',
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
@@ -89,6 +90,7 @@ test('immediate with deposit records payment', function () {
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
+        'item_kind' => 'service',
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
