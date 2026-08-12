@@ -24,23 +24,10 @@ class CreateFrameReservation
         $this->validateEligibility($patient, $appointment, $items);
 
         return DB::transaction(function () use ($patient, $appointment, $items): FrameReservation {
-            // Row-lock the appointment to prevent concurrent reservation creation.
             Appointment::query()
                 ->whereKey($appointment->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            // Check for existing released reservation to reactivate
-            $existingReleased = FrameReservation::query()
-                ->where('appointment_id', $appointment->id)
-                ->where('status', ReservationStatus::Released)
-                ->first();
-
-            if ($existingReleased !== null) {
-                return $this->reactivateReservation($existingReleased, $items);
-            }
-
-            $this->assertNoExistingReservation($appointment);
 
             $reservation = FrameReservation::query()->create([
                 'patient_id' => $patient->id,
@@ -57,33 +44,6 @@ class CreateFrameReservation
 
             return $reservation->load(['items.variant.product', 'appointment']);
         });
-    }
-
-    /**
-     * Reactivate a released reservation with new frames.
-     * Remove old candidate items and replace with new ones.
-     */
-    private function reactivateReservation(FrameReservation $reservation, array $items): FrameReservation
-    {
-        $reservation->update([
-            'status' => ReservationStatus::Requested,
-            'released_at' => null,
-            'released_by' => null,
-            'release_reason' => null,
-        ]);
-
-        // Remove old candidate items
-        $reservation->items()->delete();
-
-        // Add new items
-        foreach ($items as $item) {
-            FrameReservationItem::query()->create([
-                'frame_reservation_id' => $reservation->id,
-                'product_variant_id' => $item['product_variant_id'],
-            ]);
-        }
-
-        return $reservation->load(['items.variant.product', 'appointment']);
     }
 
     private function validateEligibility(Patient $patient, Appointment $appointment, array $items): void
@@ -124,6 +84,12 @@ class CreateFrameReservation
      */
     private function validateVariants(array $items): void
     {
+        if (count($items) < 1 || count($items) > 5) {
+            throw ValidationException::withMessages([
+                'items' => ['A reservation must have between 1 and 5 frame candidates.'],
+            ]);
+        }
+
         $variantIds = array_column($items, 'product_variant_id');
         $uniqueIds = array_unique($variantIds);
 
@@ -152,27 +118,6 @@ class CreateFrameReservation
                     'items' => ["Variant {$variant->id} is not an active frame variant."],
                 ]);
             }
-        }
-    }
-
-    /**
-     * An appointment can have one active reservation at a time.
-     * Released reservations can be reactivated.
-     */
-    private function assertNoExistingReservation(Appointment $appointment): void
-    {
-        $hasActive = FrameReservation::query()
-            ->where('appointment_id', $appointment->id)
-            ->whereNotIn('status', [
-                ReservationStatus::Released,
-                ReservationStatus::Cancelled,
-            ])
-            ->exists();
-
-        if ($hasActive) {
-            throw ValidationException::withMessages([
-                'appointment_id' => ['This appointment already has an active frame reservation.'],
-            ]);
         }
     }
 }

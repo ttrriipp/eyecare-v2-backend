@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -108,31 +109,26 @@ test('another patients appointment is rejected', function () {
     );
 })->throws(ValidationException::class);
 
-test('a second active reservation for the same appointment is rejected', function () {
+test('a second reservation for the same appointment is rejected by the unique constraint', function () {
     $user = User::factory()->patient()->create();
     $appointment = createEligibleAppointment($user->patient);
     $variant1 = createActiveFrameVariant();
     $variant2 = createActiveFrameVariant();
 
-    // First reservation
     $this->action->handle(
         patient: $user->patient,
         appointment: $appointment,
         items: [['product_variant_id' => $variant1->id]],
     );
 
-    // Second reservation for same appointment
     $this->action->handle(
         patient: $user->patient,
         appointment: $appointment,
         items: [['product_variant_id' => $variant2->id]],
     );
-})->throws(ValidationException::class, 'already has a frame reservation');
+})->throws(UniqueConstraintViolationException::class);
 
-test('a terminal reservation still blocks a new one for the same appointment', function () {
-    // A reservation is a before-the-visit tool: an appointment gets exactly
-    // one, ever. Trying on something else in person doesn't create a new
-    // reservation — it just becomes a line item on the eventual sale.
+test('an appointment can receive a new reservation after the previous one is hard-deleted', function () {
     $user = User::factory()->patient()->create();
     $appointment = createEligibleAppointment($user->patient);
     $variant1 = createActiveFrameVariant();
@@ -143,14 +139,18 @@ test('a terminal reservation still blocks a new one for the same appointment', f
         appointment: $appointment,
         items: [['product_variant_id' => $variant1->id]],
     );
-    $first->update(['status' => ReservationStatus::Cancelled]);
+    $first->items()->delete();
+    $first->delete();
 
-    $this->action->handle(
+    $second = $this->action->handle(
         patient: $user->patient,
         appointment: $appointment,
         items: [['product_variant_id' => $variant2->id]],
     );
-})->throws(ValidationException::class, 'already has a frame reservation');
+
+    expect($second->id)->not->toBe($first->id)
+        ->and($second->items)->toHaveCount(1);
+});
 
 test('duplicate variant within reservation is rejected', function () {
     $user = User::factory()->patient()->create();
