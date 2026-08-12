@@ -1500,8 +1500,8 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
     {
       "id": 1,
       "appointment_id": 42,
-      "status": "requested",
-      "expires_at": null,
+      "is_held": false,
+      "expires_at": "2026-07-30T18:00:00+08:00",
       "created_at": "2026-07-27T10:00:00+08:00",
       "appointment": {
         "id": 42,
@@ -1541,14 +1541,13 @@ Returns all reservations for the authenticated patient. **Not paginated** — re
 
 **Notes:**
 - Response is a plain array wrapper (`data: [...]`), no `links` or `meta` pagination envelope.
-- Sanitized via `FrameReservationResource`. Excludes: `patient_id`, `staff_notes`, `deleted_at`, `updated_at`, `frame_reservation_id`.
+- Sanitized via `FrameReservationResource`. Excludes: `patient_id`, `staff_notes`, `updated_at`.
 - Variant excludes: `cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`, `is_active`, `ar_eligible`, `ar_asset_reference`, `product_id`, `deleted_at`, timestamps.
 - Product excludes: `brand_id`, `category_id`, `lens_category_id`, `is_active`, `images`, `deleted_at`, timestamps. `brand` and `category` are string names, not objects.
-- `status` values: `requested`, `prepared`, `tried_on`, `converted`, `released`, `cancelled`.
-- `expires_at` is `null` until the reservation reaches `prepared` (staff have pulled the frames and stock is allocated); it's then set to the appointment day's clinic close time, and an automatic sweep releases the reservation if it's still `prepared` past that time.
-- An appointment can have at most one frame reservation, ever — the reservation exists only to hold stock before the visit; frames tried on in person flow directly into the eventual order without a reservation.
-- The patient API does not select a candidate frame or convert a reservation. Staff make that choice in the quotation workflow; the response continues to expose every reservation item, including unselected candidates.
-- After a staff conversion, the reservation status is `converted` and its item rows remain historical evidence. The patient API does not expose a per-item selected/sold status or the internal quotation/order reservation links.
+- `is_held` is derived from `accepted_at` (null → false, set → true). The raw `accepted_at` timestamp is not exposed.
+- `expires_at` is derived from clinic close time on the appointment's scheduled date, not stored.
+- An appointment can have at most one frame reservation, ever.
+- Android presentation: `is_held: false` → "Request sent — the clinic will set these aside before your visit."; `is_held: true` → "Set aside for your visit until {expires_at}."
 
 ---
 
@@ -1573,7 +1572,8 @@ Creates a new frame reservation. Requires an active patient link and a confirmed
 - `items`: `required`, `array`, `min:1`, `max:5`.
 - Each `product_variant_id` must reference an active frame variant (product_type = frame, is_active = true, variant is_active = true).
 - Duplicate variants within a reservation are rejected.
-- An active reservation (requested, prepared, tried_on) for the same appointment is rejected.
+- No window check — a request may be submitted any time before the visit.
+- `POST` never fails on stock.
 
 **Response (201):**
 ```json
@@ -1581,8 +1581,8 @@ Creates a new frame reservation. Requires an active patient link and a confirmed
   "data": {
     "id": 1,
     "appointment_id": 42,
-    "status": "requested",
-    "expires_at": null,
+    "is_held": false,
+    "expires_at": "2026-07-30T18:00:00+08:00",
     "created_at": "2026-07-27T10:00:00+08:00",
     "appointment": { "id": 42, "appointment_number": "APT-2026-000042", "status": "scheduled", "scheduled_at": "2026-07-30T09:00:00+08:00", "duration_minutes": 30 },
     "items": [ /* same structure as GET */ ]
@@ -1592,20 +1592,15 @@ Creates a new frame reservation. Requires an active patient link and a confirmed
 
 ---
 
-### POST `/frame-reservations/{reservation}/cancel`
+### DELETE `/frame-reservations/{reservation}`
 
-Cancels a reservation. Only `requested` or `prepared` reservations can be cancelled.
+Deletes a reservation. Returns 204 for the owner in either state, 403 for a non-owner, 404 for an already-deleted reservation.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Response (200):**
-```json
-{
-  "data": { /* FrameReservationResource with status: "cancelled" */ }
-}
-```
+**Response (204):** No content.
 
-**Error (422):** `"This reservation cannot be cancelled."` if status is beyond `prepared`.
+**Error (403):** If the reservation does not belong to the authenticated patient.
 
 ---
 
@@ -2545,7 +2540,7 @@ POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/frame-reservations             List reservations
 POST   /api/v1/frame-reservations             Create reservation
-POST   /api/v1/frame-reservations/{id}/cancel Cancel reservation
+DELETE /api/v1/frame-reservations/{id}        Delete reservation
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription

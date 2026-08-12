@@ -1,5 +1,9 @@
 # Simplified Frame Reservations
 
+> **Superseded by** `docs/specs/frame-reservation-simplification-spec.md`
+> (approved 2026-08-12). The lifecycle described below was replaced by a
+> two-state model carried by one nullable `accepted_at` timestamp.
+
 ## Problem Statement
 
 How might we make frame reservations understandable and actionable for clinic staff while preserving inventory correctness and clear patient communication?

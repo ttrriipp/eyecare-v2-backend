@@ -19,7 +19,27 @@
 > Order" direct-creation flow). Quotation confirm-sale, Encounter service
 > charges, and direct Billing Record charges now share one open checkout
 > per patient visit instead of creating duplicate billing records per
-> source. Staff can reserve frames from any scheduled appointment
+> source.
+>
+> **Shipped (2026-08-12): simplified frame reservations.** Frame
+> reservations collapsed to two states carried by one nullable `accepted_at`
+> timestamp: a request holds nothing, an accepted reservation holds exactly
+> one unit per frame. The `ReservationStatus` enum, try-on, conversion to
+> a sale, closure reasons, reactivation, release attribution, stored
+> deadline, and every link between a reservation and a Quotation or Optical
+> Order were deleted rather than migrated. Five actions plus one stock
+> collaborator: `CreateFrameReservation`, `AcceptFrameReservation`,
+> `AddFrameReservationItem`, `RemoveFrameReservationItem`,
+> `DeleteFrameReservation`, `FrameReservationStock`. Acceptance is one-way
+> (deletion is the release), bounded by a seven-day window, and idempotent.
+> The sweep derives expiry from clinic close on the appointment date. The
+> patient API uses `DELETE` instead of cancel, returns `is_held` and derived
+> `expires_at`, and never exposes `status` or `accepted_at`. Filament shows
+> two tabs (Awaiting acceptance / Set aside), an accept action, a release
+> action, and add/remove frame — no other lifecycle controls remain.
+> Spec/plan/tasks live in
+> `docs/specs/frame-reservation-simplification-{spec,plan}.md` and
+> `tasks/frame-reservation-simplification-{plan,todo}.md`. Staff can reserve frames from any scheduled appointment
 > regardless of source (mobile, walk-in, or manually created), not just
 > mobile-originated ones. A frame reservation is a strictly
 > before-the-visit tool — an appointment gets exactly one, ever (DB-level
@@ -425,10 +445,10 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `products` | Stocked physical catalog entries. New Products use only `product_type` values `frame`, `contact_lens`, or `accessory`; variants own price, dimensions, SKU, and stock. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. `lens_category_id` remains temporarily for historical compatibility. |
-| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `frame_reservation_id` (nullable FK to the reservation source), `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
+| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/presented/accepted/declined/expired), `valid_until`, `subtotal`, `discount_amount`, `total`, `presented_by`, `presented_at`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`, `eyewear_key` (unique, `eyw_{ULID}`). |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_type` (product/service), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
-| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `frame_reservation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
+| `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `quotation_id` (unique, nullable), `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`, `eyewear_key` (unique, `eyw_{ULID}`, copied from quotation on creation). |
 | `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `item_type` (product only for new records), `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `job_order_eyewear_specifications` | One-to-one with `job_orders`. `job_order_id` (unique), `prescription_id`, `frame_job_order_item_id` (nullable), `lens_package_job_order_item_id`, `frame_source` (catalog/patient_supplied), lens construction snapshots (`lens_design_snapshot`, `lens_material_snapshot`, `refractive_index_snapshot`, `lens_options_snapshot` JSON), encrypted dispensing measurements (`distance_pd_mode`, `distance_pd_binocular`/`od`/`os`, `near_pd_*`, `fitting_height_*`, `segment_height_*`), encrypted `lab_instructions`, `approved_by` (nullable FK users), `approved_at`, `verified_by` (nullable FK users), `verified_at`, encrypted `verification_notes`. |
 | `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `quotation_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
@@ -436,8 +456,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`, `released_balance_amount` (default 0), `balance_override_by` (nullable FK users), encrypted `balance_override_reason`, `balance_due_date` (nullable date). |
 | `inventory_lots` | Contact-lens lot tracking. `product_variant_id`, `lot_number`, `expires_on` (date), `received_quantity`, `quantity_on_hand`, `received_at`, `received_by` (FK users), `source_reference` (nullable). Unique `(product_variant_id, lot_number)`. Nonnegative quantity constraint. |
-| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete, **unique** — one reservation per appointment, ever), `status` (requested/prepared/tried_on/converted/released/cancelled), `staff_notes`, `expires_at` (null until `Prepared`, then the appointment day's clinic close time). |
-| `frame_reservation_items` | `frame_reservation_id`, `product_variant_id`; candidate rows are retained as historical evidence after conversion, with the sold candidate derived from the quotation's Frame line. |
+| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete, **unique** — one reservation per appointment, ever), `accepted_at` (nullable timestamp — null means request, set means held), `staff_notes`. Hard deleted on release; `inventory_movements.reservation_id` survives parent deletion. |
+| `frame_reservation_items` | `frame_reservation_id`, `product_variant_id`; candidate rows are retained as history after release. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`, `current_revision_id`. |
 | `frame_rating_revisions` | `revision_number`, `rating`, `comment`, `revised_by`. |
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `current_revision_id`, `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
@@ -483,7 +503,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 
 **Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. Overpayments are rejected; the balance comparison occurs under the Billing Record row lock. First posted payment locks the charge set. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates. Routine dispensing requires zero balance. Admin may release with an outstanding balance only with a nonblank reason and a current/future payment due date; the Dispensing Event snapshots the override attribution.
 
-**Frame Reservations:** `requested → prepared → tried_on → converted/released/cancelled`. A reservation is strictly a before-the-visit tool: an appointment gets exactly one, ever (`frame_reservations.appointment_id` is unique at the DB level). Prepared reservations allocate stock and stamp `expires_at` at that day's clinic close time; the `reservations:expire` command (scheduled every 15 minutes in `routes/console.php`) releases any `Prepared` reservation past its `expires_at`, restoring stock. Release restores stock. Staff can add/remove candidate frames on the one reservation up to `tried_on` via `AddFrameReservationItem`/`RemoveFrameReservationItem`, exposed as header/row actions on the `ItemsRelationManager` (FrameReservations resource) and the `FrameReservationItemsRelationManager` (Appointment resource) — both gated by `FrameReservationPolicy`. Eligible item rows expose **Use in Quotation**, which opens a patient-scoped quotation with that exact candidate, related encounter, and current prescription preselected. On conversion, `prepared`/`tried_on` reservations release every candidate allocation before the order's single inventory commitment; `requested` reservations create no artificial release movement. Unselected candidate rows remain in the reservation for history, and the reservation becomes `converted` only when linked to the resulting Optical Order.
+**Frame Reservations:** Two states carried by one nullable `accepted_at` timestamp: a **request** (`accepted_at` null) holds nothing, an **accepted** reservation (`accepted_at` set) holds exactly one unit per frame. An appointment gets exactly one reservation, ever (`frame_reservations.appointment_id` is unique at the DB level). Acceptance allocates stock and is one-way — deletion is the release. Staff can add/remove candidate frames via `AddFrameReservationItem`/`RemoveFrameReservationItem`. `reservations:expire` (scheduled every 15 minutes) deletes reservations past their derived expiry (clinic close on the appointment date) or whose appointment is no longer `scheduled`. Hard deletion restores stock for held reservations. Five actions plus one stock collaborator: `CreateFrameReservation`, `AcceptFrameReservation`, `AddFrameReservationItem`, `RemoveFrameReservationItem`, `DeleteFrameReservation`, `FrameReservationStock`.
 
 ---
 
