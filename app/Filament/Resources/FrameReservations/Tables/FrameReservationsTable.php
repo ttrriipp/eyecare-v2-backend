@@ -81,7 +81,8 @@ class FrameReservationsTable
                         ->label('Mark Tried On')
                         ->icon('heroicon-o-hand-thumb-up')
                         ->color('warning')
-                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Prepared)
+                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Prepared
+                            && $record->appointment?->status?->name === 'checked_in')
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
                             app(MarkFrameReservationTriedOn::class)->handle($record);
