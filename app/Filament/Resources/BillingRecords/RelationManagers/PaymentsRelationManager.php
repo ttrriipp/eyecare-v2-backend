@@ -7,7 +7,6 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
-use App\Models\BillingRecordItem;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -82,32 +81,12 @@ class PaymentsRelationManager extends RelationManager
                             BillingRecordStatus::PartiallyPaid,
                         ], true))
                     ->schema([
-                        Placeholder::make('charge_summary')
-                            ->label('Current charge set')
-                            ->content(function (): string {
-                                /** @var BillingRecord $billingRecord */
-                                $billingRecord = $this->getOwnerRecord();
-                                $items = $billingRecord->items()->get();
-
-                                if ($items->isEmpty()) {
-                                    return 'No itemized charges have been recorded.';
-                                }
-
-                                $summary = $items
-                                    ->map(fn (BillingRecordItem $item): string => sprintf(
-                                        '%s × %s — ₱%s',
-                                        $item->description,
-                                        $item->quantity,
-                                        number_format((float) $item->amount, 2),
-                                    ))
-                                    ->implode("\n");
-
-                                return $summary."\nTotal: ₱".number_format((float) $billingRecord->total_amount, 2);
-                            })
-                            ->visible(fn (): bool => ! $this->hasPostedPayments()),
+                        Placeholder::make('balance_due')
+                            ->label('Balance Due')
+                            ->content(fn (): string => '₱'.number_format((float) $this->getOwnerRecord()->balance_due, 2)),
                         Toggle::make('charges_reviewed')
-                            ->label('I reviewed the current charge set')
-                            ->helperText('Recording this payment will finalize the charges on this bill. Add all expected Optical Order and Service charges first.')
+                            ->label("I've reviewed the charges on this bill")
+                            ->helperText('This finalizes the charges — add anything missing first.')
                             ->default(false)
                             ->rule('accepted')
                             ->required()
@@ -116,7 +95,8 @@ class PaymentsRelationManager extends RelationManager
                             ->label('Amount')
                             ->required()
                             ->numeric()
-                            ->prefix('₱'),
+                            ->prefix('₱')
+                            ->default(fn (): float => (float) $this->getOwnerRecord()->balance_due),
                         Select::make('payment_method')
                             ->label('Method')
                             ->options([
@@ -125,6 +105,7 @@ class PaymentsRelationManager extends RelationManager
                                 'bank_transfer' => 'Bank Transfer',
                                 'card' => 'Card',
                             ])
+                            ->default('cash')
                             ->required(),
                         TextInput::make('reference_number')
                             ->label('Reference #')
