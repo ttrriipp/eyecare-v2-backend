@@ -13,11 +13,11 @@ use App\Models\Patient;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -245,12 +245,22 @@ class ViewAppointmentRequest extends ViewRecord
                             ->nullable()
                             ->searchable(),
 
-                        DateTimePicker::make('scheduled_at')
-                            ->label('Final Date/Time')
-                            ->default($this->record->scheduled_at)
+                        DatePicker::make('scheduled_date')
+                            ->label('Date')
+                            ->default($this->record->scheduled_at?->toDateString())
                             ->required()
+                            ->native(false)
+                            ->minDate(today())
+                            ->suffixIcon('heroicon-o-calendar-days')
+                            ->live(),
+
+                        TimePicker::make('scheduled_time')
+                            ->label('Time')
+                            ->default($this->record->scheduled_at?->format('H:i'))
+                            ->required()
+                            ->seconds(false)
                             ->minutesStep(15)
-                            ->seconds(false),
+                            ->suffixIcon('heroicon-o-clock'),
 
                         TextInput::make('referring_source')
                             ->label('Referring Source')
@@ -260,7 +270,7 @@ class ViewAppointmentRequest extends ViewRecord
 
                         Textarea::make('contact_notes')
                             ->label('Contact Note')
-                            ->required(fn (Get $get): bool => ! $this->matchesSubmittedPreference($get('scheduled_at')))
+                            ->required(fn (Get $get): bool => ! $this->matchesSubmittedPreferenceFromFields($get('scheduled_date'), $get('scheduled_time')))
                             ->rows(2),
                     ];
                 })
@@ -269,12 +279,14 @@ class ViewAppointmentRequest extends ViewRecord
                         $appointmentType = AppointmentType::findOrFail($data['appointment_type_id']);
                         $optometrist = isset($data['optometrist_id']) ? User::find($data['optometrist_id']) : null;
 
+                        $scheduledAt = Carbon::parse($data['scheduled_date'].' '.$data['scheduled_time']);
+
                         $appointment = app(AcceptAppointmentRequest::class)->handle(
                             request: $this->record,
                             reviewer: auth()->user(),
                             appointmentType: $appointmentType,
                             durationMinutes: (int) $data['duration_minutes'],
-                            scheduledAt: Carbon::parse($data['scheduled_at']),
+                            scheduledAt: $scheduledAt,
                             optometrist: $optometrist,
                             referringSource: $data['referring_source'] ?? null,
                             contactNote: $data['contact_notes'] ?? null,
@@ -328,6 +340,22 @@ class ViewAppointmentRequest extends ViewRecord
 
         try {
             $selected = Carbon::parse($scheduledAt);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return collect($this->record->getAllTimePreferences())
+            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));
+    }
+
+    private function matchesSubmittedPreferenceFromFields(?string $date, ?string $time): bool
+    {
+        if (blank($date) || blank($time)) {
+            return false;
+        }
+
+        try {
+            $selected = Carbon::parse($date.' '.$time);
         } catch (\Throwable) {
             return false;
         }
