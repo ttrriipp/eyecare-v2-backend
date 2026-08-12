@@ -33,7 +33,7 @@ class AcceptAppointmentRequest
         AppointmentType $appointmentType,
         int $durationMinutes,
         CarbonInterface $scheduledAt,
-        User $optometrist,
+        ?User $optometrist = null,
         ?string $referringSource = null,
         ?string $contactNote = null,
     ): Appointment {
@@ -66,8 +66,8 @@ class AcceptAppointmentRequest
             ]);
         }
 
-        // Validate the optometrist is active
-        if (! $optometrist->isOptometrist() || ! $optometrist->is_active) {
+        // Validate the optometrist is active (if provided)
+        if ($optometrist !== null && (! $optometrist->isOptometrist() || ! $optometrist->is_active)) {
             throw ValidationException::withMessages([
                 'optometrist_id' => ['The selected optometrist is not available.'],
             ]);
@@ -120,7 +120,7 @@ class AcceptAppointmentRequest
         AppointmentType $appointmentType,
         int $durationMinutes,
         CarbonInterface $scheduledAt,
-        User $optometrist,
+        ?User $optometrist,
         ?string $referringSource,
         ?string $contactNote,
     ): Appointment {
@@ -150,8 +150,8 @@ class AcceptAppointmentRequest
                 ]);
             }
 
-            // Recheck the provider interval under the lock
-            if (! $this->evaluateAvailability->isOptometristEligible($optometrist, $scheduledAt, $scheduledAt->copy()->addMinutes($durationMinutes))) {
+            // Recheck the provider interval under the lock (only if optometrist assigned)
+            if ($optometrist !== null && ! $this->evaluateAvailability->isOptometristEligible($optometrist, $scheduledAt, $scheduledAt->copy()->addMinutes($durationMinutes))) {
                 throw ValidationException::withMessages([
                     'optometrist_id' => ['The selected optometrist is no longer available for this time slot.'],
                 ]);
@@ -178,7 +178,7 @@ class AcceptAppointmentRequest
                 'patient_id' => $request->patient_id,
                 'appointment_type_id' => $appointmentType->id,
                 'appointment_status_id' => $scheduledStatus->id,
-                'optometrist_id' => $optometrist->id,
+                'optometrist_id' => $optometrist?->id,
                 'scheduled_at' => $scheduledAt,
                 'duration_minutes' => $durationMinutes,
                 'source' => 'mobile',

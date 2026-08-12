@@ -242,8 +242,9 @@ class ViewAppointmentRequest extends ViewRecord
                                 ->get()
                                 ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])
                                 ->all())
-                            ->required()
-                            ->searchable(),
+                            ->nullable()
+                            ->searchable()
+                            ->helperText('Optional. Can be assigned at check-in or when consultation starts.'),
 
                         DateTimePicker::make('scheduled_at')
                             ->label('Final Date/Time')
@@ -268,7 +269,7 @@ class ViewAppointmentRequest extends ViewRecord
                 ->action(function (array $data): void {
                     try {
                         $appointmentType = AppointmentType::findOrFail($data['appointment_type_id']);
-                        $optometrist = User::findOrFail($data['optometrist_id']);
+                        $optometrist = isset($data['optometrist_id']) ? User::find($data['optometrist_id']) : null;
 
                         $appointment = app(AcceptAppointmentRequest::class)->handle(
                             request: $this->record,
