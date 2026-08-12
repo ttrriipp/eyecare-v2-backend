@@ -240,7 +240,7 @@ class OpticalOrderForm
                             Placeholder::make('encounter_id')
                                 ->label('Encounter')
                                 ->content(fn (JobOrder $record): string => $record->encounter
-                                    ? "#{$record->encounter->id}"
+                                    ? $record->encounter->encounter_number
                                     : '—'),
                             Placeholder::make('prescription_id')
                                 ->label('Prescription')
