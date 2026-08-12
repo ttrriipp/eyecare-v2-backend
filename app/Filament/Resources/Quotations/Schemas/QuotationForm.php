@@ -52,6 +52,9 @@ class QuotationForm
                                 ->displayFormat('M d, Y')
                                 ->suffixIcon('heroicon-o-calendar-days')
                                 ->minDate(now()),
+                            Textarea::make('notes')
+                                ->label('Patient Notes')
+                                ->columnSpanFull(),
                         ])
                         ->columns(2),
 
@@ -130,13 +133,6 @@ class QuotationForm
                                         ->money('PHP'),
                                 ])
                                 ->placeholder('No service items.'),
-                        ]),
-
-                    Section::make('Notes')
-                        ->schema([
-                            Textarea::make('notes')
-                                ->label('Patient Notes')
-                                ->columnSpanFull(),
                         ]),
                 ]),
 
