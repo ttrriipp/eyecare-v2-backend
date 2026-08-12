@@ -50,28 +50,6 @@ class UpdateJobOrderStatus
             ]);
         }
 
-        // Corrective orders require approved specification before Processing
-        if ($newStatus === JobOrderStatus::InProgress) {
-            $spec = $jobOrder->eyewearSpecification;
-
-            if ($spec !== null && ! $spec->isApproved()) {
-                throw ValidationException::withMessages([
-                    'status' => ['Approve the eyewear specification before starting processing.'],
-                ]);
-            }
-        }
-
-        // Corrective orders require verification before Ready for Pickup
-        if ($newStatus === JobOrderStatus::ReadyForDispensing) {
-            $spec = $jobOrder->eyewearSpecification;
-
-            if ($spec !== null && ! $spec->isVerified()) {
-                throw ValidationException::withMessages([
-                    'status' => ['Verify the completed eyewear before marking ready for pickup.'],
-                ]);
-            }
-        }
-
         return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
             $attributes = ['status' => $newStatus];
 

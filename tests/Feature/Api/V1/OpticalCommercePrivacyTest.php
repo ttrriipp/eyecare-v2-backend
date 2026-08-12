@@ -10,7 +10,6 @@ use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
-use App\Models\JobOrderEyewearSpecification;
 use App\Models\JobOrderItem;
 use App\Models\LensOption;
 use App\Models\Quotation;
@@ -77,32 +76,6 @@ test('patient optical order resources present confirmed lens options additively'
         ->assertJsonMissingPath('data.items.0.item_snapshot');
 
     expect($item->exists)->toBeTrue();
-});
-
-test('eyewear measurements are absent from patient resources', function () {
-    $jobOrder = JobOrder::factory()->create([
-        'patient_id' => $this->patient->patient->id,
-    ]);
-
-    // Create specification with measurements
-    $spec = JobOrderEyewearSpecification::factory()->create([
-        'job_order_id' => $jobOrder->id,
-        'distance_pd_binocular' => '62.5',
-        'fitting_height_od' => '22.0',
-        'lab_instructions' => 'Standard coating',
-    ]);
-
-    $response = $this->actingAs($this->patient)
-        ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
-        ->assertOk();
-
-    $response->assertJsonMissing([
-        'distance_pd_binocular',
-        'fitting_height_od',
-        'lab_instructions',
-        'approved_by',
-        'verified_by',
-    ]);
 });
 
 test('supplier references are absent from patient resources', function () {

@@ -10,10 +10,7 @@
  */
 
 use App\Actions\BillingRecords\DispenseJobOrder;
-use App\Actions\JobOrders\ApproveEyewearSpecification;
-use App\Actions\JobOrders\SaveEyewearSpecification;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
-use App\Actions\JobOrders\VerifyEyewear;
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation;
 use App\Actions\Quotations\PresentQuotation;
@@ -27,7 +24,6 @@ use App\Models\DispensingEvent;
 use App\Models\Encounter;
 use App\Models\InventoryMovement;
 use App\Models\JobOrder;
-use App\Models\JobOrderEyewearSpecification;
 use App\Models\LensCategory;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
@@ -105,12 +101,6 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
     expect($opticalOrder->items)->toHaveCount(2); // Frame + Lens
     expect($billingRecord->items)->toHaveCount(3); // Frame + Lens + Service
 
-    // Verify eyewear specification created
-    $spec = JobOrderEyewearSpecification::where('job_order_id', $opticalOrder->id)->first();
-    expect($spec)->not->toBeNull()
-        ->and($spec->prescription_id)->toBe($prescription->id)
-        ->and($spec->isApproved())->toBeFalse();
-
     // Verify deposit
     expect((float) $billingRecord->amount_paid)->toBe(2000.0)
         ->and((float) $billingRecord->balance_due)->toBe(6500.0);
@@ -126,51 +116,20 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
     );
     expect($retry['optical_order']->id)->toBe($opticalOrder->id);
 
-    // ─── Step 5: Save eyewear specification ───
-    $this->actingAs($this->staff);
-    $spec = app(SaveEyewearSpecification::class)->handle($spec, [
-        'lens_design_snapshot' => 'Single Vision',
-        'lens_material_snapshot' => 'Polycarbonate',
-        'distance_pd_mode' => 'binocular',
-        'distance_pd_binocular' => 62.5,
-        'fitting_height_od' => 22.0,
-        'fitting_height_os' => 22.0,
-        'lab_instructions' => 'Standard anti-reflective coating',
-    ], $this->staff);
-
-    expect($spec->lens_design_snapshot)->toBe('Single Vision')
-        ->and($spec->distance_pd_binocular)->toBe('62.5');
-
-    // ─── Step 6: Approve specification (optometrist) ───
-    $this->actingAs($this->optometrist);
-    $spec = app(ApproveEyewearSpecification::class)->handle($spec, $this->optometrist);
-
-    expect($spec->isApproved())->toBeTrue()
-        ->and($spec->approved_by)->toBe($this->optometrist->id);
-
-    // ─── Step 7: Start processing ───
+    // ─── Step 5: Start processing ───
     $this->actingAs($this->staff);
     $opticalOrder = app(UpdateJobOrderStatus::class)->handle($opticalOrder, 'in_progress');
 
     expect($opticalOrder->status)->toBe(JobOrderStatus::InProgress)
         ->and($opticalOrder->started_at)->not->toBeNull();
 
-    // ─── Step 8: Verify eyewear ───
-    $spec = app(VerifyEyewear::class)->handle($opticalOrder, $this->staff, 'Checked against spec');
-
-    expect($spec->isVerified())->toBeTrue()
-        ->and($spec->verified_by)->toBe($this->staff->id);
-
-    // Reload optical order to get fresh specification
-    $opticalOrder = $opticalOrder->fresh();
-
-    // ─── Step 9: Mark ready for pickup ───
+    // ─── Step 6: Mark ready for pickup ───
     $opticalOrder = app(UpdateJobOrderStatus::class)->handle($opticalOrder, 'ready_for_dispensing');
 
     expect($opticalOrder->status)->toBe(JobOrderStatus::ReadyForDispensing)
         ->and($opticalOrder->ready_at)->not->toBeNull();
 
-    // ─── Step 10: Final payment and dispense ───
+    // ─── Step 7: Final payment and dispense ───
     $this->actingAs($this->staff);
     $event = app(DispenseJobOrder::class)->handle(
         $opticalOrder,
@@ -197,41 +156,12 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
     // Billing records: first (with deposit) + second (from retry) = 2
     expect(BillingRecord::where('job_order_id', $opticalOrder->id)->count())->toBeGreaterThanOrEqual(1);
     expect(DispensingEvent::where('job_order_id', $opticalOrder->id)->count())->toBe(1);
-    expect(JobOrderEyewearSpecification::where('job_order_id', $opticalOrder->id)->count())->toBe(1);
 
     // Verify inventory movements are balanced
     $commitments = InventoryMovement::where('job_order_id', $opticalOrder->id)
         ->whereHas('movementType', fn ($q) => $q->where('name', 'order_commitment'))
         ->sum('quantity_change');
     expect(abs($commitments))->toBe(1); // 1 frame committed
-});
-
-test('non-corrective immediate order skips specification', function () {
-    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
-
-    $quotation = Quotation::factory()->create([
-        'status' => QuotationStatus::Draft,
-        'subtotal' => 5000,
-        'total' => 5000,
-    ]);
-
-    $quotation->items()->create([
-        'description' => 'Reading Glasses',
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
-        'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
-        'item_kind' => CommercialItemKind::Frame,
-    ]);
-
-    $result = app(ConfirmQuotationSale::class)->handle(
-        quotation: $quotation,
-        confirmer: $this->staff,
-    );
-
-    expect($result['optical_order'])->not->toBeNull()
-        ->and($result['optical_order']->eyewearSpecification)->toBeNull();
 });
 
 test('external fulfillment requires supplier reference before ready', function () {
@@ -277,24 +207,8 @@ test('external fulfillment requires supplier reference before ready', function (
     $opticalOrder = $result['optical_order'];
     $opticalOrder->update(['uses_external_supplier' => true]);
 
-    // Save and approve specification
-    $spec = $opticalOrder->eyewearSpecification;
-    $spec = app(SaveEyewearSpecification::class)->handle($spec, [
-        'lens_design_snapshot' => 'Progressive',
-    ], $this->staff);
-
-    $this->actingAs($this->optometrist);
-    $spec = app(ApproveEyewearSpecification::class)->handle($spec, $this->optometrist);
-
-    // Reload optical order to get fresh specification
-    $opticalOrder = $opticalOrder->fresh();
-
     // Start processing
-    $this->actingAs($this->staff);
-    app(UpdateJobOrderStatus::class)->handle($opticalOrder, 'in_progress');
-
-    // Verify
-    app(VerifyEyewear::class)->handle($opticalOrder, $this->staff);
+    $opticalOrder = app(UpdateJobOrderStatus::class)->handle($opticalOrder, 'in_progress');
 
     // Try to mark ready without supplier reference
     app(UpdateJobOrderStatus::class)->handle($opticalOrder, 'ready_for_dispensing');

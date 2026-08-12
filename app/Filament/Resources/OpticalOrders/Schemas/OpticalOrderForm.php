@@ -2,15 +2,10 @@
 
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
-use App\Actions\JobOrders\SaveEyewearSpecification;
 use App\Enums\BillingRecordStatus;
-use App\Enums\FrameSource;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
-use App\Models\JobOrderEyewearSpecification;
-use App\Models\User;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -18,7 +13,6 @@ use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
 
@@ -97,108 +91,6 @@ class OpticalOrderForm
                                 ])
                                 ->placeholder('No items recorded.'),
                         ]),
-
-                    // Eyewear Specification (only for corrective orders)
-                    Section::make('Eyewear Specification')
-                        ->relationship('eyewearSpecification')
-                        ->saveRelationshipsBeforeChildrenUsing(function (Section $component): void {
-                            $specification = $component->getCachedExistingRecord();
-                            $editor = auth()->user();
-
-                            if (! $specification instanceof JobOrderEyewearSpecification || ! $editor instanceof User) {
-                                return;
-                            }
-
-                            $data = $component->getChildSchema()->getState(shouldCallHooksBefore: false);
-
-                            if (($data['frame_source'] ?? null) instanceof FrameSource) {
-                                $data['frame_source'] = $data['frame_source']->value;
-                            }
-
-                            app(SaveEyewearSpecification::class)->handle(
-                                specification: $specification,
-                                data: $data,
-                                editor: $editor,
-                            );
-                        })
-                        ->schema([
-                            Select::make('frame_source')
-                                ->label('Frame Source')
-                                ->options(FrameSource::class)
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('lens_design_snapshot')
-                                ->label('Lens Design')
-                                ->required()
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('lens_material_snapshot')
-                                ->label('Material')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('refractive_index_snapshot')
-                                ->label('Refractive Index')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            Placeholder::make('lens_options_snapshot')
-                                ->label('Lens Options')
-                                ->content(fn (JobOrderEyewearSpecification $record): string => collect($record->lens_options_snapshot ?? [])
-                                    ->filter(fn (mixed $option): bool => is_string($option) && filled($option))
-                                    ->implode(', ') ?: 'None'),
-                            Select::make('distance_pd_mode')
-                                ->label('PD Mode')
-                                ->options([
-                                    'binocular' => 'Binocular',
-                                    'monocular' => 'Monocular',
-                                ])
-                                ->required()
-                                ->live()
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('distance_pd_binocular')
-                                ->label('Binocular PD (mm)')
-                                ->required()
-                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'binocular')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('distance_pd_od')
-                                ->label('OD PD (mm)')
-                                ->required()
-                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('distance_pd_os')
-                                ->label('OS PD (mm)')
-                                ->required()
-                                ->visible(fn (Get $get): bool => $get('distance_pd_mode') === 'monocular')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('near_pd_binocular')
-                                ->label('Near PD (mm)')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('fitting_height_od')
-                                ->label('Fitting Height OD (mm)')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('fitting_height_os')
-                                ->label('Fitting Height OS (mm)')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('segment_height_od')
-                                ->label('Segment Height OD (mm)')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            TextInput::make('segment_height_os')
-                                ->label('Segment Height OS (mm)')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true),
-                            Textarea::make('lab_instructions')
-                                ->label('Lab Instructions')
-                                ->disabled(fn ($record): bool => $record?->isVerified() ?? true)
-                                ->columnSpanFull(),
-                            Placeholder::make('approved_by')
-                                ->label('Approved By')
-                                ->content(fn ($record): string => $record?->approver?->full_name ?? 'Not approved'),
-                            Placeholder::make('approved_at')
-                                ->label('Approved At')
-                                ->content(fn ($record): string => $record?->approved_at?->format('M j, Y g:i A') ?? '—'),
-                            Placeholder::make('verified_by')
-                                ->label('Verified By')
-                                ->content(fn ($record): string => $record?->verifier?->full_name ?? 'Not verified'),
-                            Placeholder::make('verified_at')
-                                ->label('Verified At')
-                                ->content(fn ($record): string => $record?->verified_at?->format('M j, Y g:i A') ?? '—'),
-                        ])
-                        ->columns(2)
-                        ->visible(fn (JobOrder $record): bool => $record->eyewearSpecification !== null),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────

@@ -9,8 +9,6 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
-use App\Enums\CommercialItemKind;
-use App\Enums\FrameSource;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -20,7 +18,6 @@ use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -74,7 +71,7 @@ class ConfirmQuotationSale
                 ? Prescription::find($quotation->prescription_id)
                 : null;
 
-            $validationResult = app(ValidateOpticalQuotation::class)->handle(
+            app(ValidateOpticalQuotation::class)->handle(
                 items: $productItems->map(fn ($item) => [
                     'item_kind' => $item->item_kind,
                     'product_variant_id' => $item->product_variant_id,
@@ -151,11 +148,6 @@ class ConfirmQuotationSale
                     app(CommitJobOrderInventory::class)->handle($opticalOrder);
 
                     $opticalOrder->refresh();
-
-                    // Create eyewear specification shell for corrective orders
-                    if ($validationResult['is_corrective'] && $prescription !== null) {
-                        $this->createEyewearSpecificationShell($opticalOrder, $prescription, $productItems);
-                    }
                 }
             }
 
@@ -232,59 +224,5 @@ class ConfirmQuotationSale
                 'billing_record' => $billingRecord->fresh(),
             ];
         });
-    }
-
-    /**
-     * Create an empty eyewear specification shell for a corrective order.
-     */
-    private function createEyewearSpecificationShell(
-        JobOrder $opticalOrder,
-        Prescription $prescription,
-        Collection $productItems,
-    ): void {
-        // Find the JobOrderItems that correspond to the frame and lens package
-        $jobOrderItems = $opticalOrder->items()->get();
-
-        $frameQuotationItem = $productItems->firstWhere('item_kind', CommercialItemKind::Frame);
-        $lensPackageQuotationItem = $productItems->firstWhere('item_kind', CommercialItemKind::LensPackage);
-
-        if ($lensPackageQuotationItem === null) {
-            return;
-        }
-
-        // Idempotent: don't create a second specification
-        if ($opticalOrder->eyewearSpecification()->exists()) {
-            return;
-        }
-
-        // Find corresponding JobOrderItems by matching description and product_variant_id
-        $frameJobOrderItem = $frameQuotationItem !== null
-            ? $jobOrderItems->first(fn ($item) => $item->product_variant_id === $frameQuotationItem->product_variant_id
-                && $item->item_kind === CommercialItemKind::Frame
-            )
-            : null;
-
-        $lensPackageJobOrderItem = $jobOrderItems->first(fn ($item) => $item->lens_category_id === $lensPackageQuotationItem->lens_category_id
-            && $item->item_kind === CommercialItemKind::LensPackage
-        );
-
-        if ($lensPackageJobOrderItem === null) {
-            return;
-        }
-
-        $opticalOrder->eyewearSpecification()->create([
-            'prescription_id' => $prescription->id,
-            'frame_job_order_item_id' => $frameJobOrderItem?->id,
-            'lens_package_job_order_item_id' => $lensPackageJobOrderItem->id,
-            'frame_source' => $frameJobOrderItem !== null ? FrameSource::Catalog : FrameSource::PatientSupplied,
-            'lens_options_snapshot' => $productItems
-                ->where('item_kind', CommercialItemKind::LensOption)
-                ->map(fn ($item): ?string => is_array($item->item_snapshot)
-                    ? ($item->item_snapshot['lens_option_name'] ?? null)
-                    : null)
-                ->filter()
-                ->values()
-                ->all(),
-        ]);
     }
 }

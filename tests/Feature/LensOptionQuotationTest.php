@@ -10,7 +10,6 @@ use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Models\BillingRecordItem;
 use App\Models\Encounter;
 use App\Models\InventoryMovement;
-use App\Models\JobOrderEyewearSpecification;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Patient;
@@ -266,7 +265,7 @@ test('confirmation copies options, snapshots, billing, and no inventory movement
     $quotation->load('patient');
 
     $result = app(ConfirmQuotationSale::class)->handle($quotation, $this->staff);
-    $order = $result['optical_order']->fresh(['items', 'eyewearSpecification']);
+    $order = $result['optical_order']->fresh(['items']);
     $optionItem = $order->items->firstWhere('lens_option_id', $option->id);
 
     expect($optionItem)->not->toBeNull()
@@ -276,7 +275,6 @@ test('confirmation copies options, snapshots, billing, and no inventory movement
             'lens_option_id' => $option->id,
             'lens_option_name' => 'Anti-reflective coating',
         ])
-        ->and($order->eyewearSpecification->lens_options_snapshot)->toBe(['Anti-reflective coating'])
         ->and((float) $result['billing_record']->total_amount)->toBe(3850.0)
         ->and(BillingRecordItem::query()->where('job_order_item_id', $optionItem->id)->exists())->toBeTrue()
         ->and(InventoryMovement::query()->where('job_order_id', $order->id)->count())->toBe(0);
@@ -291,15 +289,11 @@ test('confirmed option snapshots survive catalog edits', function (): void {
     $option->update(['name' => 'Renamed tint', 'is_active' => false]);
 
     $confirmedItem = $result['optical_order']->items()->where('lens_option_id', $option->id)->firstOrFail();
-    $specification = JobOrderEyewearSpecification::query()
-        ->where('job_order_id', $result['optical_order']->id)
-        ->firstOrFail();
 
-    expect($confirmedItem->item_snapshot['lens_option_name'])->toBe('Tint')
-        ->and($specification->lens_options_snapshot)->toBe(['Tint']);
+    expect($confirmedItem->item_snapshot['lens_option_name'])->toBe('Tint');
 });
 
-test('confirmation retry does not duplicate option lines, specifications, or billing', function (): void {
+test('confirmation retry does not duplicate option lines or billing', function (): void {
     $lensCategory = LensCategory::factory()->withPrice(3000)->create();
     $option = LensOption::factory()->create(['price' => 500]);
     $quotation = quotationWithLensBuild($lensCategory, $option);
@@ -309,6 +303,5 @@ test('confirmation retry does not duplicate option lines, specifications, or bil
 
     expect($first['optical_order']->id)->toBe($second['optical_order']->id)
         ->and($second['optical_order']->items()->where('lens_option_id', $option->id)->count())->toBe(1)
-        ->and(JobOrderEyewearSpecification::query()->where('job_order_id', $first['optical_order']->id)->count())->toBe(1)
         ->and(BillingRecordItem::query()->where('job_order_item_id', $second['optical_order']->items()->where('lens_option_id', $option->id)->value('id'))->count())->toBe(1);
 });
