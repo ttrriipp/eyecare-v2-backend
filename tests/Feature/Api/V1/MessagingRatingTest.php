@@ -25,7 +25,7 @@ test('conversation access is patient-scoped', function () {
 });
 
 test('ratings require authentication', function () {
-    $this->postJson('/api/v1/job-order-items/1/rating', [
+    $this->postJson('/api/v1/optical-order-items/1/rating', [
         'product_variant_id' => 1,
         'rating' => 5,
     ])->assertUnauthorized();

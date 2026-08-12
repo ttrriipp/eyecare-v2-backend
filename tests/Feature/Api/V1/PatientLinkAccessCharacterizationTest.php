@@ -25,14 +25,6 @@ test('prescriptions are scoped through the patient relationship', function () {
         ->assertOk();
 });
 
-test('quotations are scoped through the patient relationship', function () {
-    $user = User::factory()->patient()->create();
-
-    $this->actingAs($user)
-        ->getJson('/api/v1/quotations')
-        ->assertOk();
-});
-
 test('optical orders are scoped through the patient relationship', function () {
     $user = User::factory()->patient()->create();
 

@@ -32,7 +32,7 @@ test('patient can submit a frame rating for a dispensed job order item', functio
     ]);
 
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
             'comment' => 'Excellent frame!',
@@ -59,7 +59,7 @@ test('product_variant_id is optional and derived from item', function () {
     ]);
 
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'rating' => 4,
             'comment' => 'Good frame',
         ])
@@ -83,7 +83,7 @@ test('rating can be revised on subsequent submissions', function () {
 
     // First rating
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 4,
             'comment' => 'Good frame',
@@ -92,7 +92,7 @@ test('rating can be revised on subsequent submissions', function () {
 
     // Revised rating
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
             'comment' => 'Even better after use!',
@@ -117,7 +117,7 @@ test('rating is rejected for another patients job order item', function () {
     ]);
 
     $this->actingAs($userA)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
         ])
@@ -138,7 +138,7 @@ test('rating is rejected for non-dispensed job orders', function () {
     ]);
 
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
         ])
@@ -160,7 +160,7 @@ test('rating is rejected when variant does not match job order item', function (
     ]);
 
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variantB->id,
             'rating' => 5,
         ])
@@ -183,7 +183,7 @@ test('rating is rejected when dispensing event does not belong to job order', fu
     $dispensingEvent = DispensingEvent::factory()->create(['job_order_id' => $otherJobOrder->id]);
 
     $this->actingAs($user)
-        ->postJson("/api/v1/job-order-items/{$item->id}/rating", [
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
             'product_variant_id' => $variant->id,
             'rating' => 5,
             'dispensing_event_id' => $dispensingEvent->id,
@@ -192,5 +192,5 @@ test('rating is rejected when dispensing event does not belong to job order', fu
 });
 
 test('rating requires authentication', function () {
-    $this->postJson('/api/v1/job-order-items/1/rating', [])->assertUnauthorized();
+    $this->postJson('/api/v1/optical-order-items/1/rating', [])->assertUnauthorized();
 });

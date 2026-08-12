@@ -18,7 +18,6 @@ beforeEach(function () {
 test('clinical routes are inaccessible without authentication', function () {
     $clinicalRoutes = [
         ['GET', '/api/v1/prescriptions'],
-        ['GET', '/api/v1/quotations'],
         ['GET', '/api/v1/optical-orders'],
         ['GET', '/api/v1/conversation'],
         ['GET', '/api/v1/frames'],
@@ -39,7 +38,6 @@ test('linked patient can access clinical routes through patient relationship', f
 
     // These routes scope data through the authenticated user's patient
     $this->getJson('/api/v1/prescriptions')->assertOk();
-    $this->getJson('/api/v1/quotations')->assertOk();
     $this->getJson('/api/v1/optical-orders')->assertOk();
     $this->getJson('/api/v1/frames')->assertOk();
     $this->getJson('/api/v1/frame-reservations')->assertOk();

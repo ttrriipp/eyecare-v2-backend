@@ -7,12 +7,10 @@
  */
 
 use App\Enums\CommercialItemKind;
-use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\LensOption;
-use App\Models\Quotation;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -119,29 +117,4 @@ test('ownership scoping remains intact', function () {
     $this->actingAs($otherPatient)
         ->getJson("/api/v1/optical-orders/{$jobOrder->id}")
         ->assertNotFound();
-});
-
-test('draft quotations are not visible to patients', function () {
-    $quotation = Quotation::factory()->create([
-        'patient_id' => $this->patient->patient->id,
-        'status' => QuotationStatus::Draft,
-    ]);
-
-    $response = $this->actingAs($this->patient)
-        ->getJson('/api/v1/quotations')
-        ->assertOk();
-
-    $response->assertJsonPath('meta.total', 0);
-});
-
-test('presented quotations are visible to patients', function () {
-    $quotation = Quotation::factory()->presented()->create([
-        'patient_id' => $this->patient->patient->id,
-    ]);
-
-    $response = $this->actingAs($this->patient)
-        ->getJson('/api/v1/quotations')
-        ->assertOk();
-
-    $response->assertJsonPath('meta.total', 1);
 });

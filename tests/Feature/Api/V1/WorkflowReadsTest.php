@@ -2,7 +2,6 @@
 
 use App\Models\JobOrder;
 use App\Models\Prescription;
-use App\Models\Quotation;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -83,16 +82,6 @@ test('prescription list returns only current versions with amendment context', f
         ->assertJsonPath('data.is_current', false);
 });
 
-test('quotations list is paginated and patient-scoped', function () {
-    $user = User::factory()->patient()->create();
-    Quotation::factory()->presented()->count(3)->create(['patient_id' => $user->patient->id]);
-
-    $this->actingAs($user)
-        ->getJson('/api/v1/quotations')
-        ->assertOk()
-        ->assertJsonPath('meta.total', 3);
-});
-
 test('job orders list is paginated and patient-scoped', function () {
     $user = User::factory()->patient()->create();
     JobOrder::factory()->count(4)->create(['patient_id' => $user->patient->id]);
@@ -109,12 +98,10 @@ test('cross-patient resources return not found', function () {
     $userB = User::factory()->patient()->create();
 
     $prescription = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
-    $quotation = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
     $jobOrder = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
 
     $this->actingAs($userA);
 
     $this->getJson("/api/v1/prescriptions/{$prescription->id}")->assertNotFound();
-    $this->getJson("/api/v1/quotations/{$quotation->id}")->assertNotFound();
     $this->getJson("/api/v1/optical-orders/{$jobOrder->id}")->assertNotFound();
 });

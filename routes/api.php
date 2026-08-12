@@ -16,7 +16,6 @@ use App\Http\Controllers\Api\OtpChallengeController;
 use App\Http\Controllers\Api\PatientInvitationController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
 use App\Http\Controllers\Api\PrescriptionController;
-use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
 
@@ -121,9 +120,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);
 
-    Route::get('quotations', [QuotationController::class, 'index']);
-    Route::get('quotations/{quotation}', [QuotationController::class, 'show']);
-
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
 
@@ -133,5 +129,4 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
     Route::post('optical-order-items/{item}/rating', [FrameRatingController::class, 'store']);
-    Route::post('job-order-items/{item}/rating', [FrameRatingController::class, 'store']);
 });

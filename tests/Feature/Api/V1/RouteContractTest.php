@@ -20,12 +20,16 @@ test('every approved v1 route is present exactly once', function () {
 
     $expected = [
         'DELETE api/v1/account/contacts/{contact}',
+        'DELETE api/v1/frame-reservations/{reservation}',
+        'DELETE api/v1/frame-reservations/{reservation}/items/{item}',
         'GET|HEAD api/v1/account/contacts',
         'GET|HEAD api/v1/account/link',
         'GET|HEAD api/v1/appointment-availability',
+        'GET|HEAD api/v1/appointment-optometrists',
         'GET|HEAD api/v1/appointment-request-availability',
         'GET|HEAD api/v1/appointment-requests',
         'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
+        'GET|HEAD api/v1/appointment-types',
         'GET|HEAD api/v1/appointments',
         'GET|HEAD api/v1/appointments/{appointment}',
         'GET|HEAD api/v1/auth/policies',
@@ -41,8 +45,6 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/patient-link-requests/current',
         'GET|HEAD api/v1/prescriptions',
         'GET|HEAD api/v1/prescriptions/{prescription}',
-        'GET|HEAD api/v1/quotations',
-        'GET|HEAD api/v1/quotations/{quotation}',
         'PATCH api/v1/account/contacts/{contact}/primary',
         'PATCH api/v1/me',
         'POST api/v1/account/contacts/otp',
@@ -64,8 +66,7 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/auth/step-up/verify',
         'POST api/v1/conversation/messages',
         'POST api/v1/frame-reservations',
-        'POST api/v1/frame-reservations/{reservation}/cancel',
-        'POST api/v1/job-order-items/{item}/rating', // Legacy alias for optical-order-items/{item}/rating
+        'POST api/v1/frame-reservations/{reservation}/items',
         'POST api/v1/logout',
         'POST api/v1/logout-all',
         'POST api/v1/optical-order-items/{item}/rating',
@@ -95,8 +96,7 @@ test('legacy routes are absent', function () {
         ->toArray();
 
     expect($routes)->not->toContain('api/v1/register')
-        ->and($routes)->not->toContain('api/v1/login')
-        ->and($routes)->not->toContain('api/v1/appointment-types');
+        ->and($routes)->not->toContain('api/v1/login');
 });
 
 test('no checkout or purchase routes exist', function () {
@@ -114,7 +114,8 @@ test('retired routes are absent', function () {
         ->toArray();
 
     expect($routes)->not->toContain('api/v1/feedback')
-        ->and($routes)->not->toContain('api/v1/appointment-types');
+        ->and($routes)->not->toContain('api/v1/quotations')
+        ->and($routes)->not->toContain('api/v1/quotations/{quotation}');
 });
 
 test('staff-only api mutations are absent from the patient mobile contract', function () {

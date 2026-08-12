@@ -146,7 +146,6 @@ test('patient isolation: cannot access another patients records', function () {
 
     $appointmentB = Appointment::factory()->create(['patient_id' => $userB->patient->id]);
     $prescriptionB = Prescription::factory()->create(['patient_id' => $userB->patient->id]);
-    $quotationB = Quotation::factory()->create(['patient_id' => $userB->patient->id]);
     $jobOrderB = JobOrder::factory()->create(['patient_id' => $userB->patient->id]);
     $billingRecordB = BillingRecord::factory()->create(['patient_id' => $userB->patient->id]);
 
@@ -154,7 +153,6 @@ test('patient isolation: cannot access another patients records', function () {
 
     $this->getJson("/api/v1/appointments/{$appointmentB->id}")->assertNotFound();
     $this->getJson("/api/v1/prescriptions/{$prescriptionB->id}")->assertNotFound();
-    $this->getJson("/api/v1/quotations/{$quotationB->id}")->assertNotFound();
     $this->getJson("/api/v1/job-orders/{$jobOrderB->id}")->assertNotFound();
     $this->getJson("/api/v1/billing-records/{$billingRecordB->id}")->assertNotFound();
 });
