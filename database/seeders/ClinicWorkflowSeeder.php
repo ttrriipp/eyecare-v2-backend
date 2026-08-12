@@ -145,8 +145,6 @@ class ClinicWorkflowSeeder extends Seeder
                 'subtotal' => 7500,
                 'discount_amount' => 0,
                 'total' => 7500,
-                'presented_by' => $staff->id,
-                'presented_at' => now()->subDays(1),
                 'confirmed_by' => $staff->id,
                 'confirmed_at' => now()->subDays(1)->addMinutes(30),
                 'notes' => 'Includes anti-reflective coating and scratch-resistant treatment.',
