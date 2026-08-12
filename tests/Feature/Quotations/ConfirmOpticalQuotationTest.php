@@ -9,7 +9,6 @@
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\Prescription;
@@ -44,7 +43,6 @@ test('invalid build leaves every downstream aggregate unchanged', function () {
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -54,7 +52,6 @@ test('invalid build leaves every downstream aggregate unchanged', function () {
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -80,7 +77,6 @@ test('corrective confirmation requires current prescription', function () {
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -90,7 +86,6 @@ test('corrective confirmation requires current prescription', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => ProductVariant::factory()->create()->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -121,7 +116,6 @@ test('valid corrective confirmation succeeds', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -131,7 +125,6 @@ test('valid corrective confirmation succeeds', function () {
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -166,7 +159,6 @@ test('concurrent confirmation remains idempotent', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -176,7 +168,6 @@ test('concurrent confirmation remains idempotent', function () {
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -209,7 +200,6 @@ test('non-corrective product confirmation succeeds without prescription', functi
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 

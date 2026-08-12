@@ -7,7 +7,6 @@
  */
 
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\LensOption;
@@ -56,7 +55,6 @@ test('patient optical order resources present confirmed lens options additively'
         'unit_price' => 850,
         'amount' => 850,
         'lens_option_id' => $option->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensOption,
         'item_snapshot' => [
             'lens_option_id' => $option->id,

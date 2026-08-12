@@ -7,7 +7,6 @@
  */
 
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrderItem;
 use App\Models\QuotationItem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,7 +15,6 @@ uses(RefreshDatabase::class);
 
 test('quotation item casts item_kind to CommercialItemKind enum', function () {
     $item = QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -27,7 +25,6 @@ test('quotation item casts item_kind to CommercialItemKind enum', function () {
 test('quotation item casts item_snapshot to array', function () {
     $snapshot = ['sku' => 'FRM-001', 'name' => 'Ray-Ban Aviator'];
     $item = QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
         'item_snapshot' => $snapshot,
     ]);
@@ -56,14 +53,6 @@ test('job order item casts item_snapshot to array', function () {
         ->and($item->item_snapshot)->toBe($snapshot);
 });
 
-test('job order items remain product-only', function () {
-    $this->expectException(InvalidArgumentException::class);
-
-    JobOrderItem::factory()->create([
-        'item_type' => TransactionItemType::Service,
-    ]);
-});
-
 test('factory states produce valid representative kinds', function () {
     $frame = QuotationItem::factory()->frame()->create();
     $lens = QuotationItem::factory()->lensPackage()->create();
@@ -86,7 +75,6 @@ test('job order factory states produce valid kinds', function () {
 
 test('item_snapshot is nullable', function () {
     $item = QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
         'item_snapshot' => null,
     ]);

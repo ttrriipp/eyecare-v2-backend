@@ -5,7 +5,6 @@ use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation;
 use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Models\BillingRecordItem;
 use App\Models\Encounter;
@@ -44,7 +43,6 @@ function quotationWithLensBuild(LensCategory $lensCategory, LensOption ...$optio
         'unit_price' => $lensCategory->price,
         'amount' => $lensCategory->price,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
         'item_snapshot' => [
             'lens_category_id' => $lensCategory->id,
@@ -59,7 +57,6 @@ function quotationWithLensBuild(LensCategory $lensCategory, LensOption ...$optio
             'unit_price' => $option->price,
             'amount' => $option->price,
             'lens_option_id' => $option->id,
-            'item_type' => TransactionItemType::Product,
             'item_kind' => CommercialItemKind::LensOption,
             'item_snapshot' => [
                 'lens_option_id' => $option->id,
@@ -236,8 +233,7 @@ test('draft revision preserves the selected lens option', function (): void {
     $optionItem = $updated->items->firstWhere('lens_option_id', $option->id);
 
     expect($optionItem)->not->toBeNull()
-        ->and($optionItem->item_kind)->toBe(CommercialItemKind::LensOption)
-        ->and($optionItem->item_type)->toBe(TransactionItemType::Product);
+        ->and($optionItem->item_kind)->toBe(CommercialItemKind::LensOption);
 });
 
 test('revise items preselects the existing lens option', function (): void {
@@ -269,7 +265,6 @@ test('confirmation copies options, snapshots, billing, and no inventory movement
     $optionItem = $order->items->firstWhere('lens_option_id', $option->id);
 
     expect($optionItem)->not->toBeNull()
-        ->and($optionItem->item_type)->toBe(TransactionItemType::Product)
         ->and($optionItem->item_kind)->toBe(CommercialItemKind::LensOption)
         ->and($optionItem->item_snapshot)->toBe([
             'lens_option_id' => $option->id,

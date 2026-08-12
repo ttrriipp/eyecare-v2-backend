@@ -7,7 +7,6 @@
  */
 
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrderItem;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -30,7 +29,6 @@ test('CommercialItemKind enum has exactly the expected cases', function () {
 
 test('quotation_items table has item_kind and item_snapshot columns', function () {
     $item = QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
         'item_snapshot' => json_encode(['name' => 'Test Frame']),
     ]);
@@ -57,7 +55,6 @@ test('item_kind is required on quotation_items', function () {
     $this->expectException(QueryException::class);
 
     QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => null,
     ]);
 });
@@ -72,7 +69,6 @@ test('item_kind is required on job_order_items', function () {
 
 test('item_snapshot is nullable on both tables', function () {
     $quotationItem = QuotationItem::factory()->create([
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
         'item_snapshot' => null,
     ]);

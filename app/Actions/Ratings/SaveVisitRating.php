@@ -2,7 +2,6 @@
 
 namespace App\Actions\Ratings;
 
-use App\Enums\CommercialItemKind;
 use App\Models\Appointment;
 use App\Models\BillingRecordItem;
 use App\Models\Patient;
@@ -81,7 +80,6 @@ class SaveVisitRating
         }
 
         return BillingRecordItem::query()
-            ->where('item_type', 'service')
             ->whereNotNull('service_id')
             ->where(function ($query) use ($encounter): void {
                 $query->where('encounter_id', $encounter->id)

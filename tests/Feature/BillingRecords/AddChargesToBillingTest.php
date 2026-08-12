@@ -5,7 +5,6 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
-use App\Enums\TransactionItemType;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
@@ -31,7 +30,6 @@ test('optical order source kind appends items and recalculates totals', function
     $jobOrder = JobOrder::factory()->create(['patient_id' => $patient->id]);
     $item = JobOrderItem::factory()->create([
         'job_order_id' => $jobOrder->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
@@ -47,7 +45,6 @@ test('optical order source kind appends items and recalculates totals', function
             'quantity' => $item->quantity,
             'unit_price' => $item->unit_price,
             'amount' => $item->amount,
-            'item_type' => $item->item_type,
             'job_order_item_id' => $item->id,
         ]]),
     );
@@ -62,7 +59,6 @@ test('quotation source kind appends service items', function (): void {
     $quotation = Quotation::factory()->create(['patient_id' => $patient->id]);
     $item = QuotationItem::factory()->create([
         'quotation_id' => $quotation->id,
-        'item_type' => TransactionItemType::Service,
     ]);
 
     $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
@@ -77,7 +73,6 @@ test('quotation source kind appends service items', function (): void {
             'quantity' => $item->quantity,
             'unit_price' => $item->unit_price,
             'amount' => $item->amount,
-            'item_type' => $item->item_type,
             'quotation_item_id' => $item->id,
         ]]),
     );
@@ -104,7 +99,6 @@ test('encounter source kind appends items with encounter_id', function (): void 
             'quantity' => 1,
             'unit_price' => '500.00',
             'amount' => '500.00',
-            'item_type' => TransactionItemType::Service,
             'encounter_id' => $encounter->id,
         ]]),
     );
@@ -130,7 +124,6 @@ test('direct service source kind appends items without entity reference', functi
             'quantity' => 1,
             'unit_price' => '300.00',
             'amount' => '300.00',
-            'item_type' => TransactionItemType::Service,
         ]]),
     );
 
@@ -154,14 +147,12 @@ test('recalculates totals after appending items', function (): void {
                 'quantity' => 1,
                 'unit_price' => '500.00',
                 'amount' => '500.00',
-                'item_type' => TransactionItemType::Service,
             ],
             [
                 'description' => 'Service B',
                 'quantity' => 2,
                 'unit_price' => '300.00',
                 'amount' => '600.00',
-                'item_type' => TransactionItemType::Service,
             ],
         ]),
         discountAmount: 100.00,
@@ -192,7 +183,6 @@ test('rejects appending when posted payments exist', function (): void {
             'quantity' => 1,
             'unit_price' => '200.00',
             'amount' => '200.00',
-            'item_type' => TransactionItemType::Service,
         ]]),
     );
 
@@ -215,7 +205,6 @@ test('rejects appending when posted payments exist', function (): void {
             'quantity' => 1,
             'unit_price' => '50.00',
             'amount' => '50.00',
-            'item_type' => TransactionItemType::Service,
         ]]),
     );
 });

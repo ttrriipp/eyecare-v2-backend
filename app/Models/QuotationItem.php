@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'lens_category_id',
     'lens_option_id',
     'service_id',
-    'item_type',
     'item_kind',
     'item_snapshot',
 ])]
@@ -58,11 +56,6 @@ class QuotationItem extends Model
                 throw new \InvalidArgumentException('Product items cannot reference a service.');
             }
 
-            // Product items with catalog references auto-set item_type
-            if ($item->item_type === null && ($item->product_variant_id !== null || $item->lens_category_id !== null || $item->lens_option_id !== null)) {
-                $item->item_type = TransactionItemType::Product;
-            }
-
             if ($item->lens_option_id !== null && ! in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true)) {
                 throw new \InvalidArgumentException('Lens option items must be Product items.');
             }
@@ -82,7 +75,6 @@ class QuotationItem extends Model
     protected function casts(): array
     {
         return [
-            'item_type' => TransactionItemType::class,
             'item_kind' => CommercialItemKind::class,
             'item_snapshot' => 'array',
         ];

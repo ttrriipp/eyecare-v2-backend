@@ -3,7 +3,6 @@
 use App\Actions\JobOrders\CreateJobOrder;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\Quotation;
 use App\Models\User;
@@ -28,7 +27,6 @@ test('staff can create a job order from an accepted quotation', function () {
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);
@@ -77,8 +75,8 @@ test('job order snapshots quotation items', function () {
         'total' => 8000,
     ]);
     $quotation->items()->createMany([
-        ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000, 'item_type' => TransactionItemType::Product],
-        ['description' => 'Lens', 'quantity' => 1, 'unit_price' => 3000, 'amount' => 3000, 'item_type' => TransactionItemType::Product],
+        ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000],
+        ['description' => 'Lens', 'quantity' => 1, 'unit_price' => 3000, 'amount' => 3000],
     ]);
 
     $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);

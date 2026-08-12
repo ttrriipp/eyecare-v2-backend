@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\CommercialItemKind;
-use App\Enums\TransactionItemType;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -31,7 +30,6 @@ class QuotationItemFactory extends Factory
             'amount' => $quantity * $unitPrice,
             'product_variant_id' => null,
             'lens_category_id' => null,
-            'item_type' => TransactionItemType::Service,
             'item_kind' => CommercialItemKind::Service,
         ];
     }
@@ -39,7 +37,6 @@ class QuotationItemFactory extends Factory
     public function product(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'item_type' => TransactionItemType::Product,
             'item_kind' => CommercialItemKind::CustomProduct,
         ]);
     }
@@ -47,7 +44,6 @@ class QuotationItemFactory extends Factory
     public function service(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'item_type' => TransactionItemType::Service,
             'item_kind' => CommercialItemKind::Service,
         ]);
     }
@@ -55,7 +51,6 @@ class QuotationItemFactory extends Factory
     public function frame(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'item_type' => TransactionItemType::Product,
             'item_kind' => CommercialItemKind::Frame,
         ]);
     }
@@ -63,7 +58,6 @@ class QuotationItemFactory extends Factory
     public function lensPackage(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'item_type' => TransactionItemType::Product,
             'item_kind' => CommercialItemKind::LensPackage,
         ]);
     }
@@ -71,7 +65,6 @@ class QuotationItemFactory extends Factory
     public function contactLens(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'item_type' => TransactionItemType::Product,
             'item_kind' => CommercialItemKind::ContactLens,
         ]);
     }

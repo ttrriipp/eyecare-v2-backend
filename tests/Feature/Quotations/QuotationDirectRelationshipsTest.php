@@ -5,7 +5,6 @@
  */
 
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -88,7 +87,6 @@ test('direct draft with heterogeneous items', function () {
         'unit_price' => 4500,
         'amount' => 4500,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     QuotationItem::factory()->create([
@@ -98,7 +96,6 @@ test('direct draft with heterogeneous items', function () {
         'unit_price' => 3000,
         'amount' => 6000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     QuotationItem::factory()->create([
@@ -107,7 +104,6 @@ test('direct draft with heterogeneous items', function () {
         'quantity' => 1,
         'unit_price' => 750,
         'amount' => 750,
-        'item_type' => TransactionItemType::Service,
     ]);
 
     QuotationItem::factory()->create([
@@ -116,7 +112,6 @@ test('direct draft with heterogeneous items', function () {
         'quantity' => 1,
         'unit_price' => 1000,
         'amount' => 1000,
-        'item_type' => TransactionItemType::Service,
     ]);
 
     expect($quotation->items)->toHaveCount(4)

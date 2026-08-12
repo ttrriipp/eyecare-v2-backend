@@ -2,7 +2,6 @@
 
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingRecordStatus;
-use App\Enums\TransactionItemType;
 use App\Models\DispensingEvent;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
@@ -25,7 +24,6 @@ test('immediate service-only completes without dispensing event', function () {
         'quantity' => 1,
         'unit_price' => 1500,
         'amount' => 1500,
-        'item_type' => TransactionItemType::Service,
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
@@ -50,7 +48,6 @@ test('immediate product creates dispensing event', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
@@ -74,7 +71,6 @@ test('immediate product commits inventory', function () {
         'unit_price' => 2500,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CreateOpticalOrderFromQuotation::class)->handle(
@@ -93,7 +89,6 @@ test('immediate with deposit records payment', function () {
         'quantity' => 1,
         'unit_price' => 5000,
         'amount' => 5000,
-        'item_type' => TransactionItemType::Service,
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
@@ -116,8 +111,8 @@ test('immediate mixed order commits inventory and creates dispensing', function 
 
     $quotation = Quotation::factory()->create(['total' => 6000]);
     $quotation->items()->createMany([
-        ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000, 'product_variant_id' => $variant->id, 'item_type' => TransactionItemType::Product],
-        ['description' => 'Fitting', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000, 'item_type' => TransactionItemType::Service],
+        ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000, 'product_variant_id' => $variant->id],
+        ['description' => 'Fitting', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000],
     ]);
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(

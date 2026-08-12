@@ -15,7 +15,6 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\InventoryMovement;
@@ -62,7 +61,6 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -72,7 +70,6 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
@@ -123,7 +120,6 @@ test('product lines enter optical order while only selected services enter billi
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -132,7 +128,6 @@ test('product lines enter optical order while only selected services enter billi
         'quantity' => 1,
         'unit_price' => 750,
         'amount' => 750,
-        'item_type' => TransactionItemType::Service,
         'item_kind' => CommercialItemKind::Service,
     ]);
 
@@ -152,8 +147,8 @@ test('product lines enter optical order while only selected services enter billi
     $billingItems = $result['billing_record']->items;
     expect($billingItems)->toHaveCount(2);
 
-    $productBillingItem = $billingItems->where('item_type', TransactionItemType::Product)->first();
-    $serviceBillingItem = $billingItems->where('item_type', TransactionItemType::Service)->first();
+    $productBillingItem = $billingItems->where('source_kind', BillingItemSourceKind::OpticalOrder)->first();
+    $serviceBillingItem = $billingItems->where('source_kind', BillingItemSourceKind::Quotation)->first();
 
     expect($productBillingItem)->not->toBeNull()
         ->and($productBillingItem->source_kind)->toBe(BillingItemSourceKind::OpticalOrder);
@@ -179,7 +174,6 @@ test('unselected services do not enter billing', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -188,7 +182,6 @@ test('unselected services do not enter billing', function () {
         'quantity' => 1,
         'unit_price' => 750,
         'amount' => 750,
-        'item_type' => TransactionItemType::Service,
         'item_kind' => CommercialItemKind::Service,
     ]);
 
@@ -200,8 +193,7 @@ test('unselected services do not enter billing', function () {
 
     // Only the product item should be on billing
     $billingItems = $result['billing_record']->items;
-    expect($billingItems)->toHaveCount(1)
-        ->and($billingItems->first()->item_type)->toBe(TransactionItemType::Product);
+    expect($billingItems)->toHaveCount(1);
 });
 
 // ─── Idempotency ─────────────────────────────────────────────────────────────
@@ -222,7 +214,6 @@ test('retried confirmation creates no duplicate order, billing item, payment, in
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -276,7 +267,6 @@ test('service-only confirmation creates no optical order', function () {
         'quantity' => 1,
         'unit_price' => 750,
         'amount' => 750,
-        'item_type' => TransactionItemType::Service,
         'item_kind' => CommercialItemKind::Service,
     ]);
 
@@ -293,8 +283,7 @@ test('service-only confirmation creates no optical order', function () {
     expect(JobOrder::where('quotation_id', $quotation->id)->count())->toBe(0);
 
     // Service item is on billing
-    expect($result['billing_record']->items)->toHaveCount(1)
-        ->and($result['billing_record']->items->first()->item_type)->toBe(TransactionItemType::Service);
+    expect($result['billing_record']->items)->toHaveCount(1);
 });
 
 // ─── Inventory commitment ────────────────────────────────────────────────────
@@ -315,7 +304,6 @@ test('confirmation commits inventory for product variants', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -352,7 +340,6 @@ test('eyewear key is stable across quotation, optical order', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -383,7 +370,6 @@ test('quotation discount is reflected in billing record', function () {
         'unit_price' => 10000,
         'amount' => 10000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
@@ -415,7 +401,6 @@ test('optional deposit is recorded during confirmation', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 

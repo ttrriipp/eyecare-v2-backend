@@ -3,7 +3,6 @@
 namespace App\Actions\Quotations;
 
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
@@ -37,15 +36,9 @@ class UpdateQuotationDraft
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
-                // Derive item type
                 $hasProductReference = filled($item['product_variant_id'] ?? null)
                     || filled($item['lens_category_id'] ?? null)
                     || filled($item['lens_option_id'] ?? null);
-                $itemType = match (true) {
-                    $hasProductReference => TransactionItemType::Product,
-                    ($item['item_kind'] ?? null) === 'custom_product' => TransactionItemType::Product,
-                    default => TransactionItemType::Service,
-                };
 
                 // Build immutable catalog snapshot
                 $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
@@ -65,7 +58,6 @@ class UpdateQuotationDraft
                     'lens_category_id' => $item['lens_category_id'] ?? null,
                     'lens_option_id' => $item['lens_option_id'] ?? null,
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
-                    'item_type' => $itemType,
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
                     'amount_in_cents' => $amountInCents,

@@ -14,7 +14,6 @@ use App\Actions\Encounters\VoidEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
-use App\Enums\CommercialItemKind;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
@@ -660,7 +659,6 @@ class EditEncounter extends EditRecord
                                 'quantity' => (int) $item['quantity'],
                                 'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                                 'amount' => number_format($amountInCents / 100, 2, '.', ''),
-                                'item_type' => \App\Enums\TransactionItemType::Service,
                                 'encounter_id' => $encounter->id,
                                 'service_id' => $item['service_id'] ?? null,
                             ];

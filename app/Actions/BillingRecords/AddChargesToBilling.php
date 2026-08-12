@@ -44,7 +44,6 @@ class AddChargesToBilling
             foreach ($items as $item) {
                 BillingRecordItem::create([
                     'billing_record_id' => $locked->id,
-                    'item_type' => $item['item_type'],
                     'source_kind' => $sourceKind,
                     'description' => $item['description'],
                     'quantity' => $item['quantity'],

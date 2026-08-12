@@ -10,7 +10,6 @@ use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Prescription;
@@ -104,7 +103,6 @@ class CreateOpticalOrderFromQuotation
                     'product_variant_id' => $item->product_variant_id,
                     'lens_category_id' => $item->lens_category_id,
                     'lens_option_id' => $item->lens_option_id,
-                    'item_type' => TransactionItemType::Product,
                     'item_kind' => $item->item_kind,
                     'item_snapshot' => $item->item_snapshot,
                 ]);
@@ -160,7 +158,6 @@ class CreateOpticalOrderFromQuotation
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'amount' => $item->amount,
-                        'item_type' => $item->item_type,
                         'job_order_item_id' => $item->id,
                     ]);
 
@@ -192,7 +189,6 @@ class CreateOpticalOrderFromQuotation
                             'quantity' => $item->quantity,
                             'unit_price' => $item->unit_price,
                             'amount' => $item->amount,
-                            'item_type' => \App\Enums\TransactionItemType::Service,
                             'quotation_item_id' => $item->id,
                         ]);
 
@@ -219,7 +215,6 @@ class CreateOpticalOrderFromQuotation
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'amount' => $item->amount,
-                        'item_type' => \App\Enums\TransactionItemType::Service,
                         'quotation_item_id' => $item->id,
                     ]);
 

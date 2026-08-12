@@ -8,7 +8,6 @@ use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Quotations\BuildQuotationItemSnapshot;
 use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
@@ -116,7 +115,6 @@ class CreateDirectOpticalOrder
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
                     'lens_option_id' => $item['lens_option_id'] ?? null,
-                    'item_type' => TransactionItemType::Product,
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
                 ];
@@ -151,7 +149,6 @@ class CreateDirectOpticalOrder
                     'quantity' => $item->quantity,
                     'unit_price' => $item->unit_price,
                     'amount' => $item->amount,
-                    'item_type' => $item->item_type,
                     'job_order_item_id' => $item->id,
                 ]);
 

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\BillingItemSourceKind;
-use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +10,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'billing_record_id',
-    'item_type',
     'description',
     'quantity',
     'unit_price',
@@ -29,7 +27,6 @@ class BillingRecordItem extends Model
     protected function casts(): array
     {
         return [
-            'item_type' => TransactionItemType::class,
             'source_kind' => BillingItemSourceKind::class,
         ];
     }

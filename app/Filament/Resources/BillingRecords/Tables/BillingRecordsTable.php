@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\BillingRecords\Tables;
 
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
-use App\Enums\CommercialItemKind;
 use App\Models\BillingRecord;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -53,8 +53,8 @@ class BillingRecordsTable
                         if ($items->isEmpty()) {
                             return '—';
                         }
-                        $productCount = $items->where('item_type', 'product')->count();
-                        $serviceCount = $items->where('item_type', 'service')->count();
+                        $productCount = $items->where('source_kind', BillingItemSourceKind::OpticalOrder)->count();
+                        $serviceCount = $items->count() - $productCount;
                         $parts = [];
                         if ($productCount > 0) {
                             $parts[] = "{$productCount} products";

@@ -2,7 +2,6 @@
 
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Enums\JobOrderStatus;
-use App\Enums\TransactionItemType;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
 
@@ -15,7 +14,6 @@ test('commits inventory for all product items by default', function () {
         'unit_price' => 2500,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -35,7 +33,6 @@ test('skips excluded variants, leaving their stock untouched', function () {
             'unit_price' => 2500,
             'amount' => 2500,
             'product_variant_id' => $excluded->id,
-            'item_type' => TransactionItemType::Product,
         ],
         [
             'description' => 'Regular lens',
@@ -43,7 +40,6 @@ test('skips excluded variants, leaving their stock untouched', function () {
             'unit_price' => 1500,
             'amount' => 1500,
             'product_variant_id' => $normal->id,
-            'item_type' => TransactionItemType::Product,
         ],
     ]);
 

@@ -2,7 +2,6 @@
 
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Enums\JobOrderStatus;
-use App\Enums\TransactionItemType;
 use App\Models\InventoryMovement;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
@@ -28,7 +27,6 @@ test('job order creation commits inventory atomically', function () {
         'job_order_id' => $jobOrder->id,
         'product_variant_id' => $variant->id,
         'quantity' => 3,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -52,14 +50,12 @@ test('unavailable item rolls back whole job order', function () {
         'job_order_id' => $jobOrder->id,
         'product_variant_id' => $variant1->id,
         'quantity' => 1,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     JobOrderItem::factory()->create([
         'job_order_id' => $jobOrder->id,
         'product_variant_id' => $variant2->id,
         'quantity' => 5,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     try {

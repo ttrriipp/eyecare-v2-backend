@@ -14,7 +14,6 @@ use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
@@ -44,7 +43,6 @@ test('commitment rejects insufficient stock', function () {
         'unit_price' => 1000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -59,7 +57,6 @@ test('stock cannot go negative through commitment', function () {
         'unit_price' => 1000,
         'amount' => 3000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -79,7 +76,6 @@ test('cancellation reversal restores stock exactly once', function () {
         'unit_price' => 1000,
         'amount' => 3000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     // Commit
@@ -109,7 +105,6 @@ test('repeated cancellation does not double-restore stock', function () {
         'unit_price' => 1000,
         'amount' => 2000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     app(CommitJobOrderInventory::class)->handle($jobOrder);
@@ -133,7 +128,6 @@ test('cancellation voids billing when no posted payments exist', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     BillingRecord::factory()->create([
@@ -159,7 +153,6 @@ test('cancellation preserves billing when posted payments exist', function () {
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
     ]);
 
     $billingRecord = BillingRecord::factory()->create([

@@ -6,7 +6,6 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -102,18 +101,9 @@ class CreateQuotation
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
-                // Derive item type. Catalog/lens/service items are typed by which
-                // reference is filled; a custom item has no reference to key off,
-                // so it relies on the form's explicit item_type intent instead.
                 $hasProductReference = filled($item['product_variant_id'] ?? null)
                     || filled($item['lens_category_id'] ?? null)
                     || filled($item['lens_option_id'] ?? null);
-                $itemType = match (true) {
-                    $hasProductReference => TransactionItemType::Product,
-                    filled($item['service_id'] ?? null) => TransactionItemType::Service,
-                    ($item['item_kind'] ?? null) === 'custom_product' => TransactionItemType::Product,
-                    default => TransactionItemType::Service,
-                };
 
                 // Build immutable catalog snapshot
                 $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
@@ -133,7 +123,6 @@ class CreateQuotation
                     'lens_category_id' => $item['lens_category_id'] ?? null,
                     'lens_option_id' => $item['lens_option_id'] ?? null,
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
-                    'item_type' => $itemType,
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
                     'amount_in_cents' => $amountInCents,

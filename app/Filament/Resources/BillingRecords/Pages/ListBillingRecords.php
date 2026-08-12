@@ -6,7 +6,6 @@ use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
-use App\Enums\CommercialItemKind;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\Patient;
 use App\Models\Service;
@@ -154,7 +153,6 @@ class ListBillingRecords extends ListRecords
                                 'quantity' => (int) $item['quantity'],
                                 'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
                                 'amount' => number_format($amountInCents / 100, 2, '.', ''),
-                                'item_type' => \App\Enums\TransactionItemType::Service,
                                 'service_id' => $item['service_id'] ?? null,
                             ];
                         });

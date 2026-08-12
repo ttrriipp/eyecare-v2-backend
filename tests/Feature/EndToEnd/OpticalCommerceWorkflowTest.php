@@ -17,7 +17,6 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\Encounter;
@@ -72,7 +71,7 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
         ->and($quotation->prescription_id)->toBe($prescription->id);
 
     // ─── Step 3: Confirm sale with deposit ───
-    $serviceItem = $quotation->items()->where('item_type', TransactionItemType::Service)->first();
+    $serviceItem = $quotation->items()->where('item_kind', CommercialItemKind::Service)->first();
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
@@ -180,7 +179,6 @@ test('external fulfillment requires supplier reference before ready', function (
         'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
@@ -190,7 +188,6 @@ test('external fulfillment requires supplier reference before ready', function (
         'unit_price' => 3000,
         'amount' => 3000,
         'lens_category_id' => $lensCategory->id,
-        'item_type' => TransactionItemType::Product,
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
