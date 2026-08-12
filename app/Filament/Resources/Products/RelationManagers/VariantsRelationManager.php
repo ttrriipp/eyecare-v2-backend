@@ -29,7 +29,6 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Validation\ValidationException;
 
 class VariantsRelationManager extends RelationManager
 {
@@ -457,59 +456,6 @@ class VariantsRelationManager extends RelationManager
                                 ->body("{$data['quantity']} unit(s) removed from inventory.")
                                 ->warning()
                                 ->send();
-                        }),
-                    Action::make('reconcileLots')
-                        ->label('Reconcile Lots')
-                        ->icon('heroicon-o-clipboard-document-check')
-                        ->color('warning')
-                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false)
-                            && $record->product?->product_type === 'contact_lens'
-                            && $record->stock_quantity > 0
-                            && $record->lots()->count() === 0)
-                        ->modalHeading('Reconcile Contact Lens Lots')
-                        ->modalDescription('Allocate existing stock to real lots. Total must equal current stock.')
-                        ->schema([
-                            Repeater::make('lots')
-                                ->label('Lot Allocations')
-                                ->schema([
-                                    TextInput::make('lot_number')
-                                        ->label('Lot Number')
-                                        ->required(),
-                                    DatePicker::make('expires_on')
-                                        ->label('Expires On')
-                                        ->required()
-                                        ->native(false),
-                                    TextInput::make('quantity')
-                                        ->label('Quantity')
-                                        ->required()
-                                        ->numeric()
-                                        ->minValue(1),
-                                ])
-                                ->columns(3)
-                                ->minItems(1)
-                                ->required(),
-                        ])
-                        ->action(function (array $data, $record): void {
-                            try {
-                                app(ReconcileContactLensLots::class)->handle(
-                                    variant: $record,
-                                    lotAllocations: $data['lots'],
-                                    admin: auth()->user(),
-                                );
-
-                                Notification::make()
-                                    ->title('Lots reconciled')
-                                    ->body('Stock allocated across '.count($data['lots']).' lot(s).')
-                                    ->success()
-                                    ->send();
-                            } catch (ValidationException $e) {
-                                $message = collect($e->errors())->flatten()->first() ?? 'Reconciliation failed.';
-                                Notification::make()
-                                    ->title('Reconciliation failed')
-                                    ->body($message)
-                                    ->danger()
-                                    ->send();
-                            }
                         }),
                     RestoreAction::make()
                         ->label('Restore')
