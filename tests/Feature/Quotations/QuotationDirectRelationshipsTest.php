@@ -6,7 +6,6 @@
 
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
-use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -42,20 +41,6 @@ test('quotation has direct job order relationship', function () {
 
     expect($quotation->jobOrder)->not->toBeNull()
         ->and($quotation->jobOrder->id)->toBe($jobOrder->id);
-});
-
-test('quotation has an optional frame reservation relationship', function () {
-    $reservation = FrameReservation::factory()->create();
-    $quotation = Quotation::factory()->create([
-        'frame_reservation_id' => $reservation->id,
-    ]);
-
-    expect($quotation->frameReservation)->not->toBeNull()
-        ->and($quotation->frameReservation->id)->toBe($reservation->id);
-});
-
-test('quotation factory leaves frame reservation nullable by default', function () {
-    expect(Quotation::factory()->create()->frame_reservation_id)->toBeNull();
 });
 
 test('quotation item has direct quotation relationship', function () {

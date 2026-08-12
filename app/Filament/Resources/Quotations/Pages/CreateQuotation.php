@@ -34,32 +34,20 @@ class CreateQuotation extends CreateRecord
 
     public ?int $prescriptionId = null;
 
-    public ?int $frameReservationItemId = null;
-
-    public ?int $frameReservationId = null;
-
     public string $creationMode = 'draft';
 
     public function mount(
         ?string $encounter = null,
         ?string $patient = null,
         ?string $prescription = null,
-        ?string $frameReservationItem = null,
-        ?string $reservation = null,
     ): void {
         $encounter ??= request()->query('encounter');
         $patient ??= request()->query('patient');
         $prescription ??= request()->query('prescription');
-        $frameReservationItem ??= request()->query('frame_reservation_item_id')
-            ?? request()->query('frame_reservation_item')
-            ?? request()->query('reservation_item');
-        $reservation ??= request()->query('reservation');
 
         $this->encounterId = filled($encounter) ? (int) $encounter : null;
         $this->patientId = filled($patient) ? (int) $patient : null;
         $this->prescriptionId = filled($prescription) ? (int) $prescription : null;
-        $this->frameReservationItemId = filled($frameReservationItem) ? (int) $frameReservationItem : null;
-        $this->frameReservationId = filled($reservation) ? (int) $reservation : null;
 
         parent::mount();
     }
@@ -144,7 +132,6 @@ class CreateQuotation extends CreateRecord
                 ...QuotationCreationForm::components(
                     patientIdResolver: fn (Get $get): ?int => $patient?->id
                         ?? (filled($get('patient_id')) ? (int) $get('patient_id') : null),
-                    defaultReservationItemId: $this->frameReservationItemId,
                 ),
             ]);
     }
@@ -203,9 +190,6 @@ class CreateQuotation extends CreateRecord
                         ->where('item_type', TransactionItemType::Service)
                         ->pluck('id')
                         ->all(),
-                    frameReservationItemId: filled($data['frame_reservation_item_id'] ?? null)
-                        ? (int) $data['frame_reservation_item_id']
-                        : null,
                 );
 
                 // If there's an optical order, redirect to it

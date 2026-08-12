@@ -42,15 +42,6 @@ class CreateQuotation
         $validated = $this->validate($data, $encounter);
 
         return DB::transaction(function () use ($patient, $creator, $validated, $encounter, $prescription): Quotation {
-            $frameReservationSelection = app(ApplyQuotationFrameReservationSelection::class)->handle(
-                patient: $patient,
-                items: $validated['items'],
-                reservationItemId: $this->reservationItemId($validated),
-                reservationId: $this->reservationId($validated),
-            );
-
-            $validated['items'] = $frameReservationSelection['items'];
-
             // Validate encounter if provided
             if ($encounter !== null) {
                 $lockedEncounter = Encounter::query()
@@ -180,7 +171,6 @@ class CreateQuotation
                 'patient_id' => $patient->id,
                 'encounter_id' => $encounter?->id,
                 'prescription_id' => $prescriptionId,
-                'frame_reservation_id' => $frameReservationSelection['frame_reservation_id'],
                 'status' => QuotationStatus::Draft,
                 'valid_until' => $validated['valid_until'] ?? null,
                 'subtotal' => $this->formatMoney($subtotalInCents),
@@ -203,7 +193,6 @@ class CreateQuotation
                 metadata: [
                     'encounter_id' => $encounter?->id,
                     'prescription_id' => $prescriptionId,
-                    'frame_reservation_id' => $frameReservationSelection['frame_reservation_id'],
                     'item_count' => $itemSnapshots->count(),
                     'total' => $this->formatMoney($totalInCents),
                 ],
@@ -225,8 +214,6 @@ class CreateQuotation
             'discount_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
-            'frame_reservation_id' => ['nullable', 'integer'],
-            'frame_reservation_item_id' => ['nullable', 'integer', 'exists:frame_reservation_items,id'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_type' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
             'items.*.description' => ['required', 'string', 'max:255'],
@@ -318,33 +305,6 @@ class CreateQuotation
         });
 
         return $validator->validate();
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function reservationItemId(array $validated): ?int
-    {
-        $reservationItemId = $validated['frame_reservation_item_id'] ?? null;
-
-        return filled($reservationItemId) ? (int) $reservationItemId : null;
-    }
-
-    /**
-     * Reservation-level input is retained as a compatibility alias for
-     * callers that predate the individual reservation-item selector.
-     *
-     * @param  array<string, mixed>  $validated
-     */
-    private function reservationId(array $validated): ?int
-    {
-        if (array_key_exists('frame_reservation_item_id', $validated)) {
-            return null;
-        }
-
-        $reservationId = $validated['frame_reservation_id'] ?? null;
-
-        return filled($reservationId) ? (int) $reservationId : null;
     }
 
     private function formatMoney(int $amountInCents): string

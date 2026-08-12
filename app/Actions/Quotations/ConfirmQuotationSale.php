@@ -8,7 +8,6 @@ use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
-use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -41,8 +40,6 @@ class ConfirmQuotationSale
         ?float $depositAmount = null,
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
-        ?int $frameReservationId = null,
-        ?int $frameReservationItemId = null,
     ): array {
         // Validate status
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
@@ -51,7 +48,7 @@ class ConfirmQuotationSale
             ]);
         }
 
-        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $frameReservationItemId): array {
+        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference): array {
             // Lock the quotation before validating any reservation or creating
             // downstream records. The status changes only after validation.
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
@@ -86,18 +83,6 @@ class ConfirmQuotationSale
                     ->lockForUpdate()
                     ->first()
                 : null;
-
-            $reservation = app(ValidateQuotationFrameReservation::class)->handle(
-                quotation: $quotation,
-                productItems: $productItems,
-                legacyReservationItemId: $frameReservationItemId,
-                legacyReservationId: $frameReservationId,
-                existingOpticalOrder: $opticalOrder,
-            );
-
-            if ($reservation !== null && $quotation->frame_reservation_id === null) {
-                $quotation->update(['frame_reservation_id' => $reservation->id]);
-            }
 
             if (! $wasAlreadyAccepted) {
                 $quotation->update([
@@ -138,13 +123,6 @@ class ConfirmQuotationSale
                         ]);
                     }
 
-                    if ($reservation !== null) {
-                        app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $opticalOrder);
-                    }
-
-                    // Commit every quoted catalog item exactly once. A prepared
-                    // reservation has already released all of its candidates;
-                    // only the selected frame is present in these order items.
                     app(CommitJobOrderInventory::class)->handle($opticalOrder);
 
                     $opticalOrder->refresh();

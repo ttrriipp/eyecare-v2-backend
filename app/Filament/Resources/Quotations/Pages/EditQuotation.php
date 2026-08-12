@@ -13,21 +13,17 @@ use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
-use App\Models\FrameReservationItem;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class EditQuotation extends EditRecord
@@ -56,13 +52,11 @@ class EditQuotation extends EditRecord
                     && $this->record->jobOrder === null)
                 ->schema(QuotationCreationForm::components(
                     patientIdResolver: fn (Get $get): ?int => $this->record->patient_id,
-                    defaultReservationItemId: $this->currentReservationItemId(),
                 ))
                 ->fillForm(fn (): array => [
                     'valid_until' => $this->record->valid_until?->toDateString(),
                     'discount_amount' => (float) $this->record->discount_amount,
                     'notes' => $this->record->notes,
-                    'frame_reservation_item_id' => $this->currentReservationItemId(),
                     'items' => $this->record->items->map(fn ($item): array => [
                         'item_type' => match (true) {
                             $item->item_kind === CommercialItemKind::LensOption || filled($item->lens_option_id) => 'lens_option',
@@ -119,9 +113,6 @@ class EditQuotation extends EditRecord
                         ->where('item_type', TransactionItemType::Service)
                         ->get();
 
-                    $hasProductItems = $this->record->productItems()->exists();
-                    $frameVariantId = $this->quotedFrameVariantId();
-
                     $configurationItems = $this->record->productItems()
                         ->get()
                         ->filter(fn ($item): bool => $item->item_kind === CommercialItemKind::LensPackage
@@ -158,27 +149,6 @@ class EditQuotation extends EditRecord
                                 $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
                             ]))
                             ->visible($serviceItems->isNotEmpty()),
-
-                        ...($this->record->frame_reservation_id !== null
-                            ? [
-                                Placeholder::make('selected_frame_reservation')
-                                    ->label('Selected Reserved Frame')
-                                    ->content($this->selectedReservationSummary())
-                                    ->helperText('This reservation source was selected on the quotation and cannot be changed during sale confirmation.')
-                                    ->columnSpanFull(),
-                            ]
-                            : [
-                                Select::make('frame_reservation_item_id')
-                                    ->label('Reserved Frame')
-                                    ->helperText('Legacy quotation: select one reservation item matching this patient and exact quoted frame variant.')
-                                    ->options($this->legacyReservationOptions($frameVariantId))
-                                    ->searchable()
-                                    ->preload()
-                                    ->nullable()
-                                    ->visible($hasProductItems && $frameVariantId !== null),
-                            ]),
-
-                        Hidden::make('frame_reservation_id'),
 
                         DatePicker::make('payment_due_date')
                             ->label('Payment Due Date')
@@ -226,8 +196,6 @@ class EditQuotation extends EditRecord
                             depositAmount: filled($data['deposit_amount'] ?? null) ? (float) $data['deposit_amount'] : null,
                             depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                             depositReference: $data['deposit_reference'] ?? null,
-                            frameReservationId: filled($data['frame_reservation_id'] ?? null) ? (int) $data['frame_reservation_id'] : null,
-                            frameReservationItemId: filled($data['frame_reservation_item_id'] ?? null) ? (int) $data['frame_reservation_item_id'] : null,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()
@@ -329,76 +297,5 @@ class EditQuotation extends EditRecord
                     'record' => $this->record->jobOrder,
                 ])),
         ];
-    }
-
-    private function currentReservationItemId(): ?int
-    {
-        if ($this->record->frame_reservation_id === null) {
-            return null;
-        }
-
-        $frameVariantId = $this->quotedFrameVariantId();
-
-        if ($frameVariantId === null) {
-            return null;
-        }
-
-        return FrameReservationItem::query()
-            ->where('frame_reservation_id', $this->record->frame_reservation_id)
-            ->where('product_variant_id', $frameVariantId)
-            ->value('id');
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function legacyReservationOptions(?int $frameVariantId): array
-    {
-        if ($frameVariantId === null) {
-            return [];
-        }
-
-        return FrameReservationItem::query()
-            ->eligibleForQuotation($this->record->patient_id)
-            ->where('product_variant_id', $frameVariantId)
-            ->with(['reservation', 'variant.product'])
-            ->latest('id')
-            ->get()
-            ->mapWithKeys(fn (FrameReservationItem $item): array => [
-                $item->id => $this->reservationItemLabel($item),
-            ])
-            ->all();
-    }
-
-    private function selectedReservationSummary(): string
-    {
-        $reservation = $this->record->frameReservation;
-        $item = $reservation?->items()
-            ->with('variant.product')
-            ->where('product_variant_id', $this->quotedFrameVariantId())
-            ->first();
-
-        return $item === null
-            ? 'The persisted reservation source is no longer available.'
-            : $this->reservationItemLabel($item);
-    }
-
-    private function reservationItemLabel(FrameReservationItem $item): string
-    {
-        $frame = $item->variant?->product?->name ?? 'Unknown frame';
-        $variant = $item->variant?->name ?? 'Unknown variant';
-        $status = $item->reservation?->status;
-
-        return "Reservation #{$item->frame_reservation_id} — {$frame} / {$variant} — ".Str::headline($status?->value ?? 'unknown');
-    }
-
-    private function quotedFrameVariantId(): ?int
-    {
-        return $this->record->productItems()
-            ->with('variant.product')
-            ->get()
-            ->filter(fn ($item): bool => $item->product_variant_id !== null
-                && $item->variant?->product?->product_type === 'frame')
-            ->value('product_variant_id');
     }
 }

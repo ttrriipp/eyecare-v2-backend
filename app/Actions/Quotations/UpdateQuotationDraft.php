@@ -34,17 +34,6 @@ class UpdateQuotationDraft
         $validated = $this->validate($data);
 
         return DB::transaction(function () use ($quotation, $validated, $editor): Quotation {
-            $frameReservationSelection = app(ApplyQuotationFrameReservationSelection::class)->handle(
-                patient: $quotation->patient,
-                items: $validated['items'],
-                reservationItemId: $this->reservationItemId($validated),
-                reservationId: $this->reservationId($validated),
-                fallbackReservationId: $this->preservedReservationId($quotation, $validated),
-                fallbackVariantId: $this->preservedVariantId($quotation, $validated),
-            );
-
-            $validated['items'] = $frameReservationSelection['items'];
-
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -115,7 +104,6 @@ class UpdateQuotationDraft
                 'subtotal' => self::formatMoney($subtotalInCents),
                 'discount_amount' => self::formatMoney($discountInCents),
                 'total' => self::formatMoney($totalInCents),
-                'frame_reservation_id' => $frameReservationSelection['frame_reservation_id'],
                 'valid_until' => array_key_exists('valid_until', $validated) ? $validated['valid_until'] : $quotation->valid_until,
                 'notes' => self::nullableTrimmed(array_key_exists('notes', $validated) ? $validated['notes'] : $quotation->notes),
                 'internal_notes' => self::nullableTrimmed(array_key_exists('internal_notes', $validated) ? $validated['internal_notes'] : $quotation->internal_notes),
@@ -152,8 +140,6 @@ class UpdateQuotationDraft
             'discount_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
-            'frame_reservation_id' => ['nullable', 'integer'],
-            'frame_reservation_item_id' => ['nullable', 'integer', 'exists:frame_reservation_items,id'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_type' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
             'items.*.description' => ['required', 'string', 'max:255'],
@@ -245,79 +231,6 @@ class UpdateQuotationDraft
         });
 
         return $validator->validate();
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function reservationItemId(array $validated): ?int
-    {
-        $reservationItemId = $validated['frame_reservation_item_id'] ?? null;
-
-        return filled($reservationItemId) ? (int) $reservationItemId : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function reservationId(array $validated): ?int
-    {
-        if (array_key_exists('frame_reservation_item_id', $validated)) {
-            return null;
-        }
-
-        $reservationId = $validated['frame_reservation_id'] ?? null;
-
-        return filled($reservationId) ? (int) $reservationId : null;
-    }
-
-    /**
-     * Preserve a persisted source only when the form did not explicitly change
-     * or clear the transient reservation-item selector.
-     *
-     * @param  array<string, mixed>  $validated
-     */
-    private function preservedReservationId(Quotation $quotation, array $validated): ?int
-    {
-        if (array_key_exists('frame_reservation_item_id', $validated)
-            || array_key_exists('frame_reservation_id', $validated)) {
-            return null;
-        }
-
-        return $quotation->frame_reservation_id;
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function preservedVariantId(Quotation $quotation, array $validated): ?int
-    {
-        if ($this->preservedReservationId($quotation, $validated) === null) {
-            return null;
-        }
-
-        return $this->frameVariantId($validated['items']);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $items
-     */
-    private function frameVariantId(array $items): ?int
-    {
-        $variantIds = collect($items)
-            ->pluck('product_variant_id')
-            ->filter()
-            ->map(fn (mixed $id): int => (int) $id)
-            ->unique();
-
-        if ($variantIds->isEmpty()) {
-            return null;
-        }
-
-        return ProductVariant::query()
-            ->whereIn('id', $variantIds)
-            ->whereHas('product', fn (Builder $query): Builder => $query->where('product_type', 'frame'))
-            ->value('id');
     }
 
     private static function formatMoney(int $amountInCents): string
