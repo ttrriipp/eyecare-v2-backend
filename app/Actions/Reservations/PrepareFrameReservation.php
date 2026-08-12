@@ -8,7 +8,6 @@ use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
-use App\Notifications\FrameReservationStatusChanged;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -76,20 +75,8 @@ class PrepareFrameReservation
                 'expires_at' => $this->resolveExpiry($reservation),
             ]);
 
-            // Notify patient
-            $this->notifyPatient($reservation, ReservationStatus::Requested);
-
             return $reservation->fresh();
         });
-    }
-
-    private function notifyPatient(FrameReservation $reservation, ReservationStatus $previousStatus): void
-    {
-        $patient = $reservation->patient ?? $reservation->appointment?->patient;
-
-        if ($patient !== null && $patient->account !== null) {
-            $patient->account->notify(new FrameReservationStatusChanged($reservation, $previousStatus));
-        }
     }
 
     /**
