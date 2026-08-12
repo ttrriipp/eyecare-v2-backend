@@ -4,7 +4,7 @@
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
-> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped. `?filter=` works on both quotations and optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
 >
 > **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
@@ -22,10 +22,9 @@
 
 > **Shipped 2026-08-12: simplified frame reservations.** The patient API now
 > uses `DELETE` instead of `POST .../cancel`, returns `is_held` and derived
-> `expires_at` instead of `status`, and never exposes `accepted_at`. Staff-side
-> reservation-to-sale linkage was removed; staff build quotations by selecting
-> frames from the catalog. No patient API route, request, or response field was
-> added beyond the `is_held`/`expires_at` contract change.
+> `expires_at` instead of `status`, and never exposes `accepted_at`. Staff build
+> quotations by selecting frames from the catalog. No patient API route, request,
+> or response field was added beyond the `is_held`/`expires_at` contract change.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -49,13 +48,12 @@
 10. [Frames](#11-frames)
 11. [Frame Reservations](#12-frame-reservations)
 12. [Prescriptions](#13-prescriptions)
-13. [Quotations](#14-quotations)
-14. [Optical Orders](#15-optical-orders)
-15. [Conversation](#16-conversation)
-16. [Error Responses](#17-error-responses)
-17. [Coordinated Breaking Changes](#18-coordinated-breaking-changes)
-18. [Retired Features](#19-retired-features)
-19. [Clarifications](#20-clarifications)
+13. [Optical Orders](#14-optical-orders)
+14. [Conversation](#15-conversation)
+15. [Error Responses](#16-error-responses)
+16. [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
+17. [Retired Features](#18-retired-features)
+18. [Clarifications](#19-clarifications)
 
 ---
 
@@ -1266,7 +1264,7 @@ Paginated list of the patient's confirmed appointments.
 - `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
 - `is_rateable` is `true` only when `status = fulfilled` and the appointment belongs to the authenticated patient.
-- `rating` is `null` until submitted, then contains `{rating, comment, revision_number, created_at}`. Hidden comments return `comment: null` to non-authors.
+- `rating` is `null` until submitted, then contains `{rating, comment, created_at}`. Hidden comments return `comment: null` to non-authors.
 
 ---
 
@@ -1356,7 +1354,6 @@ Upsert semantics: 201 on create, 200 on revise.
     "id": 1,
     "rating": 5,
     "comment": "Dr. Santos explained everything clearly.",
-    "revision_number": 1,
     "created_at": "2026-08-07T10:00:00+08:00"
   }
 }
@@ -1369,7 +1366,6 @@ Upsert semantics: 201 on create, 200 on revise.
     "id": 1,
     "rating": 4,
     "comment": "Updated comment",
-    "revision_number": 2,
     "created_at": "2026-08-07T10:00:00+08:00"
   }
 }
@@ -1697,148 +1693,7 @@ Single prescription, including historical superseded versions. Returns `404` if 
 
 ---
 
-## 14. Quotations
-
-**Active patient link required for all endpoints in this section.**
-
-Draft Quotations are hidden from patients. Presented, Accepted, Declined, and
-Expired Quotations are read-only to the linked patient.
-
-### GET `/quotations`
-
-Paginated list of the patient's non-draft quotations.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Query parameters:**
-
-| Parameter | Required | Validation | Default |
-|---|---|---|---|
-| `filter` | No | `current` or `history` | `current` |
-| `page` | No | Integer, minimum 1 | `1` |
-| `per_page` | No | Integer, 1 through 50 | `15` |
-
-**Filter behavior:** `current` returns `presented` quotations. `history`
-returns `accepted`, `declined`, and `expired` quotations. Draft quotations are
-never returned. Invalid `filter` values return `422`.
-
-**Response (200):**
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "quotation_number": "QUO-01K1ABC123",
-      "status": "presented",
-      "valid_until": "2026-08-15",
-      "subtotal": "8500.00",
-      "discount_amount": "500.00",
-      "total": "8000.00",
-      "notes": "Includes anti-reflective coating",
-      "created_at": "2026-08-01T10:00:00+08:00",
-      "presented_at": "2026-08-01T10:30:00+08:00",
-      "confirmed_at": null,
-      "optical_order": null,
-      "items": [
-        {
-          "id": 1,
-          "item_type": "product",
-          "description": "Classic Rectangle Frame",
-          "quantity": 1,
-          "unit_price": "4500.00",
-          "amount": "4500.00",
-          "product_variant_id": 42,
-          "lens_category_id": null,
-          "service_id": null
-        },
-        {
-          "id": 2,
-          "item_type": "product",
-          "description": "Progressive Lens with AR Coating",
-          "quantity": 1,
-          "unit_price": "3000.00",
-          "amount": "3000.00",
-          "product_variant_id": null,
-          "lens_category_id": 7,
-          "service_id": null
-        },
-        {
-          "id": 3,
-          "item_type": "service",
-          "description": "Eye Examination",
-          "quantity": 1,
-          "unit_price": "1000.00",
-          "amount": "1000.00",
-          "product_variant_id": null,
-          "lens_category_id": null,
-          "service_id": 3
-        }
-      ]
-    }
-  ],
-  "links": {
-    "first": "/api/v1/quotations?page=1&filter=current",
-    "last": "/api/v1/quotations?page=1&filter=current",
-    "prev": null,
-    "next": null
-  },
-  "meta": {
-    "current_page": 1,
-    "last_page": 1,
-    "per_page": 15,
-    "total": 1
-  }
-}
-```
-
-**Status values:** `presented`, `accepted`, `declined`, `expired`.
-
-**Notes:**
-- Draft quotations are excluded.
-- `item_type` is `product` or `service`.
-- `optical_order` is populated only when `status` is `accepted` and an order was created.
-- Items include both product and service lines because they are part of the proposal.
-- Each item carries its catalog reference: `product_variant_id`, `lens_category_id`, and `service_id` are mutually exclusive — exactly one is non-null for a given item (or none, for legacy free-text lines), matching `item_type`.
-- The internal nullable `frame_reservation_id` source is intentionally absent from patient-facing quotation responses. It identifies the reservation that supplied the quotation's single Frame line and is used only by staff-side quotation confirmation; patients cannot create, revise, select a reserved candidate, or confirm quotations through this API.
-- All monetary values are strings with two decimal places.
-
-**Read-only.** Patients cannot create, accept, or decline quotations via the API.
-
----
-
-### GET `/quotations/{quotation}`
-
-Returns a single quotation with items.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Response (200):**
-```json
-{
-  "data": {
-    "id": 1,
-    "quotation_number": "QUO-01K1ABC123",
-    "status": "presented",
-    "valid_until": "2026-08-15",
-    "subtotal": "8500.00",
-    "discount_amount": "500.00",
-    "total": "8000.00",
-    "notes": "Includes anti-reflective coating",
-    "created_at": "2026-08-01T10:00:00+08:00",
-    "presented_at": "2026-08-01T10:30:00+08:00",
-    "confirmed_at": null,
-    "optical_order": null,
-    "items": [ /* same as list */ ]
-  }
-}
-```
-
-**Errors:**
-- `404`: Quotation not found, not owned by patient, or is a draft.
-
----
-
-## 15. Optical Orders
+## 14. Optical Orders
 
 **Active patient link required for all endpoints in this section.**
 
@@ -1972,8 +1827,8 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
-`created_at`, and `revision_number`. Hidden comments return `comment: null` to
-non-authors; the author always sees their own comment.
+and `created_at`. Hidden comments return `comment: null` to non-authors; the
+author always sees their own comment.
 
 **Rateable items:** `is_rateable` is `true` only for a dispensed order's item
 with a non-null `product_variant_id`. Service items, custom products, and items
@@ -2070,7 +1925,6 @@ patient-safe fields:
     "product_variant_id": 42,
     "rating": 5,
     "comment": "Excellent frame quality",
-    "revision_number": 1,
     "created_at": "2026-08-05T10:00:00+08:00"
   }
 }
@@ -2092,7 +1946,7 @@ star value always counts toward averages regardless of hiding.
 
 ---
 
-## 16. Conversation
+## 15. Conversation
 
 **Authenticated account-only (no active patient link required).**
 
@@ -2266,7 +2120,7 @@ Downloads a message attachment. Patient can only download from their own convers
 
 ---
 
-## 17. Error Responses
+## 16. Error Responses
 
 All API errors use one consistent JSON shape:
 
@@ -2316,7 +2170,7 @@ All API errors use one consistent JSON shape:
 
 ---
 
-## 18. Coordinated Breaking Changes
+## 17. Coordinated Breaking Changes
 
 The following routes are **removed** in the coordinated Android cutover:
 
@@ -2332,15 +2186,15 @@ The following routes are **removed** in the coordinated Android cutover:
 | `GET /job-orders/{id}` | Replaced by `GET /optical-orders/{id}` |
 | `GET /billing-records` | Removed from patient API; staff-only |
 | `GET /billing-records/{id}` | Removed from patient API; staff-only |
-| `GET /eyewear` | Replaced by separate `GET /quotations` and `GET /optical-orders` |
-| `GET /eyewear/{key}` | Replaced by `GET /quotations/{id}` or `GET /optical-orders/{id}` |
+| `GET /eyewear` | Replaced by `GET /optical-orders` |
+| `GET /eyewear/{key}` | Replaced by `GET /optical-orders/{id}` |
 | `POST /job-order-items/{id}/rating` | Replaced by `POST /optical-order-items/{id}/rating` |
 
 ### Coordinated response and behavior changes
 
 | Area | Breaking change |
 |---|---|
-| Eyewear navigation | The unified `/eyewear` aggregate is replaced by separately paginated Estimates (`/quotations`) and Orders (`/optical-orders`). Clients must not join the lists. |
+| Eyewear navigation | The unified `/eyewear` aggregate is replaced by `GET /optical-orders` for product fulfillment. Quotation endpoints have been removed from the patient API. |
 | Optical Order items | Product items expose nullable `product_variant_id`, explicit `is_rateable`, and a nullable current `rating` summary. |
 | Rating revisions | `POST /optical-order-items/{id}/rating` is an upsert. A later POST revises the rating; no PATCH route or duplicate-rating conflict response exists. |
 | Payment summary | `payment_summary.status` is machine-readable (`unpaid`, `partially_paid`, `paid`, `voided`); `is_overdue` is a separate boolean. |
@@ -2397,7 +2251,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ---
 
-## 19. Retired Features
+## 18. Retired Features
 
 The following old mobile features/routes are **intentionally retired**:
 
@@ -2417,7 +2271,7 @@ The following old mobile features/routes are **intentionally retired**:
 
 ---
 
-## 20. Clarifications
+## 19. Clarifications
 
 ### Registration is two-stage
 `POST /auth/registration/verify` verifies the phone OTP and returns a
@@ -2466,19 +2320,10 @@ Email addresses are trimmed and lowercased. Phone numbers are normalized to cano
 
 ### Estimates and Orders UX
 
-The mobile app uses two separate paginated APIs for the patient-facing
-**Eyewear** destination:
-
-- **Estimates**: `GET /api/v1/quotations` — presented quotations in the current
-  view, and accepted, declined, or expired quotations in history. Drafts are
-  hidden.
-- **Orders**: `GET /api/v1/optical-orders` — current product fulfillment in the
-  current view, and dispensed or cancelled orders in history.
-
-The app may present these as tabs or sections within one Eyewear destination,
-but the APIs are not combined and must not be client-side joined. Each endpoint
-has its own pagination and filters. Service-only accepted quotations appear in
-Estimates only because no Optical Order is created.
+The mobile app presents the patient-facing **Eyewear** destination using the
+`GET /api/v1/optical-orders` API for product fulfillment. Current orders
+(queued, in_progress, ready_for_dispensing) appear in the active view, and
+dispensed or cancelled orders appear in history.
 
 ### Rateable items and rating revisions
 
@@ -2595,8 +2440,6 @@ DELETE /api/v1/frame-reservations/{id}/items/{itemId} Remove frame from reservat
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
-GET    /api/v1/quotations                     List quotations
-GET    /api/v1/quotations/{id}                Get quotation
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
 
@@ -2606,15 +2449,6 @@ POST   /api/v1/conversation/messages          Send message
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
-POST   /api/v1/job-order-items/{id}/rating     Legacy alias of the line above
 ```
 
-**Route count:** 8 public + 29 account-only + 18 active-link = **55 routes total.**
-
-> **Historical correction (2026-08-07).** `POST /api/v1/job-order-items/{id}/rating` is a
-> **legacy alias** of `POST /api/v1/optical-order-items/{id}/rating` — same controller,
-> same behavior — kept for Android builds predating the Optical Order rename. It was
-> undocumented, which is why the route count previously read 51 instead of 52, then
-> 53 after the visit-rating route was added. The current count is 55 after the two
-> account-only appointment catalog routes were added. **New clients should use
-> `optical-order-items`;** the alias is retained but will not gain new behavior.
+**Route count:** 8 public + 29 account-only + 17 active-link = **54 routes total.**
