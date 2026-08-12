@@ -589,7 +589,9 @@ POST   /api/v1/appointments/{id}/reschedule
 POST   /api/v1/appointments/{id}/rating
 GET    /api/v1/frame-reservations
 POST   /api/v1/frame-reservations
-POST   /api/v1/frame-reservations/{id}/cancel
+DELETE /api/v1/frame-reservations/{id}
+POST   /api/v1/frame-reservations/{id}/items
+DELETE /api/v1/frame-reservations/{id}/items/{itemId}
 GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/quotations
