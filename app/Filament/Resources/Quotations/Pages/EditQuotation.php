@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Actions\BillingRecords\BillRemainingQuotedServices;
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Actions\Quotations\UpdateQuotationDraft;
@@ -188,7 +188,7 @@ class EditQuotation extends EditRecord
                     abort_unless($confirmer instanceof User, 403);
 
                     try {
-                        $result = app(ConfirmQuotationSale::class)->handle(
+                        $result = app(CreateOpticalOrderFromQuotation::class)->handle(
                             quotation: $this->record,
                             confirmer: $confirmer,
                             performedServiceItemIds: array_map('intval', $data['performed_service_item_ids'] ?? []),

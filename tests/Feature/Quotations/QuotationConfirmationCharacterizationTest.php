@@ -9,7 +9,7 @@
  * @see tasks/todo.md Task 1
  */
 
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
@@ -76,7 +76,7 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -136,7 +136,7 @@ test('product lines enter optical order while only selected services enter billi
         'item_kind' => CommercialItemKind::Service,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         performedServiceItemIds: [$serviceItem->id],
@@ -193,7 +193,7 @@ test('unselected services do not enter billing', function () {
     ]);
 
     // No performedServiceItemIds passed
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -227,13 +227,13 @@ test('retried confirmation creates no duplicate order, billing item, payment, in
     ]);
 
     // First confirmation
-    $first = app(ConfirmQuotationSale::class)->handle(
+    $first = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
 
     // Second confirmation (retry)
-    $second = app(ConfirmQuotationSale::class)->handle(
+    $second = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation->fresh(),
         confirmer: $this->staff,
     );
@@ -280,7 +280,7 @@ test('service-only confirmation creates no optical order', function () {
         'item_kind' => CommercialItemKind::Service,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         performedServiceItemIds: [$serviceItem->id],
@@ -319,7 +319,7 @@ test('confirmation commits inventory for product variants', function () {
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -357,7 +357,7 @@ test('eyewear key is stable across quotation, optical order', function () {
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -388,7 +388,7 @@ test('quotation discount is reflected in billing record', function () {
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -420,7 +420,7 @@ test('optional deposit is recorded during confirmation', function () {
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         depositAmount: 2000,
@@ -443,7 +443,7 @@ test('confirmation rejects declined quotation', function () {
         'status' => QuotationStatus::Declined,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );

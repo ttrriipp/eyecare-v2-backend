@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Quotations\Pages;
 
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
 use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -176,7 +176,7 @@ class CreateQuotation extends CreateRecord
             // Update status based on creation mode
             if ($this->creationMode === 'accepted') {
                 // Confirm the sale like the Confirm Sale action
-                $result = app(ConfirmQuotationSale::class)->handle(
+                $result = app(CreateOpticalOrderFromQuotation::class)->handle(
                     quotation: $quotation,
                     confirmer: $creator,
                     performedServiceItemIds: $quotation->items()

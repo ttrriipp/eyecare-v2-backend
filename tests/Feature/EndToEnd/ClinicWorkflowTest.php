@@ -4,8 +4,8 @@ use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Prescriptions\FinalizePrescription;
-use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
@@ -89,7 +89,7 @@ test('scheduled patient journey: appointment through dispensing', function () {
         'amount' => 5000,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $staff,
     );

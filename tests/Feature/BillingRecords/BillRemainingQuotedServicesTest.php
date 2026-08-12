@@ -1,7 +1,7 @@
 <?php
 
 use App\Actions\BillingRecords\BillRemainingQuotedServices;
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\QuotationStatus;
 use App\Models\Quotation;
@@ -34,7 +34,7 @@ test('bills a service skipped at confirm-sale time onto the same open bill', fun
         'amount' => 500,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         performedServiceItemIds: [],
@@ -69,7 +69,7 @@ test('billing an already-billed service is a no-op, not a duplicate charge', fun
         'amount' => 500,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         performedServiceItemIds: [$service->id],

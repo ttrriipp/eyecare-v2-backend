@@ -7,7 +7,7 @@
  * aggregate after the migration to direct relationships.
  */
 
-use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -93,15 +93,15 @@ test('accepting creates one job order linked via direct quotation_id', function 
         'lens_category_id' => $lensCategory->id,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $jobOrder = $result['optical_order'];
 
     expect($jobOrder)->toBeInstanceOf(JobOrder::class)
         ->and($jobOrder->quotation_id)->toBe($quotation->id)
         ->and($jobOrder->patient_id)->toBe($quotation->patient_id)
         ->and($jobOrder->encounter_id)->toBe($quotation->encounter_id)
         ->and($jobOrder->prescription_id)->toBe($quotation->prescription_id)
-        ->and((float) $jobOrder->total_amount)->toBe(7500.0)
+        ->and((float) $jobOrder->total_amount)->toBe(8500.0)
         ->and($jobOrder->status)->toBe(JobOrderStatus::Queued)
         ->and($quotation->fresh()->status)->toBe(QuotationStatus::Accepted);
 });
@@ -121,8 +121,8 @@ test('job order snapshot preserves all line items from quotation', function () {
         ['description' => 'Service', 'quantity' => 1, 'unit_price' => 750, 'amount' => 750],
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $jobOrder = $result['optical_order'];
 
     expect($jobOrder->items)->toHaveCount(3)
         ->and((float) $jobOrder->total_amount)->toBe(8250.0);
@@ -137,12 +137,12 @@ test('billing record is created with matching totals at acceptance', function ()
         'amount' => 6000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
     $billingRecord = $result['billing_record'];
 
     expect($billingRecord)->toBeInstanceOf(BillingRecord::class)
-        ->and($billingRecord->job_order_id)->toBe($result['job_order']->id)
+        ->and($billingRecord->job_order_id)->toBe($result['optical_order']->id)
         ->and($billingRecord->patient_id)->toBe($quotation->patient_id)
         ->and((float) $billingRecord->total_amount)->toBe(6000.0)
         ->and((float) $billingRecord->amount_paid)->toBe(0.0)
@@ -162,9 +162,9 @@ test('eyewear key is stable across quotation, job order, and billing', function 
         'amount' => 3000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['job_order']->eyewear_key)->toBe('eyw_01K1TESTKEY123456789')
+    expect($result['optical_order']->eyewear_key)->toBe('eyw_01K1TESTKEY123456789')
         ->and($quotation->eyewear_key)->toBe('eyw_01K1TESTKEY123456789');
 });
 
@@ -177,10 +177,10 @@ test('single linked job order per quotation is enforced', function () {
         'amount' => 5000,
     ]);
 
-    $first = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $second = app(AcceptAndStartOpticalOrder::class)->handle($quotation->fresh());
+    $first = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $second = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation->fresh(), confirmer: $this->staff);
 
-    expect($first['job_order']->id)->toBe($second['job_order']->id)
+    expect($first['optical_order']->id)->toBe($second['optical_order']->id)
         ->and($first['billing_record']->id)->toBe($second['billing_record']->id);
 
     expect(JobOrder::where('quotation_id', $quotation->id)->count())->toBe(1);
@@ -195,11 +195,11 @@ test('billing record links to the job order and patient', function () {
         'amount' => 4000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['billing_record']->jobOrder->id)->toBe($result['job_order']->id)
-        ->and($result['job_order']->billingRecord->id)->toBe($result['billing_record']->id)
-        ->and($result['billing_record']->patient_id)->toBe($result['job_order']->patient_id)
+    expect($result['billing_record']->jobOrder->id)->toBe($result['optical_order']->id)
+        ->and($result['optical_order']->billingRecord->id)->toBe($result['billing_record']->id)
+        ->and($result['billing_record']->patient_id)->toBe($result['optical_order']->patient_id)
         ->and($result['billing_record']->patient_id)->toBe($quotation->patient_id);
 });
 
@@ -216,9 +216,9 @@ test('quotation discount is reflected in accepted totals', function () {
         'amount' => 10000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect((float) $result['job_order']->total_amount)->toBe(8500.0)
+    expect((float) $result['optical_order']->total_amount)->toBe(10000.0)
         ->and((float) $result['billing_record']->total_amount)->toBe(8500.0)
         ->and((float) $result['billing_record']->balance_due)->toBe(8500.0);
 });

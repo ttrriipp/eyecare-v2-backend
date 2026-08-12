@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\OpticalOrders\CompleteImmediateOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\TransactionItemType;
 use App\Models\DispensingEvent;
@@ -28,11 +28,14 @@ test('immediate service-only completes without dispensing event', function () {
         'item_type' => TransactionItemType::Service,
     ]);
 
-    $result = app(CompleteImmediateOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
+    );
 
     // Service-only quotations create no job order
-    expect($result['job_order'])->toBeNull()
-        ->and($result['dispensing_event'])->toBeNull()
+    expect($result['optical_order'])->toBeNull()
         ->and($result['billing_record'])->not->toBeNull()
         ->and($result['billing_record']->status)->toBe(BillingRecordStatus::Unpaid);
 });
@@ -50,10 +53,15 @@ test('immediate product creates dispensing event', function () {
         'item_type' => TransactionItemType::Product,
     ]);
 
-    $result = app(CompleteImmediateOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
+    );
 
-    expect($result['dispensing_event'])->toBeInstanceOf(DispensingEvent::class)
-        ->and($result['dispensing_event']->dispensed_by)->toBe($this->staff->id);
+    $dispensingEvent = $result['optical_order']->dispensingEvents()->latest()->first();
+    expect($dispensingEvent)->toBeInstanceOf(DispensingEvent::class)
+        ->and($dispensingEvent->dispensed_by)->toBe($this->staff->id);
 });
 
 test('immediate product commits inventory', function () {
@@ -69,7 +77,11 @@ test('immediate product commits inventory', function () {
         'item_type' => TransactionItemType::Product,
     ]);
 
-    app(CompleteImmediateOpticalOrder::class)->handle($quotation);
+    app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
+    );
 
     expect($variant->fresh()->stock_quantity)->toBe(8);
 });
@@ -84,8 +96,10 @@ test('immediate with deposit records payment', function () {
         'item_type' => TransactionItemType::Service,
     ]);
 
-    $result = app(CompleteImmediateOpticalOrder::class)->handle(
-        $quotation,
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
         depositAmount: 3000,
         depositPaymentMethod: 'gcash',
     );
@@ -106,8 +120,12 @@ test('immediate mixed order commits inventory and creates dispensing', function 
         ['description' => 'Fitting', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000, 'item_type' => TransactionItemType::Service],
     ]);
 
-    $result = app(CompleteImmediateOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
+    );
 
     expect($variant->fresh()->stock_quantity)->toBe(9)
-        ->and($result['dispensing_event'])->toBeInstanceOf(DispensingEvent::class);
+        ->and($result['optical_order']->dispensingEvents()->latest()->first())->toBeInstanceOf(DispensingEvent::class);
 });

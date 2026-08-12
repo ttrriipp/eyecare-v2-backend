@@ -1,8 +1,8 @@
 <?php
 
 use App\Actions\BillingRecords\DispenseJobOrder;
-use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Models\BillingRecord;
@@ -34,8 +34,8 @@ test('cancellation releases committed inventory', function () {
         'product_variant_id' => $variant->id,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $jobOrder = $result['optical_order'];
 
     // Stock decremented after confirmation
     expect($variant->fresh()->stock_quantity)->toBe(7);
@@ -55,8 +55,8 @@ test('cancellation voids billing when no posted payments', function () {
         'amount' => 5000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $jobOrder = $result['optical_order'];
 
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
@@ -72,8 +72,8 @@ test('cancellation preserves billing when posted payments exist', function () {
         'amount' => 10000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation, depositAmount: 3000);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff, depositAmount: 3000);
+    $jobOrder = $result['optical_order'];
 
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
@@ -134,8 +134,8 @@ test('aggregate relationships consistent after cancellation', function () {
         'amount' => 8000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $jobOrder = $result['job_order'];
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $jobOrder = $result['optical_order'];
 
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
@@ -155,7 +155,7 @@ test('posted payment locks billing record charges', function () {
         'amount' => 10000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation, depositAmount: 3000);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff, depositAmount: 3000);
     $billing = $result['billing_record']->fresh();
 
     expect((float) $billing->amount_paid)->toBe(3000.0)

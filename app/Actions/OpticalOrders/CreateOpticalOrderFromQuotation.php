@@ -1,17 +1,18 @@
 <?php
 
-namespace App\Actions\Quotations;
+namespace App\Actions\OpticalOrders;
 
 use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
 use App\Actions\BillingRecords\AppendQuotedServicesToBillingRecord;
 use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Actions\JobOrders\CommitJobOrderInventory;
-use App\Enums\JobOrderStatus;
+use App\Actions\Quotations\ValidateOpticalQuotation;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use App\Models\JobOrder;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -20,16 +21,21 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class ConfirmQuotationSale
+class CreateOpticalOrderFromQuotation
 {
+    public function __construct(
+        private readonly BuildOpticalOrder $buildOrder,
+    ) {}
+
     /**
-     * Confirm a quotation sale atomically.
+     * Confirm a quotation and create an optical order + billing record atomically.
      *
-     * Creates Optical Order from Product lines only.
-     * Copies selected performed Services into Billing.
-     * Idempotent - repeated calls return existing records.
+     * Replaces ConfirmQuotationSale, AcceptAndStartOpticalOrder,
+     * CompleteImmediateOpticalOrder, and CreateJobOrder.
      *
-     * @param  array<int, int>  $performedServiceItemIds  IDs of Quotation Items (Services) to bill
+     * Service-only quotations create no order but still resolve billing.
+     * Idempotent — confirming twice returns the same order.
+     *
      * @return array{quotation: Quotation, optical_order: ?JobOrder, billing_record: BillingRecord}
      */
     public function handle(
@@ -40,43 +46,40 @@ class ConfirmQuotationSale
         ?float $depositAmount = null,
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
+        string $fulfillmentMode = 'prepared',
+        bool $usesExternalSupplier = false,
+        ?string $recipientName = null,
     ): array {
-        // Validate status
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
                 'quotation' => ['Only draft or accepted quotations can be confirmed.'],
             ]);
         }
 
-        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference): array {
-            // Lock the quotation before validating any reservation or creating
-            // downstream records. The status changes only after validation.
+        return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $fulfillmentMode, $usesExternalSupplier, $recipientName): array {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
             $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
 
-            // Separate Product and Service items
             $productItems = $quotation->items()
                 ->where('item_type', TransactionItemType::Product)
                 ->get();
 
-            $serviceItems = $quotation->items()
-                ->where('item_type', TransactionItemType::Service)
-                ->get();
-
-            // Validate optical build before any mutation
             $prescription = $quotation->prescription_id
                 ? Prescription::find($quotation->prescription_id)
                 : null;
 
-            app(ValidateOpticalQuotation::class)->handle(
-                items: $productItems->map(fn ($item) => [
-                    'item_kind' => $item->item_kind,
-                    'product_variant_id' => $item->product_variant_id,
-                ])->values(),
-                patient: $quotation->patient,
-                prescription: $prescription,
-            );
+            if ($productItems->isNotEmpty()) {
+                app(ValidateOpticalQuotation::class)->handle(
+                    items: $productItems->map(fn ($item) => [
+                        'item_kind' => $item->item_kind,
+                        'product_variant_id' => $item->product_variant_id,
+                    ])->values(),
+                    patient: $quotation->patient,
+                    prescription: $prescription,
+                );
+            }
 
+            // Idempotency: check for existing order
             $opticalOrder = $productItems->isNotEmpty()
                 ? JobOrder::query()
                     ->where('quotation_id', $quotation->id)
@@ -92,44 +95,40 @@ class ConfirmQuotationSale
                 ]);
             }
 
-            // Create Optical Order only if there are Product lines
-            if ($productItems->isNotEmpty()) {
-                if ($opticalOrder === null) {
-                    $opticalOrder = JobOrder::create([
-                        'patient_id' => $quotation->patient_id,
-                        'encounter_id' => $quotation->encounter_id,
-                        'prescription_id' => $quotation->prescription_id,
-                        'quotation_id' => $quotation->id,
-                        'status' => JobOrderStatus::Queued,
-                        'fulfillment_mode' => 'prepared',
-                        'uses_external_supplier' => false,
-                        'total_amount' => $productItems->sum('amount'),
-                        'eyewear_key' => $quotation->eyewear_key,
+            // Create order only if product items exist and no order yet
+            if ($productItems->isNotEmpty() && $opticalOrder === null) {
+                $itemSnapshots = $productItems->map(fn ($item): array => [
+                    'description' => $item->description,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'amount' => $item->amount,
+                    'product_variant_id' => $item->product_variant_id,
+                    'lens_category_id' => $item->lens_category_id,
+                    'lens_option_id' => $item->lens_option_id,
+                    'item_type' => TransactionItemType::Product,
+                    'item_kind' => $item->item_kind,
+                    'item_snapshot' => $item->item_snapshot,
+                ]);
+
+                $opticalOrder = $this->buildOrder->handle(
+                    patientId: $quotation->patient_id,
+                    encounterId: $quotation->encounter_id,
+                    prescriptionId: $quotation->prescription_id,
+                    quotationId: $quotation->id,
+                    fulfillmentMode: $fulfillmentMode,
+                    usesExternalSupplier: $usesExternalSupplier,
+                    items: $itemSnapshots,
+                    eyewearKey: $quotation->eyewear_key,
+                );
+
+                if ($fulfillmentMode === 'immediate' && $recipientName !== null) {
+                    $opticalOrder->dispensingEvents()->latest()->first()?->update([
+                        'recipient_name' => $recipientName,
                     ]);
-
-                    // Snapshot Product items into Job Order
-                    foreach ($productItems as $item) {
-                        $opticalOrder->items()->create([
-                            'description' => $item->description,
-                            'quantity' => $item->quantity,
-                            'unit_price' => $item->unit_price,
-                            'amount' => $item->amount,
-                            'product_variant_id' => $item->product_variant_id,
-                            'lens_category_id' => $item->lens_category_id,
-                            'lens_option_id' => $item->lens_option_id,
-                            'item_type' => TransactionItemType::Product,
-                            'item_kind' => $item->item_kind,
-                            'item_snapshot' => $item->item_snapshot,
-                        ]);
-                    }
-
-                    app(CommitJobOrderInventory::class)->handle($opticalOrder);
-
-                    $opticalOrder->refresh();
                 }
             }
 
-            // Resolve or create the Billing Record
+            // Resolve billing
             $billingRecord = BillingRecord::query()
                 ->where('quotation_id', $quotation->id)
                 ->lockForUpdate()
@@ -148,15 +147,16 @@ class ConfirmQuotationSale
                 encounter: $quotation->encounter,
             );
 
-            // Append Optical Order Product items to Billing
+            // Append order items to billing
             if ($opticalOrder !== null) {
                 app(AppendJobOrderItemsToBillingRecord::class)->handle(
                     jobOrder: $opticalOrder,
                     billingRecord: $billingRecord,
+                    discountAmount: (float) $quotation->discount_amount,
                 );
             }
 
-            // Append selected performed Services to Billing
+            // Append selected services to billing
             if (! empty($performedServiceItemIds)) {
                 app(AppendQuotedServicesToBillingRecord::class)->handle(
                     billingRecord: $billingRecord,
@@ -164,7 +164,30 @@ class ConfirmQuotationSale
                 );
             }
 
-            // Set quotation link and discount on billing
+            // Service-only: add remaining services directly if no order
+            if ($opticalOrder === null) {
+                $alreadyBilledIds = collect($performedServiceItemIds)->map(fn ($id) => (int) $id)->toArray();
+
+                $serviceItems = $quotation->items()
+                    ->where('item_type', TransactionItemType::Service)
+                    ->whereNotIn('id', $alreadyBilledIds)
+                    ->get();
+
+                foreach ($serviceItems as $item) {
+                    BillingRecordItem::create([
+                        'billing_record_id' => $billingRecord->id,
+                        'item_type' => TransactionItemType::Service,
+                        'source_kind' => BillingItemSourceKind::Quotation,
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'amount' => $item->amount,
+                        'quotation_item_id' => $item->id,
+                    ]);
+                }
+            }
+
+            // Set quotation link and discount
             $billingRecord->update([
                 'quotation_id' => $quotation->id,
                 'discount_amount' => $quotation->discount_amount,
@@ -198,7 +221,7 @@ class ConfirmQuotationSale
 
             return [
                 'quotation' => $quotation->fresh(),
-                'optical_order' => $opticalOrder,
+                'optical_order' => $opticalOrder?->fresh(),
                 'billing_record' => $billingRecord->fresh(),
             ];
         });

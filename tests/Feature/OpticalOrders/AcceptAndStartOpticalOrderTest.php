@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\OpticalOrders\AcceptAndStartOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -38,16 +38,16 @@ test('accepting a draft quotation creates a job order with snapshot items', func
         ['description' => 'Lens', 'quantity' => 2, 'unit_price' => 2000, 'amount' => 4000, 'lens_category_id' => $lensCategory->id],
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['job_order'])->toBeInstanceOf(JobOrder::class)
-        ->and($result['job_order']->quotation_id)->toBe($quotation->id)
-        ->and($result['job_order']->status)->toBe(JobOrderStatus::Queued)
-        ->and((float) $result['job_order']->total_amount)->toBe(8000.0);
+    expect($result['optical_order'])->toBeInstanceOf(JobOrder::class)
+        ->and($result['optical_order']->quotation_id)->toBe($quotation->id)
+        ->and($result['optical_order']->status)->toBe(JobOrderStatus::Queued)
+        ->and((float) $result['optical_order']->total_amount)->toBe(8500.0);
 
-    expect($result['job_order']->items)->toHaveCount(2)
-        ->and($result['job_order']->items->first()->description)->toBe('Frame')
-        ->and($result['job_order']->items->last()->description)->toBe('Lens');
+    expect($result['optical_order']->items)->toHaveCount(2)
+        ->and($result['optical_order']->items->first()->description)->toBe('Frame')
+        ->and($result['optical_order']->items->last()->description)->toBe('Lens');
 
     expect($quotation->fresh()->status)->toBe(QuotationStatus::Accepted)
         ->and($quotation->fresh()->confirmed_by)->toBe($this->staff->id)
@@ -75,10 +75,10 @@ test('accepting a draft quotation (direct sale) creates job order and billing', 
         'amount' => 5000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['job_order']->quotation_id)->toBe($quotation->id)
-        ->and($result['job_order']->items)->toHaveCount(1)
+    expect($result['optical_order']->quotation_id)->toBe($quotation->id)
+        ->and($result['optical_order']->items)->toHaveCount(1)
         ->and($quotation->fresh()->status)->toBe(QuotationStatus::Accepted);
 });
 
@@ -95,10 +95,10 @@ test('accepting is idempotent - returns existing records', function () {
         'amount' => 5000,
     ]);
 
-    $first = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-    $second = app(AcceptAndStartOpticalOrder::class)->handle($quotation->fresh());
+    $first = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
+    $second = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation->fresh(), confirmer: $this->staff);
 
-    expect($first['job_order']->id)->toBe($second['job_order']->id)
+    expect($first['optical_order']->id)->toBe($second['optical_order']->id)
         ->and($first['billing_record']->id)->toBe($second['billing_record']->id);
 
     expect(JobOrder::where('quotation_id', $quotation->id)->count())->toBe(1);
@@ -120,11 +120,11 @@ test('heterogeneous items are all copied to job order', function () {
         ['description' => 'Coating', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000],
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['job_order']->items)->toHaveCount(4);
+    expect($result['optical_order']->items)->toHaveCount(4);
 
-    $items = $result['job_order']->items->sortBy('id')->values();
+    $items = $result['optical_order']->items->sortBy('id')->values();
     expect($items[0]->product_variant_id)->toBe($variant->id)
         ->and($items[1]->lens_category_id)->toBe($lensCategory->id)
         ->and($items[2]->product_variant_id)->toBeNull()
@@ -132,20 +132,28 @@ test('heterogeneous items are all copied to job order', function () {
 });
 
 test('eyewear key is preserved across quotation and job order', function () {
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $quotation = Quotation::factory()->create([
         'eyewear_key' => 'eyw_01TESTKEY999',
         'total' => 3000,
     ]);
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 3000,
+        'amount' => 3000,
+        'product_variant_id' => $variant->id,
+    ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['job_order']->eyewear_key)->toBe('eyw_01TESTKEY999');
+    expect($result['optical_order']->eyewear_key)->toBe('eyw_01TESTKEY999');
 });
 
 test('declined quotation cannot be confirmed', function () {
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Declined]);
 
-    app(AcceptAndStartOpticalOrder::class)->handle($quotation);
+    app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 })->throws(ValidationException::class);
 
 test('payment due date is stored on billing record', function () {
@@ -159,8 +167,9 @@ test('payment due date is stored on billing record', function () {
 
     $dueDate = Carbon::today()->addDays(30);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle(
-        $quotation,
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
         paymentDueDate: $dueDate,
     );
 
@@ -177,8 +186,9 @@ test('optional deposit is recorded as first payment', function () {
         'amount' => 10000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle(
-        $quotation,
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
         depositAmount: 3000,
         depositPaymentMethod: 'gcash',
         depositReference: 'GCASH-12345',
@@ -203,8 +213,9 @@ test('full deposit results in paid status', function () {
         'amount' => 5000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle(
-        $quotation,
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
         depositAmount: 5000,
     );
 
@@ -224,8 +235,9 @@ test('zero deposit creates no payment', function () {
         'amount' => 5000,
     ]);
 
-    $result = app(AcceptAndStartOpticalOrder::class)->handle(
-        $quotation,
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
         depositAmount: 0,
     );
 

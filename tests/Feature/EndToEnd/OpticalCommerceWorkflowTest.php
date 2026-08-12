@@ -11,7 +11,7 @@
 
 use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\CreateQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
@@ -74,7 +74,7 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
     // ─── Step 3: Confirm sale with deposit ───
     $serviceItem = $quotation->items()->where('item_type', TransactionItemType::Service)->first();
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         performedServiceItemIds: [$serviceItem->id],
@@ -105,7 +105,7 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
     expect($frame->stock_quantity)->toBe(9);
 
     // Verify idempotency (optical order is reused, billing record may differ after deposit)
-    $retry = app(ConfirmQuotationSale::class)->handle(
+    $retry = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -194,7 +194,7 @@ test('external fulfillment requires supplier reference before ready', function (
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
