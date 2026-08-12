@@ -61,7 +61,6 @@ class QuotationCreationForm
                 ->schema([
                     Select::make('frame_reservation_item_id')
                         ->label('Reserved Frame')
-                        ->helperText('Selecting a reserved frame adds that exact active frame variant to the quotation.')
                         ->options(fn (Get $get): array => self::reservationOptions($patientIdResolver($get)))
                         ->default($defaultReservationItemId)
                         ->searchable()
