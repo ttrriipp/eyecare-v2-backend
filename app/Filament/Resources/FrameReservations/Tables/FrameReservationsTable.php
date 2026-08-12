@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\FrameReservations\Tables;
 
+use App\Actions\Reservations\MarkFrameReservationTriedOn;
 use App\Actions\Reservations\PrepareFrameReservation;
 use App\Actions\Reservations\ReleaseFrameReservation;
 use App\Enums\ReservationStatus;
@@ -9,6 +10,7 @@ use App\Models\FrameReservation;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -72,16 +74,40 @@ class FrameReservationsTable
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
                             app(PrepareFrameReservation::class)->handle($record);
+                            Notification::make()->title('Reservation prepared')->success()->send();
+                        }),
+
+                    Action::make('markTriedOn')
+                        ->label('Mark Tried On')
+                        ->icon('heroicon-o-hand-thumb-up')
+                        ->color('warning')
+                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Prepared)
+                        ->requiresConfirmation()
+                        ->action(function (FrameReservation $record): void {
+                            app(MarkFrameReservationTriedOn::class)->handle($record);
+                            Notification::make()->title('Reservation marked as tried on')->success()->send();
                         }),
 
                     Action::make('release')
                         ->label('Release')
                         ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('warning')
+                        ->color('gray')
                         ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
                             app(ReleaseFrameReservation::class)->handle($record);
+                            Notification::make()->title('Reservation released')->success()->send();
+                        }),
+
+                    Action::make('cancel')
+                        ->label('Cancel')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                        ->requiresConfirmation()
+                        ->action(function (FrameReservation $record): void {
+                            app(ReleaseFrameReservation::class)->handle($record, ReservationStatus::Cancelled);
+                            Notification::make()->title('Reservation cancelled')->success()->send();
                         }),
 
                     EditAction::make()->label('View'),
