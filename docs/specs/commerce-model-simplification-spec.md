@@ -35,11 +35,12 @@ currently works correctly starts working incorrectly.
    those routes is a contract change the app must follow, not a break.
 3. Contact-lens stock in development is disposable, so dropping lot tracking
    does not require reconciling existing lot quantities into aggregate stock.
-4. Frame reservations are being simplified in parallel per
-   `docs/specs/frame-reservation-simplification-spec.md`. That work removes
-   `quotations.frame_reservation_id` and `job_orders.frame_reservation_id`;
-   this spec assumes those columns are already gone or will be, and does not
-   re-specify them.
+4. ~~Frame reservations are being simplified in parallel.~~ **Resolved
+   2026-08-12: that work shipped.** `quotations.frame_reservation_id` and
+   `job_orders.frame_reservation_id` are already dropped by
+   `2026_08_12_181347_drop_obsolete_frame_reservation_columns`, and
+   `ReservationStatus` no longer exists. This spec has no remaining dependency
+   on reservation work and can start immediately.
 
 > Correct any of these before implementation starts.
 
@@ -84,6 +85,13 @@ existing `job_orders` status flow.
 - Delete `App\Http\Controllers\Api\QuotationController` and
   `App\Http\Resources\QuotationResource`.
 - Remove §14 from `docs/API_CONTRACT.md` and correct the route count.
+- **Remove the duplicate rating route.** `POST /api/v1/job-order-items/{item}/rating`
+  and `POST /api/v1/optical-order-items/{item}/rating` both resolve to
+  `FrameRatingController::store`. `docs/BACKEND_CONTEXT.md` documents the former
+  as "a backward-compatibility alias for Android builds" predating the Optical
+  Orders rename. Legacy is unsupported, so the alias is deleted and
+  `optical-order-items` becomes the sole path. Both canonical docs reference it
+  and must be updated.
 - Keep `GET /api/v1/optical-orders` and `/optical-orders/{jobOrder}` unchanged,
   including `source_quotation` — an order may still name the quotation it came
   from, since that is provenance on a record the patient legitimately sees.

@@ -1,10 +1,18 @@
 # Implementation Plan: Minimal Frame Reservations
 
-**Status:** Approved 2026-08-12
+**Status:** ✅ Implemented 2026-08-12
 **Specification:** `docs/specs/frame-reservation-simplification-spec.md` (approved 2026-08-12)
 **Decision:** `docs/decisions/002-use-clean-break-frame-reservation-contract.md`
 **Checklist:** `tasks/frame-reservation-simplification-todo.md`
-**Implementation:** Not started
+
+Both migrations landed (`2026_08_12_172307_add_accepted_at_to_frame_reservations`,
+`2026_08_12_181347_drop_obsolete_frame_reservation_columns`).
+`app/Actions/Reservations/` contains exactly the five specified actions plus
+`FrameReservationStock`; `ReservationStatus` is gone; `frame_reservation_id` is
+dropped from both `quotations` and `job_orders`. Retained for the record.
+
+One addition beyond this plan shipped alongside it: per-item patient API
+endpoints for frame reservations (`2b05f82`), documented in `API_CONTRACT.md`.
 
 This plan replaces the previous 15-task version, which was written against the
 superseded five-status lifecycle. That document is gone; nothing in it carries

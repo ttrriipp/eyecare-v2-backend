@@ -1,6 +1,6 @@
 # Task Checklist: Minimal Frame Reservations
 
-**Status:** Approved 2026-08-12 — ready to implement
+**Status:** ✅ Implemented 2026-08-12 — retained for the record
 **Specification:** `docs/specs/frame-reservation-simplification-spec.md`
 **Plan:** `tasks/frame-reservation-simplification-plan.md`
 **Decision:** `docs/decisions/002-use-clean-break-frame-reservation-contract.md`
