@@ -60,7 +60,7 @@ class QuotationCreationForm
                             Grid::make(2)
                                 ->columnSpanFull()
                                 ->schema([
-                                    Select::make('item_type')
+                                    Select::make('item_kind')
                                         ->label('Item Type')
                                         ->options([
                                             'catalog' => 'Catalog Item',
@@ -95,8 +95,8 @@ class QuotationCreationForm
                                             ->all())
                                         ->searchable()
                                         ->preload()
-                                        ->required(fn (Get $get): bool => $get('item_type') === 'catalog')
-                                        ->visible(fn (Get $get): bool => $get('item_type') === 'catalog')
+                                        ->required(fn (Get $get): bool => $get('item_kind') === 'catalog')
+                                        ->visible(fn (Get $get): bool => $get('item_kind') === 'catalog')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $variant = ProductVariant::query()->with('product')->find($state);
@@ -120,8 +120,8 @@ class QuotationCreationForm
                                             ->all())
                                         ->searchable()
                                         ->preload()
-                                        ->required(fn (Get $get): bool => $get('item_type') === 'lens')
-                                        ->visible(fn (Get $get): bool => $get('item_type') === 'lens')
+                                        ->required(fn (Get $get): bool => $get('item_kind') === 'lens')
+                                        ->visible(fn (Get $get): bool => $get('item_kind') === 'lens')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $lensCategory = LensCategory::query()->find($state);
@@ -149,8 +149,8 @@ class QuotationCreationForm
                                             ->all())
                                         ->searchable()
                                         ->preload()
-                                        ->required(fn (Get $get): bool => $get('item_type') === 'lens_option')
-                                        ->visible(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                        ->required(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                                        ->visible(fn (Get $get): bool => $get('item_kind') === 'lens_option')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $lensOption = LensOption::query()->active()->find($state);
@@ -175,8 +175,8 @@ class QuotationCreationForm
                                             ->all())
                                         ->searchable()
                                         ->preload()
-                                        ->required(fn (Get $get): bool => $get('item_type') === 'service')
-                                        ->visible(fn (Get $get): bool => $get('item_type') === 'service')
+                                        ->required(fn (Get $get): bool => $get('item_kind') === 'service')
+                                        ->visible(fn (Get $get): bool => $get('item_kind') === 'service')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
                                             $service = Service::query()->find($state);

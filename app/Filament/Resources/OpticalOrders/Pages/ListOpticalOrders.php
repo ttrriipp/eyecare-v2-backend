@@ -74,7 +74,7 @@ class ListOpticalOrders extends ListRecords
                     Repeater::make('items')
                         ->hiddenLabel()
                         ->schema([
-                            Select::make('item_type')
+                            Select::make('item_kind')
                                 ->label('Item Type')
                                 ->options([
                                     'catalog' => 'Catalog Item',
@@ -107,8 +107,8 @@ class ListOpticalOrders extends ListRecords
                                     ->all())
                                 ->searchable()
                                 ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'catalog')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'catalog')
+                                ->required(fn (Get $get): bool => $get('item_kind') === 'catalog')
+                                ->visible(fn (Get $get): bool => $get('item_kind') === 'catalog')
                                 ->live()
                                 ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
@@ -134,8 +134,8 @@ class ListOpticalOrders extends ListRecords
                                     ->all())
                                 ->searchable()
                                 ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'lens')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'lens')
+                                ->required(fn (Get $get): bool => $get('item_kind') === 'lens')
+                                ->visible(fn (Get $get): bool => $get('item_kind') === 'lens')
                                 ->live()
                                 ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
@@ -165,8 +165,8 @@ class ListOpticalOrders extends ListRecords
                                     ->all())
                                 ->searchable()
                                 ->preload()
-                                ->required(fn (Get $get): bool => $get('item_type') === 'lens_option')
-                                ->visible(fn (Get $get): bool => $get('item_type') === 'lens_option')
+                                ->required(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                                ->visible(fn (Get $get): bool => $get('item_kind') === 'lens_option')
                                 ->live()
                                 ->columnSpan(2)
                                 ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {

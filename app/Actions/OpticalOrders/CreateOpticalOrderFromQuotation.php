@@ -8,6 +8,7 @@ use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
@@ -59,7 +60,7 @@ class CreateOpticalOrderFromQuotation
             $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
 
             $productItems = $quotation->items()
-                ->where('item_type', TransactionItemType::Product)
+                ->whereIn('item_kind', CommercialItemKind::productKindValues())
                 ->get();
 
             $prescription = $quotation->prescription_id
@@ -184,14 +185,14 @@ class CreateOpticalOrderFromQuotation
                 if (! empty($newServiceIds)) {
                     $serviceItems = $quotation->items()
                         ->whereIn('id', $newServiceIds)
-                        ->where('item_type', TransactionItemType::Service)
+                        ->where('item_kind', CommercialItemKind::Service->value)
                         ->get()
                         ->map(fn ($item): array => [
                             'description' => $item->description,
                             'quantity' => $item->quantity,
                             'unit_price' => $item->unit_price,
                             'amount' => $item->amount,
-                            'item_type' => $item->item_type,
+                            'item_type' => \App\Enums\TransactionItemType::Service,
                             'quotation_item_id' => $item->id,
                         ]);
 
@@ -210,7 +211,7 @@ class CreateOpticalOrderFromQuotation
                 $alreadyBilledIds = collect($performedServiceItemIds)->map(fn ($id) => (int) $id)->toArray();
 
                 $serviceItems = $quotation->items()
-                    ->where('item_type', TransactionItemType::Service)
+                    ->where('item_kind', CommercialItemKind::Service->value)
                     ->whereNotIn('id', $alreadyBilledIds)
                     ->get()
                     ->map(fn ($item): array => [
@@ -218,7 +219,7 @@ class CreateOpticalOrderFromQuotation
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'amount' => $item->amount,
-                        'item_type' => $item->item_type,
+                        'item_type' => \App\Enums\TransactionItemType::Service,
                         'quotation_item_id' => $item->id,
                     ]);
 

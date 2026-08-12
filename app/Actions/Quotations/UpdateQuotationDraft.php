@@ -43,7 +43,7 @@ class UpdateQuotationDraft
                     || filled($item['lens_option_id'] ?? null);
                 $itemType = match (true) {
                     $hasProductReference => TransactionItemType::Product,
-                    ($item['item_type'] ?? null) === 'custom_product' => TransactionItemType::Product,
+                    ($item['item_kind'] ?? null) === 'custom_product' => TransactionItemType::Product,
                     default => TransactionItemType::Service,
                 };
 
@@ -51,7 +51,7 @@ class UpdateQuotationDraft
                 $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
-                    explicitKind: ($item['item_type'] ?? null) === 'custom_product' ? 'custom_product' : (($item['item_type'] ?? null) === 'custom_service' ? 'service' : null),
+                    explicitKind: ($item['item_kind'] ?? null) === 'custom_product' ? 'custom_product' : (($item['item_kind'] ?? null) === 'custom_service' ? 'service' : null),
                     serviceId: $item['service_id'] ?? null,
                     lensOptionId: $item['lens_option_id'] ?? null,
                 );
@@ -133,7 +133,7 @@ class UpdateQuotationDraft
             'notes' => ['nullable', 'string', 'max:2000'],
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
-            'items.*.item_type' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
+            'items.*.item_kind' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
             'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
@@ -164,21 +164,21 @@ class UpdateQuotationDraft
 
                 if ($references->count() > 1) {
                     $validator->errors()->add(
-                        "items.{$index}.item_type",
+                        "items.{$index}.item_kind",
                         'A quotation item can reference only one catalog entry.',
                     );
                 }
 
                 if (filled($item['lens_option_id'] ?? null)
-                    && filled($item['item_type'] ?? null)
-                    && $item['item_type'] !== 'lens_option') {
+                    && filled($item['item_kind'] ?? null)
+                    && $item['item_kind'] !== 'lens_option') {
                     $validator->errors()->add(
                         "items.{$index}.lens_option_id",
                         'A lens option must use the Lens Option item type.',
                     );
                 }
 
-                if (($item['item_type'] ?? null) === 'lens_option' && blank($item['lens_option_id'] ?? null)) {
+                if (($item['item_kind'] ?? null) === 'lens_option' && blank($item['lens_option_id'] ?? null)) {
                     $validator->errors()->add(
                         "items.{$index}.lens_option_id",
                         'A Lens Option item requires a catalog lens option.',

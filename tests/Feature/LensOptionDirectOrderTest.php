@@ -80,7 +80,7 @@ test('direct optical orders reject a lens option item without an option id', fun
         patient: Patient::factory()->create(),
         creator: $this->staff,
         items: [[
-            'item_type' => 'lens_option',
+            'item_kind' => 'lens_option',
             'description' => 'Lens option',
             'quantity' => 1,
             'unit_price' => 850,

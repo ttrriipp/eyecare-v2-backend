@@ -138,7 +138,7 @@ test('a custom item explicitly typed as a product is not misreported as a servic
         creator: $this->staff,
         data: [
             'items' => [
-                ['item_type' => 'custom_product', 'description' => 'Off-catalog designer frame', 'quantity' => 1, 'unit_price' => 5000],
+                ['item_kind' => 'custom_product', 'description' => 'Off-catalog designer frame', 'quantity' => 1, 'unit_price' => 5000],
             ],
         ],
         encounter: $encounter,
@@ -156,7 +156,7 @@ test('a custom item explicitly typed as a service is reported as a service', fun
         creator: $this->staff,
         data: [
             'items' => [
-                ['item_type' => 'custom_service', 'description' => 'One-off repair fee', 'quantity' => 1, 'unit_price' => 300],
+                ['item_kind' => 'custom_service', 'description' => 'One-off repair fee', 'quantity' => 1, 'unit_price' => 300],
             ],
         ],
         encounter: $encounter,

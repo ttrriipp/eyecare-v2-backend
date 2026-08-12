@@ -2,6 +2,7 @@
 
 namespace App\Actions\Ratings;
 
+use App\Enums\CommercialItemKind;
 use App\Models\Appointment;
 use App\Models\BillingRecordItem;
 use App\Models\Patient;

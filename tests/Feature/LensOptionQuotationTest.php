@@ -106,21 +106,21 @@ test('creating a quotation accepts a package with multiple different lens option
         data: [
             'items' => [
                 [
-                    'item_type' => 'lens',
+                    'item_kind' => 'lens',
                     'lens_category_id' => $lensCategory->id,
                     'description' => $lensCategory->name,
                     'quantity' => 1,
                     'unit_price' => 3000,
                 ],
                 [
-                    'item_type' => 'lens_option',
+                    'item_kind' => 'lens_option',
                     'lens_option_id' => $antiReflective->id,
                     'description' => $antiReflective->name,
                     'quantity' => 1,
                     'unit_price' => 850,
                 ],
                 [
-                    'item_type' => 'lens_option',
+                    'item_kind' => 'lens_option',
                     'lens_option_id' => $photochromic->id,
                     'description' => $photochromic->name,
                     'quantity' => 1,
@@ -147,7 +147,7 @@ test('a lens package without options remains valid', function (): void {
         prescription: $prescription,
         data: [
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => $lensCategory->name,
                 'quantity' => 1,
@@ -168,7 +168,7 @@ test('lens option without a package is rejected when creating a quotation', func
         creator: $this->staff,
         data: [
             'items' => [[
-                'item_type' => 'lens_option',
+                'item_kind' => 'lens_option',
                 'lens_option_id' => $option->id,
                 'description' => $option->name,
                 'quantity' => 1,
@@ -188,7 +188,7 @@ test('missing or inactive options are rejected server-side', function (): void {
             creator: $this->staff,
             data: [
                 'items' => [[
-                    'item_type' => 'lens_option',
+                    'item_kind' => 'lens_option',
                     'lens_option_id' => $optionId,
                     'description' => 'Option',
                     'quantity' => 1,

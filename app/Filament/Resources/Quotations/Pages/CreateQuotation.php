@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
-use App\Enums\TransactionItemType;
+use App\Enums\CommercialItemKind;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
@@ -180,7 +180,7 @@ class CreateQuotation extends CreateRecord
                     quotation: $quotation,
                     confirmer: $creator,
                     performedServiceItemIds: $quotation->items()
-                        ->where('item_type', TransactionItemType::Service)
+                        ->where('item_kind', CommercialItemKind::Service->value)
                         ->pluck('id')
                         ->all(),
                 );

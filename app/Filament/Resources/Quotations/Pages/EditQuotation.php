@@ -10,7 +10,6 @@ use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
@@ -48,12 +47,12 @@ class EditQuotation extends EditRecord
                     'discount_amount' => (float) $this->record->discount_amount,
                     'notes' => $this->record->notes,
                     'items' => $this->record->items->map(fn ($item): array => [
-                        'item_type' => match (true) {
+                        'item_kind' => match (true) {
                             $item->item_kind === CommercialItemKind::LensOption || filled($item->lens_option_id) => 'lens_option',
                             filled($item->product_variant_id) => 'catalog',
                             filled($item->lens_category_id) => 'lens',
                             filled($item->service_id) => 'service',
-                            $item->item_type === TransactionItemType::Product => 'custom_product',
+                            in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true) => 'custom_product',
                             default => 'custom_service',
                         },
                         'product_variant_id' => $item->product_variant_id,
@@ -97,7 +96,7 @@ class EditQuotation extends EditRecord
                 ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
                 ->schema(function (): array {
                     $serviceItems = $this->record->items()
-                        ->where('item_type', TransactionItemType::Service)
+                        ->where('item_kind', CommercialItemKind::Service->value)
                         ->get();
 
                     $configurationItems = $this->record->productItems()
@@ -254,14 +253,14 @@ class EditQuotation extends EditRecord
                         if (! empty($newServiceIds)) {
                             $serviceItems = $quotation->items()
                                 ->whereIn('id', $newServiceIds)
-                                ->where('item_type', TransactionItemType::Service)
+                                ->where('item_kind', CommercialItemKind::Service->value)
                                 ->get()
                                 ->map(fn ($item): array => [
                                     'description' => $item->description,
                                     'quantity' => $item->quantity,
                                     'unit_price' => $item->unit_price,
                                     'amount' => $item->amount,
-                                    'item_type' => $item->item_type,
+                                    'item_kind' => $item->item_kind->value,
                                     'quotation_item_id' => $item->id,
                                 ]);
 

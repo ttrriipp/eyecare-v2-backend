@@ -25,7 +25,7 @@ test('staff creates a direct order from the optical orders list', function () {
             'patient_id' => $patient->id,
             'fulfillment_mode' => 'prepared',
             'items' => [[
-                'item_type' => 'catalog',
+                'item_kind' => 'catalog',
                 'product_variant_id' => $variant->id,
                 'description' => 'Frame',
                 'quantity' => 1,
@@ -57,7 +57,7 @@ test('immediate checkout paid in full is dispensed with a zero balance', functio
             'patient_id' => $patient->id,
             'fulfillment_mode' => 'immediate',
             'items' => [[
-                'item_type' => 'catalog',
+                'item_kind' => 'catalog',
                 'product_variant_id' => $variant->id,
                 'description' => 'Reading Glasses',
                 'quantity' => 1,

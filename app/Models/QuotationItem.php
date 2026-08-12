@@ -43,7 +43,7 @@ class QuotationItem extends Model
             }
 
             // Service items cannot have catalog references
-            if ($item->item_type === TransactionItemType::Service) {
+            if ($item->item_kind === CommercialItemKind::Service) {
                 if ($item->product_variant_id !== null || $item->lens_category_id !== null) {
                     throw new \InvalidArgumentException('Service items cannot reference a product variant or lens category.');
                 }
@@ -54,7 +54,7 @@ class QuotationItem extends Model
             }
 
             // Product items cannot reference a service catalog entry
-            if ($item->item_type === TransactionItemType::Product && $item->service_id !== null) {
+            if (in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true) && $item->service_id !== null) {
                 throw new \InvalidArgumentException('Product items cannot reference a service.');
             }
 
@@ -63,7 +63,7 @@ class QuotationItem extends Model
                 $item->item_type = TransactionItemType::Product;
             }
 
-            if ($item->lens_option_id !== null && $item->item_type !== TransactionItemType::Product) {
+            if ($item->lens_option_id !== null && ! in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true)) {
                 throw new \InvalidArgumentException('Lens option items must be Product items.');
             }
 

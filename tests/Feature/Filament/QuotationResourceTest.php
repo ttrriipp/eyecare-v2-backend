@@ -111,7 +111,7 @@ test('staff revises a draft quotation\'s items', function () {
         ->assertActionVisible('reviseItems')
         ->callAction('reviseItems', [
             'items' => [[
-                'item_type' => 'custom_service',
+                'item_kind' => 'custom_service',
                 'description' => 'Adjusted eye exam fee',
                 'quantity' => 1,
                 'unit_price' => 800,

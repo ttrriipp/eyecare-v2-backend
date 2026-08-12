@@ -28,7 +28,7 @@ test('staff creates a quotation from an encounter query context', function () {
             'discount_amount' => 0,
             'notes' => 'Patient-visible estimate note.',
             'items' => [[
-                'item_type' => 'custom_product',
+                'item_kind' => 'custom_product',
                 'description' => 'Complete frame and single vision lens',
                 'quantity' => 1,
                 'unit_price' => 12500,
@@ -58,7 +58,7 @@ test('staff creates a quotation from an existing prescription with no new encoun
         ->assertFormFieldDoesNotExist('patient_id')
         ->fillForm([
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,
@@ -89,7 +89,7 @@ test('an existing prescription cannot be reused for corrective eyewear once supe
     Livewire::test(CreateQuotation::class, ['prescription' => (string) $original->id])
         ->fillForm([
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,
@@ -112,7 +112,7 @@ test('staff creates a quotation from a patient query context with no encounter',
         ->assertFormFieldDoesNotExist('patient_id')
         ->fillForm([
             'items' => [[
-                'item_type' => 'custom_product',
+                'item_kind' => 'custom_product',
                 'description' => 'Sunglasses',
                 'quantity' => 1,
                 'unit_price' => 2500,
@@ -138,7 +138,7 @@ test('direct quotation with patient context rejects corrective items without an 
     Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
         ->fillForm([
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,
@@ -162,7 +162,7 @@ test('staff picks a patient manually when no context is provided', function () {
         ->fillForm([
             'patient_id' => $patient->id,
             'items' => [[
-                'item_type' => 'custom_product',
+                'item_kind' => 'custom_product',
                 'description' => 'Contact Lens Solution',
                 'quantity' => 1,
                 'unit_price' => 400,
@@ -190,7 +190,7 @@ test('a manually-picked patient can select their current prescription to add a l
         ->fillForm([
             'prescription_id' => $prescription->id,
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,
@@ -223,7 +223,7 @@ test('a superseded prescription picked manually is still rejected for a lens ite
             'patient_id' => $patient->id,
             'prescription_id' => $original->id,
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,
@@ -247,7 +247,7 @@ test('a quotation with only a patient context in the URL still offers a prescrip
         ->fillForm([
             'prescription_id' => $prescription->id,
             'items' => [[
-                'item_type' => 'lens',
+                'item_kind' => 'lens',
                 'lens_category_id' => $lensCategory->id,
                 'description' => 'Single Vision Lens',
                 'quantity' => 1,

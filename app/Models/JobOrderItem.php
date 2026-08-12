@@ -40,7 +40,7 @@ class JobOrderItem extends Model
             }
 
             // Job Order items must be Product type
-            if ($item->item_type !== TransactionItemType::Product) {
+            if (! in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true)) {
                 throw new \InvalidArgumentException('Job Order items must be Product type.');
             }
 

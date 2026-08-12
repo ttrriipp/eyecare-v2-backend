@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BillingRecords\Tables;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Models\BillingRecord;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
