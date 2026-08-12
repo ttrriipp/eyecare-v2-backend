@@ -28,8 +28,7 @@ test('patient can rate a dispensed frame', function () {
         ->and($rating->comment)->toBe('Excellent frame!')
         ->and($rating->patient_id)->toBe($patient->id)
         ->and($rating->product_variant_id)->toBe($variant->id)
-        ->and($rating->dispensing_event_id)->toBe($dispensingEvent->id)
-        ->and($rating->current_revision_id)->not->toBeNull();
+        ->and($rating->dispensing_event_id)->toBe($dispensingEvent->id);
 });
 
 test('one current rating per patient per dispensed frame is enforced', function () {
@@ -38,15 +37,13 @@ test('one current rating per patient per dispensed frame is enforced', function 
 
     // First rating creates a new record
     $first = app(SaveFrameRating::class)->handle($patient, $variant, 4, 'Good');
-    expect($first->revisions)->toHaveCount(1);
 
-    // Second rating for same patient+variant appends a revision (not a new record)
+    // Second rating for same patient+variant updates in place
     $second = app(SaveFrameRating::class)->handle($patient, $variant, 5, 'Great');
-    $second->load('revisions');
 
     expect($second->id)->toBe($first->id) // Same record
         ->and($second->rating)->toBe(5)
-        ->and($second->revisions)->toHaveCount(2); // Revision appended
+        ->and($second->comment)->toBe('Great');
 
     // DB unique constraint still prevents direct bypass
     expect(fn () => FrameRating::factory()->create([
@@ -55,23 +52,18 @@ test('one current rating per patient per dispensed frame is enforced', function 
     ]))->toThrow(QueryException::class);
 });
 
-test('edits append attributable revisions', function () {
+test('edits update the rating in place', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create();
 
     $rating = app(SaveFrameRating::class)->handle($patient, $variant, 4, 'Good frame');
-    expect($rating->revisions)->toHaveCount(1)
-        ->and($rating->rating)->toBe(4);
+    expect($rating->rating)->toBe(4);
 
     // Edit the rating
     $updated = app(SaveFrameRating::class)->handle($patient, $variant, 5, 'Updated comment');
-    $updated->load('revisions');
 
-    expect($updated->revisions)->toHaveCount(2)
-        ->and($updated->rating)->toBe(5)
-        ->and($updated->comment)->toBe('Updated comment')
-        ->and($updated->currentRevision->revision_number)->toBe(2)
-        ->and($updated->currentRevision->rating)->toBe(5);
+    expect($updated->rating)->toBe(5)
+        ->and($updated->comment)->toBe('Updated comment');
 });
 
 test('rating must be between 1 and 5', function () {
@@ -87,26 +79,3 @@ test('rating must be between 1 and 5 upper bound', function () {
 
     app(SaveFrameRating::class)->handle($patient, $variant, 6, 'Too high');
 })->throws(ValidationException::class);
-
-test('initial revision is numbered 1', function () {
-    $patient = Patient::factory()->create();
-    $variant = ProductVariant::factory()->create();
-
-    $rating = app(SaveFrameRating::class)->handle($patient, $variant, 3, 'Average');
-
-    expect($rating->revisions->first()->revision_number)->toBe(1)
-        ->and($rating->revisions->first()->rating)->toBe(3);
-});
-
-test('revisions retain previous rating values', function () {
-    $patient = Patient::factory()->create();
-    $variant = ProductVariant::factory()->create();
-
-    $rating = app(SaveFrameRating::class)->handle($patient, $variant, 3, 'Okay');
-    app(SaveFrameRating::class)->handle($patient, $variant, 5, 'Great!');
-
-    $rating->load('revisions');
-
-    expect($rating->revisions->first()->rating)->toBe(3)
-        ->and($rating->revisions->last()->rating)->toBe(5);
-});

@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -19,7 +17,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'rating',
     'comment',
     'service_ids',
-    'current_revision_id',
     'is_hidden',
     'moderation_reason',
     'moderated_by',
@@ -63,22 +60,6 @@ class VisitRating extends Model
     }
 
     /**
-     * @return HasMany<VisitRatingRevision, $this>
-     */
-    public function revisions(): HasMany
-    {
-        return $this->hasMany(VisitRatingRevision::class);
-    }
-
-    /**
-     * @return HasOne<VisitRatingRevision, $this>
-     */
-    public function currentRevision(): HasOne
-    {
-        return $this->hasOne(VisitRatingRevision::class, 'id', 'current_revision_id');
-    }
-
-    /**
      * @return BelongsTo<User, $this>
      */
     public function moderator(): BelongsTo
@@ -93,7 +74,6 @@ class VisitRating extends Model
             'is_hidden' => 'boolean',
             'service_ids' => 'array',
             'moderated_at' => 'datetime',
-            'revised_at' => 'datetime',
         ];
     }
 }

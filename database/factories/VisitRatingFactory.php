@@ -30,7 +30,6 @@ class VisitRatingFactory extends Factory
             'rating' => fake()->numberBetween(1, 5),
             'comment' => fake()->optional(0.7)->sentence(),
             'service_ids' => null,
-            'current_revision_id' => null,
             'is_hidden' => false,
             'moderation_reason' => null,
             'moderated_by' => null,

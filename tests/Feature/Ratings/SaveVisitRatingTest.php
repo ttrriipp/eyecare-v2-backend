@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
-beforeEach(function () {
+beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
     $this->patient = Patient::factory()->create();
     $this->appointment = Appointment::factory()->fulfilled()->create([
@@ -32,15 +32,9 @@ test('a fulfilled appointment can be rated', function () {
         ->and($rating->comment)->toBe('Excellent visit!')
         ->and($rating->patient_id)->toBe($this->patient->id)
         ->and($rating->appointment_id)->toBe($this->appointment->id);
-
-    // Verify revision #1 was created
-    $rating->load('revisions');
-    expect($rating->revisions)->toHaveCount(1)
-        ->and($rating->revisions->first()->revision_number)->toBe(1)
-        ->and($rating->current_revision_id)->toBe($rating->revisions->first()->id);
 });
 
-test('re-submitting revises the rating', function () {
+test('re-submitting updates the rating in place', function () {
     // First rating
     $rating = app(SaveVisitRating::class)->handle(
         patient: $this->patient,
@@ -57,15 +51,11 @@ test('re-submitting revises the rating', function () {
         comment: 'Even better!',
     );
 
-    $rating->load('revisions');
     expect($rating->rating)->toBe(5)
-        ->and($rating->comment)->toBe('Even better!')
-        ->and($rating->revisions)->toHaveCount(2)
-        ->and($rating->currentRevision->revision_number)->toBe(2);
+        ->and($rating->comment)->toBe('Even better!');
 
-    // Original revision is retained
-    expect($rating->revisions->first()->rating)->toBe(4)
-        ->and($rating->revisions->first()->comment)->toBe('Good visit');
+    // Only one record exists
+    expect(VisitRating::where('appointment_id', $this->appointment->id)->count())->toBe(1);
 });
 
 test('non-fulfilled appointment is rejected', function () {
@@ -149,7 +139,7 @@ test('unique constraint prevents duplicate ratings per appointment', function ()
         rating: 5,
     );
 
-    // Second call should revise, not create a new record
+    // Second call should update, not create a new record
     $rating = app(SaveVisitRating::class)->handle(
         patient: $this->patient,
         appointment: $this->appointment,

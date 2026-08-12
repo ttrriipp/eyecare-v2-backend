@@ -6,7 +6,6 @@ use App\Models\Appointment;
 use App\Models\BillingRecordItem;
 use App\Models\Patient;
 use App\Models\VisitRating;
-use App\Models\VisitRatingRevision;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,8 +14,7 @@ class SaveVisitRating
     /**
      * Create or revise a patient's rating of one fulfilled visit.
      *
-     * One current rating per appointment. Edits append revisions rather than
-     * overwriting, so the original submission survives moderation review.
+     * One current rating per appointment. Edits update in place.
      */
     public function handle(
         Patient $patient,
@@ -37,7 +35,6 @@ class SaveVisitRating
         }
 
         return DB::transaction(function () use ($patient, $appointment, $rating, $comment): VisitRating {
-            // Lock the appointment row to prevent concurrent first-submit race
             $lockedAppointment = Appointment::query()
                 ->lockForUpdate()
                 ->findOrFail($appointment->id);
@@ -47,34 +44,19 @@ class SaveVisitRating
                 ->first();
 
             if ($existing !== null) {
-                // Append a revision
-                $nextRevision = ($existing->revisions()->max('revision_number') ?? 0) + 1;
-
-                $revision = VisitRatingRevision::query()->create([
-                    'visit_rating_id' => $existing->id,
-                    'revision_number' => $nextRevision,
-                    'rating' => $rating,
-                    'comment' => $comment,
-                    'revised_by' => $patient->user_id,
-                    'revised_at' => now(),
-                ]);
-
                 $existing->update([
                     'rating' => $rating,
                     'comment' => $comment,
-                    'current_revision_id' => $revision->id,
                 ]);
 
                 return $existing->fresh();
             }
 
-            // Snapshot optometrist and services at submission time
             $encounter = $lockedAppointment->encounter;
             $optometristId = $encounter?->optometrist_id;
             $serviceIds = $this->resolveServiceIds($lockedAppointment);
 
-            // Create new rating
-            $visitRating = VisitRating::query()->create([
+            return VisitRating::query()->create([
                 'patient_id' => $patient->id,
                 'appointment_id' => $lockedAppointment->id,
                 'encounter_id' => $encounter?->id,
@@ -83,30 +65,10 @@ class SaveVisitRating
                 'comment' => $comment,
                 'service_ids' => $serviceIds,
             ]);
-
-            // Create initial revision
-            $revision = VisitRatingRevision::query()->create([
-                'visit_rating_id' => $visitRating->id,
-                'revision_number' => 1,
-                'rating' => $rating,
-                'comment' => $comment,
-                'revised_by' => $patient->user_id,
-                'revised_at' => now(),
-            ]);
-
-            $visitRating->update(['current_revision_id' => $revision->id]);
-
-            return $visitRating->fresh();
         });
     }
 
     /**
-     * Resolve service IDs rendered at this visit.
-     *
-     * Services are reachable by two paths:
-     * 1. Billing items with encounter_id matching the appointment's encounter
-     * 2. Billing items belonging to billing records with encounter_id matching
-     *
      * @return array<int, int>
      */
     private function resolveServiceIds(Appointment $appointment): array

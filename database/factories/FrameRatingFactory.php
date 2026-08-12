@@ -25,7 +25,6 @@ class FrameRatingFactory extends Factory
             'dispensing_event_id' => null,
             'rating' => fake()->numberBetween(1, 5),
             'comment' => fake()->optional()->sentence(),
-            'current_revision_id' => null,
         ];
     }
 }

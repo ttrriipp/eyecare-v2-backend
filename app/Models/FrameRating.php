@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -15,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'dispensing_event_id',
     'rating',
     'comment',
-    'current_revision_id',
     'is_hidden',
     'moderation_reason',
     'moderated_by',
@@ -47,22 +45,6 @@ class FrameRating extends Model
     public function dispensingEvent(): BelongsTo
     {
         return $this->belongsTo(DispensingEvent::class);
-    }
-
-    /**
-     * @return HasMany<FrameRatingRevision, $this>
-     */
-    public function revisions(): HasMany
-    {
-        return $this->hasMany(FrameRatingRevision::class);
-    }
-
-    /**
-     * @return BelongsTo<FrameRatingRevision, $this>
-     */
-    public function currentRevision(): BelongsTo
-    {
-        return $this->belongsTo(FrameRatingRevision::class, 'current_revision_id');
     }
 
     /**
