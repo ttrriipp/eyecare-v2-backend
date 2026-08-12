@@ -46,7 +46,7 @@ test('navigation badges count actionable sidebar work', function () {
     Encounter::factory()->inProgress()->create();
     Encounter::factory()->completed()->create();
 
-    Quotation::factory()->presented()->create();
+    Quotation::factory()->create();
     Quotation::factory()->accepted()->create();
 
     JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);

@@ -55,8 +55,6 @@ test('direct quotation fields are preserved on quotations', function () {
     expect(Schema::hasColumn('quotations', 'subtotal'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'discount_amount'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'total'))->toBeTrue()
-        ->and(Schema::hasColumn('quotations', 'presented_by'))->toBeTrue()
-        ->and(Schema::hasColumn('quotations', 'presented_at'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'confirmed_by'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'confirmed_at'))->toBeTrue();
 });

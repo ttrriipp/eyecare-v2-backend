@@ -3,11 +3,9 @@
 use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
-use App\Actions\JobOrders\CreateJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\Prescriptions\FinalizePrescription;
-use App\Actions\Quotations\PresentQuotation;
-use App\Actions\Quotations\RecordQuotationDecision;
+use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
@@ -20,8 +18,6 @@ use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
-use App\Models\QuotationItem;
-use App\Models\QuotationRevision;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
@@ -83,25 +79,23 @@ test('scheduled patient journey: appointment through dispensing', function () {
         'encounter_id' => $encounter->id,
         'prescription_id' => $prescription->id,
         'status' => QuotationStatus::Draft,
-    ]);
-    $revision = QuotationRevision::factory()->create([
-        'quotation_id' => $quotation->id,
         'subtotal' => 5000,
         'total' => 5000,
     ]);
-    QuotationItem::factory()->create([
-        'quotation_revision_id' => $revision->id,
+    $quotation->items()->create([
         'description' => 'Frame + Lens',
+        'quantity' => 1,
+        'unit_price' => 5000,
         'amount' => 5000,
     ]);
 
-    app(PresentQuotation::class)->handle($quotation, $staff);
-    expect($quotation->fresh()->status)->toBe(QuotationStatus::Presented);
+    $result = app(ConfirmQuotationSale::class)->handle(
+        quotation: $quotation,
+        confirmer: $staff,
+    );
+    expect($result['quotation']->status)->toBe(QuotationStatus::Accepted);
 
-    app(RecordQuotationDecision::class)->handle($quotation, 'accepted', $staff);
-    expect($quotation->fresh()->status)->toBe(QuotationStatus::Accepted);
-
-    $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);
+    $jobOrder = $result['optical_order'];
     expect($jobOrder->status)->toBe(JobOrderStatus::Queued)
         ->and($jobOrder->patient_id)->toBe($patient->id);
 
@@ -113,10 +107,12 @@ test('scheduled patient journey: appointment through dispensing', function () {
     $dispensingEvent = app(DispenseJobOrder::class)->handle(
         jobOrder: $jobOrder->fresh(),
         dispenser: $staff,
+        pickupPaymentAmount: 5000,
+        pickupPaymentMethod: 'cash',
     );
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed)
-        ->and($dispensingEvent->billingRecord->status)->toBe(BillingRecordStatus::Unpaid)
+        ->and($dispensingEvent->billingRecord->status)->toBe(BillingRecordStatus::Paid)
         ->and($dispensingEvent->billingRecord->billing_record_number)->toStartWith('BR-');
 });
 

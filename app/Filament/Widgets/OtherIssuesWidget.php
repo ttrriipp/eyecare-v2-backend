@@ -56,15 +56,15 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
     {
         return [
             Stat::make(
-                'Quotations Awaiting Decision',
-                Number::format(Quotation::query()->where('status', QuotationStatus::Presented)->count()),
+                'Draft Quotations',
+                Number::format(Quotation::query()->where('status', QuotationStatus::Draft)->count()),
             )
-                ->description('Presented to patients')
+                ->description('Awaiting decision')
                 ->descriptionIcon(Heroicon::OutlinedDocumentCurrencyDollar)
                 ->color('gray')
                 ->url(QuotationResource::getUrl('index', [
                     'tableFilters' => [
-                        'status' => ['value' => QuotationStatus::Presented->value],
+                        'status' => ['value' => QuotationStatus::Draft->value],
                     ],
                 ])),
             Stat::make(

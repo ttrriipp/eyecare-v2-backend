@@ -69,7 +69,7 @@ test('heterogeneous line items are preserved on quotation', function () {
 });
 
 test('accepting creates one job order linked via direct quotation_id', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'subtotal' => 8000,
         'discount_amount' => 500,
         'total' => 7500,
@@ -107,7 +107,7 @@ test('accepting creates one job order linked via direct quotation_id', function 
 });
 
 test('job order snapshot preserves all line items from quotation', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'subtotal' => 8250,
         'total' => 8250,
     ]);
@@ -129,7 +129,7 @@ test('job order snapshot preserves all line items from quotation', function () {
 });
 
 test('billing record is created with matching totals at acceptance', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 6000]);
+    $quotation = Quotation::factory()->create(['total' => 6000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -151,7 +151,7 @@ test('billing record is created with matching totals at acceptance', function ()
 });
 
 test('eyewear key is stable across quotation, job order, and billing', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'eyewear_key' => 'eyw_01K1TESTKEY123456789',
         'total' => 3000,
     ]);
@@ -169,7 +169,7 @@ test('eyewear key is stable across quotation, job order, and billing', function 
 });
 
 test('single linked job order per quotation is enforced', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -187,7 +187,7 @@ test('single linked job order per quotation is enforced', function () {
 });
 
 test('billing record links to the job order and patient', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 4000]);
+    $quotation = Quotation::factory()->create(['total' => 4000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -204,7 +204,7 @@ test('billing record links to the job order and patient', function () {
 });
 
 test('quotation discount is reflected in accepted totals', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'subtotal' => 10000,
         'discount_amount' => 1500,
         'total' => 8500,

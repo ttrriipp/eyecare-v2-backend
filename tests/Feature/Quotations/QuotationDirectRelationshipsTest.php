@@ -65,20 +65,10 @@ test('factory creates direct draft with totals', function () {
         ->and((float) $quotation->total)->toBe(8500.0);
 });
 
-test('factory creates presented quotation with metadata', function () {
-    $quotation = Quotation::factory()->presented()->create();
-
-    expect($quotation->status)->toBe(QuotationStatus::Presented)
-        ->and($quotation->presented_by)->not->toBeNull()
-        ->and($quotation->presented_at)->not->toBeNull();
-});
-
 test('factory creates accepted quotation with metadata', function () {
     $quotation = Quotation::factory()->accepted()->create();
 
     expect($quotation->status)->toBe(QuotationStatus::Accepted)
-        ->and($quotation->presented_by)->not->toBeNull()
-        ->and($quotation->presented_at)->not->toBeNull()
         ->and($quotation->confirmed_by)->not->toBeNull()
         ->and($quotation->confirmed_at)->not->toBeNull();
 });
@@ -135,18 +125,6 @@ test('direct draft with heterogeneous items', function () {
         ->and($quotation->items->whereNull('product_variant_id')->whereNull('lens_category_id'))->toHaveCount(2);
 
     expect((float) $quotation->total)->toBe(12250.0);
-});
-
-test('quotation presenter relationship', function () {
-    $staff = User::factory()->staff()->create();
-
-    $quotation = Quotation::factory()->create([
-        'presented_by' => $staff->id,
-        'presented_at' => now(),
-    ]);
-
-    expect($quotation->presenter)->not->toBeNull()
-        ->and($quotation->presenter->id)->toBe($staff->id);
 });
 
 test('quotation confirmer relationship', function () {

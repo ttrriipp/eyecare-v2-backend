@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
-use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -175,13 +174,7 @@ class CreateQuotation extends CreateRecord
             );
 
             // Update status based on creation mode
-            if ($this->creationMode === 'presented') {
-                $quotation->update([
-                    'status' => QuotationStatus::Presented,
-                    'presented_by' => $creator->id,
-                    'presented_at' => now(),
-                ]);
-            } elseif ($this->creationMode === 'accepted') {
+            if ($this->creationMode === 'accepted') {
                 // Confirm the sale like the Confirm Sale action
                 $result = app(ConfirmQuotationSale::class)->handle(
                     quotation: $quotation,
@@ -220,7 +213,6 @@ class CreateQuotation extends CreateRecord
     protected function getCreatedNotificationTitle(): ?string
     {
         return match ($this->creationMode) {
-            'presented' => 'Quotation created and presented',
             'accepted' => 'Quotation confirmed and optical order created',
             default => 'Quotation saved as draft',
         };
@@ -235,15 +227,6 @@ class CreateQuotation extends CreateRecord
                 ->color('gray')
                 ->action(function (): void {
                     $this->creationMode = 'draft';
-                    $this->create();
-                }),
-
-            Action::make('presentQuotation')
-                ->label('Present Quotation')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('primary')
-                ->action(function (): void {
-                    $this->creationMode = 'presented';
                     $this->create();
                 }),
 

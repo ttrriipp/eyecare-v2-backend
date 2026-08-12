@@ -16,18 +16,17 @@ use Illuminate\Validation\ValidationException;
 class UpdateQuotationDraft
 {
     /**
-     * Update a draft or presented quotation's commercial data.
+     * Update a draft quotation's commercial data.
      *
-     * Editing a Presented quotation clears presentation metadata and returns it to Draft.
-     * Accepted, declined, and expired quotations are immutable.
+     * Accepted and declined quotations are immutable.
      *
      * @param  array<string, mixed>  $data
      */
     public function handle(Quotation $quotation, array $data, ?User $editor = null): Quotation
     {
-        if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented], true)) {
+        if ($quotation->status !== QuotationStatus::Draft) {
             throw ValidationException::withMessages([
-                'quotation' => ['Only draft or presented quotations can be edited.'],
+                'quotation' => ['Only draft quotations can be edited.'],
             ]);
         }
 
@@ -99,7 +98,6 @@ class UpdateQuotationDraft
 
             $totalInCents = $subtotalInCents - $discountInCents;
 
-            // Clear presentation metadata if returning from Presented to Draft
             $updateData = [
                 'subtotal' => self::formatMoney($subtotalInCents),
                 'discount_amount' => self::formatMoney($discountInCents),
@@ -108,12 +106,6 @@ class UpdateQuotationDraft
                 'notes' => self::nullableTrimmed(array_key_exists('notes', $validated) ? $validated['notes'] : $quotation->notes),
                 'internal_notes' => self::nullableTrimmed(array_key_exists('internal_notes', $validated) ? $validated['internal_notes'] : $quotation->internal_notes),
             ];
-
-            if ($quotation->status === QuotationStatus::Presented) {
-                $updateData['status'] = QuotationStatus::Draft;
-                $updateData['presented_by'] = null;
-                $updateData['presented_at'] = null;
-            }
 
             $quotation->update($updateData);
 

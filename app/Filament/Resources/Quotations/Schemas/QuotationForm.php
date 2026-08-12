@@ -40,10 +40,8 @@ class QuotationForm
                                 ->size(TextSize::Large)
                                 ->color(fn (Quotation $record): string => match ($record->status) {
                                     QuotationStatus::Draft => 'gray',
-                                    QuotationStatus::Presented => 'info',
                                     QuotationStatus::Accepted => 'success',
                                     QuotationStatus::Declined => 'danger',
-                                    QuotationStatus::Expired => 'warning',
                                 }),
                             DatePicker::make('valid_until')
                                 ->label('Valid Until')

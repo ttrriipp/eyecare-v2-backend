@@ -266,7 +266,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
                 ->when($isOptometristOnly, fn (Builder $query): Builder => $query->where('optometrist_id', $user->id))
                 ->count(),
             'quotations_pending' => Quotation::query()
-                ->where('status', QuotationStatus::Presented)
+                ->where('status', QuotationStatus::Draft)
                 ->count(),
             'ready_for_pickup' => JobOrder::query()
                 ->where('status', JobOrderStatus::ReadyForDispensing)

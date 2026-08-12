@@ -23,8 +23,6 @@ use Illuminate\Support\Str;
     'subtotal',
     'discount_amount',
     'total',
-    'presented_by',
-    'presented_at',
     'confirmed_by',
     'confirmed_at',
     'decline_reason',
@@ -125,14 +123,6 @@ class Quotation extends Model
     /**
      * @return BelongsTo<User, $this>
      */
-    public function presenter(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'presented_by');
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
     public function confirmer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'confirmed_by');
@@ -149,7 +139,6 @@ class Quotation extends Model
             'subtotal' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'total' => 'decimal:2',
-            'presented_at' => 'datetime',
             'confirmed_at' => 'datetime',
         ];
     }

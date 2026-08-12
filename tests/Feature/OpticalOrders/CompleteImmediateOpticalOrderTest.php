@@ -19,7 +19,7 @@ beforeEach(function () {
 });
 
 test('immediate service-only completes without dispensing event', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 1500]);
+    $quotation = Quotation::factory()->create(['total' => 1500]);
     $quotation->items()->create([
         'description' => 'Eye Exam',
         'quantity' => 1,
@@ -40,7 +40,7 @@ test('immediate service-only completes without dispensing event', function () {
 test('immediate product creates dispensing event', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -59,7 +59,7 @@ test('immediate product creates dispensing event', function () {
 test('immediate product commits inventory', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 2,
@@ -75,7 +75,7 @@ test('immediate product commits inventory', function () {
 });
 
 test('immediate with deposit records payment', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Service',
         'quantity' => 1,
@@ -100,7 +100,7 @@ test('immediate with deposit records payment', function () {
 test('immediate mixed order commits inventory and creates dispensing', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $quotation = Quotation::factory()->presented()->create(['total' => 6000]);
+    $quotation = Quotation::factory()->create(['total' => 6000]);
     $quotation->items()->createMany([
         ['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'amount' => 5000, 'product_variant_id' => $variant->id, 'item_type' => TransactionItemType::Product],
         ['description' => 'Fitting', 'quantity' => 1, 'unit_price' => 1000, 'amount' => 1000, 'item_type' => TransactionItemType::Service],

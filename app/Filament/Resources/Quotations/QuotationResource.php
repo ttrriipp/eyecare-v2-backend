@@ -40,7 +40,7 @@ class QuotationResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $count = Quotation::query()
-            ->where('status', QuotationStatus::Presented)
+            ->where('status', QuotationStatus::Draft)
             ->count();
 
         return $count > 0 ? (string) $count : null;

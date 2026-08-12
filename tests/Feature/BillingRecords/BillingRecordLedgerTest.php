@@ -25,7 +25,7 @@ beforeEach(function () {
 test('cancellation releases committed inventory', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
 
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 3,
@@ -47,7 +47,7 @@ test('cancellation releases committed inventory', function () {
 });
 
 test('cancellation voids billing when no posted payments', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -64,7 +64,7 @@ test('cancellation voids billing when no posted payments', function () {
 });
 
 test('cancellation preserves billing when posted payments exist', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation = Quotation::factory()->create(['total' => 10000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -122,7 +122,7 @@ test('voided billing is never overdue', function () {
 });
 
 test('aggregate relationships consistent after cancellation', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'total' => 8000,
         'eyewear_key' => 'eyw_01CANCELTEST',
     ]);
@@ -147,7 +147,7 @@ test('aggregate relationships consistent after cancellation', function () {
 });
 
 test('posted payment locks billing record charges', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation = Quotation::factory()->create(['total' => 10000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,

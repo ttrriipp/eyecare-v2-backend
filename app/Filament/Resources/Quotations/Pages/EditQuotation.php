@@ -48,7 +48,7 @@ class EditQuotation extends EditRecord
                 ->label('Revise Items')
                 ->icon('heroicon-o-pencil-square')
                 ->color('gray')
-                ->visible(fn (): bool => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented], true)
+                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft
                     && $this->record->jobOrder === null)
                 ->schema(QuotationCreationForm::components(
                     patientIdResolver: fn (Get $get): ?int => $this->record->patient_id,
@@ -107,7 +107,7 @@ class EditQuotation extends EditRecord
                 ->label('Confirm Sale')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [QuotationStatus::Draft, QuotationStatus::Presented], true))
+                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
                 ->schema(function (): array {
                     $serviceItems = $this->record->items()
                         ->where('item_type', TransactionItemType::Service)
@@ -271,7 +271,7 @@ class EditQuotation extends EditRecord
                 ->label('Void / Decline')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (): bool => $this->record->status === QuotationStatus::Presented)
+                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
                 ->requiresConfirmation()
                 ->modalHeading('Void / Decline Quotation')
                 ->modalDescription('This will mark the quotation as declined. This action cannot be undone.')

@@ -5,11 +5,9 @@
  * to quotations, quotation_items, job_orders, and billing_records.
  */
 
-use App\Enums\QuotationStatus;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Quotation;
-use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -26,8 +24,6 @@ test('quotations table has direct commercial columns', function () {
     expect(Schema::hasColumn('quotations', 'subtotal'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'discount_amount'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'total'))->toBeTrue()
-        ->and(Schema::hasColumn('quotations', 'presented_by'))->toBeTrue()
-        ->and(Schema::hasColumn('quotations', 'presented_at'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'confirmed_by'))->toBeTrue()
         ->and(Schema::hasColumn('quotations', 'confirmed_at'))->toBeTrue();
 });
@@ -54,23 +50,6 @@ test('quotations can store direct totals', function () {
     expect((float) $quotation->fresh()->subtotal)->toBe(10000.0)
         ->and((float) $quotation->fresh()->discount_amount)->toBe(1500.0)
         ->and((float) $quotation->fresh()->total)->toBe(8500.0);
-});
-
-test('quotations can store presentation and confirmation metadata', function () {
-    $staff = User::factory()->staff()->create();
-
-    $quotation = Quotation::factory()->create([
-        'status' => QuotationStatus::Presented,
-        'presented_by' => $staff->id,
-        'presented_at' => now(),
-        'confirmed_by' => null,
-        'confirmed_at' => null,
-    ]);
-
-    expect($quotation->fresh()->presented_by)->toBe($staff->id)
-        ->and($quotation->fresh()->presented_at)->not->toBeNull()
-        ->and($quotation->fresh()->confirmed_by)->toBeNull()
-        ->and($quotation->fresh()->confirmed_at)->toBeNull();
 });
 
 test('quotation items can reference quotation directly via DB', function () {

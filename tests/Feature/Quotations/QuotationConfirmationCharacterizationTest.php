@@ -3,7 +3,7 @@
 /**
  * Characterization tests for ConfirmQuotationSale.
  *
- * Protects the currently working direct and presented Quotation confirmation
+ * Protects the currently working direct Quotation confirmation
  * paths before changing item semantics or confirmation validation.
  *
  * @see tasks/todo.md Task 1
@@ -101,40 +101,6 @@ test('direct draft confirmation creates one accepted quotation, optical order, a
         ->and($billingRecord->patient_id)->toBe($quotation->patient_id)
         ->and($billingRecord->status)->toBe(BillingRecordStatus::Unpaid);
 
-    expect(BillingRecord::where('patient_id', $quotation->patient_id)->count())->toBe(1);
-});
-
-// ─── Presented confirmation ───────────────────────────────────────────────────
-
-test('presented confirmation creates one accepted quotation, optical order, and billing record', function () {
-    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
-
-    $quotation = Quotation::factory()->presented()->create([
-        'subtotal' => 5000,
-        'discount_amount' => 0,
-        'total' => 5000,
-    ]);
-
-    $quotation->items()->create([
-        'description' => 'Frame',
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
-        'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
-        'item_kind' => CommercialItemKind::CustomProduct,
-    ]);
-
-    $result = app(ConfirmQuotationSale::class)->handle(
-        quotation: $quotation,
-        confirmer: $this->staff,
-    );
-
-    expect($result['quotation']->status)->toBe(QuotationStatus::Accepted)
-        ->and($result['optical_order'])->toBeInstanceOf(JobOrder::class)
-        ->and($result['billing_record'])->toBeInstanceOf(BillingRecord::class);
-
-    expect(JobOrder::where('quotation_id', $quotation->id)->count())->toBe(1);
     expect(BillingRecord::where('patient_id', $quotation->patient_id)->count())->toBe(1);
 });
 
@@ -471,24 +437,10 @@ test('optional deposit is recorded during confirmation', function () {
 
 test('confirmation rejects declined quotation', function () {
     $this->expectException(ValidationException::class);
-    $this->expectExceptionMessage('Only draft, presented, or accepted quotations can be confirmed.');
+    $this->expectExceptionMessage('Only draft or accepted quotations can be confirmed.');
 
     $quotation = Quotation::factory()->create([
         'status' => QuotationStatus::Declined,
-    ]);
-
-    app(ConfirmQuotationSale::class)->handle(
-        quotation: $quotation,
-        confirmer: $this->staff,
-    );
-});
-
-test('confirmation rejects expired quotation', function () {
-    $this->expectException(ValidationException::class);
-    $this->expectExceptionMessage('Only draft, presented, or accepted quotations can be confirmed.');
-
-    $quotation = Quotation::factory()->create([
-        'status' => QuotationStatus::Expired,
     ]);
 
     app(ConfirmQuotationSale::class)->handle(

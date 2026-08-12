@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Enums\QuotationStatus;
 use App\Models\Patient;
-use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -14,11 +13,6 @@ use Illuminate\Support\Str;
  */
 class QuotationFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
@@ -31,8 +25,6 @@ class QuotationFactory extends Factory
             'subtotal' => 0,
             'discount_amount' => 0,
             'total' => 0,
-            'presented_by' => null,
-            'presented_at' => null,
             'confirmed_by' => null,
             'confirmed_at' => null,
             'notes' => fake()->optional()->sentence(),
@@ -41,21 +33,10 @@ class QuotationFactory extends Factory
         ];
     }
 
-    public function presented(): static
-    {
-        return $this->state(fn (array $attributes): array => [
-            'status' => QuotationStatus::Presented,
-            'presented_by' => User::factory()->staff(),
-            'presented_at' => fake()->dateTimeBetween('-7 days', '-1 day'),
-        ]);
-    }
-
     public function accepted(): static
     {
         return $this->state(fn (array $attributes): array => [
             'status' => QuotationStatus::Accepted,
-            'presented_by' => User::factory()->staff(),
-            'presented_at' => fake()->dateTimeBetween('-14 days', '-7 days'),
             'confirmed_by' => User::factory()->staff(),
             'confirmed_at' => fake()->dateTimeBetween('-7 days', '-1 day'),
         ]);

@@ -11,14 +11,10 @@ use Illuminate\Validation\ValidationException;
 class RecordQuotationDecision
 {
     /**
-     * Record a patient's decision on a presented quotation.
+     * Accept or decline a draft quotation.
      *
-     * Allowed transitions:
-     * - Draft -> Presented (via PresentQuotation) or Accepted (direct sale)
-     * - Presented -> Draft (via UpdateQuotationDraft), Accepted, Declined, Expired
-     * - Accepted, Declined, Expired -> terminal
-     *
-     * @param  'presented'|'accepted'|'declined'|'expired'  $decision
+     * - Draft → Accepted (with confirmed_by/confirmed_at)
+     * - Draft → Declined (with decline_reason)
      */
     public function handle(
         Quotation $quotation,
@@ -28,8 +24,11 @@ class RecordQuotationDecision
     ): Quotation {
         $targetStatus = QuotationStatus::from($decision);
 
-        // Validate allowed transitions
-        $this->validateTransition($quotation->status, $targetStatus);
+        if ($quotation->status !== QuotationStatus::Draft) {
+            throw ValidationException::withMessages([
+                'quotation' => ['Only draft quotations can be accepted or declined.'],
+            ]);
+        }
 
         $attributes = ['status' => $targetStatus];
 
@@ -39,26 +38,17 @@ class RecordQuotationDecision
         }
 
         if ($targetStatus === QuotationStatus::Declined) {
+            if (blank($reason)) {
+                throw ValidationException::withMessages([
+                    'reason' => ['A reason is required when declining a quotation.'],
+                ]);
+            }
+
             $attributes['decline_reason'] = $reason;
         }
 
         $quotation->update($attributes);
 
         return $quotation->fresh();
-    }
-
-    private function validateTransition(QuotationStatus $current, QuotationStatus $target): void
-    {
-        $allowed = match ($current) {
-            QuotationStatus::Draft => [QuotationStatus::Presented, QuotationStatus::Accepted],
-            QuotationStatus::Presented => [QuotationStatus::Accepted, QuotationStatus::Declined, QuotationStatus::Expired],
-            default => [],
-        };
-
-        if (! in_array($target, $allowed, true)) {
-            throw ValidationException::withMessages([
-                'quotation' => ["Cannot transition from {$current->value} to {$target->value}."],
-            ]);
-        }
     }
 }

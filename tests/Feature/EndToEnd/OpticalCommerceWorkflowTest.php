@@ -13,7 +13,6 @@ use App\Actions\BillingRecords\DispenseJobOrder;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation;
-use App\Actions\Quotations\PresentQuotation;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
@@ -72,11 +71,7 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
         ->and($quotation->items)->toHaveCount(3)
         ->and($quotation->prescription_id)->toBe($prescription->id);
 
-    // ─── Step 3: Present quotation ───
-    $quotation = app(PresentQuotation::class)->handle($quotation, $this->staff);
-    expect($quotation->status)->toBe(QuotationStatus::Presented);
-
-    // ─── Step 4: Confirm sale with deposit ───
+    // ─── Step 3: Confirm sale with deposit ───
     $serviceItem = $quotation->items()->where('item_type', TransactionItemType::Service)->first();
 
     $result = app(ConfirmQuotationSale::class)->handle(

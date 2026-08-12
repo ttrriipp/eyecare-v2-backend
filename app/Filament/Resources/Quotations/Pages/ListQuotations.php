@@ -32,17 +32,11 @@ class ListQuotations extends ListRecords
             'drafts' => Tab::make('Drafts')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Draft)),
 
-            'presented' => Tab::make('Presented')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Presented)),
-
             'accepted' => Tab::make('Accepted')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Accepted)),
 
             'declined' => Tab::make('Declined')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Declined)),
-
-            'expired' => Tab::make('Expired')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', QuotationStatus::Expired)),
         ];
     }
 }

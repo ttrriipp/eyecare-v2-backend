@@ -1,15 +1,10 @@
 <?php
 
 use App\Actions\Quotations\ConfirmQuotationSale;
-use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
-use App\Models\JobOrder;
-use App\Models\LensCategory;
-use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -98,76 +93,6 @@ test('quotation details show the linked prescription reference and prescriber', 
         ->assertSee('Current');
 });
 
-test('confirm sale presents the corrective eyewear configuration before confirmation', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    $lensCategory = LensCategory::factory()->withPrice(5000)->create(['name' => 'Progressive 1.67']);
-    $lensOption = LensOption::factory()->create(['name' => 'Anti-reflective coating']);
-
-    QuotationItem::factory()->lensPackage()->create([
-        'quotation_id' => $quotation->id,
-        'lens_category_id' => $lensCategory->id,
-        'description' => 'Progressive 1.67',
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
-    ]);
-    QuotationItem::factory()->product()->create([
-        'quotation_id' => $quotation->id,
-        'lens_option_id' => $lensOption->id,
-        'item_kind' => CommercialItemKind::LensOption,
-        'description' => 'Anti-reflective coating',
-        'quantity' => 1,
-        'unit_price' => 800,
-        'amount' => 800,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->mountAction('confirmSale')
-        ->assertMountedActionModalSee('Progressive 1.67')
-        ->assertMountedActionModalSee('Anti-reflective coating');
-});
-
-test('quotation table shows status badges', function () {
-    $staff = User::factory()->staff()->create();
-    $draft = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
-    $presented = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(ListQuotations::class)
-        ->assertTableColumnStateSet('status', QuotationStatus::Draft, record: $draft)
-        ->assertTableColumnStateSet('status', QuotationStatus::Presented, record: $presented);
-});
-
-test('staff confirms the sale of a presented quotation and creates an optical order', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
-    QuotationItem::factory()->product()->create([
-        'quotation_id' => $quotation->id,
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->assertActionVisible('confirmSale')
-        ->callAction('confirmSale')
-        ->assertNotified()
-        ->assertRedirect();
-
-    $jobOrder = JobOrder::query()
-        ->where('quotation_id', $quotation->id)
-        ->firstOrFail();
-
-    expect(OpticalOrderResource::getUrl('edit', ['record' => $jobOrder]))
-        ->toContain("/optical-orders/{$jobOrder->id}/edit");
-});
-
 test('quotation resource is registered', function () {
     expect(QuotationResource::getModel())->toBe(Quotation::class);
 });
@@ -218,31 +143,6 @@ test('opening revise items pre-fills the existing item', function () {
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->mountAction('reviseItems')
         ->assertSee('Classic Black Frame');
-});
-
-test('revising a presented quotation reverts it to draft', function () {
-    $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create([
-        'status' => QuotationStatus::Presented,
-        'presented_by' => $staff->id,
-        'presented_at' => now(),
-    ]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
-        ->assertActionVisible('reviseItems')
-        ->callAction('reviseItems', [
-            'items' => [[
-                'item_type' => 'custom_service',
-                'description' => 'Revised charge',
-                'quantity' => 1,
-                'unit_price' => 900,
-            ]],
-        ])
-        ->assertHasNoActionErrors();
-
-    expect($quotation->fresh()->status)->toBe(QuotationStatus::Draft);
 });
 
 test('the revise items action is hidden once a quotation has an optical order', function () {

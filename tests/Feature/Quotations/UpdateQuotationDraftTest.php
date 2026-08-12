@@ -7,7 +7,6 @@ use App\Models\LensCategory;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\Service;
-use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -82,55 +81,16 @@ test('valid_until and notes can be cleared by omitting them from the payload', f
         ->and($updated->internal_notes)->toBeNull();
 });
 
-test('editing presented quotation returns it to draft and clears presentation metadata', function () {
-    $staff = User::factory()->staff()->create();
-
-    $quotation = Quotation::factory()->create([
-        'status' => QuotationStatus::Presented,
-        'subtotal' => 5000,
-        'discount_amount' => 0,
-        'total' => 5000,
-        'presented_by' => $staff->id,
-        'presented_at' => now(),
-    ]);
-
-    $quotation->items()->create([
-        'description' => 'Frame',
-        'quantity' => 1,
-        'unit_price' => 5000,
-        'amount' => 5000,
-        'item_kind' => CommercialItemKind::CustomProduct,
-    ]);
-
-    $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
-        'items' => [
-            ['description' => 'Updated frame', 'quantity' => 1, 'unit_price' => 5000],
-        ],
-    ]);
-
-    expect($updated->status)->toBe(QuotationStatus::Draft)
-        ->and($updated->presented_by)->toBeNull()
-        ->and($updated->presented_at)->toBeNull();
-});
-
 test('accepted quotation cannot be edited', function () {
     $quotation = Quotation::factory()->accepted()->create();
 
     app(UpdateQuotationDraft::class)->handle($quotation, [
         'items' => [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 1000]],
     ]);
-})->throws(ValidationException::class, 'Only draft or presented quotations can be edited.');
+})->throws(ValidationException::class, 'Only draft quotations can be edited.');
 
 test('declined quotation cannot be edited', function () {
     $quotation = Quotation::factory()->create(['status' => QuotationStatus::Declined]);
-
-    app(UpdateQuotationDraft::class)->handle($quotation, [
-        'items' => [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 1000]],
-    ]);
-})->throws(ValidationException::class);
-
-test('expired quotation cannot be edited', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Expired]);
 
     app(UpdateQuotationDraft::class)->handle($quotation, [
         'items' => [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 1000]],

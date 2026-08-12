@@ -23,8 +23,8 @@ beforeEach(function () {
     $this->actingAs($this->staff);
 });
 
-test('accepting a presented quotation creates a job order with snapshot items', function () {
-    $quotation = Quotation::factory()->presented()->create([
+test('accepting a draft quotation creates a job order with snapshot items', function () {
+    $quotation = Quotation::factory()->create([
         'subtotal' => 8500,
         'discount_amount' => 500,
         'total' => 8000,
@@ -83,7 +83,7 @@ test('accepting a draft quotation (direct sale) creates job order and billing', 
 });
 
 test('accepting is idempotent - returns existing records', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'subtotal' => 5000,
         'total' => 5000,
     ]);
@@ -105,7 +105,7 @@ test('accepting is idempotent - returns existing records', function () {
 });
 
 test('heterogeneous items are all copied to job order', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'subtotal' => 12250,
         'total' => 12250,
     ]);
@@ -132,7 +132,7 @@ test('heterogeneous items are all copied to job order', function () {
 });
 
 test('eyewear key is preserved across quotation and job order', function () {
-    $quotation = Quotation::factory()->presented()->create([
+    $quotation = Quotation::factory()->create([
         'eyewear_key' => 'eyw_01TESTKEY999',
         'total' => 3000,
     ]);
@@ -148,14 +148,8 @@ test('declined quotation cannot be confirmed', function () {
     app(AcceptAndStartOpticalOrder::class)->handle($quotation);
 })->throws(ValidationException::class);
 
-test('expired quotation cannot be confirmed', function () {
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Expired]);
-
-    app(AcceptAndStartOpticalOrder::class)->handle($quotation);
-})->throws(ValidationException::class);
-
 test('payment due date is stored on billing record', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -175,7 +169,7 @@ test('payment due date is stored on billing record', function () {
 });
 
 test('optional deposit is recorded as first payment', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 10000]);
+    $quotation = Quotation::factory()->create(['total' => 10000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -201,7 +195,7 @@ test('optional deposit is recorded as first payment', function () {
 });
 
 test('full deposit results in paid status', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,
@@ -222,7 +216,7 @@ test('full deposit results in paid status', function () {
 });
 
 test('zero deposit creates no payment', function () {
-    $quotation = Quotation::factory()->presented()->create(['total' => 5000]);
+    $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
         'quantity' => 1,

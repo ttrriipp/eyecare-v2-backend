@@ -26,17 +26,13 @@ class QuotationsTable
                     ->badge()
                     ->formatStateUsing(fn (QuotationStatus $state): string => match ($state) {
                         QuotationStatus::Draft => 'Draft',
-                        QuotationStatus::Presented => 'Presented',
                         QuotationStatus::Accepted => 'Accepted',
                         QuotationStatus::Declined => 'Declined',
-                        QuotationStatus::Expired => 'Expired',
                     })
                     ->color(fn (QuotationStatus $state): string => match ($state) {
                         QuotationStatus::Draft => 'gray',
-                        QuotationStatus::Presented => 'info',
                         QuotationStatus::Accepted => 'success',
                         QuotationStatus::Declined => 'danger',
-                        QuotationStatus::Expired => 'warning',
                     }),
                 TextColumn::make('total')
                     ->label('Total')

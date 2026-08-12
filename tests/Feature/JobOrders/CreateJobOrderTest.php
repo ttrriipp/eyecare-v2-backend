@@ -48,7 +48,7 @@ test('patient cannot create a job order', function () {
 
 test('job order requires accepted quotation', function () {
     $staff = User::factory()->staff()->create();
-    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Presented]);
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Declined]);
 
     app(CreateJobOrder::class)->handle($quotation, $staff);
 })->throws(ValidationException::class);

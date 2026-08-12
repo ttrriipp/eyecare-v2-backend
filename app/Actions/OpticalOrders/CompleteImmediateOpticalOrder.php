@@ -44,9 +44,9 @@ class CompleteImmediateOpticalOrder
         ?string $depositReference = null,
         ?string $recipientName = null,
     ): array {
-        if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
+        if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
-                'quotation' => ['Only draft, presented, or accepted quotations can be confirmed.'],
+                'quotation' => ['Only draft or accepted quotations can be confirmed.'],
             ]);
         }
 
