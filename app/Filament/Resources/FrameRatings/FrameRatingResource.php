@@ -29,7 +29,10 @@ class FrameRatingResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Optical';
 
-    protected static string|NITENUM|null $NAVIGATIONGROUP = 'Communication';
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
 
     public static function form(Schema $schema): Schema
     {
