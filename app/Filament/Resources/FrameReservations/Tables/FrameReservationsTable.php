@@ -14,6 +14,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Validation\ValidationException;
 
 class FrameReservationsTable
 {
@@ -73,8 +74,12 @@ class FrameReservationsTable
                         ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Requested)
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
-                            app(PrepareFrameReservation::class)->handle($record);
-                            Notification::make()->title('Reservation prepared')->success()->send();
+                            try {
+                                app(PrepareFrameReservation::class)->handle($record);
+                                Notification::make()->title('Reservation prepared')->success()->send();
+                            } catch (ValidationException $e) {
+                                Notification::make()->title('Cannot prepare reservation')->body($e->getMessage())->danger()->send();
+                            }
                         }),
 
                     Action::make('markTriedOn')
