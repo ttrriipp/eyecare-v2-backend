@@ -3,12 +3,9 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
-use App\Actions\Reservations\ReleaseFrameReservation;
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
-use App\Models\FrameReservation;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Notifications\AppointmentRescheduled;
@@ -81,9 +78,6 @@ class RescheduleAppointment
             }
 
             $appointment->update($attributes);
-
-            // Release active frame reservations when rescheduling
-            $this->releaseActiveReservations($appointment);
 
             // Create immutable reschedule history
             AppointmentReschedule::query()->create([
@@ -173,34 +167,5 @@ class RescheduleAppointment
             'recipient' => $appointment->patient->phone ?? $appointment->patient->contact_email,
             'message' => $message,
         ]);
-    }
-
-    /**
-     * Release active frame reservations when an appointment is rescheduled.
-     * The reservation is tied to the original appointment time, so it needs
-     * to be released and potentially recreated for the new time.
-     */
-    private function releaseActiveReservations(Appointment $appointment): void
-    {
-        $activeStatuses = [
-            ReservationStatus::Requested,
-            ReservationStatus::Prepared,
-            ReservationStatus::TriedOn,
-        ];
-
-        $reservations = FrameReservation::query()
-            ->where('appointment_id', $appointment->id)
-            ->whereIn('status', $activeStatuses)
-            ->get();
-
-        if ($reservations->isEmpty()) {
-            return;
-        }
-
-        $releaseAction = app(ReleaseFrameReservation::class);
-
-        foreach ($reservations as $reservation) {
-            $releaseAction->handle($reservation, ReservationStatus::Released);
-        }
     }
 }
