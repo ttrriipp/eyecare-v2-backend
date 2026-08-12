@@ -115,6 +115,8 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('frame-reservations', [FrameReservationController::class, 'index']);
     Route::post('frame-reservations', [FrameReservationController::class, 'store']);
     Route::delete('frame-reservations/{reservation}', [FrameReservationController::class, 'destroy']);
+    Route::post('frame-reservations/{reservation}/items', [FrameReservationController::class, 'storeItem']);
+    Route::delete('frame-reservations/{reservation}/items/{item}', [FrameReservationController::class, 'destroyItem']);
 
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);

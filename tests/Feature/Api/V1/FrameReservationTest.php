@@ -253,3 +253,139 @@ test('reservation response does not contain internal commercial or inventory fie
     $response->assertJsonMissing(['staff_notes']);
     $response->assertJsonMissing(['deleted_at']);
 });
+
+test('patient can add a frame to their unaccepted reservation', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant1 = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $variant2 = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    $reservation->items()->create(['product_variant_id' => $variant1->id]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/frame-reservations/{$reservation->id}/items", [
+            'product_variant_id' => $variant2->id,
+        ])
+        ->assertOk()
+        ->assertJsonCount(2, 'data.items')
+        ->assertJsonPath('data.is_held', false);
+});
+
+test('patient cannot add a frame to an accepted reservation', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->accepted()->create();
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/frame-reservations/{$reservation->id}/items", [
+            'product_variant_id' => $variant->id,
+        ])
+        ->assertUnprocessable();
+});
+
+test('patient cannot add a duplicate variant', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    $reservation->items()->create(['product_variant_id' => $variant->id]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/frame-reservations/{$reservation->id}/items", [
+            'product_variant_id' => $variant->id,
+        ])
+        ->assertUnprocessable();
+});
+
+test('patient cannot add more than 5 frames', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+
+    for ($i = 0; $i < 5; $i++) {
+        $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+        $reservation->items()->create(['product_variant_id' => $variant->id]);
+    }
+
+    $extraVariant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/frame-reservations/{$reservation->id}/items", [
+            'product_variant_id' => $extraVariant->id,
+        ])
+        ->assertUnprocessable();
+});
+
+test('patient can remove a frame from their reservation', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant1 = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $variant2 = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    $reservation->items()->create(['product_variant_id' => $variant1->id]);
+    $item2 = $reservation->items()->create(['product_variant_id' => $variant2->id]);
+
+    $this->actingAs($user)
+        ->deleteJson("/api/v1/frame-reservations/{$reservation->id}/items/{$item2->id}")
+        ->assertOk()
+        ->assertJsonCount(1, 'data.items');
+});
+
+test('removing the last frame deletes the reservation', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    $item = $reservation->items()->create(['product_variant_id' => $variant->id]);
+
+    $this->actingAs($user)
+        ->deleteJson("/api/v1/frame-reservations/{$reservation->id}/items/{$item->id}")
+        ->assertNoContent();
+
+    expect($reservation->fresh())->toBeNull();
+});
+
+test('patient cannot remove a frame from another patients reservation', function () {
+    $userA = User::factory()->patient()->create();
+    $userB = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create(['patient_id' => $userB->patient->id, 'scheduled_at' => now()->addDay()]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    $item = $reservation->items()->create(['product_variant_id' => $variant->id]);
+
+    $this->actingAs($userA)
+        ->deleteJson("/api/v1/frame-reservations/{$reservation->id}/items/{$item->id}")
+        ->assertForbidden();
+});
