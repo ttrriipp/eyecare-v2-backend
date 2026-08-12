@@ -66,6 +66,9 @@ class OpticalOrderForm
                                 ->maxLength(100)
                                 ->visible(fn (JobOrder $record): bool => $record->uses_external_supplier
                                     || filled($record->supplier_invoice_number)),
+                            Textarea::make('notes')
+                                ->label('Notes')
+                                ->columnSpanFull(),
                         ])
                         ->columns(2),
 
@@ -93,13 +96,6 @@ class OpticalOrderForm
                                         ->money('PHP'),
                                 ])
                                 ->placeholder('No items recorded.'),
-                        ]),
-
-                    Section::make('Notes')
-                        ->schema([
-                            Textarea::make('notes')
-                                ->label('Notes')
-                                ->columnSpanFull(),
                         ]),
 
                     // Eyewear Specification (only for corrective orders)
