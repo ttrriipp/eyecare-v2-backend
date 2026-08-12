@@ -1600,6 +1600,59 @@ Deletes a reservation. Returns 204 for the owner in either state, 403 for a non-
 
 ---
 
+### POST `/frame-reservations/{reservation}/items`
+
+Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` is `false`.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Request:**
+```json
+{
+  "product_variant_id": "integer (required, exists:product_variants,id)"
+}
+```
+
+**Validation:**
+- `product_variant_id`: required; must reference an active frame variant.
+- Variant must not already be in the reservation.
+- Reservation must not be accepted (`is_held` must be `false`).
+- Reservation must have fewer than 5 items.
+
+**Response (200):**
+```json
+{
+  "data": { /* FrameReservationResource with updated items */ }
+}
+```
+
+**Errors:**
+- `403`: Reservation does not belong to the authenticated patient.
+- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 5 items reached.
+
+---
+
+### DELETE `/frame-reservations/{reservation}/items/{item}`
+
+Removes a frame from a reservation. If it was the last item, the reservation is deleted.
+
+**Auth:** Required (Sanctum token). **Active patient link required.**
+
+**Response (200):** Updated reservation (when items remain).
+```json
+{
+  "data": { /* FrameReservationResource with updated items */ }
+}
+```
+
+**Response (204):** No content (when last item was removed and reservation deleted).
+
+**Errors:**
+- `403`: Reservation does not belong to the authenticated patient.
+- `404`: Item does not belong to the reservation.
+
+---
+
 ## 13. Prescriptions
 
 **Active patient link required for all endpoints in this section.**
@@ -2534,9 +2587,11 @@ POST   /api/v1/appointments/{id}/cancel       Cancel appointment
 POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
-GET    /api/v1/frame-reservations             List reservations
-POST   /api/v1/frame-reservations             Create reservation
-DELETE /api/v1/frame-reservations/{id}        Delete reservation
+GET    /api/v1/frame-reservations                    List reservations
+POST   /api/v1/frame-reservations                    Create reservation
+DELETE /api/v1/frame-reservations/{id}               Delete reservation
+POST   /api/v1/frame-reservations/{id}/items         Add frame to reservation
+DELETE /api/v1/frame-reservations/{id}/items/{itemId} Remove frame from reservation
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
