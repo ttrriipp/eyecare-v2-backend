@@ -3,7 +3,6 @@
 namespace App\Actions\JobOrders;
 
 use App\Enums\JobOrderStatus;
-use App\Models\InventoryLot;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
@@ -39,7 +38,6 @@ class UpdateJobOrderStatus
 
         $newStatus = JobOrderStatus::from($statusName);
 
-        // Supplier invoice is required only for external prepared work
         if (
             in_array($newStatus, [JobOrderStatus::ReadyForDispensing, JobOrderStatus::Dispensed], true)
             && blank($jobOrder->supplier_invoice_number)
@@ -63,7 +61,6 @@ class UpdateJobOrderStatus
 
             $jobOrder->update($attributes);
 
-            // Reverse inventory on cancellation
             if ($newStatus === JobOrderStatus::Cancelled) {
                 $this->reverseInventory($jobOrder);
             }
@@ -72,9 +69,6 @@ class UpdateJobOrderStatus
         });
     }
 
-    /**
-     * Reverse only recorded, unreversed commitments once.
-     */
     private function reverseInventory(JobOrder $jobOrder): void
     {
         $reversalType = InventoryMovementType::query()
@@ -93,7 +87,6 @@ class UpdateJobOrderStatus
                 continue;
             }
 
-            // Find unreversed commitments for this variant/job order
             $commitmentMovements = InventoryMovement::query()
                 ->where('job_order_id', $jobOrder->id)
                 ->where('product_variant_id', $item->product_variant_id)
@@ -110,7 +103,7 @@ class UpdateJobOrderStatus
             $netCommitment = abs($committedQty) - abs($reversedQty);
 
             if ($netCommitment <= 0) {
-                continue; // Already fully reversed
+                continue;
             }
 
             $variant = ProductVariant::query()
@@ -125,24 +118,9 @@ class UpdateJobOrderStatus
             $previousStock = $variant->stock_quantity;
             $variant->increment('stock_quantity', $netCommitment);
 
-            // Restore lot quantities for lot-tracked variants
-            $lotId = null;
-            if ($variant->product->product_type === 'contact_lens') {
-                $originalMovement = $commitmentMovements->first();
-                $lotId = $originalMovement?->inventory_lot_id;
-
-                if ($lotId !== null) {
-                    InventoryLot::query()
-                        ->whereKey($lotId)
-                        ->lockForUpdate()
-                        ->increment('quantity_on_hand', $netCommitment);
-                }
-            }
-
             InventoryMovement::query()->create([
                 'product_variant_id' => $variant->id,
                 'job_order_id' => $jobOrder->id,
-                'inventory_lot_id' => $lotId,
                 'inventory_movement_type_id' => $reversalType->id,
                 'quantity_change' => $netCommitment,
                 'previous_stock' => $previousStock,
