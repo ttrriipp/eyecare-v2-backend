@@ -21,7 +21,7 @@ abstract class BaseReport extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        return false;
     }
 
     public function mount(): void
