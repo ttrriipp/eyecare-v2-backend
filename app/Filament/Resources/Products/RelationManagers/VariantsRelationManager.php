@@ -2,8 +2,6 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
-use App\Actions\Inventory\ReceiveContactLensStock;
-use App\Actions\Inventory\ReconcileContactLensLots;
 use App\Actions\Inventory\RecordInventoryMovement;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -397,15 +395,6 @@ class VariantsRelationManager extends RelationManager
                                 ->required()
                                 ->numeric()
                                 ->minValue(1),
-                            TextInput::make('lot_number')
-                                ->label('Lot Number')
-                                ->required(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
-                                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
-                            DatePicker::make('expires_on')
-                                ->label('Expiration Date')
-                                ->required(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
-                                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens')
-                                ->native(false),
                             TextInput::make('source_reference')
                                 ->label('Reference')
                                 ->placeholder('PO number or supplier reference'),
@@ -413,27 +402,13 @@ class VariantsRelationManager extends RelationManager
                                 ->placeholder('Optional notes'),
                         ])
                         ->action(function (array $data, $record): void {
-                            $isContactLens = $record->product?->product_type === 'contact_lens';
-
-                            if ($isContactLens) {
-                                app(ReceiveContactLensStock::class)->handle(
-                                    variant: $record,
-                                    quantity: (int) $data['quantity'],
-                                    lotNumber: $data['lot_number'],
-                                    expiresOn: $data['expires_on'],
-                                    receiver: auth()->user(),
-                                    sourceReference: $data['source_reference'] ?? null,
-                                    notes: $data['notes'] ?? null,
-                                );
-                            } else {
-                                app(RecordInventoryMovement::class)->handle(
-                                    variant: $record,
-                                    quantityChange: (int) $data['quantity'],
-                                    type: 'restock',
-                                    notes: $data['notes'] ?? null,
-                                    actingUser: auth()->user(),
-                                );
-                            }
+                            app(RecordInventoryMovement::class)->handle(
+                                variant: $record,
+                                quantityChange: (int) $data['quantity'],
+                                type: 'restock',
+                                notes: $data['notes'] ?? null,
+                                actingUser: auth()->user(),
+                            );
 
                             $updatedStock = $record->fresh()->stock_quantity;
 
