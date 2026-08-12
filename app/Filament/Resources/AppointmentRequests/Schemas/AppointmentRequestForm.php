@@ -45,6 +45,12 @@ class AppointmentRequestForm
                                 default => 'gray',
                             }),
 
+                        Textarea::make('encrypted_reason_for_visit')
+                            ->label('Reason for Visit')
+                            ->disabled()
+                            ->rows(3)
+                            ->columnSpanFull(),
+
                         Placeholder::make('appointment_type')
                             ->label('Appointment Type')
                             ->content(function ($record): HtmlString {
@@ -91,11 +97,6 @@ class AppointmentRequestForm
                                     .'<br><span class="text-xs text-gray-500 dark:text-gray-400">'.e($relative).'</span>'
                                 );
                             }),
-
-                        Textarea::make('encrypted_reason_for_visit')
-                            ->label('Reason for Visit')
-                            ->disabled()
-                            ->columnSpanFull(),
                     ])
                     ->columns(3),
 

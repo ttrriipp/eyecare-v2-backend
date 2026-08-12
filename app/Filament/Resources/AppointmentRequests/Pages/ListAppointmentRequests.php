@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Pages;
 
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +24,26 @@ class ListAppointmentRequests extends ListRecords
     protected function getHeaderActions(): array
     {
         return [];
+    }
+
+    public function getEmptyStateHeading(): string
+    {
+        return 'No appointment requests';
+    }
+
+    public function getEmptyStateDescription(): string
+    {
+        return 'When patients submit appointment requests from the mobile app, they will appear here for review.';
+    }
+
+    public function getEmptyStateActions(): array
+    {
+        return [
+            Action::make('viewAppointments')
+                ->label('View Appointments')
+                ->url('/admin/appointments')
+                ->icon('heroicon-o-calendar-days'),
+        ];
     }
 
     /**

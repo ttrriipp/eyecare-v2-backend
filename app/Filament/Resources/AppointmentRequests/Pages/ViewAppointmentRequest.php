@@ -14,6 +14,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -23,6 +24,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -185,6 +187,30 @@ class ViewAppointmentRequest extends ViewRecord
                     $defaultType = $this->record->appointmentType ?? AppointmentType::where('name', 'New Patient')->first();
 
                     return [
+                        Placeholder::make('preferred_times_display')
+                            ->label('Patient Preferred Times')
+                            ->content(function (): HtmlString {
+                                $badges = [];
+                                $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-500/15 dark:text-primary-400">'
+                                    .'<span class="font-semibold">Primary</span> '
+                                    .e($this->record->scheduled_at?->format('M j, g:i A') ?? '—')
+                                    .'</span>';
+
+                                if (! empty($this->record->alternative_scheduled_times)) {
+                                    foreach ($this->record->alternative_scheduled_times as $index => $time) {
+                                        $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-400">'
+                                            .'<span class="font-semibold">Alt '.($index + 1).'</span> '
+                                            .e(Carbon::parse($time)->format('M j, g:i A'))
+                                            .'</span>';
+                                    }
+                                }
+
+                                return new HtmlString(
+                                    '<div class="flex flex-wrap gap-2">'.implode('', $badges).'</div>'
+                                );
+                            })
+                            ->columnSpanFull(),
+
                         Select::make('appointment_type_id')
                             ->label('Appointment Type')
                             ->options(AppointmentType::active()->pluck('name', 'id'))
