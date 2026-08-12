@@ -24,26 +24,26 @@ class FrameReservationPolicy
 
     public function reserveFrames(User $user): bool
     {
-        return $this->create($user);
-    }
-
-    public function update(User $user, FrameReservation $reservation): bool
-    {
         return $user->hasPanelRole();
     }
 
-    public function addOrRemoveItems(User $user): bool
+    public function accept(User $user, FrameReservation $reservation): bool
     {
         return $user->hasPanelRole();
     }
 
     public function addFrame(User $user, FrameReservation $reservation): bool
     {
-        return $this->addOrRemoveItems($user, $reservation);
+        return $user->hasPanelRole();
     }
 
     public function removeFrame(User $user, FrameReservation $reservation): bool
     {
-        return $this->addOrRemoveItems($user, $reservation);
+        return $user->hasPanelRole();
+    }
+
+    public function delete(User $user, FrameReservation $reservation): bool
+    {
+        return $user->hasPanelRole();
     }
 }

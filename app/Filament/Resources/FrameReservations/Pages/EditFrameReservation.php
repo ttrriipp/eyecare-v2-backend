@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\FrameReservations\Pages;
 
-use App\Actions\Reservations\MarkFrameReservationTriedOn;
-use App\Actions\Reservations\PrepareFrameReservation;
-use App\Actions\Reservations\ReleaseFrameReservation;
-use App\Enums\ReservationStatus;
+use App\Actions\Reservations\AcceptFrameReservation;
+use App\Actions\Reservations\DeleteFrameReservation;
 use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Validation\ValidationException;
 
 class EditFrameReservation extends EditRecord
 {
@@ -17,37 +17,30 @@ class EditFrameReservation extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('prepare')
-                ->label('Prepare')
+            Action::make('accept')
+                ->label('Accept & Set Aside')
                 ->icon('heroicon-o-check')
                 ->color('info')
-                ->visible(fn (): bool => $this->record->status === ReservationStatus::Requested)
+                ->visible(fn (): bool => ! $this->record->isHeld())
                 ->requiresConfirmation()
                 ->action(function (): void {
-                    app(PrepareFrameReservation::class)->handle($this->record);
-                    $this->refreshFormData(['status']);
-                }),
-
-            Action::make('triedOn')
-                ->label('Mark Tried On')
-                ->icon('heroicon-o-eye')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === ReservationStatus::Prepared)
-                ->requiresConfirmation()
-                ->action(function (): void {
-                    app(MarkFrameReservationTriedOn::class)->handle($this->record);
-                    $this->refreshFormData(['status']);
+                    try {
+                        app(AcceptFrameReservation::class)->handle($this->record);
+                        $this->refreshFormData(['accepted_at']);
+                        Notification::make()->title('Reservation accepted — frames set aside')->success()->send();
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot accept reservation')->body($e->getMessage())->danger()->send();
+                    }
                 }),
 
             Action::make('release')
-                ->label('Release')
+                ->label('Release Frames')
                 ->icon('heroicon-o-arrow-uturn-left')
-                ->color('warning')
-                ->visible(fn (): bool => in_array($this->record->status, [ReservationStatus::Requested, ReservationStatus::Prepared, ReservationStatus::TriedOn], true))
+                ->color('danger')
                 ->requiresConfirmation()
                 ->action(function (): void {
-                    app(ReleaseFrameReservation::class)->handle($this->record);
-                    $this->refreshFormData(['status']);
+                    app(DeleteFrameReservation::class)->handle($this->record);
+                    $this->redirectToList();
                 }),
         ];
     }

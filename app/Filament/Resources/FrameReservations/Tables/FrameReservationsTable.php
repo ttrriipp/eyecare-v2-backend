@@ -2,17 +2,14 @@
 
 namespace App\Filament\Resources\FrameReservations\Tables;
 
-use App\Actions\Reservations\MarkFrameReservationTriedOn;
-use App\Actions\Reservations\PrepareFrameReservation;
-use App\Actions\Reservations\ReleaseFrameReservation;
-use App\Enums\ReservationStatus;
+use App\Actions\Reservations\AcceptFrameReservation;
+use App\Actions\Reservations\DeleteFrameReservation;
 use App\Models\FrameReservation;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Validation\ValidationException;
 
@@ -34,91 +31,45 @@ class FrameReservationsTable
                     ->label('Scheduled')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
-                TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (FrameReservation $record): string => match ($record->status) {
-                        ReservationStatus::Requested => 'gray',
-                        ReservationStatus::Prepared => 'info',
-                        ReservationStatus::TriedOn => 'warning',
-                        ReservationStatus::Converted => 'success',
-                        ReservationStatus::Released => 'danger',
-                        ReservationStatus::Cancelled => 'danger',
-                    })
-                    ->formatStateUsing(fn (ReservationStatus $state): string => match ($state) {
-                        ReservationStatus::Requested => 'Requested',
-                        ReservationStatus::Prepared => 'Prepared',
-                        ReservationStatus::TriedOn => 'Tried On',
-                        ReservationStatus::Converted => 'Converted',
-                        ReservationStatus::Released => 'Released',
-                        ReservationStatus::Cancelled => 'Cancelled',
-                    }),
                 TextColumn::make('items_count')
-                    ->label('Items')
+                    ->label('Frames')
                     ->counts('items')
                     ->sortable(),
+                TextColumn::make('held_state')
+                    ->label('State')
+                    ->state(fn (FrameReservation $record): string => $record->isHeld() ? 'Frames set aside' : 'Awaiting acceptance')
+                    ->badge()
+                    ->color(fn (FrameReservation $record): string => $record->isHeld() ? 'success' : 'warning'),
                 TextColumn::make('created_at')
                     ->label('Requested')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
             ])
-            ->filters([
-                SelectFilter::make('status')
-                    ->options(ReservationStatus::class),
-            ])
             ->recordActions([
                 ActionGroup::make([
-                    Action::make('prepare')
-                        ->label('Prepare')
+                    Action::make('accept')
+                        ->label('Accept & Set Aside')
                         ->icon('heroicon-o-check')
                         ->color('info')
-                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Requested)
+                        ->visible(fn (FrameReservation $record): bool => ! $record->isHeld())
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
                             try {
-                                app(PrepareFrameReservation::class)->handle($record);
-                                Notification::make()->title('Reservation prepared')->success()->send();
+                                app(AcceptFrameReservation::class)->handle($record);
+                                Notification::make()->title('Reservation accepted — frames set aside')->success()->send();
                             } catch (ValidationException $e) {
-                                Notification::make()->title('Cannot prepare reservation')->body($e->getMessage())->danger()->send();
+                                Notification::make()->title('Cannot accept reservation')->body($e->getMessage())->danger()->send();
                             }
                         }),
 
-                    Action::make('markTriedOn')
-                        ->label('Mark Tried On')
-                        ->icon('heroicon-o-hand-thumb-up')
-                        ->color('warning')
-                        ->visible(fn (FrameReservation $record): bool => $record->status === ReservationStatus::Prepared
-                            && $record->appointment?->status?->name === 'checked_in')
-                        ->requiresConfirmation()
-                        ->action(function (FrameReservation $record): void {
-                            app(MarkFrameReservationTriedOn::class)->handle($record);
-                            Notification::make()->title('Reservation marked as tried on')->success()->send();
-                        }),
-
                     Action::make('release')
-                        ->label('Release')
+                        ->label('Release Frames')
                         ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('gray')
-                        ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
-                        ->requiresConfirmation()
-                        ->action(function (FrameReservation $record): void {
-                            app(ReleaseFrameReservation::class)->handle($record);
-                            Notification::make()->title('Reservation released')->success()->send();
-                        }),
-
-                    Action::make('cancel')
-                        ->label('Cancel')
-                        ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
-                            // Treat as Released if appointment is still active, Cancelled otherwise
-                            $targetStatus = $record->appointment?->status?->name === 'cancelled'
-                                ? ReservationStatus::Cancelled
-                                : ReservationStatus::Released;
-
-                            app(ReleaseFrameReservation::class)->handle($record, $targetStatus);
-                            Notification::make()->title('Reservation cancelled')->success()->send();
+                            app(DeleteFrameReservation::class)->handle($record);
+                            Notification::make()->title('Reservation released')->success()->send();
                         }),
 
                     EditAction::make()->label('View'),

@@ -2,14 +2,12 @@
 
 namespace App\Filament\Resources\FrameReservations\Schemas;
 
-use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Str;
 
 class FrameReservationForm
 {
@@ -27,18 +25,11 @@ class FrameReservationForm
                             Placeholder::make('appointment')
                                 ->label('Appointment')
                                 ->content(fn (FrameReservation $record): string => $record->appointment?->appointment_number ?? '—'),
-                            Placeholder::make('status')
-                                ->label('Status')
-                                ->content(fn (FrameReservation $record): string => Str::headline($record->status->value))
+                            Placeholder::make('held_state')
+                                ->label('State')
+                                ->content(fn (FrameReservation $record): string => $record->isHeld() ? 'Frames set aside' : 'Awaiting acceptance')
                                 ->badge()
-                                ->color(fn (FrameReservation $record): string => match ($record->status) {
-                                    ReservationStatus::Requested => 'warning',
-                                    ReservationStatus::Prepared => 'info',
-                                    ReservationStatus::TriedOn => 'primary',
-                                    ReservationStatus::Converted => 'success',
-                                    ReservationStatus::Released => 'gray',
-                                    ReservationStatus::Cancelled => 'danger',
-                                }),
+                                ->color(fn (FrameReservation $record): string => $record->isHeld() ? 'success' : 'warning'),
                             Textarea::make('staff_notes')
                                 ->label('Notes')
                                 ->columnSpanFull(),
@@ -53,9 +44,10 @@ class FrameReservationForm
                             Placeholder::make('created_at')
                                 ->label('Created')
                                 ->content(fn (FrameReservation $record): string => $record->created_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('expires_at')
-                                ->label('Expires')
-                                ->content(fn (FrameReservation $record): string => $record->expires_at?->format('M j, Y g:i A') ?? '—'),
+                            Placeholder::make('accepted_at')
+                                ->label('Accepted')
+                                ->content(fn (FrameReservation $record): string => $record->accepted_at?->format('M j, Y g:i A') ?? '—')
+                                ->visible(fn (FrameReservation $record): bool => $record->isHeld()),
                             Placeholder::make('updated_at')
                                 ->label('Last Updated')
                                 ->content(fn (FrameReservation $record): string => $record->updated_at?->diffForHumans() ?? '—'),

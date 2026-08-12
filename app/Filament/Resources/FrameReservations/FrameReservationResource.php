@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\FrameReservations;
 
-use App\Enums\ReservationStatus;
 use App\Filament\Resources\FrameReservations\Pages\EditFrameReservation;
 use App\Filament\Resources\FrameReservations\Pages\ListFrameReservations;
 use App\Filament\Resources\FrameReservations\RelationManagers\ItemsRelationManager;
@@ -35,11 +34,7 @@ class FrameReservationResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $count = FrameReservation::query()
-            ->whereIn('status', [
-                ReservationStatus::Requested,
-                ReservationStatus::Prepared,
-                ReservationStatus::TriedOn,
-            ])
+            ->whereNull('accepted_at')
             ->count();
 
         return $count > 0 ? (string) $count : null;

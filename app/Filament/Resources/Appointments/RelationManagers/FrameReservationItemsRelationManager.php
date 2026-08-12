@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Appointments\RelationManagers;
 use App\Actions\Reservations\AddFrameReservationItem;
 use App\Actions\Reservations\CreateFrameReservation;
 use App\Actions\Reservations\RemoveFrameReservationItem;
-use App\Enums\ReservationStatus;
 use App\Filament\Resources\Products\ProductResource;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
@@ -52,10 +51,6 @@ class FrameReservationItemsRelationManager extends RelationManager
                         && ! $this->getOwnerRecord()->scheduled_at
                             ?->addMinutes($this->getOwnerRecord()->duration_minutes ?? 30)
                             ->isPast()
-                        // A reservation is a before-the-visit tool — an appointment gets exactly
-                        // one, ever, regardless of status (matches the DB-level unique constraint
-                        // on appointment_id). Anything tried on in person after that flows
-                        // straight into the sale without another reservation.
                         && $this->getOwnerRecord()->frameReservation === null)
                     ->schema([
                         Select::make('product_variant_ids')
@@ -106,8 +101,7 @@ class FrameReservationItemsRelationManager extends RelationManager
                     ->icon('heroicon-o-plus')
                     ->color('info')
                     ->visible(fn (): bool => $this->getOwnerRecord()->frameReservation !== null
-                        && Gate::allows('addFrame', $this->getOwnerRecord()->frameReservation)
-                        && in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                        && Gate::allows('addFrame', $this->getOwnerRecord()->frameReservation))
                     ->schema([
                         Select::make('product_variant_id')
                             ->label('Frame')
@@ -174,8 +168,7 @@ class FrameReservationItemsRelationManager extends RelationManager
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
                     ->visible(fn (): bool => $this->getOwnerRecord()->frameReservation !== null
-                        && Gate::allows('removeFrame', $this->getOwnerRecord()->frameReservation)
-                        && in_array($this->getOwnerRecord()->frameReservation?->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
+                        && Gate::allows('removeFrame', $this->getOwnerRecord()->frameReservation))
                     ->requiresConfirmation()
                     ->action(function (FrameReservationItem $record): void {
                         /** @var FrameReservation $reservation */
