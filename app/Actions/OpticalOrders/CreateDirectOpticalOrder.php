@@ -5,10 +5,8 @@ namespace App\Actions\OpticalOrders;
 use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\Quotations\BuildQuotationItemSnapshot;
 use App\Actions\Quotations\ValidateOpticalQuotation;
-use App\Enums\JobOrderStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
@@ -26,12 +24,12 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDirectOpticalOrder
 {
+    public function __construct(
+        private readonly BuildOpticalOrder $buildOrder,
+    ) {}
+
     /**
      * Create a product-only Optical Order with no source Quotation.
-     *
-     * Commits catalog inventory once, resolves/reuses the open Billing
-     * Record, and — for immediate fulfillment — completes and dispenses
-     * the order in the same transaction.
      *
      * @param  array<int, array{description: string, quantity: int, unit_price: float, product_variant_id?: int|null, lens_category_id?: int|null}>  $items
      * @return array{job_order: JobOrder, billing_record: BillingRecord, dispensing_event: ?DispensingEvent}
@@ -103,7 +101,6 @@ class CreateDirectOpticalOrder
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
-                // Build immutable catalog snapshot
                 $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
@@ -118,40 +115,26 @@ class CreateDirectOpticalOrder
                     'product_variant_id' => $item['product_variant_id'] ?? null,
                     'lens_category_id' => $item['lens_category_id'] ?? null,
                     'lens_option_id' => $item['lens_option_id'] ?? null,
+                    'item_type' => TransactionItemType::Product,
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
-                    'amount_in_cents' => $amountInCents,
                 ];
             });
 
-            $totalInCents = $itemSnapshots->sum('amount_in_cents');
-
-            $jobOrder = JobOrder::create([
-                'patient_id' => $patient->id,
-                'prescription_id' => $prescription?->id,
-                'quotation_id' => null,
-                'status' => JobOrderStatus::Queued,
-                'fulfillment_mode' => $fulfillmentMode,
-                'uses_external_supplier' => $usesExternalSupplier,
-                'total_amount' => $this->formatMoney($totalInCents),
-            ]);
-
-            $jobOrder->items()->createMany(
-                $itemSnapshots
-                    ->map(fn (array $item): array => [
-                        ...collect($item)->except('amount_in_cents')->all(),
-                        'item_type' => TransactionItemType::Product,
-                    ])
-                    ->all(),
+            $jobOrder = $this->buildOrder->handle(
+                patientId: $patient->id,
+                encounterId: null,
+                prescriptionId: $prescription?->id,
+                quotationId: null,
+                fulfillmentMode: $fulfillmentMode,
+                usesExternalSupplier: $usesExternalSupplier,
+                items: $itemSnapshots,
+                dispensedBy: $creator->id,
             );
 
-            app(CommitJobOrderInventory::class)->handle($jobOrder);
-
-            if ($fulfillmentMode === 'immediate') {
-                $jobOrder->update([
-                    'status' => JobOrderStatus::Dispensed,
-                    'started_at' => now(),
-                    'dispensed_at' => now(),
+            if ($fulfillmentMode === 'immediate' && $recipientName !== null) {
+                $jobOrder->dispensingEvents()->latest()->first()?->update([
+                    'recipient_name' => $recipientName,
                 ]);
             }
 
@@ -181,17 +164,9 @@ class CreateDirectOpticalOrder
                 );
             }
 
-            $dispensingEvent = null;
-
-            if ($fulfillmentMode === 'immediate') {
-                $dispensingEvent = DispensingEvent::create([
-                    'job_order_id' => $jobOrder->id,
-                    'billing_record_id' => $billingRecord->id,
-                    'dispensed_by' => $creator->id,
-                    'recipient_name' => $recipientName,
-                    'notes' => 'Immediate completion',
-                ]);
-            }
+            $dispensingEvent = $fulfillmentMode === 'immediate'
+                ? $jobOrder->dispensingEvents()->latest()->first()
+                : null;
 
             return [
                 'job_order' => $jobOrder->fresh(),

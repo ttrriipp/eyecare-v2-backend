@@ -28,8 +28,9 @@ class BuildOpticalOrder
         bool $usesExternalSupplier,
         Collection $items,
         ?string $eyewearKey = null,
+        ?int $dispensedBy = null,
     ): JobOrder {
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $eyewearKey): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $eyewearKey, $dispensedBy): JobOrder {
             $order = JobOrder::create([
                 'patient_id' => $patientId,
                 'encounter_id' => $encounterId,
@@ -58,7 +59,7 @@ class BuildOpticalOrder
                 if ($items->isNotEmpty()) {
                     DispensingEvent::create([
                         'job_order_id' => $order->id,
-                        'dispensed_by' => auth()->id(),
+                        'dispensed_by' => $dispensedBy ?? auth()->id(),
                         'notes' => 'Immediate fulfillment',
                     ]);
                 }
