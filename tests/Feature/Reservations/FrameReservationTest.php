@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
@@ -60,31 +59,18 @@ test('reservation can have multiple items', function () {
     expect($reservation->items()->count())->toBe(3);
 });
 
-test('reservation defaults to requested status', function () {
+test('reservation defaults to unaccepted', function () {
     $reservation = FrameReservation::factory()->create();
 
-    expect($reservation->status)->toBe(ReservationStatus::Requested);
+    expect($reservation->accepted_at)->toBeNull()
+        ->and($reservation->isHeld())->toBeFalse();
 });
 
-test('reservation status can be requested prepared cancelled', function () {
-    $requested = FrameReservation::factory()->create();
-    $prepared = FrameReservation::factory()->prepared()->create();
-    $cancelled = FrameReservation::factory()->cancelled()->create();
+test('reservation accepted state sets accepted_at', function () {
+    $reservation = FrameReservation::factory()->accepted()->create();
 
-    expect($requested->status)->toBe(ReservationStatus::Requested)
-        ->and($prepared->status)->toBe(ReservationStatus::Prepared)
-        ->and($cancelled->status)->toBe(ReservationStatus::Cancelled);
-});
-
-test('reservation status types are constrained', function () {
-    expect(ReservationStatus::cases())->toContain(
-        ReservationStatus::Requested,
-        ReservationStatus::Prepared,
-        ReservationStatus::TriedOn,
-        ReservationStatus::Converted,
-        ReservationStatus::Released,
-        ReservationStatus::Cancelled,
-    );
+    expect($reservation->accepted_at)->not->toBeNull()
+        ->and($reservation->isHeld())->toBeTrue();
 });
 
 test('reservation factory forAppointment sets patient from appointment', function () {

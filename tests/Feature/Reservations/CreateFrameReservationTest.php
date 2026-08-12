@@ -1,7 +1,6 @@
 <?php
 
 use App\Actions\Reservations\CreateFrameReservation;
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\FrameReservation;
@@ -62,7 +61,7 @@ test('valid scheduled appointment creates one reservation with items', function 
 
     expect($reservation->appointment_id)->toBe($appointment->id)
         ->and($reservation->patient_id)->toBe($user->patient->id)
-        ->and($reservation->status)->toBe(ReservationStatus::Requested)
+        ->and($reservation->accepted_at)->toBeNull()
         ->and($reservation->items)->toHaveCount(2);
 });
 

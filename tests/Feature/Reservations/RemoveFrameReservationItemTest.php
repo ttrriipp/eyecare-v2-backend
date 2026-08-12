@@ -1,11 +1,9 @@
 <?php
 
 use App\Actions\Reservations\RemoveFrameReservationItem;
-use App\Enums\ReservationStatus;
 use App\Models\FrameReservation;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use Illuminate\Validation\ValidationException;
 
 function createFrameVariantForRemoval(): ProductVariant
 {
@@ -15,8 +13,8 @@ function createFrameVariantForRemoval(): ProductVariant
     ]);
 }
 
-test('removes an item from a requested reservation without touching stock', function () {
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
+test('removes an item from an unaccepted reservation without touching stock', function () {
+    $reservation = FrameReservation::factory()->create();
     $keptVariant = createFrameVariantForRemoval();
     $keptVariant->update(['stock_quantity' => 10]);
     $removedVariant = createFrameVariantForRemoval();
@@ -31,8 +29,8 @@ test('removes an item from a requested reservation without touching stock', func
         ->and($removedVariant->fresh()->stock_quantity)->toBe(10);
 });
 
-test('removing an item from a prepared reservation restores its allocated stock', function () {
-    $reservation = FrameReservation::factory()->prepared()->create();
+test('removing an item from an accepted reservation restores its allocated stock', function () {
+    $reservation = FrameReservation::factory()->accepted()->create();
     $keptVariant = createFrameVariantForRemoval();
     $keptVariant->update(['stock_quantity' => 10]);
     $removedVariant = createFrameVariantForRemoval();
@@ -46,21 +44,13 @@ test('removing an item from a prepared reservation restores its allocated stock'
         ->and($reservation->items()->where('product_variant_id', $keptVariant->id)->exists())->toBeTrue();
 });
 
-test('removing the last item releases the reservation', function () {
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
+test('removing the last item deletes the reservation', function () {
+    $reservation = FrameReservation::factory()->create();
     $variant = createFrameVariantForRemoval();
     $item = $reservation->items()->create(['product_variant_id' => $variant->id]);
 
     app(RemoveFrameReservationItem::class)->handle($reservation, $item);
 
     expect($reservation->items()->count())->toBe(0)
-        ->and($reservation->fresh()->status)->toBe(ReservationStatus::Released);
+        ->and(FrameReservation::find($reservation->id))->toBeNull();
 });
-
-test('items cannot be removed from a tried-on reservation', function () {
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);
-    $item = $reservation->items()->create(['product_variant_id' => createFrameVariantForRemoval()->id]);
-    $reservation->items()->create(['product_variant_id' => createFrameVariantForRemoval()->id]);
-
-    app(RemoveFrameReservationItem::class)->handle($reservation, $item);
-})->throws(ValidationException::class, 'Frames can only be removed');
