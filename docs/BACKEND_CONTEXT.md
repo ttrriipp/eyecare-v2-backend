@@ -200,8 +200,8 @@ server-side rules.
 > optometrist (15m), Routine Check-up → Regular eye examination (30m),
 > Problem/Urgent Visit → New or worsening eye concern (30m), Contact Lens
 > Consultation → Contact lens consultation (45m), and Referral → Referral
-> (45m, requires referral source). The API contract includes 55 routes (8
-> public, 29 account-only, 18 active-link). New
+> (45m, requires referral source). The API contract includes 54 routes (8
+> public, 29 account-only, 17 active-link). New
 > endpoints: `GET /appointment-types` (restored, patient-visible catalog),
 > `GET /appointment-optometrists` (patient-safe provider catalog). Modified
 > endpoints: `GET /appointment-request-availability` (now requires
@@ -238,8 +238,8 @@ server-side rules.
 > per-optometrist and per-service averages fall out without asking the patient
 > to grade individual line items. Frame ratings (product feedback) remain a
 > separate feature answering a different question. `POST
-> /api/v1/appointments/{appointment}/rating`, `visit_ratings` /
-> `visit_rating_revisions` tables, `SaveVisitRating`/`ModerateVisitRating`
+> /api/v1/appointments/{appointment}/rating`, `visit_ratings` table,
+> `SaveVisitRating`/`ModerateVisitRating`
 > actions, and the "Visit Feedback" Filament resource are all live — see below
 > for each. Spec/plan/tasks live in
 > `docs/specs/mobile-visit-feedback-{spec,plan,tasks}.md` for the design
@@ -259,15 +259,12 @@ server-side rules.
 > shipped in `5dcf292`) — corrected here 2026-08-07 after this note wrongly
 > called that surface still write-only.
 >
-> **Known bug in that aggregate (2026-08-07):** hidden ratings are excluded
+> **Known bug in that aggregate (2026-08-07):** hidden ratings were excluded
 > from both the average and the count — `FrameController` eager-loads
 > `ratings` filtered to `where('is_hidden', false)`, so a moderated rating's
-> star value vanishes from the aggregate entirely. The spec's Task 0d
-> explicitly required the opposite: hiding suppresses the *comment* only, the
-> star should still count. As written, a staff member hiding an abusive
-> 1-star comment also quietly erases that 1 star from the product's average —
-> which is a moderation-integrity problem, not just a doc nit. Not fixed;
-> needs a decision, see `docs/specs/mobile-visit-feedback-tasks.md` Task 0d.
+> star value vanished from the aggregate entirely. **Fixed 2026-08-13** as
+> part of the commerce model simplification (Task 15): the aggregate now
+> includes every rating; only comment text is suppressed for hidden rows.
 >
 > Separately, `docs/gap-analysis.md` §J still describes only the frame-rating
 > workflow and hasn't been updated to mention visit feedback as a second, now-
@@ -358,8 +355,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Billing: view and record payment | Yes | Yes | Yes |
 | Billing: void/correct payment | No | No | Yes |
 | Billing: release with outstanding balance | No | No | Yes |
-| Inventory: receive stock and select contact-lens lot | Yes | Yes | Yes |
-| Inventory: reconcile existing contact-lens lots | No | No | Yes |
+| Inventory: receive stock | Yes | Yes | Yes |
 | Patients: create and edit | Yes | Yes | Yes |
 | Patients: archive (duplicate/erroneous/deceased) | No | No | Yes |
 | Catalog (brands/categories/products): archive and restore | No | No | Yes |
@@ -674,16 +670,15 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
-| `ConvertFrameReservationToJobOrder` | `app/Actions/Reservations/` | Atomically validates and links one reservation to an Optical Order; releases every allocated candidate for `prepared`/`tried_on` reservations, leaves `requested` reservations untouched, and lets the normal order inventory path commit the quoted catalog items exactly once |
-| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action, which works on any scheduled appointment regardless of `source`; rejects a second reservation for an appointment that already has one, ever |
-| `AddFrameReservationItem` | `app/Actions/Reservations/` | Adds another candidate frame to an existing `Requested`/`Prepared` reservation; allocates stock immediately if already `Prepared` |
-| `RemoveFrameReservationItem` | `app/Actions/Reservations/` | Drops a candidate frame from a `Requested`/`Prepared` reservation, restoring allocated stock if `Prepared`; releases the whole reservation if the last item is removed |
-| `MarkFrameReservationTriedOn` | `app/Actions/Reservations/` | Transitions a `Prepared` reservation to `TriedOn` |
-| `PrepareFrameReservation` | `app/Actions/Reservations/` | Allocates stock for a `Requested` reservation's items and stamps `expires_at` at the appointment day's clinic close time |
-| `ReleaseFrameReservation` | `app/Actions/Reservations/` | Restores allocated stock (if any) and sets a terminal status; accepts a `targetStatus` param (default `Released`) so callers that mean `Cancelled` can request it directly instead of writing `Released` then immediately overwriting it |
-| `CreateOpticalOrderFromQuotation` | `app/Actions/OpticalOrders/` | Atomically validates the persisted reservation source, accepts the quotation, creates an Optical Order from all product lines exactly once, converts the reservation without double-committing inventory, copies selected performed service lines into billing, records an optional deposit, validates optical build and prescription invariants, and creates the corrective-order eyewear specification shell — idempotent |
-| `ApplyQuotationFrameReservationSelection` | `app/Actions/Quotations/` | Resolves one eligible `FrameReservationItem`, replaces any existing Frame lines with that exact active catalog variant and normal price/description snapshot, and persists only the parent reservation ID as the quotation source |
-| `ValidateQuotationFrameReservation` | `app/Actions/Quotations/` | Sale-boundary validation for reservation existence, patient ownership, convertible status, exact quoted Frame variant, and absence of another Optical Order link; supports legacy quotations with no persisted source |
+| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action; rejects a second reservation for an appointment that already has one, ever |
+| `AcceptFrameReservation` | `app/Actions/Reservations/` | Allocates stock for an unaccepted reservation's items and stamps `accepted_at`; bounded by a seven-day window; idempotent |
+| `AddFrameReservationItem` | `app/Actions/Reservations/` | Adds another candidate frame to an existing reservation; allocates stock immediately if already accepted |
+| `RemoveFrameReservationItem` | `app/Actions/Reservations/` | Drops a candidate frame from a reservation, restoring allocated stock if accepted; deletes the whole reservation if the last item is removed |
+| `DeleteFrameReservation` | `app/Actions/Reservations/` | Releases every remaining item if accepted, deletes the reservation; idempotent |
+| `FrameReservationStock` | `app/Actions/Reservations/` | Single collaborator owning every allocation and release; lock order and movement shape cannot drift across the five actions |
+| `CreateOpticalOrderFromQuotation` | `app/Actions/OpticalOrders/` | Accepts the quotation, creates an Optical Order from product lines, commits inventory, copies selected performed service lines into billing, records an optional deposit — idempotent |
+| `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates a product-only Optical Order with no source Quotation (walk-in sale); uses the shared `BuildOpticalOrder` collaborator |
+| `AddChargesToBilling` | `app/Actions/BillingRecords/` | One append path keyed by `BillingItemSourceKind` (`optical_order`, `quotation`, `encounter`, `direct_service`); replaces five previous append actions |
 | `ValidateOpticalQuotation` | `app/Actions/Quotations/` | Validates optical item matrix: exactly one lens package, at most one frame, lens options require package, corrective eyewear requires current Patient-owned Prescription |
 | `BuildQuotationItemSnapshot` | `app/Actions/Quotations/` | Converts controlled catalog selections into stable transaction snapshots with item_kind and identifying data |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order directly for a patient without a preceding Quotation ("New Direct Order") |

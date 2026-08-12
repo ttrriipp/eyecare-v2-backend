@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-12) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, additive API rate-limit errors, and the staff-side single-reserved-frame quotation conversion flow. Internal optical data (eyewear specifications, dispensing measurements, lot details, supplier references, approval/verification metadata, balance-override reasons, and reservation-to-order linkage) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-13) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -1447,20 +1447,12 @@ ratings, collected via `POST /optical-order-items/{id}/rating`.
 > that coerces `null` to `0` will render every unrated frame as a 0-star
 > product instead of an unrated one — do not collapse the two.
 
-> ⚠️ **Known bug (2026-08-07):** both fields are computed from ratings
+> ~~⚠️ **Known bug (2026-08-07):** both fields were computed from ratings
 > filtered to `is_hidden = false` (`FrameController` / `FrameResource`), so a
-> **hidden rating's star value is excluded from the aggregate entirely**, not
-> just its comment. This contradicts the documented moderation model — hiding
-> is meant to suppress the comment only, with the star still counting (see
-> `ModerateFrameRating`'s own docblock and the visit-feedback spec's Task 0d
-> acceptance criteria). As shipped, staff hiding an abusive 1-star comment
-> also quietly erases that 1 star from the product's average. Not yet fixed.
->
-> **No client-side fix exists.** The API never exposes individual hidden
-> ratings to a client, patient or otherwise — only this pre-skewed aggregate —
-> so a consuming client has no data to reconstruct the true average from and
-> must display the number as received. This is a server-side-only fix; do not
-> treat a client displaying a skewed average as a client bug.
+> **hidden rating's star value was excluded from the aggregate entirely**, not
+> just its comment.~~ **Fixed 2026-08-13** as part of the commerce model
+> simplification: the aggregate now includes every rating; only comment text
+> is suppressed for hidden rows.
 
 ---
 
