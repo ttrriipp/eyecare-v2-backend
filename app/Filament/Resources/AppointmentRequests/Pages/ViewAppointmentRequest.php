@@ -243,8 +243,7 @@ class ViewAppointmentRequest extends ViewRecord
                                 ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])
                                 ->all())
                             ->nullable()
-                            ->searchable()
-                            ->helperText('Optional. Can be assigned at check-in or when consultation starts.'),
+                            ->searchable(),
 
                         DateTimePicker::make('scheduled_at')
                             ->label('Final Date/Time')
