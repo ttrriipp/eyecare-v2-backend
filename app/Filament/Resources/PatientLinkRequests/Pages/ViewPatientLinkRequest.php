@@ -54,7 +54,7 @@ class ViewPatientLinkRequest extends ViewRecord
                         ->live()
                         ->required()
                         ->helperText('Select the patient to link this account to.'),
-                    Textarea::make('note')
+                    Textarea::make('decision_note')
                         ->label('Decision Note')
                         ->required(function (Get $get): bool {
                             $patientId = $get('patient_id');
