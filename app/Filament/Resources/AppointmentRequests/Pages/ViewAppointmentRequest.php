@@ -260,7 +260,6 @@ class ViewAppointmentRequest extends ViewRecord
 
                         Textarea::make('contact_notes')
                             ->label('Contact Note')
-                            ->helperText('Required if the final time differs from all submitted preferences.')
                             ->required(fn (Get $get): bool => ! $this->matchesSubmittedPreference($get('scheduled_at')))
                             ->rows(2),
                     ];
