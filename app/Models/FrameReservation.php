@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\ReservationStatus;
 use Database\Factories\FrameReservationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,12 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'patient_id',
     'appointment_id',
     'accepted_at',
-    'status',
     'staff_notes',
-    'expires_at',
-    'released_at',
-    'released_by',
-    'release_reason',
 ])]
 class FrameReservation extends Model
 {
@@ -56,23 +50,12 @@ class FrameReservation extends Model
     }
 
     /**
-     * @return BelongsTo<User, $this>
-     */
-    public function releasedBy(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'released_by');
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
             'accepted_at' => 'datetime',
-            'status' => ReservationStatus::class,
-            'expires_at' => 'datetime',
-            'released_at' => 'datetime',
         ];
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
 use App\Models\Patient;
@@ -19,9 +18,7 @@ class FrameReservationFactory extends Factory
             'patient_id' => Patient::factory(),
             'appointment_id' => Appointment::factory(),
             'accepted_at' => null,
-            'status' => ReservationStatus::Requested,
             'staff_notes' => null,
-            'expires_at' => null,
         ];
     }
 
@@ -37,20 +34,6 @@ class FrameReservationFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'accepted_at' => now(),
-        ]);
-    }
-
-    public function prepared(): static
-    {
-        return $this->state(fn (array $attributes): array => [
-            'status' => ReservationStatus::Prepared,
-        ]);
-    }
-
-    public function cancelled(): static
-    {
-        return $this->state(fn (array $attributes): array => [
-            'status' => ReservationStatus::Cancelled,
         ]);
     }
 }

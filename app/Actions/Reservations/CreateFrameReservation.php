@@ -2,7 +2,6 @@
 
 namespace App\Actions\Reservations;
 
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
@@ -32,7 +31,6 @@ class CreateFrameReservation
             $reservation = FrameReservation::query()->create([
                 'patient_id' => $patient->id,
                 'appointment_id' => $appointment->id,
-                'status' => ReservationStatus::Requested,
             ]);
 
             foreach ($items as $item) {
