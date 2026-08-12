@@ -127,29 +127,6 @@ class OpticalOrderForm
                                 ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
                         ]),
 
-                    Section::make('Linked Records')
-                        ->schema([
-                            Placeholder::make('encounter_id')
-                                ->label('Encounter')
-                                ->content(fn (JobOrder $record): string => $record->encounter
-                                    ? $record->encounter->encounter_number
-                                    : '—'),
-                            Placeholder::make('prescription_id')
-                                ->label('Prescription')
-                                ->content(fn (JobOrder $record): string => $record->prescription
-                                    ? $record->prescription->prescription_number.' ('.($record->prescription->isCurrentVersion() ? 'Current' : 'Superseded').')'
-                                    : '—'),
-                            Placeholder::make('prescription_author')
-                                ->label('Prescribing Optometrist')
-                                ->content(fn (JobOrder $record): string => $record->prescription?->author?->full_name ?? '—')
-                                ->visible(fn (JobOrder $record): bool => $record->prescription !== null),
-                            Placeholder::make('quotation_id')
-                                ->label('Source Quotation')
-                                ->content(fn (JobOrder $record): string => $record->quotation
-                                    ? $record->quotation->quotation_number
-                                    : 'Direct order'),
-                        ]),
-
                     Section::make('Timeline')
                         ->schema([
                             Placeholder::make('created_at')
