@@ -2,11 +2,12 @@
 
 namespace App\Actions\OpticalOrders;
 
-use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
+use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Quotations\BuildQuotationItemSnapshot;
 use App\Actions\Quotations\ValidateOpticalQuotation;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
@@ -143,9 +144,21 @@ class CreateDirectOpticalOrder
                 jobOrder: $jobOrder,
             );
 
-            app(AppendJobOrderItemsToBillingRecord::class)->handle(
-                jobOrder: $jobOrder,
+            $orderItems = $jobOrder->items()
+                ->get()
+                ->map(fn ($item): array => [
+                    'description' => $item->description,
+                    'quantity' => $item->quantity,
+                    'unit_price' => $item->unit_price,
+                    'amount' => $item->amount,
+                    'item_type' => $item->item_type,
+                    'job_order_item_id' => $item->id,
+                ]);
+
+            app(AddChargesToBilling::class)->handle(
                 billingRecord: $billingRecord,
+                sourceKind: BillingItemSourceKind::OpticalOrder,
+                items: $orderItems,
             );
 
             if ($paymentDueDate !== null) {

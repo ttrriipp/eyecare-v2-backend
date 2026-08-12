@@ -2,8 +2,7 @@
 
 namespace App\Actions\OpticalOrders;
 
-use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
-use App\Actions\BillingRecords\AppendQuotedServicesToBillingRecord;
+use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
@@ -12,7 +11,6 @@ use App\Enums\BillingItemSourceKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
-use App\Models\BillingRecordItem;
 use App\Models\JobOrder;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -148,19 +146,63 @@ class CreateOpticalOrderFromQuotation
 
             // Append order items to billing
             if ($opticalOrder !== null) {
-                app(AppendJobOrderItemsToBillingRecord::class)->handle(
-                    jobOrder: $opticalOrder,
-                    billingRecord: $billingRecord,
-                    discountAmount: (float) $quotation->discount_amount,
-                );
+                $existingJobOrderItemIds = $billingRecord->items()
+                    ->whereNotNull('job_order_item_id')
+                    ->pluck('job_order_item_id')
+                    ->toArray();
+
+                $newOrderItems = $opticalOrder->items()
+                    ->whereNotIn('id', $existingJobOrderItemIds)
+                    ->get()
+                    ->map(fn ($item): array => [
+                        'description' => $item->description,
+                        'quantity' => $item->quantity,
+                        'unit_price' => $item->unit_price,
+                        'amount' => $item->amount,
+                        'item_type' => $item->item_type,
+                        'job_order_item_id' => $item->id,
+                    ]);
+
+                if ($newOrderItems->isNotEmpty()) {
+                    app(AddChargesToBilling::class)->handle(
+                        billingRecord: $billingRecord,
+                        sourceKind: BillingItemSourceKind::OpticalOrder,
+                        items: $newOrderItems,
+                    );
+                }
             }
 
             // Append selected services to billing
             if (! empty($performedServiceItemIds)) {
-                app(AppendQuotedServicesToBillingRecord::class)->handle(
-                    billingRecord: $billingRecord,
-                    quotationItemIds: $performedServiceItemIds,
-                );
+                $existingQuotationItemIds = $billingRecord->items()
+                    ->whereNotNull('quotation_item_id')
+                    ->pluck('quotation_item_id')
+                    ->toArray();
+
+                $newServiceIds = array_diff($performedServiceItemIds, $existingQuotationItemIds);
+
+                if (! empty($newServiceIds)) {
+                    $serviceItems = $quotation->items()
+                        ->whereIn('id', $newServiceIds)
+                        ->where('item_type', TransactionItemType::Service)
+                        ->get()
+                        ->map(fn ($item): array => [
+                            'description' => $item->description,
+                            'quantity' => $item->quantity,
+                            'unit_price' => $item->unit_price,
+                            'amount' => $item->amount,
+                            'item_type' => $item->item_type,
+                            'quotation_item_id' => $item->id,
+                        ]);
+
+                    if ($serviceItems->isNotEmpty()) {
+                        app(AddChargesToBilling::class)->handle(
+                            billingRecord: $billingRecord,
+                            sourceKind: BillingItemSourceKind::Quotation,
+                            items: $serviceItems,
+                        );
+                    }
+                }
             }
 
             // Service-only: add remaining services directly if no order
@@ -170,19 +212,22 @@ class CreateOpticalOrderFromQuotation
                 $serviceItems = $quotation->items()
                     ->where('item_type', TransactionItemType::Service)
                     ->whereNotIn('id', $alreadyBilledIds)
-                    ->get();
-
-                foreach ($serviceItems as $item) {
-                    BillingRecordItem::create([
-                        'billing_record_id' => $billingRecord->id,
-                        'item_type' => TransactionItemType::Service,
-                        'source_kind' => BillingItemSourceKind::Quotation,
+                    ->get()
+                    ->map(fn ($item): array => [
                         'description' => $item->description,
                         'quantity' => $item->quantity,
                         'unit_price' => $item->unit_price,
                         'amount' => $item->amount,
+                        'item_type' => $item->item_type,
                         'quotation_item_id' => $item->id,
                     ]);
+
+                if ($serviceItems->isNotEmpty()) {
+                    app(AddChargesToBilling::class)->handle(
+                        billingRecord: $billingRecord,
+                        sourceKind: BillingItemSourceKind::Quotation,
+                        items: $serviceItems,
+                    );
                 }
             }
 
