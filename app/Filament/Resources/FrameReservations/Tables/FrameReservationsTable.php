@@ -106,7 +106,12 @@ class FrameReservationsTable
                         ->visible(fn (FrameReservation $record): bool => in_array($record->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true))
                         ->requiresConfirmation()
                         ->action(function (FrameReservation $record): void {
-                            app(ReleaseFrameReservation::class)->handle($record, ReservationStatus::Cancelled);
+                            // Treat as Released if appointment is still active, Cancelled otherwise
+                            $targetStatus = $record->appointment?->status?->name === 'cancelled'
+                                ? ReservationStatus::Cancelled
+                                : ReservationStatus::Released;
+
+                            app(ReleaseFrameReservation::class)->handle($record, $targetStatus);
                             Notification::make()->title('Reservation cancelled')->success()->send();
                         }),
 

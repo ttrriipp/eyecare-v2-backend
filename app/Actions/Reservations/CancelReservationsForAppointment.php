@@ -27,8 +27,12 @@ class CancelReservationsForAppointment
 
         $releaseAction = app(ReleaseFrameReservation::class);
 
+        // Use Released when appointment is still active, Cancelled when appointment is cancelled
+        $isAppointmentCancelled = $appointment->status?->name === 'cancelled';
+        $targetStatus = $isAppointmentCancelled ? ReservationStatus::Cancelled : ReservationStatus::Released;
+
         foreach ($reservations as $reservation) {
-            $releaseAction->handle($reservation, ReservationStatus::Cancelled);
+            $releaseAction->handle($reservation, $targetStatus);
         }
     }
 }

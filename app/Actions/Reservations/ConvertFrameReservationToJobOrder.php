@@ -8,6 +8,7 @@ use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
+use App\Notifications\FrameReservationStatusChanged;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -80,7 +81,21 @@ class ConvertFrameReservationToJobOrder
             // Requested reservations have no allocation to release. In both
             // cases, CommitJobOrderInventory handles the quoted catalog items.
             $lockedJobOrder->update(['frame_reservation_id' => $reservation->id]);
+
+            $previousStatus = $reservation->status;
             $reservation->update(['status' => ReservationStatus::Converted]);
+
+            // Notify patient
+            $this->notifyPatient($reservation, $previousStatus);
         });
+    }
+
+    private function notifyPatient(FrameReservation $reservation, ReservationStatus $previousStatus): void
+    {
+        $patient = $reservation->patient ?? $reservation->appointment?->patient;
+
+        if ($patient !== null && $patient->account !== null) {
+            $patient->account->notify(new FrameReservationStatusChanged($reservation, $previousStatus));
+        }
     }
 }

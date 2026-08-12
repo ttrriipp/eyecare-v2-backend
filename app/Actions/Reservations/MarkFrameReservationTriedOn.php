@@ -12,12 +12,23 @@ class MarkFrameReservationTriedOn
      * Only a prepared reservation has its stock already allocated — trying
      * on a frame that was never prepared would mean nothing is actually
      * holding that stock for this patient during the try-on.
+     *
+     * The appointment must be checked_in to allow try-on.
      */
     public function handle(FrameReservation $reservation): FrameReservation
     {
         if ($reservation->status !== ReservationStatus::Prepared) {
             throw ValidationException::withMessages([
                 'reservation' => ['Only prepared reservations can be marked as tried on.'],
+            ]);
+        }
+
+        // Restrict to checked-in appointments
+        $appointment = $reservation->appointment;
+
+        if ($appointment === null || $appointment->status?->name !== 'checked_in') {
+            throw ValidationException::withMessages([
+                'reservation' => ['The appointment must be checked in before marking frames as tried on.'],
             ]);
         }
 

@@ -61,6 +61,7 @@ class CreateFrameReservation
 
     /**
      * Reactivate a released reservation with new frames.
+     * Remove old candidate items and replace with new ones.
      */
     private function reactivateReservation(FrameReservation $reservation, array $items): FrameReservation
     {
@@ -71,6 +72,10 @@ class CreateFrameReservation
             'release_reason' => null,
         ]);
 
+        // Remove old candidate items
+        $reservation->items()->delete();
+
+        // Add new items
         foreach ($items as $item) {
             FrameReservationItem::query()->create([
                 'frame_reservation_id' => $reservation->id,

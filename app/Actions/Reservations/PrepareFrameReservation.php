@@ -8,6 +8,7 @@ use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
+use App\Notifications\FrameReservationStatusChanged;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,19 @@ class PrepareFrameReservation
             throw ValidationException::withMessages([
                 'reservation' => ['Only requested reservations can be prepared.'],
             ]);
+        }
+
+        // Warn if appointment is more than 7 days away
+        $appointment = $reservation->appointment;
+
+        if ($appointment !== null && $appointment->scheduled_at?->isFuture()) {
+            $daysUntilAppointment = now()->diffInDays($appointment->scheduled_at, false);
+
+            if ($daysUntilAppointment > 7) {
+                throw ValidationException::withMessages([
+                    'reservation' => ['Preparing stock more than 7 days before the appointment is not recommended. The reservation will expire at the end of the appointment day.'],
+                ]);
+            }
         }
 
         return DB::transaction(function () use ($reservation): FrameReservation {
@@ -62,8 +76,20 @@ class PrepareFrameReservation
                 'expires_at' => $this->resolveExpiry($reservation),
             ]);
 
+            // Notify patient
+            $this->notifyPatient($reservation, ReservationStatus::Requested);
+
             return $reservation->fresh();
         });
+    }
+
+    private function notifyPatient(FrameReservation $reservation, ReservationStatus $previousStatus): void
+    {
+        $patient = $reservation->patient ?? $reservation->appointment?->patient;
+
+        if ($patient !== null && $patient->account !== null) {
+            $patient->account->notify(new FrameReservationStatusChanged($reservation, $previousStatus));
+        }
     }
 
     /**

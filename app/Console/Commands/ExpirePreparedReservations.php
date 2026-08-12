@@ -11,28 +11,45 @@ class ExpirePreparedReservations extends Command
 {
     protected $signature = 'reservations:expire';
 
-    protected $description = 'Release expired prepared reservations (idempotent)';
+    protected $description = 'Release expired prepared and unresolved tried-on reservations (idempotent)';
 
     public function handle(): int
     {
-        $expired = FrameReservation::query()
+        $releaseAction = app(ReleaseFrameReservation::class);
+        $released = 0;
+
+        // Release expired prepared reservations
+        $expiredPrepared = FrameReservation::query()
             ->where('status', ReservationStatus::Prepared)
             ->whereNotNull('expires_at')
             ->where('expires_at', '<=', now())
             ->get();
 
-        $released = 0;
-
-        foreach ($expired as $reservation) {
+        foreach ($expiredPrepared as $reservation) {
             try {
-                app(ReleaseFrameReservation::class)->handle($reservation);
+                $releaseAction->handle($reservation);
                 $released++;
             } catch (\Throwable $e) {
-                $this->warn("Failed to release reservation #{$reservation->id}: {$e->getMessage()}");
+                $this->warn("Failed to release prepared reservation #{$reservation->id}: {$e->getMessage()}");
             }
         }
 
-        $this->info("Released {$released} expired reservation(s).");
+        // Auto-release unresolved tried-on reservations whose appointment has passed
+        $staleTriedOn = FrameReservation::query()
+            ->where('status', ReservationStatus::TriedOn)
+            ->whereHas('appointment', fn ($query) => $query->where('scheduled_at', '<', now()))
+            ->get();
+
+        foreach ($staleTriedOn as $reservation) {
+            try {
+                $releaseAction->handle($reservation);
+                $released++;
+            } catch (\Throwable $e) {
+                $this->warn("Failed to release tried-on reservation #{$reservation->id}: {$e->getMessage()}");
+            }
+        }
+
+        $this->info("Released {$released} reservation(s).");
 
         return self::SUCCESS;
     }
