@@ -57,6 +57,7 @@ class QuotationCreationForm
                 ]),
 
             Section::make('Frame Reservation')
+                ->visible(fn (Get $get): bool => $patientIdResolver($get) !== null && ! empty(self::reservationOptions($patientIdResolver($get))))
                 ->schema([
                     Select::make('frame_reservation_item_id')
                         ->label('Reserved Frame')
@@ -67,7 +68,6 @@ class QuotationCreationForm
                         ->preload()
                         ->nullable()
                         ->live()
-                        ->visible(fn (Get $get): bool => $patientIdResolver($get) !== null)
                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state) use ($patientIdResolver): void {
                             if (blank($state)) {
                                 return;
