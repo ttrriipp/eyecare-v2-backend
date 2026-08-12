@@ -166,7 +166,7 @@ test('an optometrist can create a quotation from an active encounter', function 
         ->assertActionVisible('createQuotation');
 });
 
-test('the original completing optometrist can add a supplement', function () {
+test('the original completing optometrist can add an addendum', function () {
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->completed()->create([
         'optometrist_id' => $optometrist->id,
@@ -176,7 +176,23 @@ test('the original completing optometrist can add a supplement', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('addSupplement');
+        ->assertActionVisible('addAddendum');
+});
+
+test('a non-completing optometrist can add an addendum but only as a supplement', function () {
+    $completingOptometrist = User::factory()->optometrist()->create();
+    $otherOptometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->completed()->create([
+        'optometrist_id' => $completingOptometrist->id,
+        'completed_by' => $completingOptometrist->id,
+    ]);
+
+    $this->actingAs($otherOptometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionVisible('addAddendum')
+        ->mountAction('addAddendum')
+        ->assertActionDataSet(['type' => 'supplement']);
 });
 
 test('assignment is available only while an encounter is planned', function () {

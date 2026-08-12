@@ -485,59 +485,29 @@ class EditEncounter extends EditRecord
                 ->url(fn (): string => route('encounters.print', ['encounter' => $this->record->id]))
                 ->openUrlInNewTab(),
 
-            // ── Completed: add correction ──
-            Action::make('addCorrection')
-                ->label('Add Correction')
-                ->icon('heroicon-o-pencil-square')
-                ->color('warning')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
-                    && $this->record->completed_by === auth()->id()
-                    && auth()->user()?->isOptometrist())
-                ->requiresConfirmation()
-                ->modalHeading('Add Correction')
-                ->modalDescription('Append a correction note. The original record remains unchanged.')
-                ->modalSubmitActionLabel('Add Correction')
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason for Correction')
-                        ->required()
-                        ->maxLength(1000)
-                        ->rows(2),
-                    Textarea::make('content')
-                        ->label('Correction Content')
-                        ->required()
-                        ->maxLength(10000)
-                        ->rows(4),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(CreateEncounterAddendum::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            type: EncounterAddendumType::Correction,
-                            reason: $data['reason'],
-                            content: $data['content'],
-                        );
-
-                        Notification::make()->title('Correction added')->success()->send();
-                        $this->refreshFormData([]);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add correction')->body($e->getMessage())->danger()->send();
-                    }
-                }),
-
-            // ── Completed: add supplement ──
-            Action::make('addSupplement')
-                ->label('Add Supplement')
-                ->icon('heroicon-o-plus-circle')
-                ->color('info')
+            // ── Completed: add addendum (correction or supplement) ──
+            Action::make('addAddendum')
+                ->label('Add Addendum')
+                ->icon('heroicon-o-document-plus')
+                ->color('gray')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
                     && auth()->user()?->isOptometrist())
                 ->requiresConfirmation()
-                ->modalHeading('Add Supplement')
-                ->modalDescription('Append a supplementary note. The original record remains unchanged.')
-                ->modalSubmitActionLabel('Add Supplement')
+                ->modalHeading('Add Addendum')
+                ->modalDescription('Append a note to this completed encounter. The original record remains unchanged.')
+                ->modalSubmitActionLabel('Add Addendum')
                 ->schema([
+                    Select::make('type')
+                        ->label('Type')
+                        ->options(fn (): array => $this->record->completed_by === auth()->id()
+                            ? ['correction' => 'Correction', 'supplement' => 'Supplement']
+                            : ['supplement' => 'Supplement'])
+                        ->default(fn (): string => $this->record->completed_by === auth()->id() ? 'correction' : 'supplement')
+                        ->helperText(fn (Get $get): string => $get('type') === 'correction'
+                            ? 'Fixes an error in the original record.'
+                            : 'Adds new information without changing the original.')
+                        ->live()
+                        ->required(),
                     Textarea::make('reason')
                         ->label('Reason')
                         ->required()
@@ -550,19 +520,24 @@ class EditEncounter extends EditRecord
                         ->rows(4),
                 ])
                 ->action(function (array $data): void {
+                    $type = EncounterAddendumType::from($data['type']);
+
                     try {
                         app(CreateEncounterAddendum::class)->handle(
                             encounter: $this->record,
                             actor: auth()->user(),
-                            type: EncounterAddendumType::Supplement,
+                            type: $type,
                             reason: $data['reason'],
                             content: $data['content'],
                         );
 
-                        Notification::make()->title('Supplement added')->success()->send();
+                        Notification::make()
+                            ->title($type === EncounterAddendumType::Correction ? 'Correction added' : 'Supplement added')
+                            ->success()
+                            ->send();
                         $this->refreshFormData([]);
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add supplement')->body($e->getMessage())->danger()->send();
+                        Notification::make()->title('Cannot add addendum')->body($e->getMessage())->danger()->send();
                     }
                 }),
 
