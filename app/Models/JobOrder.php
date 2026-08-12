@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'job_order_number',
@@ -26,7 +25,6 @@ use Illuminate\Support\Str;
     'total_amount',
     'notes',
     'supplier_invoice_number',
-    'eyewear_key',
     'started_at',
     'ready_at',
     'dispensed_at',
@@ -46,9 +44,6 @@ class JobOrder extends Model
                 $jobOrder->job_order_number = sprintf('ORD-%s-%06d', $year, $sequence);
             }
 
-            if (blank($jobOrder->eyewear_key)) {
-                $jobOrder->eyewear_key = 'eyw_'.Str::ulid();
-            }
         });
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
@@ -155,7 +155,7 @@ test('the revise items action is hidden once a quotation has an optical order', 
         'amount' => 5000,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $staff,
     );

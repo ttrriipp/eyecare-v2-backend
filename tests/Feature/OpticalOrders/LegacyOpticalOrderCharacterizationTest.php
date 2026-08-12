@@ -150,9 +150,8 @@ test('billing record is created with matching totals at acceptance', function ()
         ->and($billingRecord->status)->toBe(BillingRecordStatus::Unpaid);
 });
 
-test('eyewear key is stable across quotation, job order, and billing', function () {
+test('quotation is accepted and order is created', function () {
     $quotation = Quotation::factory()->create([
-        'eyewear_key' => 'eyw_01K1TESTKEY123456789',
         'total' => 3000,
     ]);
     $quotation->items()->create([
@@ -164,8 +163,8 @@ test('eyewear key is stable across quotation, job order, and billing', function 
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['optical_order']->eyewear_key)->toBe('eyw_01K1TESTKEY123456789')
-        ->and($quotation->eyewear_key)->toBe('eyw_01K1TESTKEY123456789');
+    expect($result['optical_order'])->not->toBeNull()
+        ->and($result['quotation']->status)->toBe(QuotationStatus::Accepted);
 });
 
 test('single linked job order per quotation is enforced', function () {

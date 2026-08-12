@@ -118,7 +118,6 @@ class CreateOpticalOrderFromQuotation
                     fulfillmentMode: $fulfillmentMode,
                     usesExternalSupplier: $usesExternalSupplier,
                     items: $itemSnapshots,
-                    eyewearKey: $quotation->eyewear_key,
                 );
 
                 if ($fulfillmentMode === 'immediate' && $recipientName !== null) {

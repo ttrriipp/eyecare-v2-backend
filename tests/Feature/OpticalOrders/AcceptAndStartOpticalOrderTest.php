@@ -131,10 +131,9 @@ test('heterogeneous items are all copied to job order', function () {
         ->and($items[2]->lens_category_id)->toBeNull();
 });
 
-test('eyewear key is preserved across quotation and job order', function () {
+test('quotation confirmation creates job order', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
     $quotation = Quotation::factory()->create([
-        'eyewear_key' => 'eyw_01TESTKEY999',
         'total' => 3000,
     ]);
     $quotation->items()->create([
@@ -147,7 +146,7 @@ test('eyewear key is preserved across quotation and job order', function () {
 
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(quotation: $quotation, confirmer: $this->staff);
 
-    expect($result['optical_order']->eyewear_key)->toBe('eyw_01TESTKEY999');
+    expect($result['optical_order'])->not->toBeNull();
 });
 
 test('declined quotation cannot be confirmed', function () {

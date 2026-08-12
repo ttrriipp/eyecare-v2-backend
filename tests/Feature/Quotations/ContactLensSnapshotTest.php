@@ -60,7 +60,7 @@ test('contact-lens snapshot includes product and variant identity', function () 
 });
 
 test('confirmation copies same parameters to job order item', function () {
-    // This is tested through ConfirmQuotationSale which copies item_snapshot
+    // This is tested through CreateOpticalOrderFromQuotation which copies item_snapshot
     // from QuotationItem to JobOrderItem
     $product = Product::factory()->create(['product_type' => 'contact_lens']);
     $variant = ProductVariant::factory()->create([

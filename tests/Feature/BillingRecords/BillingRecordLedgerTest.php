@@ -124,7 +124,6 @@ test('voided billing is never overdue', function () {
 test('aggregate relationships consistent after cancellation', function () {
     $quotation = Quotation::factory()->create([
         'total' => 8000,
-        'eyewear_key' => 'eyw_01CANCELTEST',
     ]);
 
     $quotation->items()->create([
@@ -141,7 +140,6 @@ test('aggregate relationships consistent after cancellation', function () {
 
     expect($quotation->fresh()->jobOrder->id)->toBe($jobOrder->id)
         ->and($jobOrder->fresh()->billingRecord->id)->toBe($result['billing_record']->id)
-        ->and($jobOrder->fresh()->eyewear_key)->toBe('eyw_01CANCELTEST')
         ->and($jobOrder->fresh()->status)->toBe(JobOrderStatus::Cancelled)
         ->and($result['billing_record']->fresh()->status)->toBe(BillingRecordStatus::Voided);
 });

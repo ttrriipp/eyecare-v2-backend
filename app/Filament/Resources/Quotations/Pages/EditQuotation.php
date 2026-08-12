@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Actions\BillingRecords\BillRemainingQuotedServices;
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
-use App\Actions\Quotations\PresentQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\CommercialItemKind;
@@ -33,17 +32,6 @@ class EditQuotation extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('present')
-                ->label('Present')
-                ->icon('heroicon-o-paper-airplane')
-                ->color('info')
-                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
-                ->requiresConfirmation()
-                ->action(function (): void {
-                    app(PresentQuotation::class)->handle($this->record, auth()->user());
-                    $this->refreshFormData(['status']);
-                }),
-
             Action::make('reviseItems')
                 ->label('Revise Items')
                 ->icon('heroicon-o-pencil-square')
@@ -78,9 +66,6 @@ class EditQuotation extends EditRecord
                 ->modalHeading('Revise Quotation Items')
                 ->modalSubmitActionLabel('Save Revision')
                 ->action(function (array $data): void {
-                    // A revision to a Presented quotation must be shown to the
-                    // patient again before it can move forward — the action
-                    // itself reverts status to Draft when this applies.
                     try {
                         app(UpdateQuotationDraft::class)->handle($this->record, $data, auth()->user());
                     } catch (ValidationException $e) {

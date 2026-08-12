@@ -29,7 +29,6 @@ class QuotationFactory extends Factory
             'confirmed_at' => null,
             'notes' => fake()->optional()->sentence(),
             'internal_notes' => null,
-            'eyewear_key' => 'eyw_'.Str::ulid(),
         ];
     }
 

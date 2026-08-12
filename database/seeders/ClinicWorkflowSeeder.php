@@ -24,7 +24,6 @@ use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 /**
  * Seeds end-to-end clinic workflow records.
@@ -140,7 +139,6 @@ class ClinicWorkflowSeeder extends Seeder
             ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
                 'quotation_number' => 'QUO-000001',
-                'eyewear_key' => 'eyw_'.Str::ulid(),
                 'prescription_id' => $prescription->id,
                 'status' => QuotationStatus::Accepted,
                 'valid_until' => now()->addDays(14),
@@ -174,7 +172,6 @@ class ClinicWorkflowSeeder extends Seeder
             ['quotation_id' => $quotation->id],
             [
                 'job_order_number' => 'ORD-2026-000001',
-                'eyewear_key' => $quotation->eyewear_key,
                 'patient_id' => $patient->id,
                 'encounter_id' => $encounter->id,
                 'prescription_id' => $prescription->id,

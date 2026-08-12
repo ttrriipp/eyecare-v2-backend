@@ -87,11 +87,10 @@ test('job order snapshots quotation items', function () {
         ->and((float) $jobOrder->total_amount)->toBe(8000.0);
 });
 
-test('job order inherits eyewear key from accepted quotation', function () {
+test('job order is created from accepted quotation', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create([
         'status' => QuotationStatus::Accepted,
-        'eyewear_key' => 'eyw_01TESTKEY123',
         'total' => 5000,
     ]);
     $quotation->items()->create([
@@ -103,5 +102,6 @@ test('job order inherits eyewear key from accepted quotation', function () {
 
     $jobOrder = app(CreateJobOrder::class)->handle($quotation, $staff);
 
-    expect($jobOrder->eyewear_key)->toBe('eyw_01TESTKEY123');
+    expect($jobOrder)->not->toBeNull()
+        ->and($jobOrder->quotation_id)->toBe($quotation->id);
 });

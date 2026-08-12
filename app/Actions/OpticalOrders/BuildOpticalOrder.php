@@ -27,10 +27,9 @@ class BuildOpticalOrder
         string $fulfillmentMode,
         bool $usesExternalSupplier,
         Collection $items,
-        ?string $eyewearKey = null,
         ?int $dispensedBy = null,
     ): JobOrder {
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $eyewearKey, $dispensedBy): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy): JobOrder {
             $order = JobOrder::create([
                 'patient_id' => $patientId,
                 'encounter_id' => $encounterId,
@@ -40,7 +39,6 @@ class BuildOpticalOrder
                 'fulfillment_mode' => $fulfillmentMode,
                 'uses_external_supplier' => $usesExternalSupplier,
                 'total_amount' => $items->sum('amount'),
-                'eyewear_key' => $eyewearKey ?? 'eyw_'.uniqid(),
             ]);
 
             foreach ($items as $item) {

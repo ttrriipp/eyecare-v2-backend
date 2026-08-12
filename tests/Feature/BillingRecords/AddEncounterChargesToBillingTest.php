@@ -114,7 +114,7 @@ test('rejects empty items', function () {
 test('reuses a combined billing record created from a confirmed quotation', function () {
     $encounter = Encounter::factory()->inProgress()->create();
 
-    // Simulates the record ConfirmQuotationSale would have created for this encounter.
+    // Simulates the record CreateOpticalOrderFromQuotation would have created for this encounter.
     $existing = BillingRecord::factory()->create([
         'patient_id' => $encounter->patient_id,
         'encounter_id' => $encounter->id,

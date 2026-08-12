@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'quotation_number',
@@ -28,7 +27,6 @@ use Illuminate\Support\Str;
     'decline_reason',
     'notes',
     'internal_notes',
-    'eyewear_key',
 ])]
 class Quotation extends Model
 {
@@ -43,9 +41,6 @@ class Quotation extends Model
                 $quotation->quotation_number = sprintf('QUO-%s-%06d', $year, $sequence);
             }
 
-            if (blank($quotation->eyewear_key)) {
-                $quotation->eyewear_key = 'eyw_'.Str::ulid();
-            }
         });
     }
 

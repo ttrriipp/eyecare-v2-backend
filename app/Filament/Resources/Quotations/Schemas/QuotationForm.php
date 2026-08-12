@@ -154,9 +154,6 @@ class QuotationForm
                             Placeholder::make('created_at')
                                 ->label('Created')
                                 ->content(fn (Quotation $record): string => $record->created_at?->diffForHumans() ?? '—'),
-                            Placeholder::make('presented_at')
-                                ->label('Presented')
-                                ->content(fn (Quotation $record): string => $record->presented_at?->diffForHumans() ?? '—'),
                             Placeholder::make('confirmed_at')
                                 ->label('Confirmed')
                                 ->content(fn (Quotation $record): string => $record->confirmed_at?->diffForHumans() ?? '—'),

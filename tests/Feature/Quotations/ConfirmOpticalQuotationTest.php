@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Tests for optical validation inside ConfirmQuotationSale.
+ * Tests for optical validation inside CreateOpticalOrderFromQuotation.
  *
  * @see tasks/todo.md Task 14
  */
 
-use App\Actions\Quotations\ConfirmQuotationSale;
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -58,7 +58,7 @@ test('invalid build leaves every downstream aggregate unchanged', function () {
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -94,7 +94,7 @@ test('corrective confirmation requires current prescription', function () {
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
-    app(ConfirmQuotationSale::class)->handle(
+    app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -135,7 +135,7 @@ test('valid corrective confirmation succeeds', function () {
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
@@ -180,12 +180,12 @@ test('concurrent confirmation remains idempotent', function () {
         'item_kind' => CommercialItemKind::LensPackage,
     ]);
 
-    $first = app(ConfirmQuotationSale::class)->handle(
+    $first = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
 
-    $second = app(ConfirmQuotationSale::class)->handle(
+    $second = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation->fresh(),
         confirmer: $this->staff,
     );
@@ -213,7 +213,7 @@ test('non-corrective product confirmation succeeds without prescription', functi
         'item_kind' => CommercialItemKind::Frame,
     ]);
 
-    $result = app(ConfirmQuotationSale::class)->handle(
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
     );
