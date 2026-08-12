@@ -24,7 +24,7 @@ class FrameController extends Controller
                 ->where('is_active', true)
                 ->where('ar_eligible', true)
                 ->whereNotNull('ar_asset_reference')
-                ->with(['ratings' => fn ($rq) => $rq->where('is_hidden', false)])]);
+                ->with(['ratings'])]);
 
         $query->when(
             $request->filled('search'),
@@ -68,7 +68,7 @@ class FrameController extends Controller
                 ->where('is_active', true)
                 ->where('ar_eligible', true)
                 ->whereNotNull('ar_asset_reference')
-                ->with(['ratings' => fn ($rq) => $rq->where('is_hidden', false)])])
+                ->with(['ratings'])])
             ->first();
 
         abort_if($catalogFrame === null, 404);

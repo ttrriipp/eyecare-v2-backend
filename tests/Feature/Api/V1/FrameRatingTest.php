@@ -41,8 +41,8 @@ test('patient can submit a frame rating for a dispensed job order item', functio
         ->assertJsonPath('data.rating', 5)
         ->assertJsonPath('data.comment', 'Excellent frame!')
         ->assertJsonPath('data.product_variant_id', $variant->id)
-        ->assertJsonStructure(['data' => ['id', 'product_variant_id', 'rating', 'comment', 'revision_number', 'created_at']])
-        ->assertJsonMissing(['moderation_reason', 'moderated_by', 'moderated_at', 'is_hidden', 'patient_id', 'deleted_at', 'current_revision_id']);
+        ->assertJsonStructure(['data' => ['id', 'product_variant_id', 'rating', 'comment', 'created_at']])
+        ->assertJsonMissing(['moderation_reason', 'moderated_by', 'moderated_at', 'is_hidden', 'patient_id', 'deleted_at']);
 });
 
 test('product_variant_id is optional and derived from item', function () {
@@ -99,7 +99,7 @@ test('rating can be revised on subsequent submissions', function () {
         ])
         ->assertCreated()
         ->assertJsonPath('data.rating', 5)
-        ->assertJsonPath('data.revision_number', 2);
+        ->assertJsonPath('data.comment', 'Even better after use!');
 });
 
 test('rating is rejected for another patients job order item', function () {
@@ -193,4 +193,77 @@ test('rating is rejected when dispensing event does not belong to job order', fu
 
 test('rating requires authentication', function () {
     $this->postJson('/api/v1/optical-order-items/1/rating', [])->assertUnauthorized();
+});
+
+test('hidden rating still counts toward average_rating and rating_count', function () {
+    // Bug fix: hiding a rating should suppress the comment only, not the star.
+    // Previously, hidden ratings were excluded from the aggregate entirely.
+    $user = User::factory()->patient()->create();
+    $brand = Brand::factory()->create();
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'brand_id' => $brand->id,
+        'is_active' => true,
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'test.usdz',
+    ]);
+
+    // Create two ratings: one visible (5 stars), one hidden (1 star)
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $dispensingEvent = DispensingEvent::factory()->create(['job_order_id' => $jobOrder->id]);
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
+            'product_variant_id' => $variant->id,
+            'rating' => 5,
+            'dispensing_event_id' => $dispensingEvent->id,
+        ])
+        ->assertCreated();
+
+    // Create a second rating and hide it
+    $user2 = User::factory()->patient()->create();
+    $jobOrder2 = JobOrder::factory()->create([
+        'patient_id' => $user2->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item2 = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder2->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $dispensingEvent2 = DispensingEvent::factory()->create(['job_order_id' => $jobOrder2->id]);
+
+    $this->actingAs($user2)
+        ->postJson("/api/v1/optical-order-items/{$item2->id}/rating", [
+            'product_variant_id' => $variant->id,
+            'rating' => 1,
+            'dispensing_event_id' => $dispensingEvent2->id,
+        ])
+        ->assertCreated();
+
+    // Hide the second rating
+    $rating2 = \App\Models\FrameRating::where('patient_id', $user2->patient->id)
+        ->where('product_variant_id', $variant->id)
+        ->first();
+    $rating2->update(['is_hidden' => true, 'moderation_reason' => 'Abusive']);
+
+    // The average should include BOTH ratings: (5 + 1) / 2 = 3.0
+    // The count should be 2
+    $response = $this->actingAs($user)
+        ->getJson("/api/v1/frames/{$product->id}")
+        ->assertOk();
+
+    $responseData = $response->json('data');
+    expect((float) $responseData['average_rating'])->toBe(3.0);
+    expect($responseData['rating_count'])->toBe(2);
 });

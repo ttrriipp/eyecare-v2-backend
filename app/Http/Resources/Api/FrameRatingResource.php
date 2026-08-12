@@ -21,10 +21,6 @@ class FrameRatingResource extends JsonResource
             'product_variant_id' => $this->product_variant_id,
             'rating' => $this->rating,
             'comment' => $this->shouldShowComment($isAuthor) ? $this->comment : null,
-            'revision_number' => $this->when(
-                $this->relationLoaded('currentRevision'),
-                fn () => $this->currentRevision?->revision_number ?? 1,
-            ),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

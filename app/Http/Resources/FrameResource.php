@@ -35,6 +35,10 @@ class FrameResource extends JsonResource
 
     /**
      * Compute average rating across all variants.
+     *
+     * Includes hidden ratings — hiding suppresses the comment only,
+     * not the star. This was a bug in the original implementation
+     * where hidden ratings were excluded from the aggregate entirely.
      */
     private function computeAverageRating(): ?float
     {
@@ -43,8 +47,7 @@ class FrameResource extends JsonResource
         }
 
         $ratings = $this->variants
-            ->flatMap(fn ($variant) => $variant->ratings ?? collect())
-            ->where('is_hidden', false);
+            ->flatMap(fn ($variant) => $variant->ratings ?? collect());
 
         if ($ratings->isEmpty()) {
             return null;
@@ -55,6 +58,8 @@ class FrameResource extends JsonResource
 
     /**
      * Compute total rating count across all variants.
+     *
+     * Includes hidden ratings — same rationale as computeAverageRating.
      */
     private function computeRatingCount(): int
     {
@@ -64,7 +69,6 @@ class FrameResource extends JsonResource
 
         return $this->variants
             ->flatMap(fn ($variant) => $variant->ratings ?? collect())
-            ->where('is_hidden', false)
             ->count();
     }
 }

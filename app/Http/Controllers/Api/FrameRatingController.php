@@ -69,8 +69,6 @@ class FrameRatingController extends Controller
             dispensingEvent: $dispensingEvent,
         );
 
-        $rating->load('currentRevision');
-
         return response()->json(['data' => FrameRatingResource::make($rating)], 201);
     }
 }
