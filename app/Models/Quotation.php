@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -83,7 +83,7 @@ class Quotation extends Model
      */
     public function productItems(): HasMany
     {
-        return $this->items()->where('item_type', TransactionItemType::Product);
+        return $this->items()->whereIn('item_kind', CommercialItemKind::productKindValues());
     }
 
     /**
@@ -91,7 +91,7 @@ class Quotation extends Model
      */
     public function serviceItems(): HasMany
     {
-        return $this->items()->where('item_type', TransactionItemType::Service);
+        return $this->items()->where('item_kind', CommercialItemKind::Service->value);
     }
 
     /**
