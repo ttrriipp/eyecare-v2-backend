@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\LensOptions\Tables;
 
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 
 class LensOptionsTable
@@ -19,8 +19,13 @@ class LensOptionsTable
                 TextColumn::make('price')
                     ->money('PHP')
                     ->sortable(),
-                ToggleColumn::make('is_active')
-                    ->label('Active'),
+                IconColumn::make('is_active')
+                    ->label('Active')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
                 TextColumn::make('description')
                     ->limit(60)
                     ->toggleable(),
