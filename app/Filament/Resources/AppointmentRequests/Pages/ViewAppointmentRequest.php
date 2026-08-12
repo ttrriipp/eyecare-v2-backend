@@ -259,8 +259,7 @@ class ViewAppointmentRequest extends ViewRecord
                             ->default($this->record->scheduled_at?->format('H:i'))
                             ->required()
                             ->seconds(false)
-                            ->minutesStep(15)
-                            ->suffixIcon('heroicon-o-clock'),
+                            ->minutesStep(15),
 
                         TextInput::make('referring_source')
                             ->label('Referring Source')
