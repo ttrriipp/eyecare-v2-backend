@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'product_variant_id',
     'reservation_id',
     'job_order_id',
-    'inventory_lot_id',
     'inventory_movement_type_id',
     'quantity_change',
     'previous_stock',
@@ -47,14 +46,6 @@ class InventoryMovement extends Model
     public function jobOrder(): BelongsTo
     {
         return $this->belongsTo(JobOrder::class);
-    }
-
-    /**
-     * @return BelongsTo<InventoryLot, $this>
-     */
-    public function lot(): BelongsTo
-    {
-        return $this->belongsTo(InventoryLot::class, 'inventory_lot_id');
     }
 
     /**

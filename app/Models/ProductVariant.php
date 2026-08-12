@@ -141,14 +141,6 @@ class ProductVariant extends Model
     }
 
     /**
-     * @return HasMany<InventoryLot, $this>
-     */
-    public function lots(): HasMany
-    {
-        return $this->hasMany(InventoryLot::class, 'product_variant_id');
-    }
-
-    /**
      * @return array<string, string>
      */
     protected function casts(): array
