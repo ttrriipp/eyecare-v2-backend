@@ -13,16 +13,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class FrameReservationFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
             'patient_id' => Patient::factory(),
             'appointment_id' => Appointment::factory(),
+            'accepted_at' => null,
             'status' => ReservationStatus::Requested,
             'staff_notes' => null,
             'expires_at' => null,
@@ -34,6 +30,13 @@ class FrameReservationFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'patient_id' => $appointment->patient_id,
             'appointment_id' => $appointment->id,
+        ]);
+    }
+
+    public function accepted(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'accepted_at' => now(),
         ]);
     }
 

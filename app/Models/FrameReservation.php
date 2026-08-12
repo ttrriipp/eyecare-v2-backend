@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'patient_id',
     'appointment_id',
+    'accepted_at',
     'status',
     'staff_notes',
     'expires_at',
@@ -24,7 +24,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class FrameReservation extends Model
 {
     /** @use HasFactory<FrameReservationFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+
+    public function isHeld(): bool
+    {
+        return $this->accepted_at !== null;
+    }
 
     /**
      * @return BelongsTo<Patient, $this>
@@ -64,6 +69,7 @@ class FrameReservation extends Model
     protected function casts(): array
     {
         return [
+            'accepted_at' => 'datetime',
             'status' => ReservationStatus::class,
             'expires_at' => 'datetime',
             'released_at' => 'datetime',
