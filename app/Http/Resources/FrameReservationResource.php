@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Controllers\Api\FrameReservationController;
 use App\Models\FrameReservation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -19,8 +20,8 @@ class FrameReservationResource extends JsonResource
         return [
             'id' => $this->id,
             'appointment_id' => $this->appointment_id,
-            'status' => $this->status->value,
-            'expires_at' => $this->expires_at?->toIso8601String(),
+            'is_held' => $this->isHeld(),
+            'expires_at' => FrameReservationController::deriveExpiresAt($this),
             'created_at' => $this->created_at->toIso8601String(),
             'appointment' => AppointmentContextResource::make($this->whenLoaded('appointment')),
             'items' => FrameReservationItemResource::collection($this->whenLoaded('items')),

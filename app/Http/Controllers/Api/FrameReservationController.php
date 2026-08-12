@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Appointments\ClinicSchedule;
 use App\Actions\Reservations\CreateFrameReservation;
-use App\Actions\Reservations\ReleaseFrameReservation;
-use App\Enums\ReservationStatus;
+use App\Actions\Reservations\DeleteFrameReservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreFrameReservationRequest;
 use App\Http\Resources\FrameReservationResource;
 use App\Models\Appointment;
 use App\Models\FrameReservation;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -51,20 +52,27 @@ class FrameReservationController extends Controller
         ], 201);
     }
 
-    public function cancel(Request $request, FrameReservation $reservation): JsonResponse
+    public function destroy(Request $request, FrameReservation $reservation): JsonResponse
     {
         $patient = $request->user()->patient;
 
         abort_unless($patient !== null && $reservation->patient_id === $patient->id, 403);
 
-        if (! in_array($reservation->status, [ReservationStatus::Requested, ReservationStatus::Prepared], true)) {
-            return response()->json(['message' => 'This reservation cannot be cancelled.'], 422);
+        app(DeleteFrameReservation::class)->handle($reservation);
+
+        return response()->json(null, 204);
+    }
+
+    public static function deriveExpiresAt(FrameReservation $reservation): ?string
+    {
+        $appointmentDate = $reservation->appointment?->scheduled_at;
+
+        if ($appointmentDate === null) {
+            return null;
         }
 
-        app(ReleaseFrameReservation::class)->handle($reservation, ReservationStatus::Cancelled);
+        $schedule = ClinicSchedule::forDate($appointmentDate);
 
-        return response()->json([
-            'data' => FrameReservationResource::make($reservation->fresh()->load(['items.variant.product', 'appointment'])),
-        ]);
+        return Carbon::parse($appointmentDate->toDateString().' '.$schedule->closeTime)->toIso8601String();
     }
 }
