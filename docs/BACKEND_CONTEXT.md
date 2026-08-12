@@ -39,29 +39,7 @@
 > action, and add/remove frame — no other lifecycle controls remain.
 > Spec/plan/tasks live in
 > `docs/specs/frame-reservation-simplification-{spec,plan}.md` and
-> `tasks/frame-reservation-simplification-{plan,todo}.md`. Staff can reserve frames from any scheduled appointment
-> regardless of source (mobile, walk-in, or manually created), not just
-> mobile-originated ones. A frame reservation is a strictly
-> before-the-visit tool — an appointment gets exactly one, ever (DB-level
-> unique constraint on `appointment_id`); staff can add/remove candidate
-> frames on that one reservation up to `tried_on`, mark it tried on, and
-> reservation expiration is now actually wired up (`expires_at` is stamped
-> at prepare time and `reservations:expire` runs on a schedule — both
-> existed structurally before but neither was connected). Confirm Sale
-> converts a selected reservation's held stock into the resulting Optical
-> Order instead of committing it a second time. Quotation creation and
-> revision now persist the reservation source on nullable
-> `quotations.frame_reservation_id`, while the selected candidate remains
-> represented by the quotation's single catalog-backed Frame item. Staff
-> select individual eligible `frame_reservation_items`; the Frame Reservation
-> page's **Use in Quotation** shortcut preselects the patient, reservation,
-> frame, encounter, and current prescription when available, but never
-> confirms a sale. Confirm Sale and **Accept & Continue** validate the patient,
-> reservation status, exact frame variant, and existing Optical Order linkage
-> atomically. Prepared/Tried On conversion releases every candidate allocation
-> before the normal one-time Optical Order inventory commit; Requested
-> reservations have no allocation to release, and candidate rows are retained
-> as history. The Patient record gained
+> `tasks/frame-reservation-simplification-{plan,todo}.md`. The Patient record gained
 > Encounters, Optical Orders, and Billing tabs alongside the existing
 > Prescriptions/Appointments/Health Record/Invitation History ones, so
 > staff no longer have to leave the patient page to see commercial history.
@@ -497,7 +475,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 
 **Encounters:** `planned → in_progress → completed` (terminal). `cancelled` is terminal from `planned` only. `voided` is terminal from `planned` or `completed` (requires reason, actor, timestamp, audit log). Only active assigned optometrists can start (self-claim if unassigned) and complete. Starting synchronizes provider to Appointment. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; fulfills the Appointment atomically. Optional prescription finalizes in the same transaction. Completed encounters are immutable; corrections/supplements use append-only addenda.
 
-**Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create Optical Orders. Declined quotations require a `decline_reason`. A reservation-backed quotation persists one `frame_reservation_id` source and must contain exactly one catalog-backed Frame item whose variant is present on that patient's eligible reservation. Legacy quotations without a source may select an exact matching reservation item during confirmation. Removing or changing the selected Frame during draft/revision clears the reservation source rather than preserving an invalid pairing. No revisions.
+**Quotations:** `draft → presented → accepted/declined/expired`. Draft and presented are editable. Accepted quotations create Optical Orders. Declined quotations require a `decline_reason`. Staff build quotations by selecting frames from the catalog. No revisions.
 
 **Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). `cancelled` is terminal from any active state. Cancellation reverses inventory (including source lot for contact-lens variants). `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path. Corrective orders cannot enter Processing without an approved eyewear specification. Ready for Pickup requires completed verification and, for external work, the supplier/lab reference. Non-corrective and immediate orders skip these stages.
 

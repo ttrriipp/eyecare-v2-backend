@@ -20,16 +20,12 @@
 > `Retry-After` header; middleware-backed limits retain the standard
 > `X-RateLimit-*` headers.
 
-> **Shipped 2026-08-12: staff-side reservation-to-sale refinement.** The
-> Filament quotation workflow can select one eligible `FrameReservationItem`
-> for the quotation's patient and exact catalog Frame line. The quotation
-> stores its nullable reservation source internally; Confirm Sale and Accept &
-> Continue validate the patient, reservation status, exact variant, and
-> existing Optical Order link atomically. Prepared/Tried On reservations
-> release all candidate allocations before the normal order commitment, while
-> Requested reservations have no allocation to release. This is an internal
-> admin workflow change: no patient API route, request, or response field was
-> added, and patient quotations and reservations remain read-only snapshots.
+> **Shipped 2026-08-12: simplified frame reservations.** The patient API now
+> uses `DELETE` instead of `POST .../cancel`, returns `is_held` and derived
+> `expires_at` instead of `status`, and never exposes `accepted_at`. Staff-side
+> reservation-to-sale linkage was removed; staff build quotations by selecting
+> frames from the catalog. No patient API route, request, or response field was
+> added beyond the `is_held`/`expires_at` contract change.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
