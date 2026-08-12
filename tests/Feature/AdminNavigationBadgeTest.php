@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\JobOrderStatus;
-use App\Enums\ReservationStatus;
 use App\Filament\Pages\Reports\ReorderReport;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
@@ -53,10 +52,9 @@ test('navigation badges count actionable sidebar work', function () {
     JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);
     JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
 
-    FrameReservation::factory()->create(['status' => ReservationStatus::Requested]);
-    FrameReservation::factory()->prepared()->create();
-    FrameReservation::factory()->create(['status' => ReservationStatus::TriedOn]);
-    FrameReservation::factory()->create(['status' => ReservationStatus::Converted]);
+    FrameReservation::factory()->create();
+    FrameReservation::factory()->accepted()->create();
+    FrameReservation::factory()->accepted()->create();
 
     BillingRecord::factory()->create();
     BillingRecord::factory()->partiallyPaid()->create();
@@ -84,7 +82,7 @@ test('navigation badges count actionable sidebar work', function () {
         'Encounters' => '1',
         'Quotations' => '1',
         'Optical Orders' => '1',
-        'Frame Reservations' => '3',
+        'Frame Reservations' => '1',
         'Billing & Payments' => '2',
         'SMS Log' => '1',
     ]);

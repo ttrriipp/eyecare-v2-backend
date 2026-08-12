@@ -12,13 +12,10 @@
 use App\Actions\JobOrders\CommitJobOrderInventory;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
-use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
-use App\Enums\ReservationStatus;
 use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
-use App\Models\FrameReservation;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
@@ -124,35 +121,6 @@ test('repeated cancellation does not double-restore stock', function () {
     // Attempt second cancellation (should fail - already cancelled)
     app(UpdateJobOrderStatus::class)->handle($jobOrder->fresh(), 'cancelled');
 })->throws(ValidationException::class);
-
-// ─── Frame reservation conversion does not double-commit ─────────────────────
-
-test('converted frame reservation releases allocation for the normal order commitment', function () {
-    $variant = ProductVariant::factory()->create(['stock_quantity' => 9]); // already decremented by prepare
-    $reservation = FrameReservation::factory()->create(['status' => ReservationStatus::Prepared]);
-    $reservation->items()->create(['product_variant_id' => $variant->id]);
-
-    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
-    $jobOrder->items()->create([
-        'description' => 'Frame',
-        'quantity' => 1,
-        'unit_price' => 2500,
-        'amount' => 2500,
-        'product_variant_id' => $variant->id,
-        'item_type' => TransactionItemType::Product,
-    ]);
-
-    app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
-
-    // The converter releases the held allocation. The normal Optical Order
-    // commitment runs separately and commits only the quoted frame.
-    $variant->refresh();
-    expect($variant->stock_quantity)->toBe(10);
-
-    // Only the reservation release belongs to this action.
-    $movements = InventoryMovement::where('product_variant_id', $variant->id)->count();
-    expect($movements)->toBe(1);
-});
 
 // ─── Cancellation voids billing when no payments exist ────────────────────────
 

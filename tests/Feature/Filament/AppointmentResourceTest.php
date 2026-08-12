@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\EncounterStatus;
-use App\Enums\ReservationStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
@@ -204,9 +203,7 @@ test('cancellation records actor reason and time', function () {
 test('cancellation cleans up active reservations', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create();
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     $this->actingAs($staff);
 
@@ -216,7 +213,7 @@ test('cancellation cleans up active reservations', function () {
             'cancellation_details' => null,
         ]);
 
-    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled);
+    expect($reservation->exists())->toBeFalse();
 });
 
 test('no show records actor and time', function () {

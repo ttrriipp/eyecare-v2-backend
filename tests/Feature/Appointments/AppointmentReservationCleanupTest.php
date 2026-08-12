@@ -2,8 +2,7 @@
 
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\MarkAppointmentNoShow;
-use App\Actions\Reservations\PrepareFrameReservation;
-use App\Enums\ReservationStatus;
+use App\Actions\Reservations\AcceptFrameReservation;
 use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\FrameReservation;
@@ -22,90 +21,60 @@ beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
 });
 
-test('cancelling appointment cancels requested reservations', function () {
+test('cancelling appointment deletes requested reservations', function () {
     $appointment = Appointment::factory()->create();
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     app(CancelAppointment::class)->handle(
         appointment: $appointment,
         initiator: 'patient',
     );
 
-    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled);
+    expect($reservation->exists())->toBeFalse();
 });
 
-test('cancelling appointment releases prepared stock then cancels', function () {
+test('cancelling appointment releases held stock then deletes', function () {
     $brand = Brand::factory()->create();
     $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $brand->id]);
     $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'stock_quantity' => 5]);
 
     $appointment = Appointment::factory()->create();
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
     FrameReservationItem::factory()->create([
         'frame_reservation_id' => $reservation->id,
         'product_variant_id' => $variant->id,
     ]);
 
-    // Prepare (allocates stock)
-    app(PrepareFrameReservation::class)->handle($reservation);
+    // Accept (allocates stock)
+    app(AcceptFrameReservation::class)->handle($reservation);
     expect($variant->fresh()->stock_quantity)->toBe(4);
 
-    // Cancel appointment (should release stock)
+    // Cancel appointment (should release stock and delete reservation)
     app(CancelAppointment::class)->handle(
         appointment: $appointment,
         initiator: 'patient',
     );
 
-    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled)
+    expect($reservation->exists())->toBeFalse()
         ->and($variant->fresh()->stock_quantity)->toBe(5);
 });
 
-test('cancelling appointment leaves terminal reservations unchanged', function () {
-    $cancelledAppointment = Appointment::factory()->create();
-    $cancelled = FrameReservation::factory()->forAppointment($cancelledAppointment)->create([
-        'status' => ReservationStatus::Cancelled,
-    ]);
-
-    $releasedAppointment = Appointment::factory()->create();
-    $released = FrameReservation::factory()->forAppointment($releasedAppointment)->create([
-        'status' => ReservationStatus::Released,
-    ]);
-
-    app(CancelAppointment::class)->handle(
-        appointment: $cancelledAppointment,
-        initiator: 'patient',
-    );
-    app(CancelAppointment::class)->handle(
-        appointment: $releasedAppointment,
-        initiator: 'patient',
-    );
-
-    expect($cancelled->fresh()->status)->toBe(ReservationStatus::Cancelled)
-        ->and($released->fresh()->status)->toBe(ReservationStatus::Released);
-});
-
-test('marking no-show cancels requested reservations', function () {
+test('marking no-show deletes requested reservations', function () {
     $actor = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create([
         'scheduled_at' => now()->subHour(),
     ]);
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     app(MarkAppointmentNoShow::class)->handle(
         appointment: $appointment,
         actor: $actor,
     );
 
-    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled);
+    expect($reservation->exists())->toBeFalse();
 });
 
-test('marking no-show releases prepared stock then cancels', function () {
+test('marking no-show releases held stock then deletes', function () {
     $brand = Brand::factory()->create();
     $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $brand->id]);
     $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'stock_quantity' => 3]);
@@ -114,15 +83,13 @@ test('marking no-show releases prepared stock then cancels', function () {
     $appointment = Appointment::factory()->create([
         'scheduled_at' => now()->subHour(),
     ]);
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
     FrameReservationItem::factory()->create([
         'frame_reservation_id' => $reservation->id,
         'product_variant_id' => $variant->id,
     ]);
 
-    app(PrepareFrameReservation::class)->handle($reservation);
+    app(AcceptFrameReservation::class)->handle($reservation);
     expect($variant->fresh()->stock_quantity)->toBe(2);
 
     app(MarkAppointmentNoShow::class)->handle(
@@ -130,7 +97,7 @@ test('marking no-show releases prepared stock then cancels', function () {
         actor: $actor,
     );
 
-    expect($reservation->fresh()->status)->toBe(ReservationStatus::Cancelled)
+    expect($reservation->exists())->toBeFalse()
         ->and($variant->fresh()->stock_quantity)->toBe(3);
 });
 

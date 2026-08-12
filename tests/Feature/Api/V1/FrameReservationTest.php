@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\ReservationStatus;
 use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\FrameReservation;
@@ -41,7 +40,7 @@ test('patient can create a frame reservation with appointment', function () {
             'items' => [['product_variant_id' => $variant->id]],
         ])
         ->assertCreated()
-        ->assertJsonPath('data.status', 'requested')
+        ->assertJsonPath('data.is_held', false)
         ->assertJsonPath('data.appointment.id', $appointment->id)
         ->assertJsonPath('data.appointment.appointment_number', $appointment->appointment_number)
         ->assertJsonCount(1, 'data.items');
@@ -49,7 +48,6 @@ test('patient can create a frame reservation with appointment', function () {
     $this->assertDatabaseHas('frame_reservations', [
         'patient_id' => $user->patient->id,
         'appointment_id' => $appointment->id,
-        'status' => 'requested',
     ]);
 });
 
@@ -178,7 +176,7 @@ test('responses contain appointment display context', function () {
         'scheduled_at' => now()->addDay(),
         'duration_minutes' => 30,
     ]);
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
+    FrameReservation::factory()->forAppointment($appointment)->create();
 
     $response = $this->actingAs($user)
         ->getJson('/api/v1/frame-reservations')
@@ -204,27 +202,26 @@ test('patient can list their own reservations', function () {
         ->assertJsonCount(2, 'data');
 });
 
-test('patient can cancel their own requested reservation', function () {
+test('patient can delete their own reservation', function () {
     $user = User::factory()->patient()->create();
     $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     $this->actingAs($user)
-        ->postJson("/api/v1/frame-reservations/{$reservation->id}/cancel")
-        ->assertOk()
-        ->assertJsonPath('data.status', 'cancelled');
+        ->deleteJson("/api/v1/frame-reservations/{$reservation->id}")
+        ->assertNoContent();
+
+    expect($reservation->exists())->toBeFalse();
 });
 
-test('patient cannot cancel another patients reservation', function () {
+test('patient cannot delete another patients reservation', function () {
     $userA = User::factory()->patient()->create();
     $userB = User::factory()->patient()->create();
     $appointment = Appointment::factory()->create(['patient_id' => $userB->patient->id]);
     $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
     $this->actingAs($userA)
-        ->postJson("/api/v1/frame-reservations/{$reservation->id}/cancel")
+        ->deleteJson("/api/v1/frame-reservations/{$reservation->id}")
         ->assertForbidden();
 });
 
@@ -245,9 +242,7 @@ test('unlinked patient account cannot create a frame reservation', function () {
 test('reservation response does not contain internal commercial or inventory fields', function () {
     $user = User::factory()->patient()->create();
     $appointment = Appointment::factory()->create(['patient_id' => $user->patient->id]);
-    FrameReservation::factory()->forAppointment($appointment)->create([
-        'status' => ReservationStatus::Requested,
-    ]);
+    FrameReservation::factory()->forAppointment($appointment)->create();
 
     $response = $this->actingAs($user)
         ->getJson('/api/v1/frame-reservations')
