@@ -356,6 +356,61 @@ listed here so they are not lost, but are **not** part of this spec:
 These need their own decision — several touch authentication and encounters,
 which are outside a commerce refactor's blast radius.
 
+## Design Rationale: Why Quotations and Orders Stay Separate
+
+This is recorded because it is the most likely design question to be asked
+about the commerce model, and because the answer is a deliberate choice rather
+than an industry default.
+
+### What is actually standard
+
+The priced-itemization conversation is standard optical retail everywhere: a
+frame, a lens design, a material, and coatings are itemized and shown to the
+customer before they commit. In the Philippines a printed quotation is common,
+often required for HMO reimbursement.
+
+A separate quotation *entity* is **not** the standard way to model that.
+Most practice-management and retail systems treat it as a **draft order** — one
+entity, one item table, and a status indicating whether it has been finalized.
+E-commerce does the same thing: a cart is a draft order.
+
+### What the separate-entity choice costs
+
+```text
+quotations  + quotation_items   → editable, carries discount and valid_until
+job_orders  + job_order_items   → immutable, carries fulfillment and inventory
+```
+
+Two near-identical table pairs. Confirming a sale copies every line from one to
+the other, which is why `BuildQuotationItemSnapshot` and the `item_snapshot`
+JSON column exist at all — the order is a *different row* from the quote, so
+catalog data has to be frozen into it.
+
+A draft-order model would collapse this to one table pair with a status of
+`draft → confirmed → in_progress → ready → dispensed`, no copy step, and
+`item_snapshot` reduced to optional.
+
+### Why they stay separate anyway
+
+1. **Merging is a rewrite, not a simplification.** It would touch billing,
+   inventory commitment, the patient API, and every Filament commerce screen.
+   That is the opposite of this spec's subtraction premise, and it would place
+   the project's riskiest change immediately before a defense.
+2. **The distinction is real, not incidental.** A quotation is a
+   pre-commitment negotiation artifact that may be declined and never become
+   anything. An order is a commitment with inventory and money attached.
+   Keeping them separate makes an order immutable *by construction* rather than
+   by convention — there is no editable state an order can be in.
+3. **The pattern has real precedent.** Dental treatment plans work this way:
+   the plan is a separate artifact from the ledger entry that results from it.
+
+### The honest limitation
+
+If this system were being built again from scratch with no schedule pressure, a
+draft-order model would be the better choice — fewer tables, no copy step, and
+one source of truth for line items. The separate-entity model is defensible and
+is being kept deliberately, not because it is superior.
+
 ## Explicitly Out of Scope
 
 Kept as-is, deliberately:

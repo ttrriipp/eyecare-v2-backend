@@ -37,7 +37,7 @@ class FrameReservationsTable
                     ->sortable(),
                 TextColumn::make('held_state')
                     ->label('State')
-                    ->state(fn (FrameReservation $record): string => $record->isHeld() ? 'Frames set aside' : 'Awaiting acceptance')
+                    ->state(fn (FrameReservation $record): string => $record->isHeld() ? 'Accepted' : 'Request')
                     ->badge()
                     ->color(fn (FrameReservation $record): string => $record->isHeld() ? 'success' : 'warning'),
                 TextColumn::make('created_at')

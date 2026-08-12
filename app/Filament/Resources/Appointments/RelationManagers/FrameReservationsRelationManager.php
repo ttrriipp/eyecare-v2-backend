@@ -32,7 +32,7 @@ class FrameReservationsRelationManager extends RelationManager
                 TextColumn::make('held_state')
                     ->label('State')
                     ->badge()
-                    ->state(fn (FrameReservation $record): string => $record->isHeld() ? 'Frames set aside' : 'Awaiting acceptance')
+                    ->state(fn (FrameReservation $record): string => $record->isHeld() ? 'Accepted' : 'Request')
                     ->color(fn (FrameReservation $record): string => $record->isHeld() ? 'success' : 'warning'),
                 TextColumn::make('items_count')
                     ->label('Items')

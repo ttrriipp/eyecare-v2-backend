@@ -17,10 +17,10 @@ class ListFrameReservations extends ListRecords
     public function getTabs(): array
     {
         return [
-            'awaiting_acceptance' => Tab::make('Awaiting acceptance')
+            'requests' => Tab::make('Requests')
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereNull('accepted_at')),
 
-            'set_aside' => Tab::make('Set aside')
+            'accepted' => Tab::make('Accepted')
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereNotNull('accepted_at')),
         ];
     }

@@ -27,7 +27,7 @@ class FrameReservationForm
                                 ->content(fn (FrameReservation $record): string => $record->appointment?->appointment_number ?? '—'),
                             Placeholder::make('held_state')
                                 ->label('State')
-                                ->content(fn (FrameReservation $record): string => $record->isHeld() ? 'Frames set aside' : 'Awaiting acceptance')
+                                ->content(fn (FrameReservation $record): string => $record->isHeld() ? 'Accepted' : 'Request')
                                 ->badge()
                                 ->color(fn (FrameReservation $record): string => $record->isHeld() ? 'success' : 'warning'),
                             Textarea::make('staff_notes')
