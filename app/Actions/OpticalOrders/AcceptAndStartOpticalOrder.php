@@ -6,11 +6,8 @@ use App\Actions\BillingRecords\AppendJobOrderItemsToBillingRecord;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\JobOrders\CommitJobOrderInventory;
-use App\Actions\Quotations\ValidateQuotationFrameReservation;
-use App\Actions\Reservations\ConvertFrameReservationToJobOrder;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
-use App\Enums\TransactionItemType;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\Quotation;
@@ -36,10 +33,8 @@ class AcceptAndStartOpticalOrder
         ?float $depositAmount = null,
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
-        ?int $frameReservationId = null,
         string $fulfillmentMode = 'prepared',
         bool $usesExternalSupplier = false,
-        ?int $frameReservationItemId = null,
     ): array {
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Presented, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
@@ -50,41 +45,15 @@ class AcceptAndStartOpticalOrder
         /** @var User $confirmer */
         $confirmer = auth()->user();
 
-        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $frameReservationId, $fulfillmentMode, $usesExternalSupplier, $frameReservationItemId, $confirmer): array {
-            // Lock before validating the reservation or mutating acceptance.
+        return DB::transaction(function () use ($quotation, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $fulfillmentMode, $usesExternalSupplier, $confirmer): array {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
             $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
             $quotation->load('items');
 
-            // Create or return existing Job Order (idempotent via direct quotation_id)
             $jobOrder = JobOrder::query()
                 ->where('quotation_id', $quotation->id)
                 ->lockForUpdate()
                 ->first();
-
-            $legacyReservationId = $frameReservationId;
-
-            if ($legacyReservationId === null
-                && $frameReservationItemId === null
-                && $jobOrder?->frame_reservation_id !== null) {
-                $legacyReservationId = $jobOrder->frame_reservation_id;
-            }
-
-            $productItems = $quotation->items
-                ->where('item_type', TransactionItemType::Product)
-                ->values();
-
-            $reservation = app(ValidateQuotationFrameReservation::class)->handle(
-                quotation: $quotation,
-                productItems: $productItems,
-                legacyReservationItemId: $frameReservationItemId,
-                legacyReservationId: $legacyReservationId,
-                existingOpticalOrder: $jobOrder,
-            );
-
-            if ($reservation !== null && $quotation->frame_reservation_id === null) {
-                $quotation->update(['frame_reservation_id' => $reservation->id]);
-            }
 
             if (! $wasAlreadyAccepted) {
                 $quotation->update([
@@ -107,7 +76,6 @@ class AcceptAndStartOpticalOrder
                     'eyewear_key' => $quotation->eyewear_key,
                 ]);
 
-                // Snapshot all direct quotation items into job order items
                 foreach ($quotation->items as $item) {
                     $jobOrder->items()->create([
                         'description' => $item->description,
@@ -120,11 +88,6 @@ class AcceptAndStartOpticalOrder
                     ]);
                 }
 
-                if ($reservation !== null) {
-                    app(ConvertFrameReservationToJobOrder::class)->handle($reservation, $jobOrder);
-                }
-
-                // Commit every catalog-backed order item exactly once.
                 app(CommitJobOrderInventory::class)->handle($jobOrder);
             }
 

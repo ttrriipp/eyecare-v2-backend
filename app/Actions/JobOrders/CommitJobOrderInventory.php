@@ -14,13 +14,9 @@ use Illuminate\Validation\ValidationException;
 class CommitJobOrderInventory
 {
     /**
-     * @param  array<int, int>  $excludeProductVariantIds  Variants already committed elsewhere in
-     *                                                     this same confirmation (e.g. transferred
-     *                                                     from a converted frame reservation) —
-     *                                                     skipped here to avoid double-committing.
      * @param  array<int, int>  $selectedLotIds  Explicit lot selections per variant ID.
      */
-    public function handle(JobOrder $jobOrder, array $excludeProductVariantIds = [], array $selectedLotIds = []): void
+    public function handle(JobOrder $jobOrder, array $selectedLotIds = []): void
     {
         if ($jobOrder->status !== JobOrderStatus::Queued) {
             throw ValidationException::withMessages([
@@ -28,16 +24,12 @@ class CommitJobOrderInventory
             ]);
         }
 
-        DB::transaction(function () use ($jobOrder, $excludeProductVariantIds, $selectedLotIds): void {
+        DB::transaction(function () use ($jobOrder, $selectedLotIds): void {
             $commitmentType = InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_commitment']);
 
             foreach ($jobOrder->items as $item) {
                 if ($item->product_variant_id === null) {
-                    continue;
-                }
-
-                if (in_array($item->product_variant_id, $excludeProductVariantIds, true)) {
                     continue;
                 }
 

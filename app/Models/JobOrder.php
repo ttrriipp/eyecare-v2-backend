@@ -20,7 +20,6 @@ use Illuminate\Support\Str;
     'encounter_id',
     'prescription_id',
     'quotation_id',
-    'frame_reservation_id',
     'status',
     'fulfillment_mode',
     'uses_external_supplier',
@@ -111,14 +110,6 @@ class JobOrder extends Model
         return $this->hasOne(BillingRecord::class)
             ->where('status', '!=', BillingRecordStatus::Voided)
             ->latest('id');
-    }
-
-    /**
-     * @return BelongsTo<FrameReservation, $this>
-     */
-    public function frameReservation(): BelongsTo
-    {
-        return $this->belongsTo(FrameReservation::class);
     }
 
     /**
