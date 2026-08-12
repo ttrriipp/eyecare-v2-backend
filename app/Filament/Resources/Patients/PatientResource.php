@@ -8,7 +8,6 @@ use App\Filament\Resources\Patients\Pages\ListPatients;
 use App\Filament\Resources\Patients\RelationManagers\AppointmentsRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\BillingRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\EncountersRelationManager;
-use App\Filament\Resources\Patients\RelationManagers\HealthRecordRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\InvitationHistoryRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\OpticalOrdersRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
@@ -68,7 +67,6 @@ class PatientResource extends Resource
             EncountersRelationManager::class,
             OpticalOrdersRelationManager::class,
             BillingRelationManager::class,
-            HealthRecordRelationManager::class,
             InvitationHistoryRelationManager::class,
         ];
     }

@@ -141,17 +141,14 @@ class VariantsRelationManager extends RelationManager
                 ->schema([
                     TextInput::make('attributes.power')
                         ->label('Power')
-                        ->required()
                         ->maxLength(20),
                     TextInput::make('attributes.base_curve')
                         ->label('Base Curve')
-                        ->required()
                         ->numeric()
                         ->minValue(7)
                         ->maxValue(12),
                     TextInput::make('attributes.diameter')
                         ->label('Diameter (mm)')
-                        ->required()
                         ->numeric()
                         ->minValue(10)
                         ->maxValue(20),
@@ -171,7 +168,6 @@ class VariantsRelationManager extends RelationManager
                         ->maxLength(50),
                     TextInput::make('attributes.pack_size')
                         ->label('Pack Size')
-                        ->required()
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(999),
