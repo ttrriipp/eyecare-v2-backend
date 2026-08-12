@@ -46,15 +46,6 @@ class OpticalOrdersTable
                         JobOrderStatus::Cancelled => 'danger',
                     }),
 
-                TextColumn::make('quotation.patient.full_name')
-                    ->label('Source Quotation')
-                    ->placeholder('Direct order'),
-
-                TextColumn::make('supplier_invoice_number')
-                    ->label('Supplier Ref')
-                    ->placeholder('—')
-                    ->toggleable(),
-
                 TextColumn::make('total_amount')
                     ->label('Total')
                     ->money('PHP')
