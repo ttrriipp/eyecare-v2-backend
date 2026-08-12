@@ -2,7 +2,8 @@
 
 namespace App\Filament\Resources\Encounters\Pages;
 
-use App\Actions\BillingRecords\AddEncounterChargesToBilling;
+use App\Actions\BillingRecords\AddChargesToBilling;
+use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Encounters\AssignEncounterOptometrist;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\CreateEncounterAddendum;
@@ -11,6 +12,7 @@ use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
 use App\Actions\Encounters\VoidEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
@@ -642,9 +644,31 @@ class EditEncounter extends EditRecord
                 ])
                 ->action(function (array $data): void {
                     try {
-                        $billingRecord = app(AddEncounterChargesToBilling::class)->handle(
-                            encounter: $this->record,
-                            items: $data['items'],
+                        $encounter = $this->record;
+                        $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
+                            patient: $encounter->patient,
+                            encounter: $encounter,
+                        );
+
+                        $items = collect($data['items'])->map(function (array $item) use ($encounter): array {
+                            $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
+                            $amountInCents = $unitPriceInCents * (int) $item['quantity'];
+
+                            return [
+                                'description' => trim($item['description']),
+                                'quantity' => (int) $item['quantity'],
+                                'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
+                                'amount' => number_format($amountInCents / 100, 2, '.', ''),
+                                'item_type' => \App\Enums\TransactionItemType::Service,
+                                'encounter_id' => $encounter->id,
+                                'service_id' => $item['service_id'] ?? null,
+                            ];
+                        });
+
+                        $billingRecord = app(AddChargesToBilling::class)->handle(
+                            billingRecord: $billingRecord,
+                            sourceKind: BillingItemSourceKind::Encounter,
+                            items: $items,
                         );
 
                         Notification::make()

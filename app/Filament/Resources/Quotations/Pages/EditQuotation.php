@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Quotations\Pages;
 
-use App\Actions\BillingRecords\BillRemainingQuotedServices;
+use App\Actions\BillingRecords\AddChargesToBilling;
+use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\RecordQuotationDecision;
 use App\Actions\Quotations\UpdateQuotationDraft;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Enums\TransactionItemType;
@@ -232,10 +234,45 @@ class EditQuotation extends EditRecord
                 ->modalDescription('Confirms the selected quoted services have now been performed and adds them to this patient\'s open bill.')
                 ->action(function (array $data): void {
                     try {
-                        app(BillRemainingQuotedServices::class)->handle(
-                            quotation: $this->record,
-                            quotationItemIds: array_map('intval', $data['quotation_item_ids'] ?? []),
+                        $quotation = $this->record;
+
+                        $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
+                            patient: $quotation->patient,
+                            jobOrder: $quotation->jobOrder,
+                            encounter: $quotation->encounter,
                         );
+
+                        $selectedIds = array_map('intval', $data['quotation_item_ids'] ?? []);
+
+                        $existingQuotationItemIds = $billingRecord->items()
+                            ->whereNotNull('quotation_item_id')
+                            ->pluck('quotation_item_id')
+                            ->toArray();
+
+                        $newServiceIds = array_diff($selectedIds, $existingQuotationItemIds);
+
+                        if (! empty($newServiceIds)) {
+                            $serviceItems = $quotation->items()
+                                ->whereIn('id', $newServiceIds)
+                                ->where('item_type', TransactionItemType::Service)
+                                ->get()
+                                ->map(fn ($item): array => [
+                                    'description' => $item->description,
+                                    'quantity' => $item->quantity,
+                                    'unit_price' => $item->unit_price,
+                                    'amount' => $item->amount,
+                                    'item_type' => $item->item_type,
+                                    'quotation_item_id' => $item->id,
+                                ]);
+
+                            if ($serviceItems->isNotEmpty()) {
+                                app(AddChargesToBilling::class)->handle(
+                                    billingRecord: $billingRecord,
+                                    sourceKind: BillingItemSourceKind::Quotation,
+                                    items: $serviceItems,
+                                );
+                            }
+                        }
                     } catch (ValidationException $e) {
                         Notification::make()
                             ->title('Cannot bill services')

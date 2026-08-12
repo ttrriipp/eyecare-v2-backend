@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\BillingRecords\Pages;
 
-use App\Actions\BillingRecords\AddDirectServiceChargesToBilling;
+use App\Actions\BillingRecords\AddChargesToBilling;
+use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\Patient;
@@ -138,9 +140,28 @@ class ListBillingRecords extends ListRecords
                     $patient = Patient::query()->findOrFail($data['patient_id']);
 
                     try {
-                        $billingRecord = app(AddDirectServiceChargesToBilling::class)->handle(
+                        $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                             patient: $patient,
-                            items: $data['items'],
+                        );
+
+                        $items = collect($data['items'])->map(function (array $item): array {
+                            $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
+                            $amountInCents = $unitPriceInCents * (int) $item['quantity'];
+
+                            return [
+                                'description' => trim($item['description']),
+                                'quantity' => (int) $item['quantity'],
+                                'unit_price' => number_format($unitPriceInCents / 100, 2, '.', ''),
+                                'amount' => number_format($amountInCents / 100, 2, '.', ''),
+                                'item_type' => \App\Enums\TransactionItemType::Service,
+                                'service_id' => $item['service_id'] ?? null,
+                            ];
+                        });
+
+                        $billingRecord = app(AddChargesToBilling::class)->handle(
+                            billingRecord: $billingRecord,
+                            sourceKind: BillingItemSourceKind::DirectService,
+                            items: $items,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
