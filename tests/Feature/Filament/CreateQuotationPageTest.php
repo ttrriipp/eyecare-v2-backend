@@ -159,7 +159,12 @@ test('quotation creation stays quiet when no spectacle prescription is linked', 
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
+    $component = Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id]);
+    $initialToggle = $component->instance()->form->getFlatFields(withHidden: true)['include_prescription_eyewear'];
+
+    expect($initialToggle->isVisible())->toBeFalse();
+
+    $component
         ->assertDontSee('No spectacle prescription linked')
         ->assertDontSee('You may quote frames, contact lenses, accessories, custom products, and services.')
         ->assertDontSee('Choose the patient’s current prescription above before confirming a lens package.')
@@ -167,7 +172,13 @@ test('quotation creation stays quiet when no spectacle prescription is linked', 
         ->assertDontSee('Describe the uncatalogued item or service.')
         ->assertDontSee('Priced as one pair.')
         ->assertDontSee('A quotation may include one frame.')
-        ->set('data.prescription_id', $prescription->id)
+        ->set('data.prescription_id', $prescription->id);
+
+    $selectedToggle = $component->instance()->form->getFlatFields(withHidden: true)['include_prescription_eyewear'];
+
+    expect($selectedToggle->isVisible())->toBeTrue();
+
+    $component
         ->assertDontSee('No spectacle prescription linked');
 });
 
@@ -432,8 +443,14 @@ test('a manually-picked patient can select their current prescription to add a l
     $component = Livewire::test(CreateQuotation::class)
         ->set('data.patient_id', $patient->id)
         ->assertFormFieldExists('prescription_id')
+        ->set('data.prescription_id', $prescription->id);
+
+    $toggle = $component->instance()->form->getFlatFields(withHidden: true)['include_prescription_eyewear'];
+
+    expect($toggle->isVisible())->toBeTrue();
+
+    $component
         ->set('data.include_prescription_eyewear', true)
-        ->set('data.prescription_id', $prescription->id)
         ->set('data.eyewear_lens_category_id', $lensCategory->id);
 
     $component

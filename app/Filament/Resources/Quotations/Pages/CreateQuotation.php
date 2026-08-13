@@ -147,6 +147,9 @@ class CreateQuotation extends CreateRecord
                         Toggle::make('include_prescription_eyewear')
                             ->label('Include prescription eyewear')
                             ->default($contextPrescription !== null || $encounterPrescription !== null)
+                            ->visible(fn (Get $get): bool => $contextPrescription !== null
+                                || $encounterPrescription !== null
+                                || filled($get('prescription_id')))
                             ->live()
                             ->afterStateUpdated(function (Set $set, Get $get, ?bool $state, LivewireComponent $livewire) use ($hasPrescriptionPicker): void {
                                 $items = collect($get('items') ?? []);
