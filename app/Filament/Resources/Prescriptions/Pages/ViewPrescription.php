@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Prescriptions\Pages;
 
 use App\Actions\Prescriptions\VoidPrescription;
+use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -37,13 +38,30 @@ class ViewPrescription extends ViewRecord
     {
         $record = $this->getRecord();
 
+        if ($record->isVoided()) {
+            return $this->warning('⚠ Voided — this prescription cannot be dispensed against.');
+        }
+
         if (! $record->isCurrentVersion()) {
-            return new HtmlString(
-                '<span class="text-sm font-medium text-warning-600 dark:text-warning-400">⚠ Superseded — use the current version for printing and fulfillment.</span>'
-            );
+            return $this->warning('⚠ Superseded — use the current version for printing and fulfillment.');
+        }
+
+        // A voided encounter does not void the prescription it produced — the
+        // patient may already hold the printout — but staff must be told.
+        if ($record->encounter?->status === EncounterStatus::Voided) {
+            return $this->warning('⚠ The encounter that produced this prescription was voided. Confirm it is still clinically valid before dispensing.');
         }
 
         return null;
+    }
+
+    private function warning(string $message): Htmlable
+    {
+        return new HtmlString(
+            '<span class="text-sm font-medium text-warning-600 dark:text-warning-400">'
+            .e($message)
+            .'</span>'
+        );
     }
 
     public function content(Schema $schema): Schema

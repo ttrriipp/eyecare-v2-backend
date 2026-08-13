@@ -3,6 +3,7 @@
 use App\Actions\Encounters\VoidEncounter;
 use App\Enums\EncounterStatus;
 use App\Models\Encounter;
+use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -70,6 +71,19 @@ test('voiding writes an audit log entry naming the actor and reason', function (
         'action' => 'encounter.voided',
         'actor_id' => $this->optometrist->id,
     ]);
+});
+
+// --- Downstream effects ---
+
+test('voiding an encounter does not void the prescription it produced', function () {
+    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Completed]);
+    $prescription = Prescription::factory()->create(['encounter_id' => $encounter->id]);
+
+    app(VoidEncounter::class)->handle($encounter, $this->optometrist, 'Wrong patient selected');
+
+    // The patient may already hold the printout, so the prescription stands.
+    // Staff are warned on the prescription page instead — see ViewPrescription.
+    expect($prescription->fresh()->isVoided())->toBeFalse();
 });
 
 // --- Policy parity with the action ---

@@ -203,7 +203,7 @@ class VariantsRelationManager extends RelationManager
                     ->money('PHP')
                     ->sortable(),
                 IconColumn::make('is_active')
-                    ->label('Visible')
+                    ->label('Active')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')

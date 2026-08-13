@@ -51,6 +51,21 @@ test('corrective lens package requires current prescription version', function (
     app(ValidateOpticalQuotation::class)->handle($items, patient: $patient, prescription: $original);
 })->throws(ValidationException::class, 'has been superseded');
 
+test('corrective lens package rejects a voided prescription', function () {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create([
+        'patient_id' => $patient->id,
+        'voided_at' => now(),
+        'void_reason' => 'Wrong axis recorded',
+    ]);
+
+    $items = collect([
+        ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
+    ]);
+
+    app(ValidateOpticalQuotation::class)->handle($items, patient: $patient, prescription: $prescription);
+})->throws(ValidationException::class, 'has been voided');
+
 test('corrective eyewear with valid patient prescription passes', function () {
     $patient = Patient::factory()->create();
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);

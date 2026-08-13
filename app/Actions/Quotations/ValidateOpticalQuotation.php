@@ -88,5 +88,11 @@ final class ValidateOpticalQuotation
                 'prescription' => ['The prescription has been superseded. Use the current version.'],
             ]);
         }
+
+        if ($prescription->isVoided()) {
+            throw ValidationException::withMessages([
+                'prescription' => ['This prescription has been voided and cannot be dispensed against.'],
+            ]);
+        }
     }
 }
