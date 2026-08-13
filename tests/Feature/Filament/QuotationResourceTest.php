@@ -141,6 +141,91 @@ test('quotation details show the linked prescription reference and prescriber', 
         ->assertSee('Current');
 });
 
+test('confirm sale exposes fulfillment choices and defaults prescription eyewear to pickup preparation', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensCategory = LensCategory::factory()->withPrice(3000)->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'patient_id' => $patient->id,
+        'prescription_id' => $prescription->id,
+        'subtotal' => 8000,
+        'total' => 8000,
+    ]);
+
+    $quotation->items()->createMany([
+        [
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 5000,
+            'amount' => 5000,
+            'product_variant_id' => $variant->id,
+            'item_kind' => CommercialItemKind::Frame,
+        ],
+        [
+            'description' => 'Single Vision Lens',
+            'quantity' => 1,
+            'unit_price' => 3000,
+            'amount' => 3000,
+            'lens_category_id' => $lensCategory->id,
+            'item_kind' => CommercialItemKind::LensPackage,
+        ],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->mountAction('confirmSale')
+        ->assertActionDataSet([
+            'fulfillment_mode' => 'prepared',
+            'uses_external_supplier' => false,
+        ])
+        ->assertMountedActionModalSee([
+            'Fulfillment',
+            'Complete sale now',
+            'Prepare for pickup',
+            'External supplier',
+        ]);
+});
+
+test('confirm sale saves the selected fulfillment and supplier settings', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'patient_id' => $patient->id,
+        'subtotal' => 5000,
+        'total' => 5000,
+    ]);
+
+    $quotation->items()->create([
+        'description' => 'Accessory',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+        'product_variant_id' => $variant->id,
+        'item_kind' => CommercialItemKind::Accessory,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->callAction('confirmSale', [
+            'fulfillment_mode' => 'prepared',
+            'uses_external_supplier' => true,
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified('Sale confirmed');
+
+    $order = JobOrder::query()->where('quotation_id', $quotation->id)->firstOrFail();
+
+    expect($order->fulfillment_mode)->toBe('prepared')
+        ->and($order->uses_external_supplier)->toBeTrue();
+});
+
 test('quotation resource is registered', function () {
     expect(QuotationResource::getModel())->toBe(Quotation::class);
 });

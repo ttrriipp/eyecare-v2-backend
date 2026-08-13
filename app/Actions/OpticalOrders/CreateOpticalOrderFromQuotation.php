@@ -48,6 +48,12 @@ class CreateOpticalOrderFromQuotation
         bool $usesExternalSupplier = false,
         ?string $recipientName = null,
     ): array {
+        if (! in_array($fulfillmentMode, ['immediate', 'prepared'], true)) {
+            throw ValidationException::withMessages([
+                'fulfillment_mode' => ['Fulfillment mode must be immediate or prepared.'],
+            ]);
+        }
+
         if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Accepted], true)) {
             throw ValidationException::withMessages([
                 'quotation' => ['Only draft or accepted quotations can be confirmed.'],

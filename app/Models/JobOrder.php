@@ -122,6 +122,7 @@ class JobOrder extends Model
     {
         return [
             'status' => JobOrderStatus::class,
+            'uses_external_supplier' => 'boolean',
             'started_at' => 'datetime',
             'ready_at' => 'datetime',
             'dispensed_at' => 'datetime',

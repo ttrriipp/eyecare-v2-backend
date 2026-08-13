@@ -22,11 +22,13 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -95,6 +97,7 @@ class EditQuotation extends EditRecord
                         ->get()
                         ->map(fn ($item): string => "{$item->description} × {$item->quantity}")
                         ->values();
+                    $hasProductItems = $configurationItems->isNotEmpty();
 
                     $prescription = $this->record->prescription;
 
@@ -129,6 +132,35 @@ class EditQuotation extends EditRecord
                             ->visible($prescription !== null
                                 && ($prescription->isVoided() || ! $prescription->isCurrentVersion()))
                             ->columnSpanFull(),
+
+                        Select::make('fulfillment_mode')
+                            ->label('Fulfillment')
+                            ->options([
+                                'immediate' => 'Complete sale now',
+                                'prepared' => 'Prepare for pickup',
+                            ])
+                            ->default('prepared')
+                            ->required()
+                            ->live()
+                            ->helperText('Use Complete sale now only for items already ready to dispense.')
+                            ->visible($hasProductItems)
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                if ($state === 'immediate') {
+                                    $set('uses_external_supplier', false);
+                                }
+                            }),
+
+                        Toggle::make('uses_external_supplier')
+                            ->label('External supplier')
+                            ->default(false)
+                            ->visible(fn (Get $get): bool => $hasProductItems
+                                && $get('fulfillment_mode') === 'prepared'),
+
+                        TextInput::make('recipient_name')
+                            ->label('Dispensing Recipient')
+                            ->maxLength(255)
+                            ->visible(fn (Get $get): bool => $hasProductItems
+                                && $get('fulfillment_mode') === 'immediate'),
 
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
@@ -188,6 +220,10 @@ class EditQuotation extends EditRecord
                             depositAmount: filled($data['deposit_amount'] ?? null) ? (float) $data['deposit_amount'] : null,
                             depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                             depositReference: $data['deposit_reference'] ?? null,
+                            fulfillmentMode: $data['fulfillment_mode'] ?? 'prepared',
+                            usesExternalSupplier: ($data['fulfillment_mode'] ?? 'prepared') === 'prepared'
+                                && (bool) ($data['uses_external_supplier'] ?? false),
+                            recipientName: $data['recipient_name'] ?? null,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()
