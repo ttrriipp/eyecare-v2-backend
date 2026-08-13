@@ -18,6 +18,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
@@ -138,6 +139,27 @@ class CreateQuotation extends CreateRecord
                             ->label('Include prescription eyewear')
                             ->default($contextPrescription !== null || $encounterPrescription !== null)
                             ->live()
+                            ->afterStateUpdated(function (Set $set, Get $get, ?bool $state): void {
+                                $items = collect($get('items') ?? []);
+                                $hasEnteredItem = $items
+                                    ->contains(fn (array $item): bool => collect([
+                                        $item['description'] ?? null,
+                                        $item['unit_price'] ?? null,
+                                        $item['product_variant_id'] ?? null,
+                                        $item['lens_category_id'] ?? null,
+                                        $item['lens_option_id'] ?? null,
+                                        $item['service_id'] ?? null,
+                                    ])->contains(fn (mixed $value): bool => filled($value)));
+
+                                if ($state && ! $hasEnteredItem) {
+                                    $set('items', []);
+                                } elseif (! $state && ! $hasEnteredItem) {
+                                    $set('items', [[
+                                        'item_kind' => 'catalog',
+                                        'quantity' => 1,
+                                    ]]);
+                                }
+                            })
                             ->dehydrated(false)
                             ->columnSpanFull(),
                         Placeholder::make('prescription_prescribed_at')
@@ -177,6 +199,7 @@ class CreateQuotation extends CreateRecord
                     patientIdResolver: fn (Get $get): ?int => $patient?->id
                         ?? (filled($get('patient_id')) ? (int) $get('patient_id') : null),
                     prescriptionEyewearResolver: $prescriptionEyewearResolver,
+                    dedicatedPrescriptionEyewear: true,
                 ),
             ]);
     }
@@ -199,7 +222,19 @@ class CreateQuotation extends CreateRecord
             ?? $this->resolvePatient()
             ?? Patient::query()->find($data['patient_id'] ?? null);
 
-        unset($data['patient_id'], $data['prescription_id'], $data['include_prescription_eyewear']);
+        $data = $this->normalizePrescriptionEyewearData($data, $includePrescriptionEyewear);
+
+        unset(
+            $data['patient_id'],
+            $data['prescription_id'],
+            $data['include_prescription_eyewear'],
+            $data['eyewear_frame_source'],
+            $data['eyewear_frame_variant_id'],
+            $data['eyewear_patient_frame_description'],
+            $data['eyewear_patient_frame_price'],
+            $data['eyewear_lens_category_id'],
+            $data['eyewear_lens_options'],
+        );
 
         if ($patient === null) {
             Notification::make()
@@ -266,6 +301,85 @@ class CreateQuotation extends CreateRecord
     protected function hasCreateAnother(): bool
     {
         return false;
+    }
+
+    /**
+     * Convert the dedicated eyewear form state into the existing quotation
+     * item payload. The transient role markers are used only for validation
+     * and are removed before quotation items are persisted.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizePrescriptionEyewearData(array $data, bool $includePrescriptionEyewear): array
+    {
+        if (! $includePrescriptionEyewear) {
+            return $data;
+        }
+
+        $items = collect($data['items'] ?? [])
+            ->filter(fn (array $item): bool => collect([
+                $item['description'] ?? null,
+                $item['unit_price'] ?? null,
+                $item['product_variant_id'] ?? null,
+                $item['lens_category_id'] ?? null,
+                $item['lens_option_id'] ?? null,
+                $item['service_id'] ?? null,
+            ])->contains(fn (mixed $value): bool => filled($value)))
+            ->map(fn (array $item): array => [
+                ...$item,
+                'eyewear_role' => 'other',
+            ])
+            ->values();
+
+        if (($data['eyewear_frame_source'] ?? null) === 'catalog'
+            && filled($data['eyewear_frame_variant_id'] ?? null)) {
+            $items->prepend([
+                'item_kind' => 'catalog',
+                'product_variant_id' => (int) $data['eyewear_frame_variant_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'frame',
+            ]);
+        }
+
+        if (($data['eyewear_frame_source'] ?? null) === 'patient'
+            && (filled($data['eyewear_patient_frame_description'] ?? null)
+                || filled($data['eyewear_patient_frame_price'] ?? null))) {
+            $items->prepend([
+                'item_kind' => 'custom_product',
+                'description' => $data['eyewear_patient_frame_description'] ?? null,
+                'quantity' => 1,
+                'unit_price' => $data['eyewear_patient_frame_price'] ?? null,
+                'eyewear_role' => 'frame',
+            ]);
+        }
+
+        if (filled($data['eyewear_lens_category_id'] ?? null)) {
+            $items->push([
+                'item_kind' => 'lens',
+                'lens_category_id' => (int) $data['eyewear_lens_category_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'lens_package',
+            ]);
+        }
+
+        foreach ($data['eyewear_lens_options'] ?? [] as $option) {
+            if (blank($option['lens_option_id'] ?? null)) {
+                continue;
+            }
+
+            $items->push([
+                'item_kind' => 'lens_option',
+                'lens_option_id' => (int) $option['lens_option_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'lens_option',
+            ]);
+        }
+
+        return [
+            ...$data,
+            'items' => $items->all(),
+        ];
     }
 
     private function resolveEncounter(): ?Encounter

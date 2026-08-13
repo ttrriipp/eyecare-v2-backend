@@ -5,6 +5,7 @@ use App\Filament\Resources\Quotations\Pages\CreateQuotation;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Encounter;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Product;
@@ -21,6 +22,7 @@ test('staff creates a quotation from an encounter query context', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
+    $lensCategory = LensCategory::factory()->withPrice(12500)->create();
 
     $this->actingAs($staff);
 
@@ -31,15 +33,8 @@ test('staff creates a quotation from an encounter query context', function () {
             'valid_until' => now()->addWeek()->toDateString(),
             'discount_amount' => 0,
             'notes' => 'Patient-visible estimate note.',
-        ]);
-    $itemKey = array_key_first($component->get('data.items'));
-
-    $component
-        ->set('data.include_prescription_eyewear', false)
-        ->set("data.items.{$itemKey}.item_kind", 'custom_product')
-        ->set("data.items.{$itemKey}.description", 'Complete frame and single vision lens')
-        ->set("data.items.{$itemKey}.quantity", 1)
-        ->set("data.items.{$itemKey}.unit_price", 12500)
+        ])
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
         ->set('data.notes', 'Patient-visible estimate note.')
         ->call('create')
         ->assertHasNoFormErrors()
@@ -174,12 +169,20 @@ test('prescription eyewear mode follows the entry context and controls guided it
 
     Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
         ->assertFormSet(['include_prescription_eyewear' => true])
-        ->assertSee('Prescription Eyewear Build')
+        ->assertSee('Prescription Eyewear')
+        ->assertSee('1. Frame')
+        ->assertSee('2. Lens Package')
+        ->assertSee('3. Lens Options')
+        ->assertSee('Other Items')
         ->set('data.include_prescription_eyewear', false)
-        ->assertDontSee('Prescription Eyewear Build');
+        ->assertDontSee('1. Frame')
+        ->assertDontSee('2. Lens Package')
+        ->assertDontSee('3. Lens Options')
+        ->assertSee('Items')
+        ->assertSee('Add Item');
 });
 
-test('guided prescription eyewear requires a current prescription and lens package', function () {
+test('prescription eyewear mode presents a dedicated builder and separate other items', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
@@ -187,21 +190,92 @@ test('guided prescription eyewear requires a current prescription and lens packa
     $this->actingAs($staff);
 
     $component = Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id]);
-    $itemKey = array_key_first($component->get('data.items'));
 
     $component
-        ->set("data.items.{$itemKey}.item_kind", 'custom_product')
-        ->set("data.items.{$itemKey}.description", 'Patient-supplied frame')
-        ->set("data.items.{$itemKey}.quantity", 1)
-        ->set("data.items.{$itemKey}.unit_price", 1000)
+        ->assertFormFieldExists('eyewear_frame_source')
+        ->assertFormFieldExists('eyewear_frame_variant_id')
+        ->assertFormFieldExists('eyewear_lens_category_id')
+        ->assertFormFieldExists('eyewear_lens_options')
+        ->assertSee('Prescription Eyewear')
+        ->assertSee('1. Frame')
+        ->assertSee('2. Lens Package')
+        ->assertSee('3. Lens Options')
+        ->assertSee('Other Items')
+        ->assertSee('Add lens option')
+        ->assertSee('Add Other Item')
+        ->assertDontSee('Add Item');
+});
+
+test('dedicated prescription eyewear selections become quotation items with other items', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $frame = Product::factory()->create([
+        'name' => 'Aster Frame',
+        'product_type' => 'frame',
+    ]);
+    $frameVariant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'name' => 'Matte Black',
+        'sku' => 'FRM-AST-BLK',
+        'price' => 2450,
+    ]);
+    $lensCategory = LensCategory::factory()->withPrice(1800)->create([
+        'name' => 'Single Vision 1.56',
+    ]);
+    $lensOption = LensOption::factory()->create([
+        'name' => 'Anti-reflective coating',
+        'price' => 600,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
+        ->set('data.eyewear_frame_source', 'catalog')
+        ->set('data.eyewear_frame_variant_id', $frameVariant->id)
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
+        ->set('data.eyewear_lens_options', [['lens_option_id' => $lensOption->id]])
+        ->set('data.items', [[
+            'item_kind' => 'custom_service',
+            'description' => 'Eye examination',
+            'quantity' => 1,
+            'unit_price' => 500,
+        ]])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()
+        ->where('prescription_id', $prescription->id)
+        ->with('items')
+        ->firstOrFail();
+
+    expect($quotation->items)->toHaveCount(4)
+        ->and($quotation->items->pluck('description')->all())->toContain(
+            'Aster Frame — Matte Black',
+            'Single Vision 1.56',
+            'Anti-reflective coating',
+            'Eye examination',
+        )
+        ->and((float) $quotation->total)->toBe(5350.0);
+});
+
+test('dedicated prescription eyewear requires a current prescription and lens package', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
         ->assertFormSet(['include_prescription_eyewear' => true])
         ->call('create')
-        ->assertNotified();
+        ->assertHasFormErrors(['eyewear_lens_category_id' => 'required']);
 
     expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
 });
 
-test('lens selection uses a fixed pair quantity and shows the eyewear build summary', function () {
+test('lens selection uses a fixed pair quantity and shows the dedicated eyewear build', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
@@ -212,29 +286,13 @@ test('lens selection uses a fixed pair quantity and shows the eyewear build summ
 
     $this->actingAs($staff);
 
-    $component = Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id]);
-    $itemKey = array_key_first($component->get('data.items'));
-
-    $component
-        ->set("data.items.{$itemKey}.item_kind", 'lens')
-        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
-        ->assertFormSet([
-            "items.{$itemKey}.description" => 'Single Vision',
-            "items.{$itemKey}.unit_price" => '1800.00',
-            "items.{$itemKey}.quantity" => 1,
-        ])
-        ->assertSee('Prescription Eyewear Build')
-        ->assertSee('Lens package')
-        ->assertSee('Selected');
-
-    $fields = $component->instance()->form->getFlatFields(withHidden: true);
-    $unitPriceKey = collect(array_keys($fields))
-        ->first(fn (string $key): bool => str_ends_with($key, '.unit_price'));
-    $quantityKey = collect(array_keys($fields))
-        ->first(fn (string $key): bool => str_ends_with($key, '.quantity'));
-
-    expect($fields[$unitPriceKey]->isDisabled())->toBeTrue()
-        ->and($fields[$quantityKey]->isDisabled())->toBeTrue();
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
+        ->assertFormSet(['eyewear_lens_category_id' => $lensCategory->id])
+        ->assertSee('2. Lens Package')
+        ->assertSee('1 pair')
+        ->assertSee('₱1,800.00')
+        ->assertSee('Eyewear subtotal');
 });
 
 test('staff creates a quotation from an existing prescription with no new encounter', function () {
@@ -245,13 +303,9 @@ test('staff creates a quotation from an existing prescription with no new encoun
 
     $this->actingAs($staff);
 
-    $component = Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
-        ->assertFormFieldDoesNotExist('patient_id');
-    $itemKey = array_key_first($component->get('data.items'));
-
-    $component
-        ->set("data.items.{$itemKey}.item_kind", 'lens')
-        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id])
+        ->assertFormFieldDoesNotExist('patient_id')
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
         ->call('create')
         ->assertHasNoFormErrors()
         ->assertRedirect();
@@ -273,12 +327,8 @@ test('an existing prescription cannot be reused for corrective eyewear once supe
 
     $this->actingAs($staff);
 
-    $component = Livewire::test(CreateQuotation::class, ['prescription' => (string) $original->id]);
-    $itemKey = array_key_first($component->get('data.items'));
-
-    $component
-        ->set("data.items.{$itemKey}.item_kind", 'lens')
-        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
+    Livewire::test(CreateQuotation::class, ['prescription' => (string) $original->id])
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
         ->call('create')
         ->assertNotified();
 
@@ -312,7 +362,7 @@ test('staff creates a quotation from a patient query context with no encounter',
         ->and($quotation->total)->toBe('2500.00');
 });
 
-test('direct quotation with patient context rejects corrective items without an encounter', function () {
+test('direct quotation with patient context requires a prescription for corrective eyewear', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $lensCategory = LensCategory::factory()->withPrice()->create();
@@ -320,17 +370,10 @@ test('direct quotation with patient context rejects corrective items without an 
     $this->actingAs($staff);
 
     Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
-        ->fillForm([
-            'items' => [[
-                'item_kind' => 'lens',
-                'lens_category_id' => $lensCategory->id,
-                'description' => 'Single Vision Lens',
-                'quantity' => 1,
-                'unit_price' => 1200,
-            ]],
-        ])
+        ->set('data.include_prescription_eyewear', true)
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
         ->call('create')
-        ->assertNotified();
+        ->assertHasFormErrors(['prescription_id' => 'required']);
 
     expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
 });
@@ -369,12 +412,10 @@ test('a manually-picked patient can select their current prescription to add a l
         ->set('data.patient_id', $patient->id)
         ->assertFormFieldExists('prescription_id')
         ->set('data.include_prescription_eyewear', true)
-        ->set('data.prescription_id', $prescription->id);
-    $itemKey = array_key_first($component->get('data.items'));
+        ->set('data.prescription_id', $prescription->id)
+        ->set('data.eyewear_lens_category_id', $lensCategory->id);
 
     $component
-        ->set("data.items.{$itemKey}.item_kind", 'lens')
-        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
         ->call('create')
         ->assertHasNoFormErrors()
         ->assertRedirect();
@@ -411,7 +452,7 @@ test('a superseded prescription picked manually is still rejected for a lens ite
     expect(Quotation::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
 });
 
-test('a quotation with only a patient context in the URL still offers a prescription picker for lens items', function () {
+test('a quotation with only a patient context in the URL offers a prescription picker for eyewear mode', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
@@ -420,12 +461,11 @@ test('a quotation with only a patient context in the URL still offers a prescrip
     $this->actingAs($staff);
 
     $component = Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
-        ->set('data.prescription_id', $prescription->id);
-    $itemKey = array_key_first($component->get('data.items'));
+        ->set('data.include_prescription_eyewear', true)
+        ->set('data.prescription_id', $prescription->id)
+        ->set('data.eyewear_lens_category_id', $lensCategory->id);
 
     $component
-        ->set("data.items.{$itemKey}.item_kind", 'lens')
-        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
         ->call('create')
         ->assertHasNoFormErrors();
 

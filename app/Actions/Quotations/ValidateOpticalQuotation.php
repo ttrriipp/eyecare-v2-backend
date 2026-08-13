@@ -33,16 +33,15 @@ final class ValidateOpticalQuotation
         $lensOptions = $items->where('item_kind', CommercialItemKind::LensOption);
         $isCorrective = $lensPackages->isNotEmpty();
 
-        // In corrective mode a custom product represents a patient-supplied
-        // frame. Outside corrective mode, custom products remain ordinary
-        // uncatalogued items and are not treated as frames.
         $frames = $items->filter(function (array $item) use ($isCorrective): bool {
             if (($item['item_kind'] ?? null) === CommercialItemKind::Frame) {
-                return true;
+                return ($item['eyewear_role'] ?? null) !== 'other';
             }
 
             return $isCorrective
-                && ($item['item_kind'] ?? null) === CommercialItemKind::CustomProduct;
+                && ($item['item_kind'] ?? null) === CommercialItemKind::CustomProduct
+                && (! array_key_exists('eyewear_role', $item)
+                    || ($item['eyewear_role'] ?? null) === 'frame');
         });
 
         foreach ($frames as $frame) {

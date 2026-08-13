@@ -124,7 +124,7 @@ class CreateQuotation
                 );
 
                 return [
-                    'description' => trim($item['description']),
+                    'description' => trim((string) ($item['description'] ?? '')),
                     'quantity' => (int) $item['quantity'],
                     'unit_price' => $this->formatMoney($unitPriceInCents),
                     'amount' => $this->formatMoney($amountInCents),
@@ -134,6 +134,7 @@ class CreateQuotation
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
+                    'eyewear_role' => $item['eyewear_role'] ?? null,
                     'amount_in_cents' => $amountInCents,
                 ];
             });
@@ -144,6 +145,7 @@ class CreateQuotation
                     'product_variant_id' => $item['product_variant_id'],
                     'lens_option_id' => $item['lens_option_id'],
                     'quantity' => $item['quantity'],
+                    'eyewear_role' => $item['eyewear_role'],
                 ])->values(),
                 patient: $patient,
                 prescription: $prescriptionId !== null ? Prescription::query()->find($prescriptionId) : null,
@@ -183,7 +185,9 @@ class CreateQuotation
             // Create items directly on the quotation
             $quotation->items()->createMany(
                 $itemSnapshots
-                    ->map(fn (array $item): array => collect($item)->except('amount_in_cents')->all())
+                    ->map(fn (array $item): array => collect($item)
+                        ->except(['amount_in_cents', 'eyewear_role'])
+                        ->all())
                     ->all(),
             );
 
@@ -216,9 +220,9 @@ class CreateQuotation
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_kind' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
-            'items.*.description' => ['required', 'string', 'max:255'],
+            'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
-            'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
             'items.*.product_variant_id' => [
                 'nullable',
                 'integer',
@@ -248,6 +252,20 @@ class CreateQuotation
                     $validator->errors()->add(
                         "items.{$index}.item_kind",
                         'A quotation item can reference only one catalog entry.',
+                    );
+                }
+
+                if ($references->isEmpty() && blank($item['description'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.description",
+                        'A custom quotation item requires a description.',
+                    );
+                }
+
+                if ($references->isEmpty() && blank($item['unit_price'] ?? null)) {
+                    $validator->errors()->add(
+                        "items.{$index}.unit_price",
+                        'A custom quotation item requires a unit price.',
                     );
                 }
 
@@ -376,7 +394,10 @@ class CreateQuotation
     private function validatePrescriptionEyewearMode(array $items): void
     {
         $items = collect($items);
-        $lensPackageItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens');
+        $hasFormRoles = $items->contains(fn (array $item): bool => array_key_exists('eyewear_role', $item));
+        $lensPackageItems = $items->filter(fn (array $item): bool => $hasFormRoles
+            ? ($item['eyewear_role'] ?? null) === 'lens_package'
+            : ($item['item_kind'] ?? null) === 'lens');
 
         if ($lensPackageItems->count() !== 1
             || $lensPackageItems->contains(fn (array $item): bool => blank($item['lens_category_id'] ?? null))) {
@@ -385,7 +406,10 @@ class CreateQuotation
             ]);
         }
 
-        $catalogItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog');
+        $frameItems = $items->filter(fn (array $item): bool => $hasFormRoles
+            ? ($item['eyewear_role'] ?? null) === 'frame'
+            : in_array($item['item_kind'] ?? null, ['catalog', 'custom_product'], true));
+        $catalogItems = $frameItems->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog');
         $catalogVariantIds = $catalogItems->pluck('product_variant_id')->filter()->map(fn (mixed $id): int => (int) $id);
 
         if ($catalogItems->count() !== $catalogVariantIds->count()) {
@@ -406,7 +430,7 @@ class CreateQuotation
             ]);
         }
 
-        $patientFrameItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'custom_product');
+        $patientFrameItems = $frameItems->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'custom_product');
 
         foreach ($patientFrameItems as $item) {
             if ((int) ($item['quantity'] ?? 0) !== 1) {
