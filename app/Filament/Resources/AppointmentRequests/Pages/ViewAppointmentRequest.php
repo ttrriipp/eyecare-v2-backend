@@ -62,6 +62,7 @@ class ViewAppointmentRequest extends ViewRecord
                     }
 
                     $otherOptions = Patient::query()
+                        ->whereNull('user_id')
                         ->whereNotIn('id', array_keys($candidateOptions))
                         ->get()
                         ->mapWithKeys(fn (Patient $p): array => [
