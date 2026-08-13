@@ -50,7 +50,7 @@ class AppointmentResource extends Resource
     {
         $count = Appointment::query()
             ->whereDate('scheduled_at', today())
-            ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', ['cancelled', 'no_show']))
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', ['cancelled', 'no_show', 'fulfilled']))
             ->count();
 
         return $count > 0 ? (string) $count : null;
