@@ -137,37 +137,6 @@ class AppointmentRequestForm
                             ->content(fn ($record): string => $record?->encrypted_reason_for_visit ?? '—')
                             ->columnSpanFull(),
 
-                        Placeholder::make('appointment_type')
-                            ->label('Appointment Type')
-                            ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
-
-                        Placeholder::make('provisional_duration')
-                            ->label('Provisional Duration')
-                            ->content(fn ($record): string => $record?->provisional_duration_minutes !== null
-                                ? "{$record->provisional_duration_minutes} minutes"
-                                : '—'),
-
-                        Placeholder::make('submitted_at')
-                            ->label('Submitted')
-                            ->content(function ($record): string {
-                                if ($record === null) {
-                                    return '—';
-                                }
-
-                                $snapshot = $record->encrypted_identity_snapshot;
-                                $submittedAt = (isset($snapshot['submitted_at']))
-                                    ? Carbon::parse($snapshot['submitted_at'])
-                                    : $record->created_at;
-
-                                return $submittedAt?->format('M j, Y \a\t g:i A') ?? '—';
-                            }),
-                    ])
-                    ->columns(3),
-
-                // ── 4. Requested Schedule ───────────────────────────────────
-                Section::make('Requested Schedule')
-                    ->columnSpanFull()
-                    ->schema([
                         Placeholder::make('submitted_times')
                             ->label('Preferred Time')
                             ->content(function ($record): HtmlString {
@@ -196,10 +165,35 @@ class AppointmentRequestForm
                                 );
                             })
                             ->columnSpanFull(),
-                    ])
-                    ->columns(1),
 
-                // ── 5. Referral Source ──────────────────────────────────────
+                        Placeholder::make('appointment_type')
+                            ->label('Appointment Type')
+                            ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
+
+                        Placeholder::make('provisional_duration')
+                            ->label('Provisional Duration')
+                            ->content(fn ($record): string => $record?->provisional_duration_minutes !== null
+                                ? "{$record->provisional_duration_minutes} minutes"
+                                : '—'),
+
+                        Placeholder::make('submitted_at')
+                            ->label('Submitted')
+                            ->content(function ($record): string {
+                                if ($record === null) {
+                                    return '—';
+                                }
+
+                                $snapshot = $record->encrypted_identity_snapshot;
+                                $submittedAt = (isset($snapshot['submitted_at']))
+                                    ? Carbon::parse($snapshot['submitted_at'])
+                                    : $record->created_at;
+
+                                return $submittedAt?->format('M j, Y \a\t g:i A') ?? '—';
+                            }),
+                    ])
+                    ->columns(3),
+
+                // ── 4. Referral Source ──────────────────────────────────────
                 Section::make('Referral')
                     ->visible(fn ($record): bool => ! empty($record?->encrypted_referring_source))
                     ->columnSpanFull()
