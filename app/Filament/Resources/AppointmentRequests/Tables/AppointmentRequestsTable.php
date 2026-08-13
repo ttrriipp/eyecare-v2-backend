@@ -79,12 +79,12 @@ class AppointmentRequestsTable
                     ->options(AppointmentRequestStatus::class),
             ])
             ->recordActions([
-                Action::make('view')
-                    ->label('Review')
-                    ->icon('heroicon-o-eye')
-                    ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
-
                 ActionGroup::make([
+                    Action::make('view')
+                        ->label('Review')
+                        ->icon('heroicon-o-eye')
+                        ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
+
                     Action::make('linkToPatient')
                         ->label('Link to Patient')
                         ->icon('heroicon-o-link')
