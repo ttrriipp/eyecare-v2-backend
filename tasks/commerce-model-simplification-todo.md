@@ -1,6 +1,6 @@
 # Task Checklist: Commerce Model Simplification
 
-**Status:** Draft 2026-08-12 — approval pending
+**Status:** ✅ Implemented 2026-08-13 — all 22 tasks landed
 **Specification:** `docs/specs/commerce-model-simplification-spec.md`
 **Plan:** `tasks/commerce-model-simplification-plan.md`
 

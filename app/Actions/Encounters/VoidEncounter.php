@@ -16,14 +16,20 @@ final class VoidEncounter
     /**
      * Void an encounter created in error.
      *
-     * Only completed or planned encounters can be voided. Requires a reason
-     * and records the actor and timestamp.
+     * Only completed or planned encounters can be voided. Requires an active
+     * optometrist or administrator, a reason, and records actor and timestamp.
      */
     public function handle(
         Encounter $encounter,
         User $actor,
         string $reason,
     ): Encounter {
+        if (! $actor->is_active || ! ($actor->isOptometrist() || $actor->isAdmin())) {
+            throw ValidationException::withMessages([
+                'actor' => ['Only an optometrist or administrator may void an encounter.'],
+            ]);
+        }
+
         if (! in_array($encounter->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)) {
             throw ValidationException::withMessages([
                 'status' => ['Only planned or completed encounters can be voided.'],

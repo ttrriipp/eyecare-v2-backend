@@ -1,9 +1,9 @@
 # Implementation Plan: Commerce Model Simplification
 
-**Status:** Draft 2026-08-12 — approval pending
+**Status:** ✅ Implemented 2026-08-13
 **Specification:** `docs/specs/commerce-model-simplification-spec.md`
 **Checklist:** `tasks/commerce-model-simplification-todo.md`
-**Implementation:** Not started
+**Implementation:** Complete — all 22 tasks landed, `96bf3b6`..`3b8c3ec`
 **Scope:** 22 tasks in 10 phases
 
 ## Overview

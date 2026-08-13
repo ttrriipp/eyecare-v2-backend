@@ -686,7 +686,7 @@ class EditEncounter extends EditRecord
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
                 ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)
-                    && (auth()->user()?->isAdmin() || auth()->user()?->isOptometrist()))
+                    && auth()->user()?->can('void', $this->record) === true)
                 ->requiresConfirmation()
                 ->modalHeading('Void Encounter')
                 ->modalDescription('This will mark the encounter as voided. This action cannot be undone.')

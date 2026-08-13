@@ -2,11 +2,29 @@
 
 ## Status
 
-**Draft 2026-08-12. Approval pending.**
+**Draft 2026-08-12. Revised 2026-08-13. Approval pending.**
 
-Revised the same day after two audit findings were corrected — message
-attachments are live and are no longer in scope, and the privacy question was
-resolved by the owner. No open questions remain.
+First revision (2026-08-12) corrected two audit findings — message attachments
+are live and are no longer in scope, and the privacy question was resolved by
+the owner.
+
+Second revision (2026-08-13), taken after the commerce project landed,
+corrected three more:
+
+- `inventory_movement_statuses` **was already dropped** in June by migration
+  `2026_06_19_003812`. Only two dead tables remain.
+- Patient intakes have **three display surfaces**, not zero.
+- `intake-form.blade.php` is an **orphan view** with no page class behind it.
+
+Third revision (2026-08-13), same day, corrected the second: those three
+surfaces are **themselves unregistered** and unreachable.
+`HealthRecordRelationManager` is not in `PatientResource::getRelations()`, no
+page class backs `intake-form.blade.php`, and the print view is linked only
+from that orphan view. The second revision's claim of a live blank-column
+defect is withdrawn — nobody can see those columns.
+
+The spec is therefore **purely subtractive**, as originally scoped. No open
+questions.
 
 ## Objective
 
@@ -32,8 +50,9 @@ unreachable when **no user of either client can trigger it**.
 |---|:--:|:--:|:--:|:--:|:--:|---|
 | `notification_channels` | yes | none | 0 | none | none | Dead schema |
 | `notification_templates` | yes | none | 0 | none | none | Dead schema |
-| `inventory_movement_statuses` | yes | none | 0 | none | none | Dead schema |
-| Patient intakes | yes | yes | 7 | none | 3 files | Bypassed |
+| `inventory_movement_statuses` | dropped | none | 0 | none | none | **Already gone** |
+| Patient intakes | yes | yes | 7 | **2 surfaces** | 3 files | Bypassed, but **displayed** |
+| `intake-form.blade.php` | — | — | 0 | none | none | Orphan view |
 | Complaints | yes | yes | 3 | none | 1 file | No front door |
 | Message attachments | yes | yes | 8 | **yes** | 1 file | **Live — not dead** |
 | Privacy compliance | yes | yes | 6 | none | 2 files | Kept, not actioned |
@@ -65,22 +84,53 @@ reported `Complaint` as referenced from `HealthRecordRelationManager` and
 `EncounterForm`. Those files match the string **"Chief Complaint"**, the
 clinical narrative field on encounters, which is unrelated to the `Complaint`
 model. `Complaint` is referenced only by `ComplaintPolicy`,
-`RestartComplaintWorkflow`, and its own model.
+`RestartComplaintWorkflow`, its own model, and `ClinicWorkflowSeeder`.
+
+**Patient intakes: wrong twice, in opposite directions.**
+
+The first pass searched `app/Filament` for the class name `PatientIntake`,
+found only an eager-load, and concluded "no UI". That missed three surfaces
+reading the **relation** name `intake` — the same axis-1 error as message
+attachments.
+
+The second pass found those surfaces and declared them live. That was wrong
+too: it confirmed each surface reads `intake` but never asked whether anything
+reaches the surface. None of them are registered.
+`HealthRecordRelationManager` is absent from `PatientResource::getRelations()`,
+no page class backs `intake-form.blade.php`, and the print view is linked only
+from that orphan view. See §2 for the full table.
+
+The right answer was reached only on the third pass, and only by walking
+**outward** from each surface to its caller instead of inward from a symbol to
+its references. Both failures share a shape: a search was run, it returned
+something, and the something was treated as an answer.
+
+Hence §4's fourth axis. A grep proves a reference exists; it does not prove a
+user can get there. **Reachability is a path, not a match.**
 
 ## Scope
 
 ### 1. Dead schema — no model, no references
 
-`notification_channels`, `notification_templates`, and
-`inventory_movement_statuses` exist only as migrations. Nothing reads or writes
-them and no seeder populates them.
+`notification_channels` and `notification_templates` exist only as migrations.
+Nothing reads or writes them, no model wraps them, and no seeder populates
+them. Zero references on all four axes.
 
-`inventory_movement_statuses` deserves a note: the running code uses
-`inventory_movement_types`, a *different* table. A near-identical dead table
-sitting beside the live one is an active hazard — it is exactly the kind of
-thing a future reader wires up by mistake.
+`inventory_movement_statuses` **is already gone.** Migration
+`2026_06_19_003812_drop_inventory_movement_statuses_table` dropped it in June;
+the first audit pass read the `create` migration and missed the `drop`. The
+running code uses `inventory_movement_types`, a different and live table.
 
-**Changes:** one migration dropping all three tables.
+What remains of it is a create/drop migration pair that cancels out on every
+`migrate:fresh`. Per ADR-002 there is no deployed database whose history must
+be preserved, so both files should be deleted rather than left as a matched
+pair of no-ops. This is the only place in the spec where migration *files* are
+deleted rather than a new drop migration being added, and it is safe precisely
+because the table no longer exists in any environment.
+
+**Changes:** one migration dropping `notification_channels` and
+`notification_templates`; delete the two `inventory_movement_statuses`
+migration files.
 
 ### 2. Patient intakes — bypassed by the encounter wizard
 
@@ -90,25 +140,82 @@ the application can ever have an intake.** The subsystem is reachable only by
 records that predate the wizard, and per ADR-002 no such records exist outside
 disposable development data.
 
+#### The three display surfaces are themselves orphaned
+
+Three surfaces read `intake`. The second revision reported them as live; that
+was wrong, and the error is instructive — it confirmed each surface reads the
+`intake` relation but never checked whether anything reaches the surface.
+
+| Surface | Reads | Reachable? |
+|---|---|---|
+| `HealthRecordRelationManager` ("Visit History") | `intake.chief_complaint`, `intake.allergies` | **No** — not in `PatientResource::getRelations()` |
+| `intake-form.blade.php` | `$this->getIntake()` | **No** — no page class defines it |
+| `health-record-print.blade.php` (`routes/web.php:42`) | six `$intake?->` fields | Route registered; linked only from `intake-form.blade.php:31` |
+
+`PatientResource::getRelations()` lists `PrescriptionsRelationManager`,
+`AppointmentsRelationManager`, `EncountersRelationManager`,
+`OpticalOrdersRelationManager`, `BillingRelationManager`, and
+`InvitationHistoryRelationManager`. `HealthRecordRelationManager` is absent, so
+"Visit History" is not a tab anywhere in the panel.
+
+`app/Filament/Resources/Appointments/Pages/` holds only
+`AppointmentRequestsPage`, `CreateAppointment`, `EditAppointment`, and
+`ListAppointments` — none define `getIntake()`, so nothing renders
+`intake-form.blade.php`.
+
+The print route is the only partial exception: it is a real registered route, so
+a signed-in panel user who typed the URL would reach it. But no UI element links
+to it except the orphan view, so in practice it is unreachable too.
+
+**Consequence: no repoint is needed, and there is no user-visible defect to
+fix.** All three surfaces are deleted outright along with the model. The second
+revision's claim that this spec had become "no longer purely subtractive" is
+withdrawn — it is subtractive after all.
+
+#### If the print view is wanted, that is a separate build
+
+The print view is the one piece with arguable value: a printable health record
+is a plausible clinic need, and the encounter already carries every field it
+wants (`2026_07_31_132034_add_consultation_fields_to_encounters_table` added
+`chief_complaint`, `past_ocular_history`, `past_surgical_history`,
+`past_medical_history`, `allergies`, and `medications`, all encrypted, all
+populated by the wizard).
+
+But wiring it up means giving it a real entry point, sourcing it from the
+encounter, and deciding where it belongs in the panel — that is a feature, not
+cleanup, and it does not belong in a removal spec. Note also that
+`EncounterPrintTest` and a `/encounters/{encounter}/print` route already exist,
+so a working encounter printout may already cover the need.
+
+**Default: delete it.** Raise a separate spec if the clinic wants an
+appointment-level health-record printout.
+
 **Changes:**
 
+- Delete `HealthRecordRelationManager`, `intake-form.blade.php`, and
+  `health-record-print.blade.php`.
+- Delete the `appointments.health-record.print` route from `routes/web.php`.
 - Drop `patient_intakes`; drop `encounters.patient_intake_id`.
 - Delete `PatientIntake`, `IntakeStatus`, `Encounter::intake()`,
-  `Appointment::intake()`, `Patient` intake relations.
+  `Appointment::intake()`, `Patient::intakes()`.
+- Remove `patient_intake_id` from `Encounter`'s `Fillable` attribute,
+  `EncounterFactory`, and `CheckInAppointment`.
+- Remove the `'intake'` eager-load from `EncounterResource::getEloquentQuery()`.
 - Delete `app/Actions/Intakes/` (`VerifyPatientIntake`,
   `ReturnIntakeForCorrection`).
 - Delete `AuditLegacyPatientIntakes` and the `encounters:audit-legacy-intakes`
   command — a readiness check for a cleanup this spec performs.
+- Remove `AuditEvent::IntakeSubmitted`, `IntakeVerified`, and
+  `IntakeReturnedForCorrection`.
 - Delete `PatientIntakeFactory`, `PatientIntakeTest`,
   `IntakeVerificationTest`, `LegacyIntakeCleanupAuditTest`.
 - Update `EncounterLifecycleCharacterizationTest` and `ClinicWorkflowSeeder`
   to drop intake setup.
-- `routes/web.php` eager-loads `intake.submittedBy` / `intake.verifiedBy` on
-  the appointment print view — remove those and any template output.
 
 `IntakeVerificationTest` asserts a role boundary (staff may verify an intake
-but that does not authorize clinical findings). Confirm the equivalent boundary
-is covered by an encounter test before deleting; write one if not.
+but that does not authorize clinical findings). `PrescriptionLifecycleTest:45`
+appears to cover the equivalent boundary on the clinical side; confirm it
+before deleting, and write the missing case if it does not.
 
 ### 3. Complaints — no way to file one
 
@@ -120,6 +227,8 @@ started by anyone.
 **Changes:** drop `complaints`; delete `Complaint`, `ComplaintStatus`,
 `ComplaintPolicy`, `app/Actions/Complaints/`, `ComplaintFactory`,
 `ComplaintRestartTest`, and the `Patient` / `JobOrder` complaint relations.
+Remove `ClinicWorkflowSeeder::seedComplaint()` and its call site — the seeder
+is the only thing in the codebase that creates a `Complaint`.
 
 ### 4. Verification procedure
 
@@ -181,24 +290,38 @@ dependency change. Schema changes are drops only.
 
 ```text
 app/Models/                → −2 models (PatientIntake, Complaint)
+                             Encounter, Appointment, Patient, JobOrder relations trimmed
 app/Enums/                 → −2 enums (IntakeStatus, ComplaintStatus)
+                             AuditEvent −3 cases
 app/Actions/Intakes/       → deleted
 app/Actions/Complaints/    → deleted
+app/Actions/Encounters/    → −1 action (AuditLegacyPatientIntakes),
+                             CheckInAppointment trimmed
 app/Actions/Privacy/       → untouched
 app/Policies/              → −1 policy (ComplaintPolicy)
 app/Console/Commands/      → −1 command
-database/factories/        → −2 factories
-database/migrations/       → +1 drop migration (5 tables, 1 column)
+app/Filament/              → −1 orphan relation manager, 1 eager-load trimmed
+resources/views/           → −2 orphan views
+database/factories/        → −2 factories, EncounterFactory trimmed
+database/seeders/          → ClinicWorkflowSeeder: complaint + intake setup removed
+database/migrations/       → +1 drop migration (4 tables, 1 column)
+                             −2 files (inventory_movement_statuses create/drop pair)
 tests/Feature/             → −4 test files, 2 updated
-routes/web.php             → intake eager-loads removed
+routes/web.php             → health-record print route removed
 docs/BACKEND_CONTEXT.md    → removals + permission-matrix correction
 ```
 
 ## Testing Strategy
 
-The risk here is not regression but **discovering a reference after deletion**.
+The risk is not regression but **discovering a reference after deletion**.
 Verification is therefore proof-of-absence before removal, and suite integrity
-after.
+after. No user-visible behavior changes anywhere in this spec.
+
+The one addition to the usual procedure: for each Filament class and Blade view
+being deleted, confirm its *registration* is absent, not merely its references.
+A relation manager must be absent from `getRelations()`; a page from
+`getPages()`; a view must have no renderer. That check is what the first two
+passes skipped.
 
 1. **Before each deletion**, prove unreachability: grep the model and table
    name across `app/`, `routes/`, `database/`, and `resources/views/`, and
@@ -245,29 +368,48 @@ vendor/bin/sail bin pint --dirty --format agent
 - delete `audit_logs`, `inventory_movements`, or any ledger table;
 - leave a table without its model, or a model without its table;
 - skip a test instead of deleting it;
-- delete privacy compliance before Open Question 1 is answered.
+- delete any privacy compliance code — the owner elected to keep it;
+- declare a symbol dead from a class-name search alone.
 
 ## Success Criteria
 
-1. `notification_channels`, `notification_templates`, and
-   `inventory_movement_statuses` no longer exist.
+1. `notification_channels` and `notification_templates` no longer exist, and
+   the `inventory_movement_statuses` create/drop migration pair is deleted.
 2. `patient_intakes` and `encounters.patient_intake_id` are gone, along with
-   every intake model, action, command, factory, and test.
-3. `complaints` is gone with its model, enum, policy, action, factory, and
-   test.
-4. Message attachments are **untouched** and still work end to end: upload,
+   every intake model, enum, relation, action, command, audit event, factory,
+   orphan view, and test.
+3. The three orphaned intake surfaces are gone: `HealthRecordRelationManager`,
+   `intake-form.blade.php`, `health-record-print.blade.php`, and the
+   `appointments.health-record.print` route.
+4. `complaints` is gone with its model, enum, policy, action, factory, test,
+   and seeder block.
+5. Message attachments are **untouched** and still work end to end: upload,
    download, preview, API exposure, and Filament display.
-5. Privacy compliance code is untouched; only the permission matrix in
+6. Privacy compliance code is untouched; only the permission matrix in
    `docs/BACKEND_CONTEXT.md` is corrected to stop advertising an unreachable
    capability.
-6. No orphan remains in either direction: no table without a model, no model
-   without a table.
-7. `migrate:fresh --seed` succeeds; full suite green; Pint reports no changes.
-8. `docs/BACKEND_CONTEXT.md` no longer documents anything removed, and its
+7. No orphan remains in either direction: no table without a model, no model
+   without a table, no Blade view without a renderer.
+8. `migrate:fresh --seed` succeeds; full suite green; Pint reports no changes.
+9. `docs/BACKEND_CONTEXT.md` no longer documents anything removed, and its
    permission matrix matches what the panel can actually do.
 
 ## Open Questions
 
-None. The privacy question was resolved by the owner on 2026-08-12 — keep the
-backend, build nothing, correct the permission matrix. The spec is purely
-subtractive.
+None.
+
+The privacy question was resolved by the owner on 2026-08-12 — keep the
+backend, build nothing, correct the permission matrix.
+
+The spec is **purely subtractive.** The second revision briefly claimed
+otherwise, having found three surfaces that display intake data and concluded
+they needed repointing at the encounter. The third revision established that
+none of those surfaces is registered, so nothing displays intake data to anyone
+and no repoint is required. That claim is withdrawn.
+
+One judgment call is recorded rather than left open: the health-record print
+view is deleted rather than rebuilt. A printable health record is plausibly
+useful, and the encounter carries every field it wants — but wiring it up means
+giving it an entry point and a home in the panel, which is a feature. A working
+`/encounters/{encounter}/print` route already exists and may cover the need.
+If it does not, that is a separate spec.

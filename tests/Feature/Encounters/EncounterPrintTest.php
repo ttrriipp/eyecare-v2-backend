@@ -115,6 +115,7 @@ test('print view shows addenda', function () {
 test('print view shows patient information', function () {
     $patient = Patient::factory()->create([
         'first_name' => 'Maria',
+        'middle_name' => null,
         'last_name' => 'Santos',
     ]);
     $encounter = Encounter::factory()->completed()->create([

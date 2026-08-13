@@ -9,12 +9,8 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -170,42 +166,6 @@ class VariantsRelationManager extends RelationManager
                         ->maxValue(999),
                 ])
                 ->columns(4)
-                ->columnSpanFull()
-                ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
-
-            // Lot information for contact-lens variants
-            Repeater::make('lots')
-                ->relationship()
-                ->table([
-                    TableColumn::make('Lot #'),
-                    TableColumn::make('Expires'),
-                    TableColumn::make('Qty'),
-                    TableColumn::make('Status'),
-                ])
-                ->schema([
-                    TextInput::make('lot_number')
-                        ->label('Lot #')
-                        ->disabled(),
-                    DatePicker::make('expires_on')
-                        ->label('Expires')
-                        ->disabled(),
-                    TextInput::make('quantity_on_hand')
-                        ->label('Qty')
-                        ->disabled(),
-                    Placeholder::make('status')
-                        ->label('Status')
-                        ->content(fn ($record): string => match (true) {
-                            $record === null => '—',
-                            $record->isExpired() => 'Expired',
-                            $record->expires_on->diffInDays(now()) <= 30 => 'Near Expiry',
-                            default => 'OK',
-                        }),
-                ])
-                ->columns(4)
-                ->disableItemCreation()
-                ->disableItemDeletion()
-                ->disableItemMovement()
-                ->compact()
                 ->columnSpanFull()
                 ->visible(fn (RelationManager $livewire): bool => $livewire->getOwnerRecord()->product_type === 'contact_lens'),
 

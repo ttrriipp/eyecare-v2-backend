@@ -109,6 +109,17 @@ class EncounterPolicy
         return $user->isOptometrist();
     }
 
+    public function void(User $user, Encounter $encounter): bool
+    {
+        if (! $user->is_active) {
+            return false;
+        }
+
+        // Clinical authority to void findings, or administrative authority to
+        // void an encounter raised in error.
+        return $user->isOptometrist() || $user->isAdmin();
+    }
+
     public function print(User $user, Encounter $encounter): bool
     {
         return $user->hasPanelRole();
