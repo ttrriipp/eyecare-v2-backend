@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -140,6 +142,18 @@ class DemoUserSeeder extends Seeder
                 'date_of_birth' => '1990-05-15',
                 'gender' => 'female',
                 'occupation' => 'Teacher',
+            ]);
+        }
+
+        if ($user->contacts()->where('type', 'phone')->doesntExist()) {
+            $phone = '09170000003';
+            PatientAccountContact::query()->create([
+                'user_id' => $user->id,
+                'type' => 'phone',
+                'encrypted_value' => $phone,
+                'lookup_hash' => app(CreateContactLookupHash::class)->forPhone($phone),
+                'verified_at' => now(),
+                'is_primary' => true,
             ]);
         }
     }

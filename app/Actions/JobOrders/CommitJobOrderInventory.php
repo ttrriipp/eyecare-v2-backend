@@ -24,7 +24,7 @@ class CommitJobOrderInventory
             $commitmentType = InventoryMovementType::query()
                 ->firstOrCreate(['name' => 'order_commitment']);
 
-            foreach ($jobOrder->items as $item) {
+            foreach ($jobOrder->items->sortBy(fn ($item): int => (int) ($item->product_variant_id ?? 0)) as $item) {
                 if ($item->product_variant_id === null) {
                     continue;
                 }

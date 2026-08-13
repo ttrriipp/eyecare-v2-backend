@@ -90,6 +90,8 @@ class CreateDirectOpticalOrder
                 return [
                     'item_kind' => $snapshot['item_kind'],
                     'product_variant_id' => $item['product_variant_id'] ?? null,
+                    'lens_option_id' => $item['lens_option_id'] ?? null,
+                    'quantity' => $item['quantity'],
                 ];
             })->values(),
             patient: $patient,

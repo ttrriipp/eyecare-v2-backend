@@ -29,6 +29,46 @@ test('corrective eyewear requires exactly one lens package', function () {
     app(ValidateOpticalQuotation::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
 })->throws(ValidationException::class, 'exactly one lens package');
 
+test('frame and corrective lens quantities follow the build rules', function () {
+    $items = collect([
+        ['item_kind' => CommercialItemKind::Frame, 'product_variant_id' => 1, 'quantity' => 2],
+        ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null, 'quantity' => 2],
+    ]);
+
+    app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
+})->throws(ValidationException::class, 'Frame quantity must be 1');
+
+test('lens options must each be one pair', function () {
+    $items = collect([
+        ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null, 'quantity' => 1],
+        ['item_kind' => CommercialItemKind::LensOption, 'product_variant_id' => null, 'quantity' => 2],
+    ]);
+
+    app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
+})->throws(ValidationException::class, 'Lens option quantity must be 1 pair');
+
+test('a lens option cannot be selected twice', function () {
+    $items = collect([
+        ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null, 'quantity' => 1],
+        ['item_kind' => CommercialItemKind::LensOption, 'lens_option_id' => 7, 'quantity' => 1],
+        ['item_kind' => CommercialItemKind::LensOption, 'lens_option_id' => 7, 'quantity' => 1],
+    ]);
+
+    app(ValidateOpticalQuotation::class)->handle(
+        $items,
+        patient: $this->patient,
+        prescription: $this->prescription,
+    );
+})->throws(ValidationException::class, 'Each lens option may be selected only once');
+
 test('corrective eyewear with one lens package is valid', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::Frame, 'product_variant_id' => 1],

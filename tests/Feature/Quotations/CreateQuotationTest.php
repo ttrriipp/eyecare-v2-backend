@@ -46,7 +46,7 @@ test('staff creates a draft quotation with direct items from an encounter prescr
                 ],
                 [
                     'description' => 'Single vision lens',
-                    'quantity' => 2,
+                    'quantity' => 1,
                     'unit_price' => 1500,
                     'lens_category_id' => $lensCategory->id,
                 ],
@@ -60,14 +60,14 @@ test('staff creates a draft quotation with direct items from an encounter prescr
         ->and($quotation->patient_id)->toBe($encounter->patient_id)
         ->and($quotation->encounter_id)->toBe($encounter->id)
         ->and($quotation->prescription_id)->toBe($prescription->id)
-        ->and((float) $quotation->subtotal)->toBe(8000.0)
+        ->and((float) $quotation->subtotal)->toBe(6500.0)
         ->and((float) $quotation->discount_amount)->toBe(500.0)
-        ->and((float) $quotation->total)->toBe(7500.0);
+        ->and((float) $quotation->total)->toBe(6000.0);
 
     // Direct items on quotation
     expect($quotation->items)->toHaveCount(2)
         ->and((float) $quotation->items->first()->amount)->toBe(5000.0)
-        ->and((float) $quotation->items->last()->amount)->toBe(3000.0);
+        ->and((float) $quotation->items->last()->amount)->toBe(1500.0);
 
     // Audit log created
     expect(AuditLog::query()

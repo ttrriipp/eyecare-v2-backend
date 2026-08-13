@@ -6,6 +6,8 @@ use App\Filament\Resources\BillingRecords\RelationManagers\PaymentsRelationManag
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
+use App\Models\JobOrder;
+use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +27,29 @@ test('staff can view a billing record', function () {
         ->assertSeeLivewire(PaymentsRelationManager::class)
         ->assertActionDoesNotExist('recordPayment')
         ->assertActionDoesNotExist('correctPayment');
+});
+
+test('billing review links to quotation and optical order', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create();
+    $order = JobOrder::factory()->create([
+        'quotation_id' => $quotation->id,
+        'patient_id' => $quotation->patient_id,
+    ]);
+    $billingRecord = BillingRecord::factory()->create([
+        'quotation_id' => $quotation->id,
+        'job_order_id' => $order->id,
+        'patient_id' => $quotation->patient_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditBillingRecord::class, ['record' => $billingRecord->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee($quotation->quotation_number)
+        ->assertSee($order->job_order_number)
+        ->assertActionVisible('viewQuotation')
+        ->assertActionVisible('viewOpticalOrder');
 });
 
 test('staff can see itemized charges on a billing record', function () {

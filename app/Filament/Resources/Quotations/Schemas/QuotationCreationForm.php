@@ -33,7 +33,7 @@ class QuotationCreationForm
         return [
             Section::make('Quotation Details')
                 ->schema([
-                    Grid::make(2)->schema([
+                    Grid::make(['default' => 1, 'md' => 2])->schema([
                         DatePicker::make('valid_until')
                             ->label('Valid Until')
                             ->native(false)
@@ -52,12 +52,41 @@ class QuotationCreationForm
                     ]),
                 ]),
 
+            Section::make('Prescription Eyewear Build')
+                ->schema([
+                    Grid::make(['default' => 1, 'md' => 3])->schema([
+                        Placeholder::make('frame_selection')
+                            ->label('Frame')
+                            ->content(fn (Get $get): string => collect($get('items') ?? [])
+                                ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog')
+                                ? 'Selected ✓'
+                                : 'Not selected'),
+                        Placeholder::make('lens_package_selection')
+                            ->label('Lens package')
+                            ->content(fn (Get $get): string => collect($get('items') ?? [])
+                                ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens')
+                                ? 'Selected ✓'
+                                : 'Not selected'),
+                        Placeholder::make('lens_options_selection')
+                            ->label('Lens options')
+                            ->content(fn (Get $get): string => sprintf(
+                                '%d selected',
+                                collect($get('items') ?? [])->filter(
+                                    fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens_option',
+                                )->count(),
+                            )),
+                    ]),
+                ])
+                ->visible(fn (Get $get): bool => collect($get('items') ?? [])
+                    ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens')),
+
             Section::make('Items')
                 ->schema([
                     Repeater::make('items')
                         ->hiddenLabel()
+                        ->helperText('One frame maximum, quantity 1. One lens package, quantity 1 pair. Lens options are unique and quantity 1 pair; they require a lens package. Corrective eyewear requires the patient’s current, non-voided prescription. Prescription measurements remain in the clinical record.')
                         ->schema([
-                            Grid::make(2)
+                            Grid::make(['default' => 1, 'md' => 2])
                                 ->columnSpanFull()
                                 ->schema([
                                     Select::make('item_kind')
@@ -114,6 +143,7 @@ class QuotationCreationForm
                                         }),
                                     Select::make('lens_category_id')
                                         ->label('Lens Category')
+                                        ->helperText('Choose the patient’s current prescription above before confirming a lens package.')
                                         ->options(fn (): array => LensCategory::query()
                                             ->orderBy('name')
                                             ->pluck('name', 'id')
@@ -232,7 +262,7 @@ class QuotationCreationForm
                                 ->disabled()
                                 ->dehydrated(false),
                         ])
-                        ->columns(3)
+                        ->columns(['default' => 1, 'md' => 3])
                         ->defaultItems(1)
                         ->minItems(1)
                         ->maxItems(50)

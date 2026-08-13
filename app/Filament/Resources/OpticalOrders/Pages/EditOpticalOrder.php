@@ -3,12 +3,18 @@
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Actions\BillingRecords\DispenseJobOrder;
+use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
 use App\Actions\OpticalOrders\CancelOpticalOrder;
+use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\BillingRecord;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -17,24 +23,33 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\On;
 
 class EditOpticalOrder extends EditRecord
 {
     protected static string $resource = OpticalOrderResource::class;
 
+    #[On('billing-payment-updated')]
+    public function refreshBillingSummary(): void
+    {
+        $this->record->load(['activeBillingRecord', 'billingRecord']);
+        $this->refreshFormData(['billing_status', 'billing_balance', 'billing_amount_paid', 'billing_due_date']);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
             Action::make('start')
-                ->label('Start')
+                ->label('Start Processing')
                 ->icon('heroicon-o-play')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === JobOrderStatus::Queued)
                 ->requiresConfirmation()
                 ->modalHeading('Start Processing')
                 ->modalDescription('Begin processing this optical order.')
-                ->modalSubmitActionLabel('Start')
+                ->modalSubmitActionLabel('Start Processing')
                 ->action(function (): void {
                     try {
                         app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress');
@@ -107,11 +122,105 @@ class EditOpticalOrder extends EditRecord
                     }
                 }),
 
+            Action::make('viewQuotation')
+                ->label('View Quotation')
+                ->icon('heroicon-o-document-text')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->quotation !== null)
+                ->url(fn (): string => QuotationResource::getUrl('edit', [
+                    'record' => $this->record->quotation,
+                ])),
+
+            Action::make('viewBillingRecord')
+                ->label('View Billing Record')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->billingRecord !== null)
+                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
+                    'record' => $this->activeBillingRecord() ?? $this->record->billingRecord,
+                ])),
+
+            Action::make('recordPayment')
+                ->label('Record Payment')
+                ->icon('heroicon-o-banknotes')
+                ->color('success')
+                ->visible(fn (): bool => ($billingRecord = $this->activeBillingRecord()) !== null
+                    && Gate::allows('recordPayment', $billingRecord)
+                    && in_array($billingRecord->status, [
+                        BillingRecordStatus::Unpaid,
+                        BillingRecordStatus::PartiallyPaid,
+                    ], true)
+                    && (float) $billingRecord->balance_due > 0)
+                ->schema([
+                    Placeholder::make('balance_due')
+                        ->label('Balance Due')
+                        ->content(fn (): string => '₱'.number_format($this->outstandingBalance(), 2)),
+                    Toggle::make('charges_reviewed')
+                        ->label("I've reviewed the charges on this bill")
+                        ->helperText('This finalizes the charges — add anything missing first.')
+                        ->default(false)
+                        ->rule('accepted')
+                        ->required()
+                        ->visible(fn (): bool => ! $this->activeBillingRecord()?->postedPayments()->exists()),
+                    TextInput::make('amount')
+                        ->label('Amount')
+                        ->required()
+                        ->numeric()
+                        ->prefix('₱')
+                        ->maxValue(fn (): float => $this->outstandingBalance())
+                        ->default(fn (): float => $this->outstandingBalance()),
+                    Select::make('payment_method')
+                        ->label('Method')
+                        ->options([
+                            'cash' => 'Cash',
+                            'gcash' => 'GCash',
+                            'bank_transfer' => 'Bank Transfer',
+                            'card' => 'Card',
+                        ])
+                        ->default('cash')
+                        ->required(),
+                    TextInput::make('reference_number')
+                        ->label('Reference #')
+                        ->nullable(),
+                    Textarea::make('payment_notes')
+                        ->label('Notes')
+                        ->nullable(),
+                ])
+                ->action(function (array $data): void {
+                    $billingRecord = $this->activeBillingRecord();
+
+                    if ($billingRecord === null) {
+                        return;
+                    }
+
+                    Gate::authorize('recordPayment', $billingRecord);
+
+                    try {
+                        app(RecordBillingPayment::class)->handle(
+                            billingRecord: $billingRecord,
+                            amount: (float) $data['amount'],
+                            paymentMethod: $data['payment_method'],
+                            recorder: auth()->user(),
+                            referenceNumber: $data['reference_number'] ?? null,
+                            notes: $data['payment_notes'] ?? null,
+                            chargesReviewed: (bool) ($data['charges_reviewed'] ?? false),
+                        );
+
+                        $this->record->refresh();
+                        $this->dispatch('billing-payment-updated');
+                        Notification::make()->title('Payment recorded')->success()->send();
+                        $this->refreshFormData(['billing_status', 'billing_balance', 'billing_amount_paid']);
+                    } catch (ValidationException $e) {
+                        Notification::make()->title('Cannot record payment')->body($e->getMessage())->danger()->send();
+                    }
+                }),
+
             Action::make('dispense')
                 ->label('Dispense')
                 ->icon('heroicon-o-shopping-bag')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->status === JobOrderStatus::ReadyForDispensing)
+                ->visible(fn (): bool => $this->record->status === JobOrderStatus::ReadyForDispensing
+                    && ($this->outstandingBalance() <= 0 || auth()->user()?->isAdmin() === true))
                 ->requiresConfirmation()
                 ->modalHeading('Dispense Order')
                 ->modalDescription('Confirm the recipient, payment, and balance-release decision. Releasing with an outstanding balance requires an administrator, a reason, and a payment due date.')
@@ -171,7 +280,7 @@ class EditOpticalOrder extends EditRecord
                             overrideDueDate: $data['override_due_date'] ?? null,
                         );
 
-                        Notification::make()->title('Order dispensed — billing record created')->success()->send();
+                        Notification::make()->title('Order dispensed')->success()->send();
                         $this->refreshFormData(['status', 'dispensed_at']);
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot dispense')->body($e->getMessage())->danger()->send();
@@ -182,7 +291,7 @@ class EditOpticalOrder extends EditRecord
 
     private function outstandingBalance(): float
     {
-        $billingRecord = $this->record->billingRecord;
+        $billingRecord = $this->activeBillingRecord();
 
         if ($billingRecord === null) {
             $balance = $this->record->billingRecord()
@@ -193,5 +302,11 @@ class EditOpticalOrder extends EditRecord
         }
 
         return (float) $billingRecord->balance_due;
+    }
+
+    private function activeBillingRecord(): ?BillingRecord
+    {
+        return $this->record->activeBillingRecord
+            ?? $this->record->activeBillingRecord()->first();
     }
 }

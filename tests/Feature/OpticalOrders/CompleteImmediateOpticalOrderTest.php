@@ -68,8 +68,8 @@ test('immediate product commits inventory', function () {
     $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
-        'quantity' => 2,
-        'unit_price' => 2500,
+        'quantity' => 1,
+        'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
     ]);
@@ -80,7 +80,7 @@ test('immediate product commits inventory', function () {
         fulfillmentMode: 'immediate',
     );
 
-    expect($variant->fresh()->stock_quantity)->toBe(8);
+    expect($variant->fresh()->stock_quantity)->toBe(9);
 });
 
 test('immediate with deposit records payment', function () {
@@ -93,12 +93,15 @@ test('immediate with deposit records payment', function () {
         'item_kind' => 'service',
     ]);
 
+    $serviceItem = $quotation->items()->first();
+
     $result = app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,
         confirmer: $this->staff,
         fulfillmentMode: 'immediate',
         depositAmount: 3000,
         depositPaymentMethod: 'gcash',
+        performedServiceItemIds: [$serviceItem->id],
     );
 
     $billing = $result['billing_record']->fresh();

@@ -78,9 +78,9 @@ class BillingRecordItem extends Model
     {
         return match ($this->source_kind) {
             BillingItemSourceKind::OpticalOrder => 'Optical Order',
-            BillingItemSourceKind::Quotation => 'Quotation',
+            BillingItemSourceKind::Quotation => 'Quotation Service',
             BillingItemSourceKind::Encounter => 'Encounter',
-            BillingItemSourceKind::DirectService => 'Direct Service',
+            BillingItemSourceKind::DirectService => 'Direct Charge',
             default => 'Unknown',
         };
     }

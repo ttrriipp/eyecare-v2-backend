@@ -32,6 +32,16 @@ class UpdateQuotationDraft
         $validated = $this->validate($data);
 
         return DB::transaction(function () use ($quotation, $validated, $editor): Quotation {
+            $quotation = Quotation::query()
+                ->lockForUpdate()
+                ->findOrFail($quotation->id);
+
+            if ($quotation->status !== QuotationStatus::Draft) {
+                throw ValidationException::withMessages([
+                    'quotation' => ['Only draft quotations can be edited.'],
+                ]);
+            }
+
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -68,6 +78,8 @@ class UpdateQuotationDraft
                 items: $itemSnapshots->map(fn (array $item): array => [
                     'item_kind' => $item['item_kind'],
                     'product_variant_id' => $item['product_variant_id'],
+                    'lens_option_id' => $item['lens_option_id'],
+                    'quantity' => $item['quantity'],
                 ])->values(),
                 requirePrescription: false,
             );

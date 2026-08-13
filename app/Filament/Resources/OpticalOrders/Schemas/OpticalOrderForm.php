@@ -3,7 +3,11 @@
 namespace App\Filament\Resources\OpticalOrders\Schemas;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
+use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Textarea;
@@ -21,9 +25,9 @@ class OpticalOrderForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Grid::make(3)->schema([
+            Grid::make(['default' => 1, 'lg' => 3])->schema([
                 // ── Main (2/3) ──────────────────────────────────────
-                Grid::make(1)->columnSpan(2)->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 2])->schema([
                     Section::make('Order Details')
                         ->schema([
                             Placeholder::make('job_order_number')
@@ -32,6 +36,12 @@ class OpticalOrderForm
                             Placeholder::make('patient_name')
                                 ->label('Patient')
                                 ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—'),
+                            Placeholder::make('source_quotation')
+                                ->label('Source Quotation')
+                                ->content(fn (JobOrder $record): string => $record->quotation?->quotation_number ?? 'Direct order')
+                                ->url(fn (JobOrder $record): ?string => $record->quotation
+                                    ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
+                                    : null),
                             Placeholder::make('status_badge')
                                 ->label('Status')
                                 ->content(fn (JobOrder $record): string => match ($record->status) {
@@ -66,35 +76,63 @@ class OpticalOrderForm
                         ])
                         ->columns(2),
 
-                    Section::make('Product Items')
+                    Section::make('Prescription')
+                        ->visible(fn (JobOrder $record): bool => $record->prescription !== null)
                         ->schema([
-                            RepeatableEntry::make('items')
-                                ->hiddenLabel()
-                                ->table([
-                                    TableColumn::make('Description'),
-                                    TableColumn::make('Quantity'),
-                                    TableColumn::make('Unit Price'),
-                                    TableColumn::make('Amount'),
-                                ])
-                                ->schema([
-                                    TextEntry::make('description')
-                                        ->hiddenLabel()
-                                        ->wrap(),
-                                    TextEntry::make('quantity')
-                                        ->hiddenLabel(),
-                                    TextEntry::make('unit_price')
-                                        ->hiddenLabel()
-                                        ->money('PHP'),
-                                    TextEntry::make('amount')
-                                        ->hiddenLabel()
-                                        ->money('PHP'),
-                                ])
-                                ->placeholder('No items recorded.'),
+                            Placeholder::make('prescription_number')
+                                ->label('Prescription')
+                                ->content(fn (JobOrder $record): string => $record->prescription?->prescription_number ?? '—')
+                                ->url(fn (JobOrder $record): ?string => $record->prescription
+                                    ? PrescriptionResource::getUrl('view', ['record' => $record->prescription])
+                                    : null),
+                            Placeholder::make('prescribed_at')
+                                ->label('Prescribed')
+                                ->content(fn (JobOrder $record): string => $record->prescription?->prescribed_at?->format('M j, Y') ?? '—'),
+                            Placeholder::make('prescriber')
+                                ->label('Prescriber')
+                                ->content(fn (JobOrder $record): string => $record->prescription?->author?->full_name ?? '—'),
+                            Placeholder::make('prescription_status')
+                                ->label('Version')
+                                ->content(fn (JobOrder $record): string => match (true) {
+                                    $record->prescription?->isVoided() === true => 'Voided',
+                                    $record->prescription?->isCurrentVersion() === true => 'Current',
+                                    default => 'Superseded',
+                                })
+                                ->badge()
+                                ->color(fn (JobOrder $record): string => match (true) {
+                                    $record->prescription?->isVoided() === true => 'danger',
+                                    $record->prescription?->isCurrentVersion() === true => 'success',
+                                    default => 'warning',
+                                }),
+                        ])
+                        ->columns(4),
+
+                    Section::make('Eyewear Build')
+                        ->visible(fn (JobOrder $record): bool => self::hasEyewearBuild($record))
+                        ->schema([
+                            self::itemsTable('eyewear_items', fn (JobOrder $record) => $record->items
+                                ->filter(fn ($item): bool => self::isEyewearItem($item->item_kind))
+                                ->values()),
+                        ]),
+
+                    Section::make('Additional Items')
+                        ->visible(fn (JobOrder $record): bool => self::hasEyewearBuild($record)
+                            && $record->items->contains(fn ($item): bool => ! self::isEyewearItem($item->item_kind)))
+                        ->schema([
+                            self::itemsTable('additional_items', fn (JobOrder $record) => $record->items
+                                ->filter(fn ($item): bool => ! self::isEyewearItem($item->item_kind))
+                                ->values()),
+                        ]),
+
+                    Section::make('Order Items')
+                        ->visible(fn (JobOrder $record): bool => ! self::hasEyewearBuild($record))
+                        ->schema([
+                            self::itemsTable('order_items', fn (JobOrder $record) => $record->items->values()),
                         ]),
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────
-                Grid::make(1)->columnSpan(1)->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 1])->schema([
                     Section::make('Payment')
                         ->schema([
                             Placeholder::make('total_amount')
@@ -102,11 +140,11 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => '₱'.number_format((float) $record->total_amount, 2)),
                             Placeholder::make('billing_status')
                                 ->label('Status')
-                                ->content(fn (JobOrder $record): string => $record->billingRecord
-                                    ? Str::headline($record->billingRecord->status->value)
+                                ->content(fn (JobOrder $record): string => self::billingRecord($record)
+                                    ? self::billingRecord($record)->status->getLabel()
                                     : 'No billing record')
                                 ->badge()
-                                ->color(fn (JobOrder $record): string => match ($record->billingRecord?->status) {
+                                ->color(fn (JobOrder $record): string => match (self::billingRecord($record)?->status) {
                                     BillingRecordStatus::Paid => 'success',
                                     BillingRecordStatus::PartiallyPaid => 'warning',
                                     BillingRecordStatus::Unpaid => 'danger',
@@ -115,16 +153,16 @@ class OpticalOrderForm
                                 }),
                             Placeholder::make('billing_balance')
                                 ->label('Balance Due')
-                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) ($record->billingRecord?->balance_due ?? 0), 2))
-                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) (self::billingRecord($record)?->balance_due ?? 0), 2))
+                                ->visible(fn (JobOrder $record): bool => self::billingRecord($record) !== null),
                             Placeholder::make('billing_amount_paid')
                                 ->label('Amount Paid')
-                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) ($record->billingRecord?->amount_paid ?? 0), 2))
-                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                                ->content(fn (JobOrder $record): string => '₱'.number_format((float) (self::billingRecord($record)?->amount_paid ?? 0), 2))
+                                ->visible(fn (JobOrder $record): bool => self::billingRecord($record) !== null),
                             Placeholder::make('billing_due_date')
                                 ->label('Payment Due Date')
-                                ->content(fn (JobOrder $record): string => $record->billingRecord?->payment_due_date?->format('M j, Y') ?? 'Not set')
-                                ->visible(fn (JobOrder $record): bool => $record->billingRecord !== null),
+                                ->content(fn (JobOrder $record): string => self::billingRecord($record)?->payment_due_date?->format('M j, Y') ?? 'Not set')
+                                ->visible(fn (JobOrder $record): bool => self::billingRecord($record) !== null),
                         ]),
 
                     Section::make('Timeline')
@@ -165,5 +203,55 @@ class OpticalOrderForm
                 ]),
             ]),
         ]);
+    }
+
+    private static function hasEyewearBuild(JobOrder $record): bool
+    {
+        return $record->items->contains(fn ($item): bool => self::isEyewearItem($item->item_kind));
+    }
+
+    private static function isEyewearItem(?CommercialItemKind $kind): bool
+    {
+        return in_array($kind, [
+            CommercialItemKind::Frame,
+            CommercialItemKind::LensPackage,
+            CommercialItemKind::LensOption,
+        ], true);
+    }
+
+    private static function itemsTable(string $name, \Closure $state): RepeatableEntry
+    {
+        return RepeatableEntry::make($name)
+            ->state($state)
+            ->hiddenLabel()
+            ->table([
+                TableColumn::make('Description'),
+                TableColumn::make('Quantity'),
+                TableColumn::make('Unit Price'),
+                TableColumn::make('Amount'),
+            ])
+            ->schema([
+                TextEntry::make('description')
+                    ->hiddenLabel()
+                    ->wrap(),
+                TextEntry::make('quantity')
+                    ->hiddenLabel()
+                    ->formatStateUsing(fn ($state, $record): string => in_array($record?->item_kind, [
+                        CommercialItemKind::LensPackage,
+                        CommercialItemKind::LensOption,
+                    ], true) ? "{$state} pair" : (string) $state),
+                TextEntry::make('unit_price')
+                    ->hiddenLabel()
+                    ->money('PHP'),
+                TextEntry::make('amount')
+                    ->hiddenLabel()
+                    ->money('PHP'),
+            ])
+            ->placeholder('No items recorded.');
+    }
+
+    private static function billingRecord(JobOrder $record): ?BillingRecord
+    {
+        return $record->activeBillingRecord ?? $record->billingRecord;
     }
 }

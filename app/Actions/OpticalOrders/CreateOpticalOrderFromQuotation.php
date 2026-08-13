@@ -56,6 +56,19 @@ class CreateOpticalOrderFromQuotation
 
         return DB::transaction(function () use ($quotation, $confirmer, $performedServiceItemIds, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $fulfillmentMode, $usesExternalSupplier, $recipientName): array {
             $quotation = Quotation::query()->lockForUpdate()->findOrFail($quotation->id);
+
+            if (! in_array($quotation->status, [QuotationStatus::Draft, QuotationStatus::Accepted], true)) {
+                throw ValidationException::withMessages([
+                    'quotation' => ['Only draft or accepted quotations can be confirmed.'],
+                ]);
+            }
+
+            if ($quotation->isExpired()) {
+                throw ValidationException::withMessages([
+                    'quotation' => ['The quotation has expired and cannot be confirmed.'],
+                ]);
+            }
+
             $wasAlreadyAccepted = $quotation->status === QuotationStatus::Accepted;
 
             $productItems = $quotation->items()
@@ -71,6 +84,8 @@ class CreateOpticalOrderFromQuotation
                     items: $productItems->map(fn ($item) => [
                         'item_kind' => $item->item_kind,
                         'product_variant_id' => $item->product_variant_id,
+                        'lens_option_id' => $item->lens_option_id,
+                        'quantity' => $item->quantity,
                     ])->values(),
                     patient: $quotation->patient,
                     prescription: $prescription,
@@ -199,31 +214,6 @@ class CreateOpticalOrderFromQuotation
                             items: $serviceItems,
                         );
                     }
-                }
-            }
-
-            // Service-only: add remaining services directly if no order
-            if ($opticalOrder === null) {
-                $alreadyBilledIds = collect($performedServiceItemIds)->map(fn ($id) => (int) $id)->toArray();
-
-                $serviceItems = $quotation->items()
-                    ->where('item_kind', CommercialItemKind::Service->value)
-                    ->whereNotIn('id', $alreadyBilledIds)
-                    ->get()
-                    ->map(fn ($item): array => [
-                        'description' => $item->description,
-                        'quantity' => $item->quantity,
-                        'unit_price' => $item->unit_price,
-                        'amount' => $item->amount,
-                        'quotation_item_id' => $item->id,
-                    ]);
-
-                if ($serviceItems->isNotEmpty()) {
-                    app(AddChargesToBilling::class)->handle(
-                        billingRecord: $billingRecord,
-                        sourceKind: BillingItemSourceKind::Quotation,
-                        items: $serviceItems,
-                    );
                 }
             }
 

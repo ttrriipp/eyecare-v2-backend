@@ -27,28 +27,32 @@ class UpdateJobOrderStatus
 
     public function handle(JobOrder $jobOrder, string $statusName): JobOrder
     {
-        $currentStatus = $jobOrder->status->value;
-        $allowed = self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
-
-        if (! in_array($statusName, $allowed, true)) {
-            throw ValidationException::withMessages([
-                'status' => ["Cannot transition job order from '{$currentStatus}' to '{$statusName}'."],
-            ]);
-        }
-
         $newStatus = JobOrderStatus::from($statusName);
 
-        if (
-            in_array($newStatus, [JobOrderStatus::ReadyForDispensing, JobOrderStatus::Dispensed], true)
-            && blank($jobOrder->supplier_invoice_number)
-            && $jobOrder->uses_external_supplier
-        ) {
-            throw ValidationException::withMessages([
-                'supplier_invoice_number' => ['Enter the supplier invoice number before marking this job order ready.'],
-            ]);
-        }
-
         return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
+            $lockedJobOrder = JobOrder::query()
+                ->with('items')
+                ->lockForUpdate()
+                ->findOrFail($jobOrder->id);
+            $currentStatus = $lockedJobOrder->status->value;
+            $allowed = self::ALLOWED_TRANSITIONS[$currentStatus] ?? [];
+
+            if (! in_array($newStatus->value, $allowed, true)) {
+                throw ValidationException::withMessages([
+                    'status' => ["Cannot transition job order from '{$currentStatus}' to '{$newStatus->value}'."],
+                ]);
+            }
+
+            if (
+                in_array($newStatus, [JobOrderStatus::ReadyForDispensing, JobOrderStatus::Dispensed], true)
+                && blank($lockedJobOrder->supplier_invoice_number)
+                && $lockedJobOrder->uses_external_supplier
+            ) {
+                throw ValidationException::withMessages([
+                    'supplier_invoice_number' => ['Enter the supplier invoice number before marking this job order ready.'],
+                ]);
+            }
+
             $attributes = ['status' => $newStatus];
 
             match ($newStatus) {
@@ -59,13 +63,13 @@ class UpdateJobOrderStatus
                 default => null,
             };
 
-            $jobOrder->update($attributes);
+            $lockedJobOrder->update($attributes);
 
             if ($newStatus === JobOrderStatus::Cancelled) {
-                $this->reverseInventory($jobOrder);
+                $this->reverseInventory($lockedJobOrder);
             }
 
-            return $jobOrder->fresh();
+            return $lockedJobOrder->fresh();
         });
     }
 
@@ -82,7 +86,7 @@ class UpdateJobOrderStatus
             return;
         }
 
-        foreach ($jobOrder->items as $item) {
+        foreach ($jobOrder->items->sortBy(fn ($item): int => (int) ($item->product_variant_id ?? 0)) as $item) {
             if ($item->product_variant_id === null) {
                 continue;
             }

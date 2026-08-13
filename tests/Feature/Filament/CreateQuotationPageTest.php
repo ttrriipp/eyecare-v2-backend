@@ -46,6 +46,29 @@ test('staff creates a quotation from an encounter query context', function () {
         ->and($quotation->notes)->toBe('Patient-visible estimate note.');
 });
 
+test('quotation creation is draft-only and does not offer accept and continue', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class)
+        ->assertSee('Save Draft')
+        ->assertSee('Cancel')
+        ->assertDontSee('Accept & Continue')
+        ->assertActionDoesNotExist('acceptAndContinue');
+});
+
+test('quotation creation explains when no spectacle prescription is linked', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
+        ->assertSee('No spectacle prescription linked')
+        ->assertSee('You may quote frames, contact lenses, accessories, custom products, and services.');
+});
+
 test('staff creates a quotation from an existing prescription with no new encounter', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();

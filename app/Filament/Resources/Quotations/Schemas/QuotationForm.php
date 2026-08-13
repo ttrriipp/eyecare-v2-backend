@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Quotations\Schemas;
 
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Models\Quotation;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -22,9 +23,9 @@ class QuotationForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Grid::make(3)->schema([
+            Grid::make(['default' => 1, 'lg' => 3])->schema([
                 // ── Main (2/3) ──────────────────────────────────────
-                Grid::make(1)->columnSpan(2)->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 2])->schema([
                     Section::make('Quotation Details')
                         ->schema([
                             Placeholder::make('quotation_number')
@@ -49,30 +50,60 @@ class QuotationForm
                                 ->native(false)
                                 ->displayFormat('M d, Y')
                                 ->suffixIcon('heroicon-o-calendar-days')
-                                ->minDate(now()),
+                                ->minDate(now())
+                                ->disabled(fn (Quotation $record): bool => $record->status !== QuotationStatus::Draft),
                             Textarea::make('notes')
                                 ->label('Patient Notes')
+                                ->disabled(fn (Quotation $record): bool => $record->status !== QuotationStatus::Draft)
                                 ->columnSpanFull(),
                         ])
                         ->columns(2),
+
+                    Section::make('Confirmation Warning')
+                        ->schema([
+                            Placeholder::make('expiration_warning')
+                                ->label('Warning')
+                                ->content('This draft has expired. Revise Quotation before confirming the sale.')
+                                ->color('danger')
+                                ->visible(fn (Quotation $record): bool => $record->isExpired()),
+                            Placeholder::make('prescription_warning')
+                                ->label('Prescription warning')
+                                ->content(fn (Quotation $record): string => $record->prescription?->isVoided() === true
+                                    ? 'This prescription has been voided. Confirmation is unavailable.'
+                                    : 'This prescription has been superseded. Select the current version before confirming.')
+                                ->color('danger')
+                                ->visible(fn (Quotation $record): bool => $record->prescription !== null
+                                    && ($record->prescription->isVoided() || ! $record->prescription->isCurrentVersion())),
+                        ])
+                        ->visible(fn (Quotation $record): bool => $record->isExpired()
+                            || ($record->prescription !== null
+                                && ($record->prescription->isVoided() || ! $record->prescription->isCurrentVersion()))),
 
                     Section::make('Corrective Eyewear')
                         ->schema([
                             Placeholder::make('prescription_number')
                                 ->label('Prescription')
-                                ->content(fn (Quotation $record): string => $record->prescription?->prescription_number ?? '—'),
+                                ->content(fn (Quotation $record): string => $record->prescription?->prescription_number ?? '—')
+                                ->url(fn (Quotation $record): ?string => $record->prescription
+                                    ? PrescriptionResource::getUrl('view', ['record' => $record->prescription])
+                                    : null),
                             Placeholder::make('prescription_author')
                                 ->label('Prescribing Optometrist')
                                 ->content(fn (Quotation $record): string => $record->prescription?->author?->full_name ?? '—'),
                             Placeholder::make('prescription_status')
                                 ->label('Prescription Status')
-                                ->content(fn (Quotation $record): string => $record->prescription === null
-                                    ? '—'
-                                    : ($record->prescription->isCurrentVersion() ? 'Current' : 'Superseded'))
+                                ->content(fn (Quotation $record): string => match (true) {
+                                    $record->prescription === null => '—',
+                                    $record->prescription->isVoided() => 'Voided',
+                                    $record->prescription->isCurrentVersion() => 'Current',
+                                    default => 'Superseded',
+                                })
                                 ->badge()
-                                ->color(fn (Quotation $record): string => $record->prescription?->isCurrentVersion() === true
-                                    ? 'success'
-                                    : 'warning'),
+                                ->color(fn (Quotation $record): string => match (true) {
+                                    $record->prescription?->isVoided() === true => 'danger',
+                                    $record->prescription?->isCurrentVersion() === true => 'success',
+                                    default => 'warning',
+                                }),
                         ])
                         ->columns(3)
                         ->visible(fn (Quotation $record): bool => $record->prescription !== null),
@@ -94,7 +125,7 @@ class QuotationForm
                                     TextEntry::make('quantity')
                                         ->hiddenLabel()
                                         ->formatStateUsing(fn ($state, $record): string => match ($record?->item_kind) {
-                                            CommercialItemKind::LensPackage => "{$state} pair",
+                                            CommercialItemKind::LensPackage, CommercialItemKind::LensOption => "{$state} pair",
                                             default => (string) $state,
                                         }),
                                     TextEntry::make('unit_price')
@@ -135,7 +166,7 @@ class QuotationForm
                 ]),
 
                 // ── Sidebar (1/3) ────────────────────────────────────
-                Grid::make(1)->columnSpan(1)->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 1])->schema([
                     Section::make('Summary')
                         ->schema([
                             Placeholder::make('subtotal')
@@ -158,6 +189,22 @@ class QuotationForm
                                 ->label('Confirmed')
                                 ->content(fn (Quotation $record): string => $record->confirmed_at?->diffForHumans() ?? '—'),
                         ]),
+
+                    Section::make('Decision')
+                        ->schema([
+                            Placeholder::make('confirmed_by')
+                                ->label('Confirmed By')
+                                ->content(fn (Quotation $record): string => $record->confirmer?->full_name ?? '—')
+                                ->visible(fn (Quotation $record): bool => $record->status === QuotationStatus::Accepted),
+                            Placeholder::make('decline_reason')
+                                ->label('Decline Reason')
+                                ->content(fn (Quotation $record): string => $record->decline_reason ?? '—')
+                                ->visible(fn (Quotation $record): bool => $record->status === QuotationStatus::Declined),
+                        ])
+                        ->visible(fn (Quotation $record): bool => in_array($record->status, [
+                            QuotationStatus::Accepted,
+                            QuotationStatus::Declined,
+                        ], true)),
                 ]),
             ]),
         ]);

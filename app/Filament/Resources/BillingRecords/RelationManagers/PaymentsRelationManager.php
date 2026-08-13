@@ -96,6 +96,7 @@ class PaymentsRelationManager extends RelationManager
                             ->required()
                             ->numeric()
                             ->prefix('₱')
+                            ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
                             ->default(fn (): float => (float) $this->getOwnerRecord()->balance_due),
                         Select::make('payment_method')
                             ->label('Method')

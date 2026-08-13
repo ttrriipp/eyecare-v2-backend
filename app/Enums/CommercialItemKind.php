@@ -17,7 +17,7 @@ enum CommercialItemKind: string
      */
     public function isProduct(): bool
     {
-        return in_array($self, self::productKinds(), true);
+        return in_array($this, self::productKinds(), true);
     }
 
     /**

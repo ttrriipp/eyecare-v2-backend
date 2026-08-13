@@ -133,6 +133,8 @@ class CreateQuotation
                 items: $itemSnapshots->map(fn (array $item): array => [
                     'item_kind' => $item['item_kind'],
                     'product_variant_id' => $item['product_variant_id'],
+                    'lens_option_id' => $item['lens_option_id'],
+                    'quantity' => $item['quantity'],
                 ])->values(),
                 patient: $patient,
                 prescription: $prescriptionId !== null ? Prescription::query()->find($prescriptionId) : null,

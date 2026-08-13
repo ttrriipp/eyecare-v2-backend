@@ -61,6 +61,18 @@ test('invalid build leaves every downstream aggregate unchanged', function () {
     );
 })->throws(ValidationException::class, 'exactly one lens package');
 
+test('an expired draft cannot be confirmed', function () {
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'valid_until' => now()->subDay(),
+    ]);
+
+    app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+    );
+})->throws(ValidationException::class, 'quotation has expired');
+
 test('corrective confirmation requires current prescription', function () {
     $quotation = Quotation::factory()->create([
         'status' => QuotationStatus::Draft,

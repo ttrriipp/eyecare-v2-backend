@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
@@ -36,6 +37,27 @@ test('staff can view an optical order', function () {
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->assertSuccessful()
         ->assertSee('Maria Santos');
+});
+
+test('ready unpaid order prioritizes payment and does not offer dispensing to staff', function () {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::ReadyForDispensing,
+    ]);
+    BillingRecord::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'patient_id' => $jobOrder->patient_id,
+        'total_amount' => 1000,
+        'balance_due' => 1000,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->assertActionVisible('viewBillingRecord')
+        ->assertActionVisible('recordPayment')
+        ->assertActionHidden('dispense')
+        ->assertSee('Outstanding balance');
 });
 
 test('staff can see line items on an optical order', function () {
@@ -92,13 +114,15 @@ test('marking an optical order ready records the required supplier invoice numbe
         ->and($jobOrder->fresh()->supplier_invoice_number)->toBe('SUP-INV-3002');
 });
 
-test('staff dispenses a ready order and records the recipient and pickup payment', function () {
+test('staff dispenses a ready fully paid order and records the recipient', function () {
     $staff = User::factory()->staff()->create();
     $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);
     BillingRecord::factory()->create([
         'job_order_id' => $jobOrder->id,
         'total_amount' => 1000,
-        'balance_due' => 1000,
+        'amount_paid' => 1000,
+        'balance_due' => 0,
+        'status' => BillingRecordStatus::Paid,
     ]);
 
     $this->actingAs($staff);
@@ -107,8 +131,6 @@ test('staff dispenses a ready order and records the recipient and pickup payment
         ->callAction('dispense', [
             'recipient_name' => 'Juan dela Cruz',
             'notes' => 'Picked up by patient\'s son.',
-            'initial_payment_amount' => 1000,
-            'initial_payment_method' => 'cash',
         ])
         ->assertHasNoActionErrors();
 

@@ -116,6 +116,21 @@ class Quotation extends Model
     }
 
     /**
+     * @return HasOne<BillingRecord, $this>
+     */
+    public function billingRecord(): HasOne
+    {
+        return $this->hasOne(BillingRecord::class)->latestOfMany('id');
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === QuotationStatus::Draft
+            && $this->valid_until !== null
+            && $this->valid_until->isBefore(today());
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function confirmer(): BelongsTo

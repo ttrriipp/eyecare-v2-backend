@@ -2,10 +2,8 @@
 
 namespace App\Filament\Resources\Quotations\Pages;
 
-use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\CreateQuotation as CreateQuotationAction;
-use App\Enums\CommercialItemKind;
-use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
 use App\Models\Encounter;
@@ -32,8 +30,6 @@ class CreateQuotation extends CreateRecord
     public ?int $patientId = null;
 
     public ?int $prescriptionId = null;
-
-    public string $creationMode = 'draft';
 
     public function mount(
         ?string $encounter = null,
@@ -68,6 +64,11 @@ class CreateQuotation extends CreateRecord
         $contextPrescription = $this->resolvePrescription();
         $patient = $encounter?->patient ?? $contextPrescription?->patient ?? $this->resolvePatient();
         $encounterPrescription = $encounter !== null ? $this->resolveEncounterPrescription($encounter) : null;
+        $prescriptionResolver = fn (Get $get): ?Prescription => $contextPrescription
+            ?? $encounterPrescription
+            ?? (filled($get('prescription_id'))
+                ? Prescription::query()->with('author')->find((int) $get('prescription_id'))
+                : null);
 
         return $schema
             ->columns(1)
@@ -125,6 +126,36 @@ class CreateQuotation extends CreateRecord
                                     ->preload(),
                             ],
                         }),
+                        Placeholder::make('prescription_prescribed_at')
+                            ->label('Prescribed')
+                            ->content(fn (Get $get): string => $prescriptionResolver($get)?->prescribed_at?->format('M j, Y') ?? '—')
+                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) !== null),
+                        Placeholder::make('prescription_author')
+                            ->label('Prescriber')
+                            ->content(fn (Get $get): string => $prescriptionResolver($get)?->author?->full_name ?? '—')
+                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) !== null),
+                        Placeholder::make('prescription_status')
+                            ->label('Version')
+                            ->content(fn (Get $get): string => match (true) {
+                                $prescriptionResolver($get) === null => '—',
+                                $prescriptionResolver($get)->isVoided() => 'Voided',
+                                $prescriptionResolver($get)->isCurrentVersion() => 'Current',
+                                default => 'Superseded',
+                            })
+                            ->badge()
+                            ->color(fn (Get $get): string => match (true) {
+                                $prescriptionResolver($get)?->isVoided() === true => 'danger',
+                                $prescriptionResolver($get)?->isCurrentVersion() === true => 'success',
+                                default => 'warning',
+                            })
+                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) !== null),
+                        Placeholder::make('view_prescription')
+                            ->label('Prescription')
+                            ->content('View Rx')
+                            ->url(fn (Get $get): ?string => $prescriptionResolver($get) !== null
+                                ? PrescriptionResource::getUrl('view', ['record' => $prescriptionResolver($get)])
+                                : null)
+                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) !== null),
                     ])
                     ->columns(2),
 
@@ -173,26 +204,6 @@ class CreateQuotation extends CreateRecord
                 prescription: $prescription,
             );
 
-            // Update status based on creation mode
-            if ($this->creationMode === 'accepted') {
-                // Confirm the sale like the Confirm Sale action
-                $result = app(CreateOpticalOrderFromQuotation::class)->handle(
-                    quotation: $quotation,
-                    confirmer: $creator,
-                    performedServiceItemIds: $quotation->items()
-                        ->where('item_kind', CommercialItemKind::Service->value)
-                        ->pluck('id')
-                        ->all(),
-                );
-
-                // If there's an optical order, redirect to it
-                if ($result['optical_order'] !== null) {
-                    $this->redirectUrl = OpticalOrderResource::getUrl('edit', [
-                        'record' => $result['optical_order'],
-                    ]);
-                }
-            }
-
             return $quotation;
         } catch (ValidationException $e) {
             Notification::make()
@@ -212,10 +223,7 @@ class CreateQuotation extends CreateRecord
 
     protected function getCreatedNotificationTitle(): ?string
     {
-        return match ($this->creationMode) {
-            'accepted' => 'Quotation confirmed and optical order created',
-            default => 'Quotation saved as draft',
-        };
+        return 'Quotation saved as draft';
     }
 
     protected function getFormActions(): array
@@ -224,25 +232,15 @@ class CreateQuotation extends CreateRecord
             Action::make('saveDraft')
                 ->label('Save Draft')
                 ->icon('heroicon-o-document')
-                ->color('gray')
+                ->color('primary')
                 ->action(function (): void {
-                    $this->creationMode = 'draft';
-                    $this->create();
-                }),
-
-            Action::make('acceptAndContinue')
-                ->label('Accept & Continue')
-                ->icon('heroicon-o-check-circle')
-                ->color('success')
-                ->action(function (): void {
-                    $this->creationMode = 'accepted';
                     $this->create();
                 }),
 
             Action::make('cancel')
                 ->label('Cancel')
                 ->icon('heroicon-o-x-mark')
-                ->color('danger')
+                ->color('gray')
                 ->url(QuotationResource::getUrl('index'))
                 ->cancelParentActions(),
         ];

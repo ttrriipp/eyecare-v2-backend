@@ -76,6 +76,14 @@ class OpticalOrderResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['patient', 'items', 'encounter', 'prescription', 'quotation', 'billingRecord']);
+            ->with([
+                'patient',
+                'items',
+                'encounter',
+                'prescription.author',
+                'quotation',
+                'billingRecord',
+                'activeBillingRecord',
+            ]);
     }
 }

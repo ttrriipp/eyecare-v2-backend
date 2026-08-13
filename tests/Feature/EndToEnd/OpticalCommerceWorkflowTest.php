@@ -59,7 +59,7 @@ test('complete prepared eyewear journey from quotation to dispensing', function 
             'items' => [
                 ['description' => 'Ray-Ban Aviator', 'quantity' => 1, 'unit_price' => 5000, 'product_variant_id' => $frame->id],
                 ['description' => 'Single Vision Lens', 'quantity' => 1, 'unit_price' => 3000, 'lens_category_id' => $lensCategory->id],
-                ['description' => 'Fitting Fee', 'quantity' => 1, 'unit_price' => 500],
+                ['description' => 'Fitting Fee', 'quantity' => 1, 'unit_price' => 500, 'item_kind' => 'custom_service'],
             ],
         ],
         encounter: $encounter,

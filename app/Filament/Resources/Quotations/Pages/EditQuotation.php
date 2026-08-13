@@ -10,6 +10,7 @@ use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Resources\Quotations\Schemas\QuotationCreationForm;
@@ -18,6 +19,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -93,7 +95,8 @@ class EditQuotation extends EditRecord
                 ->label('Confirm Sale')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
+                ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft
+                    && ! $this->record->isExpired())
                 ->schema(function (): array {
                     $serviceItems = $this->record->items()
                         ->where('item_kind', CommercialItemKind::Service->value)
@@ -101,16 +104,17 @@ class EditQuotation extends EditRecord
 
                     $configurationItems = $this->record->productItems()
                         ->get()
-                        ->filter(fn ($item): bool => $item->item_kind === CommercialItemKind::LensPackage
-                            || $item->item_kind === CommercialItemKind::LensOption
-                            || filled($item->lens_category_id)
-                            || filled($item->lens_option_id))
                         ->map(fn ($item): string => "{$item->description} × {$item->quantity}")
                         ->values();
 
                     $prescription = $this->record->prescription;
 
                     return [
+                        Placeholder::make('order_summary')
+                            ->label('Order summary')
+                            ->content("{$configurationItems->implode(' + ')} · {$this->record->items()->count()} quoted lines · Total ₱".number_format((float) $this->record->total, 2))
+                            ->columnSpanFull(),
+
                         Placeholder::make('corrective_eyewear_summary')
                             ->label('Corrective Eyewear Configuration')
                             ->content($configurationItems->isNotEmpty()
@@ -128,12 +132,22 @@ class EditQuotation extends EditRecord
                             ->content($prescription?->author?->full_name ?? '—')
                             ->visible($prescription !== null),
 
+                        Placeholder::make('prescription_warning')
+                            ->label('Prescription warning')
+                            ->content($prescription?->isVoided() === true
+                                ? 'This prescription has been voided.'
+                                : 'This prescription has been superseded. Select the current version before confirming.')
+                            ->visible($prescription !== null
+                                && ($prescription->isVoided() || ! $prescription->isCurrentVersion()))
+                            ->columnSpanFull(),
+
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
                             ->helperText('Unselected services stay proposed — bill them later from "Bill Remaining Services".')
                             ->options($serviceItems->mapWithKeys(fn ($item): array => [
                                 $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
                             ]))
+                            ->default($serviceItems->pluck('id')->take(1)->all())
                             ->visible($serviceItems->isNotEmpty()),
 
                         DatePicker::make('payment_due_date')
@@ -146,6 +160,7 @@ class EditQuotation extends EditRecord
                             ->label('Initial Deposit')
                             ->numeric()
                             ->prefix('₱')
+                            ->maxValue(fn (): float => (float) $this->record->total)
                             ->nullable(),
 
                         Select::make('deposit_payment_method')
@@ -167,6 +182,8 @@ class EditQuotation extends EditRecord
                 })
                 ->requiresConfirmation()
                 ->modalHeading('Confirm Sale')
+                ->modalSubmitActionLabel('Confirm Sale')
+                ->modalCancelActionLabel('Back')
                 ->modalDescription('Review the corrective-eyewear configuration and charges before confirming. This creates the Optical Order from product lines and bills any selected services.')
                 ->action(function (array $data): void {
                     $confirmer = auth()->user();
@@ -211,7 +228,9 @@ class EditQuotation extends EditRecord
                         return;
                     }
 
-                    $this->refreshFormData(['status']);
+                    $this->redirect(BillingRecordResource::getUrl('edit', [
+                        'record' => $result['billing_record'],
+                    ]));
                 }),
 
             Action::make('billRemainingServices')
@@ -289,14 +308,14 @@ class EditQuotation extends EditRecord
                 }),
 
             Action::make('decline')
-                ->label('Void / Decline')
+                ->label('Decline')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
                 ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft)
                 ->requiresConfirmation()
-                ->modalHeading('Void / Decline Quotation')
+                ->modalHeading('Decline Quotation')
                 ->modalDescription('This will mark the quotation as declined. This action cannot be undone.')
-                ->modalSubmitActionLabel('Void / Decline')
+                ->modalSubmitActionLabel('Decline')
                 ->schema([
                     Textarea::make('reason')
                         ->label('Reason')
@@ -317,6 +336,30 @@ class EditQuotation extends EditRecord
                 ->url(fn (): string => OpticalOrderResource::getUrl('edit', [
                     'record' => $this->record->jobOrder,
                 ])),
+
+            Action::make('viewBillingRecord')
+                ->label('View Billing Record')
+                ->icon('heroicon-o-banknotes')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->billingRecord !== null)
+                ->url(fn (): string => BillingRecordResource::getUrl('edit', [
+                    'record' => $this->record->billingRecord,
+                ])),
         ];
+    }
+
+    protected function getFormActions(): array
+    {
+        if ($this->record->status !== QuotationStatus::Draft) {
+            return [
+                Action::make('back')
+                    ->label('Back')
+                    ->icon('heroicon-o-arrow-left')
+                    ->color('gray')
+                    ->url(QuotationResource::getUrl('index')),
+            ];
+        }
+
+        return parent::getFormActions();
     }
 }

@@ -6,6 +6,7 @@ use App\Enums\QuotationStatus;
 use App\Models\Quotation;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class RecordQuotationDecision
@@ -24,31 +25,39 @@ class RecordQuotationDecision
     ): Quotation {
         $targetStatus = QuotationStatus::from($decision);
 
-        if ($quotation->status !== QuotationStatus::Draft) {
-            throw ValidationException::withMessages([
-                'quotation' => ['Only draft quotations can be accepted or declined.'],
-            ]);
-        }
-
-        $attributes = ['status' => $targetStatus];
-
-        if ($targetStatus === QuotationStatus::Accepted) {
-            $attributes['confirmed_by'] = $recorder->id;
-            $attributes['confirmed_at'] = Carbon::now();
-        }
-
         if ($targetStatus === QuotationStatus::Declined) {
             if (blank($reason)) {
                 throw ValidationException::withMessages([
                     'reason' => ['A reason is required when declining a quotation.'],
                 ]);
             }
-
-            $attributes['decline_reason'] = $reason;
         }
 
-        $quotation->update($attributes);
+        return DB::transaction(function () use ($quotation, $targetStatus, $recorder, $reason): Quotation {
+            $lockedQuotation = Quotation::query()
+                ->lockForUpdate()
+                ->findOrFail($quotation->id);
 
-        return $quotation->fresh();
+            if ($lockedQuotation->status !== QuotationStatus::Draft) {
+                throw ValidationException::withMessages([
+                    'quotation' => ['Only draft quotations can be accepted or declined.'],
+                ]);
+            }
+
+            $attributes = ['status' => $targetStatus];
+
+            if ($targetStatus === QuotationStatus::Accepted) {
+                $attributes['confirmed_by'] = $recorder->id;
+                $attributes['confirmed_at'] = Carbon::now();
+            }
+
+            if ($targetStatus === QuotationStatus::Declined) {
+                $attributes['decline_reason'] = $reason;
+            }
+
+            $lockedQuotation->update($attributes);
+
+            return $lockedQuotation->fresh();
+        });
     }
 }

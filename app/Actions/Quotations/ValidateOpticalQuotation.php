@@ -36,6 +36,41 @@ final class ValidateOpticalQuotation
 
         $isCorrective = $lensPackages->isNotEmpty();
 
+        foreach ($frames as $frame) {
+            if ((int) ($frame['quantity'] ?? 1) !== 1) {
+                throw ValidationException::withMessages([
+                    'items' => ['Frame quantity must be 1.'],
+                ]);
+            }
+        }
+
+        foreach ($lensPackages as $lensPackage) {
+            if ((int) ($lensPackage['quantity'] ?? 1) !== 1) {
+                throw ValidationException::withMessages([
+                    'items' => ['Lens package quantity must be 1 pair.'],
+                ]);
+            }
+        }
+
+        foreach ($lensOptions as $lensOption) {
+            if ((int) ($lensOption['quantity'] ?? 1) !== 1) {
+                throw ValidationException::withMessages([
+                    'items' => ['Lens option quantity must be 1 pair.'],
+                ]);
+            }
+        }
+
+        $lensOptionIds = $lensOptions
+            ->pluck('lens_option_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id);
+
+        if ($lensOptionIds->duplicates()->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'items' => ['Each lens option may be selected only once.'],
+            ]);
+        }
+
         // Exactly one lens package for corrective eyewear
         if ($lensPackages->count() > 1) {
             throw ValidationException::withMessages([

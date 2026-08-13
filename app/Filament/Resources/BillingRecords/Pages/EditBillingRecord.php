@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\BillingRecords\Pages;
 
 use App\Actions\BillingRecords\VoidBillingRecord;
-use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
@@ -20,7 +22,6 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 
@@ -36,8 +37,8 @@ class EditBillingRecord extends EditRecord
     public function form(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
-            Grid::make(3)->schema([
-                Grid::make(1)->columnSpan(2)->schema([
+            Grid::make(['default' => 1, 'lg' => 3])->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 2])->schema([
                     Section::make('Billing Record Details')->schema([
                         Placeholder::make('billing_record_number')
                             ->label('Billing Record #')
@@ -45,9 +46,18 @@ class EditBillingRecord extends EditRecord
                         Placeholder::make('patient_name')
                             ->label('Patient')
                             ->content(fn (BillingRecord $record): string => $record->patient?->full_name ?? '—'),
+                        Placeholder::make('quotation_number')
+                            ->label('Quotation')
+                            ->content(fn (BillingRecord $record): string => $record->quotation?->quotation_number ?? '—')
+                            ->url(fn (BillingRecord $record): ?string => $record->quotation
+                                ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
+                                : null),
                         Placeholder::make('job_order_number')
                             ->label('Optical Order')
-                            ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—'),
+                            ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—')
+                            ->url(fn (BillingRecord $record): ?string => $record->jobOrder
+                                ? OpticalOrderResource::getUrl('edit', ['record' => $record->jobOrder])
+                                : null),
                         Placeholder::make('status')
                             ->label('Status')
                             ->content(fn (BillingRecord $record): string => $record->status->getLabel())
@@ -77,7 +87,7 @@ class EditBillingRecord extends EditRecord
                                 TextEntry::make('source_kind')
                                     ->hiddenLabel()
                                     ->badge()
-                                    ->formatStateUsing(fn (BillingItemSourceKind $state): string => Str::headline($state->value)),
+                                    ->state(fn (BillingRecordItem $record): string => $record->getSourceLabel()),
                                 TextEntry::make('quantity')
                                     ->hiddenLabel(),
                                 TextEntry::make('unit_price')
@@ -91,7 +101,7 @@ class EditBillingRecord extends EditRecord
                     ]),
                 ]),
 
-                Grid::make(1)->columnSpan(1)->schema([
+                Grid::make(1)->columnSpan(['default' => 1, 'lg' => 1])->schema([
                     Section::make('Financial Summary')->schema([
                         Placeholder::make('total_amount')
                             ->label('Total Amount')
@@ -101,7 +111,9 @@ class EditBillingRecord extends EditRecord
                             ->content(fn (BillingRecord $record): string => '₱'.number_format($record->amount_paid, 2)),
                         Placeholder::make('balance_due')
                             ->label('Balance Due')
-                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->balance_due, 2)),
+                            ->content(fn (BillingRecord $record): string => '₱'.number_format($record->balance_due, 2))
+                            ->badge()
+                            ->color(fn (BillingRecord $record): string => $record->balance_due > 0 ? 'warning' : 'success'),
                         Placeholder::make('payment_due_date')
                             ->label('Payment Due Date')
                             ->content(fn (BillingRecord $record): string => $record->payment_due_date?->format('M j, Y') ?? 'Not set'),
@@ -126,6 +138,24 @@ class EditBillingRecord extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('viewQuotation')
+                ->label('View Quotation')
+                ->icon('heroicon-o-document-text')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->quotation !== null)
+                ->url(fn (): string => QuotationResource::getUrl('edit', [
+                    'record' => $this->record->quotation,
+                ])),
+
+            Action::make('viewOpticalOrder')
+                ->label('View Optical Order')
+                ->icon('heroicon-o-shopping-bag')
+                ->color('gray')
+                ->visible(fn (): bool => $this->record->jobOrder !== null)
+                ->url(fn (): string => OpticalOrderResource::getUrl('edit', [
+                    'record' => $this->record->jobOrder,
+                ])),
+
             Action::make('updateDueDate')
                 ->label('Update Due Date')
                 ->icon('heroicon-o-calendar')

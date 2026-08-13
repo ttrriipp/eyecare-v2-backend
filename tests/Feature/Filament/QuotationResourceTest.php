@@ -5,6 +5,8 @@ use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\BillingRecord;
+use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
@@ -47,6 +49,47 @@ test('staff can view a quotation', function () {
         ->assertFormFieldDoesNotExist('internal_notes')
         ->assertDontSee('Internal Notes')
         ->assertDontSee('Customer Notes');
+});
+
+test('accepted quotation review is read-only and shows future workflow stages', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Accepted,
+        'valid_until' => now()->addWeek(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertSuccessful()
+        ->assertFormFieldDisabled('valid_until')
+        ->assertFormFieldDisabled('notes')
+        ->assertActionHidden('confirmSale')
+        ->assertActionHidden('reviseItems')
+        ->assertSee('Created after confirmation');
+});
+
+test('quotation review links to its optical order and billing record', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Accepted]);
+    $order = JobOrder::factory()->create([
+        'quotation_id' => $quotation->id,
+        'patient_id' => $quotation->patient_id,
+    ]);
+    $billing = BillingRecord::factory()->create([
+        'quotation_id' => $quotation->id,
+        'job_order_id' => $order->id,
+        'patient_id' => $quotation->patient_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee($order->job_order_number)
+        ->assertSee($billing->billing_record_number)
+        ->assertActionVisible('viewJobOrder')
+        ->assertActionVisible('viewBillingRecord');
 });
 
 test('staff can see product and service items on a quotation', function () {

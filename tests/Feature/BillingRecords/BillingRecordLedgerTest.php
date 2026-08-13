@@ -28,8 +28,8 @@ test('cancellation releases committed inventory', function () {
     $quotation = Quotation::factory()->create(['total' => 5000]);
     $quotation->items()->create([
         'description' => 'Frame',
-        'quantity' => 3,
-        'unit_price' => 1666.67,
+        'quantity' => 1,
+        'unit_price' => 5000,
         'amount' => 5000,
         'product_variant_id' => $variant->id,
     ]);
@@ -38,7 +38,7 @@ test('cancellation releases committed inventory', function () {
     $jobOrder = $result['optical_order'];
 
     // Stock decremented after confirmation
-    expect($variant->fresh()->stock_quantity)->toBe(7);
+    expect($variant->fresh()->stock_quantity)->toBe(9);
 
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
