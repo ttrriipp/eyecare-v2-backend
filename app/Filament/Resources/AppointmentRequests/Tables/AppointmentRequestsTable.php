@@ -15,11 +15,10 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -34,6 +33,16 @@ class AppointmentRequestsTable
                     ->searchable()
                     ->sortable(),
 
+                IconColumn::make('patient_id')
+                    ->label('')
+                    ->icon(fn (AppointmentRequest $record): string => $record->patient_id === null
+                        ? 'heroicon-o-exclamation-triangle'
+                        : 'heroicon-o-check-circle')
+                    ->color(fn (AppointmentRequest $record): string => $record->patient_id === null ? 'warning' : 'success')
+                    ->tooltip(fn (AppointmentRequest $record): string => $record->patient_id === null
+                        ? 'Not yet linked to a patient record'
+                        : 'Linked to a patient record'),
+
                 TextColumn::make('patient.full_name')
                     ->label('Patient')
                     ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user?->full_name ?? '—')
@@ -41,7 +50,27 @@ class AppointmentRequestsTable
 
                 TextColumn::make('appointment_type')
                     ->label('Type')
-                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
+                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—')
+                    ->description(function (AppointmentRequest $record): ?string {
+                        $type = $record->appointmentType;
+
+                        $internalName = ($type !== null && $type->name !== $type->patient_label) ? $type->name : null;
+
+                        $duration = $record->provisional_duration_minutes ?? $type?->duration_minutes;
+                        $durationText = $duration !== null ? "{$duration} min" : null;
+
+                        $altCount = count($record->alternative_scheduled_times ?? []);
+                        $alternativesText = $altCount.' '.Str::plural('alternative', $altCount);
+
+                        return collect([$internalName, $durationText, $alternativesText])
+                            ->filter()
+                            ->implode(' · ') ?: null;
+                    }),
+
+                TextColumn::make('encrypted_referring_source')
+                    ->label('Referral')
+                    ->placeholder('Not requested')
+                    ->color(fn (?string $state): ?string => $state === null ? 'gray' : null),
 
                 TextColumn::make('scheduled_at')
                     ->label('Preferred Time')
@@ -65,33 +94,18 @@ class AppointmentRequestsTable
                     })
                     ->formatStateUsing(fn (AppointmentRequestStatus $state): string => Str::headline($state->value)),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('expires_at', 'asc')
             ->filters([
-                Filter::make('needs_review')
-                    ->label('Needs Review')
-                    ->query(fn (Builder $query) => $query
-                        ->where('status', 'pending')
-                        ->whereNotNull('patient_id')
-                        ->where('expires_at', '>', now())
-                    ),
-
-                Filter::make('needs_patient_link')
-                    ->label('Needs Patient Link')
-                    ->query(fn (Builder $query) => $query
-                        ->where('status', 'pending')
-                        ->whereNull('patient_id')
-                    ),
-
                 SelectFilter::make('status')
                     ->options(AppointmentRequestStatus::class),
             ])
             ->recordActions([
-                ActionGroup::make([
-                    Action::make('view')
-                        ->label('Review')
-                        ->icon('heroicon-o-eye')
-                        ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
+                Action::make('view')
+                    ->label('Review')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
 
+                ActionGroup::make([
                     Action::make('linkToPatient')
                         ->label('Link to Patient')
                         ->icon('heroicon-o-link')

@@ -47,6 +47,14 @@ class ListAppointmentRequests extends ListRecords
     }
 
     /**
+     * Tabs mirror the actual triage workflow rather than raw status values.
+     * "Needs Link" and "Needs Review" are the two states staff act on; every
+     * resolved outcome — accepted, rejected, cancelled, expired — lands in
+     * "Resolved", where the status column and filter distinguish them further.
+     *
+     * "All" stays first/default so the landing view never hides a request
+     * behind a workflow tab a new user hasn't discovered yet.
+     *
      * @return array<string, Tab>
      */
     public function getTabs(): array
@@ -54,20 +62,21 @@ class ListAppointmentRequests extends ListRecords
         return [
             'all' => Tab::make('All'),
 
-            'pending' => Tab::make('Pending')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Pending)),
+            'needs_link' => Tab::make('Needs Link')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->where('status', AppointmentRequestStatus::Pending)
+                    ->whereNull('patient_id')
+                ),
 
-            'accepted' => Tab::make('Accepted')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Accepted)),
+            'needs_review' => Tab::make('Needs Review')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->where('status', AppointmentRequestStatus::Pending)
+                    ->whereNotNull('patient_id')
+                    ->where('expires_at', '>', now())
+                ),
 
-            'rejected' => Tab::make('Rejected')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Rejected)),
-
-            'cancelled' => Tab::make('Cancelled')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Cancelled)),
-
-            'expired' => Tab::make('Expired')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', AppointmentRequestStatus::Expired)),
+            'resolved' => Tab::make('Resolved')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', AppointmentRequestStatus::Pending)),
         ];
     }
 }

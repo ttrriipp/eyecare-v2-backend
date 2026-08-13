@@ -49,6 +49,7 @@ class AppointmentRequestFactory extends Factory
     {
         return $this->state([
             'status' => AppointmentRequestStatus::Accepted,
+            'resolved_by_user_id' => User::factory(),
             'resolved_at' => now(),
         ]);
     }

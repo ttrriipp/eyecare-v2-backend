@@ -4,7 +4,6 @@ namespace App\Filament\Widgets;
 
 use App\Enums\BillingRecordStatus;
 use App\Enums\QuotationStatus;
-use App\Filament\Pages\Reports\ReorderReport;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
@@ -85,8 +84,7 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
             )
                 ->description('At or below reorder threshold')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color('danger')
-                ->url(ReorderReport::getUrl()),
+                ->color('danger'),
         ];
     }
 }

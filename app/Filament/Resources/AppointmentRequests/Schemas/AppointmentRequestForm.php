@@ -6,7 +6,6 @@ use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
@@ -45,10 +44,9 @@ class AppointmentRequestForm
                                 default => 'gray',
                             }),
 
-                        Textarea::make('encrypted_reason_for_visit')
+                        Placeholder::make('reason_for_visit')
                             ->label('Reason for Visit')
-                            ->disabled()
-                            ->rows(3)
+                            ->content(fn ($record): string => $record?->encrypted_reason_for_visit ?? '—')
                             ->columnSpanFull(),
 
                         Placeholder::make('appointment_type')

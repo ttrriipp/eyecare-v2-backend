@@ -282,7 +282,7 @@ test('visit reason is shown in request summary', function () {
 // ── Patient Information ─────────────────────────────────────────────────────
 
 test('linked request shows linked patient identity', function () {
-    $patient = Patient::factory()->create(['first_name' => 'Maria', 'last_name' => 'Santos']);
+    $patient = Patient::factory()->create(['first_name' => 'Maria', 'middle_name' => null, 'last_name' => 'Santos']);
     $request = AppointmentRequest::factory()->create(['patient_id' => $patient->id]);
 
     $this->actingAs($this->staff);

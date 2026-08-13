@@ -1,7 +1,6 @@
 <?php
 
 use App\Enums\JobOrderStatus;
-use App\Filament\Pages\Reports\ReorderReport;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
@@ -19,7 +18,6 @@ use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\NotificationStatus;
 use App\Models\PatientLinkRequest;
-use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\SmsNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,21 +86,6 @@ test('navigation badges count actionable sidebar work', function () {
     ]);
 });
 
-test('reorder report navigation badge counts active low-stock variants', function () {
-    ProductVariant::factory()->create([
-        'is_active' => true,
-        'stock_quantity' => 1,
-        'low_stock_threshold' => 2,
-    ]);
-    ProductVariant::factory()->create([
-        'is_active' => false,
-        'stock_quantity' => 1,
-        'low_stock_threshold' => 2,
-    ]);
-
-    expect(ReorderReport::getNavigationBadge())->toBe('1');
-});
-
 test('navigation badges are omitted when there is no actionable work', function () {
     expect([
         AppointmentResource::getNavigationBadge(),
@@ -113,7 +96,6 @@ test('navigation badges are omitted when there is no actionable work', function 
         OpticalOrderResource::getNavigationBadge(),
         FrameReservationResource::getNavigationBadge(),
         BillingRecordResource::getNavigationBadge(),
-        ReorderReport::getNavigationBadge(),
         SmsNotificationResource::getNavigationBadge(),
     ])->each->toBeNull();
 });
