@@ -1,14 +1,19 @@
 <?php
 
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
+use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
+use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
@@ -168,6 +173,121 @@ test('staff revises a draft quotation\'s items', function () {
     expect($quotation->items)->toHaveCount(1)
         ->and($quotation->items->first()->description)->toBe('Adjusted eye exam fee')
         ->and($quotation->total)->toBe('800.00');
+});
+
+test('prescription revisions open a wide slide-over with the dedicated quotation builder', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->withPrice(3000)->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'patient_id' => $patient->id,
+        'prescription_id' => $prescription->id,
+        'subtotal' => 3000,
+        'total' => 3000,
+    ]);
+    $quotation->items()->create([
+        'description' => $lensCategory->name,
+        'quantity' => 1,
+        'unit_price' => $lensCategory->price,
+        'amount' => $lensCategory->price,
+        'lens_category_id' => $lensCategory->id,
+        'item_kind' => CommercialItemKind::LensPackage,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()]);
+    $action = $component->instance()->getAction('reviseItems');
+
+    expect($action)->not->toBeNull()
+        ->and($action->isModalSlideOver())->toBeTrue()
+        ->and($action->getModalWidth()->value)->toBe('7xl');
+
+    $component
+        ->mountAction('reviseItems')
+        ->assertActionMounted('reviseItems')
+        ->assertMountedActionModalSee([
+            $quotation->quotation_number,
+            $patient->full_name,
+            $prescription->prescription_number,
+            'Draft',
+            'Current total',
+            'Prescription Eyewear',
+            'Save Revision',
+        ])
+        ->assertActionDataSet(['eyewear_lens_category_id' => $lensCategory->id]);
+});
+
+test('staff can save a dedicated prescription eyewear revision with other items', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $frame = Product::factory()->create([
+        'name' => 'Aster Frame',
+        'product_type' => 'frame',
+    ]);
+    $frameVariant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'name' => 'Matte Black',
+        'sku' => 'FRM-AST-BLK',
+        'price' => 2450,
+    ]);
+    $lensCategory = LensCategory::factory()->withPrice(1800)->create();
+    $lensOption = LensOption::factory()->create(['price' => 600]);
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'patient_id' => $patient->id,
+        'prescription_id' => $prescription->id,
+    ]);
+    $quotation->items()->create([
+        'description' => 'Existing lens package',
+        'quantity' => 1,
+        'unit_price' => $lensCategory->price,
+        'amount' => $lensCategory->price,
+        'lens_category_id' => $lensCategory->id,
+        'item_kind' => CommercialItemKind::LensPackage,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->mountAction('reviseItems')
+        ->assertActionDataSet(['eyewear_lens_category_id' => $lensCategory->id]);
+
+    $component
+        ->fillForm([
+            'eyewear_frame_source' => 'catalog',
+            'eyewear_frame_variant_id' => $frameVariant->id,
+            'eyewear_lens_category_id' => $lensCategory->id,
+            'eyewear_lens_options' => [['lens_option_id' => $lensOption->id]],
+            'items' => [[
+                'item_kind' => 'custom_service',
+                'description' => 'Eye examination',
+                'quantity' => 1,
+                'unit_price' => 500,
+            ]],
+        ])
+        ->assertActionDataSet([
+            'eyewear_frame_source' => 'catalog',
+            'eyewear_frame_variant_id' => $frameVariant->id,
+            'eyewear_lens_category_id' => $lensCategory->id,
+        ])
+        ->callMountedAction()
+        ->assertHasNoActionErrors()
+        ->assertNotified('Quotation revised');
+
+    $quotation->refresh();
+
+    expect($quotation->items)->toHaveCount(4)
+        ->and($quotation->items->pluck('description')->all())->toContain(
+            'Aster Frame — Matte Black',
+            $lensCategory->name,
+            $lensOption->name,
+            'Eye examination',
+        )
+        ->and((float) $quotation->total)->toBe(5350.0);
 });
 
 test('opening revise items pre-fills the existing item', function () {

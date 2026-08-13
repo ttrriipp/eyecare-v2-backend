@@ -30,7 +30,7 @@ beforeEach(function () {
 test('admin can apply a nonzero discount', function () {
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     $quotation = app(CreateQuotation::class)->handle(
         patient: $encounter->patient,
@@ -50,7 +50,7 @@ test('admin can apply a nonzero discount', function () {
 test('staff cannot apply a nonzero discount', function () {
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     app(CreateQuotation::class)->handle(
         patient: $encounter->patient,
@@ -68,7 +68,7 @@ test('staff cannot apply a nonzero discount', function () {
 test('optometrist cannot apply a nonzero discount', function () {
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     app(CreateQuotation::class)->handle(
         patient: $encounter->patient,
@@ -86,7 +86,7 @@ test('optometrist cannot apply a nonzero discount', function () {
 test('staff can create quotation with zero discount', function () {
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     $quotation = app(CreateQuotation::class)->handle(
         patient: $encounter->patient,
@@ -111,7 +111,7 @@ test('staff cannot update discount to nonzero', function () {
         'total' => 5000,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     app(UpdateQuotationDraft::class)->handle($quotation, [
         'discount_amount' => 500,
@@ -129,7 +129,7 @@ test('admin can update discount to nonzero', function () {
         'total' => 5000,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
         'discount_amount' => 1000,
@@ -144,7 +144,7 @@ test('admin can update discount to nonzero', function () {
 test('discount cannot exceed subtotal', function () {
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     app(CreateQuotation::class)->handle(
         patient: $encounter->patient,

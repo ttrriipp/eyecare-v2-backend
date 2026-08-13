@@ -24,7 +24,10 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Enums\Width;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -41,37 +44,22 @@ class EditQuotation extends EditRecord
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->status === QuotationStatus::Draft
                     && $this->record->jobOrder === null)
-                ->schema(QuotationCreationForm::components(
-                    patientIdResolver: fn (Get $get): ?int => $this->record->patient_id,
-                ))
-                ->fillForm(fn (): array => [
-                    'valid_until' => $this->record->valid_until?->toDateString(),
-                    'discount_amount' => (float) $this->record->discount_amount,
-                    'notes' => $this->record->notes,
-                    'items' => $this->record->items->map(fn ($item): array => [
-                        'item_kind' => match (true) {
-                            $item->item_kind === CommercialItemKind::LensOption || filled($item->lens_option_id) => 'lens_option',
-                            filled($item->product_variant_id) => 'catalog',
-                            filled($item->lens_category_id) => 'lens',
-                            filled($item->service_id) => 'service',
-                            in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true) => 'custom_product',
-                            default => 'custom_service',
-                        },
-                        'product_variant_id' => $item->product_variant_id,
-                        'lens_category_id' => $item->lens_category_id,
-                        'lens_option_id' => $item->lens_option_id,
-                        'service_id' => $item->service_id,
-                        'catalog_product_type' => $item->productVariant?->product?->product_type,
-                        'description' => $item->description,
-                        'quantity' => $item->quantity,
-                        'unit_price' => (float) $item->unit_price,
-                    ])->all(),
-                ])
+                ->schema(fn (): array => $this->revisionSchema())
+                ->fillForm(fn (): array => $this->revisionFormData())
                 ->modalHeading('Revise Quotation Items')
+                ->slideOver()
+                ->modalWidth(Width::SevenExtraLarge)
                 ->modalSubmitActionLabel('Save Revision')
                 ->action(function (array $data): void {
                     try {
-                        app(UpdateQuotationDraft::class)->handle($this->record, $data, auth()->user());
+                        app(UpdateQuotationDraft::class)->handle(
+                            quotation: $this->record,
+                            data: $data,
+                            editor: auth()->user(),
+                            includePrescriptionEyewear: $this->usesDedicatedEyewearLayout()
+                                || array_key_exists('eyewear_lens_category_id', $data)
+                                || array_key_exists('eyewear_frame_source', $data),
+                        );
                     } catch (ValidationException $e) {
                         Notification::make()
                             ->title('Cannot revise quotation')
@@ -362,5 +350,141 @@ class EditQuotation extends EditRecord
         }
 
         return parent::getFormActions();
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function revisionSchema(): array
+    {
+        $dedicatedPrescriptionEyewear = $this->usesDedicatedEyewearLayout();
+
+        return [
+            Section::make('Quotation being revised')
+                ->schema([
+                    Grid::make(['default' => 1, 'md' => 4])->schema([
+                        Placeholder::make('revision_quotation_number')
+                            ->label('Quotation')
+                            ->content($this->record->quotation_number),
+                        Placeholder::make('revision_patient')
+                            ->label('Patient')
+                            ->content($this->record->patient?->full_name ?? '—'),
+                        Placeholder::make('revision_prescription')
+                            ->label('Prescription')
+                            ->content($this->record->prescription?->prescription_number ?? 'None')
+                            ->visible($this->record->prescription !== null),
+                        Placeholder::make('revision_status')
+                            ->label('Status')
+                            ->content('Draft')
+                            ->badge(),
+                        Placeholder::make('revision_total')
+                            ->label('Current total')
+                            ->content('₱'.number_format((float) $this->record->total, 2)),
+                    ]),
+                ])
+                ->columnSpanFull(),
+            ...QuotationCreationForm::components(
+                patientIdResolver: fn (Get $get): ?int => $this->record->patient_id,
+                prescriptionEyewearResolver: fn (Get $get): bool => $this->usesDedicatedEyewearLayout(),
+                dedicatedPrescriptionEyewear: $dedicatedPrescriptionEyewear,
+            ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function revisionFormData(): array
+    {
+        $dedicatedPrescriptionEyewear = $this->usesDedicatedEyewearLayout();
+
+        $data = [
+            'valid_until' => $this->record->valid_until?->toDateString(),
+            'discount_amount' => (float) $this->record->discount_amount,
+            'notes' => $this->record->notes,
+        ];
+
+        if ($dedicatedPrescriptionEyewear) {
+            return [
+                ...$data,
+                ...$this->dedicatedRevisionFormData(),
+            ];
+        }
+
+        return [
+            ...$data,
+            'items' => $this->record->items->map(fn ($item): array => $this->revisionItemData($item))->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dedicatedRevisionFormData(): array
+    {
+        $this->record->loadMissing('items.variant.product');
+
+        $items = $this->record->items;
+        $frame = $items->first(fn ($item): bool => $item->variant?->product?->product_type === 'frame');
+
+        if ($frame === null) {
+            $frame = $items->first(fn ($item): bool => $item->item_kind === CommercialItemKind::CustomProduct
+                && blank($item->product_variant_id));
+        }
+
+        $lensPackage = $items->first(fn ($item): bool => filled($item->lens_category_id));
+        $lensOptions = $items
+            ->filter(fn ($item): bool => filled($item->lens_option_id))
+            ->map(fn ($item): array => ['lens_option_id' => $item->lens_option_id])
+            ->values()
+            ->all();
+
+        $otherItems = $items
+            ->reject(fn ($item): bool => ($frame !== null && $item->is($frame))
+                || ($lensPackage !== null && $item->is($lensPackage))
+                || filled($item->lens_option_id))
+            ->map(fn ($item): array => $this->revisionItemData($item))
+            ->values()
+            ->all();
+
+        return [
+            'eyewear_frame_source' => $frame?->product_variant_id !== null ? 'catalog' : ($frame !== null ? 'patient' : null),
+            'eyewear_frame_variant_id' => $frame?->product_variant_id,
+            'eyewear_patient_frame_description' => $frame?->product_variant_id === null ? $frame?->description : null,
+            'eyewear_patient_frame_price' => $frame?->product_variant_id === null ? (float) $frame?->unit_price : null,
+            'eyewear_lens_category_id' => $lensPackage?->lens_category_id,
+            'eyewear_lens_options' => $lensOptions,
+            'items' => $otherItems,
+        ];
+    }
+
+    private function usesDedicatedEyewearLayout(): bool
+    {
+        return $this->record->prescription !== null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function revisionItemData(mixed $item): array
+    {
+        return [
+            'item_kind' => match (true) {
+                $item->item_kind === CommercialItemKind::LensOption || filled($item->lens_option_id) => 'lens_option',
+                filled($item->product_variant_id) => 'catalog',
+                filled($item->lens_category_id) => 'lens',
+                filled($item->service_id) => 'service',
+                in_array($item->item_kind?->value, CommercialItemKind::productKindValues(), true) => 'custom_product',
+                default => 'custom_service',
+            },
+            'product_variant_id' => $item->product_variant_id,
+            'lens_category_id' => $item->lens_category_id,
+            'lens_option_id' => $item->lens_option_id,
+            'service_id' => $item->service_id,
+            'catalog_product_type' => $item->variant?->product?->product_type,
+            'description' => $item->description,
+            'quantity' => $item->quantity,
+            'unit_price' => (float) $item->unit_price,
+        ];
     }
 }

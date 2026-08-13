@@ -33,7 +33,11 @@ test('draft quotation items and totals can be updated', function () {
         'item_kind' => CommercialItemKind::CustomProduct,
     ]);
 
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create([
+        'name' => 'Matte Black',
+        'price' => 6000,
+    ]);
+    $variant->product->update(['name' => 'New frame']);
     $lensCategory = LensCategory::factory()->create(['price' => 2000]);
 
     $updated = app(UpdateQuotationDraft::class)->handle($quotation, [
@@ -48,7 +52,7 @@ test('draft quotation items and totals can be updated', function () {
         ->and((float) $updated->discount_amount)->toBe(500.0)
         ->and((float) $updated->total)->toBe(7500.0)
         ->and($updated->items)->toHaveCount(2)
-        ->and($updated->items->first()->description)->toBe('New frame');
+        ->and($updated->items->first()->description)->toBe('New frame — Matte Black');
 });
 
 test('valid_until and notes can be cleared by omitting them from the payload', function () {

@@ -220,6 +220,7 @@ class CreateQuotation
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_kind' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
+            'items.*.eyewear_role' => ['nullable', Rule::in(['frame', 'lens_package', 'lens_option', 'other'])],
             'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
             'items.*.unit_price' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],

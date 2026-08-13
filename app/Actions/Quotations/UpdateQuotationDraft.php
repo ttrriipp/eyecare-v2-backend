@@ -3,8 +3,11 @@
 namespace App\Actions\Quotations;
 
 use App\Enums\QuotationStatus;
+use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -21,18 +24,28 @@ class UpdateQuotationDraft
      *
      * @param  array<string, mixed>  $data
      */
-    public function handle(Quotation $quotation, array $data, ?User $editor = null): Quotation
-    {
+    public function handle(
+        Quotation $quotation,
+        array $data,
+        ?User $editor = null,
+        bool $includePrescriptionEyewear = false,
+    ): Quotation {
         if ($quotation->status !== QuotationStatus::Draft) {
             throw ValidationException::withMessages([
                 'quotation' => ['Only draft quotations can be edited.'],
             ]);
         }
 
+        $data = $this->normalizePrescriptionEyewearData($data, $includePrescriptionEyewear);
         $validated = $this->validate($data);
 
-        return DB::transaction(function () use ($quotation, $validated, $editor): Quotation {
+        if ($includePrescriptionEyewear) {
+            $this->validatePrescriptionEyewearMode($validated['items']);
+        }
+
+        return DB::transaction(function () use ($quotation, $validated, $editor, $includePrescriptionEyewear): Quotation {
             $quotation = Quotation::query()
+                ->with(['patient', 'prescription'])
                 ->lockForUpdate()
                 ->findOrFail($quotation->id);
 
@@ -43,6 +56,7 @@ class UpdateQuotationDraft
             }
 
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
+                $item = $this->applyCatalogValues($item);
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
@@ -60,7 +74,7 @@ class UpdateQuotationDraft
                 );
 
                 return [
-                    'description' => trim($item['description']),
+                    'description' => trim((string) ($item['description'] ?? '')),
                     'quantity' => (int) $item['quantity'],
                     'unit_price' => self::formatMoney($unitPriceInCents),
                     'amount' => self::formatMoney($amountInCents),
@@ -70,6 +84,7 @@ class UpdateQuotationDraft
                     'service_id' => $hasProductReference ? null : ($item['service_id'] ?? null),
                     'item_kind' => $snapshotResult['item_kind'],
                     'item_snapshot' => $snapshotResult['item_snapshot'],
+                    'eyewear_role' => $item['eyewear_role'] ?? null,
                     'amount_in_cents' => $amountInCents,
                 ];
             });
@@ -80,8 +95,11 @@ class UpdateQuotationDraft
                     'product_variant_id' => $item['product_variant_id'],
                     'lens_option_id' => $item['lens_option_id'],
                     'quantity' => $item['quantity'],
+                    'eyewear_role' => $item['eyewear_role'],
                 ])->values(),
-                requirePrescription: false,
+                patient: $quotation->patient,
+                prescription: $quotation->prescription,
+                requirePrescription: $includePrescriptionEyewear,
             );
 
             $subtotalInCents = $itemSnapshots->sum('amount_in_cents');
@@ -117,7 +135,7 @@ class UpdateQuotationDraft
             $quotation->items()->delete();
             $quotation->items()->createMany(
                 $itemSnapshots
-                    ->map(fn (array $item): array => collect($item)->except('amount_in_cents')->all())
+                    ->map(fn (array $item): array => collect($item)->except(['amount_in_cents', 'eyewear_role'])->all())
                     ->all(),
             );
 
@@ -138,9 +156,10 @@ class UpdateQuotationDraft
             'internal_notes' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.item_kind' => ['nullable', Rule::in(['catalog', 'lens', 'lens_option', 'service', 'custom_product', 'custom_service'])],
-            'items.*.description' => ['required', 'string', 'max:255'],
+            'items.*.eyewear_role' => ['nullable', Rule::in(['frame', 'lens_package', 'lens_option', 'other'])],
+            'items.*.description' => ['nullable', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:999'],
-            'items.*.unit_price' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
+            'items.*.unit_price' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
             'items.*.product_variant_id' => [
                 'nullable',
                 'integer',
@@ -227,6 +246,200 @@ class UpdateQuotationDraft
         });
 
         return $validator->validate();
+    }
+
+    /**
+     * Convert dedicated prescription-eyewear form state into the existing
+     * quotation item payload. The form-only role marker is retained until
+     * optical validation and removed before persistence.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function normalizePrescriptionEyewearData(array $data, bool $includePrescriptionEyewear): array
+    {
+        if (! $includePrescriptionEyewear) {
+            return $data;
+        }
+
+        $items = collect($data['items'] ?? [])
+            ->filter(fn (array $item): bool => collect([
+                $item['description'] ?? null,
+                $item['unit_price'] ?? null,
+                $item['product_variant_id'] ?? null,
+                $item['lens_category_id'] ?? null,
+                $item['lens_option_id'] ?? null,
+                $item['service_id'] ?? null,
+            ])->contains(fn (mixed $value): bool => filled($value)))
+            ->map(fn (array $item): array => [
+                ...$item,
+                'eyewear_role' => 'other',
+            ])
+            ->values();
+
+        if (($data['eyewear_frame_source'] ?? null) === 'catalog'
+            && filled($data['eyewear_frame_variant_id'] ?? null)) {
+            $items->prepend([
+                'item_kind' => 'catalog',
+                'product_variant_id' => (int) $data['eyewear_frame_variant_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'frame',
+            ]);
+        }
+
+        if (($data['eyewear_frame_source'] ?? null) === 'patient'
+            && (filled($data['eyewear_patient_frame_description'] ?? null)
+                || filled($data['eyewear_patient_frame_price'] ?? null))) {
+            $items->prepend([
+                'item_kind' => 'custom_product',
+                'description' => $data['eyewear_patient_frame_description'] ?? null,
+                'quantity' => 1,
+                'unit_price' => $data['eyewear_patient_frame_price'] ?? null,
+                'eyewear_role' => 'frame',
+            ]);
+        }
+
+        if (filled($data['eyewear_lens_category_id'] ?? null)) {
+            $items->push([
+                'item_kind' => 'lens',
+                'lens_category_id' => (int) $data['eyewear_lens_category_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'lens_package',
+            ]);
+        }
+
+        foreach ($data['eyewear_lens_options'] ?? [] as $option) {
+            if (blank($option['lens_option_id'] ?? null)) {
+                continue;
+            }
+
+            $items->push([
+                'item_kind' => 'lens_option',
+                'lens_option_id' => (int) $option['lens_option_id'],
+                'quantity' => 1,
+                'eyewear_role' => 'lens_option',
+            ]);
+        }
+
+        return [
+            ...$data,
+            'items' => $items->all(),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function applyCatalogValues(array $item): array
+    {
+        if (filled($item['product_variant_id'] ?? null)) {
+            $variant = ProductVariant::query()
+                ->with('product')
+                ->findOrFail($item['product_variant_id']);
+
+            if ($variant->price === null) {
+                throw ValidationException::withMessages([
+                    'items' => ["{$variant->product->name} — {$variant->name} does not have a catalog price."],
+                ]);
+            }
+
+            return [
+                ...$item,
+                'description' => "{$variant->product->name} — {$variant->name}",
+                'unit_price' => $variant->price,
+            ];
+        }
+
+        if (filled($item['lens_category_id'] ?? null)) {
+            $lensCategory = LensCategory::query()->findOrFail($item['lens_category_id']);
+
+            return $this->applyNamedCatalogValues($item, $lensCategory->name, $lensCategory->price);
+        }
+
+        if (filled($item['lens_option_id'] ?? null)) {
+            $lensOption = LensOption::query()->active()->findOrFail($item['lens_option_id']);
+
+            return $this->applyNamedCatalogValues($item, $lensOption->name, $lensOption->price);
+        }
+
+        if (filled($item['service_id'] ?? null)) {
+            $service = Service::query()->active()->findOrFail($item['service_id']);
+
+            return $this->applyNamedCatalogValues($item, $service->name, $service->price);
+        }
+
+        return $item;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function applyNamedCatalogValues(array $item, string $name, mixed $price): array
+    {
+        if ($price === null) {
+            throw ValidationException::withMessages([
+                'items' => ["{$name} does not have a catalog price."],
+            ]);
+        }
+
+        return [
+            ...$item,
+            'description' => $name,
+            'unit_price' => $price,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function validatePrescriptionEyewearMode(array $items): void
+    {
+        $items = collect($items);
+        $lensPackageItems = $items->filter(fn (array $item): bool => ($item['eyewear_role'] ?? null) === 'lens_package');
+
+        if ($lensPackageItems->count() !== 1
+            || $lensPackageItems->contains(fn (array $item): bool => blank($item['lens_category_id'] ?? null))) {
+            throw ValidationException::withMessages([
+                'eyewear_lens_category_id' => ['Prescription eyewear requires exactly one lens package.'],
+            ]);
+        }
+
+        $frameItems = $items->filter(fn (array $item): bool => ($item['eyewear_role'] ?? null) === 'frame');
+        $catalogVariantIds = $frameItems
+            ->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog')
+            ->pluck('product_variant_id')
+            ->filter()
+            ->map(fn (mixed $id): int => (int) $id);
+
+        $catalogFrames = ProductVariant::query()
+            ->with('product')
+            ->whereIn('id', $catalogVariantIds)
+            ->get()
+            ->filter(fn (ProductVariant $variant): bool => $variant->product?->product_type === 'frame');
+
+        if ($catalogFrames->count() !== $catalogVariantIds->count()) {
+            throw ValidationException::withMessages([
+                'eyewear_frame_variant_id' => ['Prescription eyewear catalog items must be frames.'],
+            ]);
+        }
+
+        $patientFrameItems = $frameItems->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'custom_product');
+
+        foreach ($patientFrameItems as $item) {
+            if ((int) ($item['quantity'] ?? 0) !== 1) {
+                throw ValidationException::withMessages([
+                    'eyewear_frame_source' => ['A patient-supplied frame quantity must be 1.'],
+                ]);
+            }
+        }
+
+        if ($catalogFrames->count() + $patientFrameItems->count() > 1) {
+            throw ValidationException::withMessages([
+                'eyewear_frame_source' => ['Prescription eyewear may include at most one frame.'],
+            ]);
+        }
     }
 
     private static function formatMoney(int $amountInCents): string
