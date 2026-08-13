@@ -50,22 +50,7 @@ class AppointmentRequestsTable
 
                 TextColumn::make('appointment_type')
                     ->label('Type')
-                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—')
-                    ->description(function (AppointmentRequest $record): ?string {
-                        $type = $record->appointmentType;
-
-                        $internalName = ($type !== null && $type->name !== $type->patient_label) ? $type->name : null;
-
-                        $duration = $record->provisional_duration_minutes ?? $type?->duration_minutes;
-                        $durationText = $duration !== null ? "{$duration} min" : null;
-
-                        $altCount = count($record->alternative_scheduled_times ?? []);
-                        $alternativesText = $altCount.' '.Str::plural('alternative', $altCount);
-
-                        return collect([$internalName, $durationText, $alternativesText])
-                            ->filter()
-                            ->implode(' · ') ?: null;
-                    }),
+                    ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
 
                 TextColumn::make('encrypted_referring_source')
                     ->label('Referral')

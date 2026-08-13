@@ -4,6 +4,8 @@ namespace App\Filament\Resources\AppointmentRequests\Schemas;
 
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
+use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Support\PatientCandidateMatchCard;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Section;
@@ -18,13 +20,99 @@ class AppointmentRequestForm
     {
         return $schema
             ->components([
-                // ── 1. Request Summary ──────────────────────────────────────
-                Section::make('Request Summary')
+                // ── 1. Patient Information ──────────────────────────────────
+                // Who this request is about comes first: for an unlinked
+                // request, that identity decision is the reason staff opened
+                // this page at all, and it should not sit below scheduling
+                // admin they can't act on until it's resolved.
+                //
+                // Every top-level section spans the full width and stacks in
+                // this order. Without an explicit span, Filament lays them
+                // out in an alternating two-column grid, which pairs
+                // unrelated sections by coincidence of position (a one-line
+                // section next to the densest one) rather than by meaning.
+                Section::make('Patient Information')
+                    ->visible(fn ($record): bool => $record?->patient_id !== null)
+                    ->columnSpanFull()
                     ->schema([
-                        Placeholder::make('account_owner')
-                            ->label('Account / Patient')
-                            ->content(fn ($record): string => $record?->patient?->full_name ?? $record?->user?->full_name ?? '—'),
+                        Placeholder::make('linked_patient_name')
+                            ->label('Linked Patient')
+                            ->content(function ($record): HtmlString {
+                                if ($record?->patient === null) {
+                                    return new HtmlString('—');
+                                }
 
+                                $url = PatientResource::getUrl('edit', ['record' => $record->patient]);
+
+                                return new HtmlString(
+                                    '<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                    .e($record->patient->full_name)
+                                    .'</a>'
+                                );
+                            }),
+                    ]),
+
+                Section::make('Patient Information')
+                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
+                    ->columnSpanFull()
+                    ->schema([
+                        Placeholder::make('snapshot_name')
+                            ->label('Name')
+                            ->content(fn ($record): string => $record?->getSnapshotDisplayName() ?? '—'),
+
+                        Placeholder::make('snapshot_dob')
+                            ->label('Date of Birth')
+                            ->content(fn ($record): string => $record?->getSnapshotDateOfBirth() ?? '—'),
+
+                        Placeholder::make('snapshot_phone')
+                            ->label('Phone')
+                            ->content(fn ($record): string => $record?->getSnapshotPhone() ?? '—'),
+
+                        Placeholder::make('snapshot_email')
+                            ->label('Email')
+                            ->content(fn ($record): string => $record?->getSnapshotEmail() ?? 'Not provided'),
+
+                        Placeholder::make('snapshot_gender')
+                            ->label('Gender')
+                            ->content(fn ($record): string => Str::headline($record?->getSnapshotGender() ?? '—')),
+
+                        Placeholder::make('snapshot_occupation')
+                            ->label('Occupation')
+                            ->content(fn ($record): string => $record?->getSnapshotOccupation() ?? '—'),
+
+                        Placeholder::make('snapshot_address')
+                            ->label('Home Address')
+                            ->content(fn ($record): string => $record?->getSnapshotAddress() ?? '—')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2),
+
+                // ── 2. Potential Matches ────────────────────────────────────
+                // Directly below identity, since it's the decision aid for
+                // the Link-to-Patient action — not a footnote after logistics.
+                Section::make('Potential Matches')
+                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
+                    ->columnSpanFull()
+                    ->schema([
+                        Placeholder::make('candidates')
+                            ->hiddenLabel()
+                            ->content(function ($record): HtmlString {
+                                if ($record === null || ! $record->hasIdentitySnapshot()) {
+                                    return PatientCandidateMatchCard::render(collect(), 'No candidates.');
+                                }
+
+                                $candidates = app(RankPatientCandidates::class)
+                                    ->fromSnapshot($record->encrypted_identity_snapshot);
+
+                                return PatientCandidateMatchCard::render($candidates);
+                            })
+                            ->columnSpanFull(),
+                    ]),
+
+                // ── 3. Request Summary ──────────────────────────────────────
+                Section::make('Request Summary')
+                    ->columnSpanFull()
+                    ->schema([
                         Placeholder::make('account_status')
                             ->label('Account Status')
                             ->content(fn ($record): string => $record?->patient_id !== null ? 'Linked' : 'Unlinked')
@@ -52,16 +140,19 @@ class AppointmentRequestForm
                         Placeholder::make('appointment_type')
                             ->label('Appointment Type')
                             ->content(function ($record): HtmlString {
-                                $patientLabel = $record?->appointmentType?->patient_label ?? '—';
-                                $internalName = $record?->appointmentType?->name;
+                                $internalName = $record?->appointmentType?->name ?? '—';
+                                $patientLabel = $record?->appointmentType?->patient_label;
 
-                                if ($internalName === null || $internalName === $patientLabel) {
-                                    return new HtmlString(e($patientLabel));
+                                // This is a staff review page, so the internal name leads —
+                                // that's the identifier staff actually use. The patient-facing
+                                // wording is secondary context, shown only when it differs.
+                                if ($patientLabel === null || $patientLabel === $internalName) {
+                                    return new HtmlString(e($internalName));
                                 }
 
                                 return new HtmlString(
-                                    '<span class="font-medium">'.e($patientLabel).'</span>'
-                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">'.e($internalName).'</span>'
+                                    '<span class="font-medium">'.e($internalName).'</span>'
+                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">Patient sees: '.e($patientLabel).'</span>'
                                 );
                             }),
 
@@ -98,8 +189,9 @@ class AppointmentRequestForm
                     ])
                     ->columns(3),
 
-                // ── 2. Requested Schedule ───────────────────────────────────
+                // ── 4. Requested Schedule ───────────────────────────────────
                 Section::make('Requested Schedule')
+                    ->columnSpanFull()
                     ->schema([
                         Placeholder::make('submitted_times')
                             ->label('Preferred Time')
@@ -136,80 +228,20 @@ class AppointmentRequestForm
                     ])
                     ->columns(2),
 
-                // ── 3. Referral Source ──────────────────────────────────────
+                // ── 5. Referral Source ──────────────────────────────────────
                 Section::make('Referral')
                     ->visible(fn ($record): bool => ! empty($record?->encrypted_referring_source))
+                    ->columnSpanFull()
                     ->schema([
                         Placeholder::make('referral_context')
                             ->label('Referral Source')
                             ->content(fn ($record): string => $record?->encrypted_referring_source ?? '—'),
                     ]),
 
-                // ── 4. Patient Information ──────────────────────────────────
-                Section::make('Patient Information')
-                    ->visible(fn ($record): bool => $record?->patient_id !== null)
-                    ->schema([
-                        Placeholder::make('linked_patient_name')
-                            ->label('Linked Patient')
-                            ->content(fn ($record): string => $record?->patient?->full_name ?? '—'),
-                    ]),
-
-                Section::make('Patient Information')
-                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
-                    ->schema([
-                        Placeholder::make('snapshot_name')
-                            ->label('Name')
-                            ->content(fn ($record): string => $record?->getSnapshotDisplayName() ?? '—'),
-
-                        Placeholder::make('snapshot_dob')
-                            ->label('Date of Birth')
-                            ->content(fn ($record): string => $record?->getSnapshotDateOfBirth() ?? '—'),
-
-                        Placeholder::make('snapshot_phone')
-                            ->label('Phone')
-                            ->content(fn ($record): string => $record?->getSnapshotPhone() ?? '—'),
-
-                        Placeholder::make('snapshot_email')
-                            ->label('Email')
-                            ->content(fn ($record): string => $record?->getSnapshotEmail() ?? 'Not provided'),
-
-                        Placeholder::make('snapshot_gender')
-                            ->label('Gender')
-                            ->content(fn ($record): string => Str::headline($record?->getSnapshotGender() ?? '—')),
-
-                        Placeholder::make('snapshot_occupation')
-                            ->label('Occupation')
-                            ->content(fn ($record): string => $record?->getSnapshotOccupation() ?? '—'),
-
-                        Placeholder::make('snapshot_address')
-                            ->label('Home Address')
-                            ->content(fn ($record): string => $record?->getSnapshotAddress() ?? '—')
-                            ->columnSpanFull(),
-                    ])
-                    ->columns(2),
-
-                // ── Potential Matches ───────────────────────────────────────
-                Section::make('Potential Matches')
-                    ->visible(fn ($record): bool => ($record?->hasIdentitySnapshot() ?? false) && $record?->patient_id === null)
-                    ->schema([
-                        Placeholder::make('candidates')
-                            ->hiddenLabel()
-                            ->content(function ($record): HtmlString {
-                                if ($record === null || ! $record->hasIdentitySnapshot()) {
-                                    return PatientCandidateMatchCard::render(collect(), 'No candidates.');
-                                }
-
-                                $candidates = app(RankPatientCandidates::class)
-                                    ->fromSnapshot($record->encrypted_identity_snapshot);
-
-                                return PatientCandidateMatchCard::render($candidates);
-                            })
-                            ->columnSpanFull(),
-                    ]),
-
-                // ── 5. Decision Details ─────────────────────────────────────
+                // ── 6. Decision Details ─────────────────────────────────────
                 Section::make('Decision Details')
                     ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending)
+                    ->columnSpanFull()
                     ->schema([
                         Placeholder::make('resolved_by')
                             ->label('Resolved By')
@@ -220,6 +252,25 @@ class AppointmentRequestForm
                             ->label('Resolved At')
                             ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
                             ->visible(fn ($record): bool => $record?->resolved_at !== null),
+
+                        Placeholder::make('resulting_appointment')
+                            ->label('Appointment')
+                            ->content(function ($record): HtmlString {
+                                $appointment = $record?->appointment;
+
+                                if ($appointment === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                $url = AppointmentResource::getUrl('edit', ['record' => $appointment]);
+
+                                return new HtmlString(
+                                    '<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                    .e($appointment->appointment_number)
+                                    .'</a>'
+                                );
+                            })
+                            ->visible(fn ($record): bool => $record?->appointment_id !== null),
 
                         Placeholder::make('rejection_reason')
                             ->label('Rejection Reason')
