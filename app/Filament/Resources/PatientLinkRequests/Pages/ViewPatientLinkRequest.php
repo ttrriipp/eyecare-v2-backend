@@ -95,7 +95,7 @@ class ViewPatientLinkRequest extends ViewRecord
                             linkRequest: $this->record,
                             patient: $patient,
                             reviewer: auth()->user(),
-                            note: $data['note'] ?? null,
+                            note: $data['decision_note'] ?? null,
                         );
 
                         $this->record->refresh();
