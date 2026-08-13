@@ -26,11 +26,17 @@ class QuotationCreationForm
     /**
      * @return array<int, Section>
      */
-    public static function components(?Closure $patientIdResolver = null): array
-    {
+    public static function components(
+        ?Closure $patientIdResolver = null,
+        ?Closure $prescriptionEyewearResolver = null,
+    ): array {
         $patientIdResolver ??= fn (Get $get): ?int => filled($get('patient_id'))
             ? (int) $get('patient_id')
             : null;
+
+        $prescriptionEyewearResolver ??= fn (Get $get): bool => collect(
+            $get('items') ?? $get('../../items') ?? [],
+        )->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens');
 
         return [
             Section::make('Quotation Details')
@@ -55,14 +61,17 @@ class QuotationCreationForm
                 ]),
 
             Section::make('Prescription Eyewear Build')
-                ->description('A corrective-eyewear quotation contains one frame, one lens package, and any selected lens options.')
                 ->schema([
                     Grid::make(['default' => 1, 'md' => 3])->schema([
                         Placeholder::make('frame_selection')
                             ->label('Frame')
                             ->content(fn (Get $get): string => collect($get('items') ?? [])
-                                ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog'
-                                    && ($item['catalog_product_type'] ?? null) === 'frame')
+                                ->contains(fn (array $item): bool => (
+                                    (($item['item_kind'] ?? null) === 'catalog'
+                                        && ($item['catalog_product_type'] ?? null) === 'frame')
+                                    || ($prescriptionEyewearResolver($get)
+                                        && ($item['item_kind'] ?? null) === 'custom_product')
+                                ))
                                 ? 'Selected ✓'
                                 : 'Not selected'),
                         Placeholder::make('lens_package_selection')
@@ -81,11 +90,9 @@ class QuotationCreationForm
                             )),
                     ]),
                 ])
-                ->visible(fn (Get $get): bool => collect($get('items') ?? [])
-                    ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens')),
+                ->visible(fn (Get $get): bool => $prescriptionEyewearResolver($get)),
 
             Section::make('Items')
-                ->description('Choose catalog entries for standard pricing, or use a custom line when the item is not in the catalog.')
                 ->schema([
                     Repeater::make('items')
                         ->hiddenLabel()
@@ -99,18 +106,25 @@ class QuotationCreationForm
                                 ->schema([
                                     Select::make('item_kind')
                                         ->label('Item Type')
-                                        ->options([
-                                            'catalog' => 'Catalog Item',
-                                            'lens' => 'Lens Category',
-                                            'lens_option' => 'Lens Option',
-                                            'service' => 'Service',
-                                            'custom_product' => 'Custom Item',
-                                            'custom_service' => 'Custom Service',
-                                        ])
+                                        ->options(fn (Get $get): array => $prescriptionEyewearResolver($get)
+                                            ? [
+                                                'catalog' => 'Catalog Frame',
+                                                'custom_product' => 'Patient-supplied Frame',
+                                                'lens' => 'Lens Package',
+                                                'lens_option' => 'Lens Option',
+                                                'service' => 'Service',
+                                                'custom_service' => 'Custom Service',
+                                            ]
+                                            : [
+                                                'catalog' => 'Catalog Item',
+                                                'service' => 'Service',
+                                                'custom_product' => 'Custom Item',
+                                                'custom_service' => 'Custom Service',
+                                            ])
                                         ->default('catalog')
                                         ->required()
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, mixed $state) use ($prescriptionEyewearResolver): void {
                                             $set('product_variant_id', null);
                                             $set('lens_category_id', null);
                                             $set('lens_option_id', null);
@@ -119,15 +133,28 @@ class QuotationCreationForm
                                             $set('description', null);
                                             $set('unit_price', null);
                                             $set('line_total', null);
+
+                                            if ($prescriptionEyewearResolver($get) && $state === 'custom_product') {
+                                                $set('quantity', 1);
+                                            }
                                         }),
                                     Hidden::make('catalog_product_type')
                                         ->dehydrated(false),
                                     Select::make('product_variant_id')
-                                        ->label('Catalog Item')
-                                        ->options(fn (): array => ProductVariant::query()
+                                        ->label(fn (Get $get): string => $prescriptionEyewearResolver($get)
+                                            ? 'Frame'
+                                            : 'Catalog Item')
+                                        ->options(fn (Get $get): array => ProductVariant::query()
                                             ->with('product')
                                             ->active()
                                             ->whereHas('product', fn (Builder $query): Builder => $query->where('is_active', true))
+                                            ->when(
+                                                $prescriptionEyewearResolver($get),
+                                                fn (Builder $query): Builder => $query->whereHas(
+                                                    'product',
+                                                    fn (Builder $productQuery): Builder => $productQuery->where('product_type', 'frame'),
+                                                ),
+                                            )
                                             ->orderBy('sku')
                                             ->get()
                                             ->mapWithKeys(fn (ProductVariant $variant): array => [
@@ -160,8 +187,9 @@ class QuotationCreationForm
                                             ));
                                         }),
                                     Select::make('lens_category_id')
-                                        ->label('Lens Category')
-                                        ->helperText('Choose the patient’s current prescription above before confirming a lens package.')
+                                        ->label(fn (Get $get): string => $prescriptionEyewearResolver($get)
+                                            ? 'Lens Package'
+                                            : 'Lens Category')
                                         ->options(fn (): array => LensCategory::query()
                                             ->orderBy('name')
                                             ->pluck('name', 'id')
@@ -245,28 +273,28 @@ class QuotationCreationForm
                                 ]),
                             TextInput::make('description')
                                 ->label('Description')
-                                ->required()
+                                ->required(fn (Get $get): bool => in_array($get('item_kind'), [
+                                    'custom_product',
+                                    'custom_service',
+                                ], true))
                                 ->maxLength(255)
+                                ->visible(fn (Get $get): bool => in_array($get('item_kind'), [
+                                    'custom_product',
+                                    'custom_service',
+                                ], true))
                                 ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
                                 ->dehydrated()
-                                ->helperText(fn (Get $get): ?string => self::usesCatalogValues($get)
-                                    ? 'Set by the selected catalog entry.'
-                                    : 'Describe the uncatalogued item or service.')
+                                ->dehydratedWhenHidden()
                                 ->columnSpanFull(),
                             TextInput::make('quantity')
                                 ->label('Quantity')
                                 ->required()
                                 ->integer()
                                 ->minValue(1)
-                                ->maxValue(fn (Get $get): int => self::hasFixedQuantity($get) ? 1 : 999)
+                                ->maxValue(fn (Get $get): int => self::hasFixedQuantity($get, $prescriptionEyewearResolver) ? 1 : 999)
                                 ->default(1)
-                                ->disabled(fn (Get $get): bool => self::hasFixedQuantity($get))
+                                ->disabled(fn (Get $get): bool => self::hasFixedQuantity($get, $prescriptionEyewearResolver))
                                 ->dehydrated()
-                                ->helperText(fn (Get $get): ?string => match (true) {
-                                    $get('item_kind') === 'lens', $get('item_kind') === 'lens_option' => 'Priced as one pair.',
-                                    $get('catalog_product_type') === 'frame' => 'A quotation may include one frame.',
-                                    default => null,
-                                })
                                 ->live(onBlur: true)
                                 ->afterStateUpdated(function (Set $set, Get $get): void {
                                     $set('line_total', number_format(
@@ -283,9 +311,6 @@ class QuotationCreationForm
                                 ->step(0.01)
                                 ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
                                 ->dehydrated()
-                                ->helperText(fn (Get $get): ?string => self::usesCatalogValues($get)
-                                    ? 'Catalog price; apply an admin discount in Quotation Details when needed.'
-                                    : 'Enter the agreed unit price for this custom line.')
                                 ->live(onBlur: true)
                                 ->afterStateUpdated(function (Set $set, Get $get): void {
                                     $set('line_total', number_format(
@@ -335,10 +360,11 @@ class QuotationCreationForm
         return in_array($get('item_kind'), ['catalog', 'lens', 'lens_option', 'service'], true);
     }
 
-    private static function hasFixedQuantity(Get $get): bool
+    private static function hasFixedQuantity(Get $get, Closure $prescriptionEyewearResolver): bool
     {
         return in_array($get('item_kind'), ['lens', 'lens_option'], true)
-            || ($get('item_kind') === 'catalog' && $get('catalog_product_type') === 'frame');
+            || ($get('item_kind') === 'catalog' && $get('catalog_product_type') === 'frame')
+            || ($prescriptionEyewearResolver($get) && $get('item_kind') === 'custom_product');
     }
 
     private static function subtotal(Get $get): float

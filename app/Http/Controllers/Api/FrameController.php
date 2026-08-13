@@ -16,14 +16,16 @@ class FrameController extends Controller
         $query = Product::query()
             ->where('product_type', 'frame')
             ->where('is_active', true)
-            ->whereHas('variants', fn ($q) => $q
-                ->where('is_active', true)
-                ->where('ar_eligible', true)
-                ->whereNotNull('ar_asset_reference'))
+            ->where(function ($q): void {
+                $q->whereHas('variants', fn ($sub) => $sub
+                    ->where('is_active', true)
+                    ->where('ar_eligible', true)
+                    ->whereNotNull('ar_asset_reference'))
+                    ->orWhereDoesntHave('variants', fn ($sub) => $sub
+                        ->where('ar_eligible', true));
+            })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->where('ar_eligible', true)
-                ->whereNotNull('ar_asset_reference')
                 ->with(['ratings'])]);
 
         $query->when(
@@ -60,14 +62,16 @@ class FrameController extends Controller
             ->where('product_type', 'frame')
             ->where('is_active', true)
             ->where('id', $frame->id)
-            ->whereHas('variants', fn ($q) => $q
-                ->where('is_active', true)
-                ->where('ar_eligible', true)
-                ->whereNotNull('ar_asset_reference'))
+            ->where(function ($q): void {
+                $q->whereHas('variants', fn ($sub) => $sub
+                    ->where('is_active', true)
+                    ->where('ar_eligible', true)
+                    ->whereNotNull('ar_asset_reference'))
+                    ->orWhereDoesntHave('variants', fn ($sub) => $sub
+                        ->where('ar_eligible', true));
+            })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->where('ar_eligible', true)
-                ->whereNotNull('ar_asset_reference')
                 ->with(['ratings'])])
             ->first();
 

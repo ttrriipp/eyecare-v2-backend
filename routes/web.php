@@ -70,6 +70,7 @@ Route::middleware(['auth', 'web'])->group(function () {
 
         return view('filament.encounters.print', [
             'encounter' => $encounter,
+            'clinic' => config('clinic'),
         ]);
     })->name('encounters.print');
 });

@@ -30,11 +30,20 @@ final class ValidateOpticalQuotation
         bool $requirePrescription = true,
     ): array {
         $lensPackages = $items->where('item_kind', CommercialItemKind::LensPackage);
-        $frames = $items->whereIn('item_kind', [CommercialItemKind::Frame, CommercialItemKind::CustomProduct])
-            ->filter(fn (array $item): bool => filled($item['product_variant_id'] ?? null));
         $lensOptions = $items->where('item_kind', CommercialItemKind::LensOption);
-
         $isCorrective = $lensPackages->isNotEmpty();
+
+        // In corrective mode a custom product represents a patient-supplied
+        // frame. Outside corrective mode, custom products remain ordinary
+        // uncatalogued items and are not treated as frames.
+        $frames = $items->filter(function (array $item) use ($isCorrective): bool {
+            if (($item['item_kind'] ?? null) === CommercialItemKind::Frame) {
+                return true;
+            }
+
+            return $isCorrective
+                && ($item['item_kind'] ?? null) === CommercialItemKind::CustomProduct;
+        });
 
         foreach ($frames as $frame) {
             if ((int) ($frame['quantity'] ?? 1) !== 1) {

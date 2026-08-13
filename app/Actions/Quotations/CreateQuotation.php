@@ -34,6 +34,7 @@ class CreateQuotation
         array $data,
         ?Encounter $encounter = null,
         ?Prescription $prescription = null,
+        bool $includePrescriptionEyewear = false,
     ): Quotation {
         if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
@@ -43,7 +44,11 @@ class CreateQuotation
 
         $validated = $this->validate($data, $encounter);
 
-        return DB::transaction(function () use ($patient, $creator, $validated, $encounter, $prescription): Quotation {
+        if ($includePrescriptionEyewear) {
+            $this->validatePrescriptionEyewearMode($validated['items']);
+        }
+
+        return DB::transaction(function () use ($patient, $creator, $validated, $encounter, $prescription, $includePrescriptionEyewear): Quotation {
             // Validate encounter if provided
             if ($encounter !== null) {
                 $lockedEncounter = Encounter::query()
@@ -67,7 +72,7 @@ class CreateQuotation
             // passed prescription (an existing Rx, no new encounter) takes priority
             // over resolving one from the encounter (a same-visit quotation).
             $prescriptionId = null;
-            $hasCorrectiveItems = collect($validated['items'])->contains(
+            $hasCorrectiveItems = $includePrescriptionEyewear || collect($validated['items'])->contains(
                 fn (array $item): bool => filled($item['lens_category_id'] ?? null),
             );
 
@@ -363,6 +368,61 @@ class CreateQuotation
             'description' => $name,
             'unit_price' => $price,
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function validatePrescriptionEyewearMode(array $items): void
+    {
+        $items = collect($items);
+        $lensPackageItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens');
+
+        if ($lensPackageItems->count() !== 1
+            || $lensPackageItems->contains(fn (array $item): bool => blank($item['lens_category_id'] ?? null))) {
+            throw ValidationException::withMessages([
+                'items' => ['Prescription eyewear requires exactly one lens package.'],
+            ]);
+        }
+
+        $catalogItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog');
+        $catalogVariantIds = $catalogItems->pluck('product_variant_id')->filter()->map(fn (mixed $id): int => (int) $id);
+
+        if ($catalogItems->count() !== $catalogVariantIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => ['Select a catalog frame for the prescription eyewear frame.'],
+            ]);
+        }
+
+        $catalogFrames = ProductVariant::query()
+            ->with('product')
+            ->whereIn('id', $catalogVariantIds)
+            ->get()
+            ->filter(fn (ProductVariant $variant): bool => $variant->product?->product_type === 'frame');
+
+        if ($catalogFrames->count() !== $catalogVariantIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => ['Prescription eyewear catalog items must be frames.'],
+            ]);
+        }
+
+        $patientFrameItems = $items->filter(fn (array $item): bool => ($item['item_kind'] ?? null) === 'custom_product');
+
+        foreach ($patientFrameItems as $item) {
+            if ((int) ($item['quantity'] ?? 0) !== 1) {
+                throw ValidationException::withMessages([
+                    'items' => ['A patient-supplied frame quantity must be 1.'],
+                ]);
+            }
+        }
+
+        $frameCount = $catalogFrames->count() + $patientFrameItems->count();
+
+        if ($frameCount > 1) {
+            throw ValidationException::withMessages([
+                'items' => ['Prescription eyewear may include at most one frame.'],
+            ]);
+        }
     }
 
     private function nullableTrimmed(?string $value): ?string

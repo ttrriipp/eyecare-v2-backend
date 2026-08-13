@@ -13,6 +13,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Components\Section;
@@ -69,6 +70,11 @@ class CreateQuotation extends CreateRecord
             ?? (filled($get('prescription_id'))
                 ? Prescription::query()->with('author')->find((int) $get('prescription_id'))
                 : null);
+        $prescriptionEyewearResolver = fn (Get $get): bool => (bool) (
+            $get('include_prescription_eyewear')
+            ?? $get('../../include_prescription_eyewear')
+            ?? false
+        );
 
         return $schema
             ->columns(1)
@@ -124,13 +130,15 @@ class CreateQuotation extends CreateRecord
                                     })
                                     ->searchable()
                                     ->preload()
+                                    ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
                                     ->live(),
                             ],
                         }),
-                        Placeholder::make('no_prescription_notice')
-                            ->hiddenLabel()
-                            ->content('No spectacle prescription linked. You may quote frames, contact lenses, accessories, custom products, and services.')
-                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) === null)
+                        Toggle::make('include_prescription_eyewear')
+                            ->label('Include prescription eyewear')
+                            ->default($contextPrescription !== null || $encounterPrescription !== null)
+                            ->live()
+                            ->dehydrated(false)
                             ->columnSpanFull(),
                         Placeholder::make('prescription_prescribed_at')
                             ->label('Prescribed')
@@ -168,6 +176,7 @@ class CreateQuotation extends CreateRecord
                 ...QuotationCreationForm::components(
                     patientIdResolver: fn (Get $get): ?int => $patient?->id
                         ?? (filled($get('patient_id')) ? (int) $get('patient_id') : null),
+                    prescriptionEyewearResolver: $prescriptionEyewearResolver,
                 ),
             ]);
     }
@@ -184,12 +193,13 @@ class CreateQuotation extends CreateRecord
         $encounter = $this->resolveEncounter();
         $prescription = $this->resolvePrescription()
             ?? (filled($data['prescription_id'] ?? null) ? Prescription::query()->find($data['prescription_id']) : null);
+        $includePrescriptionEyewear = (bool) ($this->data['include_prescription_eyewear'] ?? false);
         $patient = $encounter?->patient
             ?? $prescription?->patient
             ?? $this->resolvePatient()
             ?? Patient::query()->find($data['patient_id'] ?? null);
 
-        unset($data['patient_id'], $data['prescription_id']);
+        unset($data['patient_id'], $data['prescription_id'], $data['include_prescription_eyewear']);
 
         if ($patient === null) {
             Notification::make()
@@ -208,6 +218,7 @@ class CreateQuotation extends CreateRecord
                 data: $data,
                 encounter: $encounter,
                 prescription: $prescription,
+                includePrescriptionEyewear: $includePrescriptionEyewear,
             );
 
             return $quotation;
