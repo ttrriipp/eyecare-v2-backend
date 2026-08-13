@@ -31,6 +31,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Enums\Width;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
 class EditQuotation extends EditRecord
@@ -104,14 +105,7 @@ class EditQuotation extends EditRecord
                     return [
                         Placeholder::make('order_summary')
                             ->label('Order summary')
-                            ->content("{$configurationItems->implode(' + ')} · {$this->record->items()->count()} quoted lines · Total ₱".number_format((float) $this->record->total, 2))
-                            ->columnSpanFull(),
-
-                        Placeholder::make('corrective_eyewear_summary')
-                            ->label('Corrective Eyewear Configuration')
-                            ->content($configurationItems->isNotEmpty()
-                                ? $configurationItems->implode('; ')
-                                : 'No corrective eyewear configuration selected.')
+                            ->content(new HtmlString($configurationItems->implode('<br>')))
                             ->columnSpanFull(),
 
                         Placeholder::make('prescription_reference')
@@ -205,7 +199,6 @@ class EditQuotation extends EditRecord
                 ->modalHeading('Confirm Sale')
                 ->modalSubmitActionLabel('Confirm Sale')
                 ->modalCancelActionLabel('Back')
-                ->modalDescription('Review the corrective-eyewear configuration and charges before confirming. This creates the Optical Order from product lines and bills any selected services.')
                 ->action(function (array $data): void {
                     $confirmer = auth()->user();
 

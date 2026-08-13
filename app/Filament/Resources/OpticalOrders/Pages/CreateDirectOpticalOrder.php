@@ -121,7 +121,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                     Grid::make(1)
                         ->columnSpan(['default' => 1, 'lg' => 2])
                         ->schema([
-                            Section::make('1. Patient & Prescription')
+                            Section::make('Patient & Prescription')
                                 ->schema([
                                     Select::make('patient_id')
                                         ->label('Patient')
@@ -157,7 +157,6 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->searchable()
                                         ->preload()
                                         ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
-                                        ->visible(fn (Get $get): bool => filled($get('patient_id')))
                                         ->afterStateUpdated($clearPrescriptionValidation)
                                         ->live(),
                                     Toggle::make('include_prescription_eyewear')
@@ -241,7 +240,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                     Grid::make(1)
                         ->columnSpan(['default' => 1, 'lg' => 1])
                         ->schema([
-                            Section::make('4. Fulfillment')
+                            Section::make('Fulfillment')
                                 ->schema([
                                     Radio::make('fulfillment_mode')
                                         ->label('Fulfillment')
@@ -266,7 +265,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->maxLength(255)
                                         ->visible(fn (Get $get): bool => $get('fulfillment_mode') === 'immediate'),
                                 ]),
-                            Section::make('5. Payment')
+                            Section::make('Payment')
                                 ->schema([
                                     Placeholder::make('order_total')
                                         ->label('Total')
