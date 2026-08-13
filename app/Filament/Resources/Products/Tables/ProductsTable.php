@@ -69,11 +69,11 @@ class ProductsTable
                 ActionGroup::make([
                     EditAction::make(),
                     Action::make('toggleVisibility')
-                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->label(fn ($record): string => $record->is_active ? 'Deactivate' : 'Activate')
                         ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                         ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
                         ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
-                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product hidden' : 'Product visible'),
+                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Product activated' : 'Product deactivated'),
                     DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive product')->modalDescription('This will hide the product from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->color('danger')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                     RestoreAction::make()->label('Restore')->visible(fn (Product $record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
                 ]),

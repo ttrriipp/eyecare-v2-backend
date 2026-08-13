@@ -266,11 +266,11 @@ class VariantsRelationManager extends RelationManager
                     EditAction::make()
                         ->color('info'),
                     Action::make('toggleVisibility')
-                        ->label(fn ($record): string => $record->is_active ? 'Hide' : 'Show')
+                        ->label(fn ($record): string => $record->is_active ? 'Deactivate' : 'Activate')
                         ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
                         ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
                         ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
-                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant hidden' : 'Variant visible'),
+                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant activated' : 'Variant deactivated'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
