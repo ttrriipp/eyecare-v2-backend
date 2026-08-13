@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpticalOrders;
 
 use App\Enums\JobOrderStatus;
+use App\Filament\Resources\OpticalOrders\Pages\CreateDirectOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\EditOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderForm;
@@ -69,6 +70,7 @@ class OpticalOrderResource extends Resource
     {
         return [
             'index' => ListOpticalOrders::route('/'),
+            'create' => CreateDirectOpticalOrder::route('/create'),
             'edit' => EditOpticalOrder::route('/{record}/edit'),
         ];
     }
