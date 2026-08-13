@@ -5,7 +5,6 @@ namespace App\Filament\Resources\LensCategories;
 use App\Filament\Resources\LensCategories\Pages\CreateLensCategory;
 use App\Filament\Resources\LensCategories\Pages\EditLensCategory;
 use App\Filament\Resources\LensCategories\Pages\ListLensCategories;
-use App\Filament\Resources\LensCategories\RelationManagers\ProductsRelationManager;
 use App\Filament\Resources\LensCategories\Schemas\LensCategoryForm;
 use App\Filament\Resources\LensCategories\Tables\LensCategoriesTable;
 use App\Models\LensCategory;
@@ -41,13 +40,6 @@ class LensCategoryResource extends Resource
     public static function table(Table $table): Table
     {
         return LensCategoriesTable::configure($table);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            ProductsRelationManager::class,
-        ];
     }
 
     public static function getPages(): array
