@@ -139,22 +139,7 @@ class AppointmentRequestForm
 
                         Placeholder::make('appointment_type')
                             ->label('Appointment Type')
-                            ->content(function ($record): HtmlString {
-                                $internalName = $record?->appointmentType?->name ?? '—';
-                                $patientLabel = $record?->appointmentType?->patient_label;
-
-                                // This is a staff review page, so the internal name leads —
-                                // that's the identifier staff actually use. The patient-facing
-                                // wording is secondary context, shown only when it differs.
-                                if ($patientLabel === null || $patientLabel === $internalName) {
-                                    return new HtmlString(e($internalName));
-                                }
-
-                                return new HtmlString(
-                                    '<span class="font-medium">'.e($internalName).'</span>'
-                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">Patient sees: '.e($patientLabel).'</span>'
-                                );
-                            }),
+                            ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
 
                         Placeholder::make('provisional_duration')
                             ->label('Provisional Duration')
@@ -164,9 +149,9 @@ class AppointmentRequestForm
 
                         Placeholder::make('submitted_at')
                             ->label('Submitted')
-                            ->content(function ($record): HtmlString {
+                            ->content(function ($record): string {
                                 if ($record === null) {
-                                    return new HtmlString('—');
+                                    return '—';
                                 }
 
                                 $snapshot = $record->encrypted_identity_snapshot;
@@ -174,17 +159,7 @@ class AppointmentRequestForm
                                     ? Carbon::parse($snapshot['submitted_at'])
                                     : $record->created_at;
 
-                                if ($submittedAt === null) {
-                                    return new HtmlString('—');
-                                }
-
-                                $formatted = $submittedAt->format('M j, Y \a\t g:i A');
-                                $relative = $submittedAt->diffForHumans();
-
-                                return new HtmlString(
-                                    '<span>'.e($formatted).'</span>'
-                                    .'<br><span class="text-xs text-gray-500 dark:text-gray-400">'.e($relative).'</span>'
-                                );
+                                return $submittedAt?->format('M j, Y \a\t g:i A') ?? '—';
                             }),
                     ])
                     ->columns(3),
@@ -221,12 +196,8 @@ class AppointmentRequestForm
                                 );
                             })
                             ->columnSpanFull(),
-
-                        Placeholder::make('latest_requested_time')
-                            ->label('Latest Requested Time')
-                            ->content(fn ($record): string => $record?->expires_at?->format('M j, Y g:i A') ?? '—'),
                     ])
-                    ->columns(2),
+                    ->columns(1),
 
                 // ── 5. Referral Source ──────────────────────────────────────
                 Section::make('Referral')
