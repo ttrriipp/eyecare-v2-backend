@@ -186,7 +186,7 @@ class EditPatient extends EditRecord
                                         ? "{$user->first_name} {$user->last_name}"
                                         : ($user->full_name ?: "User #{$user->id}");
 
-                                    $label = $user->email ? "{$name} ({$user->email})" : $name;
+                                    $label = $user->phone ? "{$name} ({$user->phone})" : $name;
 
                                     return [$user->id => $label];
                                 })
