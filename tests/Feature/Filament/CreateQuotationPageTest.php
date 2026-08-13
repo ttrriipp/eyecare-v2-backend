@@ -48,6 +48,29 @@ test('staff creates a quotation from an encounter query context', function () {
         ->and($quotation->notes)->toBe('Patient-visible estimate note.');
 });
 
+test('including eyewear from an encounter without a finalized prescription requires a current prescription', function () {
+    $staff = User::factory()->staff()->create();
+    $encounter = Encounter::factory()->inProgress()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $encounter->patient_id]);
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateQuotation::class, ['encounter' => (string) $encounter->id])
+        ->assertFormSet(['include_prescription_eyewear' => false])
+        ->assertFormFieldExists('prescription_id')
+        ->set('data.include_prescription_eyewear', true)
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
+        ->call('create')
+        ->assertHasFormErrors(['prescription_id' => 'required']);
+
+    $component
+        ->set('data.prescription_id', $prescription->id)
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertRedirect();
+});
+
 test('quotation creation is draft-only and does not offer accept and continue', function () {
     $staff = User::factory()->staff()->create();
 

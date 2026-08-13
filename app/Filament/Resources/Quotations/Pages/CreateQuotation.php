@@ -76,6 +76,12 @@ class CreateQuotation extends CreateRecord
             ?? $get('../../include_prescription_eyewear')
             ?? false
         );
+        $prescriptionOptions = fn (Get $get): array => Prescription::query()
+            ->where('patient_id', $patient?->id ?? $get('patient_id'))
+            ->whereDoesntHave('nextPrescription')
+            ->get()
+            ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
+            ->all();
 
         return $schema
             ->columns(1)
@@ -106,29 +112,24 @@ class CreateQuotation extends CreateRecord
                                     ->label('Prescription')
                                     ->content($contextPrescription->prescription_number),
                             ],
+                            $encounter !== null && $encounterPrescription === null => [
+                                Select::make('prescription_id')
+                                    ->label('Prescription')
+                                    ->options($prescriptionOptions)
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
+                                    ->live(),
+                            ],
                             $encounter !== null => [
                                 Placeholder::make('prescription_display')
                                     ->label('Prescription')
-                                    ->content($encounterPrescription?->prescription_number
-                                        ?? 'No finalized prescription on this encounter yet.'),
+                                    ->content($encounterPrescription->prescription_number),
                             ],
                             default => [
                                 Select::make('prescription_id')
                                     ->label('Prescription')
-                                    ->options(function (Get $get) use ($patient): array {
-                                        $patientId = $patient?->id ?? $get('patient_id');
-
-                                        if (blank($patientId)) {
-                                            return [];
-                                        }
-
-                                        return Prescription::query()
-                                            ->where('patient_id', $patientId)
-                                            ->whereDoesntHave('nextPrescription')
-                                            ->get()
-                                            ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
-                                            ->all();
-                                    })
+                                    ->options($prescriptionOptions)
                                     ->searchable()
                                     ->preload()
                                     ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
