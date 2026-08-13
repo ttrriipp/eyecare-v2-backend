@@ -181,11 +181,15 @@ class EditPatient extends EditRecord
                             return User::whereHas('roles', fn ($q) => $q->where('name', 'patient'))
                                 ->whereNotIn('id', $linkedUserIds)
                                 ->get()
-                                ->mapWithKeys(fn ($user) => [
-                                    $user->id => ($user->first_name && $user->last_name)
-                                        ? "{$user->first_name} {$user->last_name} ({$user->email})"
-                                        : ($user->full_name ?: "User #{$user->id}"),
-                                ])
+                                ->mapWithKeys(function ($user): array {
+                                    $name = ($user->first_name && $user->last_name)
+                                        ? "{$user->first_name} {$user->last_name}"
+                                        : ($user->full_name ?: "User #{$user->id}");
+
+                                    $label = $user->email ? "{$name} ({$user->email})" : $name;
+
+                                    return [$user->id => $label];
+                                })
                                 ->toArray();
                         })
                         ->searchable()
