@@ -7,8 +7,11 @@ use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -54,19 +57,126 @@ test('quotation creation is draft-only and does not offer accept and continue', 
     Livewire::test(CreateQuotation::class)
         ->assertSee('Save Draft')
         ->assertSee('Cancel')
+        ->assertSee('Subtotal')
+        ->assertSee('Estimated Total')
         ->assertDontSee('Accept & Continue')
         ->assertActionDoesNotExist('acceptAndContinue');
+});
+
+test('catalog item details are locked while only frame quantity is fixed', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $product = Product::factory()->create([
+        'name' => 'Aster Frame',
+        'product_type' => 'frame',
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'name' => 'Matte Black',
+        'price' => 2450,
+    ]);
+    $accessory = Product::factory()->create([
+        'name' => 'Lens Cloth',
+        'product_type' => 'accessory',
+    ]);
+    $accessoryVariant = ProductVariant::factory()->create([
+        'product_id' => $accessory->id,
+        'name' => 'Blue',
+        'price' => 150,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id]);
+    $itemKey = array_key_first($component->get('data.items'));
+
+    $component
+        ->set("data.items.{$itemKey}.item_kind", 'catalog')
+        ->set("data.items.{$itemKey}.product_variant_id", $variant->id)
+        ->assertFormSet([
+            "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
+            "items.{$itemKey}.unit_price" => '2450.00',
+            "items.{$itemKey}.quantity" => 1,
+        ]);
+
+    $catalogFields = $component->instance()->form->getFlatFields(withHidden: true);
+    $descriptionKey = collect(array_keys($catalogFields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.description'));
+    $unitPriceKey = collect(array_keys($catalogFields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.unit_price'));
+    $quantityKey = collect(array_keys($catalogFields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.quantity'));
+
+    expect($catalogFields[$descriptionKey])->toBeInstanceOf(TextInput::class)
+        ->and($catalogFields[$descriptionKey]->isDisabled())->toBeTrue()
+        ->and($catalogFields[$unitPriceKey]->isDisabled())->toBeTrue()
+        ->and($catalogFields[$quantityKey]->isDisabled())->toBeTrue();
+
+    $component->set("data.items.{$itemKey}.product_variant_id", $accessoryVariant->id);
+
+    $accessoryFields = $component->instance()->form->getFlatFields(withHidden: true);
+
+    expect($accessoryFields[$descriptionKey]->isDisabled())->toBeTrue()
+        ->and($accessoryFields[$unitPriceKey]->isDisabled())->toBeTrue()
+        ->and($accessoryFields[$quantityKey]->isDisabled())->toBeFalse();
+
+    $component->set("data.items.{$itemKey}.item_kind", 'custom_product');
+
+    $customFields = $component->instance()->form->getFlatFields(withHidden: true);
+
+    expect($customFields[$descriptionKey]->isDisabled())->toBeFalse()
+        ->and($customFields[$unitPriceKey]->isDisabled())->toBeFalse()
+        ->and($customFields[$quantityKey]->isDisabled())->toBeFalse();
 });
 
 test('quotation creation explains when no spectacle prescription is linked', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
 
     $this->actingAs($staff);
 
     Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id])
         ->assertSee('No spectacle prescription linked')
-        ->assertSee('You may quote frames, contact lenses, accessories, custom products, and services.');
+        ->assertSee('You may quote frames, contact lenses, accessories, custom products, and services.')
+        ->set('data.prescription_id', $prescription->id)
+        ->assertDontSee('No spectacle prescription linked');
+});
+
+test('lens selection uses a fixed pair quantity and shows the eyewear build summary', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->create([
+        'name' => 'Single Vision',
+        'price' => 1800,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateQuotation::class, ['prescription' => (string) $prescription->id]);
+    $itemKey = array_key_first($component->get('data.items'));
+
+    $component
+        ->set("data.items.{$itemKey}.item_kind", 'lens')
+        ->set("data.items.{$itemKey}.lens_category_id", $lensCategory->id)
+        ->assertFormSet([
+            "items.{$itemKey}.description" => 'Single Vision',
+            "items.{$itemKey}.unit_price" => '1800.00',
+            "items.{$itemKey}.quantity" => 1,
+        ])
+        ->assertSee('Prescription Eyewear Build')
+        ->assertSee('Lens package')
+        ->assertSee('Selected');
+
+    $fields = $component->instance()->form->getFlatFields(withHidden: true);
+    $unitPriceKey = collect(array_keys($fields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.unit_price'));
+    $quantityKey = collect(array_keys($fields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.quantity'));
+
+    expect($fields[$unitPriceKey]->isDisabled())->toBeTrue()
+        ->and($fields[$quantityKey]->isDisabled())->toBeTrue();
 });
 
 test('staff creates a quotation from an existing prescription with no new encounter', function () {

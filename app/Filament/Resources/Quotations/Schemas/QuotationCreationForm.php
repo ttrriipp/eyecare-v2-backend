@@ -8,6 +8,7 @@ use App\Models\ProductVariant;
 use App\Models\Service;
 use Closure;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -18,6 +19,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class QuotationCreationForm
 {
@@ -53,12 +55,14 @@ class QuotationCreationForm
                 ]),
 
             Section::make('Prescription Eyewear Build')
+                ->description('A corrective-eyewear quotation contains one frame, one lens package, and any selected lens options.')
                 ->schema([
                     Grid::make(['default' => 1, 'md' => 3])->schema([
                         Placeholder::make('frame_selection')
                             ->label('Frame')
                             ->content(fn (Get $get): string => collect($get('items') ?? [])
-                                ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog')
+                                ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'catalog'
+                                    && ($item['catalog_product_type'] ?? null) === 'frame')
                                 ? 'Selected ✓'
                                 : 'Not selected'),
                         Placeholder::make('lens_package_selection')
@@ -81,10 +85,14 @@ class QuotationCreationForm
                     ->contains(fn (array $item): bool => ($item['item_kind'] ?? null) === 'lens')),
 
             Section::make('Items')
+                ->description('Choose catalog entries for standard pricing, or use a custom line when the item is not in the catalog.')
                 ->schema([
                     Repeater::make('items')
                         ->hiddenLabel()
-                        ->helperText('One frame maximum, quantity 1. One lens package, quantity 1 pair. Lens options are unique and quantity 1 pair; they require a lens package. Corrective eyewear requires the patient’s current, non-voided prescription. Prescription measurements remain in the clinical record.')
+                        ->itemLabel(fn (array $state): string => filled($state['description'] ?? null)
+                            ? Str::limit($state['description'], 60)
+                            : 'New quotation item')
+                        ->collapsible()
                         ->schema([
                             Grid::make(['default' => 1, 'md' => 2])
                                 ->columnSpanFull()
@@ -107,9 +115,13 @@ class QuotationCreationForm
                                             $set('lens_category_id', null);
                                             $set('lens_option_id', null);
                                             $set('service_id', null);
+                                            $set('catalog_product_type', null);
                                             $set('description', null);
                                             $set('unit_price', null);
+                                            $set('line_total', null);
                                         }),
+                                    Hidden::make('catalog_product_type')
+                                        ->dehydrated(false),
                                     Select::make('product_variant_id')
                                         ->label('Catalog Item')
                                         ->options(fn (): array => ProductVariant::query()
@@ -134,8 +146,14 @@ class QuotationCreationForm
                                                 return;
                                             }
 
+                                            $set('catalog_product_type', $variant->product->product_type);
                                             $set('description', "{$variant->product->name} — {$variant->name}");
                                             $set('unit_price', $variant->price);
+
+                                            if ($variant->product->product_type === 'frame') {
+                                                $set('quantity', 1);
+                                            }
+
                                             $set('line_total', number_format(
                                                 ((float) ($get('quantity') ?? 1)) * ((float) $variant->price),
                                                 2,
@@ -161,6 +179,7 @@ class QuotationCreationForm
                                             }
 
                                             $set('description', $lensCategory->name);
+                                            $set('quantity', 1);
 
                                             if ($lensCategory->price !== null) {
                                                 $set('unit_price', $lensCategory->price);
@@ -191,6 +210,7 @@ class QuotationCreationForm
 
                                             $set('description', $lensOption->name);
                                             $set('unit_price', $lensOption->price);
+                                            $set('quantity', 1);
                                             $set('line_total', number_format(
                                                 ((float) ($get('quantity') ?? 1)) * ((float) $lensOption->price),
                                                 2,
@@ -227,14 +247,26 @@ class QuotationCreationForm
                                 ->label('Description')
                                 ->required()
                                 ->maxLength(255)
+                                ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
+                                ->dehydrated()
+                                ->helperText(fn (Get $get): ?string => self::usesCatalogValues($get)
+                                    ? 'Set by the selected catalog entry.'
+                                    : 'Describe the uncatalogued item or service.')
                                 ->columnSpanFull(),
                             TextInput::make('quantity')
                                 ->label('Quantity')
                                 ->required()
                                 ->integer()
                                 ->minValue(1)
-                                ->maxValue(999)
+                                ->maxValue(fn (Get $get): int => self::hasFixedQuantity($get) ? 1 : 999)
                                 ->default(1)
+                                ->disabled(fn (Get $get): bool => self::hasFixedQuantity($get))
+                                ->dehydrated()
+                                ->helperText(fn (Get $get): ?string => match (true) {
+                                    $get('item_kind') === 'lens', $get('item_kind') === 'lens_option' => 'Priced as one pair.',
+                                    $get('catalog_product_type') === 'frame' => 'A quotation may include one frame.',
+                                    default => null,
+                                })
                                 ->live(onBlur: true)
                                 ->afterStateUpdated(function (Set $set, Get $get): void {
                                     $set('line_total', number_format(
@@ -249,6 +281,11 @@ class QuotationCreationForm
                                 ->numeric()
                                 ->minValue(0)
                                 ->step(0.01)
+                                ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
+                                ->dehydrated()
+                                ->helperText(fn (Get $get): ?string => self::usesCatalogValues($get)
+                                    ? 'Catalog price; apply an admin discount in Quotation Details when needed.'
+                                    : 'Enter the agreed unit price for this custom line.')
                                 ->live(onBlur: true)
                                 ->afterStateUpdated(function (Set $set, Get $get): void {
                                     $set('line_total', number_format(
@@ -266,27 +303,49 @@ class QuotationCreationForm
                         ->defaultItems(1)
                         ->minItems(1)
                         ->maxItems(50)
-                        ->addActionLabel('Add Quotation Item'),
+                        ->addActionLabel('Add Item'),
                 ]),
 
             Section::make('Summary and Notes')
                 ->schema([
-                    Placeholder::make('estimated_total')
-                        ->label('Estimated Total')
-                        ->content(function (Get $get): string {
-                            $subtotal = collect($get('items') ?? [])->sum(
-                                fn (array $item): float => ((float) ($item['quantity'] ?? 0))
-                                    * ((float) ($item['unit_price'] ?? 0)),
-                            );
-                            $discount = (float) ($get('discount_amount') ?? 0);
-
-                            return '₱'.number_format(max($subtotal - $discount, 0), 2);
-                        }),
+                    Grid::make(['default' => 1, 'md' => 3])->schema([
+                        Placeholder::make('estimated_subtotal')
+                            ->label('Subtotal')
+                            ->content(fn (Get $get): string => '₱'.number_format(self::subtotal($get), 2)),
+                        Placeholder::make('estimated_discount')
+                            ->label('Discount')
+                            ->content(fn (Get $get): string => '₱'.number_format((float) ($get('discount_amount') ?? 0), 2)),
+                        Placeholder::make('estimated_total')
+                            ->label('Estimated Total')
+                            ->content(fn (Get $get): string => '₱'.number_format(
+                                max(self::subtotal($get) - (float) ($get('discount_amount') ?? 0), 0),
+                                2,
+                            )),
+                    ]),
                     Textarea::make('notes')
                         ->label('Patient Notes')
                         ->maxLength(2000)
                         ->columnSpanFull(),
                 ]),
         ];
+    }
+
+    private static function usesCatalogValues(Get $get): bool
+    {
+        return in_array($get('item_kind'), ['catalog', 'lens', 'lens_option', 'service'], true);
+    }
+
+    private static function hasFixedQuantity(Get $get): bool
+    {
+        return in_array($get('item_kind'), ['lens', 'lens_option'], true)
+            || ($get('item_kind') === 'catalog' && $get('catalog_product_type') === 'frame');
+    }
+
+    private static function subtotal(Get $get): float
+    {
+        return collect($get('items') ?? [])->sum(
+            fn (array $item): float => ((float) ($item['quantity'] ?? 0))
+                * ((float) ($item['unit_price'] ?? 0)),
+        );
     }
 }

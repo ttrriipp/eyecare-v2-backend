@@ -8,6 +8,7 @@ use App\Models\Encounter;
 use App\Models\LensCategory;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\Service;
@@ -26,7 +27,7 @@ test('staff creates a draft quotation with direct items from an encounter prescr
     $staff = User::factory()->admin()->create(); // Admin needed for discount
     $encounter = Encounter::factory()->inProgress()->create();
     $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
     $lensCategory = LensCategory::factory()->create(['price' => 1500]);
 
     $quotation = app(CreateQuotation::class)->handle(
@@ -222,7 +223,7 @@ test('a quotation item cannot reference both a product variant and lens category
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();
     Prescription::factory()->linkedToEncounter($encounter)->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
     $lensCategory = LensCategory::factory()->create(['price' => 1000]);
 
     app(CreateQuotation::class)->handle(
@@ -245,7 +246,7 @@ test('a quotation item cannot reference both a product variant and lens category
 test('non-corrective sale does not require an encounter', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 5000]);
 
     $quotation = app(CreateQuotation::class)->handle(
         patient: $patient,
@@ -270,7 +271,7 @@ test('non-corrective sale does not require an encounter', function () {
 test('mixed product and service items are preserved', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
-    $variant = ProductVariant::factory()->create();
+    $variant = ProductVariant::factory()->create(['price' => 4500]);
 
     $quotation = app(CreateQuotation::class)->handle(
         patient: $patient,
@@ -309,6 +310,42 @@ test('a quotation item can reference the service catalog', function () {
     );
 
     expect($quotation->items->first()->service_id)->toBe($service->id);
+});
+
+test('catalog description and price are derived instead of trusting submitted values', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $product = Product::factory()->create([
+        'name' => 'Aster Frame',
+        'product_type' => 'frame',
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $product->id,
+        'name' => 'Matte Black',
+        'price' => 2450,
+    ]);
+
+    $quotation = app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'item_kind' => 'catalog',
+                'description' => 'Tampered description',
+                'quantity' => 1,
+                'unit_price' => 1,
+                'product_variant_id' => $variant->id,
+            ]],
+        ],
+    );
+
+    $item = $quotation->items->first();
+
+    expect($item->description)->toBe('Aster Frame — Matte Black')
+        ->and((float) $item->unit_price)->toBe(2450.0)
+        ->and((float) $item->amount)->toBe(2450.0)
+        ->and((float) $quotation->total)->toBe(2450.0);
 });
 
 test('an inactive service cannot be referenced on a new quotation item', function () {

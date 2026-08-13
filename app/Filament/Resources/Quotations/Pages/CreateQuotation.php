@@ -123,9 +123,15 @@ class CreateQuotation extends CreateRecord
                                             ->all();
                                     })
                                     ->searchable()
-                                    ->preload(),
+                                    ->preload()
+                                    ->live(),
                             ],
                         }),
+                        Placeholder::make('no_prescription_notice')
+                            ->hiddenLabel()
+                            ->content('No spectacle prescription linked. You may quote frames, contact lenses, accessories, custom products, and services.')
+                            ->visible(fn (Get $get): bool => $prescriptionResolver($get) === null)
+                            ->columnSpanFull(),
                         Placeholder::make('prescription_prescribed_at')
                             ->label('Prescribed')
                             ->content(fn (Get $get): string => $prescriptionResolver($get)?->prescribed_at?->format('M j, Y') ?? '—')

@@ -61,6 +61,7 @@ class EditQuotation extends EditRecord
                         'lens_category_id' => $item->lens_category_id,
                         'lens_option_id' => $item->lens_option_id,
                         'service_id' => $item->service_id,
+                        'catalog_product_type' => $item->productVariant?->product?->product_type,
                         'description' => $item->description,
                         'quantity' => $item->quantity,
                         'unit_price' => (float) $item->unit_price,

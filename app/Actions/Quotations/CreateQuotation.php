@@ -7,10 +7,13 @@ use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
 use App\Models\Encounter;
+use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -98,6 +101,7 @@ class CreateQuotation
             }
 
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
+                $item = $this->applyCatalogValues($item);
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
@@ -301,6 +305,64 @@ class CreateQuotation
     private function formatMoney(int $amountInCents): string
     {
         return number_format($amountInCents / 100, 2, '.', '');
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function applyCatalogValues(array $item): array
+    {
+        if (filled($item['product_variant_id'] ?? null)) {
+            $variant = ProductVariant::query()
+                ->with('product')
+                ->findOrFail($item['product_variant_id']);
+
+            return [
+                ...$item,
+                'description' => "{$variant->product->name} — {$variant->name}",
+                'unit_price' => $variant->price,
+            ];
+        }
+
+        if (filled($item['lens_category_id'] ?? null)) {
+            $lensCategory = LensCategory::query()->findOrFail($item['lens_category_id']);
+
+            return $this->applyNamedCatalogValues($item, $lensCategory->name, $lensCategory->price);
+        }
+
+        if (filled($item['lens_option_id'] ?? null)) {
+            $lensOption = LensOption::query()->active()->findOrFail($item['lens_option_id']);
+
+            return $this->applyNamedCatalogValues($item, $lensOption->name, $lensOption->price);
+        }
+
+        if (filled($item['service_id'] ?? null)) {
+            $service = Service::query()->active()->findOrFail($item['service_id']);
+
+            return $this->applyNamedCatalogValues($item, $service->name, $service->price);
+        }
+
+        return $item;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function applyNamedCatalogValues(array $item, string $name, mixed $price): array
+    {
+        if ($price === null) {
+            throw ValidationException::withMessages([
+                'items' => ["{$name} does not have a catalog price."],
+            ]);
+        }
+
+        return [
+            ...$item,
+            'description' => $name,
+            'unit_price' => $price,
+        ];
     }
 
     private function nullableTrimmed(?string $value): ?string
