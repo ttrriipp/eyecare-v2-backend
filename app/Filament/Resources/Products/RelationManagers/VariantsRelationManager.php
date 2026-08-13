@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
-use App\Actions\Inventory\RecordInventoryMovement;
+use App\Filament\Support\StockActions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
@@ -13,7 +13,6 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -304,79 +303,8 @@ class VariantsRelationManager extends RelationManager
                             'cost_price' => $data['cost_price'],
                         ]))
                         ->successNotificationTitle('Prices updated'),
-                    Action::make('adjustStock')
-                        ->label('Receive Stock')
-                        ->icon('heroicon-o-archive-box')
-                        ->color('success')
-                        ->schema([
-                            TextInput::make('quantity')
-                                ->label('Quantity')
-                                ->required()
-                                ->numeric()
-                                ->minValue(1),
-                            TextInput::make('source_reference')
-                                ->label('Reference')
-                                ->placeholder('PO number or supplier reference'),
-                            TextInput::make('notes')
-                                ->placeholder('Optional notes'),
-                        ])
-                        ->action(function (array $data, $record): void {
-                            app(RecordInventoryMovement::class)->handle(
-                                variant: $record,
-                                quantityChange: (int) $data['quantity'],
-                                type: 'restock',
-                                notes: $data['notes'] ?? null,
-                                actingUser: auth()->user(),
-                            );
-
-                            $updatedStock = $record->fresh()->stock_quantity;
-
-                            if ($record->target_stock_level !== null && $updatedStock > $record->target_stock_level) {
-                                Notification::make()
-                                    ->title('Stock exceeds target')
-                                    ->body("Stock was updated to {$updatedStock}; the configured target is {$record->target_stock_level}.")
-                                    ->warning()
-                                    ->send();
-                            } else {
-                                Notification::make()
-                                    ->title('Stock received')
-                                    ->success()
-                                    ->send();
-                            }
-                        }),
-                    Action::make('writeOffDamaged')
-                        ->label('Write Off Damaged')
-                        ->icon('heroicon-o-exclamation-triangle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Write off damaged stock')
-                        ->modalDescription('This will permanently reduce the stock count and record the loss in Inventory History.')
-                        ->schema([
-                            TextInput::make('quantity')
-                                ->label('Units to write off')
-                                ->required()
-                                ->numeric()
-                                ->minValue(1),
-                            TextInput::make('notes')
-                                ->label('Damage reason')
-                                ->required()
-                                ->placeholder('e.g. Frame scratched during display, lens cracked in storage'),
-                        ])
-                        ->action(function (array $data, $record): void {
-                            app(RecordInventoryMovement::class)->handle(
-                                variant: $record,
-                                quantityChange: -(int) $data['quantity'],
-                                type: 'damaged',
-                                notes: $data['notes'],
-                                actingUser: auth()->user(),
-                            );
-
-                            Notification::make()
-                                ->title('Damaged stock written off')
-                                ->body("{$data['quantity']} unit(s) removed from inventory.")
-                                ->warning()
-                                ->send();
-                        }),
+                    StockActions::receive(),
+                    StockActions::writeOffDamaged(),
                     RestoreAction::make()
                         ->label('Restore')
                         ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),

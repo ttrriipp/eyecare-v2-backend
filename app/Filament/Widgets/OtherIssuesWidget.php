@@ -5,6 +5,7 @@ namespace App\Filament\Widgets;
 use App\Enums\BillingRecordStatus;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
+use App\Filament\Resources\Inventory\InventoryResource;
 use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\ProductVariant;
@@ -84,7 +85,10 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
             )
                 ->description('At or below reorder threshold')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
-                ->color('danger'),
+                ->color('danger')
+                ->url(InventoryResource::getUrl('index', [
+                    'activeTab' => 'needs_reorder',
+                ])),
         ];
     }
 }

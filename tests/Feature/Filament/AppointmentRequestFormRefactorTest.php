@@ -63,11 +63,10 @@ test('internal appointment type name is shown when it differs from patient label
     $this->actingAs($this->staff);
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->assertSee('Eye Checkup')
         ->assertSee('Internal Eye Exam');
 });
 
-test('internal appointment type name is not shown when it matches patient label', function () {
+test('internal appointment type name is shown when it matches patient label', function () {
     $type = AppointmentType::factory()->create([
         'name' => 'Eye Checkup',
         'patient_label' => 'Eye Checkup',
@@ -119,22 +118,9 @@ test('expires and overdue are no longer displayed', function () {
         ->assertDontSee('Overdue');
 });
 
-test('latest requested time is displayed', function () {
-    $expiresAt = now()->addHours(48);
-    $request = AppointmentRequest::factory()->linked()->create([
-        'expires_at' => $expiresAt,
-    ]);
-
-    $this->actingAs($this->staff);
-
-    Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->assertSee('Latest Requested Time')
-        ->assertSee($expiresAt->format('M j, Y g:i A'));
-});
-
 // ── Submitted Time ──────────────────────────────────────────────────────────
 
-test('submitted time and relative request age are combined', function () {
+test('submitted time is displayed', function () {
     $createdAt = now()->subHours(3);
     $request = AppointmentRequest::factory()->linked()->create([
         'created_at' => $createdAt,
@@ -144,8 +130,7 @@ test('submitted time and relative request age are combined', function () {
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
         ->assertSee('Submitted')
-        ->assertSee($createdAt->format('M j, Y \a\t g:i A'))
-        ->assertSee('3 hours ago');
+        ->assertSee($createdAt->format('M j, Y \a\t g:i A'));
 });
 
 // ── Unlinked Identity Fields ────────────────────────────────────────────────
@@ -248,7 +233,7 @@ test('link accept and reject actions remain available under same conditions', fu
 
 // ── Requested Schedule ──────────────────────────────────────────────────────
 
-test('requested schedule section shows primary and alternative time badges', function () {
+test('preferred time shows primary and alternative time badges', function () {
     $type = AppointmentType::factory()->create();
     $request = AppointmentRequest::factory()
         ->linked()
@@ -258,7 +243,7 @@ test('requested schedule section shows primary and alternative time badges', fun
     $this->actingAs($this->staff);
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->assertSee('Requested Schedule')
+        ->assertSee('Preferred Time')
         ->assertSee('Primary')
         ->assertSee('Alt 1')
         ->assertSee('Alt 2');

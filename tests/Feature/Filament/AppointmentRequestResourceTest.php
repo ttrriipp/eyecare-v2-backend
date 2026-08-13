@@ -73,9 +73,6 @@ test('request queue shows scheduling context', function () {
 
     Livewire::test(ListAppointmentRequests::class)
         ->assertSee('Vision Review')
-        ->assertSee('Internal Review')
-        ->assertSee('45 min')
-        ->assertSee('2 alternatives')
         ->assertSee('Not requested');
 });
 

@@ -108,7 +108,7 @@ test('items are ordered within each group', function () {
         'Clinical' => ['Encounters', 'Prescriptions'],
         'Optical' => ['Quotations', 'Optical Orders', 'Frame Reservations', 'Frame Ratings'],
         'Billing' => ['Billing & Payments'],
-        'Catalog' => ['Products', 'Inventory History', 'Brands', 'Lens Categories', 'Lens Options', 'Product Categories', 'Services'],
+        'Catalog' => ['Products', 'Inventory', 'Inventory History', 'Brands', 'Lens Categories', 'Lens Options', 'Product Categories', 'Services'],
         'Admin' => ['Staff Accounts', 'SMS Log', 'Audit Logs'],
     ]);
 });

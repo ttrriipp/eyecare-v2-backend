@@ -77,6 +77,16 @@ class ProductVariant extends Model
             ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
     }
 
+    /**
+     * Instance-level counterpart to the needsReorder query scope, for row-level
+     * display where the record is already loaded.
+     */
+    public function isLowStock(): bool
+    {
+        return $this->low_stock_threshold > 0
+            && $this->stock_quantity <= $this->low_stock_threshold;
+    }
+
     public function replenishmentTarget(): ?int
     {
         return $this->target_stock_level;
