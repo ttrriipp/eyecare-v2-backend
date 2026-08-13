@@ -134,8 +134,7 @@ class AppointmentRequestForm
 
                         Placeholder::make('reason_for_visit')
                             ->label('Reason for Visit')
-                            ->content(fn ($record): string => $record?->encrypted_reason_for_visit ?? '—')
-                            ->columnSpanFull(),
+                            ->content(fn ($record): string => $record?->encrypted_reason_for_visit ?? '—'),
 
                         Placeholder::make('submitted_times')
                             ->label('Preferred Time')
@@ -163,8 +162,7 @@ class AppointmentRequestForm
                                 return new HtmlString(
                                     '<div class="flex flex-wrap gap-2">'.implode('', $badges).'</div>'
                                 );
-                            })
-                            ->columnSpanFull(),
+                            }),
 
                         Placeholder::make('appointment_type')
                             ->label('Appointment Type')
