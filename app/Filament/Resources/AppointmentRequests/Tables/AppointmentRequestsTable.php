@@ -62,12 +62,6 @@ class AppointmentRequestsTable
                     ->dateTime('M j, g:i A')
                     ->sortable(),
 
-                TextColumn::make('expires_at')
-                    ->label('Latest Requested Time')
-                    ->dateTime('M j, g:i A')
-                    ->sortable()
-                    ->color(fn (AppointmentRequest $record) => $record->expires_at->isPast() ? 'danger' : null),
-
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (AppointmentRequestStatus $state) => match ($state) {
