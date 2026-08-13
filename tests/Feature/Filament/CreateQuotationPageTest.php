@@ -60,12 +60,10 @@ test('including eyewear from an encounter without a finalized prescription requi
         ->assertFormSet(['include_prescription_eyewear' => false])
         ->assertFormFieldExists('prescription_id')
         ->set('data.include_prescription_eyewear', true)
-        ->set('data.eyewear_lens_category_id', $lensCategory->id)
-        ->call('create')
-        ->assertHasFormErrors(['prescription_id' => 'required']);
-
-    $component
+        ->assertHasFormErrors(['prescription_id' => 'Select a current prescription before enabling prescription eyewear.'])
         ->set('data.prescription_id', $prescription->id)
+        ->assertHasNoFormErrors()
+        ->set('data.eyewear_lens_category_id', $lensCategory->id)
         ->call('create')
         ->assertHasNoFormErrors()
         ->assertRedirect();

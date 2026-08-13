@@ -22,6 +22,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
+use Livewire\Component as LivewireComponent;
 
 class CreateQuotation extends CreateRecord
 {
@@ -82,6 +83,11 @@ class CreateQuotation extends CreateRecord
             ->get()
             ->mapWithKeys(fn (Prescription $p): array => [$p->id => $p->prescription_number])
             ->all();
+        $hasPrescriptionPicker = $contextPrescription === null
+            && ($encounter === null || $encounterPrescription === null);
+        $clearPrescriptionValidation = function (LivewireComponent $livewire): void {
+            $livewire->resetValidation('data.prescription_id');
+        };
 
         return $schema
             ->columns(1)
@@ -119,6 +125,7 @@ class CreateQuotation extends CreateRecord
                                     ->searchable()
                                     ->preload()
                                     ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
+                                    ->afterStateUpdated($clearPrescriptionValidation)
                                     ->live(),
                             ],
                             $encounter !== null => [
@@ -133,6 +140,7 @@ class CreateQuotation extends CreateRecord
                                     ->searchable()
                                     ->preload()
                                     ->required(fn (Get $get): bool => (bool) $get('include_prescription_eyewear'))
+                                    ->afterStateUpdated($clearPrescriptionValidation)
                                     ->live(),
                             ],
                         }),
@@ -140,7 +148,7 @@ class CreateQuotation extends CreateRecord
                             ->label('Include prescription eyewear')
                             ->default($contextPrescription !== null || $encounterPrescription !== null)
                             ->live()
-                            ->afterStateUpdated(function (Set $set, Get $get, ?bool $state): void {
+                            ->afterStateUpdated(function (Set $set, Get $get, ?bool $state, LivewireComponent $livewire) use ($hasPrescriptionPicker): void {
                                 $items = collect($get('items') ?? []);
                                 $hasEnteredItem = $items
                                     ->contains(fn (array $item): bool => collect([
@@ -160,6 +168,21 @@ class CreateQuotation extends CreateRecord
                                         'quantity' => 1,
                                     ]]);
                                 }
+
+                                if (! $hasPrescriptionPicker) {
+                                    return;
+                                }
+
+                                if ($state && blank($get('prescription_id'))) {
+                                    $livewire->addError(
+                                        'data.prescription_id',
+                                        'Select a current prescription before enabling prescription eyewear.',
+                                    );
+
+                                    return;
+                                }
+
+                                $livewire->resetValidation('data.prescription_id');
                             })
                             ->dehydrated(false)
                             ->columnSpanFull(),
