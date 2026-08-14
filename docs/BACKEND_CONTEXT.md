@@ -207,7 +207,12 @@ server-side rules.
 > endpoints: `GET /appointment-request-availability` (now requires
 > `appointment_type_id`), `POST
 > /appointment-requests` (now requires `appointment_type_id`, accepts
-> alternatives, conditional referral source). The
+> alternatives, conditional referral source). Reschedule availability via
+> `GET /appointment-availability` accepts `appointment_id` without requiring
+> `appointment_type_id`; it scopes the appointment to the authenticated patient,
+> derives the type and duration server-side, and always returns the resolved
+> `appointment_type_id`. When no appointment ID is supplied, an active,
+> patient-visible `appointment_type_id` remains required. The
 > admin Availability cluster gained an Appointment Types resource for
 > type configuration (admin-only). Staff appointment forms now expose an
 > editable duration field with 5-minute increments. Request acceptance

@@ -1185,23 +1185,31 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 | Param | Type | Required | Rules |
 |---|---|---|---|
 | `date` | string | yes | `date_format:Y-m-d`, `after_or_equal:today` |
-| `appointment_id` | integer | no | `exists:appointments,id` (own appointments only, for reschedule context) |
+| `appointment_id` | integer | no | `exists:appointments,id`; when present, it must belong to the authenticated patient |
+| `appointment_type_id` | integer | conditional | Required when `appointment_id` is omitted; must reference an active, patient-visible type. Optional when `appointment_id` is present and resolved from that appointment |
+
+When `appointment_id` is present, the Android client may omit
+`appointment_type_id`. The server resolves the appointment type from the
+owned appointment and uses its duration to calculate slots. If both values are
+sent, they must refer to the same appointment type.
 
 **Response (200):**
 ```json
 {
   "data": {
-    "date": "2026-07-28",
+    "date": "2026-08-14",
     "timezone": "Asia/Manila",
-    "interval_minutes": 30,
-    "appointment_type_id": 1,
-    "visit_duration_minutes": 30,
+    "interval_minutes": 15,
+    "appointment_type_id": 5,
+    "visit_duration_minutes": 45,
+    "optometrist_id": null,
+    "appointment_id": 3,
     "day_status": "open",
-    "generated_at": "2026-07-27T10:00:00+08:00",
+    "generated_at": "2026-08-14T14:00:00+08:00",
     "slots": [
       {
-        "starts_at": "2026-07-28T09:00:00+08:00",
-        "ends_at": "2026-07-28T09:30:00+08:00",
+        "starts_at": "2026-08-14T09:00:00+08:00",
+        "ends_at": "2026-08-14T09:45:00+08:00",
         "available": true,
         "reason": null
       }
@@ -1211,13 +1219,28 @@ Returns time slots for a given date. Used for confirmed appointment rescheduling
 ```
 
 **Validation (with `appointment_id`):**
-- Appointment must belong to the authenticated patient.
-- Appointment must be in `scheduled` or `checked_in` status.
+- The appointment is looked up within the authenticated patient's records;
+  another patient's appointment returns `404`.
+- The appointment must be in an eligible reschedule context.
 - Duration and type are derived from the existing appointment.
+- A submitted `appointment_type_id`, when present, must match the appointment's
+  resolved type.
 
 **Notes:**
-- `appointment_type_id` and `visit_duration_minutes` are derived from the existing appointment when rescheduling, not submitted by the patient.
+- When rescheduling, `appointment_type_id` and `visit_duration_minutes` are
+  derived from the existing appointment rather than requiring the client to
+  submit the type.
+- The response always includes the resolved integer `appointment_type_id`,
+  including when the request supplied only `appointment_id`.
 - Unexpired pending request holds are included in capacity calculations.
+- This endpoint is separate from `GET /appointment-request-availability`,
+  which always requires `appointment_type_id` because it creates a new
+  appointment request without an existing appointment.
+
+**Errors:**
+- `404`: Appointment not found or not owned by the authenticated patient.
+- `422`: Missing `appointment_type_id` when `appointment_id` is omitted,
+  mismatched appointment type, invalid appointment state, or invalid date/type.
 
 ---
 
