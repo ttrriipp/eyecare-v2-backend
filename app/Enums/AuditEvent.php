@@ -26,10 +26,6 @@ enum AuditEvent: string
     case PrescriptionAmended = 'prescription.amended';
     case PrescriptionPrinted = 'prescription.printed';
 
-    case IntakeSubmitted = 'intake.submitted';
-    case IntakeVerified = 'intake.verified';
-    case IntakeReturnedForCorrection = 'intake.returned_for_correction';
-
     case QuotationCreated = 'quotation.created';
     case QuotationPresented = 'quotation.presented';
     case QuotationAccepted = 'quotation.accepted';
