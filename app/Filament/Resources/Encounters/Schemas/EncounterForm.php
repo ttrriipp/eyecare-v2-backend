@@ -388,15 +388,22 @@ class EncounterForm
                     Placeholder::make('appointment_type')
                         ->label('Appointment Type')
                         ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
+                    Placeholder::make('visit_reason')
+                        ->label('Visit Reason')
+                        ->content(fn (Encounter $record): string => $record->appointment?->reason_for_visit ?? '—')
+                        ->hidden(fn (Encounter $record): bool => $record->status !== EncounterStatus::Planned)
+                        ->columnSpanFull(),
                     Placeholder::make('optometrist')
                         ->label('Optometrist')
                         ->content(fn (Encounter $record): string => $record->optometrist?->full_name ?? 'Not assigned'),
                     Placeholder::make('started_at')
                         ->label('Started')
-                        ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—'),
+                        ->content(fn (Encounter $record): string => $record->started_at?->format('M j, Y g:i A') ?? '—')
+                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                     Placeholder::make('completed_at')
                         ->label('Completed')
-                        ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—'),
+                        ->content(fn (Encounter $record): string => $record->completed_at?->format('M j, Y g:i A') ?? '—')
+                        ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                 ])
                 ->columns(3),
 
@@ -551,7 +558,8 @@ class EncounterForm
                                     return $rx
                                         ? PrescriptionResource::getUrl('view', ['record' => $rx])
                                         : null;
-                                }),
+                                })
+                                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                             Placeholder::make('link_quotation')
                                 ->label('Quotation / Order')
                                 ->content(function (Encounter $record): string {
@@ -579,7 +587,8 @@ class EncounterForm
                                     return $quotation
                                         ? QuotationResource::getUrl('edit', ['record' => $quotation])
                                         : null;
-                                }),
+                                })
+                                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                             Placeholder::make('link_billing')
                                 ->label('Billing Record')
                                 ->content(function (Encounter $record): string {
@@ -601,10 +610,11 @@ class EncounterForm
                                     return $billing
                                         ? BillingRecordResource::getUrl('edit', ['record' => $billing])
                                         : null;
-                                }),
+                                })
+                                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
                         ]),
                 ])
-                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::Planned),
+                ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress),
         ]);
     }
 

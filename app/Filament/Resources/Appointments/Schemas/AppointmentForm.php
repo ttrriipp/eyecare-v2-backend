@@ -264,7 +264,7 @@ class AppointmentForm
                                     'no_show' => 'gray',
                                     default => 'gray',
                                 })
-                                ->size(TextSize::Large)
+                                ->size(TextSize::Small)
                                 ->extraAttributes(['class' => 'appointment-status-entry'])
                                 ->hiddenOn('create'),
                             Textarea::make('reason_for_visit')

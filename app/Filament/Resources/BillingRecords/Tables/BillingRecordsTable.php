@@ -4,7 +4,9 @@ namespace App\Filament\Resources\BillingRecords\Tables;
 
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\BillingRecord;
+use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -129,6 +131,12 @@ class BillingRecordsTable
                         return $query;
                     }),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->recordActions([
+                Action::make('view')
+                    ->label('View')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn (BillingRecord $record) => BillingRecordResource::getUrl('edit', ['record' => $record])),
+            ]);
     }
 }

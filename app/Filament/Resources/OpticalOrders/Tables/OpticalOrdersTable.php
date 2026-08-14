@@ -2,15 +2,21 @@
 
 namespace App\Filament\Resources\OpticalOrders\Tables;
 
+use App\Actions\JobOrders\UpdateJobOrderStatus;
+use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\JobOrder;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Validation\ValidationException;
 
 class OpticalOrdersTable
 {
@@ -79,10 +85,68 @@ class OpticalOrdersTable
                     ->options(JobOrderStatus::class),
             ])
             ->recordActions([
-                Action::make('view')
-                    ->label('View')
-                    ->icon('heroicon-o-eye')
-                    ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('edit', ['record' => $record])),
+                ActionGroup::make([
+                    Action::make('view')
+                        ->label('View')
+                        ->icon('heroicon-o-eye')
+                        ->url(fn (JobOrder $record) => OpticalOrderResource::getUrl('edit', ['record' => $record])),
+                    Action::make('start')
+                        ->label('Start Processing')
+                        ->icon('heroicon-o-play')
+                        ->color('warning')
+                        ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::Queued)
+                        ->requiresConfirmation()
+                        ->modalHeading('Start Processing')
+                        ->modalDescription('Begin processing this optical order.')
+                        ->action(function (JobOrder $record): void {
+                            try {
+                                app(UpdateJobOrderStatus::class)->handle($record, 'in_progress');
+                                Notification::make()->title('Order started')->success()->send();
+                            } catch (ValidationException $e) {
+                                Notification::make()->title('Cannot start order')->body($e->getMessage())->danger()->send();
+                            }
+                        }),
+                    Action::make('markReady')
+                        ->label('Mark Ready')
+                        ->icon('heroicon-o-check')
+                        ->color('info')
+                        ->visible(fn (JobOrder $record): bool => $record->status === JobOrderStatus::InProgress)
+                        ->requiresConfirmation()
+                        ->modalHeading('Mark Ready for Pickup')
+                        ->modalDescription('Mark this order as ready for patient pickup.')
+                        ->action(function (JobOrder $record): void {
+                            try {
+                                app(UpdateJobOrderStatus::class)->handle($record, 'ready_for_dispensing');
+                                Notification::make()->title('Order marked ready')->success()->send();
+                            } catch (ValidationException $e) {
+                                Notification::make()->title('Cannot mark ready')->body($e->getMessage())->danger()->send();
+                            }
+                        }),
+                    Action::make('cancel')
+                        ->label('Cancel')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->visible(fn (JobOrder $record): bool => in_array($record->status, [JobOrderStatus::Queued, JobOrderStatus::InProgress], true))
+                        ->requiresConfirmation()
+                        ->modalHeading('Cancel Order')
+                        ->modalDescription('This will cancel the order and reverse any committed inventory.')
+                        ->schema([
+                            Textarea::make('cancellation_reason')
+                                ->label('Reason')
+                                ->nullable(),
+                        ])
+                        ->action(function (JobOrder $record, array $data): void {
+                            try {
+                                app(CancelOpticalOrder::class)->handle(
+                                    $record,
+                                    $data['cancellation_reason'] ?? null,
+                                );
+                                Notification::make()->title('Order cancelled')->success()->send();
+                            } catch (ValidationException $e) {
+                                Notification::make()->title('Cannot cancel order')->body($e->getMessage())->danger()->send();
+                            }
+                        }),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([]),

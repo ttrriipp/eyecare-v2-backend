@@ -335,40 +335,6 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            Action::make('assignOptometrist')
-                ->label('Assign Optometrist')
-                ->icon('heroicon-o-user-plus')
-                ->color('info')
-                ->visible(fn (): bool => match (true) {
-                    $this->record->status !== EncounterStatus::Planned => false,
-                    default => auth()->user()->isAdmin()
-                        || auth()->user()->isStaff()
-                        || auth()->user()->isOptometrist(),
-                })
-                ->schema(fn (): array => [
-                    Select::make('optometrist_id')
-                        ->label('Optometrist')
-                        ->options(fn () => User::query()->optometrists()->orderBy('first_name')->orderBy('last_name')->get()->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name]))
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(AssignEncounterOptometrist::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            optometrist: User::query()->findOrFail($data['optometrist_id']),
-                        );
-
-                        Notification::make()->title('Optometrist assigned')->success()->send();
-                        $this->refreshFormData(['optometrist_id']);
-                    } catch (ValidationException $e) {
-                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot assign optometrist.';
-                        Notification::make()->title('Cannot assign optometrist')->body($message)->danger()->send();
-                    }
-                }),
-
             // ── Completed encounter: primary action ──
             Action::make('createQuotation')
                 ->label('Create Quotation')
@@ -392,12 +358,12 @@ class EditEncounter extends EditRecord
                 ])),
 
             // ── Planned: reassignment (admin/staff only) ──
-            Action::make('reassignOptometrist')
-                ->label('Reassign Optometrist')
+            Action::make('assignOptometrist')
+                ->label(fn (): string => $this->record->optometrist_id !== null ? 'Reassign Optometrist' : 'Assign Optometrist')
                 ->icon('heroicon-o-user-plus')
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Planned
-                    && (auth()->user()->isAdmin() || auth()->user()->isStaff()))
+                    && (auth()->user()->isAdmin() || auth()->user()->isStaff() || auth()->user()->isOptometrist()))
                 ->schema(fn (): array => [
                     Select::make('optometrist_id')
                         ->label('Optometrist')
@@ -413,11 +379,13 @@ class EditEncounter extends EditRecord
                             actor: auth()->user(),
                             optometrist: User::query()->findOrFail($data['optometrist_id']),
                         );
-                        Notification::make()->title('Optometrist reassigned')->success()->send();
-                        $this->refreshFormData(['optometrist_id']);
+                        Notification::make()->title('Optometrist assigned')->success()->send();
+                        $this->redirect(EncounterResource::getUrl('edit', [
+                            'record' => $this->record,
+                        ]));
                     } catch (ValidationException $e) {
-                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot reassign.';
-                        Notification::make()->title('Cannot reassign')->body($message)->danger()->send();
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot assign optometrist.';
+                        Notification::make()->title('Cannot assign optometrist')->body($message)->danger()->send();
                     }
                 }),
 
