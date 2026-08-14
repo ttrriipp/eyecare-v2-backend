@@ -12,7 +12,6 @@ use App\Filament\Widgets\StatsOverviewWidget;
 use App\Filament\Widgets\TodaysScheduleWidget;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
-use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -43,7 +42,6 @@ class AdminPanelProvider extends PanelProvider
             ->brandLogo(fn () => view('filament.admin.logo'))
             ->brandLogoHeight('2rem')
             ->favicon(asset('images/favicon.svg'))
-            ->defaultThemeMode(ThemeMode::Light)
             ->defaultAvatarProvider(BrandAvatarProvider::class)
             ->databaseNotifications()
             ->globalSearchResourceOptIn()

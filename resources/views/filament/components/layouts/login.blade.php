@@ -17,27 +17,17 @@
                 {{ $slot }}
             </div>
 
-            <div class="hidden items-stretch gap-3 md:flex">
-                <div class="w-52 shrink-0">
-                    <img
-                        src="{{ asset('images/login/eyeglass1.png') }}"
-                        alt="Person wearing eyeglasses"
-                        class="block h-full w-full rounded-lg object-cover"
-                    />
-                </div>
-
-                <div class="flex w-52 shrink-0 flex-col gap-3">
-                    <img
-                        src="{{ asset('images/login/eyeglass2.png') }}"
-                        alt="Eyeglasses on display"
-                        class="block h-56 w-full rounded-lg object-cover"
-                    />
-                    <img
-                        src="{{ asset('images/login/eyeglass3.png') }}"
-                        alt="Eyeglasses product"
-                        class="block h-56 w-full rounded-lg object-cover"
-                    />
-                </div>
+            <div class="w-[32rem] shrink-0">
+                <img
+                    src="{{ asset('images/eyecare-light.svg') }}"
+                    alt="EyeCare illustration"
+                    class="block w-full dark:hidden"
+                />
+                <img
+                    src="{{ asset('images/dark-mode.svg') }}"
+                    alt="EyeCare illustration"
+                    class="hidden w-full dark:block"
+                />
             </div>
         </div>
     </div>
