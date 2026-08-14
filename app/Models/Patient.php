@@ -123,14 +123,6 @@ class Patient extends Model
     }
 
     /**
-     * @return HasMany<PatientIntake, $this>
-     */
-    public function intakes(): HasMany
-    {
-        return $this->hasMany(PatientIntake::class);
-    }
-
-    /**
      * @return HasMany<JobOrder, $this>
      */
     public function jobOrders(): HasMany

@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'encounter_number',
     'patient_id',
     'appointment_id',
-    'patient_intake_id',
     'optometrist_id',
     'status',
     'started_at',
@@ -78,14 +77,6 @@ class Encounter extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
-    }
-
-    /**
-     * @return BelongsTo<PatientIntake, $this>
-     */
-    public function intake(): BelongsTo
-    {
-        return $this->belongsTo(PatientIntake::class, 'patient_intake_id');
     }
 
     /**

@@ -140,14 +140,6 @@ class Appointment extends Model implements Eventable
     }
 
     /**
-     * @return HasOne<PatientIntake, $this>
-     */
-    public function intake(): HasOne
-    {
-        return $this->hasOne(PatientIntake::class);
-    }
-
-    /**
      * @return HasOne<FrameReservation, $this>
      */
     public function frameReservation(): HasOne
