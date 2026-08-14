@@ -1,182 +1,224 @@
 # Implementation Plan: Dead Code and Unreachable Feature Removal
 
-**Status:** Draft 2026-08-13 — approval pending
-**Specification:** `docs/specs/dead-code-removal-spec.md`
-**Checklist:** `tasks/dead-code-removal-todo.md`
+**Status:** Phase 2 approved 2026-08-14; Phase 3 task breakdown in progress
+
+**Specification:** `docs/specs/dead-code-removal-spec.md` (`2904eed`)
+
+**Checklist:** `tasks/dead-code-removal-todo.md` (stale; do not execute yet)
+
 **Implementation:** Not started
-**Scope:** 9 tasks in 4 phases
+
+**Proposed scope:** 12 tasks in 5 phases
 
 ## Overview
 
-Remove three unreachable subsystems: two dead tables, the complaints workflow,
-and patient intakes. Unlike the commerce project this touches almost no running
-logic — but it is not risk-free, because the audit that produced the spec was
-wrong three times.
+Remove the unreachable complaints and patient-intake subsystems, their orphaned
+surfaces, and the already-cancelled `inventory_movement_statuses` migration
+pair. The notification tables are already absent through migration
+`2026_06_24_124601_drop_unused_notification_tables`; this project adds no
+notification migration.
 
-| Area | Now | After |
-|---|---|---|
-| Dead tables | 2 (`notification_channels`, `notification_templates`) | 0 |
-| Stale migration files | 2 (`inventory_movement_statuses` create + drop) | 0 |
-| Complaints | model, enum, policy, action, factory, test, seeder | gone |
-| Patient intakes | model, enum, 3 relations, 3 actions, command, 3 audit events, factory, 4 tests | gone |
-| Orphaned Filament surfaces | 1 relation manager, 2 views, 1 route | gone |
+The supported quotation, order, billing, appointment, encounter, messaging,
+privacy, and inventory workflows remain unchanged. The owner approved one
+compatibility break: removing the unlinked but manually reachable
+`appointments.health-record.print` route. The live encounter print route stays.
 
 ## Architecture Decisions
 
-### 1. Complaints before intakes
+### 1. Re-verify before deleting
 
-Both are removals, but complaints is a clean cut — no UI, no view, no display
-surface, one seeder block. Intakes touch two live surfaces and a route.
+The reachability audit produced several incorrect conclusions before the final
+specification. Task 1 therefore repeats the four-axis check—class, relation,
+table, and route/view registration—against the implementation-day worktree.
+Any newly reachable consumer returns the project to the specification phase.
 
-Doing complaints first proves the four-axis verification procedure and the
-drop-migration shape on the subsystem where a mistake is cheapest to find. If
-the procedure has a hole, it surfaces on the easy case rather than the one that
-renders in front of a user.
+### 2. Do not add another notification migration
 
-### 2. Delete the orphaned surfaces before the model they read
+`notification_channels` and `notification_templates` are already dropped by an
+existing migration. Their historical migrations remain untouched. Only the
+matched `inventory_movement_statuses` create/drop pair is deleted because it
+cancels out during every fresh migration and ADR-002 records no deployed
+database history to preserve.
 
-All three intake surfaces — `HealthRecordRelationManager`,
-`intake-form.blade.php`, and `health-record-print.blade.php` with its route —
-are unregistered and unreachable. None of them is repointed; all are deleted.
+### 3. Remove consumers before schema
 
-They still go first, in their own task. Deleting the model while three files
-still reference `intake` reds the suite for reasons hard to distinguish from
-real breakage. Removing the readers first means Task 6's deletion of
-`PatientIntake` has nothing left pointing at it, and any failure it does
-produce is a genuine finding.
+Code and seed consumers are removed while their tables still exist. A single
+cleanup migration is added only after both complaint and intake code are gone.
+It drops, in dependency order:
 
-This is the ordering decision that matters most in the plan.
+1. the foreign key and `encounters.patient_intake_id` column;
+2. `patient_intakes`;
+3. `complaints`.
 
-### 3. Schema drops come last within each subsystem
+Its `down()` recreates those structures in the reverse dependency order.
 
-A dropped column with code still referencing it fails at runtime; code removed
-while the column remains is merely untidy. Code first, schema second, every
-time. Each subsystem's drop migration is its own task so a checkpoint sits
-between the code change and the irreversible one.
+### 4. Keep every implementation task at five files or fewer
 
-### 4. The `inventory_movement_statuses` file pair is deleted, not migrated
+The previous plan bundled most intake removal into one task touching more than
+16 files. This plan separates surfaces, integrations, tests/factory, audit
+machinery, and model relations. Each slice leaves the application in a
+verifiable intermediate state.
 
-Every other schema change in this plan adds a drop migration. This one deletes
-two existing migration files, because the table is *already* dropped and the
-pair cancels out. Per ADR-002 there is no deployed database whose migration
-history must stay intact. It is grouped with Task 1 since both are pure
-schema-file hygiene with zero code impact.
+### 5. Compare against the recorded test baseline
 
-### 5. Verification is recorded, not asserted — and registration is checked
+The focused readiness run is green: 244 tests and 460 assertions. The full
+suite has 25 unrelated failures. Each phase must keep affected tests green; the
+final full run must introduce no additional failures. Fixing the existing 25 is
+outside this project.
 
-The spec's four-axis procedure exists because this audit has now been wrong
-five times across three passes. A task that says "verified unreachable" without
-recording the four grep results has not followed it. Every deletion task
-carries the four axes as explicit checklist lines with space for the result.
+All destructive migration checks explicitly use `--env=testing`.
 
-The third pass added a rule the first two lacked. Both earlier failures ran a
-search, got a result, and treated the result as an answer — first inferring
-death from a filename miss, then inferring life from a relation-name hit. A
-grep proves a reference exists; it does not prove a user can reach it.
+### 6. Preserve overlapping worktree changes
 
-So for every Filament class and Blade view being deleted, confirm its
-*registration* is absent, not merely its references: relation managers must be
-absent from `getRelations()`, pages from `getPages()`, views must have no
-renderer. Walking outward from a surface to its caller is what found the truth;
-it is now a checklist line.
+`ScenarioCoverageSeeder.php` is currently untracked and contains work outside
+this cleanup. The complaint imports, call, and method may be removed, but every
+other line is preserved. No cleanup commit may absorb unrelated contents of
+that file without explicit owner approval.
+
+The dirty live encounter print view
+`resources/views/filament/encounters/print.blade.php` is not the orphaned
+appointment health-record print view and must remain untouched.
 
 ## Dependency Graph
 
 ```text
-Phase 1  Dead schema (independent — no code anywhere)
+Phase 1  Task 1: refresh reachability and baseline evidence
               │
-Phase 2  Complaints removed  ← proves the procedure on the easy case
+              ├──────── Task 2: migration-pair hygiene
               │
-              ▼
-Phase 3  Intakes
-         Task 5  Delete the three orphaned surfaces + print route
+Phase 2       ├──────── Task 3: complaint fixtures, seeders, and test
+              │              │
+              │              └── Task 4: complaint runtime code
               │
-         Task 6  Delete intake code
-              │
-         Task 7  Drop patient_intakes + encounters.patient_intake_id
-              │
-Phase 4  Documentation + closing audit
+Phase 3       └──────── Task 5: orphaned intake surfaces and route
+                             │
+                             └── Task 6: intake integrations
+                                    │
+                                    └── Task 7: intake tests and factory
+                                           │
+                                           └── Task 8: intake actions and audit
+                                                  │
+                                                  └── Task 9: model and relations
+                                                         │
+Phase 4                                                  └── Task 10: schema
+                                                                │
+Phase 5                                                        ├── Task 11: docs
+                                                               └── Task 12: audit
 ```
-
-Phase 1 is independent of everything and could run at any point. Phases 2 and 3
-are independent of each other in the code, but see Decision 1 for why they are
-ordered.
 
 ## Task List
 
-### Phase 1: Dead schema
+### Phase 1: Revalidation and schema-file hygiene
 
-- [ ] Task 1: Drop `notification_channels` and `notification_templates`, and
-      delete the `inventory_movement_statuses` migration pair
+- [ ] **Task 1:** Repeat the four-axis reachability audit and record current
+      database, route, registration, and test baselines. No application files.
+- [ ] **Task 2:** Delete the two `inventory_movement_statuses` migration files
+      and verify `inventory_movement_types` remains live. Two files.
+
+### Checkpoint: Baseline locked
+
+- [ ] No new consumer changes the approved specification.
+- [ ] Notification migration history is unchanged.
+- [ ] Fresh migration succeeds under `--env=testing`.
 
 ### Phase 2: Complaints
 
-- [ ] Task 2: Verify complaints unreachable on four axes
-- [ ] Task 3: Delete complaints code, factory, test, and seeder block
-- [ ] Task 4: Drop the `complaints` table
+- [ ] **Task 3:** Remove complaint-only factory/test coverage and complaint
+      blocks from `ClinicWorkflowSeeder` and `ScenarioCoverageSeeder`. Four
+      files.
+- [ ] **Task 4:** Delete the complaint action, enum, model, and policy; confirm
+      no manual policy mapping remains. Four files.
 
-### Checkpoint: Complaints
+### Checkpoint: Complaints detached
 
-- [ ] Four-axis results recorded for `Complaint`, `complaints`, `ComplaintStatus`
-- [ ] `grep -rn "Complaint"` returns only "Chief Complaint" clinical matches
-- [ ] `migrate:fresh --seed` succeeds
-- [ ] Full suite green
+- [ ] Complaint class, relation, route/view, and seeder references are absent.
+- [ ] Clinical “Chief Complaint” fields remain untouched.
+- [ ] Affected focused tests are green.
 
 ### Phase 3: Patient intakes
 
-- [ ] Task 5: Delete the three orphaned intake surfaces and the print route
-- [ ] Task 6: Delete intake models, enums, relations, actions, command, audit
-      events, factory, and tests
-- [ ] Task 7: Drop `patient_intakes` and `encounters.patient_intake_id`
+- [ ] **Task 5:** Delete the orphan relation manager, two appointment intake
+      views, and the approved legacy print route. Four files.
+- [ ] **Task 6:** Remove intake integration from `CheckInAppointment`,
+      `EncounterResource`, `EncounterFactory`, and the two encounter
+      characterization tests. Five files.
+- [ ] **Task 7:** Delete the three intake-only test files and
+      `PatientIntakeFactory`. Four files.
+- [ ] **Task 8:** Delete the two intake actions, legacy audit action and command,
+      and three intake-only `AuditEvent` cases. Five files.
+- [ ] **Task 9:** Delete `PatientIntake` and `IntakeStatus`, then remove intake
+      relations/fillable state from `Patient`, `Appointment`, and `Encounter`.
+      Five files.
 
-### Checkpoint: Intakes
+### Checkpoint: Intakes detached
 
-- [ ] Registration absence recorded for all three surfaces, not just reference
-      absence
-- [ ] `artisan route:list | grep health-record` returns nothing
-- [ ] The role boundary formerly asserted by `IntakeVerificationTest` is still
-      covered somewhere
-- [ ] Four-axis results recorded for `PatientIntake`, `intake`,
-      `patient_intakes`
-- [ ] `migrate:fresh --seed` succeeds
-- [ ] Full suite green
+- [ ] The orphan appointment health-record print route is absent.
+- [ ] The live encounter print route and its dirty view are untouched.
+- [ ] `PrescriptionLifecycleTest` still covers the clinical role boundary.
+- [ ] Focused encounter and conversation tests are green.
 
-### Phase 4: Documentation and closing audit
+### Phase 4: Contract schema
 
-- [ ] Task 8: Update `BACKEND_CONTEXT.md`, including the permission matrix
-- [ ] Task 9: Closing orphan audit — every table has a model, every model a
-      table, every view a renderer
+- [ ] **Task 10:** Add one reversible migration dropping
+      `encounters.patient_intake_id`, `patient_intakes`, and `complaints`. One
+      file.
+
+### Checkpoint: Schema contracted
+
+- [ ] `migrate:fresh --env=testing` succeeds.
+- [ ] The seeded testing run has no dead-code table/class reference failure.
+- [ ] Closing symbol searches find no runtime references.
+
+### Phase 5: Documentation and final audit
+
+- [ ] **Task 11:** Reconcile `docs/BACKEND_CONTEXT.md`, including the privacy
+      permission-matrix wording. One file.
+- [ ] **Task 12:** Run the closing orphan, route, message-attachment, privacy,
+      migration, focused-test, full-baseline, and Pint checks. No files expected.
 
 ### Checkpoint: Complete
 
-- [ ] `grep -rn "PatientIntake\|IntakeStatus\|Complaint\b\|notification_channels\|notification_templates"`
-      returns only spec files
-- [ ] Message attachments still work: upload, download, preview, Filament display
-- [ ] Privacy compliance code untouched
-- [ ] `migrate:fresh --seed` succeeds; full suite green; Pint clean
+- [ ] All specification success criteria pass.
+- [ ] No new full-suite failure exists relative to the 25-failure baseline.
+- [ ] Message attachments and privacy code remain intact.
+- [ ] Only intended files appear in the final diff.
+
+## Verification Checkpoints
+
+```bash
+vendor/bin/sail artisan test --compact tests/Feature/Encounters
+vendor/bin/sail artisan test --compact tests/Feature/ConversationTest.php
+vendor/bin/sail artisan migrate:fresh --env=testing
+vendor/bin/sail artisan migrate:fresh --seed --env=testing
+vendor/bin/sail artisan test --compact
+vendor/bin/sail bin pint --dirty --format agent
+```
+
+The seeded fresh-migration run and full suite are evidence-producing checks. A
+known unrelated baseline failure is recorded rather than repaired under this
+scope; any new failure blocks completion.
 
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A sixth reference is missed, as five were | High | Four-axis procedure is a recorded checklist item per symbol, not a claim; registration is checked as well as references; Task 9 is a closing orphan audit independent of the per-task checks |
-| A surface assumed orphaned is registered somewhere unexamined | High | Task 5 records the registration check per surface — `getRelations()`, `getPages()`, renderer, `route:list` — before deleting any of them |
-| Someone wanted the health-record printout | Low | It is unreachable today, so nothing is lost that anyone currently has; `/encounters/{encounter}/print` already exists, and rebuilding is a separate spec |
-| Deleting `IntakeVerificationTest` drops a role boundary still in force | Medium | Task 6 confirms `PrescriptionLifecycleTest` covers the clinical-authorization boundary and writes the case if not |
-| Deleting migration files breaks a teammate's local database | Low | ADR-002: no deployed database; `migrate:fresh --seed` at every checkpoint is the contract |
-| A dropped table is still referenced by a factory or seeder | Low | Every checkpoint runs `migrate:fresh --seed` |
-| An appointment with no encounter renders blank in Visit History | Low | Correct behavior — a visit with no encounter has no clinical findings; the column keeps its `—` placeholder |
+| A newly added consumer makes a target reachable | High | Task 1 repeats all four axes before deletion; return to Phase 1 if found |
+| A direct user relied on the legacy health-record URL | Medium | Compatibility break explicitly approved; live encounter print remains |
+| Schema is dropped while code still references it | High | One contract migration runs only after Tasks 3–9 remove every consumer |
+| A valid authorization rule disappears with intake tests | Medium | Confirm the existing prescription lifecycle role test before deletion |
+| Existing dirty work is overwritten or committed | High | Patch only scoped lines, inspect every diff, and do not include unrelated files in commits |
+| Existing suite/seeder failures expand the cleanup | Medium | Compare to the recorded baseline and report unrelated failures separately |
+| Notification tables are redundantly migrated | Low | Plan explicitly forbids a new notification migration |
 
 ## Parallelization
 
-Phase 1 is fully independent and can run at any time. Phases 2 and 3 share no
-file and could run in parallel, but Decision 1 argues for running complaints
-first to validate the procedure. Within Phase 3 the three tasks are strictly
-sequential.
+Tasks 2 and 3 are technically independent after Task 1, but implementation is
+kept sequential in the shared dirty worktree. Tasks 5–9 are strictly ordered.
+Task 11 may be prepared after Task 10, but final wording depends on the actual
+closing diff.
 
 ## Open Questions
 
-None. One item is settled during implementation rather than now: whether
-`PrescriptionLifecycleTest` fully covers the clinical-authorization role
-boundary that `IntakeVerificationTest` asserts today — read it in Task 6 and
-write the missing case if not.
+None. The owner approved both removal of the manually reachable legacy print
+route and this technical plan on 2026-08-14. The detailed checklist is prepared
+next and remains subject to the Phase 3 human-review gate.

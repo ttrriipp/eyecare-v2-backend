@@ -9,27 +9,24 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-None.
-
-## Ready, deliberately deferred
-
-**Dead Code and Unreachable Feature Removal** — parked 2026-08-13
+**Dead Code and Unreachable Feature Removal** — Phase 3 task breakdown
 
 - Spec: `docs/specs/dead-code-removal-spec.md`
-- Plan: `tasks/dead-code-removal-plan.md`
-- Checklist: `tasks/dead-code-removal-todo.md`
+- Plan: `tasks/dead-code-removal-plan.md` — approved 2026-08-14
+- Checklist: `tasks/dead-code-removal-todo.md` — stale; do not execute
 
-Fully specified and planned; 9 tasks ready to run. Held until the rest of the
-system is final, because it is pure cleanup and gains nothing from landing
-early — while re-running its audit is cheap.
+The specification was approved and committed as `2904eed` on 2026-08-14, and
+the reconciled 12-task technical plan is approved. The detailed Phase 3
+checklist is being rewritten; no implementation has started.
 
 **Re-verify before starting.** Its audit has been wrong five times across two
 passes, and every wrong answer came from a search taken at face value. Any
 work that lands between now and then can invalidate it again, so re-run the
 four axes rather than trusting the recorded results.
 
-It is purely subtractive — nothing user-visible changes, because every surface
-it touches is already unreachable.
+It is purely subtractive. The owner accepted removal of the unlinked but
+manually reachable legacy health-record print route; supported workflows remain
+unchanged.
 
 ## Completed
 
