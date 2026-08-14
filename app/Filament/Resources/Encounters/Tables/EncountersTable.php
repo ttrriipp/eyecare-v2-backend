@@ -50,12 +50,14 @@ class EncountersTable
                         EncounterStatus::InProgress => 'warning',
                         EncounterStatus::Completed => 'success',
                         EncounterStatus::Cancelled => 'danger',
+                        EncounterStatus::Voided => 'danger',
                     })
                     ->formatStateUsing(fn (EncounterStatus $state): string => match ($state) {
                         EncounterStatus::Planned => 'Planned',
                         EncounterStatus::InProgress => 'In Progress',
                         EncounterStatus::Completed => 'Completed',
                         EncounterStatus::Cancelled => 'Cancelled',
+                        EncounterStatus::Voided => 'Voided',
                     }),
                 TextColumn::make('started_at')
                     ->label('Started')

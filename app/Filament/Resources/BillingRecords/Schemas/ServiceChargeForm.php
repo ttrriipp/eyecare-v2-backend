@@ -108,9 +108,6 @@ final class ServiceChargeForm
                             ->minValue(0)
                             ->required(fn (Get $get): bool => $get('service_source') === 'custom'
                                 || filled($get('service_id')))
-                            ->helperText(fn (Get $get): ?string => $get('service_source') === 'catalog'
-                                ? 'Catalog-controlled'
-                                : null)
                             ->disabled(fn (Get $get): bool => $get('service_source') === 'catalog')
                             ->dehydrated()
                             ->live(onBlur: true)

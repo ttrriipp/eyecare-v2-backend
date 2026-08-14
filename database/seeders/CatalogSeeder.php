@@ -8,6 +8,7 @@ use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
+use App\Models\Service;
 use Illuminate\Database\Seeder;
 
 class CatalogSeeder extends Seeder
@@ -33,6 +34,15 @@ class CatalogSeeder extends Seeder
             ['description' => $attributes['description'], 'price' => $attributes['price']],
         ));
 
+        LensCategory::query()->firstOrCreate(
+            ['name' => 'Photochromic (Discontinued)'],
+            [
+                'description' => 'Legacy light-adaptive lens package, no longer offered to new patients.',
+                'price' => 5500.00,
+                'is_active' => false,
+            ],
+        );
+
         LensOption::query()->firstOrCreate(
             ['name' => 'Anti-Reflective'],
             [
@@ -42,10 +52,39 @@ class CatalogSeeder extends Seeder
             ],
         );
 
+        LensOption::query()->firstOrCreate(
+            ['name' => 'Blue Light Filter (Discontinued)'],
+            [
+                'description' => 'Legacy coating superseded by the current anti-reflective package.',
+                'price' => 800.00,
+                'is_active' => false,
+            ],
+        );
+
+        collect([
+            ['name' => 'Comprehensive Eye Exam', 'description' => 'Full refraction and ocular health assessment.', 'price' => 800.00],
+            ['name' => 'Contact Lens Fitting', 'description' => 'Fitting and trial session for contact lens wearers.', 'price' => 1200.00],
+            ['name' => 'Frame Adjustment', 'description' => 'On-the-spot frame adjustment and realignment.', 'price' => 0.00],
+        ])->each(fn (array $attributes) => Service::query()->firstOrCreate(
+            ['name' => $attributes['name']],
+            ['description' => $attributes['description'], 'price' => $attributes['price']],
+        ));
+
+        Service::query()->firstOrCreate(
+            ['name' => 'Orthokeratology Consultation (Retired)'],
+            [
+                'description' => 'Retired service, kept for historical billing records.',
+                'price' => 2000.00,
+                'is_active' => false,
+            ],
+        );
+
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
+        Brand::query()->firstOrCreate(['name' => 'Heritage Eyewear Co. (Inactive)'], ['is_active' => false]);
         $category = ProductCategory::query()->firstOrCreate(['name' => 'Frames']);
         $contactLensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Contact Lenses']);
         $accessoryCategory = ProductCategory::query()->firstOrCreate(['name' => 'Accessories']);
+        ProductCategory::query()->firstOrCreate(['name' => 'Reading Glasses (Discontinued)'], ['is_active' => false]);
 
         // Contact-lens products
         $contactLensProduct = Product::query()->firstOrCreate(
@@ -251,6 +290,17 @@ class CatalogSeeder extends Seeder
                         'ar_eligible' => true,
                         'ar_asset_reference' => 'frames/round-metal-gold.glb',
                     ],
+                    [
+                        'name' => 'Silver',
+                        'sku' => 'RMF-SLV-001',
+                        'price' => 139.99,
+                        'attributes' => ['lens_width' => 48, 'bridge' => 20, 'temple' => 145],
+                        // Below low_stock_threshold on purpose, to demonstrate the low-stock alert.
+                        'stock_quantity' => 1,
+                        'low_stock_threshold' => 3,
+                        'ar_eligible' => false,
+                        'ar_asset_reference' => null,
+                    ],
                 ],
             ],
         ];
@@ -285,5 +335,33 @@ class CatalogSeeder extends Seeder
                 );
             }
         }
+
+        // Discontinued frame — demonstrates the catalog deactivation lifecycle.
+        $discontinuedProduct = Product::query()->firstOrCreate(
+            ['slug' => 'aviator-sunglass-frame'],
+            [
+                'brand_id' => $brand->id,
+                'category_id' => $category->id,
+                'name' => 'Aviator Sunglass Frame',
+                'description' => 'Discontinued frame kept for historical order records.',
+                'is_active' => false,
+                'product_type' => 'frame',
+            ],
+        );
+
+        ProductVariant::query()->firstOrCreate(
+            ['sku' => 'ASF-GLD-001'],
+            [
+                'product_id' => $discontinuedProduct->id,
+                'name' => 'Gold',
+                'is_active' => false,
+                'price' => 189.99,
+                'attributes' => ['lens_width' => 58, 'bridge' => 14, 'temple' => 135],
+                'stock_quantity' => 0,
+                'low_stock_threshold' => 2,
+                'ar_eligible' => false,
+                'ar_asset_reference' => null,
+            ],
+        );
     }
 }

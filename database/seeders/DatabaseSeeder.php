@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             DemoUserSeeder::class,
             ProviderHoursSeeder::class,
             ClinicWorkflowSeeder::class,
+            ScenarioCoverageSeeder::class,
         ]);
     }
 }

@@ -7,29 +7,27 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        @page { size: A4; margin: 16mm 14mm; }
+        @page { size: A4; margin: 12mm; }
 
         html, body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
-        body { font-family: Arial, sans-serif; font-size: 13px; line-height: 1.45; color: #1a1a1a; padding: 24px; }
-
-        h1 { font-size: 18px; margin-bottom: 4px; }
+        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #1a1a1a; padding: 16px; }
 
         h2 {
-            font-size: 13px;
+            font-size: 11.5px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: #4F8DD7;
-            margin: 20px 0 10px;
-            padding-bottom: 6px;
-            border-bottom: 1.5px solid #4F8DD7;
+            margin: 10px 0 5px;
+            padding-bottom: 3px;
+            border-bottom: 1.25px solid #4F8DD7;
             break-after: avoid;
             break-inside: avoid;
         }
-        h2:first-of-type { margin-top: 16px; }
+        h2:first-of-type { margin-top: 8px; }
 
         section { break-inside: avoid; }
 
@@ -39,59 +37,59 @@
             align-items: flex-start;
             gap: 16px;
             border-bottom: 2px solid #4F8DD7;
-            padding-bottom: 10px;
-            margin-bottom: 16px;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
         }
-        .clinic-name { font-size: 17px; font-weight: bold; color: #4F8DD7; }
-        .clinic-details { font-size: 10.5px; color: #666; margin-top: 2px; }
+        .clinic-name { font-size: 14px; font-weight: bold; color: #4F8DD7; }
+        .clinic-details { font-size: 9px; color: #666; margin-top: 1px; }
         .doc-title { text-align: right; }
-        .doc-title .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
-        .doc-title .number { font-size: 15px; font-weight: bold; }
+        .doc-title .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+        .doc-title .number { font-size: 13px; font-weight: bold; }
 
-        .meta { color: #555; font-size: 12px; margin-bottom: 16px; }
-        .meta span:not(:last-child)::after { content: '·'; margin: 0 8px; color: #ccc; }
+        .meta { color: #555; font-size: 10px; margin-bottom: 6px; }
+        .meta span:not(:last-child)::after { content: '·'; margin: 0 6px; color: #ccc; }
 
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
-        .field { margin-bottom: 8px; break-inside: avoid; }
-        .field-label { font-weight: 600; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: #666; }
-        .field-value { margin-top: 2px; white-space: pre-wrap; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; }
+        .field { margin-bottom: 4px; break-inside: avoid; }
+        .field-label { font-weight: 600; font-size: 9px; text-transform: uppercase; letter-spacing: 0.3px; color: #666; }
+        .field-value { margin-top: 1px; white-space: pre-wrap; }
         .full-width { grid-column: 1 / -1; }
 
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 600; }
         .badge-success { background: #d1fae5; color: #065f46; }
 
-        .prescription-block { padding: 10px 0; border-top: 1px dashed #ddd; break-inside: avoid; }
+        .prescription-block { padding: 4px 0; border-top: 1px dashed #ddd; break-inside: avoid; }
         .prescription-block:first-of-type { border-top: none; }
 
-        .addendum { margin-top: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; break-inside: avoid; }
-        .addendum-header { font-weight: 600; margin-bottom: 8px; }
-        .addendum-label { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+        .addendum { margin-top: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; break-inside: avoid; }
+        .addendum-header { font-weight: 600; margin-bottom: 5px; }
+        .addendum-label { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; text-transform: uppercase; }
         .addendum-correction { background: #fef3c7; color: #92400e; }
         .addendum-supplement { background: #dbeafe; color: #1e40af; }
-        .addendum-meta { font-size: 11px; color: #666; margin-bottom: 8px; }
+        .addendum-meta { font-size: 9.5px; color: #666; margin-bottom: 5px; }
         .addendum-content { white-space: pre-wrap; }
 
         .original-label {
             text-align: center;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 10.5px;
             letter-spacing: 0.3px;
-            margin: 20px 0 12px;
-            padding: 8px;
+            margin: 8px 0 6px;
+            padding: 4px;
             background: #f3f4f6;
             break-after: avoid;
             break-inside: avoid;
         }
 
-        .signature-area { margin-top: 40px; display: flex; justify-content: flex-end; break-inside: avoid; }
-        .signature-box { text-align: center; width: 220px; }
-        .signature-line { border-bottom: 1px solid #4a5568; height: 40px; }
-        .signature-name { font-size: 12px; font-weight: bold; margin-top: 4px; }
-        .signature-title { font-size: 10.5px; color: #888; }
+        .signature-area { margin-top: 16px; display: flex; justify-content: flex-end; break-inside: avoid; }
+        .signature-box { text-align: center; width: 190px; }
+        .signature-line { border-bottom: 1px solid #4a5568; height: 24px; }
+        .signature-name { font-size: 10.5px; font-weight: bold; margin-top: 3px; }
+        .signature-title { font-size: 9px; color: #888; }
 
-        .print-footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9.5px; color: #999; text-align: center; }
+        .print-footer { margin-top: 10px; padding-top: 5px; border-top: 1px solid #e5e7eb; font-size: 8px; color: #999; text-align: center; }
 
-        .no-print { margin-bottom: 16px; }
+        .no-print { margin-bottom: 12px; }
         .no-print button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
         .no-print .btn-print { background: #3b82f6; color: white; }
         .no-print .btn-close { background: #6b7280; color: white; margin-left: 8px; }
@@ -270,7 +268,7 @@
     </div>
 
     @if($encounter->addenda->isNotEmpty())
-    <div class="original-label" style="margin-top: 32px;">Addenda — Original Record Unchanged</div>
+    <div class="original-label" style="margin-top: 16px;">Addenda — Original Record Unchanged</div>
 
     @foreach($encounter->addenda as $addendum)
     <div class="addendum">
@@ -284,7 +282,7 @@
             {{ $addendum->author?->full_name ?? '—' }} · {{ $addendum->authored_at?->format('M d, Y g:i A') ?? '—' }}
         </div>
         <div class="field-label">Reason</div>
-        <div class="addendum-content" style="margin-bottom: 8px;">{{ $addendum->reason }}</div>
+        <div class="addendum-content" style="margin-bottom: 5px;">{{ $addendum->reason }}</div>
         <div class="field-label">Content</div>
         <div class="addendum-content">{{ $addendum->content }}</div>
     </div>
