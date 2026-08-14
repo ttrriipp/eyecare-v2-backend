@@ -16,7 +16,6 @@ class EditService extends EditRecord
         return [
             CatalogLifecycleActions::activate(fn (): Model => $this->getRecord(), 'Service'),
             CatalogLifecycleActions::deactivate(fn (): Model => $this->getRecord(), 'Service'),
-            CatalogLifecycleActions::delete(fn (): Model => $this->getRecord(), 'Service'),
         ];
     }
 }

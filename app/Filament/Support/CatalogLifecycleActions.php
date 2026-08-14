@@ -11,8 +11,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 final class CatalogLifecycleActions
 {
@@ -24,7 +22,6 @@ final class CatalogLifecycleActions
         return [
             self::activate(noun: $noun),
             self::deactivate(noun: $noun),
-            self::delete(noun: $noun),
         ];
     }
 
@@ -64,7 +61,6 @@ final class CatalogLifecycleActions
         return BulkActionGroup::make([
             self::deactivateBulk(),
             self::activateBulk(),
-            self::deleteBulk(),
         ]);
     }
 
@@ -106,35 +102,6 @@ final class CatalogLifecycleActions
             ->successNotificationTitle(ucfirst($noun).' deactivated');
     }
 
-    public static function delete(?Closure $recordResolver = null, string $noun = 'catalog record'): Action
-    {
-        return Action::make('delete')
-            ->label('Delete')
-            ->icon('heroicon-o-trash')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->modalHeading('Delete '.ucfirst($noun))
-            ->modalDescription('Permanent deletion is only available for catalog records that have never been referenced.')
-            ->modalSubmitActionLabel('Delete')
-            ->visible($recordResolver
-                ? fn (): bool => self::isAdmin()
-                : fn (Model $record): bool => self::isAdmin())
-            ->disabled($recordResolver
-                ? fn (): bool => CatalogLifecycle::isReferenced($recordResolver())
-                : fn (Model $record): bool => CatalogLifecycle::isReferenced($record))
-            ->tooltip($recordResolver
-                ? fn (): ?string => self::deleteTooltip($recordResolver())
-                : fn (Model $record): ?string => self::deleteTooltip($record))
-            ->action($recordResolver
-                ? function () use ($recordResolver): void {
-                    CatalogLifecycle::delete($recordResolver());
-                }
-                : function (Model $record): void {
-                    CatalogLifecycle::delete($record);
-                })
-            ->successNotificationTitle(ucfirst($noun).' deleted');
-    }
-
     private static function deactivateBulk(): BulkAction
     {
         return BulkAction::make('deactivate')
@@ -163,43 +130,6 @@ final class CatalogLifecycleActions
                 });
             })
             ->deselectRecordsAfterCompletion();
-    }
-
-    private static function deleteBulk(): BulkAction
-    {
-        return BulkAction::make('delete')
-            ->label('Delete Selected')
-            ->icon('heroicon-o-trash')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->modalHeading('Delete selected catalog records')
-            ->modalDescription('Permanent deletion is only available for catalog records that have never been referenced.')
-            ->modalSubmitActionLabel('Delete')
-            ->action(function (Collection $records): void {
-                $referenced = $records->filter(
-                    fn (Model $record): bool => CatalogLifecycle::isReferenced($record),
-                );
-
-                if ($referenced->isNotEmpty()) {
-                    throw ValidationException::withMessages([
-                        'records' => ['One or more selected catalog records have been referenced and cannot be deleted.'],
-                    ]);
-                }
-
-                $records->each(function (Model $record): void {
-                    CatalogLifecycle::delete($record);
-                });
-            })
-            ->deselectRecordsAfterCompletion();
-    }
-
-    private static function deleteTooltip(Model $record): ?string
-    {
-        if (! CatalogLifecycle::isReferenced($record)) {
-            return null;
-        }
-
-        return 'Referenced '.Str::plural(CatalogLifecycle::referenceLabel($record)).' cannot be deleted. Deactivate it instead.';
     }
 
     private static function isAdmin(): bool

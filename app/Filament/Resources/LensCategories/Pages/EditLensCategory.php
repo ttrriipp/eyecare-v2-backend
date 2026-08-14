@@ -16,7 +16,6 @@ class EditLensCategory extends EditRecord
         return [
             CatalogLifecycleActions::activate(fn (): Model => $this->getRecord(), 'Lens package'),
             CatalogLifecycleActions::deactivate(fn (): Model => $this->getRecord(), 'Lens package'),
-            CatalogLifecycleActions::delete(fn (): Model => $this->getRecord(), 'Lens package'),
         ];
     }
 }

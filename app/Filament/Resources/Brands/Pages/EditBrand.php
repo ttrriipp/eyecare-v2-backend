@@ -16,7 +16,6 @@ class EditBrand extends EditRecord
         return [
             CatalogLifecycleActions::activate(fn (): Model => $this->getRecord(), 'Brand'),
             CatalogLifecycleActions::deactivate(fn (): Model => $this->getRecord(), 'Brand'),
-            CatalogLifecycleActions::delete(fn (): Model => $this->getRecord(), 'Brand'),
         ];
     }
 }

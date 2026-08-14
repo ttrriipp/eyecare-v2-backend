@@ -71,6 +71,7 @@ test('admin can reactivate an inactive service from its edit page', function () 
     $this->actingAs($admin);
 
     Livewire::test(EditService::class, ['record' => $service->getRouteKey()])
+        ->assertActionDoesNotExist('delete')
         ->assertActionVisible('activate')
         ->callAction('activate')
         ->assertNotified();

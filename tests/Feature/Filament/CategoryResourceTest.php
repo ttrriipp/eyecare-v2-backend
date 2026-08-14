@@ -64,6 +64,8 @@ test('admin can deactivate and reactivate categories through the lifecycle actio
     $component = Livewire::test(ListProductCategories::class)
         ->assertCanSeeTableRecords([$active])
         ->assertCanNotSeeTableRecords([$inactive])
+        ->assertActionDoesNotExist(TestAction::make('delete')->table($active))
+        ->assertActionDoesNotExist(TestAction::make('delete')->table()->bulk())
         ->callAction(TestAction::make('deactivate')->table($active))
         ->assertNotified();
 
