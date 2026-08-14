@@ -120,12 +120,12 @@ test('v1 route count reflects new contract', function () {
     expect($v1Routes)->toBeGreaterThan(35);
 });
 
-test('appointment-types route is removed from patient contract', function () {
+test('appointment-types route is available in the patient contract', function () {
     $routes = collect(Route::getRoutes()->getRoutes())
         ->pluck('uri')
         ->toArray();
 
-    expect($routes)->not->toContain('api/v1/appointment-types');
+    expect($routes)->toContain('api/v1/appointment-types');
 });
 
 test('intake routes are removed from patient contract', function () {

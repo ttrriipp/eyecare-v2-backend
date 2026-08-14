@@ -56,6 +56,15 @@
 > pending requests so they return to identity resolution; terminal requests
 > retain their historical clinical patient.
 >
+> **Shipped (2026-08-14): mobile clinic-hours catalog.** The account-only
+> `GET /api/v1/clinic-hours` endpoint returns all seven weekly
+> `clinic_hours` rows in Carbon/DB weekday order (`0 = Sunday`
+> through `6 = Saturday`). It exposes patient-safe `day_name`,
+> `enabled`, and local `HH:mm` wall-clock ranges; disabled days
+> retain both time keys as `null`. It uses the standard 120
+> requests/minute account-only rate limit and does not require an active
+> patient link.
+>
 > **Shipped (2026-08-12): simplified frame reservations.** Frame
 > reservations collapsed to two states carried by one nullable `accepted_at`
 > timestamp: a request holds nothing, an accepted reservation holds exactly
@@ -493,7 +502,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
-| `clinic_hours` | `weekday` (0-6), `open_time`, `close_time`, `enabled`. |
+| `clinic_hours` | `weekday` (0-6, Carbon convention: Sunday through Saturday), `open_time`, `close_time`, `enabled`. Staff-editable via the Availability cluster; exposed to authenticated mobile accounts as all seven rows through `GET /api/v1/clinic-hours`. |
 | `provider_hours` | `user_id`, `weekday`, `start_time`, `end_time`, `enabled`. |
 | `schedule_overrides` | `user_id` (nullable), `override_date`, `type` (closed/early_close/provider_absence), `start_time`, `end_time`, `reason`. |
 
@@ -618,6 +627,7 @@ POST   /api/v1/patient-invitations/acceptance/otp
 POST   /api/v1/patient-invitations/accept
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
+GET    /api/v1/clinic-hours                   List weekly clinic hours
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
@@ -651,7 +661,7 @@ GET    /api/v1/conversation/attachments/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 29 account-only + 17 active-link = **54 routes total.**
+**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**
 
 Conversation routes moved from active-link to account-only tier (no patient
 link required for read/send; attachment download remains active-link).

@@ -965,6 +965,39 @@ Returns active optometrists with stable ID and display name.
 
 ---
 
+### GET `/clinic-hours`
+
+Returns the clinic's complete weekly operating-hours catalog.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:** None.
+
+**Response (200):**
+```json
+{
+  "data": [
+    { "weekday": 0, "day_name": "Sunday", "enabled": false, "open_time": null, "close_time": null },
+    { "weekday": 1, "day_name": "Monday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 2, "day_name": "Tuesday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 3, "day_name": "Wednesday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 4, "day_name": "Thursday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 5, "day_name": "Friday", "enabled": true, "open_time": "09:00", "close_time": "17:00" },
+    { "weekday": 6, "day_name": "Saturday", "enabled": true, "open_time": "09:00", "close_time": "17:00" }
+  ]
+}
+```
+
+**Notes:**
+- Exactly seven rows are returned, ordered by `weekday` from 0 through 6.
+- `weekday` follows Laravel/Carbon's convention: `0 = Sunday`, `1 = Monday`, …, `6 = Saturday`. `day_name` is included as the display source of truth for clients using ISO-8601 day numbering.
+- `open_time` and `close_time` are nullable `HH:mm` 24-hour wall-clock strings in the clinic's local time. They are not instants and do not include a timezone offset.
+- When `enabled` is `false`, both time keys remain present and are `null`.
+- The schema exposes one continuous open/close range per weekday; there is no lunch-break field.
+- This endpoint uses the account-only rate limit of 120 requests per minute per authenticated account.
+
+---
+
 ### GET `/appointment-request-availability`
 
 Returns server-generated time slots for a given date and appointment type.
@@ -2270,6 +2303,7 @@ The following routes are **removed** in the coordinated Android cutover:
 | `POST /patient-invitations/accept` | Accept invitation and activate link |
 | `GET /appointment-types` | List active, patient-visible appointment types |
 | `GET /appointment-optometrists` | List active optometrists with patient-safe fields |
+| `GET /clinic-hours` | List all seven weekly clinic-hour rows |
 | `GET /appointment-request-availability` | Get available slots for requests |
 | `GET /appointment-requests` | List own requests |
 | `POST /appointment-requests` | Create request |
@@ -2437,6 +2471,7 @@ POST   /api/v1/patient-invitations/acceptance/otp  Request invitation OTP
 POST   /api/v1/patient-invitations/accept     Accept invitation and link
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
+GET    /api/v1/clinic-hours                   List weekly clinic hours
 GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
@@ -2493,4 +2528,4 @@ GET    /api/v1/conversation/attachments/{id}  Download attachment
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 29 account-only + 17 active-link = **54 routes total.**
+**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**

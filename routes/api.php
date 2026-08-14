@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AppointmentRequestAvailabilityController;
 use App\Http\Controllers\Api\AppointmentRequestController;
 use App\Http\Controllers\Api\AppointmentTypeController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ClinicHourController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
@@ -87,6 +88,9 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
 
         // Appointment optometrists (patient-safe catalog)
         Route::get('appointment-optometrists', [AppointmentOptometristController::class, 'index']);
+
+        // Clinic hours (patient-safe weekly catalog)
+        Route::get('clinic-hours', [ClinicHourController::class, 'index']);
 
         // Appointment requests
         Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);
