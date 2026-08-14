@@ -53,12 +53,14 @@ class ListBillingRecords extends ListRecords
 
                         $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                             patient: $patient,
+                            actor: auth()->user(),
                         );
 
                         $billingRecord = app(AddChargesToBilling::class)->handle(
                             billingRecord: $billingRecord,
                             sourceKind: BillingItemSourceKind::DirectService,
                             items: $items,
+                            actor: auth()->user(),
                         );
                     } catch (ValidationException $e) {
                         Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();

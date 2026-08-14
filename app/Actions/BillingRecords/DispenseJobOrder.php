@@ -4,6 +4,7 @@ namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
+use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Models\BillingRecord;
@@ -106,7 +107,7 @@ class DispenseJobOrder
             }
 
             // Update job order status to dispensed
-            $this->updateJobOrderStatus->handle($jobOrder, 'dispensed');
+            $this->updateJobOrderStatus->handle($jobOrder, 'dispensed', $dispenser);
 
             // Record dispensing event
             $event = DispensingEvent::query()->create([
@@ -124,7 +125,7 @@ class DispenseJobOrder
             // Audit
             app(CreateAuditLog::class)->handle(
                 subject: $billingRecord,
-                action: 'billing_record.dispensed',
+                action: AuditEvent::BillingRecordDispensed,
                 metadata: [
                     'job_order_id' => $jobOrder->id,
                     'dispensing_event_id' => $event->id,

@@ -2,7 +2,9 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
@@ -19,6 +21,7 @@ class AcceptAppointmentRequest
     public function __construct(
         private readonly EvaluateAppointmentAvailability $evaluateAvailability,
         private readonly LockAppointmentScheduleDate $lockScheduleDate,
+        private readonly CreateAuditLog $createAuditLog,
     ) {}
 
     /**
@@ -196,6 +199,18 @@ class AcceptAppointmentRequest
                 'resolved_by_user_id' => $reviewer->id,
                 'resolved_at' => now(),
             ]);
+
+            $this->createAuditLog->handle(
+                subject: $request,
+                action: AuditEvent::AppointmentRequestAccepted,
+                metadata: [
+                    'appointment_id' => $appointment->id,
+                    'appointment_type_id' => $appointmentType->id,
+                    'patient_id' => $request->patient_id,
+                    'optometrist_id' => $optometrist?->id,
+                ],
+                actorId: $reviewer->id,
+            );
 
             return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });

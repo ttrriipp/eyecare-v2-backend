@@ -3,6 +3,7 @@
 namespace App\Actions\Encounters;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Models\Encounter;
 use App\Models\User;
@@ -46,7 +47,7 @@ final class VoidEncounter
 
             $this->createAuditLog->handle(
                 subject: $encounter,
-                action: 'encounter.voided',
+                action: AuditEvent::EncounterVoided,
                 metadata: [
                     'voided_by' => $actor->id,
                     'reason' => $reason,

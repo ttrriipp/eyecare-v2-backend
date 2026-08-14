@@ -2,11 +2,14 @@
 
 namespace App\Actions\BillingRecords;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\Patient;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class ResolveOpenCheckoutBillingRecord
@@ -22,8 +25,9 @@ class ResolveOpenCheckoutBillingRecord
         Patient $patient,
         ?JobOrder $jobOrder = null,
         ?Encounter $encounter = null,
+        ?User $actor = null,
     ): BillingRecord {
-        return DB::transaction(function () use ($patient, $jobOrder, $encounter) {
+        return DB::transaction(function () use ($patient, $jobOrder, $encounter, $actor) {
             // Look for an existing open billing record
             $existing = $this->findOpenRecord($patient, $jobOrder, $encounter);
 
@@ -32,7 +36,7 @@ class ResolveOpenCheckoutBillingRecord
             }
 
             // Create a new billing record
-            return BillingRecord::create([
+            $billingRecord = BillingRecord::create([
                 'patient_id' => $patient->id,
                 'job_order_id' => $jobOrder?->id,
                 'encounter_id' => $encounter?->id,
@@ -42,9 +46,22 @@ class ResolveOpenCheckoutBillingRecord
                 'total_amount' => 0,
                 'amount_paid' => 0,
                 'balance_due' => 0,
-                'recorded_by' => auth()->id(),
+                'recorded_by' => $actor?->id ?? auth()->id(),
                 'recorded_at' => now(),
             ]);
+
+            app(CreateAuditLog::class)->handle(
+                subject: $billingRecord,
+                action: AuditEvent::BillingRecordCreated,
+                metadata: [
+                    'patient_id' => $patient->id,
+                    'job_order_id' => $jobOrder?->id,
+                    'encounter_id' => $encounter?->id,
+                ],
+                actorId: $actor?->id ?? auth()->id(),
+            );
+
+            return $billingRecord;
         });
     }
 

@@ -3,13 +3,14 @@
 namespace App\Observers;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\User;
 
 class UserObserver
 {
     public function created(User $user): void
     {
-        app(CreateAuditLog::class)->handle($user, 'user.created');
+        app(CreateAuditLog::class)->handle($user, AuditEvent::UserCreated, actorId: auth()->id());
     }
 
     public function saving(User $user): void
@@ -29,13 +30,14 @@ class UserObserver
     public function updated(User $user): void
     {
         if ($user->wasChanged('password')) {
-            app(CreateAuditLog::class)->handle($user, 'user.password_changed');
+            app(CreateAuditLog::class)->handle($user, AuditEvent::UserPasswordChanged, actorId: auth()->id());
         }
 
         if ($user->wasChanged('is_active')) {
             app(CreateAuditLog::class)->handle(
                 $user,
-                $user->is_active ? 'user.reactivated' : 'user.deactivated',
+                $user->is_active ? AuditEvent::UserReactivated : AuditEvent::UserDeactivated,
+                actorId: auth()->id(),
             );
         }
     }

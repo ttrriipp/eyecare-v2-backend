@@ -3,6 +3,7 @@
 namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
@@ -87,7 +88,7 @@ class RecordBillingPayment
 
             app(CreateAuditLog::class)->handle(
                 subject: $locked,
-                action: 'billing_record.payment_recorded',
+                action: AuditEvent::BillingRecordPaymentRecorded,
                 metadata: [
                     'payment_id' => $payment->id,
                     'amount' => $amount,

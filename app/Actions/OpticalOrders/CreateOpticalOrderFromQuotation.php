@@ -2,11 +2,13 @@
 
 namespace App\Actions\OpticalOrders;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Actions\Quotations\ValidateOpticalQuotation;
+use App\Enums\AuditEvent;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
@@ -23,6 +25,7 @@ class CreateOpticalOrderFromQuotation
 {
     public function __construct(
         private readonly BuildOpticalOrder $buildOrder,
+        private readonly CreateAuditLog $createAuditLog,
     ) {}
 
     /**
@@ -120,6 +123,16 @@ class CreateOpticalOrderFromQuotation
                     'confirmed_by' => $confirmer->id,
                     'confirmed_at' => now(),
                 ]);
+
+                $this->createAuditLog->handle(
+                    subject: $quotation,
+                    action: AuditEvent::QuotationAccepted,
+                    metadata: [
+                        'previous_status' => QuotationStatus::Draft->value,
+                        'status' => QuotationStatus::Accepted->value,
+                    ],
+                    actorId: $confirmer->id,
+                );
             }
 
             // Create order only if product items exist and no order yet
@@ -144,6 +157,7 @@ class CreateOpticalOrderFromQuotation
                     fulfillmentMode: $fulfillmentMode,
                     usesExternalSupplier: $usesExternalSupplier,
                     items: $itemSnapshots,
+                    actorId: $confirmer->id,
                 );
 
                 if ($fulfillmentMode === 'immediate' && $recipientName !== null) {
@@ -170,6 +184,7 @@ class CreateOpticalOrderFromQuotation
                 patient: $quotation->patient,
                 jobOrder: $opticalOrder,
                 encounter: $quotation->encounter,
+                actor: $confirmer,
             );
 
             // Append order items to billing
@@ -195,6 +210,7 @@ class CreateOpticalOrderFromQuotation
                         billingRecord: $billingRecord,
                         sourceKind: BillingItemSourceKind::OpticalOrder,
                         items: $newOrderItems,
+                        actor: $confirmer,
                     );
                 }
             }
@@ -226,12 +242,14 @@ class CreateOpticalOrderFromQuotation
                             billingRecord: $billingRecord,
                             sourceKind: BillingItemSourceKind::Quotation,
                             items: $serviceItems,
+                            actor: $confirmer,
                         );
                     }
                 }
             }
 
             // Set quotation link and discount
+            $previousBillingDiscount = (float) $billingRecord->discount_amount;
             $billingRecord->update([
                 'quotation_id' => $quotation->id,
                 'discount_amount' => $quotation->discount_amount,
@@ -244,6 +262,19 @@ class CreateOpticalOrderFromQuotation
                 $billingRecord,
                 discountAmount: (float) $quotation->discount_amount,
             );
+
+            if ($previousBillingDiscount !== (float) $quotation->discount_amount) {
+                $this->createAuditLog->handle(
+                    subject: $billingRecord,
+                    action: AuditEvent::BillingDiscountChanged,
+                    metadata: [
+                        'previous_discount_amount' => $previousBillingDiscount,
+                        'discount_amount' => (float) $quotation->discount_amount,
+                        'quotation_id' => $quotation->id,
+                    ],
+                    actorId: $confirmer->id,
+                );
+            }
 
             // Record optional deposit
             $alreadyRecordedInitialDeposit = $billingRecord->payments()

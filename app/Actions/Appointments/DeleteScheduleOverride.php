@@ -27,6 +27,7 @@ class DeleteScheduleOverride
                 subject: $override,
                 action: AuditEvent::ScheduleOverrideRemoved,
                 metadata: $metadata,
+                actorId: auth()->id(),
             );
         });
     }

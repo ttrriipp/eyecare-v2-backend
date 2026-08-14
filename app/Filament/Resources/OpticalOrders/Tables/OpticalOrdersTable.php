@@ -100,7 +100,7 @@ class OpticalOrdersTable
                         ->modalDescription('Begin processing this optical order.')
                         ->action(function (JobOrder $record): void {
                             try {
-                                app(UpdateJobOrderStatus::class)->handle($record, 'in_progress');
+                                app(UpdateJobOrderStatus::class)->handle($record, 'in_progress', auth()->user());
                                 Notification::make()->title('Order started')->success()->send();
                             } catch (ValidationException $e) {
                                 Notification::make()->title('Cannot start order')->body($e->getMessage())->danger()->send();
@@ -116,7 +116,7 @@ class OpticalOrdersTable
                         ->modalDescription('Mark this order as ready for patient pickup.')
                         ->action(function (JobOrder $record): void {
                             try {
-                                app(UpdateJobOrderStatus::class)->handle($record, 'ready_for_dispensing');
+                                app(UpdateJobOrderStatus::class)->handle($record, 'ready_for_dispensing', auth()->user());
                                 Notification::make()->title('Order marked ready')->success()->send();
                             } catch (ValidationException $e) {
                                 Notification::make()->title('Cannot mark ready')->body($e->getMessage())->danger()->send();
@@ -140,6 +140,7 @@ class OpticalOrdersTable
                                 app(CancelOpticalOrder::class)->handle(
                                     $record,
                                     $data['cancellation_reason'] ?? null,
+                                    auth()->user(),
                                 );
                                 Notification::make()->title('Order cancelled')->success()->send();
                             } catch (ValidationException $e) {

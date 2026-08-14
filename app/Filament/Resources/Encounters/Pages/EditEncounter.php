@@ -536,12 +536,14 @@ class EditEncounter extends EditRecord
                         $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                             patient: $encounter->patient,
                             encounter: $encounter,
+                            actor: auth()->user(),
                         );
 
                         $billingRecord = app(AddChargesToBilling::class)->handle(
                             billingRecord: $billingRecord,
                             sourceKind: BillingItemSourceKind::Encounter,
                             items: $items,
+                            actor: auth()->user(),
                         );
 
                         Notification::make()

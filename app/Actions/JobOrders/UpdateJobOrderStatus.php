@@ -2,11 +2,14 @@
 
 namespace App\Actions\JobOrders;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,11 +28,11 @@ class UpdateJobOrderStatus
         'cancelled' => [],
     ];
 
-    public function handle(JobOrder $jobOrder, string $statusName): JobOrder
+    public function handle(JobOrder $jobOrder, string $statusName, ?User $actor = null): JobOrder
     {
         $newStatus = JobOrderStatus::from($statusName);
 
-        return DB::transaction(function () use ($jobOrder, $newStatus): JobOrder {
+        return DB::transaction(function () use ($jobOrder, $newStatus, $actor): JobOrder {
             $lockedJobOrder = JobOrder::query()
                 ->with('items')
                 ->lockForUpdate()
@@ -65,15 +68,28 @@ class UpdateJobOrderStatus
 
             $lockedJobOrder->update($attributes);
 
-            if ($newStatus === JobOrderStatus::Cancelled) {
-                $this->reverseInventory($lockedJobOrder);
-            }
+            $reversedQuantity = $newStatus === JobOrderStatus::Cancelled
+                ? $this->reverseInventory($lockedJobOrder, $actor?->id ?? auth()->id())
+                : 0;
+
+            app(CreateAuditLog::class)->handle(
+                subject: $lockedJobOrder,
+                action: $newStatus === JobOrderStatus::Cancelled
+                    ? AuditEvent::JobOrderCancelled
+                    : AuditEvent::JobOrderStatusChanged,
+                metadata: [
+                    'from' => $currentStatus,
+                    'to' => $newStatus->value,
+                    'reversed_quantity' => $reversedQuantity,
+                ],
+                actorId: $actor?->id ?? auth()->id(),
+            );
 
             return $lockedJobOrder->fresh();
         });
     }
 
-    private function reverseInventory(JobOrder $jobOrder): void
+    private function reverseInventory(JobOrder $jobOrder, ?int $actorId): int
     {
         $reversalType = InventoryMovementType::query()
             ->firstOrCreate(['name' => 'order_reversal']);
@@ -83,8 +99,10 @@ class UpdateJobOrderStatus
             ->first();
 
         if ($commitmentType === null) {
-            return;
+            return 0;
         }
+
+        $reversedQuantity = 0;
 
         foreach ($jobOrder->items->sortBy(fn ($item): int => (int) ($item->product_variant_id ?? 0)) as $item) {
             if ($item->product_variant_id === null) {
@@ -129,9 +147,22 @@ class UpdateJobOrderStatus
                 'quantity_change' => $netCommitment,
                 'previous_stock' => $previousStock,
                 'new_stock' => $variant->fresh()->stock_quantity,
-                'created_by' => auth()->id(),
+                'created_by' => $actorId,
                 'notes' => "Reversal for cancelled job order #{$jobOrder->job_order_number}",
             ]);
+
+            $reversedQuantity += (int) $netCommitment;
         }
+
+        if ($reversedQuantity > 0) {
+            app(CreateAuditLog::class)->handle(
+                subject: $jobOrder,
+                action: AuditEvent::InventoryReversed,
+                metadata: ['quantity' => $reversedQuantity],
+                actorId: $actorId,
+            );
+        }
+
+        return $reversedQuantity;
     }
 }

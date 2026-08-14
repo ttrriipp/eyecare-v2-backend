@@ -2,7 +2,9 @@
 
 namespace App\Actions\OpticalOrders;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\JobOrders\CommitJobOrderInventory;
+use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
@@ -28,8 +30,9 @@ class BuildOpticalOrder
         bool $usesExternalSupplier,
         Collection $items,
         ?int $dispensedBy = null,
+        ?int $actorId = null,
     ): JobOrder {
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId): JobOrder {
             $order = JobOrder::create([
                 'patient_id' => $patientId,
                 'encounter_id' => $encounterId,
@@ -45,7 +48,25 @@ class BuildOpticalOrder
                 $order->items()->create($item);
             }
 
-            app(CommitJobOrderInventory::class)->handle($order);
+            app(CommitJobOrderInventory::class)->handle(
+                jobOrder: $order,
+                actorId: $actorId ?? $dispensedBy,
+            );
+
+            app(CreateAuditLog::class)->handle(
+                subject: $order,
+                action: AuditEvent::JobOrderCreated,
+                metadata: [
+                    'patient_id' => $patientId,
+                    'quotation_id' => $quotationId,
+                    'encounter_id' => $encounterId,
+                    'prescription_id' => $prescriptionId,
+                    'item_count' => $items->count(),
+                    'fulfillment_mode' => $fulfillmentMode,
+                    'uses_external_supplier' => $usesExternalSupplier,
+                ],
+                actorId: $actorId ?? $dispensedBy ?? auth()->id(),
+            );
 
             if ($fulfillmentMode === 'immediate') {
                 $order->update([
@@ -61,6 +82,16 @@ class BuildOpticalOrder
                         'notes' => 'Immediate fulfillment',
                     ]);
                 }
+
+                app(CreateAuditLog::class)->handle(
+                    subject: $order,
+                    action: AuditEvent::JobOrderStatusChanged,
+                    metadata: [
+                        'from' => JobOrderStatus::Queued->value,
+                        'to' => JobOrderStatus::Dispensed->value,
+                    ],
+                    actorId: $actorId ?? $dispensedBy ?? auth()->id(),
+                );
             }
 
             return $order->fresh();

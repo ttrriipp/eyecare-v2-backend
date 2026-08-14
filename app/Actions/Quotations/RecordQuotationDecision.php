@@ -2,6 +2,8 @@
 
 namespace App\Actions\Quotations;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\QuotationStatus;
 use App\Models\Quotation;
 use App\Models\User;
@@ -11,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class RecordQuotationDecision
 {
+    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+
     /**
      * Accept or decline a draft quotation.
      *
@@ -56,6 +60,19 @@ class RecordQuotationDecision
             }
 
             $lockedQuotation->update($attributes);
+
+            $this->createAuditLog->handle(
+                subject: $lockedQuotation,
+                action: $targetStatus === QuotationStatus::Accepted
+                    ? AuditEvent::QuotationAccepted
+                    : AuditEvent::QuotationDeclined,
+                metadata: [
+                    'previous_status' => QuotationStatus::Draft->value,
+                    'status' => $targetStatus->value,
+                    'reason_provided' => filled($reason),
+                ],
+                actorId: $recorder->id,
+            );
 
             return $lockedQuotation->fresh();
         });

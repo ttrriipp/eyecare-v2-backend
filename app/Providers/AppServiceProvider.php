@@ -3,8 +3,17 @@
 namespace App\Providers;
 
 use App\Listeners\RecordAuthenticationAudit;
+use App\Models\Brand;
+use App\Models\LensCategory;
+use App\Models\LensOption;
+use App\Models\Patient;
 use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\ProductVariant;
+use App\Models\Service;
 use App\Models\User;
+use App\Observers\CatalogObserver;
+use App\Observers\PatientObserver;
 use App\Observers\ProductObserver;
 use App\Observers\UserObserver;
 use Illuminate\Auth\Events\Failed;
@@ -26,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Product::observe(ProductObserver::class);
+        foreach ([Brand::class, ProductCategory::class, ProductVariant::class, LensCategory::class, LensOption::class, Service::class] as $catalogModel) {
+            $catalogModel::observe(CatalogObserver::class);
+        }
+        Patient::observe(PatientObserver::class);
         User::observe(UserObserver::class);
 
         RateLimiter::for('login', function (Request $request) {

@@ -3,6 +3,7 @@
 namespace App\Actions\Prescriptions;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,7 @@ final class VoidPrescription
 
             $this->createAuditLog->handle(
                 subject: $prescription,
-                action: 'prescription.voided',
+                action: AuditEvent::PrescriptionVoided,
                 metadata: [
                     'voided_by' => $actor->id,
                     'reason' => $reason,

@@ -282,6 +282,7 @@ class EditQuotation extends EditRecord
                             patient: $quotation->patient,
                             jobOrder: $quotation->jobOrder,
                             encounter: $quotation->encounter,
+                            actor: auth()->user(),
                         );
 
                         $selectedIds = array_map('intval', $data['quotation_item_ids'] ?? []);
@@ -312,6 +313,7 @@ class EditQuotation extends EditRecord
                                     billingRecord: $billingRecord,
                                     sourceKind: BillingItemSourceKind::Quotation,
                                     items: $serviceItems,
+                                    actor: auth()->user(),
                                 );
                             }
                         }

@@ -2,6 +2,8 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\User;
@@ -18,6 +20,7 @@ class SubmitAppointmentRequest
         protected BuildScheduleBlocks $buildBlocks,
         protected BuildAppointmentRequestIdentitySnapshot $buildSnapshot,
         protected ListAppointmentRequestAvailabilitySlots $listSlots,
+        protected CreateAuditLog $createAuditLog,
     ) {}
 
     /**
@@ -90,7 +93,7 @@ class SubmitAppointmentRequest
         ) {
             $patientId = $account->patient?->id;
 
-            return AppointmentRequest::create([
+            $request = AppointmentRequest::create([
                 'user_id' => $account->id,
                 'patient_id' => $patientId,
                 'appointment_type_id' => $appointmentType->id,
@@ -103,6 +106,20 @@ class SubmitAppointmentRequest
                 'status' => 'pending',
                 'expires_at' => $expiresAt,
             ]);
+
+            $this->createAuditLog->handle(
+                subject: $request,
+                action: AuditEvent::AppointmentRequestSubmitted,
+                metadata: [
+                    'account_id' => $account->id,
+                    'patient_id' => $patientId,
+                    'appointment_type_id' => $appointmentType->id,
+                    'scheduled_at' => $scheduledAt->toIso8601String(),
+                ],
+                actorId: $account->id,
+            );
+
+            return $request;
         });
     }
 

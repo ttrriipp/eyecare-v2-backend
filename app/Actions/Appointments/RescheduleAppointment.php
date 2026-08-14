@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
@@ -97,13 +98,14 @@ class RescheduleAppointment
             $appointment->patient->account?->notify(new AppointmentRescheduled($appointment));
             $this->createAuditLog->handle(
                 subject: $appointment,
-                action: 'appointment.rescheduled',
+                action: AuditEvent::AppointmentRescheduled,
                 metadata: array_filter([
                     'from' => $previousScheduledAt,
                     'to' => $appointment->scheduled_at->toDateTimeString(),
                     'reason_category' => $reasonCategory,
                     'reason' => $rescheduleReason,
                 ], fn ($value): bool => $value !== null),
+                actorId: auth()->id(),
             );
 
             return $appointment->fresh(['patient', 'appointmentType', 'status', 'optometrist']);

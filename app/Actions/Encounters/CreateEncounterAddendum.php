@@ -116,6 +116,7 @@ class CreateEncounterAddendum
                     'type' => $type->value,
                     'actor_id' => $actor->id,
                 ],
+                actorId: $actor->id,
             );
 
             return $addendum->fresh(['author']);

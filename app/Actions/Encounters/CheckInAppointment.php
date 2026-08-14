@@ -73,6 +73,7 @@ class CheckInAppointment
                     'appointment_id' => $lockedAppointment->id,
                     'patient_id' => $lockedAppointment->patient_id,
                 ],
+                actorId: auth()->id(),
             );
 
             return $encounter;

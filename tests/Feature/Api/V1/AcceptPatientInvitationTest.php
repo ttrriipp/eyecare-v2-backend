@@ -5,6 +5,7 @@ use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Enums\OtpPurpose;
 use App\Enums\PatientInvitationStatus;
 use App\Filament\Resources\Patients\PatientResource;
+use App\Models\AuditLog;
 use App\Models\Conversation;
 use App\Models\OtpChallenge;
 use App\Models\Patient;
@@ -140,6 +141,12 @@ test('invitation acceptance activates patient link', function () {
     expect($patient->fresh()->user_id)->toBe($user->id);
     expect($conversation->fresh()->patient_id)->toBe($patient->id);
     expect($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted);
+    expect(AuditLog::query()
+        ->where('subject_type', $patient->getMorphClass())
+        ->where('subject_id', $patient->id)
+        ->where('action', 'patient_account.linked')
+        ->where('actor_id', $user->id)
+        ->exists())->toBeTrue();
 });
 
 test('invitation acceptance returns a token for an unlinked account', function () {

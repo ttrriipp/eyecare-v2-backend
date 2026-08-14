@@ -62,6 +62,7 @@ class CreateWalkInAppointment
                     'patient_id' => $patient->id,
                     'walk_in' => true,
                 ],
+                actorId: $staff->id,
             );
 
             return $appointment;

@@ -74,6 +74,7 @@ class StartEncounter
                     'optometrist_id' => $optometristId,
                     'actor_id' => $actor->id,
                 ],
+                actorId: $actor->id,
             );
 
             return $encounter->fresh(['appointment', 'optometrist']);

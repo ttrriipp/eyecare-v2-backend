@@ -85,6 +85,7 @@ class TransferEncounter
                     'reason' => $reason->value,
                     'actor_id' => $actor->id,
                 ],
+                actorId: $actor->id,
             );
 
             return $lockedEncounter->fresh(['appointment', 'optometrist']);

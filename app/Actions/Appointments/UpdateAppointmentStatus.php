@@ -3,11 +3,13 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Notifications\AppointmentStatusChanged;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UpdateAppointmentStatus
@@ -47,40 +49,43 @@ class UpdateAppointmentStatus
             ]);
         }
 
-        $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
+        return DB::transaction(function () use ($appointment, $statusName, $staffNotes, $currentStatus): Appointment {
+            $status = AppointmentStatus::query()->where('name', $statusName)->firstOrFail();
 
-        $attributes = [
-            'appointment_status_id' => $status->id,
-        ];
+            $attributes = [
+                'appointment_status_id' => $status->id,
+            ];
 
-        if ($staffNotes !== null) {
-            $attributes['staff_notes'] = $staffNotes;
-        }
+            if ($staffNotes !== null) {
+                $attributes['staff_notes'] = $staffNotes;
+            }
 
-        if ($statusName === 'arrived' || $statusName === 'checked_in') {
-            $attributes['checked_in_at'] = now();
-            $attributes['checked_in_by'] = auth()->id();
-        }
+            if ($statusName === 'arrived' || $statusName === 'checked_in') {
+                $attributes['checked_in_at'] = now();
+                $attributes['checked_in_by'] = auth()->id();
+            }
 
-        if ($statusName === 'completed' || $statusName === 'fulfilled') {
-            $attributes['fulfilled_at'] = now();
-        }
+            if ($statusName === 'completed' || $statusName === 'fulfilled') {
+                $attributes['fulfilled_at'] = now();
+            }
 
-        $appointment->update($attributes);
-        $appointment->load(['patient', 'appointmentType', 'status']);
+            $appointment->update($attributes);
+            $appointment->load(['patient', 'appointmentType', 'status']);
 
-        if (array_key_exists($statusName, self::SMS_EVENTS)) {
-            $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
-            $appointment->patient->account?->notify(new AppointmentStatusChanged($appointment));
-        }
+            if (array_key_exists($statusName, self::SMS_EVENTS)) {
+                $this->createSmsNotification($appointment, self::SMS_EVENTS[$statusName]);
+                $appointment->patient->account?->notify(new AppointmentStatusChanged($appointment));
+            }
 
-        app(CreateAuditLog::class)->handle(
-            subject: $appointment,
-            action: 'appointment.status_changed',
-            metadata: ['from' => $currentStatus, 'to' => $statusName],
-        );
+            app(CreateAuditLog::class)->handle(
+                subject: $appointment,
+                action: AuditEvent::AppointmentStatusChanged,
+                metadata: ['from' => $currentStatus, 'to' => $statusName],
+                actorId: auth()->id(),
+            );
 
-        return $appointment->fresh(['appointmentType', 'status']);
+            return $appointment->fresh(['appointmentType', 'status']);
+        });
     }
 
     private function createSmsNotification(Appointment $appointment, string $event): void

@@ -58,6 +58,7 @@ class MarkAppointmentNoShow
                     'actor_id' => $actor->id,
                     'staff_notes' => $staffNotes,
                 ]),
+                actorId: $actor->id,
             );
 
             return $appointment->fresh(['appointmentType', 'status', 'patient']);

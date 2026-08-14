@@ -3,6 +3,8 @@
 namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
+use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use App\Models\User;
@@ -63,16 +65,16 @@ class CorrectBillingPayment
                 'amount_paid' => $postedTotal,
                 'balance_due' => max($billingRecord->total_amount - $postedTotal, 0),
                 'status' => $postedTotal <= 0
-                    ? \App\Enums\BillingRecordStatus::Unpaid
+                    ? BillingRecordStatus::Unpaid
                     : ($postedTotal >= $billingRecord->total_amount
-                        ? \App\Enums\BillingRecordStatus::Paid
-                        : \App\Enums\BillingRecordStatus::PartiallyPaid),
+                        ? BillingRecordStatus::Paid
+                        : BillingRecordStatus::PartiallyPaid),
             ]);
 
             // Audit
             app(CreateAuditLog::class)->handle(
                 subject: $billingRecord,
-                action: 'billing_record.payment_corrected',
+                action: AuditEvent::BillingRecordPaymentCorrected,
                 metadata: [
                     'original_payment_id' => $originalPayment->id,
                     'replacement_payment_id' => $replacement->id,

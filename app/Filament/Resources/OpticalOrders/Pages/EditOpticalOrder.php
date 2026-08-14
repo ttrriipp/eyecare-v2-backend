@@ -52,7 +52,7 @@ class EditOpticalOrder extends EditRecord
                 ->modalSubmitActionLabel('Start Processing')
                 ->action(function (): void {
                     try {
-                        app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress');
+                        app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress', auth()->user());
                         Notification::make()->title('Order started')->success()->send();
                         $this->refreshFormData(['status', 'started_at']);
                     } catch (ValidationException $e) {
@@ -82,7 +82,7 @@ class EditOpticalOrder extends EditRecord
                             $this->record->update([
                                 'supplier_invoice_number' => $data['supplier_invoice_number'],
                             ]);
-                            app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing');
+                            app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing', auth()->user());
                         });
                         Notification::make()->title('Order marked ready')->success()->send();
                         $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
@@ -108,6 +108,7 @@ class EditOpticalOrder extends EditRecord
                         app(CancelOpticalOrder::class)->handle(
                             $this->record,
                             $data['cancellation_reason'] ?? null,
+                            auth()->user(),
                         );
 
                         $this->record->refresh();

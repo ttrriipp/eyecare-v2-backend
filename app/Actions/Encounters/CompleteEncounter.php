@@ -122,6 +122,7 @@ class CompleteEncounter
                     'optometrist_id' => $lockedEncounter->optometrist_id,
                     'actor_id' => $actor->id,
                 ],
+                actorId: $actor->id,
             );
 
             return $lockedEncounter->fresh(['appointment', 'optometrist']);

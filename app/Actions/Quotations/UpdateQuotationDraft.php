@@ -2,6 +2,8 @@
 
 namespace App\Actions\Quotations;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\QuotationStatus;
 use App\Models\LensCategory;
 use App\Models\LensOption;
@@ -17,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateQuotationDraft
 {
+    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+
     /**
      * Update a draft quotation's commercial data.
      *
@@ -54,6 +58,12 @@ class UpdateQuotationDraft
                     'quotation' => ['Only draft quotations can be edited.'],
                 ]);
             }
+
+            $previousTotals = [
+                'subtotal' => (float) $quotation->subtotal,
+                'discount_amount' => (float) $quotation->discount_amount,
+                'total' => (float) $quotation->total,
+            ];
 
             $itemSnapshots = collect($validated['items'])->map(function (array $item): array {
                 $item = $this->applyCatalogValues($item);
@@ -137,6 +147,21 @@ class UpdateQuotationDraft
                 $itemSnapshots
                     ->map(fn (array $item): array => collect($item)->except(['amount_in_cents', 'eyewear_role'])->all())
                     ->all(),
+            );
+
+            $this->createAuditLog->handle(
+                subject: $quotation,
+                action: AuditEvent::QuotationRevised,
+                metadata: [
+                    'item_count' => $itemSnapshots->count(),
+                    'previous_subtotal' => $previousTotals['subtotal'],
+                    'subtotal' => (float) $quotation->subtotal,
+                    'previous_discount_amount' => $previousTotals['discount_amount'],
+                    'discount_amount' => (float) $quotation->discount_amount,
+                    'previous_total' => $previousTotals['total'],
+                    'total' => (float) $quotation->total,
+                ],
+                actorId: $editor?->id ?? auth()->id(),
             );
 
             return $quotation->load('items');

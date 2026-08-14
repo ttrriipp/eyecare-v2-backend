@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 #[Fillable([
     'actor_id',
@@ -24,6 +25,25 @@ class AuditLog extends Model
     use HasFactory;
 
     public $timestamps = false;
+
+    /**
+     * @param  QueryBuilder  $query
+     */
+    public function newEloquentBuilder($query): AuditLogBuilder
+    {
+        return new AuditLogBuilder($query);
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (): void {
+            throw new \LogicException('Audit logs are immutable.');
+        });
+
+        static::deleting(function (): void {
+            throw new \LogicException('Audit logs are immutable.');
+        });
+    }
 
     /**
      * @return BelongsTo<User, $this>

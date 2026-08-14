@@ -58,6 +58,7 @@ class SyncUserRoles
                 'old_roles' => $oldRoleNames,
                 'new_roles' => $roleNames,
             ],
+            actorId: $actor?->id,
         );
     }
 

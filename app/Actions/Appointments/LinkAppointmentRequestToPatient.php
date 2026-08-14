@@ -2,8 +2,10 @@
 
 namespace App\Actions\Appointments;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class LinkAppointmentRequestToPatient
 {
+    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+
     public function handle(AppointmentRequest $request, Patient $patient): AppointmentRequest
     {
         if ($request->status !== AppointmentRequestStatus::Pending) {
@@ -26,9 +30,34 @@ class LinkAppointmentRequestToPatient
         }
 
         return DB::transaction(function () use ($request, $patient) {
+            $account = $request->user;
+            $wasUnlinked = $account->patient === null;
             $request->update(['patient_id' => $patient->id]);
 
             $this->linkAccountIfNeeded($request, $patient);
+
+            $this->createAuditLog->handle(
+                subject: $request,
+                action: AuditEvent::AppointmentRequestLinked,
+                metadata: [
+                    'patient_id' => $patient->id,
+                    'account_id' => $account->id,
+                    'account_link_created' => $wasUnlinked,
+                ],
+                actorId: auth()->id(),
+            );
+
+            if ($wasUnlinked) {
+                $this->createAuditLog->handle(
+                    subject: $patient,
+                    action: AuditEvent::PatientAccountLinked,
+                    metadata: [
+                        'account_id' => $account->id,
+                        'appointment_request_id' => $request->id,
+                    ],
+                    actorId: auth()->id(),
+                );
+            }
 
             return $request->fresh();
         });

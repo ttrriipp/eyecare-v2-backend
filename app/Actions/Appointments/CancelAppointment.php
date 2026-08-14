@@ -86,6 +86,7 @@ class CancelAppointment
                     'reason_details' => $reasonDetails,
                     'cancelled_encounter' => $currentStatus === 'checked_in',
                 ]),
+                actorId: $actor?->id,
             );
 
             return $appointment->fresh(['appointmentType', 'status', 'patient']);

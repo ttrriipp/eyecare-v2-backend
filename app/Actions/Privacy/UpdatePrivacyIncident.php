@@ -2,6 +2,8 @@
 
 namespace App\Actions\Privacy;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\IncidentStatus;
 use App\Models\PrivacyIncident;
 use App\Models\User;
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 
 class UpdatePrivacyIncident
 {
+    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+
     /**
      * Update a privacy incident with new information.
      */
@@ -21,7 +25,8 @@ class UpdatePrivacyIncident
         ?string $resolutionNotes = null,
         ?int $assignedTo = null,
     ): PrivacyIncident {
-        return DB::transaction(function () use ($incident, $status, $containmentActions, $decisions, $resolutionNotes, $assignedTo): PrivacyIncident {
+        return DB::transaction(function () use ($incident, $handler, $status, $containmentActions, $decisions, $resolutionNotes, $assignedTo): PrivacyIncident {
+            $previousStatus = $incident->status?->value;
             $attributes = [];
 
             if ($status !== null) {
@@ -53,6 +58,18 @@ class UpdatePrivacyIncident
             }
 
             $incident->update($attributes);
+
+            $this->createAuditLog->handle(
+                subject: $incident,
+                action: AuditEvent::PrivacyIncidentUpdated,
+                metadata: [
+                    'previous_status' => $previousStatus,
+                    'status' => $incident->status?->value,
+                    'assigned_to' => $incident->assigned_to,
+                    'changed_fields' => array_keys($attributes),
+                ],
+                actorId: $handler->id,
+            );
 
             return $incident->fresh();
         });

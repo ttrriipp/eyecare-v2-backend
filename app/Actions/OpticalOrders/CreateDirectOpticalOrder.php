@@ -139,6 +139,7 @@ class CreateDirectOpticalOrder
                 usesExternalSupplier: $usesExternalSupplier,
                 items: $itemSnapshots,
                 dispensedBy: $creator->id,
+                actorId: $creator->id,
             );
 
             if ($fulfillmentMode === 'immediate' && $recipientName !== null) {
@@ -150,6 +151,7 @@ class CreateDirectOpticalOrder
             $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
                 patient: $patient,
                 jobOrder: $jobOrder,
+                actor: $creator,
             );
 
             $orderItems = $jobOrder->items()
@@ -166,6 +168,7 @@ class CreateDirectOpticalOrder
                 billingRecord: $billingRecord,
                 sourceKind: BillingItemSourceKind::OpticalOrder,
                 items: $orderItems,
+                actor: $creator,
             );
 
             if ($paymentDueDate !== null) {

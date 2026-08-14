@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -33,10 +34,11 @@ class AssignAppointmentOptometrist
 
             app(CreateAuditLog::class)->handle(
                 subject: $appointment,
-                action: 'appointment.optometrist_assigned',
+                action: AuditEvent::AppointmentOptometristAssigned,
                 metadata: [
                     'optometrist_id' => $optometrist->id,
                 ],
+                actorId: auth()->id(),
             );
 
             return $appointment->fresh(['appointmentType', 'status', 'patient', 'optometrist']);

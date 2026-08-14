@@ -5,6 +5,7 @@ namespace App\Actions\PatientAccounts;
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\DetachAccountConversation;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use App\Models\User;
@@ -43,12 +44,12 @@ class UnlinkPatientAccount
             // Audit
             app(CreateAuditLog::class)->handle(
                 subject: $patient,
-                action: 'patient_account_unlinked',
+                action: AuditEvent::PatientAccountUnlinked,
                 metadata: [
                     'unlinked_user_id' => $userId,
-                    'admin_id' => $admin->id,
-                    'reason' => $reason,
-                ]
+                    'reason_provided' => filled($reason),
+                ],
+                actorId: $admin->id,
             );
         });
     }

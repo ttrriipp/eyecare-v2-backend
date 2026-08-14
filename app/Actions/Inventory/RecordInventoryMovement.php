@@ -3,6 +3,7 @@
 namespace App\Actions\Inventory;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\ProductVariant;
@@ -65,8 +66,9 @@ class RecordInventoryMovement
 
             app(CreateAuditLog::class)->handle(
                 subject: $movement,
-                action: 'inventory.movement_recorded',
+                action: AuditEvent::InventoryMovementRecorded,
                 metadata: ['type' => $type, 'quantity_change' => $quantityChange, 'variant_id' => $variant->id],
+                actorId: $actingUser?->id,
             );
 
             // Fire low stock alert if stock dropped to or below threshold after deduction

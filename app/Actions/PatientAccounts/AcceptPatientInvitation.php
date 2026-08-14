@@ -2,8 +2,10 @@
 
 namespace App\Actions\PatientAccounts;
 
+use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Conversations\AssociateAccountConversation;
+use App\Enums\AuditEvent;
 use App\Enums\OtpPurpose;
 use App\Enums\PatientInvitationStatus;
 use App\Models\PatientAccountContact;
@@ -20,6 +22,7 @@ class AcceptPatientInvitation
     public function __construct(
         protected VerifyOtpChallenge $verifyOtp,
         protected CreateContactLookupHash $lookupHash,
+        protected CreateAuditLog $createAuditLog,
     ) {}
 
     public function handle(
@@ -148,6 +151,17 @@ class AcceptPatientInvitation
 
             $patient->update(['user_id' => $user->id]);
             $invitation->accept($user);
+
+            $this->createAuditLog->handle(
+                subject: $patient,
+                action: AuditEvent::PatientAccountLinked,
+                metadata: [
+                    'account_id' => $user->id,
+                    'invitation_id' => $invitation->id,
+                    'channel' => $invitation->channel,
+                ],
+                actorId: $user->id,
+            );
 
             // Associate the account's conversation with the Patient
             app(AssociateAccountConversation::class)->handle($user, $patient);

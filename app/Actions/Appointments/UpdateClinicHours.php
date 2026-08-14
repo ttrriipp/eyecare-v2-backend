@@ -41,6 +41,7 @@ class UpdateClinicHours
                     'open_time' => $openTime,
                     'close_time' => $closeTime,
                 ],
+                actorId: auth()->id(),
             );
 
             return $clinicHour;

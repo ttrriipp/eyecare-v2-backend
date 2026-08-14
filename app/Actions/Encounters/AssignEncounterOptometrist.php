@@ -71,6 +71,7 @@ class AssignEncounterOptometrist
                     'new_optometrist_id' => $optometrist->id,
                     'actor_id' => $actor->id,
                 ],
+                actorId: $actor->id,
             );
 
             return $lockedEncounter->fresh(['appointment', 'optometrist']);

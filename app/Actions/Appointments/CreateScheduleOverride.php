@@ -72,6 +72,7 @@ class CreateScheduleOverride
                     'end_time' => $endTime,
                     'reason' => $reason,
                 ],
+                actorId: auth()->id(),
             );
 
             return $override;

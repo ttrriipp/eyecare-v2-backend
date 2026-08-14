@@ -3,6 +3,7 @@
 namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingRecord;
 use App\Models\User;
@@ -44,7 +45,7 @@ class VoidBillingRecord
             // Audit
             app(CreateAuditLog::class)->handle(
                 subject: $locked,
-                action: 'billing_record.voided',
+                action: AuditEvent::BillingRecordVoided,
                 metadata: [
                     'reason' => $reason,
                     'previous_status' => $billingRecord->status->value,
