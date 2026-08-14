@@ -451,3 +451,71 @@ test('linked appointment availability rejects non-patient-visible appointment ty
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['appointment_type_id']);
 });
+
+test('reschedule availability resolves the appointment type from the appointment', function () {
+    $user = User::factory()->patient()->create();
+    $type = AppointmentType::where('name', 'New Patient')->first();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_id' => $appointment->id,
+        ]))
+        ->assertOk()
+        ->assertJsonPath('data.appointment_type_id', $type->id)
+        ->assertJsonPath('data.visit_duration_minutes', $type->duration_minutes)
+        ->assertJsonPath('data.appointment_id', $appointment->id);
+});
+
+test('reschedule availability rejects an appointment owned by another patient', function () {
+    $user = User::factory()->patient()->create();
+    $otherUser = User::factory()->patient()->create();
+    $otherPatient = $otherUser->patient;
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $otherPatient->id,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_id' => $appointment->id,
+        ]))
+        ->assertNotFound();
+});
+
+test('reschedule availability rejects a mismatched appointment type', function () {
+    $user = User::factory()->patient()->create();
+    $type = AppointmentType::where('name', 'New Patient')->first();
+    $otherType = AppointmentType::factory()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?'.http_build_query([
+            'date' => '2026-07-13',
+            'appointment_id' => $appointment->id,
+            'appointment_type_id' => $otherType->id,
+        ]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});
+
+test('appointment availability still requires an appointment type without an appointment id', function () {
+    $user = User::factory()->patient()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-availability?date=2026-07-13')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['appointment_type_id']);
+});

@@ -18,13 +18,19 @@ class AppointmentAvailabilityController extends Controller
         AppointmentAvailabilityRequest $request,
         ListAvailableAppointmentSlots $listAvailableAppointmentSlots,
     ): JsonResponse {
-        $appointmentType = AppointmentType::query()->findOrFail($request->validated('appointment_type_id'));
         $optometrist = $request->filled('optometrist_id')
             ? User::query()->findOrFail($request->validated('optometrist_id'))
             : null;
         $appointment = $request->filled('appointment_id')
-            ? Appointment::query()->findOrFail($request->validated('appointment_id'))
+            ? Appointment::query()
+                ->where('patient_id', $request->user()?->patient?->id)
+                ->findOrFail($request->validated('appointment_id'))
             : null;
+
+        $appointmentTypeId = $appointment?->appointment_type_id
+            ?? $request->validated('appointment_type_id');
+        $appointmentType = AppointmentType::query()->findOrFail($appointmentTypeId);
+
         $date = Carbon::createFromFormat('Y-m-d', $request->validated('date'), config('app.timezone'));
         $schedule = ClinicSchedule::forDate($date);
 

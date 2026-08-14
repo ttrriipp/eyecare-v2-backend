@@ -24,15 +24,14 @@ class AppointmentAvailabilityRequest extends FormRequest
         return [
             'date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'appointment_type_id' => [
-                'required',
+                'required_without:appointment_id',
+                'nullable',
                 'integer',
                 Rule::exists('appointment_types', 'id')
                     ->where('is_active', true)
                     ->where('is_patient_visible', true),
             ],
-            'appointment_id' => ['nullable', 'integer', Rule::exists('appointments', 'id')->where(
-                fn ($query) => $query->where('patient_id', $this->user()?->patient?->id),
-            )],
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
         ];
     }
 
@@ -62,7 +61,18 @@ class AppointmentAvailabilityRequest extends FormRequest
             $validator->errors()->add('appointment_id', 'This appointment cannot be rescheduled.');
         }
 
-        $appointmentType = AppointmentType::query()->find($this->integer('appointment_type_id'));
+        $appointmentType = AppointmentType::query()->find($appointment->appointment_type_id);
+
+        if ($this->filled('appointment_type_id')
+            && $this->integer('appointment_type_id') !== $appointment->appointment_type_id
+        ) {
+            $validator->errors()->add(
+                'appointment_type_id',
+                'The appointment type must match the appointment being rescheduled.',
+            );
+
+            return;
+        }
 
         if ($appointmentType !== null && $appointmentType->duration_minutes !== $appointment->duration_minutes) {
             $validator->errors()->add('appointment_type_id', 'The appointment type duration must match the appointment being rescheduled.');
