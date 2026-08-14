@@ -4,6 +4,8 @@ namespace App\Actions\PatientAccounts;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\DetachAccountConversation;
+use App\Enums\AppointmentRequestStatus;
+use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +22,7 @@ class UnlinkPatientAccount
         }
 
         DB::transaction(function () use ($patient, $admin, $reason) {
-            $patient->lockForUpdate();
+            $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
             $userId = $patient->user_id;
 
@@ -32,6 +34,8 @@ class UnlinkPatientAccount
                 // Detach conversation ownership
                 app(DetachAccountConversation::class)->handle($user);
             }
+
+            $this->unlinkPendingAppointmentRequests($userId, $patient);
 
             // Unlink
             $patient->update(['user_id' => null]);
@@ -47,5 +51,22 @@ class UnlinkPatientAccount
                 ]
             );
         });
+    }
+
+    /**
+     * Pending requests must return to identity resolution after an account
+     * unlink. Accepted requests retain their historical clinical patient.
+     */
+    private function unlinkPendingAppointmentRequests(int $userId, Patient $patient): void
+    {
+        AppointmentRequest::query()
+            ->where('user_id', $userId)
+            ->where('patient_id', $patient->id)
+            ->where('status', AppointmentRequestStatus::Pending)
+            ->lockForUpdate()
+            ->get()
+            ->each(function (AppointmentRequest $request): void {
+                $request->update(['patient_id' => null]);
+            });
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Actions\PatientAccounts\ReviewPatientLinkRequest;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
+use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
@@ -124,6 +125,31 @@ test('unlinking revokes tokens and removes link', function () {
 
     expect($patient->fresh()->user_id)->toBeNull()
         ->and($account->fresh()->tokens()->count())->toBe(0);
+});
+
+test('unlinking clears pending appointment request patient links but preserves history', function () {
+    $account = User::factory()->patient()->create();
+    $patient = $account->patient;
+    $admin = User::factory()->admin()->create();
+    $pendingRequest = AppointmentRequest::factory()->withSnapshot()->create([
+        'user_id' => $account->id,
+        'patient_id' => $patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+    ]);
+    $acceptedRequest = AppointmentRequest::factory()->accepted()->create([
+        'user_id' => $account->id,
+        'patient_id' => $patient->id,
+    ]);
+
+    app(UnlinkPatientAccount::class)->handle(
+        patient: $patient,
+        admin: $admin,
+        reason: 'Patient requested unlinking',
+    );
+
+    expect($pendingRequest->fresh()->patient_id)->toBeNull()
+        ->and($pendingRequest->fresh()->encrypted_identity_snapshot)->toBeArray()
+        ->and($acceptedRequest->fresh()->patient_id)->toBe($patient->id);
 });
 
 test('unlinking creates audit log', function () {
