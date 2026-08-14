@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-13) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-14) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -25,6 +25,15 @@
 > `expires_at` instead of `status`, and never exposes `accepted_at`. Staff build
 > quotations by selecting frames from the catalog. No patient API route, request,
 > or response field was added beyond the `is_held`/`expires_at` contract change.
+
+> **Shipped 2026-08-14: appointment-request account-link synchronization.**
+> When staff approve a Patient Link Request, previously submitted appointment
+> requests for that account are associated with the approved `patient_id`
+> without rewriting their encrypted identity snapshots. If an account is later
+> unlinked, only its pending requests are cleared back to `patient_id: null`;
+> terminal requests retain their historical patient association. The list and
+> detail responses therefore reflect the current link state for pending
+> requests and the historical clinical link for terminal requests.
 > **Base URL:** `/api/v1`
 > **Auth:** Laravel Sanctum bearer tokens
 > **Timezone:** `Asia/Manila` (configurable via `app.timezone`)
@@ -817,6 +826,13 @@ Returns the current active link request for the authenticated account.
 
 **Response (204):** No active request exists.
 
+**Appointment-request link effects:** When staff approve a link request, the
+account's previously submitted unlinked appointment requests are associated
+with the approved patient without changing their encrypted identity
+snapshots. If staff later unlink the account, only pending appointment
+requests are cleared back to `patient_id: null`; terminal requests retain
+their historical patient association.
+
 ---
 
 ## 7. Patient Invitations
@@ -1026,7 +1042,13 @@ Paginated list of the authenticated account's appointment requests.
 **Status values:** `pending`, `accepted`, `rejected`, `cancelled`, `expired`.
 
 **Notes:**
-- `patient_id` is `null` for unlinked accounts.
+- `patient_id` is `null` for currently unlinked pending requests. Staff approval
+  of a Patient Link Request can backfill the approved patient ID onto requests
+  that were submitted while the account was unlinked; the encrypted identity
+  snapshot is not rewritten.
+- If the account is later unlinked, pending requests return to
+  `patient_id: null`; terminal requests retain their historical patient
+  association.
 - `appointment` is populated only when `status` is `accepted`.
 - `rejection_reason` is `null` for non-rejected requests; contains the staff-provided reason when `status` is `rejected`.
 - Identity snapshots and contact details are excluded from list responses.
@@ -1115,6 +1137,11 @@ Creates a new appointment request.
 - For linked accounts, `patient_id` is copied from the active link.
 - For unlinked accounts, `patient_id` remains `null`.
 - For unlinked accounts, an encrypted identity snapshot is stored.
+- Approving a staff Patient Link Request backfills `patient_id` on that
+  account's previously unlinked requests without changing their encrypted
+  snapshots.
+- Unlinking the account clears `patient_id` only for pending requests;
+  terminal requests retain their historical patient link.
 - Maximum 2 active pending requests per account.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
