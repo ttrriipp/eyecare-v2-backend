@@ -148,6 +148,15 @@ test('create form requires name, phone, roles, and password', function () {
 
 // ─── Edit ─────────────────────────────────────────────────────────────────────
 
+test('edit form preloads the user roles', function () {
+    $user = User::factory()->staff()->create();
+
+    $this->actingAs($this->admin);
+
+    Livewire::test(EditUser::class, ['record' => $user->id])
+        ->assertFormSet(['roles' => [Role::Staff]]);
+});
+
 test('admin can edit a user name and role', function () {
     $user = User::factory()->staff()->create(['phone' => '+639171111111']);
 
