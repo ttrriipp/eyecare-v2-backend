@@ -1,7 +1,9 @@
 <?php
 
 use App\Filament\Clusters\Availability\Resources\AppointmentTypes\AppointmentTypesResource;
+use App\Filament\Clusters\Availability\Resources\AppointmentTypes\Pages\EditAppointmentTypes;
 use App\Filament\Clusters\Availability\Resources\AppointmentTypes\Pages\ListAppointmentTypes;
+use App\Models\AppointmentType;
 use App\Models\User;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\RoleSeeder;
@@ -47,6 +49,15 @@ test('appointment types table renders for admins', function () {
 
     Livewire::test(ListAppointmentTypes::class)
         ->assertSuccessful();
+});
+
+test('appointment type edit page has no delete action', function () {
+    $this->actingAs($this->admin);
+
+    $appointmentType = AppointmentType::query()->firstOrFail();
+
+    Livewire::test(EditAppointmentTypes::class, ['record' => $appointmentType->getRouteKey()])
+        ->assertActionDoesNotExist('delete');
 });
 
 test('appointment type create page renders for admins', function () {
