@@ -4,7 +4,6 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Http\Controllers\MessageAttachmentPreviewController;
-use App\Models\Appointment;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use App\Services\PdfService;
@@ -38,17 +37,6 @@ Route::middleware(['auth', 'web'])->group(function () {
 
         return $pdf->prescriptionPrintout($prescription);
     })->name('pdf.prescription');
-
-    Route::get('/appointments/{appointment}/health-record/print', function (Appointment $appointment) {
-        abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
-
-        $appointment->load(['patient', 'appointmentType', 'intake.submittedBy', 'intake.verifiedBy']);
-
-        return view('filament.resources.appointments.pages.health-record-print', [
-            'appointment' => $appointment,
-            'intake' => $appointment->intake,
-        ]);
-    })->name('appointments.health-record.print');
 
     Route::get('/encounters/{encounter}/print', function (Encounter $encounter) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
