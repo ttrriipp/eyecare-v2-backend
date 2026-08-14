@@ -6,6 +6,7 @@ use App\Filament\Resources\ProductCategories\Pages\ListProductCategories;
 use App\Filament\Resources\ProductCategories\ProductCategoryResource;
 use App\Models\ProductCategory;
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -51,6 +52,32 @@ test('admin can edit a category', function () {
         ->assertHasNoFormErrors();
 
     $this->assertDatabaseHas(ProductCategory::class, ['id' => $category->id, 'name' => 'Updated Category']);
+});
+
+test('admin can deactivate and reactivate categories through the lifecycle actions', function () {
+    $admin = User::factory()->admin()->create();
+    $active = ProductCategory::factory()->create(['name' => 'Active Category']);
+    $inactive = ProductCategory::factory()->create(['name' => 'Inactive Category', 'is_active' => false]);
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ListProductCategories::class)
+        ->assertCanSeeTableRecords([$active])
+        ->assertCanNotSeeTableRecords([$inactive])
+        ->callAction(TestAction::make('deactivate')->table($active))
+        ->assertNotified();
+
+    expect($active->fresh()->is_active)->toBeFalse();
+
+    $component
+        ->filterTable('catalog_status', 'inactive')
+        ->assertCanSeeTableRecords([$active, $inactive])
+        ->callAction(TestAction::make('activate')->table($inactive))
+        ->assertNotified()
+        ->filterTable('catalog_status', 'all')
+        ->assertCanSeeTableRecords([$active, $inactive]);
+
+    expect($inactive->fresh()->is_active)->toBeTrue();
 });
 
 test('category name is required', function () {

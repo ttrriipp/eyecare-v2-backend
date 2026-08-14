@@ -64,6 +64,20 @@ test('admin can edit a service', function () {
     expect($service->fresh()->price)->toEqualWithDelta(750.0, 0.001);
 });
 
+test('admin can reactivate an inactive service from its edit page', function () {
+    $admin = User::factory()->admin()->create();
+    $service = Service::factory()->create(['is_active' => false]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditService::class, ['record' => $service->getRouteKey()])
+        ->assertActionVisible('activate')
+        ->callAction('activate')
+        ->assertNotified();
+
+    expect($service->fresh()->is_active)->toBeTrue();
+});
+
 test('a service name must be unique', function () {
     $admin = User::factory()->admin()->create();
     Service::factory()->create(['name' => 'Comprehensive Eye Exam']);

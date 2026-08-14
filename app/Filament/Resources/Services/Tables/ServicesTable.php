@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Services\Tables;
 
+use App\Filament\Support\CatalogLifecycleActions;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -26,9 +27,16 @@ class ServicesTable
                     ->limit(50)
                     ->toggleable(),
             ])
+            ->filters([
+                CatalogLifecycleActions::statusFilter(),
+            ])
             ->recordActions([
                 EditAction::make(),
+                ...CatalogLifecycleActions::recordActions('service'),
             ])
-            ->defaultSort('name');
+            ->defaultSort('name')
+            ->toolbarActions([
+                CatalogLifecycleActions::bulkActions(),
+            ]);
     }
 }

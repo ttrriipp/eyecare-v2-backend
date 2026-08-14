@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\Products\Pages;
 
 use App\Filament\Resources\Products\ProductResource;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\RestoreAction;
+use App\Filament\Support\CatalogLifecycleActions;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditProduct extends EditRecord
 {
@@ -14,8 +14,9 @@ class EditProduct extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            RestoreAction::make()->label('Restore')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && $this->getRecord()->trashed()),
-            DeleteAction::make()->label('Archive')->icon('heroicon-o-archive-box')->modalIcon('heroicon-o-archive-box')->modalHeading('Archive product')->modalDescription('This will hide the product from active lists. It can be restored later from the "Show Archived" filter.')->modalSubmitActionLabel('Archive')->visible(fn (): bool => (auth()->user()?->isAdmin() ?? false) && ! $this->getRecord()->trashed()),
+            CatalogLifecycleActions::activate(fn (): Model => $this->getRecord(), 'Product'),
+            CatalogLifecycleActions::deactivate(fn (): Model => $this->getRecord(), 'Product'),
+            CatalogLifecycleActions::delete(fn (): Model => $this->getRecord(), 'Product'),
         ];
     }
 }

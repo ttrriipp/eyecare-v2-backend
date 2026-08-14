@@ -2,6 +2,7 @@
 
 use App\Models\Brand;
 use App\Models\LensCategory;
+use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
@@ -73,4 +74,32 @@ test('unreferenced service can be permanently deleted', function () {
     CatalogLifecycle::delete($service);
 
     expect(Service::query()->find($service->id))->toBeNull();
+});
+
+test('unreferenced catalog records can be permanently deleted', function () {
+    $admin = User::factory()->admin()->create();
+    $brand = Brand::factory()->create();
+    $category = ProductCategory::factory()->create();
+    $product = Product::factory()->create([
+        'brand_id' => $brand->id,
+        'category_id' => $category->id,
+    ]);
+    $variant = ProductVariant::factory()->create();
+    $lensCategory = LensCategory::factory()->withPrice()->create();
+    $lensOption = LensOption::factory()->create();
+    $service = Service::factory()->create();
+
+    $this->actingAs($admin);
+
+    foreach ([$variant, $product, $brand, $category, $lensCategory, $lensOption, $service] as $record) {
+        CatalogLifecycle::delete($record);
+    }
+
+    expect(ProductVariant::query()->withTrashed()->find($variant->id))->toBeNull()
+        ->and(Product::query()->withTrashed()->find($product->id))->toBeNull()
+        ->and(Brand::query()->withTrashed()->find($brand->id))->toBeNull()
+        ->and(ProductCategory::query()->withTrashed()->find($category->id))->toBeNull()
+        ->and(LensCategory::query()->withTrashed()->find($lensCategory->id))->toBeNull()
+        ->and(LensOption::query()->find($lensOption->id))->toBeNull()
+        ->and(Service::query()->find($service->id))->toBeNull();
 });

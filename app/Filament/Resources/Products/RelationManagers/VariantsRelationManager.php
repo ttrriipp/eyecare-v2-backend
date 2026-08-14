@@ -2,13 +2,12 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
+use App\Filament\Support\CatalogLifecycleActions;
 use App\Filament\Support\StockActions;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
-use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\TextInput;
@@ -20,7 +19,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -255,22 +253,13 @@ class VariantsRelationManager extends RelationManager
                 CreateAction::make(),
             ])
             ->filters([
-                TrashedFilter::make()
-                    ->label('Show Archived')
-                    ->placeholder('Active only')
-                    ->trueLabel('Active and archived')
-                    ->falseLabel('Archived only'),
+                CatalogLifecycleActions::statusFilter(),
             ])
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make()
                         ->color('info'),
-                    Action::make('toggleVisibility')
-                        ->label(fn ($record): string => $record->is_active ? 'Deactivate' : 'Activate')
-                        ->icon(fn ($record): string => $record->is_active ? 'heroicon-o-eye-slash' : 'heroicon-o-eye')
-                        ->color(fn ($record): string => $record->is_active ? 'warning' : 'success')
-                        ->action(fn ($record) => $record->update(['is_active' => ! $record->is_active]))
-                        ->successNotificationTitle(fn ($record): string => $record->is_active ? 'Variant activated' : 'Variant deactivated'),
+                    ...CatalogLifecycleActions::recordActions('variant'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
                         ->icon('heroicon-o-currency-dollar')
@@ -305,19 +294,10 @@ class VariantsRelationManager extends RelationManager
                         ->successNotificationTitle('Prices updated'),
                     StockActions::receive(),
                     StockActions::writeOffDamaged(),
-                    RestoreAction::make()
-                        ->label('Restore')
-                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
-                    DeleteAction::make()
-                        ->label('Archive')
-                        ->icon('heroicon-o-archive-box')
-                        ->modalIcon('heroicon-o-archive-box')
-                        ->modalHeading('Archive variant')
-                        ->modalDescription('This will hide the variant from active lists. It can be restored later from the "Show Archived" filter.')
-                        ->modalSubmitActionLabel('Archive')
-                        ->color('danger')
-                        ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
                 ]),
+            ])
+            ->toolbarActions([
+                CatalogLifecycleActions::bulkActions(),
             ]);
     }
 }

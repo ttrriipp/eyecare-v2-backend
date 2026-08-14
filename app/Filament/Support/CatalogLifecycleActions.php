@@ -11,6 +11,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 final class CatalogLifecycleActions
@@ -74,11 +75,15 @@ final class CatalogLifecycleActions
             ->icon('heroicon-o-check-circle')
             ->color('success')
             ->visible($recordResolver
-                ? fn (): bool => self::isAdmin() && ! $recordResolver()->is_active
-                : fn (Model $record): bool => self::isAdmin() && ! $record->is_active)
+                ? fn (): bool => self::isAdmin() && self::isInactive($recordResolver())
+                : fn (Model $record): bool => self::isAdmin() && self::isInactive($record))
             ->action($recordResolver
-                ? fn (): void => CatalogLifecycle::activate($recordResolver())
-                : fn (Model $record): void => CatalogLifecycle::activate($record))
+                ? function () use ($recordResolver): void {
+                    CatalogLifecycle::activate($recordResolver());
+                }
+                : function (Model $record): void {
+                    CatalogLifecycle::activate($record);
+                })
             ->successNotificationTitle(ucfirst($noun).' activated');
     }
 
@@ -89,11 +94,15 @@ final class CatalogLifecycleActions
             ->icon('heroicon-o-eye-slash')
             ->color('warning')
             ->visible($recordResolver
-                ? fn (): bool => self::isAdmin() && $recordResolver()->is_active
-                : fn (Model $record): bool => self::isAdmin() && $record->is_active)
+                ? fn (): bool => self::isAdmin() && ! self::isInactive($recordResolver())
+                : fn (Model $record): bool => self::isAdmin() && ! self::isInactive($record))
             ->action($recordResolver
-                ? fn (): void => CatalogLifecycle::deactivate($recordResolver())
-                : fn (Model $record): void => CatalogLifecycle::deactivate($record))
+                ? function () use ($recordResolver): void {
+                    CatalogLifecycle::deactivate($recordResolver());
+                }
+                : function (Model $record): void {
+                    CatalogLifecycle::deactivate($record);
+                })
             ->successNotificationTitle(ucfirst($noun).' deactivated');
     }
 
@@ -117,8 +126,12 @@ final class CatalogLifecycleActions
                 ? fn (): ?string => self::deleteTooltip($recordResolver())
                 : fn (Model $record): ?string => self::deleteTooltip($record))
             ->action($recordResolver
-                ? fn (): void => CatalogLifecycle::delete($recordResolver())
-                : fn (Model $record): void => CatalogLifecycle::delete($record))
+                ? function () use ($recordResolver): void {
+                    CatalogLifecycle::delete($recordResolver());
+                }
+                : function (Model $record): void {
+                    CatalogLifecycle::delete($record);
+                })
             ->successNotificationTitle(ucfirst($noun).' deleted');
     }
 
@@ -130,7 +143,9 @@ final class CatalogLifecycleActions
             ->color('warning')
             ->requiresConfirmation()
             ->action(function (Collection $records): void {
-                $records->each(fn (Model $record): void => CatalogLifecycle::deactivate($record));
+                $records->each(function (Model $record): void {
+                    CatalogLifecycle::deactivate($record);
+                });
             })
             ->deselectRecordsAfterCompletion();
     }
@@ -143,7 +158,9 @@ final class CatalogLifecycleActions
             ->color('success')
             ->requiresConfirmation()
             ->action(function (Collection $records): void {
-                $records->each(fn (Model $record): void => CatalogLifecycle::activate($record));
+                $records->each(function (Model $record): void {
+                    CatalogLifecycle::activate($record);
+                });
             })
             ->deselectRecordsAfterCompletion();
     }
@@ -169,20 +186,30 @@ final class CatalogLifecycleActions
                     ]);
                 }
 
-                $records->each(fn (Model $record): void => CatalogLifecycle::delete($record));
+                $records->each(function (Model $record): void {
+                    CatalogLifecycle::delete($record);
+                });
             })
             ->deselectRecordsAfterCompletion();
     }
 
     private static function deleteTooltip(Model $record): ?string
     {
-        return CatalogLifecycle::isReferenced($record)
-            ? 'Referenced records cannot be deleted. Deactivate it instead.'
-            : null;
+        if (! CatalogLifecycle::isReferenced($record)) {
+            return null;
+        }
+
+        return 'Referenced '.Str::plural(CatalogLifecycle::referenceLabel($record)).' cannot be deleted. Deactivate it instead.';
     }
 
     private static function isAdmin(): bool
     {
         return auth()->user()?->isAdmin() ?? false;
+    }
+
+    private static function isInactive(Model $record): bool
+    {
+        return ! $record->is_active
+            || (method_exists($record, 'trashed') && $record->trashed());
     }
 }

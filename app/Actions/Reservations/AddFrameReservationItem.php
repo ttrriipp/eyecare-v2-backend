@@ -42,10 +42,10 @@ class AddFrameReservationItem
             ]);
         }
 
-        $variant = ProductVariant::query()->with('product')->find($productVariantId);
+        $variant = ProductVariant::query()->active()->with('product')->find($productVariantId);
         $product = $variant?->product;
 
-        if ($variant === null || $product === null || $product->product_type !== 'frame' || ! $product->is_active || ! $variant->is_active) {
+        if ($variant === null || $product === null || $product->product_type !== 'frame') {
             throw ValidationException::withMessages([
                 'product_variant_id' => ['This variant is not an active frame variant.'],
             ]);

@@ -98,6 +98,7 @@ class CreateFrameReservation
         }
 
         $variants = ProductVariant::query()
+            ->active()
             ->whereIn('id', $variantIds)
             ->with('product')
             ->get();
@@ -111,7 +112,7 @@ class CreateFrameReservation
         foreach ($variants as $variant) {
             $product = $variant->product;
 
-            if ($product === null || $product->product_type !== 'frame' || ! $product->is_active || ! $variant->is_active) {
+            if ($product === null || $product->product_type !== 'frame') {
                 throw ValidationException::withMessages([
                     'items' => ["Variant {$variant->id} is not an active frame variant."],
                 ]);

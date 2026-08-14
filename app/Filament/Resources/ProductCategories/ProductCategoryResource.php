@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class ProductCategoryResource extends Resource
@@ -41,6 +42,16 @@ class ProductCategoryResource extends Resource
     public static function table(Table $table): Table
     {
         return ProductCategoriesTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withTrashed();
+    }
+
+    public static function getRecordRouteBindingEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withTrashed();
     }
 
     public static function getRelations(): array

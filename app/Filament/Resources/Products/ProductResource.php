@@ -53,7 +53,7 @@ class ProductResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['brand', 'category', 'variants']);
+        return parent::getEloquentQuery()->withTrashed()->with(['brand', 'category', 'variants']);
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

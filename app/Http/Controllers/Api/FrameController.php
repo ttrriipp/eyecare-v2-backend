@@ -14,8 +14,8 @@ class FrameController extends Controller
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Product::query()
+            ->active()
             ->where('product_type', 'frame')
-            ->where('is_active', true)
             ->where(function ($q): void {
                 $q->whereHas('variants', fn ($sub) => $sub
                     ->where('is_active', true)
@@ -59,8 +59,8 @@ class FrameController extends Controller
     public function show(Product $frame): JsonResponse
     {
         $catalogFrame = Product::query()
+            ->active()
             ->where('product_type', 'frame')
-            ->where('is_active', true)
             ->where('id', $frame->id)
             ->where(function ($q): void {
                 $q->whereHas('variants', fn ($sub) => $sub

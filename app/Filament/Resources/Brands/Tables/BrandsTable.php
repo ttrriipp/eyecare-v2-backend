@@ -2,13 +2,10 @@
 
 namespace App\Filament\Resources\Brands\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
+use App\Filament\Support\CatalogLifecycleActions;
 use Filament\Actions\EditAction;
-use Filament\Actions\RestoreAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class BrandsTable
@@ -22,39 +19,23 @@ class BrandsTable
                     ->counts('products')
                     ->label('Products')
                     ->sortable(),
+                IconColumn::make('is_active')
+                    ->label('Active')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
             ])
             ->filters([
-                TrashedFilter::make()
-                    ->label('Show Archived')
-                    ->placeholder('Active only')
-                    ->trueLabel('Active and archived')
-                    ->falseLabel('Archived only'),
+                CatalogLifecycleActions::statusFilter(),
             ])
             ->recordActions([
                 EditAction::make(),
-                DeleteAction::make()
-                    ->label('Archive')
-                    ->icon('heroicon-o-archive-box')
-                    ->modalIcon('heroicon-o-archive-box')
-                    ->modalHeading('Archive brand')
-                    ->modalDescription('This will hide the brand from active lists. It can be restored later from the "Show Archived" filter.')
-                    ->modalSubmitActionLabel('Archive')
-                    ->color('danger')
-                    ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && ! $record->trashed()),
-                RestoreAction::make()
-                    ->label('Restore')
-                    ->visible(fn ($record): bool => (auth()->user()?->isAdmin() ?? false) && $record->trashed()),
+                ...CatalogLifecycleActions::recordActions('brand'),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make()
-                        ->label('Archive Selected')
-                        ->icon('heroicon-o-archive-box')
-                        ->modalIcon('heroicon-o-archive-box')
-                        ->modalHeading('Archive selected brands')
-                        ->modalDescription('This will hide the selected brands from active lists. They can be restored later from the "Show Archived" filter.')
-                        ->modalSubmitActionLabel('Archive'),
-                ]),
+                CatalogLifecycleActions::bulkActions(),
             ]);
     }
 }

@@ -207,7 +207,13 @@ class CreateDirectOpticalOrder
                     ->whereNull('deleted_at')
                     ->where('is_active', true),
             ],
-            'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.lens_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lens_categories', 'id')
+                    ->whereNull('deleted_at')
+                    ->where('is_active', true),
+            ],
             'items.*.lens_option_id' => [
                 'nullable',
                 'integer',

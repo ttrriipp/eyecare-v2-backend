@@ -97,6 +97,7 @@ final class OpticalOrderCreationForm
                         Select::make('eyewear_lens_category_id')
                             ->label('Package')
                             ->options(fn (): array => LensCategory::query()
+                                ->active()
                                 ->whereNotNull('price')
                                 ->orderBy('name')
                                 ->pluck('name', 'id')
@@ -225,7 +226,7 @@ final class OpticalOrderCreationForm
                                     ->visible(fn (Get $get): bool => $get('item_kind') === 'catalog')
                                     ->live()
                                     ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                        $variant = ProductVariant::query()->with('product')->find($state);
+                                        $variant = ProductVariant::query()->active()->with('product')->find($state);
 
                                         if ($variant === null) {
                                             return;
@@ -258,7 +259,7 @@ final class OpticalOrderCreationForm
                                         ->visible(fn (Get $get): bool => $get('item_kind') === 'service')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                                            $service = Service::query()->find($state);
+                                            $service = Service::query()->active()->find($state);
 
                                             if ($service === null) {
                                                 return;
@@ -425,7 +426,7 @@ final class OpticalOrderCreationForm
         $variantId = $get('eyewear_frame_variant_id');
 
         return filled($variantId)
-            ? ProductVariant::query()->with('product')->find((int) $variantId)
+            ? ProductVariant::query()->active()->with('product')->find((int) $variantId)
             : null;
     }
 
@@ -433,7 +434,7 @@ final class OpticalOrderCreationForm
     {
         $lensCategoryId = $get('eyewear_lens_category_id');
         $lensCategory = filled($lensCategoryId)
-            ? LensCategory::query()->find((int) $lensCategoryId)
+            ? LensCategory::query()->active()->find((int) $lensCategoryId)
             : null;
 
         return $lensCategory?->price === null
@@ -460,7 +461,7 @@ final class OpticalOrderCreationForm
             : (float) (self::frameVariant($get)?->price ?? 0);
         $lensCategoryId = $get('eyewear_lens_category_id');
         $lensPrice = filled($lensCategoryId)
-            ? (float) (LensCategory::query()->find((int) $lensCategoryId)?->price ?? 0)
+            ? (float) (LensCategory::query()->active()->find((int) $lensCategoryId)?->price ?? 0)
             : 0;
         $optionPrice = collect($get('eyewear_lens_options') ?? [])->sum(function (array $option): float {
             $lensOption = filled($option['lens_option_id'] ?? null)

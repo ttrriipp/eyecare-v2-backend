@@ -64,7 +64,7 @@ final class ServiceChargeForm
                     ->live()
                     ->columnSpanFull()
                     ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
-                        $service = Service::query()->find($state);
+                        $service = Service::query()->active()->find($state);
 
                         if ($service === null) {
                             return;

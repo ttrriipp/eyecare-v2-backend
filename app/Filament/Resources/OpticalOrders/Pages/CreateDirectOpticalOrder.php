@@ -441,7 +441,7 @@ class CreateDirectOpticalOrder extends CreateRecord
         if (($data['eyewear_frame_source'] ?? null) === 'catalog'
             && filled($data['eyewear_frame_variant_id'] ?? null)) {
             $items->prepend($this->catalogItem(
-                ProductVariant::query()->with('product')->findOrFail((int) $data['eyewear_frame_variant_id']),
+                ProductVariant::query()->active()->with('product')->findOrFail((int) $data['eyewear_frame_variant_id']),
                 quantity: 1,
             ));
         }
@@ -456,7 +456,7 @@ class CreateDirectOpticalOrder extends CreateRecord
         }
 
         if (filled($data['eyewear_lens_category_id'] ?? null)) {
-            $lensCategory = LensCategory::query()->findOrFail((int) $data['eyewear_lens_category_id']);
+            $lensCategory = LensCategory::query()->active()->findOrFail((int) $data['eyewear_lens_category_id']);
             $items->push([
                 'item_kind' => 'lens',
                 'description' => $lensCategory->name,
@@ -492,13 +492,13 @@ class CreateDirectOpticalOrder extends CreateRecord
     {
         if (filled($item['product_variant_id'] ?? null)) {
             return $this->catalogItem(
-                ProductVariant::query()->with('product')->findOrFail((int) $item['product_variant_id']),
+                ProductVariant::query()->active()->with('product')->findOrFail((int) $item['product_variant_id']),
                 quantity: (int) ($item['quantity'] ?? 1),
             );
         }
 
         if (filled($item['lens_category_id'] ?? null)) {
-            $lensCategory = LensCategory::query()->findOrFail((int) $item['lens_category_id']);
+            $lensCategory = LensCategory::query()->active()->findOrFail((int) $item['lens_category_id']);
 
             return [
                 ...$item,

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Brands\RelationManagers;
 
 use App\Filament\Resources\Products\ProductResource;
+use App\Filament\Support\CatalogLifecycleActions;
 use App\Models\Product;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -10,6 +11,8 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ProductsRelationManager extends RelationManager
 {
@@ -23,6 +26,7 @@ class ProductsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withoutGlobalScope(SoftDeletingScope::class))
             ->columns([
                 TextColumn::make('name')->searchable()->sortable(),
                 TextColumn::make('product_type')
@@ -35,15 +39,22 @@ class ProductsRelationManager extends RelationManager
                         'accessory' => 'gray',
                         default => 'gray',
                     }),
-                IconColumn::make('is_active')->label('Visible')->boolean(),
+                IconColumn::make('is_active')->label('Active')->boolean(),
+            ])
+            ->filters([
+                CatalogLifecycleActions::statusFilter(),
             ])
             ->recordActions([
                 Action::make('edit')
                     ->label('Edit')
                     ->icon('heroicon-o-pencil-square')
                     ->url(fn (Product $record): string => ProductResource::getUrl('edit', ['record' => $record])),
+                ...CatalogLifecycleActions::recordActions('product'),
             ])
             ->defaultSort('name')
+            ->toolbarActions([
+                CatalogLifecycleActions::bulkActions(),
+            ])
             ->paginated(false);
     }
 }

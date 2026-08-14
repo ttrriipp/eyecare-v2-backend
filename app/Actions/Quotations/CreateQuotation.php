@@ -231,7 +231,13 @@ class CreateQuotation
                     ->whereNull('deleted_at')
                     ->where('is_active', true),
             ],
-            'items.*.lens_category_id' => ['nullable', 'integer', Rule::exists('lens_categories', 'id')],
+            'items.*.lens_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lens_categories', 'id')
+                    ->whereNull('deleted_at')
+                    ->where('is_active', true),
+            ],
             'items.*.lens_option_id' => [
                 'nullable',
                 'integer',
@@ -339,6 +345,7 @@ class CreateQuotation
     {
         if (filled($item['product_variant_id'] ?? null)) {
             $variant = ProductVariant::query()
+                ->active()
                 ->with('product')
                 ->findOrFail($item['product_variant_id']);
 
@@ -350,7 +357,7 @@ class CreateQuotation
         }
 
         if (filled($item['lens_category_id'] ?? null)) {
-            $lensCategory = LensCategory::query()->findOrFail($item['lens_category_id']);
+            $lensCategory = LensCategory::query()->active()->findOrFail($item['lens_category_id']);
 
             return $this->applyNamedCatalogValues($item, $lensCategory->name, $lensCategory->price);
         }
@@ -420,6 +427,7 @@ class CreateQuotation
         }
 
         $catalogFrames = ProductVariant::query()
+            ->active()
             ->with('product')
             ->whereIn('id', $catalogVariantIds)
             ->get()

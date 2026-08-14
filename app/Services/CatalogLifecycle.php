@@ -11,6 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\Service;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -65,10 +66,7 @@ final class CatalogLifecycle
                 ->exists(),
             $record instanceof Product => DB::table('product_variants')
                 ->where('product_id', $record->getKey())
-                ->exists()
-                || DB::table('product_images')
-                    ->where('product_id', $record->getKey())
-                    ->exists(),
+                ->exists(),
             $record instanceof ProductVariant => self::variantIsReferenced($record),
             $record instanceof LensCategory => self::existsInAnyTable(
                 'lens_category_id',
@@ -110,7 +108,6 @@ final class CatalogLifecycle
                 'inventory_movements',
                 'frame_reservation_items',
                 'frame_ratings',
-                'product_images',
             ],
         );
     }
@@ -122,7 +119,7 @@ final class CatalogLifecycle
             $service->getKey(),
             ['quotation_items', 'billing_record_items'],
         ) || DB::table('visit_ratings')
-            ->where(function ($query) use ($service): void {
+            ->where(function (QueryBuilder $query) use ($service): void {
                 $query
                     ->whereJsonContains('service_ids', $service->getKey())
                     ->orWhereJsonContains('service_ids', (string) $service->getKey());
