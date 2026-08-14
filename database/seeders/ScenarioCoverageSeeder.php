@@ -77,7 +77,12 @@ class ScenarioCoverageSeeder extends Seeder
     {
         $staff = $this->staff();
         $walkIn = $this->walkInPatient();
-        $type = AppointmentType::query()->where('name', 'Follow-up')->firstOrFail();
+        // Spread across appointment types not already exercised by the
+        // flagship path (which only uses Routine Check-up), so the demo
+        // shows New Patient, Referral, and Follow-up too.
+        $newPatientType = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
+        $referralType = AppointmentType::query()->where('name', 'Referral')->firstOrFail();
+        $followUpType = AppointmentType::query()->where('name', 'Follow-up')->firstOrFail();
 
         $checkedIn = AppointmentStatus::query()->where('name', 'checked_in')->firstOrFail();
         Appointment::query()->firstOrCreate(
@@ -85,8 +90,8 @@ class ScenarioCoverageSeeder extends Seeder
             [
                 'appointment_number' => Appointment::generateAppointmentNumber(),
                 'created_by' => $staff->id,
-                'appointment_type_id' => $type->id,
-                'duration_minutes' => $type->duration_minutes,
+                'appointment_type_id' => $newPatientType->id,
+                'duration_minutes' => $newPatientType->duration_minutes,
                 'scheduled_at' => now()->setTime(9, 0),
                 'checked_in_at' => now(),
             ],
@@ -98,8 +103,8 @@ class ScenarioCoverageSeeder extends Seeder
             [
                 'appointment_number' => Appointment::generateAppointmentNumber(),
                 'created_by' => $staff->id,
-                'appointment_type_id' => $type->id,
-                'duration_minutes' => $type->duration_minutes,
+                'appointment_type_id' => $referralType->id,
+                'duration_minutes' => $referralType->duration_minutes,
                 'scheduled_at' => now()->addDays(5)->setTime(11, 0),
                 'cancelled_by' => 'patient',
                 'cancelled_at' => now(),
@@ -113,8 +118,8 @@ class ScenarioCoverageSeeder extends Seeder
             [
                 'appointment_number' => Appointment::generateAppointmentNumber(),
                 'created_by' => $staff->id,
-                'appointment_type_id' => $type->id,
-                'duration_minutes' => $type->duration_minutes,
+                'appointment_type_id' => $followUpType->id,
+                'duration_minutes' => $followUpType->duration_minutes,
                 'scheduled_at' => now()->subDays(2)->setTime(13, 0),
                 'no_show_at' => now()->subDays(2)->setTime(13, 15),
             ],
@@ -132,11 +137,15 @@ class ScenarioCoverageSeeder extends Seeder
         // on a `creating` event that WithoutModelEvents silences here.
         $portalUserId = User::query()->where('email', 'customer@eyecare.test')->value('id');
 
-        AppointmentRequest::factory()->create(['request_number' => 'APR-2026-000001', 'user_id' => $portalUserId]);
-        AppointmentRequest::factory()->accepted()->create(['request_number' => 'APR-2026-000002', 'user_id' => $portalUserId]);
-        AppointmentRequest::factory()->rejected()->create(['request_number' => 'APR-2026-000003', 'user_id' => $portalUserId]);
-        AppointmentRequest::factory()->cancelled()->create(['request_number' => 'APR-2026-000004', 'user_id' => $portalUserId]);
-        AppointmentRequest::factory()->expired()->create(['request_number' => 'APR-2026-000005', 'user_id' => $portalUserId]);
+        // Also override appointment_type_id — left to its own default, the
+        // factory spawns a brand-new random-word AppointmentType per call.
+        $checkUpTypeId = AppointmentType::query()->where('name', 'Routine Check-up')->value('id');
+
+        AppointmentRequest::factory()->create(['request_number' => 'APR-2026-000001', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
+        AppointmentRequest::factory()->accepted()->create(['request_number' => 'APR-2026-000002', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
+        AppointmentRequest::factory()->rejected()->create(['request_number' => 'APR-2026-000003', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
+        AppointmentRequest::factory()->cancelled()->create(['request_number' => 'APR-2026-000004', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
+        AppointmentRequest::factory()->expired()->create(['request_number' => 'APR-2026-000005', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
     }
 
     private function seedFrameReservations(): void

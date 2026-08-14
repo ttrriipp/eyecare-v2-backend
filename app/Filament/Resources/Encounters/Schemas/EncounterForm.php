@@ -384,6 +384,7 @@ class EncounterForm
                             EncounterStatus::InProgress => 'warning',
                             EncounterStatus::Completed => 'success',
                             EncounterStatus::Cancelled => 'danger',
+                            EncounterStatus::Voided => 'danger',
                         }),
                     Placeholder::make('appointment_type')
                         ->label('Appointment Type')

@@ -23,6 +23,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Grid;
@@ -94,11 +95,14 @@ class EditQuotation extends EditRecord
                         ->where('item_kind', CommercialItemKind::Service->value)
                         ->get();
 
-                    $configurationItems = $this->record->productItems()
-                        ->get()
+                    $productItems = $this->record->productItems()->get();
+                    $configurationItems = $productItems
                         ->map(fn ($item): string => "{$item->description} × {$item->quantity}")
                         ->values();
                     $hasProductItems = $configurationItems->isNotEmpty();
+                    $isCorrective = $productItems->contains(
+                        fn ($item): bool => $item->item_kind === CommercialItemKind::LensPackage,
+                    );
 
                     $prescription = $this->record->prescription;
 
@@ -127,17 +131,19 @@ class EditQuotation extends EditRecord
                                 && ($prescription->isVoided() || ! $prescription->isCurrentVersion()))
                             ->columnSpanFull(),
 
-                        Select::make('fulfillment_mode')
+                        ToggleButtons::make('fulfillment_mode')
                             ->label('Fulfillment')
                             ->options([
                                 'immediate' => 'Complete sale now',
                                 'prepared' => 'Prepare for pickup',
                             ])
+                            ->disableOptionWhen(fn (string $value): bool => $value === 'immediate' && $isCorrective)
+                            ->inline()
                             ->default('prepared')
                             ->required()
                             ->live()
-                            ->helperText('Use Complete sale now only for items already ready to dispense.')
                             ->visible($hasProductItems)
+                            ->in(fn (ToggleButtons $component): array => array_keys($component->getEnabledOptions()))
                             ->afterStateUpdated(function (Set $set, ?string $state): void {
                                 if ($state === 'immediate') {
                                     $set('uses_external_supplier', false);

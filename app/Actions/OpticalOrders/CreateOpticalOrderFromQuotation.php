@@ -86,7 +86,7 @@ class CreateOpticalOrderFromQuotation
                 : null;
 
             if ($productItems->isNotEmpty()) {
-                app(ValidateOpticalQuotation::class)->handle(
+                $validation = app(ValidateOpticalQuotation::class)->handle(
                     items: $productItems->map(fn ($item) => [
                         'item_kind' => $item->item_kind,
                         'product_variant_id' => $item->product_variant_id,
@@ -96,6 +96,14 @@ class CreateOpticalOrderFromQuotation
                     patient: $quotation->patient,
                     prescription: $prescription,
                 );
+
+                // Corrective eyewear still needs its lens ground and fitted —
+                // it cannot be marked dispensed at the moment of confirmation.
+                if ($validation['is_corrective'] && $fulfillmentMode === 'immediate') {
+                    throw ValidationException::withMessages([
+                        'fulfillment_mode' => ['Corrective eyewear must be prepared before dispensing — it cannot be completed immediately.'],
+                    ]);
+                }
             }
 
             // Idempotency: check for existing order

@@ -222,3 +222,43 @@ test('non-corrective product confirmation succeeds without prescription', functi
 
     expect($result['optical_order'])->not->toBeNull();
 });
+
+test('corrective confirmation cannot use immediate fulfillment', function () {
+    $encounter = Encounter::factory()->inProgress()->create();
+    $prescription = Prescription::factory()->linkedToEncounter($encounter)->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10]);
+    $lensCategory = LensCategory::factory()->withPrice(3000)->create();
+
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'patient_id' => $encounter->patient_id,
+        'encounter_id' => $encounter->id,
+        'prescription_id' => $prescription->id,
+        'subtotal' => 8000,
+        'total' => 8000,
+    ]);
+
+    $quotation->items()->create([
+        'description' => 'Frame',
+        'quantity' => 1,
+        'unit_price' => 5000,
+        'amount' => 5000,
+        'product_variant_id' => $variant->id,
+        'item_kind' => CommercialItemKind::Frame,
+    ]);
+
+    $quotation->items()->create([
+        'description' => 'Lens',
+        'quantity' => 1,
+        'unit_price' => 3000,
+        'amount' => 3000,
+        'lens_category_id' => $lensCategory->id,
+        'item_kind' => CommercialItemKind::LensPackage,
+    ]);
+
+    app(CreateOpticalOrderFromQuotation::class)->handle(
+        quotation: $quotation,
+        confirmer: $this->staff,
+        fulfillmentMode: 'immediate',
+    );
+})->throws(ValidationException::class, 'cannot be completed immediately');

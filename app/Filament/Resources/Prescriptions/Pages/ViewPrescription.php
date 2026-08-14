@@ -101,10 +101,6 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('prescribed_at')
                             ->label('Prescribed Date')
                             ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
-                        Placeholder::make('remarks')
-                            ->label('Remarks')
-                            ->content($record->remarks ?? '—')
-                            ->columnSpanFull(),
                     ])
                     ->columnSpan(1),
             ]),

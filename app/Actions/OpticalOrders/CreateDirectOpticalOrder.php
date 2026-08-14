@@ -77,6 +77,14 @@ class CreateDirectOpticalOrder
                     'prescription' => ['The selected prescription is not this patient\'s current prescription.'],
                 ]);
             }
+
+            // Corrective eyewear still needs its lens ground and fitted — it
+            // cannot be marked dispensed at the moment of order creation.
+            if ($fulfillmentMode === 'immediate') {
+                throw ValidationException::withMessages([
+                    'fulfillment_mode' => ['Corrective eyewear must be prepared before dispensing — it cannot be completed immediately.'],
+                ]);
+            }
         }
 
         app(ValidateOpticalQuotation::class)->handle(

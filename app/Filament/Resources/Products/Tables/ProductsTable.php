@@ -46,7 +46,7 @@ class ProductsTable
                         default => 'gray',
                     }),
                 IconColumn::make('is_active')
-                    ->label('Visible')
+                    ->label('Active')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
                     ->falseIcon('heroicon-o-x-circle')
