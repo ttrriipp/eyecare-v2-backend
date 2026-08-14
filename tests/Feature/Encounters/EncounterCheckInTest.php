@@ -21,19 +21,6 @@ beforeEach(function () {
     $this->optometrist = User::factory()->optometrist()->create();
 });
 
-test('check-in creates encounter with null patient intake link', function () {
-    $appointment = Appointment::factory()->create();
-    $this->actingAs($this->staff);
-
-    $encounter = app(CheckInAppointment::class)->handle($appointment);
-
-    expect($encounter->patient_intake_id)->toBeNull();
-    $this->assertDatabaseHas('encounters', [
-        'id' => $encounter->id,
-        'patient_intake_id' => null,
-    ]);
-});
-
 test('check-in copies assigned provider from appointment', function () {
     $appointment = Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,
@@ -125,6 +112,5 @@ test('walk-in creates encounter with null intake', function () {
     );
 
     expect($appointment->encounter)->not->toBeNull()
-        ->and($appointment->encounter->patient_intake_id)->toBeNull()
         ->and($appointment->encounter->status)->toBe(EncounterStatus::Planned);
 });

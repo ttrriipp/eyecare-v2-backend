@@ -23,7 +23,6 @@ class EncounterFactory extends Factory
             'encounter_number' => 'ENC-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
             'patient_id' => Patient::factory(),
             'appointment_id' => null,
-            'patient_intake_id' => null,
             'optometrist_id' => null,
             'status' => EncounterStatus::Planned,
             'started_at' => null,

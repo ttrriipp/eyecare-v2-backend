@@ -69,7 +69,7 @@ class EncounterResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['patient', 'appointment', 'optometrist', 'intake']);
+        return parent::getEloquentQuery()->with(['patient', 'appointment', 'optometrist']);
     }
 
     public static function getPages(): array

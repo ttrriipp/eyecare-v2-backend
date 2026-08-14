@@ -4,12 +4,10 @@ use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\CompleteEncounter;
 use App\Actions\Encounters\StartEncounter;
 use App\Enums\EncounterStatus;
-use App\Enums\IntakeStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AuditLog;
 use App\Models\Encounter;
-use App\Models\PatientIntake;
 use App\Models\Prescription;
 use App\Models\Role;
 use App\Models\User;
@@ -75,32 +73,6 @@ test('cancelled appointments cannot be checked in', function () {
 
     app(CheckInAppointment::class)->handle($appointment);
 })->throws(ValidationException::class);
-
-// --- Intake No Longer Attached ---
-
-test('check-in does not attach patient intake', function () {
-    $appointment = Appointment::factory()->create();
-    $this->actingAs($this->staff);
-
-    PatientIntake::factory()->verified()->create([
-        'patient_id' => $appointment->patient_id,
-        'appointment_id' => $appointment->id,
-        'status' => IntakeStatus::Verified,
-    ]);
-
-    $encounter = app(CheckInAppointment::class)->handle($appointment);
-
-    expect($encounter->patient_intake_id)->toBeNull();
-});
-
-test('check-in works without a verified intake', function () {
-    $appointment = Appointment::factory()->create();
-    $this->actingAs($this->staff);
-
-    $encounter = app(CheckInAppointment::class)->handle($appointment);
-
-    expect($encounter->patient_intake_id)->toBeNull();
-});
 
 // --- Encounter Status Transitions ---
 
@@ -309,22 +281,6 @@ test('legacy: admin optometrist can no longer complete another providers encount
         actor: $adminOptometrist,
     );
 })->throws(ValidationException::class);
-
-test('check-in no longer attaches patient intake (previously attached verified intake)', function () {
-    // This behavior changed in Task 4: check-in no longer attaches PatientIntake.
-    $appointment = Appointment::factory()->create();
-    $this->actingAs($this->staff);
-
-    PatientIntake::factory()->verified()->create([
-        'patient_id' => $appointment->patient_id,
-        'appointment_id' => $appointment->id,
-        'status' => IntakeStatus::Verified,
-    ]);
-
-    $encounter = app(CheckInAppointment::class)->handle($appointment);
-
-    expect($encounter->patient_intake_id)->toBeNull();
-});
 
 test('completion fulfills the appointment and records attribution', function () {
     $appointment = Appointment::factory()->create();

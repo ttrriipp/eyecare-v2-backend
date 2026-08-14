@@ -60,7 +60,6 @@ class CheckInAppointment
             $encounter = Encounter::query()->create([
                 'patient_id' => $lockedAppointment->patient_id,
                 'appointment_id' => $lockedAppointment->id,
-                'patient_intake_id' => null,
                 'optometrist_id' => $lockedAppointment->optometrist_id,
                 'status' => EncounterStatus::Planned,
                 'chief_complaint' => $lockedAppointment->reason_for_visit,
