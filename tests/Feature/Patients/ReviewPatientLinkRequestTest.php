@@ -2,6 +2,7 @@
 
 use App\Actions\PatientAccounts\ReviewPatientLinkRequest;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
+use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\Role;
@@ -36,6 +37,25 @@ test('approval activates the patient link', function () {
         ->and($result->reviewer_id)->toBe($reviewer->id);
 
     expect($patient->fresh()->user_id)->toBe($account->id);
+});
+
+test('approval links the account appointment requests to the reviewed patient', function () {
+    $patient = Patient::factory()->create(['user_id' => null]);
+    $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $reviewer = User::factory()->staff()->create();
+    $appointmentRequest = AppointmentRequest::factory()->withSnapshot()->create([
+        'user_id' => $account->id,
+        'patient_id' => null,
+    ]);
+
+    app(ReviewPatientLinkRequest::class)->approve(
+        linkRequest: PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]),
+        patient: $patient,
+        reviewer: $reviewer,
+    );
+
+    expect($appointmentRequest->fresh()->patient_id)->toBe($patient->id)
+        ->and($appointmentRequest->fresh()->encrypted_identity_snapshot)->toBeArray();
 });
 
 test('approval rechecks patient eligibility under lock', function () {
