@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Enums\BillingRecordStatus;
-use App\Enums\ComplaintStatus;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -12,7 +11,6 @@ use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
-use App\Models\Complaint;
 use App\Models\Conversation;
 use App\Models\Encounter;
 use App\Models\JobOrder;
@@ -32,7 +30,6 @@ use Illuminate\Database\Seeder;
  *  - Appointment → check-in → encounter → prescription
  *  - Quotation → accepted → job order → dispensing → billing record
  *  - Frame reservation flow
- *  - Complaint restart workflow
  *  - Conversation with staff reply
  */
 class ClinicWorkflowSeeder extends Seeder
@@ -50,7 +47,6 @@ class ClinicWorkflowSeeder extends Seeder
         $jobOrder = $this->seedJobOrder($patient, $encounter, $prescription, $quotation, $staff);
         $billingRecord = $this->seedBillingRecord($patient, $jobOrder, $staff);
         $this->seedConversation($patient, $staff, $appointment);
-        $this->seedComplaint($patient, $jobOrder, $staff);
     }
 
     private function demoPatient(): Patient
@@ -238,19 +234,6 @@ class ClinicWorkflowSeeder extends Seeder
         Message::query()->firstOrCreate(
             ['conversation_id' => $conversation->id, 'body' => 'Welcome! We look forward to seeing you.'],
             ['sender_id' => $staff->id, 'read_at' => now()],
-        );
-    }
-
-    private function seedComplaint(Patient $patient, JobOrder $jobOrder, User $staff): void
-    {
-        Complaint::query()->firstOrCreate(
-            ['patient_id' => $patient->id, 'original_job_order_id' => $jobOrder->id],
-            [
-                'status' => ComplaintStatus::Open,
-                'patient_description' => 'Lens coating appears uneven in certain lighting conditions.',
-                'complaint_date' => now(),
-                'created_by' => $staff->id,
-            ],
         );
     }
 }
