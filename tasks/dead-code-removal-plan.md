@@ -1,12 +1,12 @@
 # Implementation Plan: Dead Code and Unreachable Feature Removal
 
-**Status:** Phase 2 approved 2026-08-14; Phase 3 task breakdown in progress
+**Status:** Phase 3 approved 2026-08-14; Phase 4 implementation deferred
 
 **Specification:** `docs/specs/dead-code-removal-spec.md` (`2904eed`)
 
-**Checklist:** `tasks/dead-code-removal-todo.md` (stale; do not execute yet)
+**Checklist:** `tasks/dead-code-removal-todo.md` (approved 2026-08-14)
 
-**Implementation:** Not started
+**Implementation:** Not started; requires separate owner authorization
 
 **Proposed scope:** 12 tasks in 5 phases
 
@@ -220,5 +220,5 @@ closing diff.
 ## Open Questions
 
 None. The owner approved both removal of the manually reachable legacy print
-route and this technical plan on 2026-08-14. The detailed checklist is prepared
-next and remains subject to the Phase 3 human-review gate.
+route and this technical plan on 2026-08-14. The detailed checklist is also
+approved. Implementation remains deferred until separately authorized.

@@ -2,8 +2,8 @@
 
 ## Status
 
-**Specification approved 2026-08-14. Phase 2 planning in progress.
-Implementation has not started.**
+**Specification, plan, and checklist approved 2026-08-14. Phase 4
+implementation is explicitly deferred by the owner and has not started.**
 
 First revision (2026-08-12) corrected two audit findings — message attachments
 are live and are no longer in scope, and the privacy question was resolved by

@@ -1,355 +1,480 @@
 # Checklist: Dead Code and Unreachable Feature Removal
 
-**Specification:** `docs/specs/dead-code-removal-spec.md`
-**Plan:** `tasks/dead-code-removal-plan.md`
-**Status:** Not started — 9 tasks in 4 phases
+**Status:** Phase 3 approved 2026-08-14; implementation deferred by owner
 
-Four-axis verification is mandatory before any deletion. Record the result of
-each axis inline; a blank axis blocks the task.
+**Specification:** `docs/specs/dead-code-removal-spec.md` (`2904eed`)
 
-**Re-run the verification before starting.** These results were gathered on
-2026-08-13 and the audit behind them has been wrong five times across three
-passes. Do not trust a recorded result you did not produce.
+**Plan:** `tasks/dead-code-removal-plan.md` (`235595f`)
 
-For Filament classes and Blade views, check **registration**, not just
-references: a relation manager must be absent from `getRelations()`, a page
-from `getPages()`, a view must have no renderer. A grep proves a reference
-exists; it does not prove a user can reach it.
+**Implementation:** Not started; do not execute without separate owner approval
+
+**Scope:** 12 tasks in 5 phases; no implementation task exceeds five files
+
+Four-axis verification is mandatory before deletion: class name, relation
+name, table name, and route/view registration. A newly reachable consumer stops
+implementation and returns the project to the specification phase.
+
+Message attachments and privacy code are protected. References to them below
+are regression checks, not removal work.
 
 ---
 
-## Phase 1: Dead schema
+## Phase 1: Revalidation and schema-file hygiene
 
-### Task 1: Drop the dead notification tables and delete the stale migration pair
+### Task 1: Refresh reachability and baseline evidence
 
-**Description:** `notification_channels` and `notification_templates` exist only
-as migrations — no model, no seeder, zero references on any axis. Drop them with
-a new migration. Separately, `inventory_movement_statuses` was already dropped
-in June by `2026_06_19_003812`; its create/drop pair now cancels out on every
-`migrate:fresh`, so delete both files rather than leaving matched no-ops.
+**Description:** Repeat the approved audit against the implementation-day
+worktree before changing application code. Record results here rather than
+assuming the 2026-08-14 findings remain true.
 
 **Acceptance criteria:**
 
-- [ ] Four axes recorded for `notification_channels`:
-  - [ ] class name — no model exists: ______
-  - [ ] relation name — no accessor: ______
-  - [ ] table name across `app/ database/ routes/ resources/`: ______
-  - [ ] route / view: ______
-- [ ] Four axes recorded for `notification_templates`: ______
-- [ ] New migration drops both tables, with a `down()` that recreates them
-- [ ] `2026_06_06_020934_create_notification_channels_table.php` and
-      `2026_06_06_021106_create_notification_templates_table.php` remain
-      (history stays intact for tables that existed until now)
-- [ ] `2026_06_07_090019_create_inventory_movement_statuses_table.php` and
-      `2026_06_19_003812_drop_inventory_movement_statuses_table.php` are deleted
-- [ ] `inventory_movement_types` is untouched and still live
+- [ ] Four axes are recorded for complaints:
+  - class (`Complaint`, `ComplaintStatus`, policy/action): ______
+  - relation (`complaint`, `complaints`): ______
+  - table (`complaints`): ______
+  - route/view/Filament registration: ______
+- [ ] Four axes are recorded for patient intakes:
+  - class (`PatientIntake`, `IntakeStatus`, actions/command): ______
+  - relation (`intake`, `intakes`): ______
+  - table (`patient_intakes`, `encounters.patient_intake_id`): ______
+  - route/view/Filament registration: ______
+- [ ] Database counts, route evidence, focused-test result, full-suite baseline,
+      protected message-attachment paths, privacy paths, and dirty-worktree
+      files are recorded: ______
 
-**Verification:** `vendor/bin/sail artisan migrate:fresh --seed` succeeds;
-`vendor/bin/sail artisan test --compact` green.
+**Verification:**
+
+- [ ] `rg` searches cover `app/`, `database/`, `routes/`, `resources/`, and
+      `tests/`; `vendor/bin/sail artisan route:list --except-vendor` is checked.
+- [ ] Read-only database/schema inspection confirms whether legacy rows exist.
+- [ ] No application file changes; any new consumer returns to Phase 1.
 
 **Dependencies:** None.
 
-**Files likely touched:** 1 new migration, 2 deleted migrations.
+**Files likely touched:** `tasks/dead-code-removal-todo.md` only, to record
+evidence.
 
 **Estimated scope:** S
+
+---
+
+### Task 2: Delete the cancelled inventory-status migration pair
+
+**Description:** Remove only the matched create/drop migrations for
+`inventory_movement_statuses`. Notification migration history and the live
+`inventory_movement_types` table remain unchanged.
+
+**Acceptance criteria:**
+
+- [ ] `2026_06_07_090019_create_inventory_movement_statuses_table.php` and
+      `2026_06_19_003812_drop_inventory_movement_statuses_table.php` are deleted.
+- [ ] No notification migration is added, edited, or deleted.
+- [ ] `inventory_movement_types`, its model, and its consumers are unchanged.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan migrate:fresh --env=testing` succeeds.
+- [ ] `rg -n 'inventory_movement_statuses|inventory_movement_types' app database
+      routes resources tests` confirms only the approved pair disappeared.
+
+**Dependencies:** Task 1.
+
+**Files likely touched:**
+
+- `database/migrations/2026_06_07_090019_create_inventory_movement_statuses_table.php`
+- `database/migrations/2026_06_19_003812_drop_inventory_movement_statuses_table.php`
+
+**Estimated scope:** S
+
+### Checkpoint: Baseline locked
+
+- [ ] Task 1 found no new supported consumer.
+- [ ] Testing fresh migration succeeds.
+- [ ] Notification history is unchanged.
 
 ---
 
 ## Phase 2: Complaints
 
-### Task 2: Verify complaints unreachable on four axes
+### Task 3: Remove complaint fixtures, seed data, and dedicated test
 
-**Description:** Prove the complaints workflow has no front door before deleting
-it. The first audit pass got complaints wrong in *both* directions — reporting
-it as UI-coupled because of the unrelated "Chief Complaint" clinical field, then
-reporting it as fully unreferenced when `ClinicWorkflowSeeder` creates one. This
-task is verification only; it changes no code.
+**Description:** Detach demo/test consumers while the complaint runtime and
+table still exist. Preserve every unrelated line in the untracked
+`ScenarioCoverageSeeder.php`.
 
 **Acceptance criteria:**
 
-- [ ] Axis 1 — `grep -rn "\bComplaint\b" app/ routes/ database/ tests/ resources/`,
-      results classified as model vs. "Chief Complaint" string: ______
-- [ ] Axis 2 — relation names `complaints` / `complaint` on `Patient` and
-      `JobOrder`, and every caller of them: ______
-- [ ] Axis 3 — `grep -rn "complaints" app/ database/ routes/ resources/views/`: ______
-- [ ] Axis 4 — `artisan route:list | grep -i complaint` and a grep of
-      `resources/views/`: ______
-- [ ] Confirmed: no Filament resource, page, relation manager, or widget targets
-      `Complaint`
-- [ ] Full list of files to delete recorded in Task 3
+- [ ] `ComplaintFactory.php` and `ComplaintRestartTest.php` are deleted after
+      confirming the test asserts only the removed workflow.
+- [ ] `ClinicWorkflowSeeder` loses its complaint import, documentation entry,
+      call, and method without changing other seeded workflows.
+- [ ] `ScenarioCoverageSeeder` loses only complaint imports, its call, and
+      `seedComplaintStatuses()`; all unrelated untracked content is preserved.
 
-**Verification:** All four axis results written into this checklist. Any live
-reference found halts the phase and returns to the spec.
+**Verification:**
 
-**Dependencies:** None.
-
-**Files likely touched:** None — this checklist only.
-
-**Estimated scope:** S
-
----
-
-### Task 3: Delete complaints code, factory, test, and seeder block
-
-**Description:** Remove the complaints subsystem's code now that Task 2 has
-proven it unreachable. The table itself stays until Task 4, so a mistake here
-surfaces as a failing test rather than a broken database.
-
-**Acceptance criteria:**
-
-- [ ] `app/Models/Complaint.php`, `app/Enums/ComplaintStatus.php`,
-      `app/Policies/ComplaintPolicy.php`, and `app/Actions/Complaints/` deleted
-- [ ] `Patient` and `JobOrder` complaint relations removed
-- [ ] `ComplaintPolicy` deregistered wherever policies are mapped
-- [ ] `database/factories/ComplaintFactory.php` deleted
-- [ ] `tests/Feature/Complaints/ComplaintRestartTest.php` deleted (deleted, not
-      skipped) — confirm it asserts nothing that applies elsewhere
-- [ ] `ClinicWorkflowSeeder::seedComplaint()` and its call site removed, along
-      with the now-unused imports and the docblock's complaint line
-
-**Verification:** `vendor/bin/sail artisan test --compact` green;
-`vendor/bin/sail artisan migrate:fresh --seed` succeeds with the table still
-present but unused.
+- [ ] `rg -n 'Complaint|ComplaintStatus|seedComplaint' database/seeders
+      database/factories tests/Feature/Complaints` returns no complaint runtime
+      consumer.
+- [ ] `vendor/bin/sail artisan test --compact
+      tests/Feature/Seeders/ClinicWorkflowSeederTest.php` is run and any known
+      unrelated baseline failure is recorded rather than expanded in scope.
 
 **Dependencies:** Task 2.
 
-**Files likely touched:** ~5 deleted, 3 edited (`Patient`, `JobOrder`,
-`ClinicWorkflowSeeder`).
+**Files likely touched:**
 
-**Estimated scope:** S
-
----
-
-### Task 4: Drop the `complaints` table
-
-**Description:** Drop the table now that nothing references it. Split from
-Task 3 so the irreversible schema change sits behind a green suite.
-
-**Acceptance criteria:**
-
-- [ ] Migration drops `complaints`, with a `down()` recreating it
-- [ ] `grep -rn "complaints"` across `app/ database/ routes/ resources/`
-      returns nothing outside migrations
-- [ ] No foreign key elsewhere referenced `complaints` (verify before dropping)
-
-**Verification:** `migrate:fresh --seed` succeeds; full suite green.
-
-**Dependencies:** Task 3.
-
-**Files likely touched:** 1 new migration.
-
-**Estimated scope:** S
-
----
-
-### ✅ Checkpoint: Complaints
-
-- [ ] Four-axis results recorded for `Complaint`, `complaints`, `ComplaintStatus`
-- [ ] `grep -rn "Complaint"` returns only "Chief Complaint" clinical matches
-- [ ] `migrate:fresh --seed` succeeds
-- [ ] Full suite green, Pint clean
-
----
-
-## Phase 3: Patient intakes
-
-### Task 5: Delete the three orphaned intake surfaces and the print route
-
-**Description:** Three surfaces read the `intake` relation, and none of them is
-registered — this was established only on the audit's third pass, after two
-earlier passes got it wrong in opposite directions. Delete them before the
-model they read, so Task 6 has nothing left pointing at `PatientIntake`.
-
-**Prove unreachability first — registration, not just references:**
-
-- [ ] `HealthRecordRelationManager` is absent from
-      `PatientResource::getRelations()` (which lists Prescriptions,
-      Appointments, Encounters, OpticalOrders, Billing, InvitationHistory): ______
-- [ ] No page class defines `getIntake()` / `getIntakeStatus()` —
-      `app/Filament/Resources/Appointments/Pages/` holds only
-      `AppointmentRequestsPage`, `CreateAppointment`, `EditAppointment`,
-      `ListAppointments`: ______
-- [ ] `health-record-print.blade.php` is rendered only by the
-      `appointments.health-record.print` route, and that route is linked only
-      from `intake-form.blade.php:31`: ______
-- [ ] `artisan route:list | grep health-record` shows the route exists but no
-      panel UI links to it: ______
-
-**Acceptance criteria:**
-
-- [ ] `app/Filament/Resources/Patients/RelationManagers/HealthRecordRelationManager.php`
-      deleted
-- [ ] `resources/views/filament/resources/appointments/pages/intake-form.blade.php`
-      deleted
-- [ ] `resources/views/filament/resources/appointments/pages/health-record-print.blade.php`
-      deleted
-- [ ] The `appointments.health-record.print` route removed from `routes/web.php`,
-      along with its now-unused imports
-- [ ] `/encounters/{encounter}/print` is **untouched** — it is a different,
-      live route with its own tests (`EncounterPrintTest`, `EncounterPrintAuditTest`)
-- [ ] `PatientIntake` and the rest of the intake code still exist and still pass
-
-**Verification:** `vendor/bin/sail artisan test --compact` green;
-`artisan route:list | grep health-record` returns nothing;
-`artisan route:list | grep encounters` still shows the encounter printout.
-
-**Dependencies:** None (Phase 2 recommended first per plan Decision 1).
-
-**Files likely touched:** 3 deleted, `routes/web.php` edited.
-
-**Estimated scope:** S
-
----
-
-### Task 6: Delete intake code and tests
-
-**Description:** With no surface reading `intake` any more, remove the
-subsystem. The schema stays until Task 7.
-
-**Acceptance criteria:**
-
-- [ ] Four axes recorded for `PatientIntake`:
-  - [ ] class name: ______
-  - [ ] relation name `intake` / `intakes`: ______
-  - [ ] table name `patient_intakes`: ______
-  - [ ] route / view: ______
-- [ ] `app/Models/PatientIntake.php`, `app/Enums/IntakeStatus.php`, and
-      `app/Actions/Intakes/` deleted
-- [ ] `Encounter::intake()`, `Appointment::intake()`, `Patient::intakes()` removed
-- [ ] `patient_intake_id` removed from `Encounter`'s `Fillable` attribute,
-      `EncounterFactory`, and `CheckInAppointment`
-- [ ] `'intake'` removed from `EncounterResource::getEloquentQuery()`'s eager-loads
-- [ ] `AuditLegacyPatientIntakes` and `AuditLegacyPatientIntakesCommand`
-      (`encounters:audit-legacy-intakes`) deleted
-- [ ] `AuditEvent::IntakeSubmitted`, `IntakeVerified`, and
-      `IntakeReturnedForCorrection` removed
-- [ ] `PatientIntakeFactory`, `PatientIntakeTest`, `IntakeVerificationTest`,
-      `LegacyIntakeCleanupAuditTest` deleted
-- [ ] `EncounterLifecycleCharacterizationTest` and `ClinicWorkflowSeeder`
-      updated to drop intake setup
-- [ ] **Role boundary preserved:** `IntakeVerificationTest`'s last case asserts
-      that non-optometrist staff verifying an intake does not authorize clinical
-      findings. Confirm `PrescriptionLifecycleTest:45` covers the equivalent
-      clinical-side boundary; write the missing case if it does not: ______
-
-**Verification:** `vendor/bin/sail artisan test --compact`;
-`artisan list | grep audit-legacy` returns nothing.
-
-**Dependencies:** Task 5.
-
-**Files likely touched:** ~9 deleted, ~7 edited. If this feels wide during
-implementation, split the model/relation deletions from the audit-command and
-audit-event removals — they share no file.
+- `database/factories/ComplaintFactory.php`
+- `tests/Feature/Complaints/ComplaintRestartTest.php`
+- `database/seeders/ClinicWorkflowSeeder.php`
+- `database/seeders/ScenarioCoverageSeeder.php`
 
 **Estimated scope:** M
 
 ---
 
-### Task 7: Drop `patient_intakes` and `encounters.patient_intake_id`
+### Task 4: Delete complaint runtime code
 
-**Description:** Drop the schema now that no code references it. The column
-drop must come with the table drop, since the foreign key points at it.
+**Description:** Delete the now-consumerless complaint model boundary while its
+table remains available until Task 10.
 
 **Acceptance criteria:**
 
-- [ ] Migration drops `encounters.patient_intake_id` (and its foreign key)
-      before dropping `patient_intakes`
-- [ ] `down()` recreates both in the correct order
-- [ ] `grep -rn "patient_intake"` across `app/ database/ routes/ resources/ tests/`
-      returns nothing outside migrations
+- [ ] `RestartComplaintWorkflow`, `ComplaintStatus`, `Complaint`, and
+      `ComplaintPolicy` are deleted.
+- [ ] Policy discovery/mapping is checked and contains no remaining complaint
+      registration.
+- [ ] Unrelated clinical “Chief Complaint” fields, labels, and tests are
+      unchanged.
 
-**Verification:** `migrate:fresh --seed` succeeds; full suite green.
+**Verification:**
+
+- [ ] `rg -n '\bComplaint(Status|Policy)?\b|RestartComplaintWorkflow'
+      app database routes resources tests` returns only clinical text or
+      planning documentation.
+- [ ] `vendor/bin/sail artisan route:list --except-vendor` contains no complaint
+      route, and affected focused tests remain green.
+
+**Dependencies:** Task 3.
+
+**Files likely touched:**
+
+- `app/Actions/Complaints/RestartComplaintWorkflow.php`
+- `app/Enums/ComplaintStatus.php`
+- `app/Models/Complaint.php`
+- `app/Policies/ComplaintPolicy.php`
+
+**Estimated scope:** M
+
+### Checkpoint: Complaints detached
+
+- [ ] Complaint runtime, factory, test, and both seeder blocks are absent.
+- [ ] The `complaints` table remains temporarily for safe sequencing.
+- [ ] Clinical chief-complaint behavior is intact.
+
+---
+
+## Phase 3: Patient intakes
+
+### Task 5: Delete orphaned intake surfaces and approved legacy route
+
+**Description:** Remove the three orphaned display surfaces and the manually
+reachable legacy route whose compatibility break the owner approved. Preserve
+the separate live encounter print route and dirty encounter print view.
+
+**Acceptance criteria:**
+
+- [ ] `HealthRecordRelationManager`, `intake-form.blade.php`, and the orphaned
+      appointment `health-record-print.blade.php` are deleted.
+- [ ] `appointments.health-record.print` and only its unused imports are removed
+      from `routes/web.php`.
+- [ ] `/encounters/{encounter}/print`, its tests, and
+      `resources/views/filament/encounters/print.blade.php` are untouched.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan route:list --except-vendor` shows no appointment
+      health-record print route and still shows the encounter print route.
+- [ ] `vendor/bin/sail artisan test --compact
+      tests/Feature/Encounters/EncounterPrintTest.php
+      tests/Feature/Encounters/EncounterPrintAuditTest.php` passes.
+
+**Dependencies:** Task 4.
+
+**Files likely touched:**
+
+- `app/Filament/Resources/Patients/RelationManagers/HealthRecordRelationManager.php`
+- `resources/views/filament/resources/appointments/pages/intake-form.blade.php`
+- `resources/views/filament/resources/appointments/pages/health-record-print.blade.php`
+- `routes/web.php`
+
+**Estimated scope:** M
+
+---
+
+### Task 6: Remove intake integration from encounter creation and tests
+
+**Description:** Stop encounter code and characterization tests from reading or
+writing `patient_intake_id` before deleting intake-specific code.
+
+**Acceptance criteria:**
+
+- [ ] `CheckInAppointment`, `EncounterResource`, and `EncounterFactory` no
+      longer write, eager-load, or supply intake state.
+- [ ] `EncounterLifecycleCharacterizationTest` removes legacy intake setup and
+      intake-only assertions while retaining encounter behavior coverage.
+- [ ] `EncounterCheckInTest` removes only `patient_intake_id` assertions and
+      retains its check-in assertions.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact
+      tests/Feature/Encounters/EncounterCheckInTest.php
+      tests/Feature/Encounters/EncounterLifecycleCharacterizationTest.php`
+      passes.
+- [ ] `rg -n 'patient_intake_id|with\(.?intake'` over the five files returns no
+      integration reference.
+
+**Dependencies:** Task 5.
+
+**Files likely touched:**
+
+- `app/Actions/Encounters/CheckInAppointment.php`
+- `app/Filament/Resources/Encounters/EncounterResource.php`
+- `database/factories/EncounterFactory.php`
+- `tests/Feature/Encounters/EncounterLifecycleCharacterizationTest.php`
+- `tests/Feature/Encounters/EncounterCheckInTest.php`
+
+**Estimated scope:** M
+
+---
+
+### Task 7: Delete intake-only tests and factory
+
+**Description:** Remove tests and fixtures whose entire subject is the dead
+intake subsystem after encounter characterization no longer depends on them.
+
+**Acceptance criteria:**
+
+- [ ] `PatientIntakeTest`, `IntakeVerificationTest`, and
+      `LegacyIntakeCleanupAuditTest` are deleted, not skipped.
+- [ ] `PatientIntakeFactory` is deleted and no retained test references it.
+- [ ] `PrescriptionLifecycleTest` is confirmed to preserve the equivalent
+      clinical authorization boundary before `IntakeVerificationTest` is removed.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact
+      tests/Feature/Encounters/PrescriptionLifecycleTest.php` passes.
+- [ ] `rg -n 'PatientIntakeFactory|PatientIntake::factory|IntakeVerification'
+      tests database/factories` returns no retained reference.
 
 **Dependencies:** Task 6.
 
-**Files likely touched:** 1 new migration.
+**Files likely touched:**
 
-**Estimated scope:** S
+- `tests/Feature/Encounters/PatientIntakeTest.php`
+- `tests/Feature/Encounters/IntakeVerificationTest.php`
+- `tests/Feature/Encounters/LegacyIntakeCleanupAuditTest.php`
+- `database/factories/PatientIntakeFactory.php`
 
----
-
-### ✅ Checkpoint: Intakes
-
-- [ ] Registration absence recorded for all three surfaces, not just reference
-      absence
-- [ ] `artisan route:list | grep health-record` returns nothing
-- [ ] `/encounters/{encounter}/print` still works and still passes its tests
-- [ ] The role boundary formerly asserted by `IntakeVerificationTest` is still
-      covered
-- [ ] Four-axis results recorded for `PatientIntake`, `intake`, `patient_intakes`
-- [ ] `migrate:fresh --seed` succeeds
-- [ ] Full suite green, Pint clean
+**Estimated scope:** M
 
 ---
 
-## Phase 4: Documentation and closing audit
+### Task 8: Delete intake actions and audit machinery
 
-### Task 8: Update `BACKEND_CONTEXT.md`
-
-**Description:** Bring the canonical doc in line with the code, including the
-one privacy change in scope: the permission matrix advertises "Audit logs and
-privacy administration" as an admin capability, but privacy administration has
-no UI. Audit logs are real; the matrix must stop promising a front door that
-does not exist.
+**Description:** Remove the intake lifecycle entry points, legacy-readiness
+audit, command, and intake-only audit event cases before deleting their model.
 
 **Acceptance criteria:**
 
-- [ ] No mention of patient intakes, complaints, or the dead notification tables
-- [ ] Permission matrix corrected — privacy administration is documented as
-      backend-only with no panel surface
-- [ ] No mention of a "Visit History" tab or an appointment-level health-record
-      printout — neither was reachable, and both are gone
-- [ ] `encounters:audit-legacy-intakes` removed from any command listing
-- [ ] Privacy compliance otherwise described exactly as it is: kept, no UI
+- [ ] `ReturnIntakeForCorrection`, `VerifyPatientIntake`, and
+      `AuditLegacyPatientIntakes` are deleted.
+- [ ] `AuditLegacyPatientIntakesCommand` is deleted and no command registration
+      remains.
+- [ ] Only `AuditEvent::IntakeSubmitted`, `IntakeVerified`, and
+      `IntakeReturnedForCorrection` are removed from the enum.
 
-**Verification:** `grep -rn "intake\|complaint\|notification_channel"
-docs/BACKEND_CONTEXT.md` returns only "Chief Complaint" clinical references.
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan list` contains no
+      `encounters:audit-legacy-intakes` command.
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters` passes.
 
 **Dependencies:** Task 7.
 
-**Files likely touched:** `docs/BACKEND_CONTEXT.md`.
+**Files likely touched:**
 
-**Estimated scope:** S
+- `app/Actions/Intakes/ReturnIntakeForCorrection.php`
+- `app/Actions/Intakes/VerifyPatientIntake.php`
+- `app/Actions/Encounters/AuditLegacyPatientIntakes.php`
+- `app/Console/Commands/AuditLegacyPatientIntakesCommand.php`
+- `app/Enums/AuditEvent.php`
+
+**Estimated scope:** M
 
 ---
 
-### Task 9: Closing orphan audit
+### Task 9: Delete intake model, enum, and Eloquent relations
 
-**Description:** An independent sweep, not a re-run of the per-task checks.
-Three findings in this project's audit history were produced by trusting a
-single search, so the closing check looks for orphans in every direction rather
-than confirming the symbols already known to be gone.
+**Description:** Remove the final intake domain types and relation accessors
+while the schema remains available until Task 10.
 
 **Acceptance criteria:**
 
-- [ ] Every table in the schema has a model, or is a documented pivot/ledger
-- [ ] Every model has a table
-- [ ] Every Blade view under `resources/views/filament/` has something that
-      renders it — this is how `intake-form.blade.php` was found
-- [ ] Message attachments verified live end to end: upload, download
-      (`GET /api/v1/conversation/attachments/{attachment}`), preview,
-      `MessageResource`, `ConversationResource.can_upload_attachments`,
-      `ConversationChatPage`, `MessagesRelationManager`
-- [ ] Privacy compliance code byte-identical to its pre-project state
-      (`git diff` over `app/Actions/Privacy/`, the models, policy, and tests)
-- [ ] `audit_logs` and `inventory_movements` untouched
+- [ ] `PatientIntake` and `IntakeStatus` are deleted.
+- [ ] `Patient::intakes()` and `Appointment::intake()` are removed with their
+      unused imports and PHPDoc.
+- [ ] `Encounter::intake()` and `patient_intake_id` fillable state are removed
+      without changing other encounter fields or relations.
 
-**Verification:** `migrate:fresh --seed`; full suite green;
-`vendor/bin/sail bin pint --dirty --format agent` reports no changes.
+**Verification:**
+
+- [ ] `rg -n 'PatientIntake|IntakeStatus|patient_intake_id|function intakes?'
+      app database/factories routes resources tests` returns only migrations or
+      planning documentation.
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters` passes.
 
 **Dependencies:** Task 8.
 
-**Files likely touched:** None expected — findings become follow-up tasks.
+**Files likely touched:**
+
+- `app/Models/PatientIntake.php`
+- `app/Enums/IntakeStatus.php`
+- `app/Models/Patient.php`
+- `app/Models/Appointment.php`
+- `app/Models/Encounter.php`
+
+**Estimated scope:** M
+
+### Checkpoint: Intakes detached
+
+- [ ] No retained runtime or test code references intake types or relations.
+- [ ] The live encounter print route and view remain intact.
+- [ ] Focused encounter and conversation suites are green.
+
+---
+
+## Phase 4: Contract schema
+
+### Task 10: Add the reversible cleanup migration
+
+**Description:** Contract the schema only after every complaint and intake
+consumer has been removed. Generate the migration through Artisan, then define
+complete reversible schemas from the original migrations.
+
+**Acceptance criteria:**
+
+- [ ] `vendor/bin/sail artisan make:migration
+      drop_dead_intake_and_complaint_schema --no-interaction` creates one
+      migration; no notification migration is created.
+- [ ] `up()` drops the encounter foreign key/column before `patient_intakes`,
+      then drops `complaints`.
+- [ ] `down()` recreates `complaints`, recreates the complete
+      `patient_intakes` schema, then restores the nullable encounter foreign key
+      in dependency-safe order.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan migrate:fresh --env=testing` succeeds.
+- [ ] The latest migration can be rolled back and reapplied under
+      `--env=testing` without schema errors.
+- [ ] `vendor/bin/sail artisan migrate:fresh --seed --env=testing` has no
+      complaint/intake reference failure; unrelated known seeder failures are
+      recorded separately.
+
+**Dependencies:** Task 9.
+
+**Files likely touched:**
+
+- `database/migrations/<timestamp>_drop_dead_intake_and_complaint_schema.php`
+
+**Estimated scope:** S
+
+### Checkpoint: Schema contracted
+
+- [ ] `complaints` and `patient_intakes` are absent.
+- [ ] `encounters.patient_intake_id` is absent.
+- [ ] Migration rollback/reapply works in the testing environment.
+
+---
+
+## Phase 5: Documentation and final audit
+
+### Task 11: Reconcile backend context documentation
+
+**Description:** Update the canonical backend context after the actual code and
+schema diff is known. Do not rewrite historical specs or ADRs.
+
+**Acceptance criteria:**
+
+- [ ] Patient-intake, complaint, removed audit command, schema, action, and
+      encrypted-field documentation matches the final application.
+- [ ] The permission matrix describes audit logs as reachable and privacy
+      administration as backend-only with no panel UI.
+- [ ] Message attachments, live encounter printing, privacy code, and live
+      inventory behavior remain documented.
+
+**Verification:**
+
+- [ ] Closing `rg` searches find no claim that a removed subsystem or route is
+      available.
+- [ ] Documentation diff contains no unrelated architectural rewrite.
+
+**Dependencies:** Task 10.
+
+**Files likely touched:**
+
+- `docs/BACKEND_CONTEXT.md`
 
 **Estimated scope:** S
 
 ---
 
-### ✅ Checkpoint: Complete
+### Task 12: Run final protected-surface and regression audit
 
-- [ ] `grep -rn "PatientIntake\|IntakeStatus\|Complaint\b\|notification_channels\|notification_templates"`
-      returns only spec files
-- [ ] Message attachments still work end to end
-- [ ] Privacy compliance code untouched
-- [ ] `migrate:fresh --seed` succeeds; full suite green; Pint clean
-- [ ] Ready for review
+**Description:** Prove the removal is complete and that protected working
+features were not changed. This task is verification-only unless a scoped
+failure requires returning to its owning task.
+
+**Acceptance criteria:**
+
+- [ ] Closing class/relation/table/route searches find no runtime intake or
+      complaint orphan and no `inventory_movement_statuses` migration pair.
+- [ ] Message upload/download/preview/API/Filament paths and all privacy code
+      remain present and pass their focused tests.
+- [ ] Final diff contains only approved files; unrelated dirty work remains
+      preserved and the full suite introduces no failure beyond the recorded 25.
+
+**Verification:**
+
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Encounters
+      tests/Feature/ConversationTest.php tests/Feature/ConversationChatPageTest.php
+      tests/Feature/Privacy` is run.
+- [ ] `vendor/bin/sail artisan test --compact` is compared with the recorded
+      baseline; `vendor/bin/sail artisan migrate:fresh --env=testing` succeeds.
+- [ ] `vendor/bin/sail bin pint --dirty --format agent`, `git diff --check`,
+      route inspection, schema inspection, and final `rg` searches pass.
+
+**Dependencies:** Task 11.
+
+**Files likely touched:** None expected. Findings return to the task that owns
+the affected file.
+
+**Estimated scope:** S
+
+### Checkpoint: Complete
+
+- [ ] All nine specification success criteria pass.
+- [ ] Message attachments and privacy code are unchanged and tested.
+- [ ] No new full-suite failure exists relative to the recorded baseline.
+- [ ] Implementation is ready for owner review.
+
+---
+
+## Phase 3 Approval
+
+- [x] Owner approved this 12-task checklist on 2026-08-14.
+- [ ] Owner separately authorizes Phase 4 implementation.

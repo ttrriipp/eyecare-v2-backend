@@ -9,15 +9,19 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Dead Code and Unreachable Feature Removal** — Phase 3 task breakdown
+None.
+
+## Ready, deliberately deferred
+
+**Dead Code and Unreachable Feature Removal** — approved 2026-08-14
 
 - Spec: `docs/specs/dead-code-removal-spec.md`
 - Plan: `tasks/dead-code-removal-plan.md` — approved 2026-08-14
-- Checklist: `tasks/dead-code-removal-todo.md` — stale; do not execute
+- Checklist: `tasks/dead-code-removal-todo.md` — approved 2026-08-14
 
-The specification was approved and committed as `2904eed` on 2026-08-14, and
-the reconciled 12-task technical plan is approved. The detailed Phase 3
-checklist is being rewritten; no implementation has started.
+The specification, reconciled 12-task plan, and detailed checklist are
+approved. Phase 4 implementation is explicitly deferred and requires separate
+owner authorization.
 
 **Re-verify before starting.** Its audit has been wrong five times across two
 passes, and every wrong answer came from a search taken at face value. Any
