@@ -58,12 +58,26 @@ class Product extends Model
     }
 
     /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query
+            ->where('is_active', true)
+            ->whereHas('brand', fn (Builder $brandQuery): Builder => $brandQuery->active())
+            ->where(fn (Builder $categoryQuery): Builder => $categoryQuery
+                ->whereNull('category_id')
+                ->orWhereHas('category', fn (Builder $query): Builder => $query->active()));
+    }
+
+    /**
      * Mobile catalog: active frames only with at least one AR-ready variant.
      */
     public function scopeVisibleInMobileCatalog(Builder $query): void
     {
         $query
-            ->where('is_active', true)
+            ->active()
             ->where('product_type', 'frame')
             ->whereHas(
                 'variants',

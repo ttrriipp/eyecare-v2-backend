@@ -53,7 +53,9 @@ class ProductVariant extends Model
      */
     public function scopeActive(Builder $query): void
     {
-        $query->where('is_active', true);
+        $query
+            ->where('is_active', true)
+            ->whereHas('product', fn (Builder $productQuery): Builder => $productQuery->active());
     }
 
     /**
@@ -112,7 +114,7 @@ class ProductVariant extends Model
                 ->whereHas(
                     'product',
                     fn (Builder $productQuery): Builder => $productQuery
-                        ->where('is_active', true)
+                        ->active()
                         ->where('product_type', 'accessory'),
                 )
                 ->orWhere(fn (Builder $frameVariantQuery): Builder => $frameVariantQuery
@@ -121,7 +123,7 @@ class ProductVariant extends Model
                     ->whereHas(
                         'product',
                         fn (Builder $productQuery): Builder => $productQuery
-                            ->where('is_active', true)
+                            ->active()
                             ->where('product_type', 'frame'),
                     )));
     }
