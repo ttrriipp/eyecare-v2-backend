@@ -2,7 +2,8 @@
 
 ## Status
 
-**Draft 2026-08-12. Revised 2026-08-13. Approval pending.**
+**Specification approved 2026-08-14. Phase 2 planning in progress.
+Implementation has not started.**
 
 First revision (2026-08-12) corrected two audit findings — message attachments
 are live and are no longer in scope, and the privacy question was resolved by
@@ -23,35 +24,69 @@ page class backs `intake-form.blade.php`, and the print view is linked only
 from that orphan view. The second revision's claim of a live blank-column
 defect is withdrawn — nobody can see those columns.
 
+Fourth revision (2026-08-14) reconciled the specification with the current
+worktree:
+
+- `notification_channels` and `notification_templates` were already removed by
+  `2026_06_24_124601_drop_unused_notification_tables`; no new notification-table
+  migration is needed.
+- The newer `ScenarioCoverageSeeder` also creates complaint records and must be
+  trimmed alongside `ClinicWorkflowSeeder`.
+- The proposed `Patient` / `JobOrder` complaint-relation removal was deleted
+  from the checklist because those inverse relations do not exist.
+- `EncounterCheckInTest` was added to the intake-related test updates.
+
+This revision changes the specification only. No deletion, schema change, or
+other implementation step has been run.
+
 The spec is therefore **purely subtractive**, as originally scoped. No open
 questions.
 
+## Assumptions
+
+1. The change remains purely subtractive; no replacement UI, workflow, or API
+   is built as part of this work.
+2. Existing unrelated worktree changes are preserved and excluded from the
+   cleanup.
+3. Destructive migration verification runs only against the testing
+   environment.
+4. The 25 unrelated full-suite failures recorded on 2026-08-14 are the
+   comparison baseline; this work introduces no additional failures.
+5. Tests are deleted only when they exclusively assert behavior removed by this
+   specification. A still-applicable rule must retain equivalent coverage.
+6. Removing the manually reachable but unlinked
+   `appointments.health-record.print` route is an accepted compatibility break;
+   the live encounter print route remains available.
+
 ## Objective
 
-Remove tables, models, actions, and tests that no running code path reaches.
+Remove tables, models, actions, and tests that no supported application workflow
+reaches, plus one unlinked legacy print route whose removal the owner approved.
 
 This is distinct from `docs/specs/commerce-model-simplification-spec.md`, which
 removes *sophistication that runs* — real code doing more than a small clinic
-needs. This spec removes code that **does not run at all**: schema with no
-model, backends with no user interface, and a subsystem the application
-explicitly bypasses.
+needs. This spec removes code that **does not participate in a supported
+workflow**: schema already dropped or bypassed, backends with no front door,
+and orphaned display surfaces.
 
-That distinction matters for risk. Nothing here has a live consumer, so the
-dominant failure mode is not "behavior changes" but "something turns out to be
-referenced after all." The verification strategy is built around that.
+That distinction matters for risk. No supported workflow consumes this code,
+so the dominant failure mode is not a normal workflow regression but a missed
+reference. The known exception is the authenticated health-record print URL:
+it is unlinked but manually reachable, and its removal is explicitly accepted.
+The verification strategy is built around that boundary.
 
 ## Audit Method and Findings
 
 Each candidate was checked for: a migration, a model, references in `app/`,
 a Filament surface, routes, tests, factories, and seeders. A feature counts as
-unreachable when **no user of either client can trigger it**.
+unreachable when **neither client exposes a supported path to trigger it**.
 
 | Subsystem | Migration | Model | App refs | UI | Tests | Verdict |
 |---|:--:|:--:|:--:|:--:|:--:|---|
-| `notification_channels` | yes | none | 0 | none | none | Dead schema |
-| `notification_templates` | yes | none | 0 | none | none | Dead schema |
+| `notification_channels` | dropped | none | 0 | none | none | **Already gone** |
+| `notification_templates` | dropped | none | 0 | none | none | **Already gone** |
 | `inventory_movement_statuses` | dropped | none | 0 | none | none | **Already gone** |
-| Patient intakes | yes | yes | 7 | **2 surfaces** | 3 files | Bypassed, but **displayed** |
+| Patient intakes | yes | yes | 7 | **3 orphan surfaces** | 3 files | Bypassed and unreachable |
 | `intake-form.blade.php` | — | — | 0 | none | none | Orphan view |
 | Complaints | yes | yes | 3 | none | 1 file | No front door |
 | Message attachments | yes | yes | 8 | **yes** | 1 file | **Live — not dead** |
@@ -83,8 +118,9 @@ because of this.
 reported `Complaint` as referenced from `HealthRecordRelationManager` and
 `EncounterForm`. Those files match the string **"Chief Complaint"**, the
 clinical narrative field on encounters, which is unrelated to the `Complaint`
-model. `Complaint` is referenced only by `ComplaintPolicy`,
-`RestartComplaintWorkflow`, its own model, and `ClinicWorkflowSeeder`.
+model. In application code, `Complaint` is referenced only by
+`ComplaintPolicy`, `RestartComplaintWorkflow`, and its own model. Demo records
+are created by both `ClinicWorkflowSeeder` and `ScenarioCoverageSeeder`.
 
 **Patient intakes: wrong twice, in opposite directions.**
 
@@ -110,11 +146,12 @@ user can get there. **Reachability is a path, not a match.**
 
 ## Scope
 
-### 1. Dead schema — no model, no references
+### 1. Already-removed schema and matched migration pairs
 
-`notification_channels` and `notification_templates` exist only as migrations.
-Nothing reads or writes them, no model wraps them, and no seeder populates
-them. Zero references on all four axes.
+`notification_channels` and `notification_templates` have no model, runtime
+reference, or seeder. They were already dropped by migration
+`2026_06_24_124601_drop_unused_notification_tables`, so their absence requires
+no new migration. The historical create/drop migrations remain unchanged.
 
 `inventory_movement_statuses` **is already gone.** Migration
 `2026_06_19_003812_drop_inventory_movement_statuses_table` dropped it in June;
@@ -128,9 +165,8 @@ pair of no-ops. This is the only place in the spec where migration *files* are
 deleted rather than a new drop migration being added, and it is safe precisely
 because the table no longer exists in any environment.
 
-**Changes:** one migration dropping `notification_channels` and
-`notification_templates`; delete the two `inventory_movement_statuses`
-migration files.
+**Changes:** delete only the two `inventory_movement_statuses` migration files.
+Do not add a duplicate notification-table drop migration.
 
 ### 2. Patient intakes — bypassed by the encounter wizard
 
@@ -209,8 +245,8 @@ appointment-level health-record printout.
   `IntakeReturnedForCorrection`.
 - Delete `PatientIntakeFactory`, `PatientIntakeTest`,
   `IntakeVerificationTest`, `LegacyIntakeCleanupAuditTest`.
-- Update `EncounterLifecycleCharacterizationTest` and `ClinicWorkflowSeeder`
-  to drop intake setup.
+- Update `EncounterLifecycleCharacterizationTest` and `EncounterCheckInTest` to
+  remove intake-only setup and assertions.
 
 `IntakeVerificationTest` asserts a role boundary (staff may verify an intake
 but that does not authorize clinical findings). `PrescriptionLifecycleTest:45`
@@ -226,9 +262,9 @@ started by anyone.
 
 **Changes:** drop `complaints`; delete `Complaint`, `ComplaintStatus`,
 `ComplaintPolicy`, `app/Actions/Complaints/`, `ComplaintFactory`,
-`ComplaintRestartTest`, and the `Patient` / `JobOrder` complaint relations.
-Remove `ClinicWorkflowSeeder::seedComplaint()` and its call site — the seeder
-is the only thing in the codebase that creates a `Complaint`.
+`ComplaintRestartTest`. Remove `ClinicWorkflowSeeder::seedComplaint()` and
+`ScenarioCoverageSeeder::seedComplaintStatuses()`, including their imports and
+call sites. These seeders are the only code paths that create complaints.
 
 ### 4. Verification procedure
 
@@ -281,7 +317,7 @@ work in scope.
   owner elected to leave those alone.
 - `sms_notifications`, which is live and has a Filament resource.
 
-## Technical Context
+## Tech Stack
 
 PHP 8.5, Laravel 13, Filament 5, MySQL via Sail, Pest 4 / PHPUnit 12. No
 dependency change. Schema changes are drops only.
@@ -290,7 +326,7 @@ dependency change. Schema changes are drops only.
 
 ```text
 app/Models/                → −2 models (PatientIntake, Complaint)
-                             Encounter, Appointment, Patient, JobOrder relations trimmed
+                             Encounter, Appointment, Patient relations trimmed
 app/Enums/                 → −2 enums (IntakeStatus, ComplaintStatus)
                              AuditEvent −3 cases
 app/Actions/Intakes/       → deleted
@@ -303,19 +339,54 @@ app/Console/Commands/      → −1 command
 app/Filament/              → −1 orphan relation manager, 1 eager-load trimmed
 resources/views/           → −2 orphan views
 database/factories/        → −2 factories, EncounterFactory trimmed
-database/seeders/          → ClinicWorkflowSeeder: complaint + intake setup removed
-database/migrations/       → +1 drop migration (4 tables, 1 column)
+database/seeders/          → complaint blocks removed from ClinicWorkflowSeeder
+                             and ScenarioCoverageSeeder
+database/migrations/       → +1 drop migration (2 tables, 1 column)
                              −2 files (inventory_movement_statuses create/drop pair)
 tests/Feature/             → −4 test files, 2 updated
 routes/web.php             → health-record print route removed
 docs/BACKEND_CONTEXT.md    → removals + permission-matrix correction
 ```
 
+## Code Style
+
+Follow the existing Laravel 13 conventions and the repository's PHP rules:
+explicit parameter and return types, anonymous migration classes, typed
+`Blueprint` closures, descriptive names, and curly braces for every control
+structure. Use `Schema` operations rather than raw SQL and let Pint enforce
+formatting.
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('encounters', function (Blueprint $table): void {
+            $table->dropForeign(['patient_intake_id']);
+            $table->dropColumn('patient_intake_id');
+        });
+
+        Schema::dropIfExists('patient_intakes');
+        Schema::dropIfExists('complaints');
+    }
+};
+```
+
+Deletion work should simplify callers directly; do not introduce adapters,
+compatibility shims, placeholder classes, or commented-out code.
+
 ## Testing Strategy
 
 The risk is not regression but **discovering a reference after deletion**.
 Verification is therefore proof-of-absence before removal, and suite integrity
-after. No user-visible behavior changes anywhere in this spec.
+after. No supported user workflow changes; the accepted direct-URL print-route
+removal is the only compatibility break.
 
 The one addition to the usual procedure: for each Filament class and Blade view
 being deleted, confirm its *registration* is absent, not merely its references.
@@ -330,13 +401,24 @@ passes skipped.
 2. **Do not delete a test that asserts a rule which still applies elsewhere.**
    `IntakeVerificationTest`'s role boundary is the known instance — confirm
    encounter coverage first.
-3. After each phase: full suite green.
-4. Final: `migrate:fresh --seed` succeeds, proving no migration, seeder, or
-   factory references a dropped table.
+3. After each phase: the affected suites are green.
+4. Final: `migrate:fresh --env=testing` succeeds. Run
+   `migrate:fresh --seed --env=testing` to prove no migration, seeder, or factory
+   references a dropped table; any unrelated pre-existing seeder failure must
+   be reported separately rather than repaired in this cleanup.
 5. A closing grep proves every deleted symbol is absent from `app/`,
    `database/`, `routes/`, `resources/`, and `tests/`.
 
 Deleted tests are deleted, never skipped.
+
+### Readiness baseline (2026-08-14)
+
+- The focused encounter, complaint, and conversation run is green: 244 tests,
+  460 assertions.
+- The full suite has 25 known failures outside this spec. Implementation must
+  introduce no additional failures; repairing that baseline is separate work.
+- The current development database contains no patient intakes and no encounter
+  linked to one. Its four complaints are seeded demo records.
 
 ## Commands
 
@@ -344,7 +426,8 @@ Deleted tests are deleted, never skipped.
 vendor/bin/sail artisan test --compact tests/Feature/Encounters
 vendor/bin/sail artisan test --compact tests/Feature/ConversationTest.php
 vendor/bin/sail artisan test --compact
-vendor/bin/sail artisan migrate:fresh --seed
+vendor/bin/sail artisan migrate:fresh --env=testing
+vendor/bin/sail artisan migrate:fresh --seed --env=testing
 vendor/bin/sail bin pint --dirty --format agent
 ```
 
@@ -354,7 +437,8 @@ vendor/bin/sail bin pint --dirty --format agent
 
 - prove unreachability by grep and UI inspection before deleting;
 - drop schema and its code together — never one without the other;
-- keep `migrate:fresh --seed` working after every phase;
+- keep `migrate:fresh --env=testing` working after every phase and ensure a
+  seeded run introduces no dead-code reference failure;
 - update `docs/BACKEND_CONTEXT.md` in the same change.
 
 ### Ask first
@@ -373,8 +457,9 @@ vendor/bin/sail bin pint --dirty --format agent
 
 ## Success Criteria
 
-1. `notification_channels` and `notification_templates` no longer exist, and
-   the `inventory_movement_statuses` create/drop migration pair is deleted.
+1. `notification_channels` and `notification_templates` remain absent through
+   the existing drop migration, no duplicate drop migration is added, and the
+   `inventory_movement_statuses` create/drop migration pair is deleted.
 2. `patient_intakes` and `encounters.patient_intake_id` are gone, along with
    every intake model, enum, relation, action, command, audit event, factory,
    orphan view, and test.
@@ -382,7 +467,7 @@ vendor/bin/sail bin pint --dirty --format agent
    `intake-form.blade.php`, `health-record-print.blade.php`, and the
    `appointments.health-record.print` route.
 4. `complaints` is gone with its model, enum, policy, action, factory, test,
-   and seeder block.
+   and both seeder blocks.
 5. Message attachments are **untouched** and still work end to end: upload,
    download, preview, API exposure, and Filament display.
 6. Privacy compliance code is untouched; only the permission matrix in
@@ -390,7 +475,9 @@ vendor/bin/sail bin pint --dirty --format agent
    capability.
 7. No orphan remains in either direction: no table without a model, no model
    without a table, no Blade view without a renderer.
-8. `migrate:fresh --seed` succeeds; full suite green; Pint reports no changes.
+8. `migrate:fresh --env=testing` succeeds, the cleanup introduces no new full-
+   suite failures, and Pint reports no changes. The seeded migration run either
+   succeeds or fails only on a separately recorded pre-existing seeder issue.
 9. `docs/BACKEND_CONTEXT.md` no longer documents anything removed, and its
    permission matrix matches what the panel can actually do.
 
