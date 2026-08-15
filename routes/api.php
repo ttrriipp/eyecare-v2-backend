@@ -82,6 +82,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('conversation', [ConversationController::class, 'show']);
         Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
         Route::post('conversation/messages', [ConversationController::class, 'storeMessage']);
+        Route::post('conversation/messages/read', [ConversationController::class, 'markRead']);
 
         // Appointment types (patient-visible catalog)
         Route::get('appointment-types', [AppointmentTypeController::class, 'index']);

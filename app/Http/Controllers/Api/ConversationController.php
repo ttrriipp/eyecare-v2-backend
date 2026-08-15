@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Conversations\MarkConversationRead;
 use App\Actions\Conversations\ResolveAccountConversation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreMessageRequest;
@@ -42,6 +43,16 @@ class ConversationController extends Controller
         $messages = $conversation->messages()->with('attachments')->oldest()->get();
 
         return MessageResource::collection($messages);
+    }
+
+    /**
+     * POST /conversation/messages/read — mark unread messages as read.
+     */
+    public function markRead(Request $request): JsonResponse
+    {
+        $marked = app(MarkConversationRead::class)->handle($request->user());
+
+        return response()->json(['marked_count' => $marked]);
     }
 
     /**

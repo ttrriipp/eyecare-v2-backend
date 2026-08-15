@@ -188,3 +188,136 @@ test('cross-account attachment access returns not found', function () {
         ->get('/api/v1/conversation/attachments/99999')
         ->assertNotFound();
 });
+
+test('mark read drives unread count to zero', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    // Staff sends two messages
+    $staff = User::factory()->create();
+    Message::factory()->count(2)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    // Confirm unread count is 2
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation')
+        ->assertSuccessful()
+        ->assertJsonPath('data.unread_count', 2);
+
+    // Mark read
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 2]);
+
+    // Unread count is now 0
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation')
+        ->assertSuccessful()
+        ->assertJsonPath('data.unread_count', 0);
+});
+
+test('mark read is idempotent — second call returns zero', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $staff = User::factory()->create();
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 1]);
+
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 0]);
+});
+
+test('mark read does not mark the callers own messages', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    // Patient sends a message
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    // Staff sends a message
+    $staff = User::factory()->create();
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 1]); // only the staff message
+});
+
+test('unlinked account can mark read', function () {
+    $patient = User::factory()->patient()->create();
+    // Remove the patient link to make it unlinked
+    $patient->patient->update(['user_id' => null]);
+    $patient->load('patient');
+
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => null,
+    ]);
+
+    $staff = User::factory()->create();
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 1]);
+});
+
+test('account cannot mark another accounts conversation read', function () {
+    $patient1 = User::factory()->patient()->create();
+    $patient2 = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient2->id,
+        'patient_id' => $patient2->patient->id,
+    ]);
+
+    $staff = User::factory()->create();
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    // Patient1 marking read should only affect their own conversation
+    $this->actingAs($patient1)
+        ->postJson('/api/v1/conversation/messages/read')
+        ->assertSuccessful()
+        ->assertJson(['marked_count' => 0]);
+
+    // Patient2's message is still unread
+    $this->actingAs($patient2)
+        ->getJson('/api/v1/conversation')
+        ->assertSuccessful()
+        ->assertJsonPath('data.unread_count', 1);
+});
