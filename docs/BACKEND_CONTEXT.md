@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-14.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-15.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -20,6 +20,26 @@
 > Encounter service charges, and direct Billing Record charges now share
 > one open checkout per patient visit instead of creating duplicate billing
 > records per source.
+>
+> **Shipped (2026-08-15): direct messaging hardening.** Patient-side
+> `messages.read_at` is now written by `POST /conversation/messages/read`
+> (bulk mark-read), so `unread_count` works for the first time. Staff side
+> uses a clinic-wide `conversations.staff_last_read_at` watermark stamped
+> on thread selection — the patient/staff asymmetry is deliberate. The
+> inbox orders by latest message, hides archived threads by default with a
+> toggle, and shows a navigation badge for unread conversations. Inbox
+> archiving is wired end to end (archive, restore, auto-restore on new
+> message). `MessageResource` now returns `sender_type` and
+> `attachments[].download_url`; the `contexts` field and
+> `message_context_links` table are removed. The send throttle is
+> 10 requests/minute. Notification feed routes (`GET /notifications`,
+> `GET /notifications/unread-count`, `PATCH /notifications/{id}/read`,
+> `PATCH /notifications/read-all`) are wired. Both parties are notified
+> of new messages (`NewMessageReceived`); deactivated staff are excluded.
+> `GET /conversation/messages/search?q=` provides conversation-scoped
+> message search. `GET /conversation/messages` is cursor-paginated
+> (newest-first, page size 50, `next_cursor`/`has_more`). Eight
+> unreachable Filament classes under `Conversations/` are deleted.
 
 > **Shipped (2026-08-14): unified quotation, optical-order, and billing
 > entry points.** Prescription eyewear has a dedicated builder in both the

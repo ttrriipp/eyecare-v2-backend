@@ -152,9 +152,14 @@ POST   /orders/{id}/cancel
 GET    /billing/{id}                  → with items[] + payments[]
 GET    /prescriptions, /prescriptions/{id}
 GET    /conversation                 → includes unread_count
-GET    /conversation/messages
-POST   /conversation/messages
-POST   /conversation/messages/read
+GET    /conversation/messages        → cursor-paginated (newest-first, 50/page, next_cursor/has_more)
+GET    /conversation/messages/search → ?q= term, same cursor shape
+POST   /conversation/messages        → send (throttle: 10/min)
+POST   /conversation/messages/read   → mark-read (returns marked_count)
+GET    /notifications                → paginated notification feed
+GET    /notifications/unread-count   → unread count
+PATCH  /notifications/{id}/read      → mark one read
+PATCH  /notifications/read-all       → mark all read
 ```
 
 Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.

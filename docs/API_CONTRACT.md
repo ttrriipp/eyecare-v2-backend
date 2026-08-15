@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-14) — optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification. Internal optical data (eyewear specifications, dispensing measurements, supplier references, approval/verification metadata, and balance-override reasons) remains excluded from patient resources. Payment summary reflects strict overpayment rejection (balance no longer clamps to zero). Dispensing events now snapshot balance-override attribution for admin releases.
+> **Backend version:** Current repository state (2026-08-15) — direct messaging hardening complete: patient mark-read, staff read watermark, inbox archiving, activity ordering, navigation badge, notification feed routing, sender_type/download_url on messages, contexts removed, send throttle (10/min), conversation-scoped message search, cursor pagination on messages. Previous: optical commerce and dispensing implementation complete, with resilient patient invitation linking, appointment-request account-link synchronization, additive API rate-limit errors, simplified frame reservations, and commerce model simplification.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -59,7 +59,8 @@
 12. [Prescriptions](#13-prescriptions)
 13. [Optical Orders](#14-optical-orders)
 14. [Conversation](#15-conversation)
-15. [Error Responses](#16-error-responses)
+15. [Notifications](#15b-notifications)
+16. [Error Responses](#16-error-responses)
 16. [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
 17. [Retired Features](#18-retired-features)
 18. [Clarifications](#19-clarifications)
@@ -2074,7 +2075,7 @@ Returns (or creates) the account's single conversation.
 
 ### GET `/conversation/messages`
 
-Returns all messages in the conversation (oldest first). NOT paginated.
+Returns messages in the conversation, cursor-paginated (newest-first, default 50 per page).
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2213,6 +2214,87 @@ Downloads a message attachment. Patient can only download from their own convers
 
 **Errors:**
 - `404`: Attachment not found or not owned by patient's conversation.
+
+---
+
+## 15b. Notifications
+
+**Authenticated account-only (no active patient link required).**
+
+The notification feed provides an in-app inbox for database-backed
+notifications. Notifications are created by the backend when events occur
+(e.g. new message from staff).
+
+### GET `/notifications`
+
+Returns paginated notifications for the authenticated account.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query:** `per_page` (default: 20)
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "type": "App\\Notifications\\NewMessageReceived",
+      "title": "New Message",
+      "body": "Dr. Santos sent a message.",
+      "action_url": "/admin/conversations/1",
+      "related_type": null,
+      "related_id": null,
+      "read_at": null,
+      "created_at": "2026-08-15T10:00:00+08:00"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 20, "total": 1 }
+}
+```
+
+### GET `/notifications/unread-count`
+
+Returns the count of unread notifications.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "unread_count": 3
+}
+```
+
+### PATCH `/notifications/{notification}/read`
+
+Marks a single notification as read.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Errors:**
+- `403`: Notification does not belong to the authenticated account.
+
+**Response (200):**
+```json
+{
+  "message": "Notification marked as read."
+}
+```
+
+### PATCH `/notifications/read-all`
+
+Marks all unread notifications as read.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "message": "All notifications marked as read."
+}
+```
 
 ---
 
@@ -2547,7 +2629,12 @@ POST   /api/v1/conversation/messages          Send message
 POST   /api/v1/conversation/messages/read     Mark messages read
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
+GET    /api/v1/notifications                  List notifications
+GET    /api/v1/notifications/unread-count     Unread count
+PATCH  /api/v1/notifications/{id}/read        Mark read
+PATCH  /api/v1/notifications/read-all         Mark all read
+
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**
+**Route count:** 8 public + 34 account-only + 17 active-link = **59 routes total.**
