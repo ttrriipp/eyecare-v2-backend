@@ -154,3 +154,60 @@ test('sidebar hides unread pill when count is zero', function () {
     Livewire::test(ConversationChatPage::class)
         ->assertDontSee('unread-for-staff');
 });
+
+test('inbox orders by most recent message, not thread creation', function () {
+    $admin = User::factory()->admin()->create();
+    $patient1 = User::factory()->patient()->create();
+    $patient2 = User::factory()->patient()->create();
+
+    // Older thread with a recent message
+    $conversation1 = Conversation::query()->create([
+        'account_user_id' => $patient1->id,
+        'patient_id' => $patient1->patient->id,
+        'created_at' => now()->subWeek(),
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation1->id,
+        'sender_id' => $patient1->id,
+        'body' => 'Recent message in old thread',
+        'created_at' => now(),
+    ]);
+
+    // Newer thread with an older message
+    $conversation2 = Conversation::query()->create([
+        'account_user_id' => $patient2->id,
+        'patient_id' => $patient2->patient->id,
+        'created_at' => now(),
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation2->id,
+        'sender_id' => $patient2->id,
+        'body' => 'Old message in new thread',
+        'created_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ConversationChatPage::class);
+
+    // The older thread with the more recent message should appear first
+    $html = $component->html();
+    $pos1 = strpos($html, 'Recent message in old thread');
+    $pos2 = strpos($html, 'Old message in new thread');
+
+    expect($pos1)->toBeLessThan($pos2);
+});
+
+test('empty thread still renders without error', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->assertSuccessful();
+});

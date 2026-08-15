@@ -42,7 +42,12 @@
                                     @endif
                                 </div>
                                 <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                                    Started {{ $conversation->created_at->diffForHumans() }}
+                                    @if ($conversation->last_message_at)
+                                        {{ \Illuminate\Support\Str::limit($conversation->last_message_body ?? '', 40) }}
+                                        · {{ \Carbon\Carbon::parse($conversation->last_message_at)->diffForHumans() }}
+                                    @else
+                                        No messages yet
+                                    @endif
                                 </p>
                             </button>
                         </li>

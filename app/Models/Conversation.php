@@ -153,4 +153,27 @@ class Conversation extends Model
                 });
         }]);
     }
+
+    /**
+     * Eager-load the latest message for each conversation.
+     *
+     * Adds `last_message_body` and `last_message_at` attributes.
+     *
+     * @param  Builder<Conversation>  $query
+     * @return Builder<Conversation>
+     */
+    public function scopeWithLastMessage(Builder $query): Builder
+    {
+        return $query->addSelect(['last_message_body' => Message::query()
+            ->select('body')
+            ->whereColumn('conversation_id', 'conversations.id')
+            ->latest()
+            ->limit(1),
+        ])->addSelect(['last_message_at' => Message::query()
+            ->select('created_at')
+            ->whereColumn('conversation_id', 'conversations.id')
+            ->latest()
+            ->limit(1),
+        ]);
+    }
 }

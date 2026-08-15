@@ -68,8 +68,10 @@ class ConversationChatPage extends Page
         return Conversation::query()
             ->with(['patient', 'account'])
             ->withUnreadForStaff()
-            ->latest()
-            ->get();
+            ->withLastMessage()
+            ->get()
+            ->sortByDesc(fn (Conversation $c) => $c->last_message_at ?? $c->created_at)
+            ->values();
     }
 
     /**
