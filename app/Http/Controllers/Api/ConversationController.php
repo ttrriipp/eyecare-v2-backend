@@ -12,8 +12,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
+use App\Notifications\NewMessageReceived;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -116,18 +115,12 @@ class ConversationController extends Controller
     private function notifyStaffOfMessage(Conversation $conversation, Message $message): void
     {
         $recipients = User::query()
+            ->where('is_active', true)
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
             ->get();
 
-        Notification::make()
-            ->title('New Message')
-            ->body("{$message->sender->full_name} sent a message.")
-            ->actions([
-                Action::make('view')
-                    ->label('View')
-                    ->url('/admin/conversations/'.$conversation->id)
-                    ->markAsRead(),
-            ])
-            ->sendToDatabase($recipients);
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new NewMessageReceived($message, $conversation));
+        }
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Appointment;
 use App\Models\Conversation;
 use App\Models\JobOrder;
 use App\Models\Message;
+use App\Notifications\NewMessageReceived;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -74,12 +75,17 @@ class ConversationChatPage extends Page
 
         $conversation = Conversation::findOrFail($this->selectedConversationId);
 
-        $conversation->messages()->create([
+        $message = $conversation->messages()->create([
             'sender_id' => auth()->id(),
             'body' => $this->replyBody,
         ]);
 
         $this->replyBody = '';
+
+        // Notify the patient account if one is linked
+        if ($conversation->account) {
+            $conversation->account->notify(new NewMessageReceived($message, $conversation));
+        }
 
         Notification::make()
             ->title('Reply sent')

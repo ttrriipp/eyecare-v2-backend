@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Conversations\Pages\ConversationChatPage;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
@@ -7,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
@@ -320,4 +322,40 @@ test('account cannot mark another accounts conversation read', function () {
         ->getJson('/api/v1/conversation')
         ->assertSuccessful()
         ->assertJsonPath('data.unread_count', 1);
+});
+
+test('patient message notifies active staff only', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $activeStaff = User::factory()->staff()->create();
+    $deactivatedStaff = User::factory()->staff()->create(['is_active' => false]);
+
+    $this->actingAs($patient)
+        ->postJson('/api/v1/conversation/messages', ['body' => 'Hello'])
+        ->assertCreated();
+
+    expect($activeStaff->fresh()->unreadNotifications)->toHaveCount(1);
+    expect($deactivatedStaff->fresh()->unreadNotifications)->toHaveCount(0);
+});
+
+test('staff reply produces a patient notification', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->set('replyBody', 'Staff reply')
+        ->call('sendReply');
+
+    expect($patient->fresh()->unreadNotifications)->toHaveCount(1);
 });
