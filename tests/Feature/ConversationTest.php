@@ -359,3 +359,23 @@ test('staff reply produces a patient notification', function () {
 
     expect($patient->fresh()->unreadNotifications)->toHaveCount(1);
 });
+
+test('conversation send is throttled at 10 per minute', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($patient);
+
+    // Send 10 messages successfully
+    for ($i = 0; $i < 10; $i++) {
+        $this->postJson('/api/v1/conversation/messages', ['body' => "Message $i"])
+            ->assertCreated();
+    }
+
+    // 11th should be throttled
+    $this->postJson('/api/v1/conversation/messages', ['body' => 'Too many'])
+        ->assertStatus(429);
+});

@@ -51,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-account', fn (Request $request): Limit => $this->apiLimit($request, 120));
         RateLimiter::for('api-profile', fn (Request $request): Limit => $this->apiLimit($request, 300));
         RateLimiter::for('api-clinical', fn (Request $request): Limit => $this->apiLimit($request, 120));
+        RateLimiter::for('conversation-send', fn (Request $request): Limit => $this->apiLimit($request, 10));
         RateLimiter::for('invitation-otp', fn (Request $request): Limit => $this->apiLimit(
             $request,
             5,
