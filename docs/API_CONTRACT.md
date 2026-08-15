@@ -2154,6 +2154,46 @@ call returns `marked_count: 0`.
 }
 ```
 
+### GET `/conversation/messages/search`
+
+Full-text search within the account's conversation. Results are returned
+newest-first, paginated with the same cursor shape as the messages endpoint.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:**
+- `q` (required, string, max 500): Search term.
+
+**Validation:**
+- `q`: required, string, maximum 500 characters
+- Empty or whitespace-only `q` returns 422.
+
+**Response (200):**
+```json
+{
+  "data": [
+    {
+      "id": 5,
+      "conversation_id": 1,
+      "sender_id": 1,
+      "sender_type": "patient",
+      "body": "When will my prescription be ready?",
+      "read_at": null,
+      "created_at": "2026-08-05T11:00:00+08:00",
+      "attachments": []
+    }
+  ],
+  "meta": {
+    "next_cursor": null,
+    "has_more": false
+  }
+}
+```
+
+**Known limitation:** MySQL's default `innodb_ft_min_token_size` (3) means
+short words like "ok" silently match nothing. This is a database-level
+constraint, not an application bug.
+
 ### GET `/conversation/attachments/{attachment}`
 
 Downloads a message attachment. Requires an active patient link.
@@ -2502,6 +2542,7 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 
 GET    /api/v1/conversation                   Get conversation
 GET    /api/v1/conversation/messages          List messages
+GET    /api/v1/conversation/messages/search   Search messages
 POST   /api/v1/conversation/messages          Send message
 POST   /api/v1/conversation/messages/read     Mark messages read
 GET    /api/v1/conversation/attachments/{id}  Download attachment
