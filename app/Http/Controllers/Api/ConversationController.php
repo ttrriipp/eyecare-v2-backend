@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Conversations\MarkConversationRead;
 use App\Actions\Conversations\ResolveAccountConversation;
+use App\Actions\Conversations\SearchConversationMessages;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreMessageRequest;
 use App\Http\Resources\ConversationResource;
@@ -59,6 +60,25 @@ class ConversationController extends Controller
         $marked = app(MarkConversationRead::class)->handle($request->user());
 
         return response()->json(['marked_count' => $marked]);
+    }
+
+    /**
+     * GET /conversation/messages/search — full-text search within the conversation.
+     */
+    public function searchMessages(Request $request): AnonymousResourceCollection
+    {
+        $validated = $request->validate(['q' => ['required', 'string', 'max:500']]);
+
+        $paginator = app(SearchConversationMessages::class)->handle(
+            $request->user(),
+            $validated['q'],
+        );
+
+        return MessageResource::collection($paginator)
+            ->additional(['meta' => [
+                'next_cursor' => $paginator->nextCursor()?->encode(),
+                'has_more' => $paginator->hasMorePages(),
+            ]]);
     }
 
     /**

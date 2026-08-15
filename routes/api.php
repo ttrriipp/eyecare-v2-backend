@@ -82,6 +82,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         // Conversation - account-owned, no patient link required
         Route::get('conversation', [ConversationController::class, 'show']);
         Route::get('conversation/messages', [ConversationController::class, 'indexMessages']);
+        Route::get('conversation/messages/search', [ConversationController::class, 'searchMessages']);
         Route::post('conversation/messages', [ConversationController::class, 'storeMessage'])
             ->middleware('throttle:conversation-send');
         Route::post('conversation/messages/read', [ConversationController::class, 'markRead']);
