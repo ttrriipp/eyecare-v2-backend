@@ -35,9 +35,9 @@
                                             Unlinked
                                         </span>
                                     @endif
-                                    @if ($conversation->messages_count > 0)
-                                        <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
-                                            {{ $conversation->messages_count }}
+                                    @if ($conversation->unread_for_staff > 0)
+                                        <span class="shrink-0 rounded-full bg-warning-50 px-1.5 py-0.5 text-xs font-medium text-warning-600 dark:bg-warning-500/15 dark:text-warning-400">
+                                            {{ $conversation->unread_for_staff }}
                                         </span>
                                     @endif
                                 </div>

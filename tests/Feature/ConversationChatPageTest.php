@@ -113,3 +113,44 @@ test('selecting a conversation with unread patient messages drops staff unread t
 
     expect($conversation->fresh()->unreadForStaff())->toBe(0);
 });
+
+test('sidebar shows unread pill with count when there are unread patient messages', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    Message::factory()->count(3)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->assertSee('3');
+});
+
+test('sidebar hides unread pill when count is zero', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'staff_last_read_at' => now(),
+    ]);
+
+    // All messages are from staff — unread count is 0
+    $staff = User::factory()->create();
+    Message::factory()->count(5)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $staff->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->assertDontSee('unread-for-staff');
+});

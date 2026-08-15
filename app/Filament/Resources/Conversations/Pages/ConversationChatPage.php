@@ -67,7 +67,7 @@ class ConversationChatPage extends Page
     {
         return Conversation::query()
             ->with(['patient', 'account'])
-            ->withCount('messages')
+            ->withUnreadForStaff()
             ->latest()
             ->get();
     }
