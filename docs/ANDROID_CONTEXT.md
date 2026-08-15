@@ -151,10 +151,10 @@ POST   /orders                        → submit (requested)
 POST   /orders/{id}/cancel
 GET    /billing/{id}                  → with items[] + payments[]
 GET    /prescriptions, /prescriptions/{id}
-GET    /conversations                 → includes unread_count
-GET    /conversations/{id}/messages
-POST   /conversations/{id}/messages
-POST   /conversations/{id}/messages/read
+GET    /conversation                 → includes unread_count
+GET    /conversation/messages
+POST   /conversation/messages
+POST   /conversation/messages/read
 ```
 
 Auth: Sanctum token in `Authorization: Bearer {token}`. Stored via `TokenManager` (SharedPreferences). 401 → auto-logout via `AuthEventBus`.

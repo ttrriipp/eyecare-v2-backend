@@ -2026,9 +2026,9 @@ star value always counts toward averages regardless of hiding.
 **Authenticated account-only (no active patient link required).**
 
 The conversation is the account's single messaging thread with the clinic.
-Linked and unlinked accounts can send text messages. Structured context
-links (`contexts[]`) are retired and rejected with HTTP 422. Messages are
-plain text only, maximum 5,000 characters.
+Linked and unlinked accounts can send text messages. Message contexts
+have been removed entirely. Messages are plain text only, maximum 5,000
+characters.
 
 Attachment uploads and downloads require an active patient link. Unlinked
 accounts receive `can_upload_attachments: false` and upload attempts return
@@ -2048,8 +2048,7 @@ Returns (or creates) the account's single conversation.
     "patient_id": null,
     "access_level": "general_inquiry",
     "capabilities": {
-      "can_upload_attachments": false,
-      "can_create_context_links": false
+      "can_upload_attachments": false
     },
     "unread_count": 0,
     "created_at": "2026-08-11T10:00:00.000000Z"
@@ -2065,8 +2064,7 @@ Returns (or creates) the account's single conversation.
     "patient_id": 1,
     "access_level": "linked_patient",
     "capabilities": {
-      "can_upload_attachments": true,
-      "can_create_context_links": false
+      "can_upload_attachments": true
     },
     "unread_count": 3,
     "created_at": "2026-07-27T10:00:00.000000Z"
@@ -2113,7 +2111,7 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 | `sender_id` | integer | no | User ID of sender |
 | `sender_type` | string | no | `patient` or `staff` |
 | `body` | string | no | Message text, maximum 5,000 characters |
-| `read_at` | string | yes | ISO 8601 when read by patient |
+| `read_at` | string | yes | ISO 8601 when read (set by `POST /conversation/messages/read`) |
 | `created_at` | string | no | ISO 8601 creation timestamp |
 | `attachments` | array | no | Attached files (empty array for unlinked accounts) |
 | `attachments[].id` | integer | no | Attachment ID |
@@ -2124,7 +2122,7 @@ Returns all messages in the conversation (oldest first). NOT paginated.
 
 ### POST `/conversation/messages`
 
-Sends a plain text message. Structured context input is rejected.
+Sends a plain text message. Context input is prohibited.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2142,6 +2140,20 @@ Sends a plain text message. Structured context input is rejected.
 **Rate limit:** 10 requests per minute per account. Throttled requests return
 HTTP 429 without creating a partial message.
 
+### POST `/conversation/messages/read`
+
+Marks every message the caller did not send as read. Idempotent — a second
+call returns `marked_count: 0`.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200):**
+```json
+{
+  "marked_count": 3
+}
+```
+
 ### GET `/conversation/attachments/{attachment}`
 
 Downloads a message attachment. Requires an active patient link.
@@ -2150,37 +2162,6 @@ Downloads a message attachment. Requires an active patient link.
 
 Returns 404 for unlinked accounts, missing files, or attachments from
 other conversations (non-disclosing).
-
-**Request (multipart/form-data):**
-```
-body: "string (required, max:5000)"
-attachment: File (optional, max 10MB, allowed: pdf,png,jpg,jpeg,doc,docx)
-contexts[0][type]: "optical_order"
-contexts[0][id]: "1"
-```
-
-**Notes:**
-- `contexts` is optional. Each entry must include `type` and `id`.
-- Valid `type` values: `optical_order`, `quotation`.
-- The referenced resource must exist and belong to the authenticated patient.
-- A message accepts at most one attachment through the singular `attachment`
-  field. To send multiple files, send separate messages.
-
-**Response (201):**
-```json
-{
-  "data": {
-    "id": 2,
-    "sender_id": 1,
-    "sender_type": "patient",
-    "body": "Thank you!",
-    "read_at": null,
-    "created_at": "2026-08-05T11:00:00+08:00",
-    "contexts": [],
-    "attachments": []
-  }
-}
-```
 
 ### GET `/conversation/attachments/{id}`
 
@@ -2423,14 +2404,13 @@ inferred from the status string alone.
 ### Messaging and attachments
 
 Messages include `sender_id`, `sender_type` (`patient` or `staff`), `body`,
-`read_at`, `created_at`, normalized `contexts`, and an `attachments` array that
+`read_at`, `created_at`, and an `attachments` array that
 contains zero or one attachment. A message accepts one optional multipart
 `attachment` field; multiple files require separate messages.
 
 Each attachment returns `id`, `original_name`, `mime_type`, `file_size`, and an
 authenticated `download_url`. Allowed file types are PDF, PNG, JPG/JPEG, DOC,
-and DOCX, with a 10 MB maximum. Valid context types are `optical_order` and
-`quotation`; each referenced record must belong to the authenticated patient.
+and DOCX, with a 10 MB maximum.
 
 ---
 
@@ -2523,6 +2503,7 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 GET    /api/v1/conversation                   Get conversation
 GET    /api/v1/conversation/messages          List messages
 POST   /api/v1/conversation/messages          Send message
+POST   /api/v1/conversation/messages/read     Mark messages read
 GET    /api/v1/conversation/attachments/{id}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
