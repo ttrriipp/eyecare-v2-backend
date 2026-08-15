@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Message;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Route;
 
 /**
  * @mixin Message
@@ -20,6 +21,7 @@ class MessageResource extends JsonResource
             'id' => $this->id,
             'conversation_id' => $this->conversation_id,
             'sender_id' => $this->sender_id,
+            'sender_type' => $this->sender?->isPatient() ? 'patient' : 'staff',
             'body' => $this->body,
             'read_at' => $this->read_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
@@ -28,10 +30,9 @@ class MessageResource extends JsonResource
                 'original_name' => $a->original_name,
                 'mime_type' => $a->mime_type,
                 'file_size' => $a->file_size,
-            ])->all()),
-            'contexts' => $this->whenLoaded('contextLinks', fn () => $this->contextLinks->map(fn ($link) => [
-                'type' => $link->contextable_type,
-                'id' => $link->contextable_id,
+                'download_url' => Route::has('conversation.attachments.download')
+                    ? route('conversation.attachments.download', $a)
+                    : null,
             ])->all()),
         ];
     }

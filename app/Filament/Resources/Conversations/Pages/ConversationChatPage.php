@@ -3,14 +3,11 @@
 namespace App\Filament\Resources\Conversations\Pages;
 
 use App\Filament\Resources\Conversations\ConversationResource;
-use App\Models\Appointment;
 use App\Models\Conversation;
-use App\Models\JobOrder;
 use App\Models\Message;
 use App\Notifications\NewMessageReceived;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
@@ -128,12 +125,6 @@ class ConversationChatPage extends Page
             ->with([
                 'sender',
                 'attachments',
-                'contextLinks.contextable' => function (MorphTo $morphTo): void {
-                    $morphTo->morphWith([
-                        Appointment::class => ['appointmentType', 'status'],
-                        JobOrder::class => ['status'],
-                    ]);
-                },
             ])
             ->oldest()
             ->get();
