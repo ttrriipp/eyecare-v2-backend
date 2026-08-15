@@ -2,7 +2,7 @@
 
 > Spec: `docs/specs/direct-messaging-hardening-spec.md`
 > Plan: `tasks/direct-messaging-hardening-plan.md`
-> Status: **proposed**, awaiting owner approval to begin. **No task below has started.**
+> Status: **shipped**, 2026-08-15. All 18 tasks across 7 phases complete.
 > All four open questions were resolved 2026-08-15 (clinic-wide watermark; contexts removed
 > entirely, not just off the API; Android ready whenever the backend is; notifications stay
 > patient↔clinic only) — see the plan's Open Questions section.
@@ -22,20 +22,20 @@ marks every message the caller did not send as read, which makes the already-shi
 
 **Acceptance criteria:**
 
-- [ ] `App\Actions\Conversations\MarkConversationRead` exists, matching the shape of the
+- [x] `App\Actions\Conversations\MarkConversationRead` exists, matching the shape of the
       sibling `ResolveAccountConversation`, and returns the number of rows marked.
-- [ ] `POST /api/v1/conversation/messages/read` sits in the account-only tier inside the
+- [x] `POST /api/v1/conversation/messages/read` sits in the account-only tier inside the
       `throttle:api-account` group; no active patient link is required.
-- [ ] The update is one statement — messages `where sender_id != reader` and
+- [x] The update is one statement — messages `where sender_id != reader` and
       `read_at is null` — with no model iteration.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] Marking read drives `unread_count` to 0 on the next `GET /conversation`.
-- [ ] The caller's own messages are never marked; a second call returns `marked_count: 0`.
-- [ ] An unlinked account can mark read; an account cannot mark another account's thread.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] Marking read drives `unread_count` to 0 on the next `GET /conversation`.
+- [x] The caller's own messages are never marked; a second call returns `marked_count: 0`.
+- [x] An unlinked account can mark read; an account cannot mark another account's thread.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None.
 
@@ -50,9 +50,9 @@ marks every message the caller did not send as read, which makes the already-shi
 
 ### Checkpoint A: Patient unread is correct
 
-- [ ] `unread_count` rises on a staff message and falls to 0 on mark-read.
-- [ ] Focused conversation suite green; Pint clean.
-- [ ] Review with owner before proceeding to the staff side.
+- [x] `unread_count` rises on a staff message and falls to 0 on mark-read.
+- [x] Focused conversation suite green; Pint clean.
+- [x] Review with owner before proceeding to the staff side.
 
 ---
 
@@ -69,21 +69,21 @@ owner. No per-staff read rows.
 
 **Acceptance criteria:**
 
-- [ ] Migration adds nullable `conversations.staff_last_read_at` after `inbox_archived_at`.
+- [x] Migration adds nullable `conversations.staff_last_read_at` after `inbox_archived_at`.
       `messages.read_at` is unchanged.
-- [ ] `Conversation` casts it to `datetime` and exposes `unreadForPatient()` and
+- [x] `Conversation` casts it to `datetime` and exposes `unreadForPatient()` and
       `unreadForStaff()`; a null watermark means every patient message is unread.
-- [ ] A `withUnreadForStaff()` query scope resolves counts for a whole inbox in one query.
-- [ ] `BACKEND_CONTEXT.md`'s `conversations` row documents the new column and the
+- [x] A `withUnreadForStaff()` query scope resolves counts for a whole inbox in one query.
+- [x] `BACKEND_CONTEXT.md`'s `conversations` row documents the new column and the
       deliberate patient/staff asymmetry.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan migrate --env=testing` succeeds and rolls back cleanly.
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] Counters are correct for: null watermark, partial watermark, empty thread, and a
+- [x] `vendor/bin/sail artisan migrate --env=testing` succeeds and rolls back cleanly.
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] Counters are correct for: null watermark, partial watermark, empty thread, and a
       thread where only the reader has spoken (must be 0, not the message count).
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None (Task 1 is independent).
 
@@ -102,15 +102,15 @@ without letting the 5-second poll re-stamp it on every tick.
 
 **Acceptance criteria:**
 
-- [ ] `selectConversation()` stamps `staff_last_read_at = now()` on the selected thread.
-- [ ] A poll tick with an unchanged selection performs no write.
+- [x] `selectConversation()` stamps `staff_last_read_at = now()` on the selected thread.
+- [x] A poll tick with an unchanged selection performs no write.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
-- [ ] Selecting a thread with unread patient messages drops its staff unread count to 0.
-- [ ] Re-rendering without changing selection leaves `staff_last_read_at` untouched.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
+- [x] Selecting a thread with unread patient messages drops its staff unread count to 0.
+- [x] Re-rendering without changing selection leaves `staff_last_read_at` untouched.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 2.
 
@@ -127,16 +127,16 @@ is not a work signal; it tells staff how chatty a patient is, not who is waiting
 
 **Acceptance criteria:**
 
-- [ ] The sidebar pill shows staff-unread count, is hidden at zero, and is visually
+- [x] The sidebar pill shows staff-unread count, is hidden at zero, and is visually
       emphasised above zero.
-- [ ] Counts come from the Task 2 scope in the list query — no per-row query.
+- [x] Counts come from the Task 2 scope in the list query — no per-row query.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
-- [ ] A thread with 20 read messages and 0 unread shows no pill.
-- [ ] Manual check: send a patient message, confirm the pill appears without reload.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
+- [x] A thread with 20 read messages and 0 unread shows no pill.
+- [x] Manual check: send a patient message, confirm the pill appears without reload.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 2, 3.
 
@@ -156,17 +156,17 @@ last-message preview.
 
 **Acceptance criteria:**
 
-- [ ] Ordering is by latest message descending, with `created_at` as the tiebreaker for
+- [x] Ordering is by latest message descending, with `created_at` as the tiebreaker for
       threads that have none.
-- [ ] The sidebar shows a last-message preview and its timestamp instead of the thread
+- [x] The sidebar shows a last-message preview and its timestamp instead of the thread
       creation date.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
-- [ ] An older thread with a newer message sorts above a newer, quiet thread.
-- [ ] An empty thread still renders without error.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
+- [x] An older thread with a newer message sorts above a newer, quiet thread.
+- [x] An empty thread still renders without error.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 2.
 
@@ -186,16 +186,16 @@ already auto-restores on a new message; this task makes that observable.
 
 **Acceptance criteria:**
 
-- [ ] The inbox hides archived threads by default and exposes a toggle to show them.
-- [ ] Archive and Restore actions are available from the chat page header.
-- [ ] A new message on an archived thread returns it to the default inbox.
+- [x] The inbox hides archived threads by default and exposes a toggle to show them.
+- [x] Archive and Restore actions are available from the chat page header.
+- [x] A new message on an archived thread returns it to the default inbox.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
-- [ ] Archived thread disappears from the default list and reappears under the toggle.
-- [ ] Sending to an archived thread clears `inbox_archived_at`.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=ConversationChatPage`
+- [x] Archived thread disappears from the default list and reappears under the toggle.
+- [x] Sending to an archived thread clears `inbox_archived_at`.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 5 (same query and blade region).
 
@@ -214,16 +214,16 @@ Conversations page. Add a navigation badge following the established
 
 **Acceptance criteria:**
 
-- [ ] `getNavigationBadge()` counts non-archived conversations with staff-unread messages
+- [x] `getNavigationBadge()` counts non-archived conversations with staff-unread messages
       and returns null at zero.
-- [ ] `getNavigationBadgeColor()` returns `'warning'`, consistent with Appointment Requests.
+- [x] `getNavigationBadgeColor()` returns `'warning'`, consistent with Appointment Requests.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AdminNavigationStructureTest.php`
-- [ ] Badge is absent at zero, present and correct above zero, and ignores archived threads.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AdminNavigationStructureTest.php`
+- [x] Badge is absent at zero, present and correct above zero, and ignores archived threads.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 2.
 
@@ -235,10 +235,10 @@ Conversations page. Add a navigation badge following the established
 
 ### Checkpoint B: Feature usable in the clinic
 
-- [ ] Both sides see accurate unread state; inbox orders by activity; archiving works.
-- [ ] Focused conversation suite and navigation structure test green; Pint clean.
-- [ ] Manual end-to-end: patient sends → badge appears → staff opens → badge clears.
-- [ ] Review with owner before proceeding.
+- [x] Both sides see accurate unread state; inbox orders by activity; archiving works.
+- [x] Focused conversation suite and navigation structure test green; Pint clean.
+- [x] Manual end-to-end: patient sends → badge appears → staff opens → badge clears.
+- [x] Review with owner before proceeding.
 
 ---
 
@@ -252,17 +252,17 @@ project, which covered intake, complaint, and `inventory_movement_statuses` only
 
 **Acceptance criteria:**
 
-- [ ] `CreateConversation`, `EditConversation`, `ListConversations`, and `ViewConversation`
+- [x] `CreateConversation`, `EditConversation`, `ListConversations`, and `ViewConversation`
       are deleted.
-- [ ] Each is confirmed to have no remaining referent before deletion.
-- [ ] `EditConversation`'s archive action already lives on the chat page (Task 6).
+- [x] Each is confirmed to have no remaining referent before deletion.
+- [x] `EditConversation`'s archive action already lives on the chat page (Task 6).
 
 **Verification:**
 
-- [ ] `grep -rn "CreateConversation\|EditConversation\|ListConversations\|ViewConversation" app/ tests/ routes/` returns nothing.
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] `vendor/bin/sail artisan about` boots without a resolution error.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `grep -rn "CreateConversation\|EditConversation\|ListConversations\|ViewConversation" app/ tests/ routes/` returns nothing.
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] `vendor/bin/sail artisan about` boots without a resolution error.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 6 (hard — relocation precedes deletion).
 
@@ -285,17 +285,17 @@ references. Correct the historical note rather than restating it.
 
 **Acceptance criteria:**
 
-- [ ] `MessagesRelationManager`, `ConversationForm`, `ConversationInfolist`, and
+- [x] `MessagesRelationManager`, `ConversationForm`, `ConversationInfolist`, and
       `ConversationsTable` are deleted.
-- [ ] Message attachments still upload, download, preview, and render in the chat page.
-- [ ] `docs/specs/dead-code-removal-spec.md` carries a dated correction to its
+- [x] Message attachments still upload, download, preview, and render in the chat page.
+- [x] `docs/specs/dead-code-removal-spec.md` carries a dated correction to its
       `MessagesRelationManager` citation.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/ConversationTest.php tests/Feature/ConversationChatPageTest.php tests/Feature/ConversationOwnershipTest.php`
-- [ ] Manual check: attachment upload and download still work end to end.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/ConversationTest.php tests/Feature/ConversationChatPageTest.php tests/Feature/ConversationOwnershipTest.php`
+- [x] Manual check: attachment upload and download still work end to end.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 8.
 
@@ -319,15 +319,15 @@ already authorize ownership, and are referenced by zero routes. This is wiring, 
 
 **Acceptance criteria:**
 
-- [ ] Four routes registered in the account-only tier: index, unread count, mark read,
+- [x] Four routes registered in the account-only tier: index, unread count, mark read,
       mark all read.
-- [ ] Ownership is enforced — marking another account's notification returns 403.
+- [x] Ownership is enforced — marking another account's notification returns 403.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Notification`
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1/notifications` lists four routes.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Notification`
+- [x] `vendor/bin/sail artisan route:list --path=api/v1/notifications` lists four routes.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None.
 
@@ -346,16 +346,16 @@ deactivated staff accounts.
 
 **Acceptance criteria:**
 
-- [ ] `ConversationController::notifyStaffOfMessage()` uses `NewMessageReceived`.
-- [ ] The staff recipient query filters `is_active`.
-- [ ] A staff reply notifies the patient account (`User` already uses `Notifiable`).
+- [x] `ConversationController::notifyStaffOfMessage()` uses `NewMessageReceived`.
+- [x] The staff recipient query filters `is_active`.
+- [x] A staff reply notifies the patient account (`User` already uses `Notifiable`).
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] A patient message notifies active staff only; a deactivated staff account receives none.
-- [ ] A staff reply produces a patient notification retrievable via Task 10's index route.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] A patient message notifies active staff only; a deactivated staff account receives none.
+- [x] A staff reply produces a patient notification retrievable via Task 10's index route.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 10.
 
@@ -369,9 +369,9 @@ deactivated staff accounts.
 
 ### Checkpoint C: Both parties are notified
 
-- [ ] Patient and staff each learn of new messages without watching a screen.
-- [ ] Focused conversation and notification suites green; Pint clean.
-- [ ] Review with owner before proceeding.
+- [x] Patient and staff each learn of new messages without watching a screen.
+- [x] Focused conversation and notification suites green; Pint clean.
+- [x] Review with owner before proceeding.
 
 ---
 
@@ -385,20 +385,20 @@ contract says was retired and is rejected with 422.
 
 **Acceptance criteria:**
 
-- [ ] `sender_type` returns `patient` or `staff` (`API_CONTRACT.md:2090, 2114`).
-- [ ] `attachments[].download_url` resolves the named route
+- [x] `sender_type` returns `patient` or `staff` (`API_CONTRACT.md:2090, 2114`).
+- [x] `attachments[].download_url` resolves the named route
       `conversation.attachments.download` (`:2100, 2123`).
-- [ ] `contexts` is removed from the resource, and the now-unused
+- [x] `contexts` is removed from the resource, and the now-unused
       `contextLinks.contextable` eager load is removed from `ConversationChatPage:83-88`
       in the same change.
-- [ ] `API_CONTRACT.md:2030, 2140, 2158-2163, 2179, 2426` no longer describe `contexts` as
+- [x] `API_CONTRACT.md:2030, 2140, 2158-2163, 2179, 2426` no longer describe `contexts` as
       a rejected-but-present field; they describe it as removed.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] Response payload matches `API_CONTRACT.md` §15 field-for-field.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] Response payload matches `API_CONTRACT.md` §15 field-for-field.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None.
 
@@ -421,19 +421,19 @@ lands. `StoreMessageRequest`'s `'contexts' => ['prohibited']` rule stays — it 
 
 **Acceptance criteria:**
 
-- [ ] `Message::contextLinks()` is removed.
-- [ ] `app/Models/MessageContextLink.php` is deleted.
-- [ ] A new migration drops `message_context_links`, reversible in its `down()`. The
+- [x] `Message::contextLinks()` is removed.
+- [x] `app/Models/MessageContextLink.php` is deleted.
+- [x] A new migration drops `message_context_links`, reversible in its `down()`. The
       original `2026_06_16_132305_rework_messaging_schema.php` migration is left untouched,
       matching the dead-code-removal precedent of an explicit cleanup migration rather than
       rewriting shipped history.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
-- [ ] `grep -rn MessageContextLink app/` returns nothing.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
+- [x] `grep -rn MessageContextLink app/` returns nothing.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 12. The response field and eager load must be gone before the table
 they read from disappears — never reorder these two.
@@ -452,16 +452,16 @@ since it was written. The route inherits the 120/minute account bucket.
 
 **Acceptance criteria:**
 
-- [ ] `RateLimiter::for('conversation-send', …)` is defined at 10/min alongside the existing
+- [x] `RateLimiter::for('conversation-send', …)` is defined at 10/min alongside the existing
       five limiters in `AppServiceProvider:44-60`, reusing the shared `apiLimit()` helper.
-- [ ] `POST conversation/messages` carries the limiter; other conversation routes do not.
+- [x] `POST conversation/messages` carries the limiter; other conversation routes do not.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] The 11th send in a minute returns 429 with `Retry-After` and creates no message.
-- [ ] Reading messages is unaffected at the same rate.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] The 11th send in a minute returns 429 with `Retry-After` and creates no message.
+- [x] Reading messages is unaffected at the same rate.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None.
 
@@ -479,18 +479,18 @@ ones that do.
 
 **Acceptance criteria:**
 
-- [ ] `ANDROID_CONTEXT.md:154-157` uses the singular shipped route shape and lists the
+- [x] `ANDROID_CONTEXT.md:154-157` uses the singular shipped route shape and lists the
       real mark-read route.
-- [ ] `API_CONTRACT.md` §15 documents mark-read and corrects `read_at` to state it is set
+- [x] `API_CONTRACT.md` §15 documents mark-read and corrects `read_at` to state it is set
       by the bulk endpoint, not per message.
-- [ ] `BACKEND_CONTEXT.md` records the route count, `staff_last_read_at`, and the
+- [x] `BACKEND_CONTEXT.md` records the route count, `staff_last_read_at`, and the
       patient/staff read-model asymmetry.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1/conversation` matches the contract
+- [x] `vendor/bin/sail artisan route:list --path=api/v1/conversation` matches the contract
       exactly.
-- [ ] Documented route count equals the actual count.
+- [x] Documented route count equals the actual count.
 
 **Dependencies:** Tasks 1, 12, 13, 14.
 
@@ -503,8 +503,8 @@ ones that do.
 
 ### Checkpoint D: Docs match code
 
-- [ ] Every documented messaging endpoint exists; every existing one is documented.
-- [ ] Full focused suite green; Pint clean.
+- [x] Every documented messaging endpoint exists; every existing one is documented.
+- [x] Full focused suite green; Pint clean.
 
 ---
 
@@ -525,18 +525,18 @@ year one, not at year three.
 
 **Acceptance criteria:**
 
-- [ ] Cursor pagination, newest-first, default page size 50, exposing `next_cursor` and
+- [x] Cursor pagination, newest-first, default page size 50, exposing `next_cursor` and
       `has_more`.
-- [ ] Composite index `(conversation_id, created_at)` added in the same migration.
-- [ ] The Android client is confirmed ready before merge.
+- [x] Composite index `(conversation_id, created_at)` added in the same migration.
+- [x] The Android client is confirmed ready before merge.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] A 200-message thread returns 50 with a working cursor; the last page reports
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] A 200-message thread returns 50 with a working cursor; the last page reports
       `has_more: false`.
-- [ ] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 15.
 
@@ -550,8 +550,8 @@ year one, not at year three.
 
 ### Checkpoint E: Pagination shipped
 
-- [ ] Android reads `next_cursor`/`has_more` correctly on a real 200+ message thread.
-- [ ] Focused conversation suite green; Pint clean.
+- [x] Android reads `next_cursor`/`has_more` correctly on a real 200+ message thread.
+- [x] Focused conversation suite green; Pint clean.
 
 ---
 
@@ -571,23 +571,23 @@ its own project, not an MVP requirement.
 
 **Acceptance criteria:**
 
-- [ ] Migration adds a `FULLTEXT` index on `messages.body`.
-- [ ] New `app/Actions/Conversations/SearchConversationMessages.php` follows the existing
+- [x] Migration adds a `FULLTEXT` index on `messages.body`.
+- [x] New `app/Actions/Conversations/SearchConversationMessages.php` follows the existing
       `app/Actions/Conversations/` convention (alongside `ResolveAccountConversation`, etc.).
-- [ ] The query filters on the resolved, ownership-checked `conversation_id` *before* the
+- [x] The query filters on the resolved, ownership-checked `conversation_id` *before* the
       `whereFullText()` clause — never scans across conversations.
-- [ ] `GET /conversation/messages/search?q=` returns matches newest-first, paginated
+- [x] `GET /conversation/messages/search?q=` returns matches newest-first, paginated
       identically to Task 16.
-- [ ] An empty or whitespace-only `q` returns `422`, not an unfiltered full-text scan.
+- [x] An empty or whitespace-only `q` returns `422`, not an unfiltered full-text scan.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation`
-- [ ] A search for a word present in exactly one message returns exactly that message.
-- [ ] A search scoped to conversation A returns nothing from conversation B, even on an
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
+- [x] A search for a word present in exactly one message returns exactly that message.
+- [x] A search scoped to conversation A returns nothing from conversation B, even on an
       exact text match — the cross-account leakage case from the plan's risk table.
-- [ ] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 16 — reuses its cursor envelope; not a technical coupling, a
 consistency one.
@@ -609,12 +609,12 @@ silently match nothing) so nobody re-discovers it as a bug later.
 
 **Acceptance criteria:**
 
-- [ ] `API_CONTRACT.md` §15 documents `GET /conversation/messages/search`, its `q` parameter,
+- [x] `API_CONTRACT.md` §15 documents `GET /conversation/messages/search`, its `q` parameter,
       the cursor response shape, and the short-word limitation.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1/conversation` matches the documented
+- [x] `vendor/bin/sail artisan route:list --path=api/v1/conversation` matches the documented
       route.
 
 **Dependencies:** Task 17.
@@ -628,9 +628,9 @@ silently match nothing) so nobody re-discovers it as a bug later.
 
 ## Definition of done
 
-- [ ] Every acceptance criterion above is met.
-- [ ] `vendor/bin/sail artisan test --compact --filter=Conversation` is green.
-- [ ] `vendor/bin/sail bin pint --format agent` reports no changes.
-- [ ] `docs/BACKEND_CONTEXT.md`, `docs/API_CONTRACT.md`, and `docs/ANDROID_CONTEXT.md`
+- [x] Every acceptance criterion above is met.
+- [x] `vendor/bin/sail artisan test --compact --filter=Conversation` is green.
+- [x] `vendor/bin/sail bin pint --format agent` reports no changes.
+- [x] `docs/BACKEND_CONTEXT.md`, `docs/API_CONTRACT.md`, and `docs/ANDROID_CONTEXT.md`
       describe the shipped state.
-- [ ] `tasks/plan.md` and `tasks/todo.md` are updated to reflect completion.
+- [x] `tasks/plan.md` and `tasks/todo.md` are updated to reflect completion.

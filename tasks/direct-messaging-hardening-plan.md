@@ -1,8 +1,8 @@
 # Implementation Plan: Direct Messaging Hardening
 
-> Spec: `docs/specs/direct-messaging-hardening-spec.md` (proposed 2026-08-15)
+> Spec: `docs/specs/direct-messaging-hardening-spec.md` (shipped 2026-08-15)
 > Checklist: `tasks/direct-messaging-hardening-todo.md`
-> Status: **proposed**, awaiting owner approval. No implementation authorized.
+> Status: **shipped**, 2026-08-15. All 18 tasks complete.
 
 ## Overview
 
