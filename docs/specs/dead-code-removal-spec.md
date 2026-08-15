@@ -107,6 +107,13 @@ path. There is: `ConversationController::store()` writes uploaded files to the
 `MessagesRelationManager` both display them. Patient-to-clinic image messaging
 works end to end.
 
+> **Correction (2026-08-15):** `MessagesRelationManager` was cited as evidence
+> that message attachments are live in the Filament UI. This was wrong —
+> `ConversationResource` declares no `getRelations()`, so the relation manager
+> was unreachable. The conclusion holds via `ConversationChatPage` and the other
+> four references. `MessagesRelationManager` was deleted as part of the direct
+> messaging hardening spec (T9).
+
 The error came from searching Filament for paths matching the *class* name
 `MessageAttachment`. The UI references the *relation* name `attachments`, so a
 path search found nothing and "no UI" was inferred from a filename miss. **A
