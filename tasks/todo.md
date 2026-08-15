@@ -1,18 +1,22 @@
 # Active Checklist
 
-No checklist is authorized for implementation. Both earlier simplification
-projects are implemented:
+No checklist is authorized for implementation. Three projects are implemented:
 
 - Minimal Frame Reservations — 2026-08-12
 - Commerce Model Simplification — 2026-08-13
+- Dead Code and Unreachable Feature Removal — 2026-08-14
 
-**Dead Code and Unreachable Feature Removal** has an approved specification,
-plan, and Phase 3 task checklist:
+**Direct Messaging Hardening** has a proposed specification, plan, and task
+checklist awaiting owner approval to begin:
 
-→ `tasks/dead-code-removal-todo.md`
+→ `tasks/direct-messaging-hardening-todo.md`
 
-The linked checklist defines 12 tasks in five phases, with no implementation
-task touching more than five files. Phase 4 implementation is explicitly
-deferred and requires separate owner authorization.
+The linked checklist defines 18 tasks in seven phases, with no task touching
+more than five files. All four open questions in the plan were resolved by the
+owner on 2026-08-15 — clinic-wide read watermark, contexts removed entirely
+(new Task 13), Android ready whenever the backend is (Task 16 no longer gated
+on separate authorization, still sequenced last), notifications stay
+patient↔clinic only. A seventh phase (message search, Tasks 17–18) was added
+the same day, riding on Task 16's cursor pagination shape. No task has started.
 
 See `tasks/plan.md` for the full project index.

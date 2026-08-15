@@ -248,9 +248,12 @@ class CreateDirectOpticalOrder extends CreateRecord
                                             'immediate' => 'Complete sale now',
                                             'prepared' => 'Prepare for pickup',
                                         ])
+                                        ->disableOptionWhen(fn (string $value, Get $get): bool => $value === 'immediate'
+                                            && $prescriptionEyewearResolver($get))
                                         ->default('prepared')
                                         ->required()
                                         ->live()
+                                        ->in(fn (Radio $component): array => array_keys($component->getEnabledOptions()))
                                         ->afterStateUpdated(function (Set $set, ?string $state): void {
                                             if ($state === 'immediate') {
                                                 $set('uses_external_supplier', false);

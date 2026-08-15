@@ -88,6 +88,20 @@ test('corrective items succeed with the patient\'s current prescription', functi
     expect($result['job_order']->prescription_id)->toBe($prescription->id);
 });
 
+test('corrective items cannot use immediate fulfillment', function () {
+    $patient = Patient::factory()->create();
+    $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
+    $lensCategory = LensCategory::factory()->withPrice()->create(['price' => 1200]);
+
+    $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'Single Vision Lens', 'quantity' => 1, 'unit_price' => 1200, 'lens_category_id' => $lensCategory->id]],
+        fulfillmentMode: 'immediate',
+        prescription: $prescription,
+    );
+})->throws(ValidationException::class, 'cannot be completed immediately');
+
 test('rejects insufficient stock', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 1]);
