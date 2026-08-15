@@ -39,9 +39,16 @@ class ConversationController extends Controller
     {
         $conversation = $this->resolveConversation($request->user());
 
-        $messages = $conversation->messages()->with('attachments')->oldest()->get();
+        $paginator = $conversation->messages()
+            ->with('attachments')
+            ->latest()
+            ->cursorPaginate(50);
 
-        return MessageResource::collection($messages);
+        return MessageResource::collection($paginator)
+            ->additional(['meta' => [
+                'next_cursor' => $paginator->nextCursor()?->encode(),
+                'has_more' => $paginator->hasMorePages(),
+            ]]);
     }
 
     /**

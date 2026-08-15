@@ -132,7 +132,7 @@ test('linked patient resolves exactly one conversation', function () {
     expect(Conversation::where('account_user_id', $patient->id)->count())->toBe(1);
 });
 
-test('linked conversation messages are ordered oldest first', function () {
+test('linked conversation messages are ordered newest first', function () {
     $patient = User::factory()->patient()->create();
     $conversation = Conversation::query()->create([
         'account_user_id' => $patient->id,
@@ -154,8 +154,50 @@ test('linked conversation messages are ordered oldest first', function () {
     $this->actingAs($patient)
         ->getJson('/api/v1/conversation/messages')
         ->assertSuccessful()
-        ->assertJsonPath('data.0.body', 'First message')
-        ->assertJsonPath('data.1.body', 'Second message');
+        ->assertJsonPath('data.0.body', 'Second message')
+        ->assertJsonPath('data.1.body', 'First message');
+});
+
+test('conversation messages are cursor paginated', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    Message::factory()->count(60)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    $response = $this->actingAs($patient)
+        ->getJson('/api/v1/conversation/messages')
+        ->assertSuccessful()
+        ->assertJsonCount(50, 'data');
+
+    $meta = $response->json('meta');
+    expect($meta)->toHaveKey('next_cursor');
+    expect($meta)->toHaveKey('has_more');
+    expect($meta['has_more'])->toBeTrue();
+});
+
+test('last page of conversation messages reports has_more false', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    Message::factory()->count(10)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    $this->actingAs($patient)
+        ->getJson('/api/v1/conversation/messages')
+        ->assertSuccessful()
+        ->assertJsonCount(10, 'data')
+        ->assertJsonPath('meta.has_more', false);
 });
 
 test('cross-account attachment access returns not found', function () {
