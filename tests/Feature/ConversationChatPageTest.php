@@ -211,3 +211,87 @@ test('empty thread still renders without error', function () {
     Livewire::test(ConversationChatPage::class)
         ->assertSuccessful();
 });
+
+test('archived threads are hidden from the default inbox', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'inbox_archived_at' => now(),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->assertDontSee($patient->patient->full_name);
+});
+
+test('archived threads appear when showArchived toggle is on', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'inbox_archived_at' => now(),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('showArchived', true)
+        ->assertSee($patient->patient->full_name);
+});
+
+test('archive action removes thread from default inbox', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->call('archiveConversation', $conversation->id);
+
+    expect($conversation->fresh()->isInboxArchived())->toBeTrue();
+});
+
+test('restore action returns thread to default inbox', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'inbox_archived_at' => now(),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('showArchived', true)
+        ->call('restoreConversation', $conversation->id);
+
+    expect($conversation->fresh()->isInboxArchived())->toBeFalse();
+});
+
+test('new message on archived thread auto-restores to inbox', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'inbox_archived_at' => now(),
+    ]);
+
+    expect($conversation->isInboxArchived())->toBeTrue();
+
+    // Send a new message — Message::booted() auto-restores
+    $conversation->messages()->create([
+        'sender_id' => $patient->id,
+        'body' => 'New message',
+    ]);
+
+    expect($conversation->fresh()->isInboxArchived())->toBeFalse();
+});

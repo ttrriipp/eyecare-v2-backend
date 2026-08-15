@@ -24,6 +24,8 @@ class ConversationChatPage extends Page
 
     public string $replyBody = '';
 
+    public bool $showArchived = false;
+
     public function selectConversation(int $id): void
     {
         if ($this->selectedConversationId !== $id) {
@@ -35,6 +37,32 @@ class ConversationChatPage extends Page
         }
 
         $this->replyBody = '';
+    }
+
+    public function archiveConversation(int $id): void
+    {
+        $conversation = Conversation::findOrFail($id);
+        $conversation->archiveInbox();
+
+        if ($this->selectedConversationId === $id) {
+            $this->selectedConversationId = null;
+        }
+
+        Notification::make()
+            ->title('Conversation archived')
+            ->success()
+            ->send();
+    }
+
+    public function restoreConversation(int $id): void
+    {
+        $conversation = Conversation::findOrFail($id);
+        $conversation->restoreToInbox();
+
+        Notification::make()
+            ->title('Conversation restored')
+            ->success()
+            ->send();
     }
 
     public function sendReply(): void
@@ -65,11 +93,16 @@ class ConversationChatPage extends Page
     #[Computed]
     public function conversations(): Collection
     {
-        return Conversation::query()
+        $query = Conversation::query()
             ->with(['patient', 'account'])
             ->withUnreadForStaff()
-            ->withLastMessage()
-            ->get()
+            ->withLastMessage();
+
+        if (! $this->showArchived) {
+            $query->whereNull('inbox_archived_at');
+        }
+
+        return $query->get()
             ->sortByDesc(fn (Conversation $c) => $c->last_message_at ?? $c->created_at)
             ->values();
     }

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'account_user_id',
     'patient_id',
     'staff_last_read_at',
+    'inbox_archived_at',
 ])]
 class Conversation extends Model
 {

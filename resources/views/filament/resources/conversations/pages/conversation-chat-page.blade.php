@@ -4,12 +4,20 @@
         {{-- Conversation list --}}
         <aside class="flex min-h-0 w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
             <div class="border-b border-gray-200 px-4 py-3 dark:border-white/10">
-                <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
-                    All Conversations
-                    <span class="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
-                        {{ $this->conversations->count() }}
-                    </span>
-                </p>
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                        {{ $showArchived ? 'Archived' : 'Inbox' }}
+                        <span class="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                            {{ $this->conversations->count() }}
+                        </span>
+                    </p>
+                    <button
+                        wire:click="$toggle('showArchived')"
+                        class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                        {{ $showArchived ? 'Show inbox' : 'Show archived' }}
+                    </button>
+                </div>
             </div>
 
             @if ($this->conversations->isEmpty())
@@ -33,6 +41,11 @@
                                     @if ($conversation->patient_id === null)
                                         <span class="shrink-0 rounded-full bg-warning-50 px-1.5 py-0.5 text-xs text-warning-600 dark:bg-warning-500/15 dark:text-warning-400">
                                             Unlinked
+                                        </span>
+                                    @endif
+                                    @if ($conversation->inbox_archived_at)
+                                        <span class="shrink-0 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400">
+                                            Archived
                                         </span>
                                     @endif
                                     @if ($conversation->unread_for_staff > 0)
@@ -77,6 +90,23 @@
                         <div class="rounded-lg bg-warning-50 px-3 py-1.5 text-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
                             Unlinked account — general inquiry only
                         </div>
+                    @endif
+                    @if ($this->selectedConversation->isInboxArchived())
+                        <button
+                            wire:click="restoreConversation({{ $this->selectedConversation->id }})"
+                            class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        >
+                            <x-heroicon-o-arrow-uturn-left class="h-3.5 w-3.5" />
+                            Restore
+                        </button>
+                    @else
+                        <button
+                            wire:click="archiveConversation({{ $this->selectedConversation->id }})"
+                            class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        >
+                            <x-heroicon-o-archive-box class="h-3.5 w-3.5" />
+                            Archive
+                        </button>
                     @endif
                 </div>
 
