@@ -26,7 +26,14 @@ class ConversationChatPage extends Page
 
     public function selectConversation(int $id): void
     {
-        $this->selectedConversationId = $id;
+        if ($this->selectedConversationId !== $id) {
+            $this->selectedConversationId = $id;
+
+            Conversation::where('id', $id)
+                ->whereNotNull('account_user_id')
+                ->update(['staff_last_read_at' => now()]);
+        }
+
         $this->replyBody = '';
     }
 
