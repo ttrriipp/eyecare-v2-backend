@@ -131,14 +131,6 @@
                                 ->trim()
                                 ->lower()
                                 ->exactly('attachment');
-                            $hasAppointmentContext = $message->contextLinks->contains(
-                                fn (\App\Models\MessageContextLink $link): bool => $link->contextable_type === \App\Models\Appointment::class,
-                            );
-                            $hasJobOrderContext = $message->contextLinks->contains(
-                                fn (\App\Models\MessageContextLink $link): bool => $link->contextable_type === \App\Models\JobOrder::class,
-                            );
-                            $isGeneratedContextSummary = ($hasAppointmentContext && preg_match('/^📅 Appointment: .+ — \d{4}-\d{2}-\d{2}$/u', trim($message->body)) === 1)
-                                || ($hasJobOrderContext && preg_match('/^📦 Job Order #\S+$/u', trim($message->body)) === 1);
                         @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[70%]">
@@ -150,7 +142,7 @@
                                         {{ $message->created_at->format('M j, g:i a') }}
                                     </span>
                                 </div>
-                                @unless (($hasImageAttachment && $isAttachmentPlaceholder) || $isGeneratedContextSummary)
+                                @unless ($hasImageAttachment && $isAttachmentPlaceholder)
                                     <div
                                         class="mt-1 rounded-2xl px-4 py-2.5 text-sm
                                             {{ $isStaff
@@ -162,62 +154,6 @@
                                         {{ $message->body }}
                                     </div>
                                 @endunless
-
-                                {{-- Linked records --}}
-                                @if ($message->contextLinks->isNotEmpty())
-                                    <div class="mt-2 flex flex-col gap-2 {{ $isStaff ? 'items-end' : 'items-start' }}">
-                                        @foreach ($message->contextLinks as $link)
-                                            @php $context = $link->contextable; @endphp
-
-                                            @if ($context instanceof \App\Models\Appointment && \App\Filament\Resources\Appointments\AppointmentResource::canEdit($context))
-                                                <a
-                                                    href="{{ \App\Filament\Resources\Appointments\AppointmentResource::getUrl('edit', ['record' => $context]) }}"
-                                                    class="group flex w-full max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-primary-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-white/10"
-                                                    data-message-context-card="appointment"
-                                                >
-                                                    <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-500/15 dark:text-primary-400">
-                                                        <x-heroicon-o-calendar-days class="size-5" />
-                                                    </span>
-                                                    <span class="min-w-0 flex-1">
-                                                        <span class="block text-xs font-medium text-gray-500 dark:text-gray-400">Appointment</span>
-                                                        <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                            {{ $context->appointmentType?->name ?? $context->appointment_number }}
-                                                        </span>
-                                                        <span class="block truncate text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ $context->appointment_number }} · {{ $context->scheduled_at->format('M j, Y · g:i a') }}
-                                                        </span>
-                                                    </span>
-                                                    <x-heroicon-o-chevron-right class="size-4 shrink-0 text-gray-400 transition group-hover:text-primary-500" />
-                                                </a>
-                                            @elseif ($context instanceof \App\Models\JobOrder)
-                                                <a
-                                                    href="{{ \App\Filament\Resources\OpticalOrders\OpticalOrderResource::getUrl('edit', ['record' => $context]) }}"
-                                                    class="group flex w-full max-w-sm items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-xs transition hover:border-primary-400 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:hover:border-primary-500 dark:hover:bg-white/10"
-                                                    data-message-context-card="job-order"
-                                                >
-                                                    <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400">
-                                                        <x-heroicon-o-clipboard-document-check class="size-5" />
-                                                    </span>
-                                                    <span class="min-w-0 flex-1">
-                                                        <span class="block text-xs font-medium text-gray-500 dark:text-gray-400">Job Order</span>
-                                                        <span class="block truncate text-sm font-semibold text-gray-900 dark:text-white">
-                                                            {{ $context->job_order_number }}
-                                                        </span>
-                                                        <span class="block truncate text-xs text-gray-500 dark:text-gray-400">
-                                                            {{ str($context->status->value ?? 'Unknown')->replace('_', ' ')->title() }} · ₱{{ number_format((float) $context->total_amount, 2) }}
-                                                        </span>
-                                                    </span>
-                                                    <x-heroicon-o-chevron-right class="size-4 shrink-0 text-gray-400 transition group-hover:text-primary-500" />
-                                                </a>
-                                            @else
-                                                <span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-xs text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
-                                                    <span class="font-medium">{{ class_basename($link->contextable_type) }}</span>
-                                                    <span>#{{ $link->contextable_id }}</span>
-                                                </span>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif
 
                                 {{-- Attachments --}}
                                 @if ($message->attachments->isNotEmpty())
