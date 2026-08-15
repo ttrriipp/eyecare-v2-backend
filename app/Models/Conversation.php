@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\ConversationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'account_user_id',
     'patient_id',
+    'staff_last_read_at',
 ])]
 class Conversation extends Model
 {
@@ -23,6 +25,7 @@ class Conversation extends Model
     {
         return [
             'inbox_archived_at' => 'datetime',
+            'staff_last_read_at' => 'datetime',
         ];
     }
 
@@ -97,5 +100,57 @@ class Conversation extends Model
         if ($this->isInboxArchived()) {
             $this->restoreToInbox();
         }
+    }
+
+    /**
+     * Count messages not sent by the account user that have not been read.
+     *
+     * Used by the patient mobile API. A null read_at means unread.
+     */
+    public function unreadForPatient(User $account): int
+    {
+        return $this->messages()
+            ->where('sender_id', '!=', $account->id)
+            ->whereNull('read_at')
+            ->count();
+    }
+
+    /**
+     * Count patient messages newer than the staff read watermark.
+     *
+     * A null watermark means every patient message is unread.
+     * Messages sent by staff are excluded — only patient messages
+     * constitute "waiting" work for the inbox.
+     */
+    public function unreadForStaff(): int
+    {
+        $query = $this->messages()
+            ->where('sender_id', $this->account_user_id ?? 0);
+
+        if ($this->staff_last_read_at !== null) {
+            $query->where('created_at', '>', $this->staff_last_read_at);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Eager-load staff-unread counts for a collection of conversations.
+     *
+     * Adds an `unread_for_staff` attribute to each conversation in one
+     * query, avoiding N+1 in the inbox list.
+     *
+     * @param  Builder<Conversation>  $query
+     * @return Builder<Conversation>
+     */
+    public function scopeWithUnreadForStaff(Builder $query): Builder
+    {
+        return $query->withCount(['messages as unread_for_staff' => function ($q): void {
+            $q->whereColumn('sender_id', '=', 'conversations.account_user_id')
+                ->where(function ($q): void {
+                    $q->whereNull('conversations.staff_last_read_at')
+                        ->orWhereColumn('messages.created_at', '>', 'conversations.staff_last_read_at');
+                });
+        }]);
     }
 }
