@@ -70,11 +70,11 @@ Everything downstream of that column is decorative.
 | Patient read model | Keep per-message `messages.read_at` | Already in the shipped contract and `MessageResource`; changing its shape forces an Android cutover for no gain. |
 | Staff read model | New `conversations.staff_last_read_at` watermark | Staff never need per-message receipts, and a watermark avoids writing N rows every time an inbox thread is opened. The asymmetry is deliberate and must be documented. |
 | Read granularity | Conversation-level bulk mark | One thread per account. Per-message endpoints buy nothing. |
-| Message pagination | **Shipped T16.** Cursor pagination, newest-first, page size 50 | Owner confirmed Android ready. Shipped with `next_cursor`/`has_more` in the response meta. |
+| Message pagination | **Shipped T16.** Cursor pagination, newest-first, page size 50 | Owner confirmed Android ready. Shipped with `next_cursor`/`has_more` in the response meta and stable `(created_at, id)` ordering for same-timestamp messages. |
 | Inbox archive | **Wire it up**, then delete the unreachable pages | It is documented as a shipped lifecycle pattern; either honour that or retract the claim. Wiring is cheaper than a doc retraction plus a column drop. |
 | Push notifications (FCM) | **Out of scope** | No push infra exists. Routing the in-app feed is the 80% at 5% of the cost. |
 | Attachment behaviour | **Out of scope** | Upload/download work correctly. Only the missing `download_url` field is in scope. |
-| Message search | **In scope**, added 2026-08-15 | Neither party can find a message by content today, only by scrolling. MySQL `FULLTEXT` index on `messages.body`, scoped to one conversation, returned in the cursor shape Task 16 establishes. Chronological order, not relevance-ranked — an MVP, not a search product. |
+| Message search | **In scope**, added 2026-08-15 | Neither party can find a message by content today, only by scrolling. MySQL `FULLTEXT` index on `messages.body`, scoped to one conversation, returned in the cursor shape Task 16 establishes with stable `(created_at, id)` ordering. Chronological order, not relevance-ranked — an MVP, not a search product. |
 
 ## Out of scope
 

@@ -36,8 +36,9 @@ is explicitly rejected; polling is retained.
   contexts are being removed entirely, not just kept off the API surface. Task 12 drops the
   field; Task 13 drops `MessageContextLink`, its relation, and its table.
 - **Search is chronological, not ranked.** MySQL `FULLTEXT` supports relevance scoring, but
-  tuning it is its own project. T17 orders matches newest-first, the same mental model as
-  the rest of the thread — a deliberate MVP choice, not an oversight.
+  tuning it is its own project. T17 orders matches newest-first with the unique
+  `(created_at, id)` cursor tuple, the same mental model as the rest of the thread — a
+  deliberate MVP choice, not an oversight.
 - **Search reuses the pagination shape, not the pagination code.** T17 returns
   `next_cursor`/`has_more` in the same envelope T16 defines, so Android writes one paging
   client instead of two. That is why search is sequenced after pagination — consistency,

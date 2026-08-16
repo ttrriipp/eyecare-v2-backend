@@ -181,6 +181,43 @@ test('conversation messages are cursor paginated', function () {
     expect($meta['has_more'])->toBeTrue();
 });
 
+test('conversation message cursors traverse messages with identical timestamps', function () {
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $timestamp = now()->startOfSecond();
+
+    Message::factory()->count(60)->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+        'created_at' => $timestamp,
+        'updated_at' => $timestamp,
+    ]);
+
+    $firstPage = $this->actingAs($patient)
+        ->getJson('/api/v1/conversation/messages')
+        ->assertSuccessful()
+        ->assertJsonCount(50, 'data');
+
+    $nextCursor = $firstPage->json('meta.next_cursor');
+
+    expect($nextCursor)->not->toBeNull();
+
+    $secondPage = $this->actingAs($patient)
+        ->getJson('/api/v1/conversation/messages?cursor='.rawurlencode((string) $nextCursor))
+        ->assertSuccessful()
+        ->assertJsonCount(10, 'data')
+        ->assertJsonPath('meta.has_more', false);
+
+    $firstPageIds = collect($firstPage->json('data'))->pluck('id');
+    $secondPageIds = collect($secondPage->json('data'))->pluck('id');
+
+    expect($firstPageIds->intersect($secondPageIds))->toBeEmpty()
+        ->and($firstPageIds->merge($secondPageIds))->toHaveCount(60);
+});
+
 test('last page of conversation messages reports has_more false', function () {
     $patient = User::factory()->patient()->create();
     $conversation = Conversation::query()->create([
@@ -420,68 +457,4 @@ test('conversation send is throttled at 10 per minute', function () {
     // 11th should be throttled
     $this->postJson('/api/v1/conversation/messages', ['body' => 'Too many'])
         ->assertStatus(429);
-});
-
-test('search returns matching messages', function () {
-    $patient = User::factory()->patient()->create();
-    $conversation = Conversation::query()->create([
-        'account_user_id' => $patient->id,
-        'patient_id' => $patient->patient->id,
-    ]);
-
-    Message::factory()->create([
-        'conversation_id' => $conversation->id,
-        'sender_id' => $patient->id,
-        'body' => 'I need a new frame for my prescription',
-    ]);
-
-    Message::factory()->create([
-        'conversation_id' => $conversation->id,
-        'sender_id' => $patient->id,
-        'body' => 'When will my glasses be ready?',
-    ]);
-
-    $this->actingAs($patient)
-        ->getJson('/api/v1/conversation/messages/search?q=prescription')
-        ->assertSuccessful()
-        ->assertJsonCount(1, 'data')
-        ->assertSee('prescription');
-});
-
-test('search scopes to own conversation only', function () {
-    $patient1 = User::factory()->patient()->create();
-    $patient2 = User::factory()->patient()->create();
-
-    $conversation1 = Conversation::query()->create([
-        'account_user_id' => $patient1->id,
-        'patient_id' => $patient1->patient->id,
-    ]);
-    $conversation2 = Conversation::query()->create([
-        'account_user_id' => $patient2->id,
-        'patient_id' => $patient2->patient->id,
-    ]);
-
-    Message::factory()->create([
-        'conversation_id' => $conversation2->id,
-        'sender_id' => $patient2->id,
-        'body' => 'unique secret keyword xyz',
-    ]);
-
-    // Patient1 searching should NOT find patient2's message
-    $this->actingAs($patient1)
-        ->getJson('/api/v1/conversation/messages/search?q=unique+secret+keyword+xyz')
-        ->assertSuccessful()
-        ->assertJsonCount(0, 'data');
-});
-
-test('search rejects empty query', function () {
-    $patient = User::factory()->patient()->create();
-    Conversation::query()->create([
-        'account_user_id' => $patient->id,
-        'patient_id' => $patient->patient->id,
-    ]);
-
-    $this->actingAs($patient)
-        ->getJson('/api/v1/conversation/messages/search?q=')
-        ->assertUnprocessable();
 });

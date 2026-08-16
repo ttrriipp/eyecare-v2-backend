@@ -42,12 +42,12 @@ class ConversationController extends Controller
 
         $paginator = $conversation->messages()
             ->with('attachments')
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->cursorPaginate(50);
 
         return MessageResource::collection($paginator)
             ->additional(['meta' => [
-                'next_cursor' => $paginator->nextCursor()?->encode(),
                 'has_more' => $paginator->hasMorePages(),
             ]]);
     }
@@ -76,7 +76,6 @@ class ConversationController extends Controller
 
         return MessageResource::collection($paginator)
             ->additional(['meta' => [
-                'next_cursor' => $paginator->nextCursor()?->encode(),
                 'has_more' => $paginator->hasMorePages(),
             ]]);
     }

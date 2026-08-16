@@ -392,7 +392,7 @@ contract says was retired and is rejected with 422.
       `contextLinks.contextable` eager load is removed from `ConversationChatPage:83-88`
       in the same change.
 - [x] `API_CONTRACT.md:2030, 2140, 2158-2163, 2179, 2426` no longer describe `contexts` as
-      a rejected-but-present field; they describe it as removed.
+      a response field; they describe it as retired, with legacy input rejected as 422.
 
 **Verification:**
 
@@ -526,7 +526,7 @@ year one, not at year three.
 **Acceptance criteria:**
 
 - [x] Cursor pagination, newest-first, default page size 50, exposing `next_cursor` and
-      `has_more`.
+      `has_more`, with a unique `(created_at, id)` ordering tuple.
 - [x] Composite index `(conversation_id, created_at)` added in the same migration.
 - [x] The Android client is confirmed ready before merge.
 
@@ -535,6 +535,7 @@ year one, not at year three.
 - [x] `vendor/bin/sail artisan test --compact --filter=Conversation`
 - [x] A 200-message thread returns 50 with a working cursor; the last page reports
       `has_more: false`.
+- [x] A same-timestamp cursor traversal returns every message exactly once.
 - [x] `vendor/bin/sail artisan migrate --env=testing` rolls back cleanly.
 - [x] `vendor/bin/sail bin pint --dirty --format agent`
 
@@ -566,8 +567,8 @@ year one, not at year three.
 **Description:** Add a search endpoint scoped to a single conversation, backed by a MySQL
 `FULLTEXT` index on `messages.body`. Results come back newest-first in the same cursor
 envelope Task 16 defines (`next_cursor`, `has_more`), so Android writes one paging client,
-not two. Chronological order, not relevance-ranked — tuning MySQL's relevance weighting is
-its own project, not an MVP requirement.
+not two. Chronological order uses the same unique `(created_at, id)` tuple, not relevance-
+ranked — tuning MySQL's relevance weighting is its own project, not an MVP requirement.
 
 **Acceptance criteria:**
 
@@ -597,7 +598,7 @@ consistency one.
 - `app/Actions/Conversations/SearchConversationMessages.php` *(new)*
 - `app/Http/Controllers/Api/ConversationController.php`
 - `routes/api.php`
-- `tests/Feature/ConversationTest.php`
+- `tests/Feature/ConversationSearchTest.php`
 
 **Estimated scope:** S (5 files)
 

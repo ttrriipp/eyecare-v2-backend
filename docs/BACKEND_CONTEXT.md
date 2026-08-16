@@ -33,12 +33,13 @@
 > `attachments[].download_url`; the `contexts` field and
 > `message_context_links` table are removed. The send throttle is
 > 10 requests/minute. Notification feed routes (`GET /notifications`,
-> `GET /notifications/unread-count`, `PATCH /notifications/{id}/read`,
+> `GET /notifications/unread-count`, `PATCH /notifications/{notification}/read`,
 > `PATCH /notifications/read-all`) are wired. Both parties are notified
 > of new messages (`NewMessageReceived`); deactivated staff are excluded.
-> `GET /conversation/messages/search?q=` provides conversation-scoped
-> message search. `GET /conversation/messages` is cursor-paginated
-> (newest-first, page size 50, `next_cursor`/`has_more`). Eight
+> `GET /conversation/messages/search?q=` provides conversation-scoped MySQL
+> FULLTEXT message search. `GET /conversation/messages` and the search endpoint
+> are cursor-paginated newest-first with stable `(created_at, id)` ordering
+> (page size 50, `next_cursor`/`has_more`). Eight
 > unreachable Filament classes under `Conversations/` are deleted.
 
 > **Shipped (2026-08-14): unified quotation, optical-order, and billing
@@ -130,7 +131,9 @@
 > Order creation uses two paths; billing uses one append path keyed by
 > `BillingItemSourceKind`. Ratings update in place with no revision history.
 > `products` table no longer has `lens_category_id`; permitted product types
-> are `frame`, `contact_lens`, `accessory`. Route count is 54 (was 55).
+> are `frame`, `contact_lens`, `accessory`. The commerce reconciliation reduced
+> the route count from 55 to 54; subsequent messaging hardening brought the
+> current total to 61.
 >
 > **Shipped (2026-08-11): resilient patient invitation linking.** Invitation
 > acceptance is bound to the authenticated account's verified invited contact,
@@ -264,8 +267,9 @@ server-side rules.
 > optometrist (15m), Routine Check-up → Regular eye examination (30m),
 > Problem/Urgent Visit → New or worsening eye concern (30m), Contact Lens
 > Consultation → Contact lens consultation (45m), and Referral → Referral
-> (45m, requires referral source). The API contract includes 54 routes (8
-> public, 29 account-only, 17 active-link). New
+> (45m, requires referral source). At that point in the 2026-08-09 rollout,
+> the API contract included 54 routes (8 public, 29 account-only, 17
+> active-link). New
 > endpoints: `GET /appointment-types` (restored, patient-visible catalog),
 > `GET /appointment-optometrists` (patient-safe provider catalog). Modified
 > endpoints: `GET /appointment-request-availability` (now requires
@@ -328,12 +332,12 @@ server-side rules.
 > shipped in `5dcf292`) — corrected here 2026-08-07 after this note wrongly
 > called that surface still write-only.
 >
-> **Known bug in that aggregate (2026-08-07):** hidden ratings were excluded
-> from both the average and the count — `FrameController` eager-loads
+> **Historical issue, fixed 2026-08-13:** hidden ratings were excluded from
+> both the average and the count — `FrameController` eager-loaded
 > `ratings` filtered to `where('is_hidden', false)`, so a moderated rating's
-> star value vanished from the aggregate entirely. **Fixed 2026-08-13** as
-> part of the commerce model simplification (Task 15): the aggregate now
-> includes every rating; only comment text is suppressed for hidden rows.
+> star value vanished from the aggregate entirely. As part of the commerce
+> model simplification (Task 15), the aggregate now includes every rating;
+> only comment text is suppressed for hidden rows.
 >
 > Separately, `docs/gap-analysis.md` §J still describes only the frame-rating
 > workflow and hasn't been updated to mention visit feedback as a second, now-
@@ -648,6 +652,15 @@ POST   /api/v1/patient-invitations/accept
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/clinic-hours                   List weekly clinic hours
+GET    /api/v1/conversation                   Get conversation
+GET    /api/v1/conversation/messages          List messages
+GET    /api/v1/conversation/messages/search   Search messages
+POST   /api/v1/conversation/messages          Send message
+POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/notifications                  List notifications
+GET    /api/v1/notifications/unread-count     Unread count
+PATCH  /api/v1/notifications/{notification}/read Mark read
+PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
@@ -674,14 +687,11 @@ GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/optical-orders
 GET    /api/v1/optical-orders/{id}
-GET    /api/v1/conversation
-GET    /api/v1/conversation/messages
-POST   /api/v1/conversation/messages
-GET    /api/v1/conversation/attachments/{id}
+GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 30 account-only + 17 active-link = **55 routes total.**
+**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
 
 Conversation routes moved from active-link to account-only tier (no patient
 link required for read/send; attachment download remains active-link).

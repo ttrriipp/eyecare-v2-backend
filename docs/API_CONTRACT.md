@@ -4,11 +4,11 @@
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
-> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. Any `⚠️` marker remaining below this line is stale — flag it for removal on sight rather than trusting it.
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. No ⚠️ drift markers remain below this line; any newly added marker must be verified before it is kept.
 >
 > **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
-> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. **Known bug:** the aggregate excludes hidden ratings' stars entirely rather than just their comments, contradicting the documented moderation model — see §11.
+> **Also shipped:** `GET /frames` and `GET /frames/{id}` now return `average_rating`/`rating_count` per product (§11) — corrected here 2026-08-07 after this note wrongly called that surface still write-only. The aggregate includes hidden ratings' star values while suppressing hidden comment text, matching the documented moderation model.
 >
 > **Shipped 2026-08-11:** patient invitation acceptance is bound to the
 > authenticated account's verified invited contact and committed atomically
@@ -44,26 +44,26 @@
 
 ## Table of Contents
 
-1. [Authentication](#1-authentication)
-   - [Registration Flow](#registration-flow-two-stage)
-2. [Profile (me)](#3-profile-me)
-3. [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
-4. [Contact Management](#5-contact-management)
-5. [Patient Linking](#6-patient-linking)
-6. [Patient Invitations](#7-patient-invitations)
-7. [Appointment Requests](#8-appointment-requests)
-8. [Appointment Availability](#9-appointment-availability)
-9. [Confirmed Appointments](#10-confirmed-appointments)
-10. [Frames](#11-frames)
-11. [Frame Reservations](#12-frame-reservations)
-12. [Prescriptions](#13-prescriptions)
-13. [Optical Orders](#14-optical-orders)
-14. [Conversation](#15-conversation)
-15. [Notifications](#15b-notifications)
-16. [Error Responses](#16-error-responses)
-16. [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
-17. [Retired Features](#18-retired-features)
-18. [Clarifications](#19-clarifications)
+- [Authentication](#1-authentication)
+  - [Registration Flow](#registration-flow-two-stage)
+- [Profile (me)](#3-profile-me)
+- [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
+- [Contact Management](#5-contact-management)
+- [Patient Linking](#6-patient-linking)
+- [Patient Invitations](#7-patient-invitations)
+- [Appointment Requests](#8-appointment-requests)
+- [Appointment Availability](#9-appointment-availability)
+- [Confirmed Appointments](#10-confirmed-appointments)
+- [Frames](#11-frames)
+- [Frame Reservations](#12-frame-reservations)
+- [Prescriptions](#13-prescriptions)
+- [Optical Orders](#14-optical-orders)
+- [Conversation](#15-conversation)
+- [Notifications](#15b-notifications)
+- [Error Responses](#16-error-responses)
+- [Coordinated Breaking Changes](#17-coordinated-breaking-changes)
+- [Retired Features](#18-retired-features)
+- [Clarifications](#19-clarifications)
 
 ---
 
@@ -1531,12 +1531,8 @@ ratings, collected via `POST /optical-order-items/{id}/rating`.
 > that coerces `null` to `0` will render every unrated frame as a 0-star
 > product instead of an unrated one — do not collapse the two.
 
-> ~~⚠️ **Known bug (2026-08-07):** both fields were computed from ratings
-> filtered to `is_hidden = false` (`FrameController` / `FrameResource`), so a
-> **hidden rating's star value was excluded from the aggregate entirely**, not
-> just its comment.~~ **Fixed 2026-08-13** as part of the commerce model
-> simplification: the aggregate now includes every rating; only comment text
-> is suppressed for hidden rows.
+> **Fixed 2026-08-13:** the aggregate now includes every rating's star value;
+> only comment text is suppressed for hidden rows.
 
 ---
 
@@ -2027,9 +2023,9 @@ star value always counts toward averages regardless of hiding.
 **Authenticated account-only (no active patient link required).**
 
 The conversation is the account's single messaging thread with the clinic.
-Linked and unlinked accounts can send text messages. Message contexts
-have been removed entirely. Messages are plain text only, maximum 5,000
-characters.
+Linked and unlinked accounts can send text messages. Message contexts have
+been retired; legacy `contexts` input is rejected with HTTP 422. Messages are
+plain text only, maximum 5,000 characters.
 
 Attachment uploads and downloads require an active patient link. Unlinked
 accounts receive `can_upload_attachments: false` and upload attempts return
@@ -2075,7 +2071,10 @@ Returns (or creates) the account's single conversation.
 
 ### GET `/conversation/messages`
 
-Returns messages in the conversation, cursor-paginated (newest-first, default 50 per page).
+Returns messages in the conversation, cursor-paginated (newest-first, default
+50 per page). Results are ordered by `created_at` descending with `id`
+descending as the unique tie-breaker, so messages created in the same second
+are not skipped across cursors.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2136,7 +2135,7 @@ Sends a plain text message. Context input is prohibited.
 
 **Validation:**
 - `body`: required, string, maximum 5,000 characters
-- `contexts`: prohibited (returns 422)
+- `contexts`: retired legacy input; prohibited (returns 422)
 
 **Rate limit:** 10 requests per minute per account. Throttled requests return
 HTTP 429 without creating a partial message.
@@ -2157,8 +2156,10 @@ call returns `marked_count: 0`.
 
 ### GET `/conversation/messages/search`
 
-Full-text search within the account's conversation. Results are returned
-newest-first, paginated with the same cursor shape as the messages endpoint.
+Full-text search within the account's conversation using the MySQL `FULLTEXT`
+index on `messages.body`. Results are returned newest-first, ordered by
+`created_at` descending with `id` descending as the unique tie-breaker, and
+paginated with the same cursor shape as the messages endpoint.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -2203,12 +2204,6 @@ Downloads a message attachment. Requires an active patient link.
 
 Returns 404 for unlinked accounts, missing files, or attachments from
 other conversations (non-disclosing).
-
-### GET `/conversation/attachments/{id}`
-
-Downloads a message attachment. Patient can only download from their own conversation.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Response:** Binary file download with appropriate `Content-Type` and `Content-Disposition` headers.
 
@@ -2380,6 +2375,10 @@ The following routes are **removed** in the coordinated Android cutover:
 
 ### New Routes Added
 
+This table includes routes added by the coordinated Android cutover and by the
+direct-messaging hardening shipped on 2026-08-15. Current behavior is
+authoritative in §§15 and 15b.
+
 | New Route | Purpose |
 |---|---|
 | `POST /auth/registration/otp` | Request phone registration OTP |
@@ -2415,6 +2414,16 @@ The following routes are **removed** in the coordinated Android cutover:
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
+| `GET /conversation` | Get the authenticated account's conversation |
+| `GET /conversation/messages` | List conversation messages with cursor pagination |
+| `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
+| `POST /conversation/messages` | Send a plain text conversation message |
+| `POST /conversation/messages/read` | Mark received conversation messages as read |
+| `GET /conversation/attachments/{attachment}` | Download an attachment with an active patient link |
+| `GET /notifications` | List account notifications |
+| `GET /notifications/unread-count` | Get the account's unread notification count |
+| `PATCH /notifications/{notification}/read` | Mark one notification as read |
+| `PATCH /notifications/read-all` | Mark all account notifications as read |
 
 ### Modified Routes
 
@@ -2443,10 +2452,8 @@ The following old mobile features/routes are **intentionally retired**:
 | Billing PDF | Retired. |
 | Clinic feedback (`/feedback`) | Retired. |
 | Appointment contact-note editing | Retired. |
-| Explicit message mark-read | Retired. |
 | `/api/user` (unversioned) | Absent. |
 | `/api/v1/patient/profile` | Absent. Profile is `/api/v1/me`. |
-| Notification endpoints | Retired from mobile API. |
 
 ---
 
@@ -2574,6 +2581,15 @@ POST   /api/v1/patient-invitations/accept     Accept invitation and link
 GET    /api/v1/appointment-types              List patient-visible appointment types
 GET    /api/v1/appointment-optometrists       List active optometrists
 GET    /api/v1/clinic-hours                   List weekly clinic hours
+GET    /api/v1/conversation                   Get conversation
+GET    /api/v1/conversation/messages          List messages
+GET    /api/v1/conversation/messages/search   Search messages
+POST   /api/v1/conversation/messages          Send message
+POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/notifications                  List notifications
+GET    /api/v1/notifications/unread-count     Unread count
+PATCH  /api/v1/notifications/{notification}/read Mark read
+PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
@@ -2622,19 +2638,9 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
 
-GET    /api/v1/conversation                   Get conversation
-GET    /api/v1/conversation/messages          List messages
-GET    /api/v1/conversation/messages/search   Search messages
-POST   /api/v1/conversation/messages          Send message
-POST   /api/v1/conversation/messages/read     Mark messages read
-GET    /api/v1/conversation/attachments/{id}  Download attachment
-
-GET    /api/v1/notifications                  List notifications
-GET    /api/v1/notifications/unread-count     Unread count
-PATCH  /api/v1/notifications/{id}/read        Mark read
-PATCH  /api/v1/notifications/read-all         Mark all read
+GET    /api/v1/conversation/attachments/{attachment}  Download attachment
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 34 account-only + 17 active-link = **59 routes total.**
+**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**

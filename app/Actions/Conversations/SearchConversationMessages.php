@@ -23,7 +23,9 @@ final class SearchConversationMessages
     {
         $conversation = app(ResolveAccountConversation::class)->handle($account);
 
-        if (trim($query) === '') {
+        $searchTerm = trim($query);
+
+        if ($searchTerm === '') {
             throw ValidationException::withMessages([
                 'q' => ['Search query must not be empty.'],
             ]);
@@ -31,8 +33,9 @@ final class SearchConversationMessages
 
         return $conversation->messages()
             ->with('attachments')
-            ->where('body', 'like', "%{$query}%")
-            ->latest()
+            ->whereFullText('body', $searchTerm)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->cursorPaginate($perPage);
     }
 }

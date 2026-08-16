@@ -11,23 +11,19 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 None.
 
-## Proposed, awaiting approval
+## Completed (latest)
 
-**Direct Messaging Hardening** — drafted 2026-08-15
+**Direct Messaging Hardening** — implemented 2026-08-15
 
 - Spec: `docs/specs/direct-messaging-hardening-spec.md`
 - Plan: `tasks/direct-messaging-hardening-plan.md`
 - Checklist: `tasks/direct-messaging-hardening-todo.md`
 
-18 tasks in seven phases, no task over five files. Closes read status on both
-sides (`messages.read_at` is currently written by nothing but a seeder, so the
-mobile `unread_count` only ever increases), gives staff an inbox that surfaces
-waiting threads, routes the already-written notification feed, reconciles three
-documents with the shipped routes, removes eight unreachable Filament classes
-under `app/Filament/Resources/Conversations/`, deletes `MessageContextLink`
-and its table now that message contexts are retired outright, and adds
-conversation-scoped full-text search (Phase 7, added 2026-08-15) using the
-cursor pagination Task 16 establishes.
+All 18 tasks across seven phases are complete. The shipped work closes read
+status on both sides, gives staff an activity-ordered inbox with archiving,
+routes the notification feed, reconciles the messaging documents, removes
+eight unreachable Filament classes, retires message contexts, and adds
+conversation-scoped MySQL FULLTEXT search with stable cursor pagination.
 
 Real-time transport is explicitly rejected in the spec's scope table; polling
 is retained. Do not re-litigate it during implementation.
@@ -35,13 +31,12 @@ is retained. Do not re-litigate it during implementation.
 All four open questions in the plan were resolved by the owner on 2026-08-15:
 one clinic-wide staff read watermark (not per-staff rows); message contexts
 removed entirely, model and table included (Task 13, new); Android is ready
-whenever the backend is, so Task 16 (message pagination) no longer needs a
-separate authorization round — it stays sequenced last and still requires
-confirming Android readiness immediately before merge; and new-message
-notifications stay patient↔clinic only. Still awaiting owner approval to begin
-implementation.
+whenever the backend is, so Task 16 (message pagination) no longer requires a
+separate authorization round — it stayed sequenced last; and new-message
+notifications stay patient↔clinic only. Implementation and verification are
+complete.
 
-## Completed
+## Completed (earlier projects)
 
 **Dead Code and Unreachable Feature Removal** — implemented 2026-08-14
 
