@@ -64,6 +64,15 @@
 > images remain the 2D fallback, and checksum, byte size, URL, disk, and
 > version are generated server-side.
 >
+> **Shipped (2026-08-17): reservation maximum three.** New frame reservations
+> and item additions are capped at three variants per reservation, coordinated
+> with the Android domain constant. `CreateFrameReservation` validates 1–3
+> items; `AddFrameReservationItem` rejects additions that would exceed three.
+> `StoreFrameReservationRequest` enforces `max:3` at the HTTP layer. Existing
+> reservations containing four or five items remain readable and may have items
+> removed; they are never truncated automatically. No addition is allowed until
+> the count is below three.
+>
 > **Shipped (2026-08-15): direct messaging hardening.** Patient-side
 > `messages.read_at` is now written by `POST /conversation/messages/read`
 > (bulk mark-read), so `unread_count` works for the first time. Staff side
@@ -142,7 +151,9 @@
 > (deletion is the release), bounded by a seven-day window, and idempotent.
 > The sweep derives expiry from clinic close on the appointment date. The
 > patient API uses `DELETE` instead of cancel, returns `is_held` and derived
-> `expires_at`, and never exposes `status` or `accepted_at`. Filament shows
+> `expires_at`, and never exposes `status` or `accepted_at`. New reservations
+> accept a maximum of three frame variants (changed from five on 2026-08-17
+> to support the 3D pilot). Filament shows
 > two tabs (Awaiting acceptance / Set aside), an accept action, a release
 > action, and add/remove frame — no other lifecycle controls remain.
 > Spec/plan/tasks live in
