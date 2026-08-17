@@ -89,6 +89,7 @@ final class CatalogLifecycleActions
             ->label('Deactivate')
             ->icon('heroicon-o-eye-slash')
             ->color('warning')
+            ->requiresConfirmation()
             ->visible($recordResolver
                 ? fn (): bool => self::isAdmin() && ! self::isInactive($recordResolver())
                 : fn (Model $record): bool => self::isAdmin() && ! self::isInactive($record))
