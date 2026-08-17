@@ -313,7 +313,7 @@ test('patient cannot add a duplicate variant', function () {
         ->assertUnprocessable();
 });
 
-test('patient cannot add more than 5 frames', function () {
+test('patient cannot add more than 3 frames', function () {
     $user = User::factory()->patient()->create();
     $appointment = Appointment::factory()->create([
         'patient_id' => $user->patient->id,
@@ -323,7 +323,7 @@ test('patient cannot add more than 5 frames', function () {
     $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
     $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
 
-    for ($i = 0; $i < 5; $i++) {
+    for ($i = 0; $i < 3; $i++) {
         $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
         $reservation->items()->create(['product_variant_id' => $variant->id]);
     }
@@ -335,6 +335,30 @@ test('patient cannot add more than 5 frames', function () {
             'product_variant_id' => $extraVariant->id,
         ])
         ->assertUnprocessable();
+});
+
+test('patient cannot create a reservation with more than 3 items', function () {
+    $user = User::factory()->patient()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $user->patient->id,
+        'scheduled_at' => now()->addDay(),
+        'duration_minutes' => 30,
+    ]);
+    $frame = Product::factory()->create(['product_type' => 'frame', 'is_active' => true, 'brand_id' => $this->brand->id]);
+
+    $items = [];
+    for ($i = 0; $i < 4; $i++) {
+        $variant = ProductVariant::factory()->create(['product_id' => $frame->id, 'is_active' => true, 'stock_quantity' => 5]);
+        $items[] = ['product_variant_id' => $variant->id];
+    }
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/frame-reservations', [
+            'appointment_id' => $appointment->id,
+            'items' => $items,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['items']);
 });
 
 test('patient can remove a frame from their reservation', function () {

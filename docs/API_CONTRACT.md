@@ -1710,7 +1710,7 @@ Creates a new frame reservation. Requires an active patient link and a confirmed
 
 **Validation:**
 - `appointment_id`: required; must belong to the authenticated patient's Patient record; must be `scheduled` and not past end time.
-- `items`: `required`, `array`, `min:1`, `max:5`.
+- `items`: `required`, `array`, `min:1`, `max:3`.
 - Each `product_variant_id` must reference an active frame variant (product_type = frame, is_active = true, variant is_active = true).
 - Duplicate variants within a reservation are rejected.
 - No window check — a request may be submitted any time before the visit.
@@ -1762,7 +1762,7 @@ Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` 
 - `product_variant_id`: required; must reference an active frame variant.
 - Variant must not already be in the reservation.
 - Reservation must not be accepted (`is_held` must be `false`).
-- Reservation must have fewer than 5 items.
+- Reservation must have fewer than 3 items.
 
 **Response (200):**
 ```json
@@ -1773,7 +1773,7 @@ Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` 
 
 **Errors:**
 - `403`: Reservation does not belong to the authenticated patient.
-- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 5 items reached.
+- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 3 items reached.
 
 ---
 

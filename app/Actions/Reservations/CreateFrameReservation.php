@@ -82,9 +82,9 @@ class CreateFrameReservation
      */
     private function validateVariants(array $items): void
     {
-        if (count($items) < 1 || count($items) > 5) {
+        if (count($items) < 1 || count($items) > 3) {
             throw ValidationException::withMessages([
-                'items' => ['A reservation must have between 1 and 5 frame candidates.'],
+                'items' => ['A reservation must have between 1 and 3 frame candidates.'],
             ]);
         }
 

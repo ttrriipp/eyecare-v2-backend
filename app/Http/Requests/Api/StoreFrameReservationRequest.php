@@ -21,7 +21,7 @@ class StoreFrameReservationRequest extends FormRequest
     {
         return [
             'appointment_id' => ['required', 'integer', 'exists:appointments,id'],
-            'items' => ['required', 'array', 'min:1', 'max:5'],
+            'items' => ['required', 'array', 'min:1', 'max:3'],
             'items.*.product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
         ];
     }

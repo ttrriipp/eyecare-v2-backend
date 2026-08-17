@@ -32,6 +32,14 @@ class AddFrameReservationItem
 
     private function validateVariant(FrameReservation $reservation, int $productVariantId): void
     {
+        $currentCount = $reservation->items()->count();
+
+        if ($currentCount >= 3) {
+            throw ValidationException::withMessages([
+                'product_variant_id' => ['A reservation cannot have more than 3 frame candidates.'],
+            ]);
+        }
+
         $alreadyIncluded = $reservation->items()
             ->where('product_variant_id', $productVariantId)
             ->exists();
