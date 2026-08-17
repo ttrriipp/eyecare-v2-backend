@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ArAssetStatus;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -25,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'target_stock_level',
     'ar_eligible',
     'ar_asset_reference',
+    'published_ar_asset_id',
     'images',
 ])]
 class ProductVariant extends Model
@@ -153,6 +156,31 @@ class ProductVariant extends Model
     }
 
     /**
+     * @return HasMany<ArAsset, $this>
+     */
+    public function arAssets(): HasMany
+    {
+        return $this->hasMany(ArAsset::class);
+    }
+
+    /**
+     * @return HasOne<ArAsset, $this>
+     */
+    public function latestArAsset(): HasOne
+    {
+        return $this->hasOne(ArAsset::class)->latestOfMany('version');
+    }
+
+    /**
+     * @return BelongsTo<ArAsset, $this>
+     */
+    public function publishedArAsset(): BelongsTo
+    {
+        return $this->belongsTo(ArAsset::class, 'published_ar_asset_id')
+            ->where('status', ArAssetStatus::Published->value);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
@@ -167,6 +195,7 @@ class ProductVariant extends Model
             'low_stock_threshold' => 'integer',
             'target_stock_level' => 'integer',
             'ar_eligible' => 'boolean',
+            'published_ar_asset_id' => 'integer',
             'images' => 'array',
         ];
     }

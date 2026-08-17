@@ -47,6 +47,23 @@ return [
             'report' => false,
         ],
 
+        'ar_quarantine' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/ar/quarantine'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'ar_published' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public/ar'),
+            'url' => rtrim(env('AR_ASSET_BASE_URL', env('APP_URL', 'https://localhost')), '/'),
+            'visibility' => 'public',
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

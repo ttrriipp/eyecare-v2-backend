@@ -1471,7 +1471,11 @@ Upsert semantics: 201 on create, 200 on revise.
 
 ### GET `/frames`
 
-Paginated list of active AR-eligible frames. Frame browsing is available to any authenticated account, including an account that has not been linked to a clinic Patient record.
+Paginated list of active frame catalog entries. Existing frame visibility and
+legacy AR compatibility rules remain in place; a frame variant with a
+published 3D asset is also eligible for this catalog. Frame browsing is
+available to any authenticated account, including an account that has not been
+linked to a clinic Patient record.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
@@ -1508,6 +1512,27 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
           "attributes": { "color": "black", "size": "52mm" },
           "ar_eligible": true,
           "ar_asset_reference": "rb-cr-blk-52.usdz",
+          "ar": {
+            "status": "ready",
+            "asset": {
+              "url": "https://cdn.example.com/ar/variants/42/v1/model.glb",
+              "format": "glb",
+              "version": 1,
+              "byte_size": 5256552,
+              "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+            },
+            "calibration": {
+              "frame_width_mm": 123.0,
+              "outer_frame_height_mm": 48.0,
+              "lens_width_mm": 50.0,
+              "lens_height_mm": 45.0,
+              "bridge_width_mm": 20.0,
+              "temple_length_mm": 140.0,
+              "scale": { "x": 0.123, "y": 0.144565, "z": 0.123 },
+              "anchor": { "x": 0.0, "y": 0.0, "z": 0.0 },
+              "rotation_degrees": { "x": 0.0, "y": 0.0, "z": 0.0 }
+            }
+          },
           "images": []
         }
       ],
@@ -1518,6 +1543,54 @@ Paginated list of active AR-eligible frames. Frame browsing is available to any 
   "meta": { ... }
 }
 ```
+
+`ar` is always present on every frame variant and is either the ready object
+shown above or `null`. The backend exposes no other AR status. In particular,
+quarantine paths, validation errors, processing state, staff identities, and
+internal failure details never appear in patient responses.
+
+The ready object is emitted only when the current published asset is valid,
+unexpired, present in published storage, and its downloaded bytes still match
+the stored `byte_size` and `sha256`. The URL is an immutable HTTPS URL; a new
+asset must use a new `version` and URL. The `format` is always `glb`.
+
+`calibration` is model-specific metadata reviewed by staff. Its physical
+measurements are in millimetres; `scale`, `anchor`, and `rotation_degrees` are
+the coordinate transforms calibrated for that particular model. The sample
+values above are the current round-frame measurements and must not be copied
+to a model whose coordinate system has not been physically reviewed.
+
+When no approved and published 3D asset exists, or when an asset is missing,
+invalid, expired, or corrupted, the response returns `"ar": null`. Android
+must retain the existing image-preview fallback in that case. Disabling or
+rolling back AR changes only `ar`; normal frame images and reservation
+functionality remain available. Patients have no 3D upload API.
+
+**Android migration requirements:**
+
+- Gate the 3D action on `ar != null && ar.status == "ready"`. The legacy
+  `ar_eligible` and `ar_asset_reference` fields remain for older clients, but
+  may be unset or contain a legacy model reference and are not the 3D loading
+  contract.
+- Use the variant's `images` array for the 2D preview fallback. The backend
+  does not repurpose `ar_asset_reference` as an image URL and does not copy a
+  published GLB URL into that legacy field.
+- Apply `ar.calibration.scale`, `ar.calibration.anchor`, and
+  `ar.calibration.rotation_degrees` to the downloaded model renderer. These
+  values are model-specific and are not applied server-side to the GLB.
+
+**Variant `ar` fields:**
+
+| Field | Type | Contract |
+|---|---|---|
+| `ar` | object or `null` | Always present; `null` unless the current published asset passes readiness and integrity checks |
+| `ar.status` | string | Patient-facing value is always `ready` |
+| `ar.asset.url` | string | Immutable HTTPS download URL |
+| `ar.asset.format` | string | Always `glb` |
+| `ar.asset.version` | integer | Immutable asset version for the variant |
+| `ar.asset.byte_size` | integer | Exact downloaded file size in bytes |
+| `ar.asset.sha256` | string | Exact lowercase 64-character SHA-256 digest of the downloaded file |
+| `ar.calibration` | object | Per-model physical dimensions and reviewed scale/anchor/rotation transforms |
 
 **Excluded fields:** `cost_price`, `stock_quantity`, `low_stock_threshold`.
 
@@ -1538,12 +1611,16 @@ ratings, collected via `POST /optical-order-items/{id}/rating`.
 
 ### GET `/frames/{id}`
 
-Single frame detail. Returns `404` for non-frame products or non-AR-eligible frames.
+Single frame detail. Returns `404` for non-frame products or frames excluded by
+the existing frame-catalog visibility rules.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
 Browsing the catalog does not grant access to frame reservations. Reservation
 endpoints remain restricted to accounts with an active patient link.
+
+The `variants` array uses the same additive shape documented for `GET /frames`,
+including the nullable `ar` field and the same image-preview fallback rules.
 
 ---
 
@@ -2436,6 +2513,8 @@ authoritative in §§15 and 15b.
 | `GET /appointments/{id}` | Requires active patient link |
 | `POST /appointments/{id}/cancel` | Requires active patient link |
 | `POST /appointments/{id}/reschedule` | Duration derived from appointment |
+| `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
+| `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
 
 ---
 

@@ -27,6 +27,9 @@ class FrameVariantResource extends JsonResource
             'attributes' => $this->attributes,
             'ar_eligible' => $this->ar_eligible,
             'ar_asset_reference' => $this->ar_asset_reference,
+            'ar' => $this->relationLoaded('publishedArAsset')
+                ? $this->publishedArAsset?->toPatientArray()
+                : null,
             'images' => $this->images ?? [],
             // Deliberately excluded: cost_price, stock_quantity, low_stock_threshold
         ];

@@ -156,13 +156,6 @@ class ProductForm
                             Toggle::make('is_active')
                                 ->label('Active')
                                 ->default(true),
-                            Toggle::make('ar_eligible')->live()
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
-                            TextInput::make('ar_asset_reference')
-                                ->maxLength(255)
-                                ->required(fn (Get $get): bool => (bool) $get('ar_eligible'))
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame' && (bool) $get('ar_eligible')),
-
                             // Frame specific fields
                             Section::make('Frame Dimensions')
                                 ->schema([

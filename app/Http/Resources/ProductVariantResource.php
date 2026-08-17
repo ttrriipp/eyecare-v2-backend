@@ -27,6 +27,9 @@ class ProductVariantResource extends JsonResource
             'attributes' => $this->attributes,
             'ar_eligible' => $this->ar_eligible,
             'ar_asset_reference' => $this->ar_eligible ? $this->ar_asset_reference : null,
+            'ar' => $this->relationLoaded('publishedArAsset')
+                ? $this->publishedArAsset?->toPatientArray()
+                : null,
             'in_stock' => $this->stock_quantity > 0,
             'images' => $this->images ?? [],
         ];

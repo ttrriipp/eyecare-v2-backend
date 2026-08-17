@@ -118,7 +118,9 @@ class ProductController extends Controller
             ->with([
                 'brand',
                 'category',
-                'variants' => fn (HasMany $variantQuery): HasMany => $variantQuery->visibleInMobileCatalog(),
+                'variants' => fn (HasMany $variantQuery): HasMany => $variantQuery
+                    ->visibleInMobileCatalog()
+                    ->with('publishedArAsset'),
             ]);
     }
 }

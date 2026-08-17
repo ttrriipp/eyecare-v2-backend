@@ -20,6 +20,49 @@
 > Encounter service charges, and direct Billing Record charges now share
 > one open checkout per patient visit instead of creating duplicate billing
 > records per source.
+
+> **Shipped (2026-08-17): remote frame 3D assets.** Frame variants now have an
+> additive, nullable patient-facing `ar` object backed by a versioned
+> `ar_assets` table. The legacy `ar_eligible` and `ar_asset_reference` columns
+> remain in every existing response for compatibility, but they are not used
+> as the Android 3D loading contract. `product_variants.published_ar_asset_id`
+> points to the one immutable version currently published for that variant.
+>
+> Only active staff and administrators can manage 3D assets through the
+> variant actions in the Products panel. The workflow is upload to private
+> quarantine, server-side GLB/calibration validation, physical-review approval,
+> immutable publication, and optional disablement or rollback. Asset statuses
+> are `quarantined`, `validated`, `approved`, `published`,
+> `rejected`, `superseded`, and `disabled`. Replacements receive a new
+> version; the prior published file remains available for rollback and remains
+> active until the replacement is atomically published. Every lifecycle
+> transition is audit-logged with actor and timestamp.
+>
+> Quarantine files use the private `AR_QUARANTINE_DISK` (default
+> `ar_quarantine`); published files use `AR_PUBLISHED_DISK` (default
+> `ar_published`). Publishing fails closed unless `AR_ASSET_BASE_URL` is an
+> HTTPS public origin. Published URLs are immutable:
+> `/ar/variants/{variantId}/v{version}/model.glb`. Uploads accept only GLB,
+> have a 10 MiB maximum, reject external resources and unsupported textures,
+> cap geometry at 100,000 triangles and textures at 2048×2048, and verify
+> checksums and file size before patient exposure. Rejected and quarantined
+> files are never exposed by the patient API.
+>
+> **Android integration handoff:** New clients must gate 3D loading on
+> `ar.status: ready`, use the variant `images` array for the 2D fallback, and
+> apply `calibration.scale`, `anchor`, and `rotation_degrees` in the remote
+> renderer. The backend intentionally preserves, but does not repurpose,
+> `ar_eligible` or `ar_asset_reference`; a published GLB URL must not be
+> written into the legacy reference because older Android fallback code may
+> treat it as an image URL.
+>
+> Staff use a guided variant workflow: upload the finished `.glb`, submit the
+> received upload for review with explicit calibration, have a different
+> authorized staff member approve the physical review, then publish it. The
+> reviewer form offers the current round-frame preset only as an explicit
+> choice; it is never silently applied to another model. Catalog variant
+> images remain the 2D fallback, and checksum, byte size, URL, disk, and
+> version are generated server-side.
 >
 > **Shipped (2026-08-15): direct messaging hardening.** Patient-side
 > `messages.read_at` is now written by `POST /conversation/messages/read`
@@ -433,6 +476,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Patients: archive (duplicate/erroneous/deceased) | No | No | Yes |
 | Catalog (brands/categories/products): archive and restore | No | No | Yes |
 | Catalog: create, edit, and manage variants | Yes | Yes | Yes |
+| Catalog: upload, approve, publish, disable, and rollback frame 3D assets | Yes | No | Yes |
 | Team accounts and role assignments | No | No | Yes |
 | Audit logs | Yes (view) | Yes (view) | Yes |
 | Privacy administration | Backend only — no panel UI | Backend only — no panel UI | Backend only — no panel UI |
@@ -505,7 +549,9 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounters` | `patient_id`, `appointment_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled/voided), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
-| `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. Variants own price, dimensions, SKU, and stock. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
+| `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. Variants own price, dimensions, SKU, stock, legacy AR compatibility fields, and the pointer to the current published 3D asset. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
+| `product_variants` | Catalog variants. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. |
+| `ar_assets` | Versioned GLB assets associated with a `product_variant_id`. Stores `version`, `status`, `format` (`glb`), private `quarantine_path`, immutable `published_path`/HTTPS `url`, server-computed `byte_size` and lowercase `sha256`, JSON `calibration`, upload/validation/approval/publication/disablement actors and timestamps, optional `expires_at`, and staff-only `validation_error`. Unique (`product_variant_id, version`); old published files are retained for rollback. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/accepted/declined), `valid_until`, `subtotal`, `discount_amount`, `total`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`. |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
@@ -540,6 +586,18 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 
 **Account deactivation.** `User` also uses `is_active`; deactivated accounts fail `canAccessPanel()` regardless of role.
 
+**Remote 3D asset lifecycle.** `ArAsset` records are append-only by version:
+staff/admin upload creates a quarantined record and validates the binary;
+explicit review submission validates calibration and moves it to `validated`,
+physical review moves it to `approved`, and publication makes it the variant's
+current `published` asset. The uploader cannot approve the same asset.
+Publishing a replacement locks the variant, demotes the previous version to
+`superseded`, and switches the pointer atomically. Disablement clears only the
+published pointer and marks the version `disabled`; it does not delete the
+file, frame images, variant, or reservation capability. Rollback restores a
+previous valid published file and demotes the current version. There is no
+patient upload route.
+
 **Void (status-based irreversible).** For records created in error that require a reason, actor, timestamp, and audit log: `Encounter` (status: `voided`), `Prescription` (void fields), `BillingRecord` (status: `voided`), `Quotation` (status: `declined` with `decline_reason`). Voided records are terminal and immutable.
 
 **Inbox Archive (conversations).** Removes conversation from staff inbox without soft-deleting. Uses `inbox_archived_at` timestamp. Auto-restores when new message arrives. Patient still sees the conversation. Never creates a second conversation.
@@ -549,6 +607,16 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 ---
 
 ## Status Transition Rules
+
+**AR Assets:** `quarantined` → `validated` or `rejected` after explicit review
+submission; `validated` → `approved` only by a different authorized reviewer;
+`approved` → `published`. Publishing a replacement marks the prior
+version `superseded` only after the new immutable file is stored and the
+variant pointer is switched in one transaction. The current `published`
+version can move to `disabled`; a retained `superseded` or `disabled`
+version can return to `published` through rollback after its stored file
+passes size/checksum validation. Patient responses serialize only a valid
+published version as `status: ready`, otherwise `ar` is `null`.
 
 **Appointments:** `scheduled → checked_in → fulfilled` (terminal). `cancelled` and `no_show` are terminal from `scheduled` or `checked_in`. Check-in creates an Encounter transactionally.
 
@@ -580,6 +648,15 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Billing — Billing & Payments
 - Catalog — Products, Inventory, Inventory History, Brands, Lens Categories, Lens Options, Product Categories, Services
 - Admin — Staff Accounts, SMS Log, Audit Logs
+
+**Remote frame 3D assets** are managed from the `VariantsRelationManager` on
+frame products. Active staff/admin users upload a finished `.glb`, submit it
+with explicit physical calibration, approve the physical review, publish an
+immutable version, disable the current asset, or roll back to a retained
+version. The action layer repeats authorization checks, so hidden Filament
+actions are not the security boundary. The table shows the guided statuses
+`Upload received`, `Validation failed`, `Awaiting physical review`,
+`Published`, `Rejected`, and `Disabled`, plus human-readable validation notes.
 
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).
 
@@ -670,6 +747,12 @@ GET    /api/v1/appointment-requests/{id}
 POST   /api/v1/appointment-requests/{id}/cancel
 ```
 
+The frame catalog responses include the additive `ar` field on every variant.
+It is `null` unless a current published GLB passes storage, expiry, byte-size,
+checksum, and calibration checks; only `status: ready` is patient-visible.
+Frame browsing remains account-only and does not require an active patient link,
+while reservations retain their existing active-link boundary.
+
 ### Active Patient Link Required (token + active link)
 ```
 GET    /api/v1/appointment-availability
@@ -757,6 +840,12 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `RemoveFrameReservationItem` | `app/Actions/Reservations/` | Drops a candidate frame from a reservation, restoring allocated stock if accepted; deletes the whole reservation if the last item is removed |
 | `DeleteFrameReservation` | `app/Actions/Reservations/` | Releases every remaining item if accepted, deletes the reservation; idempotent |
 | `FrameReservationStock` | `app/Actions/Reservations/` | Single collaborator owning every allocation and release; lock order and movement shape cannot drift across the five actions |
+| `UploadArAsset` | `app/Actions/ArAssets/` | Authorizes staff/admin, stores an opaque `.glb` in private quarantine, validates the binary, computes checksum/size, and records the upload audit event |
+| `SubmitArAssetForReview` | `app/Actions/ArAssets/` | Validates explicit steward calibration and moves a received asset into the physical-review queue |
+| `ApproveArAsset` | `app/Actions/ArAssets/` | Records active staff/admin physical-review approval for a validated asset |
+| `PublishArAsset` | `app/Actions/ArAssets/` | Verifies quarantine integrity, writes the immutable public version, and atomically swaps the variant's published pointer while preserving the prior version |
+| `DisableArAsset` | `app/Actions/ArAssets/` | Removes only the variant's patient-facing AR pointer and records disablement; normal images and reservations remain available |
+| `RollbackArAsset` | `app/Actions/ArAssets/` | Verifies a retained published file and atomically restores it as the current version |
 | `CreateOpticalOrderFromQuotation` | `app/Actions/OpticalOrders/` | Accepts the quotation, creates an Optical Order from product lines, commits inventory, copies selected performed service lines into billing, records an optional deposit — idempotent |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates a product-only Optical Order with no source Quotation (walk-in sale); uses the shared `BuildOpticalOrder` collaborator |
 | `AddChargesToBilling` | `app/Actions/BillingRecords/` | One append path keyed by `BillingItemSourceKind` (`optical_order`, `quotation`, `encounter`, `direct_service`); replaces five previous append actions |

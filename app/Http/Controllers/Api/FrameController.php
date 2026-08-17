@@ -19,14 +19,19 @@ class FrameController extends Controller
             ->where(function ($q): void {
                 $q->whereHas('variants', fn ($sub) => $sub
                     ->where('is_active', true)
-                    ->where('ar_eligible', true)
-                    ->whereNotNull('ar_asset_reference'))
+                    ->where(function ($variantQuery): void {
+                        $variantQuery
+                            ->where(fn ($legacyQuery) => $legacyQuery
+                                ->where('ar_eligible', true)
+                                ->whereNotNull('ar_asset_reference'))
+                            ->orWhereHas('publishedArAsset');
+                    }))
                     ->orWhereDoesntHave('variants', fn ($sub) => $sub
                         ->where('ar_eligible', true));
             })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->with(['ratings'])]);
+                ->with(['ratings', 'publishedArAsset'])]);
 
         $query->when(
             $request->filled('search'),
@@ -65,14 +70,19 @@ class FrameController extends Controller
             ->where(function ($q): void {
                 $q->whereHas('variants', fn ($sub) => $sub
                     ->where('is_active', true)
-                    ->where('ar_eligible', true)
-                    ->whereNotNull('ar_asset_reference'))
+                    ->where(function ($variantQuery): void {
+                        $variantQuery
+                            ->where(fn ($legacyQuery) => $legacyQuery
+                                ->where('ar_eligible', true)
+                                ->whereNotNull('ar_asset_reference'))
+                            ->orWhereHas('publishedArAsset');
+                    }))
                     ->orWhereDoesntHave('variants', fn ($sub) => $sub
                         ->where('ar_eligible', true));
             })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->with(['ratings'])])
+                ->with(['ratings', 'publishedArAsset'])])
             ->first();
 
         abort_if($catalogFrame === null, 404);

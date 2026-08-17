@@ -105,4 +105,13 @@ enum AuditEvent: string
 
     case BillingGenerated = 'billing.generated';
     case BillingBalanceRecalculated = 'billing.balance_recalculated';
+
+    case ArAssetUploaded = 'ar_asset.uploaded';
+    case ArAssetValidated = 'ar_asset.validated';
+    case ArAssetRejected = 'ar_asset.rejected';
+    case ArAssetApproved = 'ar_asset.approved';
+    case ArAssetPublished = 'ar_asset.published';
+    case ArAssetReplaced = 'ar_asset.replaced';
+    case ArAssetDisabled = 'ar_asset.disabled';
+    case ArAssetRolledBack = 'ar_asset.rolled_back';
 }
