@@ -158,7 +158,6 @@ class EditOpticalOrder extends EditRecord
                         ->content(fn (): string => '₱'.number_format($this->outstandingBalance(), 2)),
                     Toggle::make('charges_reviewed')
                         ->label("I've reviewed the charges on this bill")
-                        ->helperText('This finalizes the charges — add anything missing first.')
                         ->default(false)
                         ->rule('accepted')
                         ->required()

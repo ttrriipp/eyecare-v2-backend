@@ -86,7 +86,6 @@ class PaymentsRelationManager extends RelationManager
                             ->content(fn (): string => '₱'.number_format((float) $this->getOwnerRecord()->balance_due, 2)),
                         Toggle::make('charges_reviewed')
                             ->label("I've reviewed the charges on this bill")
-                            ->helperText('This finalizes the charges — add anything missing first.')
                             ->default(false)
                             ->rule('accepted')
                             ->required()
