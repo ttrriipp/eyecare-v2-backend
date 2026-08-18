@@ -130,13 +130,16 @@ class ConversationChatPage extends Page
 
         if ($this->pendingAttachment instanceof UploadedFile) {
             $file = $this->pendingAttachment;
+            $originalName = $file->getClientOriginalName();
+            $mimeType = $file->getMimeType();
+            $fileSize = $file->getSize();
             $path = $file->store('attachments', 'local');
 
             $message->attachments()->create([
                 'file_path' => $path,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getMimeType(),
-                'file_size' => $file->getSize(),
+                'original_name' => $originalName,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
             ]);
 
             $this->pendingAttachment = null;
