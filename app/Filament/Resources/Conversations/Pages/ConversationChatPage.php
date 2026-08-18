@@ -27,9 +27,7 @@ class ConversationChatPage extends Page
 
     protected function getActions(): array
     {
-        return [
-            $this->archiveAction(),
-        ];
+        return [];
     }
 
     public function selectConversation(int $id): void
