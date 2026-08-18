@@ -25,6 +25,13 @@ class ConversationChatPage extends Page
 
     public bool $showArchived = false;
 
+    protected function getActions(): array
+    {
+        return [
+            $this->archiveAction(),
+        ];
+    }
+
     public function selectConversation(int $id): void
     {
         if ($this->selectedConversationId !== $id) {
