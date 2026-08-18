@@ -23,7 +23,7 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
 
     protected static ?int $sort = 2;
 
-    protected ?string $heading = 'Other issues';
+    protected ?string $heading = 'Also noted';
 
     protected ?string $pollingInterval = '30s';
 
@@ -39,7 +39,7 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
 
     protected function getDescription(): ?string
     {
-        return 'Lower-priority follow-up items. Updated at '.now()->format('g:i A').'.';
+        return null;
     }
 
     public function getSectionContentComponent(): Component
@@ -59,7 +59,7 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
                 'Draft Quotations',
                 Number::format(Quotation::query()->where('status', QuotationStatus::Draft)->count()),
             )
-                ->description('Awaiting decision')
+                ->description('Pending decision')
                 ->descriptionIcon(Heroicon::OutlinedDocumentCurrencyDollar)
                 ->color('gray')
                 ->url(QuotationResource::getUrl('index', [
@@ -73,17 +73,17 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
                     ->whereIn('status', [BillingRecordStatus::Unpaid, BillingRecordStatus::PartiallyPaid])
                     ->count()),
             )
-                ->description('Unpaid or partially paid')
+                ->description('Unpaid invoices')
                 ->descriptionIcon(Heroicon::OutlinedBanknotes)
                 ->color('warning')
                 ->url(BillingRecordResource::getUrl('index', [
                     'activeTab' => 'outstanding',
                 ])),
             Stat::make(
-                'Low Stock Items',
+                'Low Stock',
                 Number::format(ProductVariant::query()->active()->needsReorder()->count()),
             )
-                ->description('At or below reorder threshold')
+                ->description('Below reorder level')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color('danger')
                 ->url(InventoryResource::getUrl('index', [

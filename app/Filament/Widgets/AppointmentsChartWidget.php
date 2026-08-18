@@ -34,7 +34,7 @@ class AppointmentsChartWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        return 'Daily non-cancelled appointments over the last 30 days.';
+        return 'Last 30 days.';
     }
 
     protected function getType(): string

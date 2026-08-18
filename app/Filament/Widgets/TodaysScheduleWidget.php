@@ -39,7 +39,7 @@ class TodaysScheduleWidget extends TableWidget
             )
             ->count();
 
-        return "Today's Patient Flow · {$appointmentCount} ".($appointmentCount === 1 ? 'appointment' : 'appointments');
+        return "Today's Schedule · {$appointmentCount} ".($appointmentCount === 1 ? 'appointment' : 'appointments');
     }
 
     public function table(Table $table): Table
@@ -53,7 +53,7 @@ class TodaysScheduleWidget extends TableWidget
 
         return $table
             ->heading($this->getHeading())
-            ->description('Checked-in patients appear first, followed by upcoming appointments. Updates every 30 seconds.')
+            ->description('Checked-in patients first, then upcoming.')
             ->headerActions([
                 Action::make('viewFullSchedule')
                     ->label('View Full Schedule')
@@ -114,8 +114,8 @@ class TodaysScheduleWidget extends TableWidget
                     ->formatStateUsing(fn (string $state): string => AppointmentStatusName::tryFrom($state)?->getLabel() ?? Str::headline($state))
                     ->color(fn (string $state): string => AppointmentStatusName::tryFrom($state)?->getColor() ?? 'gray'),
             ])
-            ->emptyStateHeading('No patients waiting or due today')
-            ->emptyStateDescription('New appointments and checked-in patients will appear here automatically.')
+            ->emptyStateHeading('No appointments today')
+            ->emptyStateDescription('Checked-in and upcoming patients will appear here.')
             ->emptyStateIcon(Heroicon::OutlinedCalendarDays);
     }
 }
