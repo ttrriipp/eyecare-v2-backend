@@ -8,12 +8,17 @@ use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+
+    // Don't depend on whichever driver a developer's local .env happens to
+    // have set — each test declares the driver it actually exercises.
+    config(['services.sms.driver' => 'semaphore']);
 });
 
 test('ProcessSmsNotification marks sms as sent when service succeeds', function () {
@@ -42,6 +47,7 @@ test('ProcessSmsNotification marks sms as failed when service fails', function (
 
 test('ProcessSmsNotification marks sms as sent without HTTP call when disabled', function () {
     Http::fake();
+    Log::spy();
     config(['services.semaphore.enabled' => false]);
 
     $sms = SmsNotification::factory()->create();
@@ -50,6 +56,12 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when disabled',
 
     expect($sms->fresh()->status->name)->toBe('sent');
     Http::assertNothingSent();
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with('SMS delivery skipped (Semaphore disabled)', [
+            'recipient' => $sms->recipient,
+            'message' => $sms->message,
+        ]);
 });
 
 test('sms:process command processes queued notifications', function () {
@@ -108,6 +120,7 @@ test('ProcessSmsNotification marks sms as failed when TextBee returns an error',
 
 test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is disabled', function () {
     Http::fake();
+    Log::spy();
     config([
         'services.sms.driver' => 'textbee',
         'services.textbee.enabled' => false,
@@ -119,6 +132,12 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is
 
     expect($sms->fresh()->status->name)->toBe('sent');
     Http::assertNothingSent();
+    Log::shouldHaveReceived('info')
+        ->once()
+        ->with('SMS delivery skipped (TextBee disabled)', [
+            'recipient' => $sms->recipient,
+            'message' => $sms->message,
+        ]);
 });
 
 test('TextBee gateway includes deviceId only when configured', function () {

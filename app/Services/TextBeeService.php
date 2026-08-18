@@ -3,12 +3,18 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TextBeeService implements SmsGateway
 {
     public function send(string $recipient, string $message): bool
     {
         if (! config('services.textbee.enabled')) {
+            Log::info('SMS delivery skipped (TextBee disabled)', [
+                'recipient' => $recipient,
+                'message' => $message,
+            ]);
+
             return true;
         }
 

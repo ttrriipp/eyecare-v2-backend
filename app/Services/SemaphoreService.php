@@ -3,12 +3,18 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SemaphoreService implements SmsGateway
 {
     public function send(string $recipient, string $message): bool
     {
         if (! config('services.semaphore.enabled')) {
+            Log::info('SMS delivery skipped (Semaphore disabled)', [
+                'recipient' => $recipient,
+                'message' => $message,
+            ]);
+
             return true;
         }
 
