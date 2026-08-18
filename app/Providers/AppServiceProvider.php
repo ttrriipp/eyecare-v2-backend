@@ -16,6 +16,9 @@ use App\Observers\CatalogObserver;
 use App\Observers\PatientObserver;
 use App\Observers\ProductObserver;
 use App\Observers\UserObserver;
+use App\Services\SemaphoreService;
+use App\Services\SmsGateway;
+use App\Services\TextBeeService;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -30,7 +33,13 @@ use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->bind(SmsGateway::class, fn () => match (config('services.sms.driver')) {
+            'textbee' => new TextBeeService,
+            default => new SemaphoreService,
+        });
+    }
 
     public function boot(): void
     {

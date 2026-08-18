@@ -41,4 +41,14 @@ return [
         'enabled' => env('SEMAPHORE_ENABLED', false),
     ],
 
+    'textbee' => [
+        'api_key' => env('TEXTBEE_API_KEY', ''),
+        'device_id' => env('TEXTBEE_DEVICE_ID', ''),
+        'enabled' => env('TEXTBEE_ENABLED', false),
+    ],
+
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'semaphore'),
+    ],
+
 ];

@@ -4,7 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 
-class SemaphoreService
+class SemaphoreService implements SmsGateway
 {
     public function send(string $recipient, string $message): bool
     {

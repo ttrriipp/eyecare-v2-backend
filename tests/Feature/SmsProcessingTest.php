@@ -3,6 +3,7 @@
 use App\Actions\Sms\ProcessSmsNotification;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Services\TextBeeService;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -67,6 +68,69 @@ test('sms:process command reports no pending when queue is empty', function () {
     $this->artisan('sms:process')
         ->expectsOutput('No queued SMS notifications.')
         ->assertSuccessful();
+});
+
+test('ProcessSmsNotification uses TextBee when the sms driver is textbee', function () {
+    Http::fake(['https://api.textbee.dev/*' => Http::response(['success' => true], 200)]);
+    config([
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => true,
+        'services.textbee.api_key' => 'test-key',
+    ]);
+
+    $sms = SmsNotification::factory()->create(['recipient' => '+639171234567']);
+
+    app(ProcessSmsNotification::class)->handle($sms);
+
+    expect($sms->fresh()->status->name)->toBe('sent');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://api.textbee.dev/api/v1/gateway/send-sms'
+            && $request->hasHeader('x-api-key', 'test-key')
+            && $request['recipients'] === ['+639171234567'];
+    });
+});
+
+test('ProcessSmsNotification marks sms as failed when TextBee returns an error', function () {
+    Http::fake(['https://api.textbee.dev/*' => Http::response([], 500)]);
+    config([
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => true,
+    ]);
+
+    $sms = SmsNotification::factory()->create();
+
+    app(ProcessSmsNotification::class)->handle($sms);
+
+    expect($sms->fresh()->status->name)->toBe('failed')
+        ->and($sms->fresh()->failure_reason)->not->toBeNull();
+});
+
+test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is disabled', function () {
+    Http::fake();
+    config([
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => false,
+    ]);
+
+    $sms = SmsNotification::factory()->create();
+
+    app(ProcessSmsNotification::class)->handle($sms);
+
+    expect($sms->fresh()->status->name)->toBe('sent');
+    Http::assertNothingSent();
+});
+
+test('TextBee gateway includes deviceId only when configured', function () {
+    Http::fake(['https://api.textbee.dev/*' => Http::response(['success' => true], 200)]);
+    config([
+        'services.textbee.enabled' => true,
+        'services.textbee.device_id' => 'device-123',
+    ]);
+
+    app(TextBeeService::class)->send('+639171234567', 'Test message');
+
+    Http::assertSent(fn ($request) => $request['deviceId'] === 'device-123');
 });
 
 test('sms notification does not have an order relationship', function () {
