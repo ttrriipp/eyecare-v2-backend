@@ -577,18 +577,17 @@
                     const isFreshContainer = container !== lastContainerNode;
                     lastContainerNode = container;
 
+                    if (isFreshContainer) {
+                        // A different conversation was selected (or this is the
+                        // first action since page load) — treat it as already
+                        // at the bottom, same as the container's own x-init.
+                        atBottom = true;
+                        hidePill(container);
+                    }
+
                     const currentMessageId = container.dataset.lastMessageId || null;
                     const messageChanged = currentMessageId !== lastMessageId;
                     lastMessageId = currentMessageId;
-
-                    if (isFreshContainer) {
-                        // A different conversation was selected (or first load) —
-                        // the container's own x-init handles the initial scroll.
-                        atBottom = true;
-                        hidePill(container);
-
-                        return;
-                    }
 
                     if (! messageChanged) {
                         return;
