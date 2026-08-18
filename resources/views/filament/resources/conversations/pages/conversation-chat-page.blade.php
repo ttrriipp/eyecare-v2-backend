@@ -31,7 +31,7 @@
             </div>
 
             @if ($this->conversations->isEmpty())
-                <div class="flex flex-1 items-center justify-center p-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                <div class="flex flex-1 items-center justify-center p-6 text-center text-sm text-gray-500 dark:text-gray-400">
                     @if (filled($conversationFilter))
                         No conversations match "{{ $conversationFilter }}".
                     @else
@@ -68,7 +68,7 @@
                                         </span>
                                     @endif
                                 </div>
-                                <p class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                     @if ($conversation->last_message_at)
                                         {{ \Illuminate\Support\Str::limit($conversation->last_message_body ?? '', 40) }}
                                         · {{ \Carbon\Carbon::parse($conversation->last_message_at)->diffForHumans() }}
@@ -88,7 +88,7 @@
 
             @if ($this->selectedConversation === null)
                 {{-- Empty state --}}
-                <div class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-400 dark:text-gray-500">
+                <div class="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
                     <x-heroicon-o-chat-bubble-left-right class="h-10 w-10 opacity-40" />
                     <p class="text-sm">Select a conversation to view the chat</p>
                 </div>
@@ -127,6 +127,14 @@
                         aria-label="Search messages"
                     >
                         <x-heroicon-o-magnifying-glass class="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                        wire:click="markAsUnread"
+                        class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                        title="Mark as unread"
+                        aria-label="Mark as unread"
+                    >
+                        <x-heroicon-o-envelope class="h-3.5 w-3.5" />
                     </button>
                     @if ($this->selectedConversation->isInboxArchived())
                         <button
@@ -169,7 +177,7 @@
                                                 <span class="font-medium text-gray-800 dark:text-gray-100">
                                                     {{ $result->sender?->name ?? 'Unknown' }}
                                                 </span>
-                                                <span class="text-xs text-gray-400">
+                                                <span class="text-xs text-gray-500 dark:text-gray-400">
                                                     {{ $result->created_at->format('M j, g:i a') }}
                                                 </span>
                                             </div>
@@ -181,7 +189,7 @@
                                 @endforeach
                             </div>
                         @elseif (filled($searchQuery))
-                            <p class="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                            <p class="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
                                 No messages found.
                             </p>
                         @endif
@@ -259,7 +267,7 @@
                                     <span class="text-xs font-medium {{ $isStaff ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400' }}">
                                         {{ $message->sender?->name ?? 'Unknown' }}
                                     </span>
-                                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">
                                         {{ $message->created_at->format('M j, g:i a') }}
                                     </span>
                                 </div>
@@ -363,16 +371,30 @@
                                 @endif
 
                                 @if ($isStaff && $lastReadStaffMessage && $message->id === $lastReadStaffMessage->id)
-                                    <p class="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
+                                    <p class="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
                                         Seen · {{ $message->read_at->format('g:i a') }}
                                     </p>
                                 @endif
                             </div>
                         </div>
                     @empty
-                        <div class="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
-                            No messages yet.
-                        </div>
+                        @if ($messagesFailedToLoad)
+                            <div class="flex h-full flex-col items-center justify-center gap-2 text-center text-sm text-danger-600 dark:text-danger-400">
+                                <x-heroicon-o-exclamation-triangle class="h-6 w-6" />
+                                <p>Couldn't load messages.</p>
+                                <button
+                                    type="button"
+                                    wire:click="$refresh"
+                                    class="font-medium underline underline-offset-2 hover:text-danger-700 dark:hover:text-danger-300"
+                                >
+                                    Try again
+                                </button>
+                            </div>
+                        @else
+                            <div class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+                                No messages yet.
+                            </div>
+                        @endif
                     @endforelse
                 </div>
 
@@ -407,6 +429,7 @@
                                         wire:model="pendingAttachment"
                                         class="hidden"
                                         accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                        aria-label="Attach file"
                                     >
                                 </label>
                                 <button
@@ -430,7 +453,7 @@
                             </div>
                             <p
                                 id="reply-body-counter"
-                                class="shrink-0 text-xs text-gray-400 dark:text-gray-500"
+                                class="shrink-0 text-xs text-gray-500 dark:text-gray-400"
                                 x-bind:class="length > 5000 ? 'text-danger-600 dark:text-danger-400' : ''"
                                 x-text="length + ' / 5000'"
                             ></p>

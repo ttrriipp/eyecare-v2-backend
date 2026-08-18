@@ -444,6 +444,83 @@ test('jumping to a search result closes search and dispatches a scroll event', f
         ->assertDispatched('scroll-to-message', messageId: $message->id);
 });
 
+test('mark as unread resets the staff read watermark and returns to inbox', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+        'staff_last_read_at' => now(),
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->call('markAsUnread')
+        ->assertSet('selectedConversationId', null)
+        ->assertNotified('Marked as unread');
+
+    expect($conversation->fresh()->staff_last_read_at)->toBeNull();
+});
+
+test('a toast notifies staff when a different conversation gets a new message', function () {
+    $admin = User::factory()->admin()->create();
+
+    $patientA = User::factory()->patient()->create();
+    $conversationA = Conversation::query()->create([
+        'account_user_id' => $patientA->id,
+        'patient_id' => $patientA->patient->id,
+    ]);
+
+    $patientB = User::factory()->patient()->create();
+    $conversationB = Conversation::query()->create([
+        'account_user_id' => $patientB->id,
+        'patient_id' => $patientB->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversationA->id);
+
+    Message::factory()->create([
+        'conversation_id' => $conversationB->id,
+        'sender_id' => $patientB->id,
+    ]);
+
+    $component
+        ->call('$refresh')
+        ->assertNotified('New message in another conversation');
+});
+
+test('no toast fires when new activity happens in the currently open conversation', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id);
+
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+
+    $component
+        ->call('$refresh')
+        ->assertNotNotified('New message in another conversation');
+});
+
 test('archived threads are hidden from the default inbox', function () {
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();

@@ -38,6 +38,10 @@ class ConversationChatPage extends Page
 
     public $pendingAttachment = null;
 
+    public bool $messagesFailedToLoad = false;
+
+    public ?int $lastKnownOtherUnreadTotal = null;
+
     protected function getActions(): array
     {
         return [];
@@ -107,6 +111,19 @@ class ConversationChatPage extends Page
 
         Notification::make()
             ->title('Conversation restored')
+            ->success()
+            ->send();
+    }
+
+    public function markAsUnread(): void
+    {
+        Conversation::where('id', $this->selectedConversationId)
+            ->update(['staff_last_read_at' => null]);
+
+        $this->selectedConversationId = null;
+
+        Notification::make()
+            ->title('Marked as unread')
             ->success()
             ->send();
     }
@@ -202,7 +219,40 @@ class ConversationChatPage extends Page
                 ->values();
         }
 
+        $this->checkForOtherConversationActivity();
+
         return $conversations;
+    }
+
+    /**
+     * Compare the unread total across all inbox threads (excluding whichever
+     * one is currently open) to the last known total, so staff get a nudge
+     * when a *different* conversation gets a new message while they're
+     * reading this one. Independent of any active search/archive filter.
+     */
+    protected function checkForOtherConversationActivity(): void
+    {
+        $otherUnreadTotal = Conversation::query()
+            ->whereNull('inbox_archived_at')
+            ->when(
+                $this->selectedConversationId,
+                fn ($query) => $query->where('id', '!=', $this->selectedConversationId),
+            )
+            ->withUnreadForStaff()
+            ->get()
+            ->sum('unread_for_staff');
+
+        if (
+            $this->lastKnownOtherUnreadTotal !== null
+            && $otherUnreadTotal > $this->lastKnownOtherUnreadTotal
+        ) {
+            Notification::make()
+                ->title('New message in another conversation')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->send();
+        }
+
+        $this->lastKnownOtherUnreadTotal = $otherUnreadTotal;
     }
 
     /**
@@ -215,14 +265,24 @@ class ConversationChatPage extends Page
             return null;
         }
 
-        return Message::query()
-            ->where('conversation_id', $this->selectedConversationId)
-            ->with([
-                'sender',
-                'attachments',
-            ])
-            ->oldest()
-            ->get();
+        $this->messagesFailedToLoad = false;
+
+        try {
+            return Message::query()
+                ->where('conversation_id', $this->selectedConversationId)
+                ->with([
+                    'sender',
+                    'attachments',
+                ])
+                ->oldest()
+                ->get();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $this->messagesFailedToLoad = true;
+
+            return null;
+        }
     }
 
     /**

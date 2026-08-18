@@ -236,27 +236,25 @@ Staff communicates with patients via persistent per-customer conversation thread
 - Chat-style layout matches staff mental model (Messenger-like)
 - 5-second polling makes it near-real-time without WebSockets, and now surfaces a "New message" pill (rather than silently appending off-screen) when staff have scrolled up in history
 - "View patient record" link in the thread header jumps to the linked patient's chart
-- Unread count badge on the conversation list
+- Unread count badge on the conversation list, plus a conversation search box to filter by patient/account name
 - Inline validation feedback and a live character counter on the reply box, so hitting the 5000-character limit is never silent
+- Enter sends a reply (Shift+Enter for a newline); message search results are clickable and jump to/highlight the message in-thread
+- Read receipt ("Seen · <time>") on the last staff message the patient has read, using the existing `messages.read_at` data captured by the patient app
+- "Mark as unread" lets staff intentionally flag a thread as needing a follow-up
+- A toast notifies staff when a *different* conversation gets a new message while they're reading another thread
+- If the message list itself fails to load, staff see a clear error state with a retry action instead of a silently empty thread
 
 ### Weaknesses
 - No context links from a message to the specific appointment/order it's about — only a link to the general patient record exists; a message asking "about my order" still requires staff to go find which order separately
-- No "mark as unread" — once a staff member opens a message, it's marked read even if they didn't respond
-- No notification sound or visual flash when a new *conversation* arrives while staff are on a different thread — they must notice the unread badge change in the sidebar
 - No quick-reply templates — common messages require full typing every time
 - For a busy reception desk, the conversation panel requires staff to actively monitor a chat interface — not aligned with how a receptionist naturally works
 
-### UX Problems
-- **Nielsen #9 (Help users recognize, diagnose, recover):** If the patient's messages can't load, the error state isn't clearly surfaced.
-
 ### Suggested Improvements
 1. Add quick-reply message templates (admin-configurable)
-2. Add a browser notification opt-in for new messages
-3. Consider a notification badge on the sidebar nav item, not just the conversation list
 
 ### Severity: Minor
 
-### UX Score ⭐⭐⭐
+### UX Score ⭐⭐⭐⭐
 
 ---
 
