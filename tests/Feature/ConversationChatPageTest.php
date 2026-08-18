@@ -254,6 +254,80 @@ test('staff chat exposes view and download links for pdf attachments', function 
         ->toContain('Download');
 });
 
+test('staff chat shows a seen indicator on the last read staff message', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $readAt = now()->subMinutes(5);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $admin->id,
+        'body' => 'Your prescription is ready for pickup.',
+        'read_at' => $readAt,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->assertSee('Seen · '.$readAt->format('g:i a'));
+});
+
+test('staff chat hides the seen indicator when the last staff message is unread', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $admin->id,
+        'body' => 'Your prescription is ready for pickup.',
+        'read_at' => null,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->assertDontSee('Seen ·', escape: false);
+});
+
+test('seen indicator only appears once, on the most recent read staff message', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $admin->id,
+        'body' => 'First reply',
+        'read_at' => now()->subHour(),
+        'created_at' => now()->subHour(),
+    ]);
+    Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $admin->id,
+        'body' => 'Second reply',
+        'read_at' => now()->subMinutes(5),
+        'created_at' => now()->subMinutes(5),
+    ]);
+
+    $this->actingAs($admin);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->html();
+
+    expect(substr_count($html, 'Seen ·'))->toBe(1);
+});
+
 test('conversation header links to the patient record when linked', function () {
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();

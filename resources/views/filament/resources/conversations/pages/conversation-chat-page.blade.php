@@ -220,6 +220,12 @@
                     </div>
                     <div class="sr-only" role="status" aria-live="polite" data-new-message-announcer></div>
 
+                    @php
+                        $lastReadStaffMessage = $this->messages?->last(
+                            fn ($m) => $m->sender?->role?->name !== 'patient' && $m->read_at !== null,
+                        );
+                    @endphp
+
                     @forelse ($this->messages ?? [] as $message)
                         @php
                             $isStaff = $message->sender?->role?->name !== 'patient';
@@ -354,6 +360,12 @@
                                             </div>
                                         @endif
                                     </div>
+                                @endif
+
+                                @if ($isStaff && $lastReadStaffMessage && $message->id === $lastReadStaffMessage->id)
+                                    <p class="mt-1 text-right text-xs text-gray-400 dark:text-gray-500">
+                                        Seen · {{ $message->read_at->format('g:i a') }}
+                                    </p>
                                 @endif
                             </div>
                         </div>
