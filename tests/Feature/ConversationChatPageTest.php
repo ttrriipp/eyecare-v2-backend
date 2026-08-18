@@ -3,10 +3,12 @@
 use App\Filament\Resources\Conversations\Pages\ConversationChatPage;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -212,6 +214,45 @@ test('empty thread still renders without error', function () {
         ->assertSuccessful();
 });
 
+test('staff chat exposes view and download links for pdf attachments', function () {
+    Storage::fake('local');
+
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+        'body' => 'Attachment',
+    ]);
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'original_name' => 'nw4d_g2_chapter4_draft.pdf',
+        'mime_type' => 'application/pdf',
+    ]);
+
+    Storage::disk('local')->put($attachment->file_path, 'private-file');
+
+    $this->actingAs($admin);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain($attachment->original_name)
+        ->toContain(route('attachments.preview', $attachment))
+        ->toContain(route('attachments.download', $attachment))
+        ->toContain('data-message-bubble')
+        ->toContain('data-message-attachments')
+        ->not->toContain('data-message-body')
+        ->toContain('View')
+        ->toContain('Download');
+});
+
 test('archived threads are hidden from the default inbox', function () {
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();
@@ -254,7 +295,8 @@ test('archive action removes thread from default inbox', function () {
     $this->actingAs($admin);
 
     Livewire::test(ConversationChatPage::class)
-        ->call('archiveConversation', $conversation->id);
+        ->set('selectedConversationId', $conversation->id)
+        ->callAction('archive');
 
     expect($conversation->fresh()->isInboxArchived())->toBeTrue();
 });

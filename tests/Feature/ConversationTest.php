@@ -88,6 +88,61 @@ test('patient can download own conversation attachment through singular attachme
         ->assertDownload('own-prescription.pdf');
 });
 
+test('staff can preview and download patient conversation attachments from the admin panel', function () {
+    Storage::fake('local');
+
+    $staff = User::factory()->staff()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+        'file_path' => 'attachments/staff-readable.pdf',
+        'original_name' => 'staff-readable.pdf',
+        'mime_type' => 'application/pdf',
+    ]);
+
+    Storage::disk('local')->put($attachment->file_path, 'private-file');
+
+    $this->actingAs($staff)
+        ->get("/attachments/{$attachment->id}/preview")
+        ->assertSuccessful()
+        ->assertHeader('Content-Type', 'application/pdf');
+
+    $this->actingAs($staff)
+        ->get("/attachments/{$attachment->id}/download")
+        ->assertDownload('staff-readable.pdf');
+});
+
+test('patients cannot use staff attachment routes', function () {
+    Storage::fake('local');
+
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+    ]);
+    $attachment = MessageAttachment::factory()->create([
+        'message_id' => $message->id,
+    ]);
+
+    Storage::disk('local')->put($attachment->file_path, 'private-file');
+
+    $this->actingAs($patient)
+        ->get("/attachments/{$attachment->id}/download")
+        ->assertForbidden();
+});
+
 test('patient cannot download another patients conversation attachment', function () {
     Storage::fake('local');
 

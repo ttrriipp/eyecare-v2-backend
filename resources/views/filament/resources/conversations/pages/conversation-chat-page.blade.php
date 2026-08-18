@@ -118,13 +118,26 @@
                     @forelse ($this->messages ?? [] as $message)
                         @php
                             $isStaff = $message->sender?->role?->name !== 'patient';
-                            $hasImageAttachment = $message->attachments->contains(
-                                fn (\App\Models\MessageAttachment $attachment): bool => str_starts_with($attachment->mime_type, 'image/'),
-                            );
+                            $hasAttachments = $message->attachments->isNotEmpty();
                             $isAttachmentPlaceholder = \Illuminate\Support\Str::of($message->body)
                                 ->trim()
                                 ->lower()
                                 ->exactly('attachment');
+                            $showMessageBody = ! ($hasAttachments && $isAttachmentPlaceholder);
+                            $messageBubbleClasses = $isStaff
+                                ? 'rounded-tr-sm bg-primary-600 text-white dark:bg-primary-500'
+                                : 'rounded-tl-sm bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-100';
+                            $attachmentCardClasses = $isStaff
+                                ? 'border-white/20 bg-white/10'
+                                : 'border-gray-200 bg-white dark:border-white/10 dark:bg-white/5';
+                            $attachmentNameClasses = $isStaff ? 'text-white' : 'text-gray-800 dark:text-gray-100';
+                            $attachmentMetaClasses = $isStaff ? 'text-white/60' : 'text-gray-500 dark:text-gray-400';
+                            $attachmentIconAreaClasses = $isStaff
+                                ? 'border-white/10 bg-black/10 text-white/80'
+                                : 'border-gray-100 bg-gray-50 text-gray-500 dark:border-white/5 dark:bg-white/[0.03] dark:text-gray-400';
+                            $attachmentActionClasses = $isStaff
+                                ? 'text-white/80 hover:bg-white/15 hover:text-white'
+                                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200';
                         @endphp
                         <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
                             <div class="max-w-[70%]">
@@ -136,45 +149,103 @@
                                         {{ $message->created_at->format('M j, g:i a') }}
                                     </span>
                                 </div>
-                                @unless ($hasImageAttachment && $isAttachmentPlaceholder)
+                                @if ($showMessageBody || $hasAttachments)
                                     <div
-                                        class="mt-1 rounded-2xl px-4 py-2.5 text-sm
-                                            {{ $isStaff
-                                                ? 'rounded-tr-sm bg-primary-600 text-white dark:bg-primary-500'
-                                                : 'rounded-tl-sm bg-gray-100 text-gray-800 dark:bg-white/10 dark:text-gray-100'
-                                            }}"
-                                        data-message-body
+                                        class="mt-1 rounded-2xl px-4 py-2.5 text-sm {{ $messageBubbleClasses }}"
+                                        data-message-bubble
                                     >
-                                        {{ $message->body }}
-                                    </div>
-                                @endunless
-
-                                {{-- Attachments --}}
-                                @if ($message->attachments->isNotEmpty())
-                                    <div class="mt-2 space-y-2">
-                                        @foreach ($message->attachments as $attachment)
-                                            @if (str_starts_with($attachment->mime_type, 'image/'))
-                                                <a
-                                                    href="{{ route('attachments.preview', $attachment) }}"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    class="inline-block max-w-full align-top"
-                                                    data-message-image-attachment
-                                                >
-                                                    <img
-                                                        src="{{ route('attachments.preview', $attachment) }}"
-                                                        alt="{{ $attachment->original_name }}"
-                                                        loading="lazy"
-                                                        class="max-h-80 max-w-full rounded-lg border border-gray-200 object-contain dark:border-white/10"
-                                                    >
-                                                </a>
-                                            @endif
-                                            <div class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                                <x-heroicon-o-paper-clip class="h-3.5 w-3.5 shrink-0" />
-                                                <span>{{ $attachment->original_name }}</span>
-                                                <span class="text-gray-400">({{ number_format($attachment->file_size / 1024, 1) }} KB)</span>
+                                        @if ($showMessageBody)
+                                            <div @class(['mb-3' => $hasAttachments]) data-message-body>
+                                                {{ $message->body }}
                                             </div>
-                                        @endforeach
+                                        @endif
+
+                                        @if ($hasAttachments)
+                                            <div
+                                                @class([
+                                                    'flex flex-wrap gap-2',
+                                                    'border-t border-white/20 pt-3' => $showMessageBody && $isStaff,
+                                                    'border-t border-gray-200 pt-3 dark:border-white/10' => $showMessageBody && ! $isStaff,
+                                                ])
+                                                data-message-attachments
+                                            >
+                                                @foreach ($message->attachments as $attachment)
+                                                    @php
+                                                        $isImageAttachment = str_starts_with($attachment->mime_type, 'image/');
+                                                        $isPdfAttachment = $attachment->mime_type === 'application/pdf';
+                                                        $isPreviewable = $isImageAttachment || $isPdfAttachment;
+                                                        $primaryHref = $isPreviewable
+                                                            ? route('attachments.preview', $attachment)
+                                                            : route('attachments.download', $attachment);
+                                                        $attachmentContainerClasses = 'overflow-hidden rounded-lg border '
+                                                            .$attachmentCardClasses.' '
+                                                            .($isImageAttachment ? 'inline-block max-w-full align-top' : 'w-52 max-w-full shrink-0');
+                                                    @endphp
+                                                    <div class="{{ $attachmentContainerClasses }}">
+                                                        @if ($isImageAttachment)
+                                                            <a
+                                                                href="{{ route('attachments.preview', $attachment) }}"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                class="block"
+                                                                data-message-image-attachment
+                                                            >
+                                                                <img
+                                                                    src="{{ route('attachments.preview', $attachment) }}"
+                                                                    alt="{{ $attachment->original_name }}"
+                                                                    loading="lazy"
+                                                                    class="max-h-96 max-w-full object-contain"
+                                                                >
+                                                            </a>
+                                                        @else
+                                                            <a
+                                                                href="{{ $primaryHref }}"
+                                                                @if ($isPreviewable) target="_blank" rel="noopener noreferrer" @endif
+                                                                class="flex h-16 items-center justify-center border-b {{ $attachmentIconAreaClasses }}"
+                                                            >
+                                                                <x-heroicon-o-document-text class="h-6 w-6" />
+                                                            </a>
+                                                        @endif
+
+                                                        <div class="flex w-0 min-w-full items-center gap-1.5 px-2.5 py-2">
+                                                            <div class="min-w-0 flex-1">
+                                                                <p
+                                                                    class="truncate text-xs font-medium {{ $attachmentNameClasses }}"
+                                                                    title="{{ $attachment->original_name }}"
+                                                                >
+                                                                    {{ $attachment->original_name }}
+                                                                </p>
+                                                                <p class="text-[11px] {{ $attachmentMetaClasses }}">
+                                                                    {{ number_format($attachment->file_size / 1024, 1) }} KB
+                                                                </p>
+                                                            </div>
+                                                            <div class="flex shrink-0 items-center gap-0.5">
+                                                                @if ($isPreviewable)
+                                                                    <a
+                                                                        href="{{ route('attachments.preview', $attachment) }}"
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        title="View {{ $attachment->original_name }}"
+                                                                        aria-label="View {{ $attachment->original_name }}"
+                                                                        class="rounded-full p-1.5 transition {{ $attachmentActionClasses }}"
+                                                                    >
+                                                                        <x-heroicon-o-eye class="h-4 w-4" />
+                                                                    </a>
+                                                                @endif
+                                                                <a
+                                                                    href="{{ route('attachments.download', $attachment) }}"
+                                                                    title="Download {{ $attachment->original_name }}"
+                                                                    aria-label="Download {{ $attachment->original_name }}"
+                                                                    class="rounded-full p-1.5 transition {{ $attachmentActionClasses }}"
+                                                                >
+                                                                    <x-heroicon-o-arrow-down-tray class="h-4 w-4" />
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
                             </div>

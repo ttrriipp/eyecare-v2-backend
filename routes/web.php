@@ -3,6 +3,7 @@
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
+use App\Http\Controllers\MessageAttachmentDownloadController;
 use App\Http\Controllers\MessageAttachmentPreviewController;
 use App\Models\Encounter;
 use App\Models\Prescription;
@@ -30,6 +31,9 @@ Route::get('/health', function () {
 Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/attachments/{attachment}/preview', MessageAttachmentPreviewController::class)
         ->name('attachments.preview');
+
+    Route::get('/attachments/{attachment}/download', MessageAttachmentDownloadController::class)
+        ->name('attachments.download');
 
     Route::get('/pdf/prescriptions/{prescription}', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);
