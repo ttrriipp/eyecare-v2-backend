@@ -305,6 +305,71 @@ test('sending a reply over the character limit shows an inline error instead of 
     expect(Message::where('conversation_id', $conversation->id)->count())->toBe(0);
 });
 
+test('conversation list search filters by patient name', function () {
+    $admin = User::factory()->admin()->create();
+
+    $liza = User::factory()->patient()->create();
+    $liza->patient->update(['first_name' => 'Liza', 'middle_name' => null, 'last_name' => 'Mendoza']);
+    Conversation::query()->create([
+        'account_user_id' => $liza->id,
+        'patient_id' => $liza->patient->id,
+    ]);
+
+    $ana = User::factory()->patient()->create();
+    $ana->patient->update(['first_name' => 'Ana', 'middle_name' => null, 'last_name' => 'Garcia']);
+    Conversation::query()->create([
+        'account_user_id' => $ana->id,
+        'patient_id' => $ana->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('conversationFilter', 'liza')
+        ->assertSee('Liza Mendoza')
+        ->assertDontSee('Ana Garcia');
+});
+
+test('conversation list search shows a not-found message when nothing matches', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('conversationFilter', 'nobody-matches-this')
+        ->assertSee('No conversations match "nobody-matches-this".', escape: false);
+});
+
+test('jumping to a search result closes search and dispatches a scroll event', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $message = Message::factory()->create([
+        'conversation_id' => $conversation->id,
+        'sender_id' => $patient->id,
+        'body' => 'A message worth finding',
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->set('showSearch', true)
+        ->set('searchQuery', 'worth finding')
+        ->call('jumpToMessage', $message->id)
+        ->assertSet('showSearch', false)
+        ->assertSet('searchQuery', '')
+        ->assertDispatched('scroll-to-message', messageId: $message->id);
+});
+
 test('archived threads are hidden from the default inbox', function () {
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();
@@ -334,6 +399,32 @@ test('archived threads appear when showArchived toggle is on', function () {
     Livewire::test(ConversationChatPage::class)
         ->set('showArchived', true)
         ->assertSee($patient->patient->full_name);
+});
+
+test('showArchived toggle shows only archived threads, not active ones too', function () {
+    $admin = User::factory()->admin()->create();
+
+    $archivedPatient = User::factory()->patient()->create();
+    $archivedPatient->patient->update(['first_name' => 'Archived', 'middle_name' => null, 'last_name' => 'Thread']);
+    Conversation::query()->create([
+        'account_user_id' => $archivedPatient->id,
+        'patient_id' => $archivedPatient->patient->id,
+        'inbox_archived_at' => now(),
+    ]);
+
+    $activePatient = User::factory()->patient()->create();
+    $activePatient->patient->update(['first_name' => 'Active', 'middle_name' => null, 'last_name' => 'Thread']);
+    Conversation::query()->create([
+        'account_user_id' => $activePatient->id,
+        'patient_id' => $activePatient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('showArchived', true)
+        ->assertSee('Archived Thread')
+        ->assertDontSee('Active Thread');
 });
 
 test('archive action removes thread from default inbox', function () {

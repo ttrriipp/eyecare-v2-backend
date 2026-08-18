@@ -18,11 +18,25 @@
                         {{ $showArchived ? 'Show inbox' : 'Show archived' }}
                     </button>
                 </div>
+                <div class="relative mt-2">
+                    <x-heroicon-o-magnifying-glass class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        wire:model.live.debounce.300ms="conversationFilter"
+                        placeholder="Search patients or accounts…"
+                        aria-label="Search conversations"
+                        class="block w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-xs text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-gray-500"
+                    >
+                </div>
             </div>
 
             @if ($this->conversations->isEmpty())
-                <div class="flex flex-1 items-center justify-center p-6 text-sm text-gray-400 dark:text-gray-500">
-                    No conversations yet.
+                <div class="flex flex-1 items-center justify-center p-6 text-center text-sm text-gray-400 dark:text-gray-500">
+                    @if (filled($conversationFilter))
+                        No conversations match "{{ $conversationFilter }}".
+                    @else
+                        No conversations yet.
+                    @endif
                 </div>
             @else
                 <ul role="list" class="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto dark:divide-white/5" data-chat-scroll-region="conversations">
@@ -145,7 +159,11 @@
                         @if (filled($searchQuery) && $this->searchResults->isNotEmpty())
                             <div class="mt-2 max-h-60 space-y-1 overflow-y-auto">
                                 @foreach ($this->searchResults as $result)
-                                    <div class="flex items-start gap-2 rounded-lg px-3 py-2 text-sm transition hover:bg-white dark:hover:bg-white/5">
+                                    <button
+                                        type="button"
+                                        wire:click="jumpToMessage({{ $result->id }})"
+                                        class="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:bg-white/5"
+                                    >
                                         <div class="min-w-0 flex-1">
                                             <div class="flex items-center gap-2">
                                                 <span class="font-medium text-gray-800 dark:text-gray-100">
@@ -159,7 +177,7 @@
                                                 {{ \Illuminate\Support\Str::limit($result->body, 150) }}
                                             </p>
                                         </div>
-                                    </div>
+                                    </button>
                                 @endforeach
                             </div>
                         @elseif (filled($searchQuery))
@@ -183,7 +201,7 @@
                             }
                         });
                     }))"
-                    class="relative min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
+                    class="relative flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto px-5 py-4"
                     id="chat-messages"
                     data-chat-scroll-region="messages"
                     data-last-message-id="{{ optional($this->messages)->last()?->id }}"
@@ -226,7 +244,10 @@
                                 ? 'text-white/80 hover:bg-white/15 hover:text-white'
                                 : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200';
                         @endphp
-                        <div class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }}">
+                        <div
+                            id="message-{{ $message->id }}"
+                            class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }} {{ $loop->first ? 'mt-auto' : '' }}"
+                        >
                             <div class="max-w-[70%]">
                                 <div class="flex items-baseline gap-2 {{ $isStaff ? 'flex-row-reverse' : '' }}">
                                     <span class="text-xs font-medium {{ $isStaff ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400' }}">
@@ -238,13 +259,12 @@
                                 </div>
                                 @if ($showMessageBody || $hasAttachments)
                                     <div
-                                        class="mt-1 inline-block max-w-full rounded-2xl px-4 py-2.5 text-sm {{ $messageBubbleClasses }}"
+                                        class="mt-1 w-fit max-w-full rounded-2xl px-3.5 py-2 text-sm ring-inset ring-white/80 transition-shadow duration-300 data-[highlighted=true]:ring-2 {{ $isStaff ? 'ml-auto' : '' }} {{ $messageBubbleClasses }}"
                                         data-message-bubble
+                                        data-highlighted="false"
                                     >
                                         @if ($showMessageBody)
-                                            <div class="whitespace-pre-wrap break-words {{ $hasAttachments ? 'mb-3' : '' }}" data-message-body>
-                                                {{ $message->body }}
-                                            </div>
+                                            <div class="whitespace-pre-wrap break-words {{ $hasAttachments ? 'mb-3' : '' }}" data-message-body>{{ trim($message->body) }}</div>
                                         @endif
 
                                         @if ($hasAttachments)
@@ -303,7 +323,7 @@
                                                                     {{ $attachment->original_name }}
                                                                 </p>
                                                                 <p class="text-xs {{ $attachmentMetaClasses }}">
-                                                                    {{ number_format($attachment->file_size / 1024, 1) }} KB
+                                                                    {{ $attachment->formatted_file_size }}
                                                                 </p>
                                                             </div>
                                                             <div class="flex shrink-0 items-center gap-0.5">
@@ -354,6 +374,7 @@
                                     id="reply-body"
                                     wire:model="replyBody"
                                     x-on:input="length = $event.target.value.length"
+                                    x-on:keydown.enter="if (! $event.shiftKey) { $event.preventDefault(); $wire.sendReply(); }"
                                     rows="2"
                                     maxlength="5000"
                                     placeholder="Write a reply…"
@@ -547,6 +568,27 @@
                         showPill(container);
                     }
                 });
+            });
+        });
+
+        $wire.on('scroll-to-message', ({ messageId }) => {
+            requestAnimationFrame(() => {
+                const target = document.getElementById(`message-${messageId}`);
+
+                if (! target) {
+                    return;
+                }
+
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                const bubble = target.querySelector('[data-message-bubble]');
+
+                if (! bubble) {
+                    return;
+                }
+
+                bubble.dataset.highlighted = 'true';
+                setTimeout(() => { bubble.dataset.highlighted = 'false'; }, 1600);
             });
         });
     </script>

@@ -12,6 +12,7 @@ use Filament\Resources\Pages\Page;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\WithFileUploads;
 
@@ -28,6 +29,8 @@ class ConversationChatPage extends Page
     public string $replyBody = '';
 
     public bool $showArchived = false;
+
+    public string $conversationFilter = '';
 
     public string $searchQuery = '';
 
@@ -62,6 +65,14 @@ class ConversationChatPage extends Page
         if (! $this->showSearch) {
             $this->searchQuery = '';
         }
+    }
+
+    public function jumpToMessage(int $messageId): void
+    {
+        $this->showSearch = false;
+        $this->searchQuery = '';
+
+        $this->dispatch('scroll-to-message', messageId: $messageId);
     }
 
     public function archiveAction(): Action
@@ -169,13 +180,29 @@ class ConversationChatPage extends Page
             ->withUnreadForStaff()
             ->withLastMessage();
 
-        if (! $this->showArchived) {
+        if ($this->showArchived) {
+            $query->whereNotNull('inbox_archived_at');
+        } else {
             $query->whereNull('inbox_archived_at');
         }
 
-        return $query->get()
+        $conversations = $query->get()
             ->sortByDesc(fn (Conversation $c) => $c->last_message_at ?? $c->created_at)
             ->values();
+
+        if (filled($this->conversationFilter)) {
+            $needle = Str::lower($this->conversationFilter);
+
+            $conversations = $conversations
+                ->filter(function (Conversation $conversation) use ($needle): bool {
+                    $name = $conversation->patient?->full_name ?? $conversation->account?->full_name ?? '';
+
+                    return Str::contains(Str::lower($name), $needle);
+                })
+                ->values();
+        }
+
+        return $conversations;
     }
 
     /**
