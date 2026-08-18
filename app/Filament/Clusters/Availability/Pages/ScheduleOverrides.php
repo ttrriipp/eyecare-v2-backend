@@ -151,7 +151,6 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                             ? 'Leave both times blank if they\'re away the whole day.'
                             : null)
                         ->seconds(false)
-                        ->native(false)
                         ->minutesStep(15)
                         ->format('H:i')
                         ->suffixIcon('heroicon-o-clock')
@@ -164,7 +163,6 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                     TimePicker::make('end_time')
                         ->label('Absence End (optional)')
                         ->seconds(false)
-                        ->native(false)
                         ->minutesStep(15)
                         ->format('H:i')
                         ->suffixIcon('heroicon-o-clock')
