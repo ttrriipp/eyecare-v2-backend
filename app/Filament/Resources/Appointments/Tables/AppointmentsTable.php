@@ -228,7 +228,8 @@ class AppointmentsTable
                                 ->required()
                                 ->seconds(false)
                                 ->minutesStep(15)
-                                ->format('H:i'),
+                                ->format('H:i')
+                                ->suffixIcon('heroicon-o-clock'),
                             Select::make('reason_category')
                                 ->label('Reason')
                                 ->options([
