@@ -44,6 +44,8 @@ class ConversationChatPage extends Page
             ->label('Archive')
             ->icon('heroicon-o-archive-box')
             ->color('gray')
+            ->size('sm')
+            ->outlined()
             ->requiresConfirmation()
             ->modalHeading('Archive conversation')
             ->modalDescription('The conversation will be hidden from the inbox. It will automatically restore if a new message arrives.')
