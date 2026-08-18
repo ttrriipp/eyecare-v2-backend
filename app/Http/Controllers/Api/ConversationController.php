@@ -121,15 +121,17 @@ class ConversationController extends Controller
     {
         $conversation = $attachment->message->conversation;
 
-        // Must be linked and own the conversation
-        abort_unless($request->user()->patient !== null, 404);
+        // Must own the conversation (patient link already enforced by middleware)
         abort_unless($conversation->account_user_id === $request->user()->id, 404);
         abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
 
         return Storage::disk('local')->download(
             $attachment->file_path,
             $attachment->original_name,
-            ['Content-Type' => $attachment->mime_type],
+            [
+                'Content-Type' => $attachment->mime_type,
+                'Content-Disposition' => 'attachment; filename="'.$attachment->original_name.'"',
+            ],
         );
     }
 
