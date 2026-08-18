@@ -7,21 +7,14 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Notifications\NewMessageReceived;
 use Filament\Actions\Action;
-use Filament\Actions\Concerns\InteractsWithActions;
-use Filament\Actions\Contracts\HasActions;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
 
-class ConversationChatPage extends Page implements HasActions, HasForms
+class ConversationChatPage extends Page
 {
-    use InteractsWithActions;
-    use InteractsWithForms;
-
     protected static string $resource = ConversationResource::class;
 
     protected string $view = 'filament.resources.conversations.pages.conversation-chat-page';
@@ -47,7 +40,7 @@ class ConversationChatPage extends Page implements HasActions, HasForms
 
     public function archiveAction(): Action
     {
-        return Action::make('archiveConversation')
+        return Action::make('archive')
             ->label('Archive')
             ->icon('heroicon-o-archive-box')
             ->color('gray')
