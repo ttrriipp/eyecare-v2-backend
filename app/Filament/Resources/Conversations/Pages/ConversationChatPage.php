@@ -9,12 +9,16 @@ use App\Notifications\NewMessageReceived;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
+use Livewire\WithFileUploads;
 
 class ConversationChatPage extends Page
 {
+    use WithFileUploads;
+
     protected static string $resource = ConversationResource::class;
 
     protected string $view = 'filament.resources.conversations.pages.conversation-chat-page';
@@ -25,6 +29,12 @@ class ConversationChatPage extends Page
 
     public bool $showArchived = false;
 
+    public string $searchQuery = '';
+
+    public bool $showSearch = false;
+
+    public $pendingAttachment = null;
+
     protected function getActions(): array
     {
         return [];
@@ -34,6 +44,8 @@ class ConversationChatPage extends Page
     {
         if ($this->selectedConversationId !== $id) {
             $this->selectedConversationId = $id;
+            $this->searchQuery = '';
+            $this->showSearch = false;
 
             Conversation::where('id', $id)
                 ->whereNotNull('account_user_id')
@@ -41,6 +53,15 @@ class ConversationChatPage extends Page
         }
 
         $this->replyBody = '';
+    }
+
+    public function toggleSearch(): void
+    {
+        $this->showSearch = ! $this->showSearch;
+
+        if (! $this->showSearch) {
+            $this->searchQuery = '';
+        }
     }
 
     public function archiveAction(): Action
@@ -93,6 +114,20 @@ class ConversationChatPage extends Page
             'body' => $this->replyBody,
         ]);
 
+        if ($this->pendingAttachment instanceof UploadedFile) {
+            $file = $this->pendingAttachment;
+            $path = $file->store('attachments', 'local');
+
+            $message->attachments()->create([
+                'file_path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+            ]);
+
+            $this->pendingAttachment = null;
+        }
+
         $this->replyBody = '';
 
         // Notify the patient account if one is linked
@@ -143,6 +178,26 @@ class ConversationChatPage extends Page
                 'attachments',
             ])
             ->oldest()
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, Message>
+     */
+    #[Computed]
+    public function searchResults(): Collection
+    {
+        if ($this->selectedConversationId === null || blank($this->searchQuery)) {
+            return collect();
+        }
+
+        return Message::query()
+            ->where('conversation_id', $this->selectedConversationId)
+            ->with(['sender', 'attachments'])
+            ->whereFullText('body', $this->searchQuery)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
             ->get();
     }
 
