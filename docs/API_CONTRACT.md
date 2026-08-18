@@ -2104,9 +2104,10 @@ Linked and unlinked accounts can send text messages. Message contexts have
 been retired; legacy `contexts` input is rejected with HTTP 422. Messages are
 plain text only, maximum 5,000 characters.
 
-Attachment uploads and downloads require an active patient link. Unlinked
+Attachment uploads require an active patient link. Unlinked
 accounts receive `can_upload_attachments: false` and upload attempts return
-HTTP 422.
+HTTP 422. Attachment downloads are available to any authenticated account
+that owns the conversation, regardless of patient link status.
 
 ### GET `/conversation`
 
@@ -2275,17 +2276,20 @@ constraint, not an application bug.
 
 ### GET `/conversation/attachments/{attachment}`
 
-Downloads a message attachment. Requires an active patient link.
+Downloads a message attachment. Requires authentication and conversation
+ownership. Does not require an active patient link — both linked and unlinked
+accounts can download attachments from their own conversation.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+**Auth:** Required (Sanctum token). No active patient link required.
 
-Returns 404 for unlinked accounts, missing files, or attachments from
-other conversations (non-disclosing).
+Returns 404 for missing files or attachments from other conversations
+(non-disclosing).
 
-**Response:** Binary file download with appropriate `Content-Type` and `Content-Disposition` headers.
+**Response:** Binary file download with `Content-Type` and
+`Content-Disposition: attachment` headers.
 
 **Errors:**
-- `404`: Attachment not found or not owned by patient's conversation.
+- `404`: Attachment not found or not owned by account's conversation.
 
 ---
 
@@ -2496,7 +2500,7 @@ authoritative in §§15 and 15b.
 | `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
 | `POST /conversation/messages` | Send a plain text conversation message |
 | `POST /conversation/messages/read` | Mark received conversation messages as read |
-| `GET /conversation/attachments/{attachment}` | Download an attachment with an active patient link |
+| `GET /conversation/attachments/{attachment}` | Download an attachment |
 | `GET /notifications` | List account notifications |
 | `GET /notifications/unread-count` | Get the account's unread notification count |
 | `PATCH /notifications/{notification}/read` | Mark one notification as read |
@@ -2665,6 +2669,7 @@ GET    /api/v1/conversation/messages          List messages
 GET    /api/v1/conversation/messages/search   Search messages
 POST   /api/v1/conversation/messages          Send message
 POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/conversation/attachments/{attachment}  Download attachment
 GET    /api/v1/notifications                  List notifications
 GET    /api/v1/notifications/unread-count     Unread count
 PATCH  /api/v1/notifications/{notification}/read Mark read
@@ -2717,9 +2722,7 @@ GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
 
-GET    /api/v1/conversation/attachments/{attachment}  Download attachment
-
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
+**Route count:** 8 public + 37 account-only + 16 active-link = **61 routes total.**

@@ -86,6 +86,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::post('conversation/messages', [ConversationController::class, 'storeMessage'])
             ->middleware('throttle:conversation-send');
         Route::post('conversation/messages/read', [ConversationController::class, 'markRead']);
+        Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
         // Notifications - account-owned feed
         Route::get('notifications', [NotificationController::class, 'index']);
@@ -138,9 +139,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
 
     Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
-
-    // Attachment download requires patient link
-    Route::get('conversation/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversation.attachments.download');
 
     Route::post('optical-order-items/{item}/rating', [FrameRatingController::class, 'store']);
 });

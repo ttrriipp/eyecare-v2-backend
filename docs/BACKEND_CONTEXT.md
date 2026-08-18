@@ -753,6 +753,7 @@ GET    /api/v1/conversation/messages          List messages
 GET    /api/v1/conversation/messages/search   Search messages
 POST   /api/v1/conversation/messages          Send message
 POST   /api/v1/conversation/messages/read     Mark messages read
+GET    /api/v1/conversation/attachments/{attachment}  Download attachment
 GET    /api/v1/notifications                  List notifications
 GET    /api/v1/notifications/unread-count     Unread count
 PATCH  /api/v1/notifications/{notification}/read Mark read
@@ -789,14 +790,14 @@ GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/optical-orders
 GET    /api/v1/optical-orders/{id}
-GET    /api/v1/conversation/attachments/{attachment}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 36 account-only + 17 active-link = **61 routes total.**
+**Route count:** 8 public + 37 account-only + 16 active-link = **61 routes total.**
 
-Conversation routes moved from active-link to account-only tier (no patient
-link required for read/send; attachment download remains active-link).
+Conversation routes (including attachment download) are in the account-only tier —
+no patient link required for read, send, or download. Upload still requires a
+linked patient.
 
 Authenticated API throttles use separate per-account buckets so a mobile
 bootstrap burst cannot consume the profile and clinical budgets together:
