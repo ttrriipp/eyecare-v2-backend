@@ -93,6 +93,14 @@
 > are cursor-paginated newest-first with stable `(created_at, id)` ordering
 > (page size 50, `next_cursor`/`has_more`). Eight
 > unreachable Filament classes under `Conversations/` are deleted.
+>
+> **Enhanced (2026-08-18): staff chat capabilities.** The Filament conversation
+> chat page now supports message search (MySQL FULLTEXT via the existing search
+> infrastructure) and file attachment uploads (PDF, PNG, JPG, DOC, DOCX).
+> Staff can send attachments without a body message — the body is set to
+> `"attachment"` and the existing rendering hides the placeholder text when
+> attachments are present. Attachments are stored using the same path as
+> patient uploads (`attachments` directory on the `local` disk).
 
 > **Shipped (2026-08-14): unified quotation, optical-order, and billing
 > entry points.** Prescription eyewear has a dedicated builder in both the

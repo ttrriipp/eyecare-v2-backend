@@ -35,7 +35,7 @@
                                 aria-pressed="{{ $selectedConversationId === $conversation->id ? 'true' : 'false' }}"
                             >
                                 <div class="flex items-center justify-between gap-2">
-                                    <span class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                                    <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                                         {{ $conversation->patient?->full_name ?? $conversation->account?->full_name ?? 'Unknown' }}
                                     </span>
                                     @if ($conversation->patient_id === null)
@@ -49,7 +49,7 @@
                                         </span>
                                     @endif
                                     @if ($conversation->unread_for_staff > 0)
-                                        <span class="shrink-0 rounded-full bg-warning-50 px-1.5 py-0.5 text-xs font-medium text-warning-600 dark:bg-warning-500/15 dark:text-warning-400">
+                                        <span class="shrink-0 rounded-full bg-primary-50 px-1.5 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-500/15 dark:text-primary-400">
                                             {{ $conversation->unread_for_staff }}
                                         </span>
                                     @endif
@@ -81,10 +81,21 @@
             @else
                 {{-- Header --}}
                 <div class="flex items-center gap-2 border-b border-gray-200 px-5 py-3 dark:border-white/10">
-                    <div class="flex-1 min-w-0">
+                    <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
                             {{ $this->selectedConversation->patient?->full_name ?? $this->selectedConversation->account?->full_name ?? 'Unknown' }}
                         </p>
+                        @if ($this->selectedConversation->patient_id !== null)
+                            <a
+                                href="{{ \App\Filament\Resources\Patients\PatientResource::getUrl('edit', ['record' => $this->selectedConversation->patient_id]) }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300"
+                            >
+                                <x-heroicon-o-identification class="h-3.5 w-3.5" />
+                                View patient record
+                            </a>
+                        @endif
                     </div>
                     @if ($this->selectedConversation->patient_id === null)
                         <div class="rounded-lg bg-warning-50 px-3 py-1.5 text-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
@@ -99,6 +110,7 @@
                                 : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10'
                             }}"
                         title="Search messages"
+                        aria-label="Search messages"
                     >
                         <x-heroicon-o-magnifying-glass class="h-3.5 w-3.5" />
                     </button>
@@ -163,12 +175,33 @@
                     wire:poll.5s
                     wire:key="conversation-messages-{{ $this->selectedConversation->id }}"
                     x-data
-                    x-init="$nextTick(() => requestAnimationFrame(() => { $el.scrollTop = $el.scrollHeight }))"
-                    class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
+                    x-init="$nextTick(() => requestAnimationFrame(() => {
+                        $el.scrollTop = $el.scrollHeight;
+                        $el.querySelectorAll('img').forEach((img) => {
+                            if (! img.complete) {
+                                img.addEventListener('load', () => { $el.scrollTop = $el.scrollHeight }, { once: true });
+                            }
+                        });
+                    }))"
+                    class="relative min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4"
                     id="chat-messages"
                     data-chat-scroll-region="messages"
+                    data-last-message-id="{{ optional($this->messages)->last()?->id }}"
                     data-scroll-to-latest-on-init
                 >
+                    <div class="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
+                        <button
+                            type="button"
+                            data-new-messages-pill
+                            data-visible="false"
+                            class="pointer-events-none inline-flex translate-y-1 scale-95 items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-medium text-white opacity-0 shadow-md transition duration-150 ease-out hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 data-[visible=true]:pointer-events-auto data-[visible=true]:translate-y-0 data-[visible=true]:scale-100 data-[visible=true]:opacity-100"
+                        >
+                            <x-heroicon-o-arrow-down class="h-3.5 w-3.5" />
+                            New message
+                        </button>
+                    </div>
+                    <div class="sr-only" role="status" aria-live="polite" data-new-message-announcer></div>
+
                     @forelse ($this->messages ?? [] as $message)
                         @php
                             $isStaff = $message->sender?->role?->name !== 'patient';
@@ -205,11 +238,11 @@
                                 </div>
                                 @if ($showMessageBody || $hasAttachments)
                                     <div
-                                        class="mt-1 rounded-2xl px-4 py-2.5 text-sm {{ $messageBubbleClasses }}"
+                                        class="mt-1 inline-block max-w-full rounded-2xl px-4 py-2.5 text-sm {{ $messageBubbleClasses }}"
                                         data-message-bubble
                                     >
                                         @if ($showMessageBody)
-                                            <div @class(['mb-3' => $hasAttachments]) data-message-body>
+                                            <div class="whitespace-pre-wrap break-words {{ $hasAttachments ? 'mb-3' : '' }}" data-message-body>
                                                 {{ $message->body }}
                                             </div>
                                         @endif
@@ -269,7 +302,7 @@
                                                                 >
                                                                     {{ $attachment->original_name }}
                                                                 </p>
-                                                                <p class="text-[11px] {{ $attachmentMetaClasses }}">
+                                                                <p class="text-xs {{ $attachmentMetaClasses }}">
                                                                     {{ number_format($attachment->file_size / 1024, 1) }} KB
                                                                 </p>
                                                             </div>
@@ -313,16 +346,21 @@
 
                 {{-- Reply box --}}
                 <div class="border-t border-gray-200 px-5 py-3 dark:border-white/10">
-                    <form wire:submit="sendReply" class="space-y-2">
-                        <div class="flex gap-3 items-end">
+                    <form wire:submit="sendReply" class="space-y-1" x-data="{ length: {{ strlen($replyBody) }} }">
+                        <div class="flex items-end gap-3">
                             <div class="flex-1">
                                 <label for="reply-body" class="sr-only">Reply</label>
                                 <textarea
                                     id="reply-body"
                                     wire:model="replyBody"
+                                    x-on:input="length = $event.target.value.length"
                                     rows="2"
+                                    maxlength="5000"
                                     placeholder="Write a reply…"
-                                    class="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-gray-500"
+                                    aria-describedby="reply-body-counter"
+                                    @error('replyBody') aria-invalid="true" aria-describedby="reply-body-error reply-body-counter" @enderror
+                                    class="block w-full resize-none rounded-lg border bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:outline-none focus:ring-1 dark:bg-white/5 dark:text-white dark:placeholder-gray-500
+                                        @error('replyBody') border-danger-400 focus:border-danger-500 focus:ring-danger-500 dark:border-danger-500/50 @else border-gray-300 focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 @enderror"
                                 ></textarea>
                             </div>
                             <div class="flex shrink-0 items-center gap-2">
@@ -349,6 +387,21 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="flex-1">
+                                @error('replyBody')
+                                    <p id="reply-body-error" class="text-xs text-danger-600 dark:text-danger-400" role="alert">
+                                        {{ $message }}
+                                    </p>
+                                @enderror
+                            </div>
+                            <p
+                                id="reply-body-counter"
+                                class="shrink-0 text-xs text-gray-400 dark:text-gray-500"
+                                x-bind:class="length > 5000 ? 'text-danger-600 dark:text-danger-400' : ''"
+                                x-text="length + ' / 5000'"
+                            ></p>
+                        </div>
                         @if ($pendingAttachment)
                             <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-600 dark:bg-white/5 dark:text-gray-400">
                                 <x-heroicon-o-document-text class="h-3.5 w-3.5 shrink-0" />
@@ -367,4 +420,135 @@
             @endif
         </div>
     </div>
+
+    @script
+    <script>
+        // Livewire's wire:poll morphs #chat-messages in place without re-firing its
+        // x-init, so a staff member scrolled up in history would otherwise never
+        // learn a new message arrived. Only auto-scroll when already near the
+        // bottom; otherwise reveal the "New message" pill.
+        let atBottom = true;
+        let lastContainerNode = null;
+        let lastMessageId = null;
+
+        const getContainer = () => document.querySelector('[data-chat-scroll-region="messages"]');
+
+        const isNearBottom = (el) => el.scrollHeight - el.scrollTop - el.clientHeight < 96;
+
+        const getPill = (el) => el.querySelector('[data-new-messages-pill]');
+
+        const hidePill = (el) => {
+            const pill = getPill(el);
+            if (pill) {
+                pill.dataset.visible = 'false';
+            }
+        };
+
+        const showPill = (el) => {
+            const pill = getPill(el);
+            if (pill) {
+                pill.dataset.visible = 'true';
+            }
+        };
+
+        const announceNewMessage = (el) => {
+            const announcer = el.querySelector('[data-new-message-announcer]');
+            if (announcer) {
+                announcer.textContent = 'New message received';
+            }
+        };
+
+        const scrollToBottom = (el, smooth = false) => {
+            el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+            hidePill(el);
+        };
+
+        // Attachment images use loading="lazy" with no reserved aspect-ratio box, so
+        // el.scrollHeight at morph time doesn't yet include images still loading —
+        // re-pin to bottom once each one finishes, if we were at the bottom.
+        const pinLateLoadingImages = (el) => {
+            el.querySelectorAll('img').forEach((img) => {
+                if (img.complete) {
+                    return;
+                }
+
+                img.addEventListener('load', () => {
+                    if (atBottom) {
+                        scrollToBottom(el);
+                    }
+                }, { once: true });
+            });
+        };
+
+        document.addEventListener('scroll', (event) => {
+            const container = getContainer();
+
+            if (! container || event.target !== container) {
+                return;
+            }
+
+            atBottom = isNearBottom(container);
+
+            if (atBottom) {
+                hidePill(container);
+            }
+        }, true);
+
+        document.addEventListener('click', (event) => {
+            if (! event.target.closest('[data-new-messages-pill]')) {
+                return;
+            }
+
+            const container = getContainer();
+
+            if (container) {
+                scrollToBottom(container, true);
+            }
+        });
+
+        $wire.interceptMessage(({ onSuccess }) => {
+            onSuccess(({ onMorph }) => {
+                onMorph(async () => {
+                    const container = getContainer();
+
+                    if (! container) {
+                        lastContainerNode = null;
+                        lastMessageId = null;
+
+                        return;
+                    }
+
+                    const isFreshContainer = container !== lastContainerNode;
+                    lastContainerNode = container;
+
+                    const currentMessageId = container.dataset.lastMessageId || null;
+                    const messageChanged = currentMessageId !== lastMessageId;
+                    lastMessageId = currentMessageId;
+
+                    if (isFreshContainer) {
+                        // A different conversation was selected (or first load) —
+                        // the container's own x-init handles the initial scroll.
+                        atBottom = true;
+                        hidePill(container);
+
+                        return;
+                    }
+
+                    if (! messageChanged) {
+                        return;
+                    }
+
+                    announceNewMessage(container);
+                    pinLateLoadingImages(container);
+
+                    if (atBottom) {
+                        requestAnimationFrame(() => scrollToBottom(container));
+                    } else {
+                        showPill(container);
+                    }
+                });
+            });
+        });
+    </script>
+    @endscript
 </x-filament-panels::page>

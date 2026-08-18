@@ -234,13 +234,15 @@ Staff communicates with patients via persistent per-customer conversation thread
 
 ### Strengths
 - Chat-style layout matches staff mental model (Messenger-like)
-- 5-second polling makes it near-real-time without WebSockets
-- Context links attach appointments/orders to messages — prevents "which order?" confusion
+- 5-second polling makes it near-real-time without WebSockets, and now surfaces a "New message" pill (rather than silently appending off-screen) when staff have scrolled up in history
+- "View patient record" link in the thread header jumps to the linked patient's chart
 - Unread count badge on the conversation list
+- Inline validation feedback and a live character counter on the reply box, so hitting the 5000-character limit is never silent
 
 ### Weaknesses
+- No context links from a message to the specific appointment/order it's about — only a link to the general patient record exists; a message asking "about my order" still requires staff to go find which order separately
 - No "mark as unread" — once a staff member opens a message, it's marked read even if they didn't respond
-- No notification sound or visual flash when a new message arrives — staff must notice the unread badge change
+- No notification sound or visual flash when a new *conversation* arrives while staff are on a different thread — they must notice the unread badge change in the sidebar
 - No quick-reply templates — common messages require full typing every time
 - For a busy reception desk, the conversation panel requires staff to actively monitor a chat interface — not aligned with how a receptionist naturally works
 

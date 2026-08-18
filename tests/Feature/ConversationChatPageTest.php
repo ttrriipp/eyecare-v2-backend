@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\Conversations\Pages\ConversationChatPage;
+use App\Filament\Resources\Patients\PatientResource;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
@@ -251,6 +252,57 @@ test('staff chat exposes view and download links for pdf attachments', function 
         ->not->toContain('data-message-body')
         ->toContain('View')
         ->toContain('Download');
+});
+
+test('conversation header links to the patient record when linked', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->assertSee('View patient record')
+        ->assertSeeHtml(PatientResource::getUrl('edit', ['record' => $patient->patient->id]));
+});
+
+test('conversation header hides the patient record link when unlinked', function () {
+    $admin = User::factory()->admin()->create();
+    $account = User::factory()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $account->id,
+        'patient_id' => null,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->assertDontSee('View patient record');
+});
+
+test('sending a reply over the character limit shows an inline error instead of failing silently', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->set('replyBody', str_repeat('a', 5001))
+        ->call('sendReply')
+        ->assertHasErrors(['replyBody'])
+        ->assertSee('reply-body-error', escape: false);
+
+    expect(Message::where('conversation_id', $conversation->id)->count())->toBe(0);
 });
 
 test('archived threads are hidden from the default inbox', function () {
