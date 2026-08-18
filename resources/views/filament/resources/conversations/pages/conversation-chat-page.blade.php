@@ -102,6 +102,7 @@
                     @else
                         <button
                             wire:click="archiveConversation({{ $this->selectedConversation->id }})"
+                            wire:confirm="Are you sure you want to archive this conversation?"
                             class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                         >
                             <x-heroicon-o-archive-box class="h-3.5 w-3.5" />
