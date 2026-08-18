@@ -6,14 +6,22 @@ use App\Filament\Resources\Conversations\ConversationResource;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Notifications\NewMessageReceived;
+use Filament\Actions\Action;
+use Filament\Actions\Concerns\InteractsWithActions;
+use Filament\Actions\Contracts\HasActions;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Livewire\Attributes\Computed;
 
-class ConversationChatPage extends Page
+class ConversationChatPage extends Page implements HasActions, HasForms
 {
+    use InteractsWithActions;
+    use InteractsWithForms;
+
     protected static string $resource = ConversationResource::class;
 
     protected string $view = 'filament.resources.conversations.pages.conversation-chat-page';
@@ -37,19 +45,27 @@ class ConversationChatPage extends Page
         $this->replyBody = '';
     }
 
-    public function archiveConversation(int $id): void
+    public function archiveAction(): Action
     {
-        $conversation = Conversation::findOrFail($id);
-        $conversation->archiveInbox();
+        return Action::make('archiveConversation')
+            ->label('Archive')
+            ->icon('heroicon-o-archive-box')
+            ->color('gray')
+            ->requiresConfirmation()
+            ->modalHeading('Archive conversation')
+            ->modalDescription('The conversation will be hidden from the inbox. It will automatically restore if a new message arrives.')
+            ->modalSubmitActionLabel('Archive')
+            ->action(function (): void {
+                $conversation = Conversation::findOrFail($this->selectedConversationId);
+                $conversation->archiveInbox();
 
-        if ($this->selectedConversationId === $id) {
-            $this->selectedConversationId = null;
-        }
+                $this->selectedConversationId = null;
 
-        Notification::make()
-            ->title('Conversation archived')
-            ->success()
-            ->send();
+                Notification::make()
+                    ->title('Conversation archived')
+                    ->success()
+                    ->send();
+            });
     }
 
     public function restoreConversation(int $id): void
