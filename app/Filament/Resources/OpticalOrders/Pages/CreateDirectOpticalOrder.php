@@ -183,13 +183,17 @@ class CreateDirectOpticalOrder extends CreateRecord
                                                 ]]);
                                             }
 
-                                            if ($state && blank($get('prescription_id'))) {
-                                                $livewire->addError(
-                                                    'data.prescription_id',
-                                                    'Select a current prescription before enabling prescription eyewear.',
-                                                );
+                                            if ($state) {
+                                                $set('fulfillment_mode', 'prepared');
 
-                                                return;
+                                                if (blank($get('prescription_id'))) {
+                                                    $livewire->addError(
+                                                        'data.prescription_id',
+                                                        'Select a current prescription before enabling prescription eyewear.',
+                                                    );
+
+                                                    return;
+                                                }
                                             }
 
                                             $livewire->resetValidation('data.prescription_id');
