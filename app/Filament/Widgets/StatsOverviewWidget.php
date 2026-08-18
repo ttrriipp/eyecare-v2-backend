@@ -34,13 +34,13 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
 
     protected static ?int $sort = 1;
 
-    protected ?string $heading = 'Needs attention';
+    protected ?string $heading = 'Today';
 
     protected ?string $pollingInterval = '30s';
 
     protected function getDescription(): ?string
     {
-        return 'Updated at '.now()->format('g:i A').' · refreshes every 30 seconds.';
+        return null;
     }
 
     /**
@@ -101,7 +101,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
     private function appointmentRequestsStat(array $data): Stat
     {
         return Stat::make('Appointment Requests', Number::format($data['appointment_requests']))
-            ->description('Patient submissions to review')
+            ->description('Pending review')
             ->descriptionIcon(Heroicon::OutlinedInboxArrowDown)
             ->color('warning')
             ->url(AppointmentRequestResource::getUrl('index', [
@@ -117,7 +117,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
     private function patientsWaitingStat(array $data, User $user, bool $isOptometristOnly = false): Stat
     {
         return Stat::make('Patients Waiting', Number::format($data['waiting_today']))
-            ->description('Checked in today')
+            ->description('Checked in')
             ->descriptionIcon(Heroicon::OutlinedClock)
             ->color('warning')
             ->url(AppointmentResource::getUrl('index', [
@@ -142,10 +142,10 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
         }
 
         return Stat::make(
-            $isOptometristOnly ? 'My Active Encounters' : 'Active Encounters',
+            $isOptometristOnly ? 'My Encounters' : 'Encounters',
             Number::format($data['active_encounters']),
         )
-            ->description('Consultations in progress')
+            ->description('In progress')
             ->descriptionIcon(Heroicon::OutlinedDocumentText)
             ->color('info')
             ->url(EncounterResource::getUrl('index', $parameters));
@@ -156,7 +156,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      */
     private function appointmentsStat(array $data, User $user, bool $isOptometristOnly): Stat
     {
-        return Stat::make('My Appointments Today', Number::format($data['today_appointments']))
+        return Stat::make('Appointments Today', Number::format($data['today_appointments']))
             ->description(Number::format($data['yesterday_appointments']).' yesterday')
             ->descriptionIcon(Heroicon::OutlinedCalendarDays)
             ->color('primary')
@@ -170,8 +170,8 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      */
     private function readyForPickupStat(array $data): Stat
     {
-        return Stat::make('Optical Orders Ready', Number::format($data['ready_for_pickup']))
-            ->description('Ready for patient pickup')
+        return Stat::make('Ready for Pickup', Number::format($data['ready_for_pickup']))
+            ->description('Orders to dispense')
             ->descriptionIcon(Heroicon::OutlinedCheckCircle)
             ->color('success')
             ->url(OpticalOrderResource::getUrl('index', [
@@ -187,7 +187,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
     private function balancesDueStat(array $data): Stat
     {
         return Stat::make('Balances Due', Number::format($data['balances_due']))
-            ->description('Unpaid or partially paid')
+            ->description('Unpaid invoices')
             ->descriptionIcon(Heroicon::OutlinedBanknotes)
             ->color('warning')
             ->url(BillingRecordResource::getUrl('index', [
