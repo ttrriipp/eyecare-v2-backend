@@ -314,9 +314,6 @@
                 {{-- Reply box --}}
                 <div class="border-t border-gray-200 px-5 py-3 dark:border-white/10">
                     <form wire:submit="sendReply" class="space-y-2">
-                        @if ($errors->has('replyBody'))
-                            <p class="text-xs text-danger-600 dark:text-danger-400">{{ $errors->first('replyBody') }}</p>
-                        @endif
                         <div class="flex gap-3 items-end">
                             <div class="flex-1">
                                 <label for="reply-body" class="sr-only">Reply</label>
@@ -324,7 +321,7 @@
                                     id="reply-body"
                                     wire:model="replyBody"
                                     rows="2"
-                                    placeholder="Write a reply…"
+                                    placeholder="Write a reply (optional if attaching a file)…"
                                     class="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-gray-500"
                                 ></textarea>
                             </div>

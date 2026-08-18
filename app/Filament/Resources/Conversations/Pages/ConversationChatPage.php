@@ -102,16 +102,30 @@ class ConversationChatPage extends Page
 
     public function sendReply(): void
     {
-        Validator::make(
-            ['replyBody' => $this->replyBody],
-            ['replyBody' => 'required|string|max:5000'],
-        )->validate();
+        $hasBody = filled($this->replyBody);
+        $hasAttachment = $this->pendingAttachment !== null;
+
+        if (! $hasBody && ! $hasAttachment) {
+            Notification::make()
+                ->title('Type a message or attach a file')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        if ($hasBody) {
+            Validator::make(
+                ['replyBody' => $this->replyBody],
+                ['replyBody' => 'string|max:5000'],
+            )->validate();
+        }
 
         $conversation = Conversation::findOrFail($this->selectedConversationId);
 
         $message = $conversation->messages()->create([
             'sender_id' => auth()->id(),
-            'body' => $this->replyBody,
+            'body' => $hasBody ? $this->replyBody : 'attachment',
         ]);
 
         if ($this->pendingAttachment instanceof UploadedFile) {
