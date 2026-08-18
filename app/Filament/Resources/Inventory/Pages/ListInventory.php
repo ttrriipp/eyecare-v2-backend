@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Inventory\Pages;
 
 use App\Filament\Resources\Inventory\InventoryResource;
+use App\Filament\Resources\Inventory\Widgets\InventoryStatsWidget;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +15,13 @@ class ListInventory extends ListRecords
     protected function getHeaderActions(): array
     {
         return [];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            InventoryStatsWidget::class,
+        ];
     }
 
     /**
