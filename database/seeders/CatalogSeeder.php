@@ -205,6 +205,7 @@ class CatalogSeeder extends Seeder
                 'name' => 'Microfiber Cleaning Cloth',
                 'slug' => 'microfiber-cleaning-cloth',
                 'description' => 'Reusable lint-free microfiber cloth for everyday lens cleaning.',
+                'category_id' => $lensCareCategory->id,
                 'variants' => [
                     [
                         'name' => 'Standard',
@@ -223,7 +224,7 @@ class CatalogSeeder extends Seeder
                 ['slug' => $productData['slug']],
                 [
                     'brand_id' => $brand->id,
-                    'category_id' => $accessoryCategory->id,
+                    'category_id' => $productData['category_id'],
                     'name' => $productData['name'],
                     'description' => $productData['description'],
                     'is_active' => true,
@@ -315,7 +316,7 @@ class CatalogSeeder extends Seeder
                 ['slug' => $productData['slug']],
                 [
                     'brand_id' => $brand->id,
-                    'category_id' => $category->id,
+                    'category_id' => $fullRimCategory->id,
                     'name' => $productData['name'],
                     'description' => $productData['description'],
                     'is_active' => true,
@@ -346,7 +347,7 @@ class CatalogSeeder extends Seeder
             ['slug' => 'aviator-sunglass-frame'],
             [
                 'brand_id' => $brand->id,
-                'category_id' => $category->id,
+                'category_id' => $sunglassesCategory->id,
                 'name' => 'Aviator Sunglass Frame',
                 'description' => 'Discontinued frame kept for historical order records.',
                 'is_active' => false,
