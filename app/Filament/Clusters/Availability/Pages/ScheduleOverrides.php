@@ -126,7 +126,11 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                         ->label('Date')
                         ->required()
                         ->native(false)
-                        ->minDate(today()),
+                        ->displayFormat('M d, Y')
+                        ->placeholder('Choose a date')
+                        ->suffixIcon('heroicon-o-calendar-days')
+                        ->minDate(today())
+                        ->afterOrEqual('today'),
 
                     Select::make('user_id')
                         ->label('Optometrist')
@@ -148,6 +152,9 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                             : null)
                         ->seconds(false)
                         ->native(false)
+                        ->minutesStep(15)
+                        ->format('H:i')
+                        ->suffixIcon('heroicon-o-clock')
                         ->required(fn (Get $get): bool => $get('type') === ScheduleOverrideType::EarlyClose->value)
                         ->visible(fn (Get $get): bool => in_array($get('type'), [
                             ScheduleOverrideType::EarlyClose->value,
@@ -158,6 +165,9 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                         ->label('Absence End (optional)')
                         ->seconds(false)
                         ->native(false)
+                        ->minutesStep(15)
+                        ->format('H:i')
+                        ->suffixIcon('heroicon-o-clock')
                         ->visible(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value),
 
                     Textarea::make('reason')
