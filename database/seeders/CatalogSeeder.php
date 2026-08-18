@@ -81,9 +81,12 @@ class CatalogSeeder extends Seeder
 
         $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
         Brand::query()->firstOrCreate(['name' => 'Heritage Eyewear Co. (Inactive)'], ['is_active' => false]);
-        $category = ProductCategory::query()->firstOrCreate(['name' => 'Frames']);
-        $contactLensCategory = ProductCategory::query()->firstOrCreate(['name' => 'Contact Lenses']);
-        $accessoryCategory = ProductCategory::query()->firstOrCreate(['name' => 'Accessories']);
+        $fullRimCategory = ProductCategory::query()->firstOrCreate(['name' => 'Full Rim']);
+        $sunglassesCategory = ProductCategory::query()->firstOrCreate(['name' => 'Sunglasses']);
+        $dailyContactCategory = ProductCategory::query()->firstOrCreate(['name' => 'Daily Disposable']);
+        $toricContactCategory = ProductCategory::query()->firstOrCreate(['name' => 'Toric']);
+        $lensCareCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lens Care']);
+        $casesCategory = ProductCategory::query()->firstOrCreate(['name' => 'Cases & Storage']);
         ProductCategory::query()->firstOrCreate(['name' => 'Reading Glasses (Discontinued)'], ['is_active' => false]);
 
         // Contact-lens products
@@ -91,7 +94,7 @@ class CatalogSeeder extends Seeder
             ['slug' => 'acuvue-oasys'],
             [
                 'brand_id' => $brand->id,
-                'category_id' => $contactLensCategory->id,
+                'category_id' => $dailyContactCategory->id,
                 'name' => 'Acuvue Oasys',
                 'description' => 'Reusable contact lenses with clear and toric prescription variants.',
                 'is_active' => true,
@@ -162,6 +165,7 @@ class CatalogSeeder extends Seeder
                 'name' => 'Lens Cleaning Kit',
                 'slug' => 'lens-cleaning-kit',
                 'description' => 'Complete cleaning kit with lens-safe solution and microfiber cloth.',
+                'category_id' => $lensCareCategory->id,
                 'variants' => [
                     [
                         'name' => 'Standard',
@@ -185,6 +189,7 @@ class CatalogSeeder extends Seeder
                 'name' => 'Hard Shell Glasses Case',
                 'slug' => 'hard-shell-glasses-case',
                 'description' => 'Protective hard shell case suitable for most eyeglasses and sunglasses.',
+                'category_id' => $casesCategory->id,
                 'variants' => [
                     [
                         'name' => 'Standard',
