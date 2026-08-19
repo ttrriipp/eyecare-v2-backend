@@ -139,17 +139,63 @@ class ScenarioCoverageSeeder extends Seeder
         // Reuses the flagship portal account rather than the factory's default
         // nested User::factory()->patient(), whose auto-created Patient relies
         // on a `creating` event that WithoutModelEvents silences here.
-        $portalUserId = User::query()->where('email', 'customer@eyecare.test')->value('id');
+        $patient = $this->flagshipPatient();
+        $portalUserId = $patient->user_id;
+        $staffId = $this->staff()->id;
 
         // Also override appointment_type_id — left to its own default, the
         // factory spawns a brand-new random-word AppointmentType per call.
         $checkUpTypeId = AppointmentType::query()->where('name', 'Routine Check-up')->value('id');
 
-        AppointmentRequest::factory()->create(['request_number' => 'APR-2026-000001', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
-        AppointmentRequest::factory()->accepted()->create(['request_number' => 'APR-2026-000002', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
-        AppointmentRequest::factory()->rejected()->create(['request_number' => 'APR-2026-000003', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
-        AppointmentRequest::factory()->cancelled()->create(['request_number' => 'APR-2026-000004', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
-        AppointmentRequest::factory()->expired()->create(['request_number' => 'APR-2026-000005', 'user_id' => $portalUserId, 'appointment_type_id' => $checkUpTypeId]);
+        // A real submission from a linked portal account always resolves
+        // patient_id (see SubmitAppointmentRequest), so every seeded row
+        // here should carry it too — leaving it null misrepresents the
+        // account as unlinked in the admin panel.
+        AppointmentRequest::factory()->create([
+            'request_number' => 'APR-2026-000001',
+            'user_id' => $portalUserId,
+            'patient_id' => $patient->id,
+            'appointment_type_id' => $checkUpTypeId,
+        ]);
+
+        // AcceptAppointmentRequest always produces a linked Appointment —
+        // an "accepted" request with no resulting appointment can't happen
+        // in the real flow. Resolve it into the flagship patient's
+        // already-seeded scheduled appointment (ClinicWorkflowSeeder)
+        // rather than fabricating an orphan second one.
+        $resultingAppointment = Appointment::query()->where('appointment_number', 'APT-2026-000001')->firstOrFail();
+        AppointmentRequest::factory()->accepted()->create([
+            'request_number' => 'APR-2026-000002',
+            'user_id' => $portalUserId,
+            'patient_id' => $patient->id,
+            'appointment_type_id' => $checkUpTypeId,
+            'scheduled_at' => $resultingAppointment->scheduled_at,
+            'appointment_id' => $resultingAppointment->id,
+            'resolved_by_user_id' => $staffId,
+        ]);
+
+        AppointmentRequest::factory()->rejected()->create([
+            'request_number' => 'APR-2026-000003',
+            'user_id' => $portalUserId,
+            'patient_id' => $patient->id,
+            'appointment_type_id' => $checkUpTypeId,
+            'resolved_by_user_id' => $staffId,
+            'rejection_reason' => 'Requested time is outside clinic hours for this appointment type.',
+        ]);
+
+        AppointmentRequest::factory()->cancelled()->create([
+            'request_number' => 'APR-2026-000004',
+            'user_id' => $portalUserId,
+            'patient_id' => $patient->id,
+            'appointment_type_id' => $checkUpTypeId,
+        ]);
+
+        AppointmentRequest::factory()->expired()->create([
+            'request_number' => 'APR-2026-000005',
+            'user_id' => $portalUserId,
+            'patient_id' => $patient->id,
+            'appointment_type_id' => $checkUpTypeId,
+        ]);
     }
 
     private function seedFrameReservations(): void

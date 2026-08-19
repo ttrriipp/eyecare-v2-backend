@@ -49,7 +49,7 @@ class AppointmentRequestFactory extends Factory
     {
         return $this->state([
             'status' => AppointmentRequestStatus::Accepted,
-            'resolved_by_user_id' => User::factory(),
+            'resolved_by_user_id' => User::factory()->staff(),
             'resolved_at' => now(),
         ]);
     }
@@ -58,7 +58,7 @@ class AppointmentRequestFactory extends Factory
     {
         return $this->state([
             'status' => AppointmentRequestStatus::Rejected,
-            'resolved_by_user_id' => User::factory(),
+            'resolved_by_user_id' => User::factory()->staff(),
             'resolved_at' => now(),
         ]);
     }
@@ -72,8 +72,13 @@ class AppointmentRequestFactory extends Factory
 
     public function expired(): static
     {
+        // expires_at is always the latest of the submitted preferred times
+        // (see SubmitAppointmentRequest::calculateExpiry), so an expired
+        // request's scheduled_at must be in the past too — it can never
+        // outlive its own expiry.
         return $this->state([
             'status' => AppointmentRequestStatus::Expired,
+            'scheduled_at' => now()->subHours(2),
             'expires_at' => now()->subHour(),
         ]);
     }
