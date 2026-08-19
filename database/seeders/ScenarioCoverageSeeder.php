@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Enums\EncounterAddendumType;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
@@ -18,10 +19,13 @@ use App\Models\EncounterAddendum;
 use App\Models\FrameReservation;
 use App\Models\FrameReservationItem;
 use App\Models\JobOrder;
+use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
+use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
+use App\Models\QuotationItem;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -256,6 +260,34 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
+        // A second completed encounter (this time for the walk-in patient,
+        // not just the linked-account flagship), with its own prescription,
+        // so the prescription-aware retail flow isn't only demonstrated
+        // once. Feeds seedQuotationStatuses()/seedJobOrderStatuses() below.
+        $secondCompletedEncounter = Encounter::query()->firstOrCreate(
+            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Completed],
+            [
+                'encounter_number' => 'ENC-000006',
+                'optometrist_id' => $optometrist->id,
+                'started_at' => now()->subDays(4),
+                'completed_at' => now()->subDays(4)->addHour(),
+            ],
+        );
+
+        Prescription::query()->firstOrCreate(
+            ['patient_id' => $walkIn->id, 'encounter_id' => $secondCompletedEncounter->id],
+            [
+                'prescription_number' => 'RX-2026-000002',
+                'main_od_sphere' => -1.25,
+                'main_od_cylinder' => -0.25,
+                'main_os_sphere' => -1.50,
+                'main_os_cylinder' => -0.50,
+                'remarks' => 'Mild myopia with slight astigmatism. Single-vision distance lenses recommended.',
+                'prescribed_at' => now()->subDays(4)->addHour(),
+                'created_by' => $optometrist->id,
+            ],
+        );
+
         // Addendum on the flagship completed encounter, to demonstrate the
         // amended-record print flow.
         $flagshipEncounter = Encounter::query()
@@ -304,6 +336,44 @@ class ScenarioCoverageSeeder extends Seeder
                 'notes' => 'Patient opted for a different provider.',
             ],
         );
+
+        // Accepted quotation tied to the walk-in patient's own completed
+        // encounter/prescription (see seedEncounterStatuses()) — feeds the
+        // in-progress job order below, so that order shows the full
+        // prescription-aware retail chain, not just a walk-in optical sale.
+        $encounter = Encounter::query()
+            ->where('patient_id', $patient->id)
+            ->where('status', EncounterStatus::Completed)
+            ->where('encounter_number', 'ENC-000006')
+            ->firstOrFail();
+        $prescription = Prescription::query()->where('encounter_id', $encounter->id)->firstOrFail();
+
+        $linkedQuotation = Quotation::query()->firstOrCreate(
+            ['quotation_number' => 'QUO-2026-000004'],
+            [
+                'patient_id' => $patient->id,
+                'encounter_id' => $encounter->id,
+                'prescription_id' => $prescription->id,
+                'status' => QuotationStatus::Accepted,
+                'valid_until' => now()->addDays(14),
+                'subtotal' => 4200,
+                'discount_amount' => 0,
+                'total' => 4200,
+                'confirmed_by' => $this->staff()->id,
+                'confirmed_at' => now()->subDays(3),
+                'notes' => 'Standard frame with single-vision lenses.',
+            ],
+        );
+
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $linkedQuotation->id, 'description' => 'Everyday Frame — Tortoise'],
+            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+        );
+
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $linkedQuotation->id, 'description' => 'Single Vision Lens'],
+            ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500, 'item_kind' => CommercialItemKind::LensPackage],
+        );
     }
 
     private function seedJobOrderStatuses(): void
@@ -319,14 +389,32 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrder::query()->firstOrCreate(
+        // Linked to the accepted quotation/encounter/prescription seeded in
+        // seedQuotationStatuses(), so at least one non-flagship job order
+        // demonstrates the full clinical-to-retail chain too.
+        $linkedQuotation = Quotation::query()->where('quotation_number', 'QUO-2026-000004')->firstOrFail();
+
+        $inProgress = JobOrder::query()->firstOrCreate(
             ['job_order_number' => 'ORD-2026-000003'],
             [
                 'patient_id' => $patient->id,
+                'encounter_id' => $linkedQuotation->encounter_id,
+                'prescription_id' => $linkedQuotation->prescription_id,
+                'quotation_id' => $linkedQuotation->id,
                 'status' => JobOrderStatus::InProgress,
                 'total_amount' => 4200,
                 'started_at' => now()->subDay(),
             ],
+        );
+
+        JobOrderItem::query()->firstOrCreate(
+            ['job_order_id' => $inProgress->id, 'description' => 'Everyday Frame — Tortoise'],
+            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+        );
+
+        JobOrderItem::query()->firstOrCreate(
+            ['job_order_id' => $inProgress->id, 'description' => 'Single Vision Lens'],
+            ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500, 'item_kind' => CommercialItemKind::LensPackage],
         );
 
         JobOrder::query()->firstOrCreate(
