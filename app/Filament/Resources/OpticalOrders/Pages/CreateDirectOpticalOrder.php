@@ -110,6 +110,10 @@ class CreateDirectOpticalOrder extends CreateRecord
             $prescriptionEyewearResolver,
             true,
         );
+        $discountedTotal = fn (Get $get): float => max(
+            $subtotal($get) - (float) ($get('discount_amount') ?? 0),
+            0,
+        );
         $clearPrescriptionValidation = function (LivewireComponent $livewire): void {
             $livewire->resetValidation('data.prescription_id');
         };
@@ -275,14 +279,27 @@ class CreateDirectOpticalOrder extends CreateRecord
                             Section::make('Payment')
                                 ->schema([
                                     Placeholder::make('order_total')
-                                        ->label('Total')
+                                        ->label('Subtotal')
                                         ->content(fn (Get $get): string => '₱'.number_format($subtotal($get), 2)),
+                                    TextInput::make('discount_amount')
+                                        ->label('Discount')
+                                        ->prefix('₱')
+                                        ->numeric()
+                                        ->minValue(0)
+                                        ->maxValue(fn (Get $get): float => $subtotal($get))
+                                        ->default(0)
+                                        ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                        ->dehydrated()
+                                        ->live(onBlur: true),
+                                    Placeholder::make('discounted_total')
+                                        ->label('Total')
+                                        ->content(fn (Get $get): string => '₱'.number_format($discountedTotal($get), 2)),
                                     TextInput::make('deposit_amount')
                                         ->label('Initial payment')
                                         ->numeric()
                                         ->prefix('₱')
                                         ->minValue(0)
-                                        ->maxValue(fn (Get $get): float => $subtotal($get))
+                                        ->maxValue(fn (Get $get): float => $discountedTotal($get))
                                         ->live(onBlur: true)
                                         ->nullable(),
                                     Select::make('deposit_payment_method')
@@ -299,7 +316,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                                     Placeholder::make('balance_due')
                                         ->label('Balance due')
                                         ->content(fn (Get $get): string => '₱'.number_format(
-                                            max($subtotal($get) - (float) ($get('deposit_amount') ?? 0), 0),
+                                            max($discountedTotal($get) - (float) ($get('deposit_amount') ?? 0), 0),
                                             2,
                                         )),
                                     DatePicker::make('payment_due_date')
@@ -376,6 +393,9 @@ class CreateDirectOpticalOrder extends CreateRecord
                 depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                 depositReference: $data['deposit_reference'] ?? null,
                 recipientName: $data['recipient_name'] ?? null,
+                discountAmount: filled($data['discount_amount'] ?? null)
+                    ? (float) $data['discount_amount']
+                    : null,
             );
 
             return $result['job_order'];

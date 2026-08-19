@@ -113,6 +113,47 @@ test('rejects insufficient stock', function () {
     );
 })->throws(ValidationException::class);
 
+test('discount reduces the billing record total and balance due', function () {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+        ]],
+        discountAmount: 500,
+    );
+
+    expect((float) $result['billing_record']->subtotal_amount)->toBe(2500.0)
+        ->and((float) $result['billing_record']->discount_amount)->toBe(500.0)
+        ->and((float) $result['billing_record']->total_amount)->toBe(2000.0)
+        ->and((float) $result['billing_record']->balance_due)->toBe(2000.0);
+});
+
+test('no discount leaves the billing record total unchanged', function () {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+        ]],
+    );
+
+    expect((float) $result['billing_record']->discount_amount)->toBe(0.0)
+        ->and((float) $result['billing_record']->total_amount)->toBe(2500.0);
+});
+
 test('patient cannot create a direct optical order', function () {
     $patient = User::factory()->patient()->create();
     $patientRecord = Patient::factory()->create();

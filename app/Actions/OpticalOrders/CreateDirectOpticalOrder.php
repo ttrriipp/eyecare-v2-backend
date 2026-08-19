@@ -46,6 +46,7 @@ class CreateDirectOpticalOrder
         ?string $depositPaymentMethod = null,
         ?string $depositReference = null,
         ?string $recipientName = null,
+        ?float $discountAmount = null,
     ): array {
         if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
@@ -106,7 +107,7 @@ class CreateDirectOpticalOrder
             prescription: $prescription,
         );
 
-        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $creator) {
+        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $creator) {
             $itemSnapshots = collect($validatedItems)->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -168,6 +169,7 @@ class CreateDirectOpticalOrder
                 billingRecord: $billingRecord,
                 sourceKind: BillingItemSourceKind::OpticalOrder,
                 items: $orderItems,
+                discountAmount: $discountAmount,
                 actor: $creator,
             );
 
