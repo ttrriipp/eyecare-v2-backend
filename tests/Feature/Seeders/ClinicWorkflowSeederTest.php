@@ -77,6 +77,32 @@ test('seeder creates billing-records', function () {
     expect(BillingRecord::count())->toBeGreaterThanOrEqual(1);
 });
 
+test('seeded quotations, job orders, and billing records have internally consistent data', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    // Reference numbers follow the same YEAR-sequence convention across
+    // quotations, job orders, and billing records — a seeder previously
+    // hardcoded quotation numbers without the year segment.
+    Quotation::query()->pluck('quotation_number')->each(
+        fn (string $number) => expect($number)->toMatch('/^QUO-\d{4}-\d{6}$/'),
+    );
+
+    // subtotal_amount must never be left at its zero default when there's
+    // no discount — it should equal total_amount in that case.
+    BillingRecord::query()->where('discount_amount', 0)->get()->each(
+        fn (BillingRecord $record) => expect((float) $record->subtotal_amount)
+            ->toBe((float) $record->total_amount),
+    );
+
+    // A job order in a terminal status must record when it got there.
+    JobOrder::query()->where('status', 'dispensed')->get()->each(
+        fn (JobOrder $jobOrder) => expect($jobOrder->dispensed_at)->not->toBeNull(),
+    );
+    JobOrder::query()->where('status', 'cancelled')->get()->each(
+        fn (JobOrder $jobOrder) => expect($jobOrder->cancelled_at)->not->toBeNull(),
+    );
+});
+
 test('seeder creates clinic hours for all seven days', function () {
     $this->seed(DatabaseSeeder::class);
 

@@ -280,7 +280,7 @@ class ScenarioCoverageSeeder extends Seeder
         $patient = $this->walkInPatient();
 
         Quotation::query()->firstOrCreate(
-            ['quotation_number' => 'QUO-000002'],
+            ['quotation_number' => 'QUO-2026-000002'],
             [
                 'patient_id' => $patient->id,
                 'status' => QuotationStatus::Draft,
@@ -293,7 +293,7 @@ class ScenarioCoverageSeeder extends Seeder
         );
 
         Quotation::query()->firstOrCreate(
-            ['quotation_number' => 'QUO-000003'],
+            ['quotation_number' => 'QUO-2026-000003'],
             [
                 'patient_id' => $patient->id,
                 'status' => QuotationStatus::Declined,
@@ -337,6 +337,7 @@ class ScenarioCoverageSeeder extends Seeder
                 'total_amount' => 2800,
                 'started_at' => now()->subDays(5),
                 'ready_at' => now()->subDays(3),
+                'dispensed_at' => now()->subDay(),
             ],
         );
 
@@ -346,6 +347,7 @@ class ScenarioCoverageSeeder extends Seeder
                 'patient_id' => $patient->id,
                 'status' => JobOrderStatus::Cancelled,
                 'total_amount' => 1800,
+                'cancelled_at' => now(),
                 'notes' => 'Patient cancelled after the frame went out of stock.',
             ],
         );

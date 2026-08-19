@@ -134,7 +134,7 @@ class ClinicWorkflowSeeder extends Seeder
         $quotation = Quotation::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
-                'quotation_number' => 'QUO-000001',
+                'quotation_number' => 'QUO-2026-000001',
                 'prescription_id' => $prescription->id,
                 'status' => QuotationStatus::Accepted,
                 'valid_until' => now()->addDays(14),
@@ -198,6 +198,8 @@ class ClinicWorkflowSeeder extends Seeder
                 'patient_id' => $patient->id,
                 'encounter_id' => $jobOrder->encounter_id,
                 'status' => BillingRecordStatus::PartiallyPaid,
+                'subtotal_amount' => 7500,
+                'discount_amount' => 0,
                 'total_amount' => 7500,
                 'amount_paid' => 3000,
                 'balance_due' => 4500,
