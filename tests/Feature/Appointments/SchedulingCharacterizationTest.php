@@ -6,9 +6,11 @@ use App\Actions\Appointments\LockAppointmentScheduleDate;
 use App\Actions\Appointments\ScheduleAppointment;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -23,6 +25,7 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->optometrist = User::factory()->optometrist()->create();
     $this->patient = User::factory()->patient()->create();
     $this->appointmentType = AppointmentType::first();
@@ -93,6 +96,21 @@ test('staff can create appointments directly via CreateScheduledAppointment', fu
         ->and($appointment->status->name)->toBe('scheduled')
         ->and($appointment->source)->toBe('mobile')
         ->and($appointment->patient_id)->toBe($this->patient->patient->id);
+});
+
+test('creating a scheduled appointment queues a confirmation sms', function () {
+    $appointment = app(CreateScheduledAppointment::class)->handle(
+        patient: $this->patient->patient,
+        appointmentType: $this->appointmentType,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+    );
+
+    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->first();
+
+    expect($sms)->not->toBeNull()
+        ->and($sms->event)->toBe('appointment_scheduled')
+        ->and($sms->recipient)->toBe($this->patient->patient->phone)
+        ->and($sms->status->name)->toBe('queued');
 });
 
 test('reason for visit is saved on scheduled appointments', function () {

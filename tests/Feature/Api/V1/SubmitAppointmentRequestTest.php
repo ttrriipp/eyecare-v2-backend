@@ -5,9 +5,11 @@ use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\PatientAccountContact;
 use App\Models\Role;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -47,6 +49,7 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 afterEach(fn () => Carbon::setTestNow());
@@ -189,6 +192,22 @@ test('linked account can submit an appointment request', function () {
 
     $response->assertCreated()
         ->assertJsonStructure(['data' => ['id', 'request_number', 'status', 'scheduled_at', 'reason_for_visit']]);
+});
+
+test('submitting an appointment request queues a confirmation sms', function () {
+    $user = User::factory()->patient()->create(['phone' => '+639171234567']);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', defaultRequestData())
+        ->assertCreated();
+
+    $sms = SmsNotification::query()->latest('id')->first();
+
+    expect($sms)->not->toBeNull()
+        ->and($sms->event)->toBe('appointment_request_submitted')
+        ->and($sms->recipient)->toBe('+639171234567')
+        ->and($sms->appointment_id)->toBeNull()
+        ->and($sms->status->name)->toBe('queued');
 });
 
 test('unlinked account can submit an appointment request', function () {

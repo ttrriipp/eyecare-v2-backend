@@ -6,9 +6,11 @@ use App\Enums\AppointmentRequestStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\AppointmentTypeSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -21,6 +23,7 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->optometrist = User::factory()->optometrist()->create();
     $this->appointmentType = AppointmentType::where('name', 'New Patient')->first();
 });
@@ -57,6 +60,34 @@ test('accepting a request creates a scheduled appointment with provider', functi
 
     expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Accepted)
         ->and($request->fresh()->appointment_id)->toBe($appointment->id);
+});
+
+test('accepting an appointment request queues a confirmation sms', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $appointment = app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    );
+
+    $sms = SmsNotification::query()->where('appointment_id', $appointment->id)->first();
+
+    expect($sms)->not->toBeNull()
+        ->and($sms->event)->toBe('appointment_scheduled')
+        ->and($sms->recipient)->toBe($user->patient->phone)
+        ->and($sms->status->name)->toBe('queued');
 });
 
 test('accepting is idempotent - returns same appointment on repeat', function () {

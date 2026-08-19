@@ -7,6 +7,7 @@ use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -56,6 +57,7 @@ test('staff can link a request to a brand-new patient from the detail page', fun
 
 test('accepting a linked request from the detail page does not error and creates an appointment', function () {
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $request = AppointmentRequest::factory()->create([

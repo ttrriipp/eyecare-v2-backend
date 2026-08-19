@@ -9,6 +9,8 @@ use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\NotificationStatus;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
@@ -212,6 +214,8 @@ class AcceptAppointmentRequest
                 actorId: $reviewer->id,
             );
 
+            $this->createSmsNotification($appointment);
+
             return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });
     }
@@ -220,5 +224,22 @@ class AcceptAppointmentRequest
     {
         return collect($request->getAllTimePreferences())
             ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($scheduledAt));
+    }
+
+    private function createSmsNotification(Appointment $appointment): void
+    {
+        $recipient = $appointment->patient->phone ?? $appointment->patient->contact_email;
+
+        if (blank($recipient)) {
+            return;
+        }
+
+        SmsNotification::query()->create([
+            'appointment_id' => $appointment->id,
+            'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
+            'event' => 'appointment_scheduled',
+            'recipient' => $recipient,
+            'message' => "Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}.",
+        ]);
     }
 }

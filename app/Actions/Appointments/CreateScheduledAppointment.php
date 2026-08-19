@@ -5,7 +5,9 @@ namespace App\Actions\Appointments;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\NotificationStatus;
 use App\Models\Patient;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -56,6 +58,8 @@ class CreateScheduledAppointment
                 'contact_notes' => $contactNotes,
                 'reason_for_visit' => $reasonForVisit,
             ]);
+
+            $this->createSmsNotification($appointment, $patient);
 
             return $appointment->fresh(['appointmentType', 'status', 'patient', 'optometrist']);
         }, attempts: 3);
@@ -113,5 +117,22 @@ class CreateScheduledAppointment
             'outside_slot_grid' => 'Please choose one of the available appointment times.',
             default => 'This time slot is not available. Please choose another time.',
         };
+    }
+
+    private function createSmsNotification(Appointment $appointment, Patient $patient): void
+    {
+        $recipient = $patient->phone ?? $patient->contact_email;
+
+        if (blank($recipient)) {
+            return;
+        }
+
+        SmsNotification::query()->create([
+            'appointment_id' => $appointment->id,
+            'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
+            'event' => 'appointment_scheduled',
+            'recipient' => $recipient,
+            'message' => "Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}.",
+        ]);
     }
 }

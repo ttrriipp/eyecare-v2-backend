@@ -6,6 +6,8 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
+use App\Models\NotificationStatus;
+use App\Models\SmsNotification;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -119,8 +121,25 @@ class SubmitAppointmentRequest
                 actorId: $account->id,
             );
 
+            $this->createSmsNotification($account, $scheduledAt);
+
             return $request;
         });
+    }
+
+    private function createSmsNotification(User $account, CarbonInterface $scheduledAt): void
+    {
+        if (blank($account->phone)) {
+            return;
+        }
+
+        SmsNotification::query()->create([
+            'appointment_id' => null,
+            'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
+            'event' => 'appointment_request_submitted',
+            'recipient' => $account->phone,
+            'message' => "We received your appointment request for {$scheduledAt->format('M j, Y g:i A')}. We'll confirm it soon.",
+        ]);
     }
 
     private function validateTimeAvailability(
