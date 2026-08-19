@@ -245,6 +245,32 @@ final class OpticalOrderCreationForm
                                             2,
                                         ));
                                     }),
+                                Select::make('lens_option_id')
+                                    ->label('Lens Option')
+                                    ->options(fn (): array => LensOption::query()
+                                        ->active()
+                                        ->orderBy('name')
+                                        ->pluck('name', 'id')
+                                        ->all())
+                                    ->searchable()
+                                    ->preload()
+                                    ->required(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                                    ->visible(fn (Get $get): bool => $get('item_kind') === 'lens_option')
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set, Get $get, mixed $state): void {
+                                        $lensOption = LensOption::query()->active()->find($state);
+
+                                        if ($lensOption === null) {
+                                            return;
+                                        }
+
+                                        $set('description', $lensOption->name);
+                                        $set('unit_price', $lensOption->price);
+                                        $set('line_total', number_format(
+                                            ((float) ($get('quantity') ?? 1)) * ((float) $lensOption->price),
+                                            2,
+                                        ));
+                                    }),
                                 ...($includeServices ? [
                                     Select::make('service_id')
                                         ->label('Service')

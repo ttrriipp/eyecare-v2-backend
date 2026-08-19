@@ -268,6 +268,15 @@ class EditEncounter extends EditRecord
             ->first();
     }
 
+    private function latestQuotation(): ?Quotation
+    {
+        return Quotation::query()
+            ->where('encounter_id', $this->record->id)
+            ->whereNull('deleted_at')
+            ->latest('id')
+            ->first();
+    }
+
     protected function getFormActions(): array
     {
         // Hide save/cancel buttons - wizard has its own Complete Visit button
@@ -335,12 +344,13 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            // ── Completed encounter: primary action ──
+            // ── In-progress or completed encounter with a current
+            // prescription and no quotation yet: primary action ──
             Action::make('createQuotation')
                 ->label('Create Quotation')
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
+                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
                     && (
                         auth()->user()?->isAdmin() === true
                         || auth()->user()?->isStaff() === true
@@ -355,6 +365,17 @@ class EditEncounter extends EditRecord
                         ->exists())
                 ->url(fn (): string => QuotationResource::getUrl('create', [
                     'encounter' => $this->record->id,
+                ])),
+
+            // ── A quotation already exists for this encounter: link to it
+            // instead of offering to create another ──
+            Action::make('viewOpticalOrder')
+                ->label('View Optical Order')
+                ->icon('heroicon-o-document-currency-dollar')
+                ->color('gray')
+                ->visible(fn (): bool => $this->latestQuotation() !== null)
+                ->url(fn (): string => QuotationResource::getUrl('edit', [
+                    'record' => $this->latestQuotation(),
                 ])),
 
             // ── Planned: reassignment (admin/staff only) ──
