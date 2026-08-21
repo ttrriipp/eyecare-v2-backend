@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Appointments\CancelAppointmentRequest;
 use App\Actions\Appointments\ExpireAppointmentRequests;
 use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
@@ -7,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
 
@@ -68,4 +70,18 @@ test('already terminal requests are not affected', function () {
 test('command runs successfully', function () {
     $this->artisan('appointments:expire-requests')
         ->assertSuccessful();
+});
+
+test('expired pending requests cannot be cancelled by the patient', function () {
+    $user = User::factory()->patient()->create();
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    expect(fn () => app(CancelAppointmentRequest::class)->handle($request, $user))
+        ->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
 });

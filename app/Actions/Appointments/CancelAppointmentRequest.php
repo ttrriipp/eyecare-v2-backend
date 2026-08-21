@@ -20,13 +20,21 @@ class CancelAppointmentRequest
             abort(404);
         }
 
-        if ($request->status !== AppointmentRequestStatus::Pending) {
+        if (! $request->isPending()) {
             throw ValidationException::withMessages([
                 'request' => ['Only pending appointment requests can be cancelled.'],
             ]);
         }
 
         return DB::transaction(function () use ($request, $account): AppointmentRequest {
+            $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
+
+            if (! $request->isPending()) {
+                throw ValidationException::withMessages([
+                    'request' => ['Only pending appointment requests can be cancelled.'],
+                ]);
+            }
+
             $request->update(['status' => AppointmentRequestStatus::Cancelled]);
 
             $this->createAuditLog->handle(

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Pages;
 
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use App\Filament\Resources\Appointments\AppointmentResource;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -16,7 +17,7 @@ class ListAppointmentRequests extends ListRecords
     public function getBreadcrumbs(): array
     {
         return [
-            '/admin/appointments' => 'Appointments',
+            AppointmentResource::getUrl('index') => 'Appointments',
             'Requests',
         ];
     }
@@ -41,7 +42,7 @@ class ListAppointmentRequests extends ListRecords
         return [
             Action::make('viewAppointments')
                 ->label('View Appointments')
-                ->url('/admin/appointments')
+                ->url(AppointmentResource::getUrl('index'))
                 ->icon('heroicon-o-calendar-days'),
         ];
     }

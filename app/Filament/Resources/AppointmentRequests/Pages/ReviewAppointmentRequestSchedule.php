@@ -14,6 +14,7 @@ use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -187,7 +188,19 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function accept(): void
     {
-        Gate::authorize('accept', $this->getRecord());
+        try {
+            Gate::authorize('accept', $this->getRecord());
+        } catch (AuthorizationException) {
+            $message = 'This request is no longer available for scheduling. Refresh the page to see its latest status.';
+            $this->addError('scheduledDate', $message);
+            Notification::make()
+                ->title('Request is no longer pending')
+                ->body($message)
+                ->warning()
+                ->send();
+
+            return;
+        }
 
         $this->validate([
             'appointmentTypeId' => ['required', 'integer'],

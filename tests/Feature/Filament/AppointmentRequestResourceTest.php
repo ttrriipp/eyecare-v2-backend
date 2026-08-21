@@ -109,3 +109,17 @@ test('patient cannot access appointment requests', function () {
     $this->get(AppointmentRequestResource::getUrl('index'))
         ->assertForbidden();
 });
+
+test('expired pending requests do not expose terminal transition actions', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertActionHidden(TestAction::make('linkToPatient')->table($request))
+        ->assertActionHidden(TestAction::make('reject')->table($request));
+});

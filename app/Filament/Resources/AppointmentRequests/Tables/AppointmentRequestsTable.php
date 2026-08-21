@@ -89,7 +89,8 @@ class AppointmentRequestsTable
                         ->label('Link to Patient')
                         ->icon('heroicon-o-link')
                         ->color('primary')
-                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending && $record->patient_id === null)
+                        ->visible(fn (AppointmentRequest $record): bool => $record->isPending() && $record->patient_id === null)
+                        ->authorize('link')
                         ->schema(function (AppointmentRequest $record): array {
                             $candidateOptions = [];
 
@@ -143,7 +144,8 @@ class AppointmentRequestsTable
                         ->label('Reject')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->visible(fn (AppointmentRequest $record) => $record->status === AppointmentRequestStatus::Pending)
+                        ->visible(fn (AppointmentRequest $record): bool => $record->isPending())
+                        ->authorize('reject')
                         ->schema([
                             Textarea::make('reason')
                                 ->label('Reason')
