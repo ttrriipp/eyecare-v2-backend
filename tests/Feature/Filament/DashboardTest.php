@@ -38,15 +38,14 @@ test('dashboard prioritizes clinical workflow stats', function () {
     $this->actingAs($admin);
 
     Livewire::test(StatsOverviewWidget::class)
-        ->assertSee('Needs attention')
+        ->assertSee('Today')
         ->assertSee('Appointment Requests')
         ->assertSee('Patients Waiting')
-        ->assertSee('Active Encounters')
-        ->assertSee('Optical Orders Ready')
-        ->assertSee('Updated at')
-        ->assertDontSee('Quotations Awaiting Decision')
+        ->assertSee('Consultations')
+        ->assertSee('Ready for Pickup')
+        ->assertDontSee('Draft Quotations')
         ->assertDontSee('Balances Due')
-        ->assertDontSee('Low Stock Items')
+        ->assertDontSee('Low Stock')
         ->assertDontSee('Job order');
 
     $widget = Livewire::test(StatsOverviewWidget::class)->instance();
@@ -61,10 +60,10 @@ test('secondary admin issues are grouped into a collapsed section', function () 
     $this->actingAs($admin);
 
     $component = Livewire::test(OtherIssuesWidget::class)
-        ->assertSee('Other issues')
-        ->assertSee('Quotations Awaiting Decision')
+        ->assertSee('Also noted')
+        ->assertSee('Draft Quotations')
         ->assertSee('Balances Due')
-        ->assertSee('Low Stock Items');
+        ->assertSee('Low Stock');
 
     $section = $component->instance()->getSectionContentComponent();
 
@@ -88,11 +87,11 @@ test('dashboard stats link to the corresponding operational work', function () {
         ->toStartWith(AppointmentRequestResource::getUrl('index'))
         ->and($statsByLabel->get('Patients Waiting')?->getUrl())
         ->toContain('activeTab=checked_in')
-        ->and($statsByLabel->get('Active Encounters')?->getUrl())
+        ->and($statsByLabel->get('Consultations')?->getUrl())
         ->toBe(EncounterResource::getUrl('index', ['activeTab' => 'in_progress']))
-        ->and($statsByLabel->get('Optical Orders Ready')?->getUrl())
+        ->and($statsByLabel->get('Ready for Pickup')?->getUrl())
         ->toStartWith(OpticalOrderResource::getUrl('index'))
-        ->and($statsByLabel)->not->toHaveKey('Quotations Awaiting Decision');
+        ->and($statsByLabel)->not->toHaveKey('Draft Quotations');
 });
 
 test('optometrist dashboard data is scoped to assigned work', function () {
@@ -118,9 +117,9 @@ test('optometrist dashboard data is scoped to assigned work', function () {
         fn (Stat $stat): string => (string) $stat->getLabel(),
     );
 
-    expect($stats->get('My Appointments Today')?->getValue())->toBe('1')
-        ->and($stats->get('My Active Encounters')?->getValue())->toBe('1')
-        ->and($stats->get('My Active Encounters')?->getUrl())->toContain('optometrist%5D%5Bvalue%5D='.$optometrist->id);
+    expect($stats->get('Appointments Today')?->getValue())->toBe('1')
+        ->and($stats->get('My Consultations')?->getValue())->toBe('1')
+        ->and($stats->get('My Consultations')?->getUrl())->toContain('optometrist%5D%5Bvalue%5D='.$optometrist->id);
 
     Livewire::test(TodaysScheduleWidget::class)
         ->assertCanSeeTableRecords([$assignedAppointment])
@@ -170,7 +169,7 @@ test('today schedule widget identifies patients and opens their appointments', f
         ->assertSee('Maria Santos')
         ->assertSee($patientNumber)
         ->assertSee('Comprehensive Eye Examination')
-        ->assertSee("Today's Patient Flow · 1 appointment")
+        ->assertSee("Today's Schedule · 1 appointment")
         ->assertSee('View Full Schedule')
         ->assertDontSee('job order');
 
@@ -186,7 +185,7 @@ test('dashboard uses conditional sections for each clinic role', function () {
     Livewire::test(AdminDashboard::class)
         ->assertSee('New Appointment')
         ->assertSee('Ready for Pickup')
-        ->assertDontSee('My Encounters');
+        ->assertDontSee('My Consultations');
 
     $staffStats = Livewire::test(StatsOverviewWidget::class)->instance();
     expect((fn (): array => $this->getStats())->call($staffStats))->toHaveCount(4);
@@ -199,13 +198,13 @@ test('dashboard uses conditional sections for each clinic role', function () {
 
     Livewire::test(AdminDashboard::class)
         ->assertSee('New Appointment')
-        ->assertSee('My Encounters')
+        ->assertSee('My Consultations')
         ->assertDontSee('Ready for Pickup');
 
     Livewire::test(StatsOverviewWidget::class)
-        ->assertSee('My Appointments Today')
-        ->assertSee('My Active Encounters')
-        ->assertDontSee('Low Stock Items');
+        ->assertSee('Appointments Today')
+        ->assertSee('My Consultations')
+        ->assertDontSee('Low Stock');
 
     $optometristStats = Livewire::test(StatsOverviewWidget::class)->instance();
     expect((fn (): array => $this->getStats())->call($optometristStats))->toHaveCount(3);
@@ -216,7 +215,7 @@ test('dashboard uses conditional sections for each clinic role', function () {
 
     Livewire::test(AdminDashboard::class)
         ->assertSee('New Appointment')
-        ->assertSee('My Encounters')
+        ->assertSee('My Consultations')
         ->assertSee('Ready for Pickup');
 
     $ownerStats = Livewire::test(StatsOverviewWidget::class)->instance();
@@ -227,6 +226,23 @@ test('dashboard uses conditional sections for each clinic role', function () {
 
 test('encounter list statistics are not globally discovered on the dashboard', function () {
     expect(EncounterStatsWidget::isDiscovered())->toBeFalse();
+});
+
+test('consultation statistics use consultation labels', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    $widget = Livewire::test(EncounterStatsWidget::class)->instance();
+    $stats = (fn (): array => $this->getStats())->call($widget);
+
+    expect(collect($stats)->map(fn (Stat $stat): string => (string) $stat->getLabel())->all())
+        ->toContain('Total consultations', 'Today', 'In Progress');
+
+    $widget->activeTab = 'completed';
+    $stats = (fn (): array => $this->getStats())->call($widget);
+
+    expect((string) $stats[0]->getLabel())->toBe('Completed consultations');
 });
 
 test('appointment calendar modal shows the populated appointment type', function () {

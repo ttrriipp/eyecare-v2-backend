@@ -34,13 +34,13 @@ class EncounterStatsWidget extends BaseWidget
 
         $label = $this->activeTab && $this->activeTab !== 'all'
             ? match ($this->activeTab) {
-                'planned' => 'Planned encounters',
-                'in_progress' => 'In Progress encounters',
-                'completed' => 'Completed encounters',
-                'cancelled' => 'Cancelled encounters',
-                default => 'Encounters',
+                'planned' => 'Planned consultations',
+                'in_progress' => 'In Progress consultations',
+                'completed' => 'Completed consultations',
+                'cancelled' => 'Cancelled consultations',
+                default => 'Consultations',
             }
-        : 'Total encounters';
+        : 'Total consultations';
 
         $todayCount = Encounter::query()
             ->whereDate('created_at', today())

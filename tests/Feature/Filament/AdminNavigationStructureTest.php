@@ -105,7 +105,7 @@ test('items are ordered within each group', function () {
     expect($navigation)->toMatchArray([
         'Today' => ['Appointments', 'Appointment Requests', 'Scheduling'],
         'Patients' => ['Patient Records', 'Patient Accounts', 'Link Requests', 'Conversations', 'Visit Feedback'],
-        'Clinical' => ['Encounters', 'Prescriptions'],
+        'Clinical' => ['Consultations', 'Prescriptions'],
         'Optical' => ['Quotations', 'Optical Orders', 'Frame Reservations', 'Frame Ratings'],
         'Billing' => ['Billing & Payments'],
         'Catalog' => ['Products', 'Inventory', 'Inventory History', 'Brands', 'Lens Categories', 'Lens Options', 'Product Categories', 'Services'],

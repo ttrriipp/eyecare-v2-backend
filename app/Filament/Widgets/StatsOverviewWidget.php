@@ -142,7 +142,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
         }
 
         return Stat::make(
-            $isOptometristOnly ? 'My Encounters' : 'Encounters',
+            $isOptometristOnly ? 'My Consultations' : 'Consultations',
             Number::format($data['active_encounters']),
         )
             ->description('In progress')

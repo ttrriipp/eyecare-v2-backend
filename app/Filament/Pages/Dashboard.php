@@ -28,7 +28,7 @@ class Dashboard extends BaseDashboard
                 ->url(AppointmentResource::getUrl('create')),
 
             Action::make('myEncounters')
-                ->label('My Encounters')
+                ->label('My Consultations')
                 ->icon(Heroicon::OutlinedDocumentText)
                 ->color('gray')
                 ->visible($roleNames->contains(Role::Optometrist))
