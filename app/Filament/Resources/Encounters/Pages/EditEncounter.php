@@ -106,7 +106,7 @@ class EditEncounter extends EditRecord
     public function getBreadcrumbs(): array
     {
         return [
-            '/admin/encounters' => 'Encounters',
+            '/admin/encounters' => 'Consultations',
             $this->record->encounter_number,
             'Edit',
         ];
@@ -328,7 +328,7 @@ class EditEncounter extends EditRecord
                     && ($this->record->optometrist_id === null || $this->record->optometrist_id === auth()->id()))
                 ->requiresConfirmation()
                 ->modalHeading('Start Consultation')
-                ->modalDescription('You will become the treating optometrist for this encounter.')
+                ->modalDescription('You will become the treating optometrist for this consultation.')
                 ->modalSubmitActionLabel('Start')
                 ->action(function (): void {
                     try {
@@ -337,10 +337,10 @@ class EditEncounter extends EditRecord
                             actor: auth()->user(),
                         );
 
-                        Notification::make()->title('Encounter started')->success()->send();
+                        Notification::make()->title('Consultation started')->success()->send();
                         $this->refreshFormData(['status', 'started_at', 'optometrist_id']);
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
+                        Notification::make()->title('Cannot start consultation')->body($e->getMessage())->danger()->send();
                     }
                 }),
 
@@ -412,7 +412,7 @@ class EditEncounter extends EditRecord
 
             // ── In-progress: transfer encounter ──
             Action::make('transferEncounter')
-                ->label('Transfer Encounter')
+                ->label('Transfer Consultation')
                 ->icon('heroicon-o-arrow-right-start-on-rectangle')
                 ->color('warning')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::InProgress
@@ -421,8 +421,8 @@ class EditEncounter extends EditRecord
                         || auth()->user()?->isAdmin()
                     ))
                 ->requiresConfirmation()
-                ->modalHeading('Transfer Encounter')
-                ->modalDescription('Transfer this encounter to another optometrist.')
+                ->modalHeading('Transfer Consultation')
+                ->modalDescription('Transfer this consultation to another optometrist.')
                 ->modalSubmitActionLabel('Transfer')
                 ->schema([
                     Select::make('new_optometrist_id')
@@ -456,16 +456,16 @@ class EditEncounter extends EditRecord
                             reason: $reason,
                         );
 
-                        Notification::make()->title('Encounter transferred')->success()->send();
+                        Notification::make()->title('Consultation transferred')->success()->send();
                         $this->refreshFormData(['optometrist_id']);
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot transfer encounter')->body($e->getMessage())->danger()->send();
+                        Notification::make()->title('Cannot transfer consultation')->body($e->getMessage())->danger()->send();
                     }
                 }),
 
             // ── Completed: print ──
             Action::make('printEncounter')
-                ->label('Print Encounter')
+                ->label('Print Consultation')
                 ->icon('heroicon-o-printer')
                 ->color('gray')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed)
@@ -481,7 +481,7 @@ class EditEncounter extends EditRecord
                     && auth()->user()?->isOptometrist())
                 ->requiresConfirmation()
                 ->modalHeading('Add Addendum')
-                ->modalDescription('Append a note to this completed encounter. The original record remains unchanged.')
+                ->modalDescription('Append a note to this completed consultation. The original record remains unchanged.')
                 ->modalSubmitActionLabel('Add Addendum')
                 ->schema([
                     Select::make('type')
@@ -588,15 +588,15 @@ class EditEncounter extends EditRecord
 
             // ── Void encounter ──
             Action::make('voidEncounter')
-                ->label('Void Encounter')
+                ->label('Void Consultation')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
                 ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)
                     && auth()->user()?->can('void', $this->record) === true)
                 ->requiresConfirmation()
-                ->modalHeading('Void Encounter')
-                ->modalDescription('This will mark the encounter as voided. This action cannot be undone.')
-                ->modalSubmitActionLabel('Void Encounter')
+                ->modalHeading('Void Consultation')
+                ->modalDescription('This will mark the consultation as voided. This action cannot be undone.')
+                ->modalSubmitActionLabel('Void Consultation')
                 ->schema([
                     Textarea::make('reason')
                         ->label('Reason for Voiding')
@@ -612,10 +612,10 @@ class EditEncounter extends EditRecord
                             reason: $data['reason'],
                         );
 
-                        Notification::make()->title('Encounter voided')->success()->send();
+                        Notification::make()->title('Consultation voided')->success()->send();
                         $this->refreshFormData(['status']);
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot void encounter')->body($e->getMessage())->danger()->send();
+                        Notification::make()->title('Cannot void consultation')->body($e->getMessage())->danger()->send();
                     }
                 }),
         ];

@@ -38,6 +38,7 @@ test('optometrist can view encounter details', function () {
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertSuccessful()
+        ->assertSee('Consultations')
         ->assertSee('Consultation Details')
         ->assertDontSee('Encounter Details')
         ->assertSee('Patient')
@@ -259,6 +260,17 @@ test('in-progress encounter can complete the visit from the wizard confirmation 
         ->callMountedAction();
 
     expect($encounter->fresh()->status)->toBe(EncounterStatus::Completed);
+});
+
+test('planned consultation uses consultation action labels', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->create(['status' => EncounterStatus::Planned]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionHasLabel('startEncounter', 'Start Consultation')
+        ->assertActionHasLabel('voidEncounter', 'Void Consultation');
 });
 
 test('encounter table shows status badges', function () {

@@ -52,7 +52,8 @@ test('current provider can see transfer action', function () {
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertActionExists('transferEncounter')
-        ->assertActionVisible('transferEncounter');
+        ->assertActionVisible('transferEncounter')
+        ->assertActionHasLabel('transferEncounter', 'Transfer Consultation');
 });
 
 test('admin can see transfer action', function () {
