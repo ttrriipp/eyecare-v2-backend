@@ -1,7 +1,7 @@
 # Implementation Plan: Appointment Calendar and Request Schedule Review
 
 **Specification:** `docs/specs/appointment-calendar-and-request-schedule-review-spec.md`
-**Status:** Proposed; implementation must not begin until reviewed
+**Status:** In progress; approved by user on 2026-08-21
 **Prepared:** 2026-08-21
 
 ## Overview

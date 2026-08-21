@@ -19,13 +19,21 @@ class RejectAppointmentRequest
         User $reviewer,
         ?string $reason = null,
     ): AppointmentRequest {
-        if ($request->status !== AppointmentRequestStatus::Pending) {
+        if (! $request->isPending()) {
             throw ValidationException::withMessages([
                 'request' => ['Only pending appointment requests can be rejected.'],
             ]);
         }
 
         return DB::transaction(function () use ($request, $reviewer, $reason): AppointmentRequest {
+            $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
+
+            if (! $request->isPending()) {
+                throw ValidationException::withMessages([
+                    'request' => ['Only pending appointment requests can be rejected.'],
+                ]);
+            }
+
             $request->update([
                 'status' => AppointmentRequestStatus::Rejected,
                 'resolved_by_user_id' => $reviewer->id,

@@ -1,6 +1,6 @@
 # Spec: Appointment Calendar and Request Schedule Review
 
-**Status:** Proposed for review
+**Status:** Approved; implementation in progress
 **Planning date:** 2026-08-21
 
 ## Assumptions

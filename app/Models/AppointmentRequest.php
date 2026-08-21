@@ -126,8 +126,7 @@ class AppointmentRequest extends Model
 
     public function isReadyForScheduleReview(): bool
     {
-        return $this->patient_id !== null
-            && $this->status === AppointmentRequestStatus::Pending;
+        return $this->patient_id !== null && $this->isPending();
     }
 
     public function hasIdentitySnapshot(): bool

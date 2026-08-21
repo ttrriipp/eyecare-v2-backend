@@ -4,7 +4,6 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\AssociateAccountConversation;
-use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
@@ -17,7 +16,7 @@ class LinkAppointmentRequestToPatient
 
     public function handle(AppointmentRequest $request, Patient $patient): AppointmentRequest
     {
-        if ($request->status !== AppointmentRequestStatus::Pending) {
+        if (! $request->isPending()) {
             throw ValidationException::withMessages([
                 'request' => ['Only pending appointment requests can be linked to a patient.'],
             ]);
@@ -30,6 +29,20 @@ class LinkAppointmentRequestToPatient
         }
 
         return DB::transaction(function () use ($request, $patient) {
+            $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
+
+            if (! $request->isPending()) {
+                throw ValidationException::withMessages([
+                    'request' => ['Only pending appointment requests can be linked to a patient.'],
+                ]);
+            }
+
+            if ($request->patient_id !== null) {
+                throw ValidationException::withMessages([
+                    'request' => ['This request is already linked to a patient.'],
+                ]);
+            }
+
             $account = $request->user;
             $wasUnlinked = $account->patient === null;
             $request->update(['patient_id' => $patient->id]);

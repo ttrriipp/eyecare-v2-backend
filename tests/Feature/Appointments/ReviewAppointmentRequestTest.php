@@ -163,6 +163,52 @@ test('accepting requires an active optometrist', function () {
     ))->toThrow(ValidationException::class);
 });
 
+test('accepting requires an assigned optometrist', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
+});
+
+test('an expired pending request cannot be accepted', function () {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'scheduled_at' => '2026-07-13 10:00:00',
+        'expires_at' => '2026-07-09 10:00:00',
+    ]);
+
+    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $this->appointmentType,
+        durationMinutes: $this->appointmentType->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        optometrist: $this->optometrist,
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
+});
+
 test('accepting copies reason for visit', function () {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();
@@ -357,4 +403,20 @@ test('rejecting closes the request without creating appointment', function () {
         ->and($result->resolved_by_user_id)->toBe($reviewer->id);
 
     $this->assertDatabaseCount('appointments', 0);
+});
+
+test('rejecting an expired pending request does not create a terminal transition', function () {
+    $reviewer = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    expect(fn () => app(RejectAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        reason: 'No available slots',
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
 });

@@ -93,3 +93,19 @@ test('admin can access appointment requests', function () {
     $this->get(AppointmentRequestResource::getUrl('index'))
         ->assertSuccessful();
 });
+
+test('optometrist can access appointment requests', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $this->actingAs($optometrist);
+
+    $this->get(AppointmentRequestResource::getUrl('index'))
+        ->assertSuccessful();
+});
+
+test('patient cannot access appointment requests', function () {
+    $patient = User::factory()->patient()->create();
+    $this->actingAs($patient);
+
+    $this->get(AppointmentRequestResource::getUrl('index'))
+        ->assertForbidden();
+});

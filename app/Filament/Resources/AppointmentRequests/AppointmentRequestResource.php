@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests;
 
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
+use App\Filament\Resources\AppointmentRequests\Pages\ReviewAppointmentRequestSchedule;
 use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
 use App\Filament\Resources\AppointmentRequests\Schemas\AppointmentRequestForm;
 use App\Filament\Resources\AppointmentRequests\Tables\AppointmentRequestsTable;
@@ -77,6 +78,7 @@ class AppointmentRequestResource extends Resource
         return [
             'index' => ListAppointmentRequests::route('/'),
             'view' => ViewAppointmentRequest::route('/{record}'),
+            'schedule' => ReviewAppointmentRequestSchedule::route('/{record}/schedule'),
         ];
     }
 }

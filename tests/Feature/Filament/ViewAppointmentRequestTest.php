@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\AppointmentRequests\Pages\ReviewAppointmentRequestSchedule;
 use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
@@ -23,7 +24,7 @@ test('staff can link an unlinked request to a patient from the detail page', fun
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
         ->assertActionVisible('linkToPatient')
-        ->assertActionHidden('accept')
+        ->assertActionDoesNotExist('accept')
         ->callAction('linkToPatient', ['patient_mode' => 'existing', 'patient_id' => $patient->id])
         ->assertHasNoActionErrors()
         ->assertNotified();
@@ -73,15 +74,18 @@ test('accepting a linked request from the detail page does not error and creates
     $this->actingAs($staff);
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
-        ->assertActionVisible('accept')
-        ->assertActionHidden('linkToPatient')
-        ->callAction('accept', [
-            'appointment_type_id' => $appointmentType->id,
-            'duration_minutes' => 30,
-            'optometrist_id' => $optometrist->id,
-            'scheduled_at' => $request->scheduled_at->format('Y-m-d H:i'),
-        ])
-        ->assertHasNoActionErrors()
+        ->assertActionVisible('reviewSchedule')
+        ->assertActionDoesNotExist('accept')
+        ->assertActionHidden('linkToPatient');
+
+    Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+        ->set('appointmentTypeId', $appointmentType->id)
+        ->set('durationMinutes', 30)
+        ->set('optometristId', $optometrist->id)
+        ->set('scheduledDate', $request->scheduled_at->toDateString())
+        ->set('scheduledTime', $request->scheduled_at->format('H:i'))
+        ->call('accept')
+        ->assertHasNoErrors()
         ->assertNotified();
 
     expect($request->fresh()->status->value)->toBe('accepted');

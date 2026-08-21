@@ -95,7 +95,7 @@ class Appointment extends Model implements Eventable
         return CalendarEvent::make($this)
             ->title($title)
             ->start($this->scheduled_at)
-            ->end($this->scheduled_at->addMinutes($this->duration_minutes ?? 30))
+            ->end($this->scheduled_at->copy()->addMinutes($this->duration_minutes ?? 30))
             ->backgroundColor($color);
     }
 

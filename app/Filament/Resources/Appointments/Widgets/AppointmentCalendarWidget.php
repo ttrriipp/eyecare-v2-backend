@@ -27,7 +27,9 @@ class AppointmentCalendarWidget extends CalendarWidget
 {
     protected bool $eventClickEnabled = true;
 
-    protected bool $eventDragEnabled = true;
+    // Dragging is intentionally disabled until the calendar exposes the same
+    // reason-category flow required by clinic-initiated rescheduling.
+    protected bool $eventDragEnabled = false;
 
     protected bool $dateClickEnabled = true;
 
@@ -36,7 +38,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     // wrong offset, so future slots are wrongly rejected as "past".
     protected bool $useFilamentTimezone = true;
 
-    protected CalendarViewType $calendarView = CalendarViewType::TimeGridDay;
+    protected CalendarViewType $calendarView = CalendarViewType::TimeGridWeek;
 
     /**
      * Calendar options passed to the underlying @event-calendar instance.
@@ -77,6 +79,7 @@ class AppointmentCalendarWidget extends CalendarWidget
     {
         return Appointment::query()
             ->with(['patient', 'status', 'appointmentType', 'createdBy', 'checkedInBy', 'optometrist'])
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereIn('name', ['scheduled', 'checked_in']))
             ->whereDate('scheduled_at', '>=', $info->start)
             ->whereDate('scheduled_at', '<=', $info->end);
     }

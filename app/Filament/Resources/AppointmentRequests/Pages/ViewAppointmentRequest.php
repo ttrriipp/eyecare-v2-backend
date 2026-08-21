@@ -2,29 +2,20 @@
 
 namespace App\Filament\Resources\AppointmentRequests\Pages;
 
-use App\Actions\Appointments\AcceptAppointmentRequest;
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
 use App\Actions\PatientAccounts\RankPatientCandidates;
-use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
-use App\Models\AppointmentType;
 use App\Models\Patient;
-use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Utilities\Set;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -48,7 +39,8 @@ class ViewAppointmentRequest extends ViewRecord
                 ->label('Link to Patient')
                 ->icon('heroicon-o-link')
                 ->color('primary')
-                ->visible(fn () => $this->record->status === AppointmentRequestStatus::Pending && $this->record->patient_id === null)
+                ->visible(fn () => $this->record->isPending() && $this->record->patient_id === null)
+                ->authorize('link')
                 ->schema(function (): array {
                     $candidateOptions = [];
 
@@ -179,135 +171,20 @@ class ViewAppointmentRequest extends ViewRecord
                     }
                 }),
 
-            Action::make('accept')
-                ->label('Accept Request')
-                ->icon('heroicon-o-check-circle')
+            Action::make('reviewSchedule')
+                ->label('Review & Schedule')
+                ->icon('heroicon-o-calendar-days')
                 ->color('success')
-                ->visible(fn () => $this->record->status === AppointmentRequestStatus::Pending && $this->record->patient_id !== null)
-                ->schema(function (): array {
-                    $defaultType = $this->record->appointmentType ?? AppointmentType::where('name', 'New Patient')->first();
-
-                    return [
-                        Placeholder::make('preferred_times_display')
-                            ->label('Patient Preferred Times')
-                            ->content(function (): HtmlString {
-                                $badges = [];
-                                $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 dark:bg-primary-500/15 dark:text-primary-400">'
-                                    .'<span class="font-semibold">Primary</span> '
-                                    .e($this->record->scheduled_at?->format('M j, g:i A') ?? '—')
-                                    .'</span>';
-
-                                if (! empty($this->record->alternative_scheduled_times)) {
-                                    foreach ($this->record->alternative_scheduled_times as $index => $time) {
-                                        $badges[] = '<span class="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 dark:bg-white/10 dark:text-gray-400">'
-                                            .'<span class="font-semibold">Alt '.($index + 1).'</span> '
-                                            .e(Carbon::parse($time)->format('M j, g:i A'))
-                                            .'</span>';
-                                    }
-                                }
-
-                                return new HtmlString(
-                                    '<div class="flex flex-wrap gap-2">'.implode('', $badges).'</div>'
-                                );
-                            })
-                            ->columnSpanFull(),
-
-                        Select::make('appointment_type_id')
-                            ->label('Appointment Type')
-                            ->options(AppointmentType::active()->pluck('name', 'id'))
-                            ->default($defaultType?->id)
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                $type = AppointmentType::find($state);
-                                if ($type) {
-                                    $set('duration_minutes', $type->duration_minutes);
-                                }
-                            }),
-
-                        TextInput::make('duration_minutes')
-                            ->label('Duration (minutes)')
-                            ->numeric()
-                            ->default($defaultType?->duration_minutes ?? 30)
-                            ->minValue(5)
-                            ->maxValue(240)
-                            ->step(5)
-                            ->required(),
-
-                        Select::make('optometrist_id')
-                            ->label('Optometrist')
-                            ->options(fn (): array => User::query()
-                                ->optometrists()
-                                ->orderBy('first_name')
-                                ->orderBy('last_name')
-                                ->get()
-                                ->mapWithKeys(fn (User $user): array => [$user->id => $user->full_name])
-                                ->all())
-                            ->nullable()
-                            ->searchable(),
-
-                        DatePicker::make('scheduled_date')
-                            ->label('Date')
-                            ->default($this->record->scheduled_at?->toDateString())
-                            ->required()
-                            ->native(false)
-                            ->minDate(today())
-                            ->suffixIcon('heroicon-o-calendar-days')
-                            ->live(),
-
-                        TimePicker::make('scheduled_time')
-                            ->label('Time')
-                            ->default($this->record->scheduled_at?->format('H:i'))
-                            ->required()
-                            ->seconds(false)
-                            ->minutesStep(15),
-
-                        TextInput::make('referring_source')
-                            ->label('Referring Source')
-                            ->maxLength(255)
-                            ->visible(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false)
-                            ->required(fn (Get $get): bool => AppointmentType::find($get('appointment_type_id'))?->requires_referral ?? false),
-
-                        Textarea::make('contact_notes')
-                            ->label('Contact Note')
-                            ->required(fn (Get $get): bool => ! $this->matchesSubmittedPreferenceFromFields($get('scheduled_date'), $get('scheduled_time')))
-                            ->rows(2),
-                    ];
-                })
-                ->action(function (array $data): void {
-                    try {
-                        $appointmentType = AppointmentType::findOrFail($data['appointment_type_id']);
-                        $optometrist = isset($data['optometrist_id']) ? User::find($data['optometrist_id']) : null;
-
-                        $scheduledAt = Carbon::parse($data['scheduled_date'].' '.$data['scheduled_time']);
-
-                        $appointment = app(AcceptAppointmentRequest::class)->handle(
-                            request: $this->record,
-                            reviewer: auth()->user(),
-                            appointmentType: $appointmentType,
-                            durationMinutes: (int) $data['duration_minutes'],
-                            scheduledAt: $scheduledAt,
-                            optometrist: $optometrist,
-                            referringSource: $data['referring_source'] ?? null,
-                            contactNote: $data['contact_notes'] ?? null,
-                        );
-
-                        $this->record->refresh();
-                        Notification::make()
-                            ->title("Appointment {$appointment->appointment_number} created")
-                            ->success()
-                            ->send();
-                    } catch (ValidationException $e) {
-                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot accept.';
-                        Notification::make()->title('Cannot accept')->body($message)->danger()->send();
-                    }
-                }),
+                ->visible(fn (): bool => $this->record->isReadyForScheduleReview())
+                ->authorize('accept')
+                ->url(fn (): string => AppointmentRequestResource::getUrl('schedule', ['record' => $this->record])),
 
             Action::make('reject')
                 ->label('Reject Request')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn () => $this->record->status === AppointmentRequestStatus::Pending)
+                ->visible(fn (): bool => $this->record->isPending())
+                ->authorize('reject')
                 ->schema([
                     Textarea::make('reason')
                         ->label('Rejection Reason')
@@ -330,37 +207,5 @@ class ViewAppointmentRequest extends ViewRecord
                     }
                 }),
         ];
-    }
-
-    private function matchesSubmittedPreference(mixed $scheduledAt): bool
-    {
-        if (blank($scheduledAt)) {
-            return false;
-        }
-
-        try {
-            $selected = Carbon::parse($scheduledAt);
-        } catch (\Throwable) {
-            return false;
-        }
-
-        return collect($this->record->getAllTimePreferences())
-            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));
-    }
-
-    private function matchesSubmittedPreferenceFromFields(?string $date, ?string $time): bool
-    {
-        if (blank($date) || blank($time)) {
-            return false;
-        }
-
-        try {
-            $selected = Carbon::parse($date.' '.$time);
-        } catch (\Throwable) {
-            return false;
-        }
-
-        return collect($this->record->getAllTimePreferences())
-            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));
     }
 }

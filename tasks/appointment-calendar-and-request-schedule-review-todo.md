@@ -2,17 +2,17 @@
 
 **Spec:** `docs/specs/appointment-calendar-and-request-schedule-review-spec.md`
 **Plan:** `tasks/appointment-calendar-and-request-schedule-review-plan.md`
-**Status:** Proposed; implementation not started
+**Status:** In progress; implementation approved on 2026-08-21
 
 ## Phase 1: Protect Existing Contracts
 
-- [ ] Task 1: Characterize calendar and request-acceptance boundaries
+- [x] Task 1: Characterize calendar and request-acceptance boundaries
   - Acceptance: Event scope, preference order, linked-pending access, contact
     note rules, and atomic acceptance have focused tests.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentCalendarTest.php tests/Feature/Filament/AppointmentRequestScheduleReviewTest.php tests/Feature/Appointments/ReviewAppointmentRequestTest.php`
   - Files: Three focused test files.
 
-- [ ] Task 2: Restore the general Calendar as a resource view
+- [x] Task 2: Restore the general Calendar as a resource view
   - Acceptance: Appointments exposes List and Calendar header controls with one
     unchanged sidebar item; the calendar page renders Month/Week/Day views.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentCalendarTest.php tests/Feature/Filament/AppointmentResourceTest.php tests/Feature/AdminNavigationStructureTest.php`
@@ -21,27 +21,27 @@
 
 ### Checkpoint 1
 
-- [ ] General Calendar is reachable inside Appointments.
-- [ ] Appointment table behavior is unchanged.
-- [ ] Focused Calendar and navigation tests pass.
+- [x] General Calendar is reachable inside Appointments.
+- [x] Appointment table behavior is unchanged.
+- [x] Focused Calendar and navigation tests pass.
 
 ## Phase 2: Request Availability Decisions
 
-- [ ] Task 3: Add a reusable schedule-review availability projection
+- [x] Task 3: Add a reusable schedule-review availability projection
   - Acceptance: Ordered preferences are evaluated with current duration and
     optional provider using existing availability reason codes.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Appointments/EvaluateAppointmentRequestPreferencesTest.php tests/Feature/Appointments/SchedulingCharacterizationTest.php`
   - Files: Evaluation action, focused test, and decision value object only if
     required.
 
-- [ ] Task 4: Harden request authorization and terminal transitions
+- [x] Task 4: Harden request authorization and terminal transitions
   - Acceptance: Supported panel roles are authorized; expired requests and
     stale accept/reject races cannot mutate; acceptance rechecks the patient
     link and required active provider under lock.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ReviewAppointmentRequestTest.php tests/Feature/Appointments/LinkAppointmentRequestToPatientTest.php tests/Feature/Filament/AppointmentRequestResourceTest.php`
   - Files: Request policy, three request actions, and focused domain test.
 
-- [ ] Task 5: Create the Review & Schedule resource page foundation
+- [x] Task 5: Create the Review & Schedule resource page foundation
   - Acceptance: Linked pending requests can enter; ineligible requests cannot;
     scheduling fields, required provider, preference states, and visible field
     errors follow current rules.
@@ -50,13 +50,13 @@
 
 ### Checkpoint 2
 
-- [ ] Preferred times show explicit live availability states.
-- [ ] Resource access and form state are tested.
-- [ ] No new appointment mutation exists yet.
+- [x] Preferred times show explicit live availability states.
+- [x] Resource access and form state are tested.
+- [ ] Acceptance and conflict recovery remain to be verified in the final slice.
 
 ## Phase 3: Schedule Context and Selection
 
-- [ ] Task 6: Add the request schedule calendar
+- [x] Task 6: Add the request schedule calendar
   - Acceptance: Existing blocking appointments and the proposed selection are
     distinct; pending requests are not occupied events; empty-slot clicks update
     the owning page.

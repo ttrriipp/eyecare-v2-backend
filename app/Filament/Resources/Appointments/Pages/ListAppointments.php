@@ -19,6 +19,12 @@ class ListAppointments extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('calendar')
+                ->label('Calendar')
+                ->icon('heroicon-o-calendar-days')
+                ->color('gray')
+                ->outlined()
+                ->url(AppointmentResource::getUrl('calendar')),
             Action::make('requests')
                 ->label(function () {
                     $count = AppointmentRequest::where('status', 'pending')
