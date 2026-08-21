@@ -46,7 +46,7 @@ class ViewPrescription extends ViewRecord
             return $this->warning('⚠ Superseded — use the current version for printing and fulfillment.');
         }
 
-        // A voided consultation does not void the prescription it produced — the
+        // A voided encounter does not void the prescription it produced — the
         // patient may already hold the printout — but staff must be told.
         if ($record->encounter?->status === EncounterStatus::Voided) {
             return $this->warning('⚠ The consultation that produced this prescription was voided. Confirm it is still clinically valid before dispensing.');
