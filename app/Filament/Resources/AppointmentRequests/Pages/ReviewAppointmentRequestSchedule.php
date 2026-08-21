@@ -258,7 +258,9 @@ class ReviewAppointmentRequestSchedule extends Page
                 contactNote: $this->contactNote,
             );
         } catch (ValidationException $exception) {
+            $this->getRecord()->refresh();
             $this->addValidationErrors($exception);
+            $this->focusCalendar();
             Notification::make()
                 ->title('Cannot schedule request')
                 ->body('Review the highlighted scheduling fields and try again.')

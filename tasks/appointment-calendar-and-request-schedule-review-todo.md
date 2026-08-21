@@ -52,7 +52,7 @@
 
 - [x] Preferred times show explicit live availability states.
 - [x] Resource access and form state are tested.
-- [ ] Acceptance and conflict recovery remain to be verified in the final slice.
+- [x] Acceptance and conflict recovery are covered by the implementation and focused tests.
 
 ## Phase 3: Schedule Context and Selection
 
@@ -63,7 +63,7 @@
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRequestScheduleReviewTest.php tests/Feature/Filament/AppointmentCalendarTest.php`
   - Files: Request calendar widget, review page/view, and focused test.
 
-- [ ] Task 7: Complete atomic acceptance and conflict recovery
+- [x] Task 7: Complete atomic acceptance and conflict recovery
   - Acceptance: Acceptance delegates to the locked action, non-preferred times
     require notes, and stale-slot conflicts refresh safely.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRequestScheduleReviewTest.php tests/Feature/Appointments/ReviewAppointmentRequestTest.php`
@@ -71,13 +71,13 @@
 
 ### Checkpoint 3
 
-- [ ] Staff can review, select, and accept without leaving schedule context.
-- [ ] Concurrent conflicts do not double-book.
-- [ ] Focused Filament and domain tests pass.
+- [x] Staff can review, select, and accept without leaving schedule context.
+- [x] Concurrent conflicts do not double-book.
+- [x] Focused Filament and domain tests pass.
 
 ## Phase 4: Calendar Safety and Polish
 
-- [ ] Task 8: Repair or disable drag-rescheduling before exposure
+- [x] Task 8: Repair or disable drag-rescheduling before exposure
   - Acceptance: The calendar cannot reschedule without the required reason and
     cannot persist an invalid or stale move.
   - Verify: `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentCalendarTest.php tests/Feature/Appointments/RescheduleAppointmentTest.php`
@@ -97,8 +97,10 @@
 - [ ] Focused tests, asset build, Pint, and browser checks pass.
 - [ ] `docs/BACKEND_CONTEXT.md` is updated only after implementation ships.
 
+> Manual browser verification remains pending because a browser DevTools connector is not configured in this environment.
+
 ## Planning Gate
 
-- [ ] The user has reviewed the specification.
-- [ ] The user has approved the architecture decisions.
-- [ ] The user has approved implementation to begin.
+- [x] The user has reviewed the specification.
+- [x] The user has approved the architecture decisions.
+- [x] The user has approved implementation to begin.

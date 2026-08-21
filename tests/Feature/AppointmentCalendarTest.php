@@ -98,3 +98,11 @@ test('calendar event mapping does not mutate the appointment start time', functi
         ->and($event->getEnd()->toDateTimeString())
         ->toBe($appointment->scheduled_at->copy()->addMinutes(45)->toDateTimeString());
 });
+
+test('calendar drag rescheduling stays disabled until its reason flow is exposed', function () {
+    $widget = Livewire::test(AppointmentCalendarWidget::class)->instance();
+    $property = new ReflectionProperty($widget, 'eventDragEnabled');
+    $property->setAccessible(true);
+
+    expect($property->getValue($widget))->toBeFalse();
+});
