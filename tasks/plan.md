@@ -9,7 +9,14 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-None.
+**Consultation UI Terminology** — plan awaiting approval
+
+- Spec: `docs/specs/consultation-ui-terminology-spec.md`
+- Plan: `tasks/consultation-ui-terminology-plan.md`
+- Checklist: `tasks/consultation-ui-terminology-todo.md`
+
+This is a presentation-only rename from Encounter to Consultation. Internal
+classes, schema, routes, audit values, and API contracts remain Encounter-based.
 
 ## Completed (latest)
 

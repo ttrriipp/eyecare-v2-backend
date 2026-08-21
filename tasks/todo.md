@@ -1,6 +1,12 @@
 # Active Checklist
 
-No checklist is currently active. Four projects are implemented:
+The active checklist is:
+
+→ `tasks/consultation-ui-terminology-todo.md`
+
+It is awaiting plan approval. No implementation task has started.
+
+Four earlier projects are implemented:
 
 - Minimal Frame Reservations — 2026-08-12
 - Commerce Model Simplification — 2026-08-13

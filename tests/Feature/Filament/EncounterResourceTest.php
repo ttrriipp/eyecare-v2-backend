@@ -38,9 +38,16 @@ test('optometrist can view encounter details', function () {
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertSuccessful()
-        ->assertSee('Encounter')
+        ->assertSee('Consultation Details')
+        ->assertDontSee('Encounter Details')
         ->assertSee('Patient')
         ->assertDontSee('Health Record Status');
+});
+
+test('encounter resource presents consultation terminology', function () {
+    expect(EncounterResource::getNavigationLabel())->toBe('Consultations')
+        ->and(EncounterResource::getModelLabel())->toBe('Consultation')
+        ->and(EncounterResource::getPluralModelLabel())->toBe('Consultations');
 });
 
 test('in-progress encounter shows only the consultation wizard', function () {

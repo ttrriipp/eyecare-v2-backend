@@ -22,11 +22,11 @@ class EncounterResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentText;
 
-    protected static ?string $navigationLabel = 'Encounters';
+    protected static ?string $navigationLabel = 'Consultations';
 
-    protected static ?string $modelLabel = 'Encounter';
+    protected static ?string $modelLabel = 'Consultation';
 
-    protected static ?string $pluralModelLabel = 'Encounters';
+    protected static ?string $pluralModelLabel = 'Consultations';
 
     protected static ?string $recordTitleAttribute = 'encounter_number';
 

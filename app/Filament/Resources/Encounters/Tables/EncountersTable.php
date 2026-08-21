@@ -30,7 +30,7 @@ class EncountersTable
         return $table
             ->columns([
                 TextColumn::make('encounter_number')
-                    ->label('Encounter #')
+                    ->label('Consultation #')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('patient.full_name')
@@ -82,7 +82,7 @@ class EncountersTable
             ])
             ->recordActions([
                 ActionGroup::make([
-                    EditAction::make()->label('View Encounter'),
+                    EditAction::make()->label('View Consultation'),
 
                     Action::make('startEncounter')
                         ->label('Start Consultation')
@@ -93,7 +93,7 @@ class EncountersTable
                             && ($record->optometrist_id === null || $record->optometrist_id === auth()->id()))
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
-                        ->modalDescription('You will become the treating optometrist for this encounter.')
+                        ->modalDescription('You will become the treating optometrist for this consultation.')
                         ->action(function (Encounter $record): void {
                             try {
                                 app(StartEncounter::class)->handle(
@@ -101,9 +101,9 @@ class EncountersTable
                                     actor: auth()->user(),
                                 );
 
-                                Notification::make()->title('Encounter started')->success()->send();
+                                Notification::make()->title('Consultation started')->success()->send();
                             } catch (ValidationException $e) {
-                                Notification::make()->title('Cannot start encounter')->body($e->getMessage())->danger()->send();
+                                Notification::make()->title('Cannot start consultation')->body($e->getMessage())->danger()->send();
                             }
                         }),
 

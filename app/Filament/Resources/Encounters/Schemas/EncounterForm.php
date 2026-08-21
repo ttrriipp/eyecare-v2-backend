@@ -69,7 +69,7 @@ class EncounterForm
                     Grid::make(5)
                         ->schema([
                             Placeholder::make('encounter_number')
-                                ->label('Encounter #')
+                                ->label('Consultation #')
                                 ->content(fn (Encounter $record): string => $record->encounter_number),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
@@ -369,11 +369,11 @@ class EncounterForm
                 ->submitAction(view('filament.encounters.complete-visit-button'))
                 ->visible(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
 
-            Section::make('Encounter Details')
+            Section::make('Consultation Details')
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress)
                 ->schema([
                     Placeholder::make('encounter_number')
-                        ->label('Encounter #')
+                        ->label('Consultation #')
                         ->content(fn (Encounter $record): string => $record->encounter_number),
                     Placeholder::make('status')
                         ->label('Status')
