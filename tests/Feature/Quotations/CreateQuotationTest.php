@@ -140,7 +140,7 @@ test('quotation creation requires an eligible encounter status', function () {
         ],
         encounter: $encounter,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'A quotation requires an in-progress or completed consultation.');
 
 test('corrective eyewear requires a current prescription', function () {
     $staff = User::factory()->staff()->create();
@@ -178,7 +178,27 @@ test('only one quotation can be created for an encounter', function () {
 
     app(CreateQuotation::class)->handle($encounter->patient, $staff, $data, $encounter);
     app(CreateQuotation::class)->handle($encounter->patient, $staff, $data, $encounter);
-})->throws(ValidationException::class, 'This encounter already has a quotation.');
+})->throws(ValidationException::class, 'This consultation already has a quotation.');
+
+test('corrective eyewear requires a consultation or an existing prescription', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $lensCategory = LensCategory::factory()->create(['price' => 1000]);
+
+    app(CreateQuotation::class)->handle(
+        patient: $patient,
+        creator: $staff,
+        data: [
+            'discount_amount' => 0,
+            'items' => [[
+                'description' => 'Lens',
+                'quantity' => 1,
+                'unit_price' => 1000,
+                'lens_category_id' => $lensCategory->id,
+            ]],
+        ],
+    );
+})->throws(ValidationException::class, 'A consultation or an existing prescription is required when the order includes corrective eyewear.');
 
 test('quotation creation rejects invalid item sources and discounts without partial records', function (
     array $quotationOverrides,

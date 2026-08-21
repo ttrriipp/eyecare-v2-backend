@@ -191,7 +191,7 @@ test('an original prescription requires an in-progress encounter', function (Enc
     EncounterStatus::Planned,
     EncounterStatus::Completed,
     EncounterStatus::Cancelled,
-])->throws(ValidationException::class);
+])->throws(ValidationException::class, 'A prescription can only be finalized during an in-progress consultation.');
 
 test('a prescription patient must match the encounter patient', function () {
     $optometrist = User::factory()->optometrist()->create();
@@ -207,7 +207,7 @@ test('a prescription patient must match the encounter patient', function () {
         author: $optometrist,
         data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'The prescription patient must match the consultation patient.');
 
 test('a second original prescription for the same encounter is rejected', function () {
     $optometrist = User::factory()->optometrist()->create();
@@ -224,7 +224,43 @@ test('a second original prescription for the same encounter is rejected', functi
         author: $optometrist,
         data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'This consultation already has a finalized prescription. Create an amendment instead.');
+
+test('an amendment requires an eligible consultation status', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => EncounterStatus::Planned,
+    ]);
+    $original = Prescription::factory()->linkedToEncounter($encounter)->create();
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+        previousPrescription: $original,
+        amendmentReason: 'Corrected transcription.',
+    );
+})->throws(ValidationException::class, 'A prescription amendment requires an in-progress or completed consultation.');
+
+test('an amendment must reference a prescription from the same consultation', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->completed()->create(['patient_id' => $patient->id]);
+    $otherEncounter = Encounter::factory()->completed()->create(['patient_id' => $patient->id]);
+    $original = Prescription::factory()->linkedToEncounter($otherEncounter)->create();
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00', 'remarks' => '62.0'],
+        previousPrescription: $original,
+        amendmentReason: 'Corrected transcription.',
+    );
+})->throws(ValidationException::class, 'The prior prescription must belong to the same patient and consultation.');
 
 test('an amendment requires a reason', function () {
     $optometrist = User::factory()->optometrist()->create();

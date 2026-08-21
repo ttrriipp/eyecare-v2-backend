@@ -57,13 +57,13 @@ class CreateQuotation
 
                 if (! in_array($lockedEncounter->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)) {
                     throw ValidationException::withMessages([
-                        'encounter' => ['A quotation requires an in-progress or completed encounter.'],
+                        'encounter' => ['A quotation requires an in-progress or completed consultation.'],
                     ]);
                 }
 
                 if (Quotation::query()->withTrashed()->where('encounter_id', $lockedEncounter->id)->exists()) {
                     throw ValidationException::withMessages([
-                        'encounter' => ['This encounter already has a quotation.'],
+                        'encounter' => ['This consultation already has a quotation.'],
                     ]);
                 }
             }
@@ -100,7 +100,7 @@ class CreateQuotation
                     $prescriptionId = $resolved->id;
                 } else {
                     throw ValidationException::withMessages([
-                        'encounter' => ['An encounter or an existing prescription is required when the order includes corrective eyewear.'],
+                        'encounter' => ['A consultation or an existing prescription is required when the order includes corrective eyewear.'],
                     ]);
                 }
             }

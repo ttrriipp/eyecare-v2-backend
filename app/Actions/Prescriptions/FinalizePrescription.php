@@ -41,20 +41,20 @@ class FinalizePrescription
 
             if ($lockedEncounter->patient_id !== $patient->id) {
                 throw ValidationException::withMessages([
-                    'patient' => ['The prescription patient must match the encounter patient.'],
+                    'patient' => ['The prescription patient must match the consultation patient.'],
                 ]);
             }
 
             if ($previousPrescription === null) {
                 if ($lockedEncounter->status !== EncounterStatus::InProgress) {
                     throw ValidationException::withMessages([
-                        'encounter' => ['A prescription can only be finalized during an in-progress encounter.'],
+                        'encounter' => ['A prescription can only be finalized during an in-progress consultation.'],
                     ]);
                 }
 
                 if ($lockedEncounter->prescriptions()->withTrashed()->exists()) {
                     throw ValidationException::withMessages([
-                        'encounter' => ['This encounter already has a finalized prescription. Create an amendment instead.'],
+                        'encounter' => ['This consultation already has a finalized prescription. Create an amendment instead.'],
                     ]);
                 }
             } else {
@@ -71,14 +71,14 @@ class FinalizePrescription
 
                 if (! in_array($lockedEncounter->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)) {
                     throw ValidationException::withMessages([
-                        'encounter' => ['A prescription amendment requires an in-progress or completed encounter.'],
+                        'encounter' => ['A prescription amendment requires an in-progress or completed consultation.'],
                     ]);
                 }
 
                 if ($canonicalPreviousPrescription->patient_id !== $patient->id
                     || $canonicalPreviousPrescription->encounter_id !== $lockedEncounter->id) {
                     throw ValidationException::withMessages([
-                        'previous_prescription' => ['The prior prescription must belong to the same patient and encounter.'],
+                        'previous_prescription' => ['The prior prescription must belong to the same patient and consultation.'],
                     ]);
                 }
 
