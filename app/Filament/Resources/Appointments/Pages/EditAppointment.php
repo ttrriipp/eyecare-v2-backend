@@ -161,12 +161,12 @@ class EditAppointment extends EditRecord
                 ->modalHeading('Start Consultation')
                 ->modalDescription(fn (): string => $this->getRecord()->optometrist_id !== null
                     ? "Start consultation with {$this->getRecord()->optometrist?->full_name}?"
-                    : 'You will be assigned as the optometrist for this encounter.')
+                    : 'You will be assigned as the optometrist for this consultation.')
                 ->action(function (): void {
                     $encounter = $this->getRecord()->encounter;
 
                     if ($encounter === null) {
-                        Notification::make()->title('No encounter found')->danger()->send();
+                        Notification::make()->title('No consultation found')->danger()->send();
 
                         return;
                     }
@@ -186,13 +186,13 @@ class EditAppointment extends EditRecord
                         Notification::make()->title('Consultation started')->success()->send();
                         $this->redirect(EncounterResource::getUrl('edit', ['record' => $encounter]));
                     } catch (ValidationException $e) {
-                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot start encounter.';
+                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot start consultation.';
                         Notification::make()->title('Cannot start consultation')->body($message)->danger()->send();
                     }
                 }),
 
             Action::make('viewEncounter')
-                ->label('View Encounter')
+                ->label('View Consultation')
                 ->icon('heroicon-o-eye')
                 ->color('info')
                 ->visible(fn (): bool => in_array($this->getRecord()->encounter?->status, [
@@ -210,12 +210,12 @@ class EditAppointment extends EditRecord
                 ->visible(fn (): bool => $this->getRecord()->status?->name === 'scheduled')
                 ->requiresConfirmation()
                 ->modalHeading('Confirm Check-in')
-                ->modalDescription('Patient will be checked in and an encounter will be created.')
+                ->modalDescription('Patient will be checked in and a consultation will be created.')
                 ->modalSubmitActionLabel('Check in')
                 ->action(function (): void {
                     try {
                         app(CheckInAppointment::class)->handle($this->getRecord());
-                        Notification::make()->title('Patient checked in — encounter created')->success()->send();
+                        Notification::make()->title('Patient checked in — consultation created')->success()->send();
                         $this->redirect(EditAppointment::getUrl(['record' => $this->getRecord()]));
                     } catch (ValidationException $e) {
                         $message = collect($e->errors())->flatten()->first() ?? 'Cannot check in patient.';

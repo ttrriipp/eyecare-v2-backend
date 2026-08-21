@@ -130,12 +130,12 @@ class AppointmentsTable
                             && ($record->optometrist_id === null || $record->optometrist_id === auth()->id()))
                         ->requiresConfirmation()
                         ->modalHeading('Start Consultation')
-                        ->modalDescription('You will become the treating optometrist for this encounter.')
+                        ->modalDescription('You will become the treating optometrist for this consultation.')
                         ->action(function (Appointment $record, Component $livewire): void {
                             $encounter = $record->encounter;
 
                             if ($encounter === null) {
-                                Notification::make()->title('No encounter found')->danger()->send();
+                                Notification::make()->title('No consultation found')->danger()->send();
 
                                 return;
                             }
@@ -160,7 +160,7 @@ class AppointmentsTable
                             }
                         }),
                     Action::make('viewEncounter')
-                        ->label('View Encounter')
+                        ->label('View Consultation')
                         ->icon('heroicon-o-eye')
                         ->color('info')
                         ->visible(fn (Appointment $record): bool => in_array($record->encounter?->status, [
@@ -202,7 +202,7 @@ class AppointmentsTable
                         ->action(function (Appointment $record): void {
                             try {
                                 app(CheckInAppointment::class)->handle($record);
-                                Notification::make()->title('Patient checked in — encounter created')->success()->send();
+                                Notification::make()->title('Patient checked in — consultation created')->success()->send();
                             } catch (ValidationException $e) {
                                 $message = collect($e->errors())->flatten()->first() ?? 'Cannot check in patient.';
                                 Notification::make()->title('Cannot check in')->body($message)->danger()->send();

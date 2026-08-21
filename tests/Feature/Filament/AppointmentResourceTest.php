@@ -158,6 +158,7 @@ test('started appointment exposes a dedicated view encounter action', function (
     Livewire::test(ListAppointments::class)
         ->assertActionHidden(TestAction::make('startConsultation')->table($appointment))
         ->assertActionVisible(TestAction::make('viewEncounter')->table($appointment))
+        ->assertActionHasLabel(TestAction::make('viewEncounter')->table($appointment), 'View Consultation')
         ->assertActionHasUrl(
             TestAction::make('viewEncounter')->table($appointment),
             route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
@@ -312,6 +313,7 @@ test('edit page starts a planned consultation and views a started encounter', fu
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionHidden('startConsultation')
         ->assertActionVisible('viewEncounter')
+        ->assertActionHasLabel('viewEncounter', 'View Consultation')
         ->assertActionHasUrl(
             'viewEncounter',
             route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
