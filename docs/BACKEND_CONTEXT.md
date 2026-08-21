@@ -21,6 +21,15 @@
 > one open checkout per patient visit instead of creating duplicate billing
 > records per source.
 
+> **Consultation presentation terminology (2026-08-21).** The Filament panel
+> presents the backend `Encounter` record as a **Consultation** across clinical,
+> appointment, patient, prescription, quotation, billing, dashboard, and print
+> surfaces. This is a presentation-only decision: PHP classes, database tables
+> and columns, relationships, routes, API keys, audit values, and internal
+> action names remain Encounter-based. User-readable validation messages may
+> use Consultation, while native Android labels remain a follow-up in the
+> separate Android repository.
+
 > **Shipped (2026-08-17): remote frame 3D assets.** Frame variants now have an
 > additive, nullable patient-facing `ar` object backed by a versioned
 > `ar_assets` table. The legacy `ar_eligible` and `ar_asset_reference` columns
