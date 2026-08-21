@@ -28,11 +28,13 @@ class BillingRecordsTable
 
                 TextColumn::make('source_context')
                     ->label('Source')
-                    ->getStateUsing(fn (BillingRecord $record): string => $record->getSourceContext())
+                    ->getStateUsing(fn (BillingRecord $record): string => $record->getSourceContext() === 'Encounter'
+                        ? 'Consultation'
+                        : $record->getSourceContext())
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'Optical Order' => 'info',
-                        'Encounter' => 'warning',
+                        'Consultation' => 'warning',
                         'Combined' => 'success',
                         default => 'gray',
                     })
@@ -44,7 +46,7 @@ class BillingRecordsTable
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('encounter.encounter_number')
-                    ->label('Encounter')
+                    ->label('Consultation')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -114,7 +116,7 @@ class BillingRecordsTable
                 SelectFilter::make('source')
                     ->options([
                         'optical' => 'Optical Order',
-                        'encounter' => 'Encounter',
+                        'encounter' => 'Consultation',
                         'combined' => 'Combined',
                     ])
                     ->query(function ($query, $data) {
