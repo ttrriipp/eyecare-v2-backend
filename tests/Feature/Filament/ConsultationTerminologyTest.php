@@ -13,7 +13,7 @@ function userFacingEncounterStrings(string $source): array
     $encounterStrings = [];
 
     foreach (token_get_all($source) as $token) {
-        if (! is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+        if (! is_array($token) || ! in_array($token[0], [T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE], true)) {
             continue;
         }
 
