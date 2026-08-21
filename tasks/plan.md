@@ -9,6 +9,18 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Appointment Calendar and Request Schedule Review** — proposed 2026-08-21
+
+- Spec: `docs/specs/appointment-calendar-and-request-schedule-review-spec.md`
+- Plan: `tasks/appointment-calendar-and-request-schedule-review-plan.md`
+- Checklist: `tasks/appointment-calendar-and-request-schedule-review-todo.md`
+
+This plan restores the existing appointment calendar as a view within the
+Appointments resource and adds a request-specific Review & Schedule workspace.
+Implementation has not started and remains gated on owner review.
+
+## Completed (latest)
+
 **Consultation UI Terminology** — implemented 2026-08-21
 
 - Spec: `docs/specs/consultation-ui-terminology-spec.md`
@@ -17,8 +29,6 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 This is a presentation-only rename from Encounter to Consultation. Internal
 classes, schema, routes, audit values, and API contracts remain Encounter-based.
-
-## Completed (latest)
 
 **Direct Messaging Hardening** — implemented 2026-08-15
 

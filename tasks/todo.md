@@ -2,14 +2,14 @@
 
 The active checklist is:
 
-→ `tasks/consultation-ui-terminology-todo.md`
+→ `tasks/appointment-calendar-and-request-schedule-review-todo.md`
 
-It is implemented as of 2026-08-21. All fifteen tasks and four checkpoints
-are complete; the implementation preserves Encounter-based internal and
-machine-readable contracts while presenting Consultation in user-facing copy.
+It is proposed as of 2026-08-21. Implementation has not started; the planning
+gate requires review and approval of the schedule-review architecture.
 
-Four earlier projects are implemented:
+Five earlier projects are implemented:
 
+- Consultation UI Terminology — 2026-08-21
 - Minimal Frame Reservations — 2026-08-12
 - Commerce Model Simplification — 2026-08-13
 - Dead Code and Unreachable Feature Removal — 2026-08-14
