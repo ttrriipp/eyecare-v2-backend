@@ -266,7 +266,11 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function selectedDateTime(): string
     {
-        return $this->selectedScheduledAt()->toIso8601String();
+        try {
+            return $this->selectedScheduledAt()->toIso8601String();
+        } catch (\Throwable) {
+            return now()->toIso8601String();
+        }
     }
 
     public function isSelectedPreference(string $start): bool
@@ -280,7 +284,11 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function matchesSubmittedPreference(): bool
     {
-        $selected = $this->selectedScheduledAt();
+        try {
+            $selected = $this->selectedScheduledAt();
+        } catch (\Throwable) {
+            return false;
+        }
 
         return collect($this->getRecord()->getAllTimePreferences())
             ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));

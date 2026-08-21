@@ -26,8 +26,7 @@ class ViewAppointmentRequest extends ViewRecord
     public function getBreadcrumbs(): array
     {
         return [
-            '/admin/appointments' => 'Appointments',
-            '/admin/appointment-requests' => 'Requests',
+            AppointmentRequestResource::getUrl('index') => 'Requests',
             $this->record->request_number,
         ];
     }
