@@ -123,3 +123,21 @@ test('expired pending requests do not expose terminal transition actions', funct
         ->assertActionHidden(TestAction::make('linkToPatient')->table($request))
         ->assertActionHidden(TestAction::make('reject')->table($request));
 });
+
+test('expired pending requests are not placed in actionable request tabs', function () {
+    $staff = User::factory()->staff()->create();
+    AppointmentRequest::factory()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'patient_id' => null,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ListAppointmentRequests::class);
+    $tabs = $component->instance()->getTabs();
+    $needsLinkQuery = AppointmentRequest::query();
+    $tabs['needs_link']->modifyQuery($needsLinkQuery);
+
+    expect($needsLinkQuery->count())->toBe(0);
+});

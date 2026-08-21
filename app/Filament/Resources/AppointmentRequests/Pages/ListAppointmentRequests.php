@@ -66,6 +66,7 @@ class ListAppointmentRequests extends ListRecords
             'needs_link' => Tab::make('Needs Link')
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->where('status', AppointmentRequestStatus::Pending)
+                    ->where('expires_at', '>', now())
                     ->whereNull('patient_id')
                 ),
 
