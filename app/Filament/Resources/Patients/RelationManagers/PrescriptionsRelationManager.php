@@ -33,7 +33,7 @@ class PrescriptionsRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (string $state): string => $state === 'Superseded' ? 'warning' : 'success'),
                 TextColumn::make('encounter.encounter_number')
-                    ->label('Encounter')
+                    ->label('Consultation')
                     ->placeholder('—')
                     ->searchable()
                     ->sortable(),

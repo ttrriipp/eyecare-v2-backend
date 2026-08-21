@@ -15,6 +15,8 @@ class EncountersRelationManager extends RelationManager
 {
     protected static string $relationship = 'encounters';
 
+    protected static ?string $title = 'Consultations';
+
     public function form(Schema $schema): Schema
     {
         return $schema->components([]);
@@ -24,7 +26,7 @@ class EncountersRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                TextColumn::make('encounter_number')->label('Encounter #')->searchable()->sortable(),
+                TextColumn::make('encounter_number')->label('Consultation #')->searchable()->sortable(),
                 TextColumn::make('optometrist.first_name')
                     ->label('Optometrist')
                     ->state(fn (Encounter $record): string => $record->optometrist?->full_name ?? '—'),

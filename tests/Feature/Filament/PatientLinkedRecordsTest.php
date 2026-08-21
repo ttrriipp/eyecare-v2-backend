@@ -5,10 +5,12 @@ use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Resources\Patients\RelationManagers\BillingRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\EncountersRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\OpticalOrdersRelationManager;
+use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\Patient;
+use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -30,6 +32,9 @@ test('encounters relation manager lists the patient\'s encounters', function () 
         'ownerRecord' => $patient,
         'pageClass' => EditPatient::class,
     ])
+        ->assertSee('Consultations')
+        ->assertSee('Consultation #')
+        ->assertDontSee('Encounter #')
         ->assertCanSeeTableRecords([$encounter])
         ->assertCanNotSeeTableRecords([$otherEncounter]);
 });
@@ -48,6 +53,26 @@ test('optical orders relation manager lists the patient\'s job orders', function
     ])
         ->assertCanSeeTableRecords([$jobOrder])
         ->assertCanNotSeeTableRecords([$otherJobOrder]);
+});
+
+test('prescriptions relation manager uses consultation terminology', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->create(['patient_id' => $patient->id]);
+    $prescription = Prescription::factory()->create([
+        'patient_id' => $patient->id,
+        'encounter_id' => $encounter->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(PrescriptionsRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertSee('Consultation')
+        ->assertDontSee('Encounter')
+        ->assertCanSeeTableRecords([$prescription]);
 });
 
 test('billing relation manager lists the patient\'s billing records', function () {
