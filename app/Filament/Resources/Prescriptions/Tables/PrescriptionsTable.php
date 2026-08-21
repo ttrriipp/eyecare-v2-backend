@@ -30,7 +30,7 @@ class PrescriptionsTable
                     ->date('M j, Y')
                     ->sortable(),
                 TextColumn::make('encounter.encounter_number')
-                    ->label('Encounter')
+                    ->label('Consultation')
                     ->placeholder('—')
                     ->searchable()
                     ->sortable(),

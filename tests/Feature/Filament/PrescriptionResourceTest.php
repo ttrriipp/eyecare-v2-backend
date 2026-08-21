@@ -41,6 +41,8 @@ test('prescription lists show retained operational columns', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(ListPrescriptions::class)
+        ->assertSee('Consultation')
+        ->assertDontSee('Encounter')
         ->assertTableColumnStateSet('patient.full_name', 'Maria Santos', record: $prescription)
         ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
@@ -181,6 +183,8 @@ test('a finalized prescription is read only and offers amendment to optometrists
 
     Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
         ->assertSuccessful()
+        ->assertSee('Consultation')
+        ->assertDontSee('Encounter')
         ->assertSee($prescription->patient->full_name)
         ->assertSee('-2.00')
         ->assertSee('Stable distance vision.')
