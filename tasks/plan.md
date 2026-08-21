@@ -9,7 +9,7 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Consultation UI Terminology** — plan awaiting approval
+**Consultation UI Terminology** — implemented 2026-08-21
 
 - Spec: `docs/specs/consultation-ui-terminology-spec.md`
 - Plan: `tasks/consultation-ui-terminology-plan.md`

@@ -4,7 +4,9 @@ The active checklist is:
 
 → `tasks/consultation-ui-terminology-todo.md`
 
-It is awaiting plan approval. No implementation task has started.
+It is implemented as of 2026-08-21. All fifteen tasks and four checkpoints
+are complete; the implementation preserves Encounter-based internal and
+machine-readable contracts while presenting Consultation in user-facing copy.
 
 Four earlier projects are implemented:
 

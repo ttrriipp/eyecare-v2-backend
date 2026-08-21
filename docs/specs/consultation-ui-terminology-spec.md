@@ -1,8 +1,8 @@
 # Spec: Consultation UI Terminology
 
-**Status:** Approved  
-**Approved:** 2026-08-21  
-**Created:** 2026-08-21  
+**Status:** Approved
+**Approved:** 2026-08-21
+**Created:** 2026-08-21
 **Related domain spec:** `docs/specs/encounter-workflow-spec.md`
 
 ## Objective

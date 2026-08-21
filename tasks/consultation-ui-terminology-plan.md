@@ -8,7 +8,7 @@ implementation and machine-readable contracts. Work proceeds in small vertical
 slices so each surface is tested as it changes and the application remains
 usable after every task.
 
-**Specification:** `docs/specs/consultation-ui-terminology-spec.md`  
+**Specification:** `docs/specs/consultation-ui-terminology-spec.md`
 **Approved:** 2026-08-21
 
 ## Inventory Summary
