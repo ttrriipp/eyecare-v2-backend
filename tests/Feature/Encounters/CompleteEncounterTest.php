@@ -79,7 +79,7 @@ test('non-assigned optometrist cannot complete encounter', function () {
         encounter: $encounter,
         actor: $otherOptometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only the assigned optometrist can complete this consultation.');
 
 test('staff cannot complete encounter', function () {
     [$encounter] = createTestEncounter();
@@ -88,7 +88,7 @@ test('staff cannot complete encounter', function () {
         encounter: $encounter,
         actor: $this->staff,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist can complete a consultation.');
 
 test('plain admin cannot complete encounter', function () {
     [$encounter] = createTestEncounter();
@@ -98,7 +98,7 @@ test('plain admin cannot complete encounter', function () {
         encounter: $encounter,
         actor: $admin,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist can complete a consultation.');
 
 test('inactive optometrist cannot complete encounter', function () {
     [$encounter] = createTestEncounter();
@@ -108,7 +108,7 @@ test('inactive optometrist cannot complete encounter', function () {
         encounter: $encounter->fresh(),
         actor: $this->optometrist->fresh(),
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Inactive accounts cannot complete consultations.');
 
 test('planned encounter cannot be completed', function () {
     $appointment = Appointment::factory()->create();
@@ -120,7 +120,7 @@ test('planned encounter cannot be completed', function () {
         encounter: $encounter,
         actor: $this->optometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only in-progress consultations can be completed.');
 
 test('completion requires chief_complaint', function () {
     [$encounter] = createTestEncounter();
@@ -245,4 +245,4 @@ test('stale encounter cannot be completed twice', function () {
         encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only in-progress consultations can be completed.');

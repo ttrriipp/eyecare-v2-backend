@@ -34,25 +34,25 @@ class CompleteEncounter
     ): Encounter {
         if ($encounter->status !== EncounterStatus::InProgress) {
             throw ValidationException::withMessages([
-                'encounter' => ['Only in-progress encounters can be completed.'],
+                'encounter' => ['Only in-progress consultations can be completed.'],
             ]);
         }
 
         if (! $actor->is_active) {
             throw ValidationException::withMessages([
-                'actor' => ['Inactive accounts cannot complete encounters.'],
+                'actor' => ['Inactive accounts cannot complete consultations.'],
             ]);
         }
 
         if (! $actor->isOptometrist()) {
             throw ValidationException::withMessages([
-                'actor' => ['Only an optometrist can complete an encounter.'],
+                'actor' => ['Only an optometrist can complete a consultation.'],
             ]);
         }
 
         if ($encounter->optometrist_id !== $actor->id) {
             throw ValidationException::withMessages([
-                'actor' => ['Only the assigned optometrist can complete this encounter.'],
+                'actor' => ['Only the assigned optometrist can complete this consultation.'],
             ]);
         }
 
@@ -68,14 +68,14 @@ class CompleteEncounter
 
             if ($lockedEncounter->status !== EncounterStatus::InProgress) {
                 throw ValidationException::withMessages([
-                    'encounter' => ['This encounter has already been processed.'],
+                    'encounter' => ['This consultation has already been processed.'],
                 ]);
             }
 
             // Recheck assignment after lock
             if ($lockedEncounter->optometrist_id !== $actor->id) {
                 throw ValidationException::withMessages([
-                    'actor' => ['The encounter has been reassigned to another optometrist.'],
+                    'actor' => ['The consultation has been reassigned to another optometrist.'],
                 ]);
             }
 
