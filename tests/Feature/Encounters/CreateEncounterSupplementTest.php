@@ -46,7 +46,7 @@ test('staff cannot create supplement', function () {
         reason: 'Reason',
         content: 'Content',
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only optometrists can create consultation addenda.');
 
 test('supplement cannot masquerade as correction', function () {
     $encounter = Encounter::factory()->completed()->create([

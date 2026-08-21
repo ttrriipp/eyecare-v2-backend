@@ -27,7 +27,7 @@ class CreateEncounterAddendum
     ): EncounterAddendum {
         if ($encounter->status !== EncounterStatus::Completed) {
             throw ValidationException::withMessages([
-                'encounter' => ['Addenda can only be added to completed encounters.'],
+                'encounter' => ['Addenda can only be added to completed consultations.'],
             ]);
         }
 
@@ -39,7 +39,7 @@ class CreateEncounterAddendum
 
         if (! $actor->isOptometrist()) {
             throw ValidationException::withMessages([
-                'actor' => ['Only optometrists can create encounter addenda.'],
+                'actor' => ['Only optometrists can create consultation addenda.'],
             ]);
         }
 
@@ -89,7 +89,7 @@ class CreateEncounterAddendum
 
             if ($lockedEncounter->status !== EncounterStatus::Completed) {
                 throw ValidationException::withMessages([
-                    'encounter' => ['This encounter is no longer completed.'],
+                    'encounter' => ['This consultation is no longer completed.'],
                 ]);
             }
 

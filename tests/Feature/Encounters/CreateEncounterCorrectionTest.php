@@ -83,7 +83,7 @@ test('staff cannot create addendum', function () {
         reason: 'Reason',
         content: 'Content',
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only optometrists can create consultation addenda.');
 
 test('plain admin cannot create addendum', function () {
     $encounter = createCompletedEncounter();
@@ -95,7 +95,7 @@ test('plain admin cannot create addendum', function () {
         reason: 'Reason',
         content: 'Content',
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only optometrists can create consultation addenda.');
 
 test('inactive optometrist cannot create addendum', function () {
     $encounter = createCompletedEncounter($this->optometrist);
@@ -122,7 +122,7 @@ test('cannot add addendum to in-progress encounter', function () {
         reason: 'Reason',
         content: 'Content',
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Addenda can only be added to completed consultations.');
 
 test('addendum reason is required', function () {
     $encounter = createCompletedEncounter();

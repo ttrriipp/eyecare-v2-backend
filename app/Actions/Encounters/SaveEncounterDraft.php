@@ -37,25 +37,25 @@ class SaveEncounterDraft
     ): Encounter {
         if ($encounter->status !== EncounterStatus::InProgress) {
             throw ValidationException::withMessages([
-                'encounter' => ['Only in-progress encounters can have drafts saved.'],
+                'encounter' => ['Only in-progress consultations can have drafts saved.'],
             ]);
         }
 
         if (! $actor->is_active) {
             throw ValidationException::withMessages([
-                'actor' => ['Inactive accounts cannot save encounter drafts.'],
+                'actor' => ['Inactive accounts cannot save consultation drafts.'],
             ]);
         }
 
         if (! $actor->isOptometrist()) {
             throw ValidationException::withMessages([
-                'actor' => ['Only an optometrist can save encounter drafts.'],
+                'actor' => ['Only an optometrist can save consultation drafts.'],
             ]);
         }
 
         if ($encounter->optometrist_id !== $actor->id) {
             throw ValidationException::withMessages([
-                'actor' => ['Only the assigned optometrist can save this encounter draft.'],
+                'actor' => ['Only the assigned optometrist can save this consultation draft.'],
             ]);
         }
 

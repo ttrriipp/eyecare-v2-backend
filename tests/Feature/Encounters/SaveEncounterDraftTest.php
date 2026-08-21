@@ -67,7 +67,7 @@ test('non-assigned optometrist cannot save draft', function () {
         data: ['chief_complaint' => 'Test'],
         lastWizardStep: 1,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only the assigned optometrist can save this consultation draft.');
 
 test('staff cannot save draft', function () {
     $encounter = createInProgressEncounter($this->optometrist, $this->staff);
@@ -78,7 +78,7 @@ test('staff cannot save draft', function () {
         data: ['chief_complaint' => 'Test'],
         lastWizardStep: 1,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist can save consultation drafts.');
 
 test('plain admin cannot save draft', function () {
     $encounter = createInProgressEncounter($this->optometrist, $this->staff);
@@ -90,7 +90,7 @@ test('plain admin cannot save draft', function () {
         data: ['chief_complaint' => 'Test'],
         lastWizardStep: 1,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist can save consultation drafts.');
 
 test('inactive optometrist cannot save draft', function () {
     $encounter = createInProgressEncounter($this->optometrist, $this->staff);
@@ -102,7 +102,7 @@ test('inactive optometrist cannot save draft', function () {
         data: ['chief_complaint' => 'Test'],
         lastWizardStep: 1,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Inactive accounts cannot save consultation drafts.');
 
 test('narrative is trimmed before saving', function () {
     $encounter = createInProgressEncounter($this->optometrist, $this->staff);
@@ -236,7 +236,7 @@ test('cannot save draft on planned encounter', function () {
         data: ['chief_complaint' => 'Test'],
         lastWizardStep: 1,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only in-progress consultations can have drafts saved.');
 
 test('cannot save draft on completed encounter', function () {
     $encounter = Encounter::factory()->completed()->create([
