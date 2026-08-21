@@ -21,7 +21,7 @@ class TransferEncounter
     ): Encounter {
         if ($encounter->status !== EncounterStatus::InProgress) {
             throw ValidationException::withMessages([
-                'encounter' => ['Only in-progress encounters can be transferred.'],
+                'encounter' => ['Only in-progress consultations can be transferred.'],
             ]);
         }
 
@@ -31,14 +31,14 @@ class TransferEncounter
 
         if (! $isCurrentProvider && ! $isAdmin) {
             throw ValidationException::withMessages([
-                'actor' => ['Only the current treating optometrist or an administrator can transfer this encounter.'],
+                'actor' => ['Only the current treating optometrist or an administrator can transfer this consultation.'],
             ]);
         }
 
         // Target must be a different active optometrist
         if ($newOptometrist->id === $encounter->optometrist_id) {
             throw ValidationException::withMessages([
-                'new_optometrist_id' => ['The encounter is already assigned to this optometrist.'],
+                'new_optometrist_id' => ['The consultation is already assigned to this optometrist.'],
             ]);
         }
 
@@ -56,7 +56,7 @@ class TransferEncounter
 
             if ($lockedEncounter->status !== EncounterStatus::InProgress) {
                 throw ValidationException::withMessages([
-                    'encounter' => ['This encounter is no longer in progress.'],
+                    'encounter' => ['This consultation is no longer in progress.'],
                 ]);
             }
 

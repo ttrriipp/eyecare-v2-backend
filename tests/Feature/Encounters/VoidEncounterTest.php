@@ -41,14 +41,14 @@ test('non-clinical staff may not void an encounter', function () {
     $encounter = Encounter::factory()->create(['status' => EncounterStatus::Completed]);
 
     app(VoidEncounter::class)->handle($encounter, $this->staff, 'Should not be allowed');
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist or administrator may void a consultation.');
 
 test('a deactivated optometrist may not void an encounter', function () {
     $this->optometrist->update(['is_active' => false]);
     $encounter = Encounter::factory()->create(['status' => EncounterStatus::Completed]);
 
     app(VoidEncounter::class)->handle($encounter, $this->optometrist->fresh(), 'Should not be allowed');
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist or administrator may void a consultation.');
 
 // --- Status guard ---
 
@@ -56,7 +56,7 @@ test('an in-progress encounter may not be voided', function () {
     $encounter = Encounter::factory()->create(['status' => EncounterStatus::InProgress]);
 
     app(VoidEncounter::class)->handle($encounter, $this->optometrist, 'Mid-encounter');
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only planned or completed consultations can be voided.');
 
 // --- Audit trail ---
 

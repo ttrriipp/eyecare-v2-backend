@@ -85,7 +85,7 @@ test('staff cannot transfer encounter', function () {
         newOptometrist: $this->otherOptometrist,
         reason: EncounterTransferReason::ProviderUnavailable,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only the current treating optometrist or an administrator can transfer this consultation.');
 
 test('non-assigned optometrist cannot transfer encounter', function () {
     [$encounter] = createInProgressEncounterForTransfer();
@@ -97,7 +97,7 @@ test('non-assigned optometrist cannot transfer encounter', function () {
         newOptometrist: $this->otherOptometrist,
         reason: EncounterTransferReason::ProviderUnavailable,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only the current treating optometrist or an administrator can transfer this consultation.');
 
 test('cannot transfer to same optometrist', function () {
     [$encounter] = createInProgressEncounterForTransfer();
@@ -108,7 +108,7 @@ test('cannot transfer to same optometrist', function () {
         newOptometrist: $this->optometrist,
         reason: EncounterTransferReason::ProviderUnavailable,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'The consultation is already assigned to this optometrist.');
 
 test('cannot transfer to inactive optometrist', function () {
     [$encounter] = createInProgressEncounterForTransfer();
@@ -145,7 +145,7 @@ test('cannot transfer planned encounter', function () {
         newOptometrist: $this->otherOptometrist,
         reason: EncounterTransferReason::ProviderUnavailable,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only in-progress consultations can be transferred.');
 
 test('transfer preserves draft data', function () {
     [$encounter] = createInProgressEncounterForTransfer();

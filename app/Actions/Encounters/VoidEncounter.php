@@ -27,13 +27,13 @@ final class VoidEncounter
     ): Encounter {
         if (! $actor->is_active || ! ($actor->isOptometrist() || $actor->isAdmin())) {
             throw ValidationException::withMessages([
-                'actor' => ['Only an optometrist or administrator may void an encounter.'],
+                'actor' => ['Only an optometrist or administrator may void a consultation.'],
             ]);
         }
 
         if (! in_array($encounter->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)) {
             throw ValidationException::withMessages([
-                'status' => ['Only planned or completed encounters can be voided.'],
+                'status' => ['Only planned or completed consultations can be voided.'],
             ]);
         }
 
