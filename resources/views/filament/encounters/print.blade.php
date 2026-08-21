@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Encounter {{ $encounter->encounter_number }} — Clinical Record</title>
+    <title>Consultation {{ $encounter->encounter_number }} — Clinical Record</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -117,7 +117,7 @@
         </div>
     </div>
 
-    <div class="original-label">Original Clinical Record</div>
+    <div class="original-label">Original Consultation Record</div>
 
     <div class="meta">
         <span>Patient: {{ $encounter->patient?->full_name ?? '—' }}</span>
@@ -152,7 +152,7 @@
     </section>
 
     <section>
-        <h2>Encounter Details</h2>
+        <h2>Consultation Details</h2>
         <div class="grid">
             <div class="field">
                 <div class="field-label">Treating Optometrist</div>
@@ -290,7 +290,7 @@
     @endif
 
     <div class="print-footer">
-        Printed {{ now()->format('M d, Y g:i A') }} · Encounter {{ $encounter->encounter_number }} · Confidential Patient Record
+        Printed {{ now()->format('M d, Y g:i A') }} · Consultation {{ $encounter->encounter_number }} · Confidential Patient Record
     </div>
 
     <script>window.onload = function() { window.print(); };</script>

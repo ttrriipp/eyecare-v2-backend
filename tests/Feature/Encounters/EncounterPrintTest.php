@@ -32,6 +32,8 @@ test('authorized panel user can print completed encounter', function () {
 
     $this->get(route('encounters.print', ['encounter' => $encounter->id]))
         ->assertOk()
+        ->assertSee('Consultation Details')
+        ->assertDontSee('Encounter Details')
         ->assertSee($encounter->encounter_number)
         ->assertSee('Blurred vision')
         ->assertSee('Normal anterior segment')
@@ -105,7 +107,8 @@ test('print view shows addenda', function () {
 
     $this->get(route('encounters.print', ['encounter' => $encounter->id]))
         ->assertOk()
-        ->assertSee('Original Clinical Record')
+        ->assertSee('Original Consultation Record')
+        ->assertDontSee('Original Clinical Record')
         ->assertSee('Addenda')
         ->assertSee('Correction')
         ->assertSee('Transcription error')
