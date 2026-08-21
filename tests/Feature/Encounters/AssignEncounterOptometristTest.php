@@ -95,7 +95,7 @@ test('cannot assign to in-progress encounter', function () {
         actor: $this->staff,
         optometrist: $this->otherOptometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only planned consultations can have their provider assigned.');
 
 test('cannot assign inactive optometrist', function () {
     [$encounter] = createPlannedEncounter();

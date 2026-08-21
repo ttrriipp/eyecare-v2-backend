@@ -18,19 +18,19 @@ class StartEncounter
     ): Encounter {
         if ($encounter->status !== EncounterStatus::Planned) {
             throw ValidationException::withMessages([
-                'encounter' => ['Only planned encounters can be started.'],
+                'encounter' => ['Only planned consultations can be started.'],
             ]);
         }
 
         if (! $actor->is_active) {
             throw ValidationException::withMessages([
-                'actor' => ['Inactive accounts cannot start encounters.'],
+                'actor' => ['Inactive accounts cannot start consultations.'],
             ]);
         }
 
         if (! $actor->isOptometrist()) {
             throw ValidationException::withMessages([
-                'actor' => ['Only an optometrist can start an encounter.'],
+                'actor' => ['Only an optometrist can start a consultation.'],
             ]);
         }
 
@@ -39,14 +39,14 @@ class StartEncounter
 
             if ($appointment === null || $appointment->status->name !== 'checked_in') {
                 throw ValidationException::withMessages([
-                    'encounter' => ['The appointment must be checked in before starting the encounter.'],
+                    'encounter' => ['The appointment must be checked in before starting the consultation.'],
                 ]);
             }
 
             // If assigned, only the assigned optometrist can start
             if ($encounter->optometrist_id !== null && $encounter->optometrist_id !== $actor->id) {
                 throw ValidationException::withMessages([
-                    'actor' => ['Only the assigned optometrist can start this encounter.'],
+                    'actor' => ['Only the assigned optometrist can start this consultation.'],
                 ]);
             }
 

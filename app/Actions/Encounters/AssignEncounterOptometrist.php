@@ -19,7 +19,7 @@ class AssignEncounterOptometrist
     ): Encounter {
         if ($encounter->status !== EncounterStatus::Planned) {
             throw ValidationException::withMessages([
-                'encounter' => ['Only planned encounters can have their provider assigned.'],
+                'encounter' => ['Only planned consultations can have their provider assigned.'],
             ]);
         }
 
@@ -43,7 +43,7 @@ class AssignEncounterOptometrist
 
             if ($lockedEncounter->status !== EncounterStatus::Planned) {
                 throw ValidationException::withMessages([
-                    'encounter' => ['This encounter is no longer in a planned state.'],
+                    'encounter' => ['This consultation is no longer in a planned state.'],
                 ]);
             }
 

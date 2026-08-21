@@ -89,7 +89,7 @@ test('cannot start encounter for another provider', function () {
         encounter: $encounter->fresh(),
         actor: $this->otherOptometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only the assigned optometrist can start this consultation.');
 
 test('non-optometrist cannot start encounter', function () {
     $appointment = Appointment::factory()->create();
@@ -101,7 +101,7 @@ test('non-optometrist cannot start encounter', function () {
         encounter: $encounter,
         actor: $this->staff,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only an optometrist can start a consultation.');
 
 test('plain admin cannot start encounter', function () {
     $admin = User::factory()->admin()->create();
@@ -148,7 +148,7 @@ test('cannot start already started encounter', function () {
         encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Only planned consultations can be started.');
 
 test('inactive optometrist cannot start encounter', function () {
     $inactiveOptometrist = User::factory()->optometrist()->create(['is_active' => false]);
@@ -162,7 +162,7 @@ test('inactive optometrist cannot start encounter', function () {
         encounter: $encounter->fresh(),
         actor: $inactiveOptometrist,
     );
-})->throws(ValidationException::class);
+})->throws(ValidationException::class, 'Inactive accounts cannot start consultations.');
 
 test('start encounter creates audit event', function () {
     $appointment = Appointment::factory()->create();
