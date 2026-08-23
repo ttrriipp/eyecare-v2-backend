@@ -9,15 +9,17 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**AR Asset Admin Studio** — planned 2026-08-23
+**One-Person AR Asset Publication** — revised 2026-08-23
 
 - Spec: `docs/specs/ar-asset-admin-studio-spec.md`
 - Plan: `tasks/ar-asset-admin-studio-plan.md`
 - Checklist: `tasks/ar-asset-admin-studio-todo.md`
 
-This plan replaces the seven AR lifecycle actions with one variant-scoped,
-live-preview studio where one authorized staff/admin operator can validate and
-publish a GLB. Implementation has not started and remains gated on owner review.
+This plan replaces the normal staged AR lifecycle actions with one state-aware
+Filament modal where one authorized staff/admin operator can validate and
+publish a GLB. Live preview and its frontend infrastructure are deferred.
+Implementation has not started and remains gated on approval of the revised
+specification, plan, and checklist.
 
 ## Previous active entry (preserved)
 

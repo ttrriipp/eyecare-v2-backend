@@ -1,117 +1,92 @@
-# AR Asset Admin Studio Checklist
+# One-Person AR Asset Publication Checklist
 
-**Status:** Draft for owner review — 2026-08-23
+**Status:** Revised draft for owner review — 2026-08-23
 
 - Spec: `docs/specs/ar-asset-admin-studio-spec.md`
 - Plan: `tasks/ar-asset-admin-studio-plan.md`
 
-Implementation must not start until the owner approves this plan and checklist.
+Implementation must not start until the owner approves this revised spec, plan,
+and checklist.
 
-## Phase 1: Protect and Simplify the Domain Workflow
+## Task 1: Lifecycle safety
 
-- [ ] Task 1: Characterize the approved lifecycle and patient boundary
-  - [ ] Pin the existing patient `ar` contract and replacement safety.
-  - [ ] Express same-actor upload/approval/publication with separate audits.
-  - [ ] Express correctable invalid calibration behavior.
-- [ ] Task 2: Make lifecycle primitives safe for one operator
-  - [ ] Remove only the uploader/approver inequality guard.
-  - [ ] Leave structurally valid candidates quarantined on calibration errors.
-  - [ ] Delete orphan quarantine objects after database failure.
-- [ ] Task 3: Coordinate one-step validation and publication
-  - [ ] Preflight before creating a candidate.
-  - [ ] Advance new or resumed candidates through existing actions.
-  - [ ] Keep approved failures retryable and the old pointer active.
+- [ ] Add failing tests for explicit coordinated self-approval.
+- [ ] Keep direct uploader self-approval rejected by default.
+- [ ] Record explicit policy-exception metadata when self-approval is used.
+- [ ] Keep structurally valid candidates quarantined on calibration errors.
+- [ ] Delete orphan quarantine objects after database failure.
+- [ ] Run focused lifecycle tests and create the Task 1 commit.
 
-### Checkpoint 1
+## Task 2: One-person coordinator
 
-- [ ] Focused AR lifecycle and patient contract tests pass.
-- [ ] Same-actor audit attribution and failure recovery are verified.
-- [ ] Lifecycle diff is reviewed before Filament exposure.
+- [ ] Add `PublishArAssetCandidate` using existing lifecycle actions.
+- [ ] Preflight authorization, attestation, calibration, catalog state,
+      publication configuration, and candidate count before upload.
+- [ ] Create a candidate or resume one non-terminal candidate.
+- [ ] Serialize candidate selection/creation and reject legacy ambiguity.
+- [ ] Attribute every lifecycle transition to the same authorized actor.
+- [ ] Keep publication failures approved and the old patient pointer active.
+- [ ] Prove the patient API contract is unchanged.
+- [ ] Run focused domain/API tests and create the Task 2 commit.
 
-## Phase 2: Establish Secure Preview and Frontend Foundations
+### Checkpoint 1: Domain review
 
-- [ ] Task 4: Add the authenticated private-candidate preview
-  - [ ] Enforce the role/state/missing-object matrix.
-  - [ ] Emit inline GLB, no-store, and nosniff headers.
-  - [ ] Accept no client-selected storage coordinate.
-- [ ] Task 5: Register the exact page-scoped Three.js bundle
-  - [ ] Lock production dependency exactly to `three@0.185.1`.
-  - [ ] Register a dedicated Vite ES-module entry through Filament.
-  - [ ] Keep unrelated admin pages a runtime no-op.
-- [ ] Task 6: Build the shared calibration state adapter
-  - [ ] Prefill available physical measurements without a preset.
-  - [ ] Test normalization and transform conversion boundaries.
-  - [ ] Test reset and bounded undo/redo snapshots.
+- [ ] Apply `code-review-and-quality` to Tasks 1 and 2.
+- [ ] Fix all actionable authorization, integrity, concurrency, cleanup, audit,
+      and failure-recovery findings.
+- [ ] Re-run focused tests and Pint.
+- [ ] Commit checkpoint fixes separately if code changed.
 
-### Checkpoint 2
+## Task 3: State-aware Filament modal
 
-- [ ] Private preview authorization and header tests pass.
-- [ ] Lockfile and production dependency audit are reviewed.
-- [ ] Node tests and Vite build pass.
+- [ ] Replace the staged happy-path actions with **Manage 3D model**.
+- [ ] Accept one GLB for a new candidate or resume the one existing candidate.
+- [ ] Prefill available variant measurements and prioritize saved calibration.
+- [ ] Keep calibration read-only after the candidate is validated.
+- [ ] Keep the round-frame preset explicit.
+- [ ] Require and server-enforce the physical-match attestation.
+- [ ] Call the coordinator with **Validate & publish**.
+- [ ] Preserve History, Disable, and Rollback.
+- [ ] Test authorization, first upload, resume, replacement, errors, and
+      retained secondary actions.
+- [ ] Smoke-test the modal and upload in a real browser with no console or
+      network errors.
+- [ ] Run focused Filament/domain tests and create the Task 3 commit.
 
-## Phase 3: Deliver the Preview Workspace
+### Checkpoint 2: Filament review
 
-- [ ] Task 7: Create the authorized variant-scoped studio page
-  - [ ] Replace seven row actions with one `Manage 3D model` entry.
-  - [ ] Enforce user, parent/child, frame, and lifecycle access invariants.
-  - [ ] Keep the page out of sidebar navigation.
-- [ ] Task 8: Render and inspect one GLB in Model mode
-  - [ ] Load local, retained-private, and immutable published sources safely.
-  - [ ] Add inspection controls, overlays, and bounded diagnostics.
-  - [ ] Dispose all resources on replacement and navigation.
-- [ ] Task 9: Add the synchronized Reference face calibration view
-  - [ ] Build the neutral head from local primitives and show the disclosure.
-  - [ ] Synchronize gizmos, sliders, numeric fields, and both modes.
-  - [ ] Provide reset, undo/redo, and accessible transform summaries.
+- [ ] Apply `code-review-and-quality` to Task 3.
+- [ ] Fix all actionable form-state, upload, authorization, validation,
+      notification, and recovery-UX findings.
+- [ ] Confirm the real-browser happy path and failure feedback.
+- [ ] Re-run focused tests and Pint.
+- [ ] Commit checkpoint fixes separately if code changed.
 
-### Checkpoint 3
+## Task 4: Context and release evidence
 
-- [ ] Authorized studio routing and navigation tests pass.
-- [ ] Both preview modes use one calibration state.
-- [ ] Node tests, Vite build, and bounded viewer runtime checks pass.
+- [ ] Update `docs/BACKEND_CONTEXT.md` with the implemented workflow.
+- [ ] Confirm no preview runtime, route, migration, dependency, patient API,
+      Android contract, status, or storage-configuration change was introduced.
+- [ ] Mark the revised spec, plan, and checklist implemented only after all
+      evidence passes.
+- [ ] Run the complete focused test matrix, Pint, and `git diff --check`.
+- [ ] Create the Task 4 documentation commit.
 
-## Phase 4: Complete the Operator Workflow
+### Checkpoint 3: Final review
 
-- [ ] Task 10: Wire the end-to-end Validate and publish form
-  - [ ] Preview one temporary GLB without duplicate permanent storage.
-  - [ ] Revalidate calibration and every attestation server-side.
-  - [ ] Publish a valid first version or replacement from one action.
-- [ ] Task 11: Support resume, retry, discard, and version operations
-  - [ ] Resume the single actionable candidate with clear recovery states.
-  - [ ] Discard only the candidate without changing the published pointer.
-  - [ ] Preserve history, disable, rollback, confirmations, and audits.
-- [ ] Task 12: Harden accessibility, responsiveness, errors, and cleanup
-  - [ ] Verify keyboard, reduced-motion, dark, 1024 px, and narrow layouts.
-  - [ ] Give every failure state a safe, non-leaking next action.
-  - [ ] Verify one model/loop and clean navigation teardown.
-
-### Checkpoint 4
-
-- [ ] One authorized operator completes first publish and replacement.
-- [ ] Recovery operations preserve the patient-visible asset.
-- [ ] Focused PHP/Node tests, Vite build, and browser checks pass.
-
-## Phase 5: Reconcile Documentation and Release Evidence
-
-- [ ] Task 13: Reconcile AR documentation and run the release gate
-  - [ ] Update the system context and original AR spec to one-person workflow.
-  - [ ] Mark the studio spec implemented only after evidence is complete.
-  - [ ] Run the complete focused verification matrix.
-
-### Checkpoint 5
-
-- [ ] Every approved specification success criterion is satisfied.
-- [ ] No migration, patient API/Android change, extra dependency, or public
-  quarantine exposure was introduced.
-- [ ] Route check, focused Pest tests, Node tests, Vite build, npm audit, Pint,
-  and browser checks pass.
-- [ ] Implementation is ready for owner review and deployment planning.
+- [ ] Apply `code-review-and-quality` to the complete change set.
+- [ ] Fix every actionable finding and re-run the release gate.
+- [ ] Update `tasks/plan.md` and `tasks/todo.md` after evidence passes.
+- [ ] Commit checkpoint fixes separately if code changed.
+- [ ] Report exact commits and verification results for owner review.
 
 ## Planning Gate
 
-- [x] Feature specification approved.
-- [x] Every implementation task has acceptance criteria, verification,
-  dependencies, likely files, and an S/M scope in the detailed plan.
+- [x] Revised specification defines the one-person workflow and deferred
+      preview scope.
+- [x] Every task has acceptance criteria, verification, dependencies, likely
+      files, scope, and a planned commit.
 - [x] No task is expected to touch more than five files.
-- [x] Checkpoints occur after every two to three implementation tasks.
+- [x] Quality-review checkpoints follow domain, Filament, and final work.
+- [ ] Owner reviewed and approved the revised specification.
 - [ ] Owner reviewed and approved this implementation plan and checklist.

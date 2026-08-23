@@ -4,9 +4,9 @@ The active checklist is:
 
 → `tasks/ar-asset-admin-studio-todo.md`
 
-It is planned as of 2026-08-23. The feature specification is approved, but
-implementation has not started; the planning gate requires owner review and
-approval of the implementation plan and checklist.
+It was revised on 2026-08-23 as a one-person, server-driven publication flow.
+Implementation has not started; the planning gate requires owner approval of
+the revised specification, plan, and checklist. Live preview is deferred.
 
 The previous appointment plan remains preserved at:
 
