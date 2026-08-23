@@ -2,10 +2,15 @@
 
 The active checklist is:
 
-→ `tasks/appointment-calendar-and-request-schedule-review-todo.md`
+→ `tasks/ar-asset-admin-studio-todo.md`
 
-It is proposed as of 2026-08-21. Implementation has not started; the planning
-gate requires review and approval of the schedule-review architecture.
+It is planned as of 2026-08-23. The feature specification is approved, but
+implementation has not started; the planning gate requires owner review and
+approval of the implementation plan and checklist.
+
+The previous appointment plan remains preserved at:
+
+→ `tasks/appointment-calendar-and-request-schedule-review-todo.md`
 
 Five earlier projects are implemented:
 

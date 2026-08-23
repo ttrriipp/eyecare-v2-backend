@@ -9,15 +9,26 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**AR Asset Admin Studio** — planned 2026-08-23
+
+- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
+- Plan: `tasks/ar-asset-admin-studio-plan.md`
+- Checklist: `tasks/ar-asset-admin-studio-todo.md`
+
+This plan replaces the seven AR lifecycle actions with one variant-scoped,
+live-preview studio where one authorized staff/admin operator can validate and
+publish a GLB. Implementation has not started and remains gated on owner review.
+
+## Previous active entry (preserved)
+
 **Appointment Calendar and Request Schedule Review** — proposed 2026-08-21
 
 - Spec: `docs/specs/appointment-calendar-and-request-schedule-review-spec.md`
 - Plan: `tasks/appointment-calendar-and-request-schedule-review-plan.md`
 - Checklist: `tasks/appointment-calendar-and-request-schedule-review-todo.md`
 
-This plan restores the existing appointment calendar as a view within the
-Appointments resource and adds a request-specific Review & Schedule workspace.
-Implementation has not started and remains gated on owner review.
+Its named files are unchanged; switching the active pointer does not reinterpret
+or discard its existing progress.
 
 ## Completed (latest)
 
