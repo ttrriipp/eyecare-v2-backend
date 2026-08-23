@@ -116,7 +116,11 @@ class UploadArAsset
                 return $asset;
             });
         } catch (Throwable $exception) {
-            Storage::disk($quarantineDisk)->delete($quarantinePath);
+            try {
+                Storage::disk($quarantineDisk)->delete($quarantinePath);
+            } catch (Throwable $cleanupException) {
+                report($cleanupException);
+            }
 
             throw $exception;
         }
