@@ -3,6 +3,7 @@
 use App\Actions\ArAssets\ApproveArAsset;
 use App\Actions\ArAssets\DisableArAsset;
 use App\Actions\ArAssets\PublishArAsset;
+use App\Actions\ArAssets\PublishArAssetCandidate;
 use App\Actions\ArAssets\RollbackArAsset;
 use App\Actions\ArAssets\SubmitArAssetForReview;
 use App\Actions\ArAssets\UploadArAsset;
@@ -227,6 +228,194 @@ test('a failed upload transaction removes the quarantine object', function () {
 
     expect(ArAsset::query()->count())->toBe(0)
         ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('one operator can publish a first asset through the coordinator', function () {
+    $published = app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    );
+
+    $approvalLog = AuditLog::query()
+        ->where('subject_id', $published->id)
+        ->where('action', 'ar_asset.approved')
+        ->sole();
+
+    expect($published->status->value)->toBe('published')
+        ->and($published->uploaded_by)->toBe($this->staff->id)
+        ->and($published->approved_by)->toBe($this->staff->id)
+        ->and($published->published_by)->toBe($this->staff->id)
+        ->and($approvalLog->metadata)->toMatchArray([
+            'approval_mode' => 'coordinated_self_approval',
+            'separation_of_duties_bypassed' => true,
+        ])
+        ->and($this->variant->fresh()->published_ar_asset_id)->toBe($published->id);
+
+    $this->actingAs($this->patient)
+        ->getJson("/api/v1/frames/{$this->frame->id}")
+        ->assertOk()
+        ->assertJsonPath('data.variants.0.ar.status', 'ready')
+        ->assertJsonPath('data.variants.0.ar.asset.version', 1)
+        ->assertJsonPath('data.variants.0.images', ['variants/round-black.jpg']);
+});
+
+test('the coordinator rejects missing attestation before creating a candidate', function () {
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: false,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator does not coerce a tampered attestation into approval', function () {
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: 'false',
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator rejects a publication configuration failure before creating a candidate', function () {
+    config(['ar.assets.base_url' => null]);
+
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('patients cannot publish through the coordinator', function () {
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: true,
+        actor: $this->patient,
+    ))->toThrow(AuthorizationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator requires an active frame variant', function () {
+    $this->variant->update(['is_active' => false]);
+
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator rejects invalid calibration before creating a candidate', function () {
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: ['frame_width_mm' => 0],
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator resumes an approved candidate without another upload', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        actor: $this->staff,
+    );
+    $submitted = submitArAssetForReviewForTest($asset, $this->staff);
+    $approved = app(ApproveArAsset::class)->handle($submitted, $this->reviewer);
+
+    $published = app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: null,
+        calibration: [],
+        physicalMatchConfirmed: true,
+        actor: $this->reviewer,
+    );
+
+    expect($published->id)->toBe($approved->id)
+        ->and($published->status->value)->toBe('published')
+        ->and(ArAsset::query()->where('product_variant_id', $this->variant->id)->count())->toBe(1);
+});
+
+test('a publication failure leaves the approved candidate retryable', function () {
+    $first = app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-v1.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    );
+    $asset = app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-v2.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        actor: $this->staff,
+    );
+    $submitted = submitArAssetForReviewForTest($asset, $this->staff);
+    $approved = app(ApproveArAsset::class)->handle($submitted, $this->reviewer);
+    Storage::disk('ar_quarantine')->put($approved->quarantine_path, 'corrupted');
+
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: null,
+        calibration: [],
+        physicalMatchConfirmed: true,
+        actor: $this->reviewer,
+    ))->toThrow(ValidationException::class);
+
+    expect($approved->fresh()->status->value)->toBe('approved')
+        ->and($this->variant->fresh()->published_ar_asset_id)->toBe($first->id);
+});
+
+test('the coordinator blocks multiple actionable candidates', function () {
+    ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => 'quarantined',
+        'version' => 1,
+    ]);
+    ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => 'approved',
+        'version' => 2,
+    ]);
+
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: null,
+        calibration: [],
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
 });
 
 test('variants without a published asset expose a null ar field', function () {
