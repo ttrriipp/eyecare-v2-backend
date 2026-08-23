@@ -2,11 +2,16 @@
 
 ## Status
 
-**Revised draft for owner review — 2026-08-23.**
+**Implemented — 2026-08-23.**
 
 This revision replaces the proposed live-preview Admin Studio with a smaller
 server-driven workflow. Live browser preview, Three.js, WebGL, a private
 candidate-preview route, and a dedicated Filament page are deferred.
+
+Automated Filament, lifecycle, and patient-contract verification is complete.
+The configured environment has no Chrome DevTools MCP server, so a real-browser
+smoke check remains an environment follow-up rather than implementation
+evidence.
 
 ## Proposed Direction
 
@@ -128,7 +133,7 @@ final class PublishArAssetCandidate
         ProductVariant $variant,
         ?UploadedFile $file,
         array $calibration,
-        bool $physicalMatchConfirmed,
+        bool|int|string|null $physicalMatchConfirmed,
         User $actor,
     ): ArAsset;
 }
@@ -256,24 +261,31 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php
 vendor/bin/sail bin pint --dirty --format agent
 ```
 
+The final focused run on 2026-08-23 passed 53 tests and 266 assertions across
+the three suites. The dedicated Filament action suite passed 14 tests and 113
+assertions. Pint and `git diff --check` also passed. A real-browser smoke run
+was not available because Chrome DevTools MCP is not configured in this
+environment; the Livewire modal tests cover the server-rendered form, upload,
+authorization, state transitions, and failure notifications.
+
 ## Success Criteria
 
-- [ ] A frame variant exposes one primary **Manage 3D model** action instead of
+- [x] A frame variant exposes one primary **Manage 3D model** action instead of
       separate upload, submit, approve, and publish actions.
-- [ ] One active staff/admin can publish a valid first version or replacement
+- [x] One active staff/admin can publish a valid first version or replacement
       without another account.
-- [ ] Calibration reuses variant values where available and requires explicit
+- [x] Calibration reuses variant values where available and requires explicit
       values elsewhere.
-- [ ] Physical-match attestation is explicit and server-enforced.
-- [ ] Invalid preflight input creates no candidate; invalid GLB never reaches
+- [x] Physical-match attestation is explicit and server-enforced.
+- [x] Invalid preflight input creates no candidate; invalid GLB never reaches
       public storage.
-- [ ] An existing non-terminal candidate can be resumed safely.
-- [ ] Failed publication remains retryable and preserves the patient pointer.
-- [ ] History, disable, rollback, integrity checks, and audit events remain.
-- [ ] Patient API and Android contracts are unchanged.
-- [ ] No preview runtime, frontend dependency, migration, or new route is
+- [x] An existing non-terminal candidate can be resumed safely.
+- [x] Failed publication remains retryable and preserves the patient pointer.
+- [x] History, disable, rollback, integrity checks, and audit events remain.
+- [x] Patient API and Android contracts are unchanged.
+- [x] No preview runtime, frontend dependency, migration, or new route is
       introduced.
-- [ ] Focused Pest tests and Pint pass at every checkpoint.
+- [x] Focused Pest tests and Pint pass at every checkpoint.
 
 ## Deferred
 
@@ -286,5 +298,6 @@ vendor/bin/sail bin pint --dirty --format agent
 
 ## Open Questions
 
-None. The implementation plan remains gated on owner approval after this
-revision is reviewed.
+None. The owner approved the revised direction, and the server-driven
+one-person workflow is implemented. Browser preview remains explicitly
+deferred.

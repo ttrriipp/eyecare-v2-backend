@@ -65,13 +65,29 @@
 > written into the legacy reference because older Android fallback code may
 > treat it as an image URL.
 >
-> Staff use a guided variant workflow: upload the finished `.glb`, submit the
-> received upload for review with explicit calibration, have a different
-> authorized staff member approve the physical review, then publish it. The
-> reviewer form offers the current round-frame preset only as an explicit
-> choice; it is never silently applied to another model. Catalog variant
-> images remain the 2D fallback, and checksum, byte size, URL, disk, and
-> version are generated server-side.
+> **Updated (2026-08-23): one-person publication workflow.** Active staff and
+> administrators now use one state-aware **Manage 3D model** action from the
+> Products → Variants panel. With no pending candidate, one operator uploads a
+> `.glb`, records the physical calibration, attests that it matches the
+> physical frame, and selects **Validate & publish**. A single quarantined,
+> validated, or approved candidate is resumed rather than duplicated; more
+> than one actionable candidate is blocked for administrator resolution.
+> Calibration is editable for new or quarantined candidates, read-only after
+> validation, and prefilled from available variant measurements when no saved
+> candidate calibration exists. The reviewed round-frame preset remains an
+> explicit choice. The coordinator may record the same authorized actor for
+> upload, approval, and publication, while direct approval still keeps its
+> separation-of-duties guard; the coordinated approval audit records the
+> explicit exception.
+>
+> The workflow remains server-driven. There is no browser preview, Three.js,
+> WebGL runtime, candidate-preview route, or dedicated Admin Studio page; the
+> operator compares the model in the clinic's existing modeling tools and
+> against the physical frame. Invalid calibration remains quarantined and
+> correctable, failed upload transactions clean up private objects, and a
+> publication failure leaves the candidate approved and the existing patient
+> pointer active for retry. Catalog variant images remain the 2D fallback, and
+> checksum, byte size, URL, disk, and version are generated server-side.
 >
 > **Shipped (2026-08-17): reservation maximum three.** New frame reservations
 > and item additions are capped at three variants per reservation, coordinated
@@ -678,12 +694,12 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Admin — Staff Accounts, SMS Log, Audit Logs
 
 **Remote frame 3D assets** are managed from the `VariantsRelationManager` on
-frame products. Active staff/admin users upload a finished `.glb`, submit it
-with explicit physical calibration, approve the physical review, publish an
-immutable version, disable the current asset, or roll back to a retained
-version. The action layer repeats authorization checks, so hidden Filament
-actions are not the security boundary. The table shows the guided statuses
-`Upload received`, `Validation failed`, `Awaiting physical review`,
+frame products. Active staff/admin users use the single **Manage 3D model**
+action to upload or resume a candidate, calibrate it, attest to the physical
+match, and publish an immutable version. The action layer repeats
+authorization checks, so hidden Filament actions are not the security
+boundary. History, disablement, and rollback remain secondary operations. The
+table shows `Upload received`, `Awaiting physical approval`, `Ready to publish`,
 `Published`, `Rejected`, and `Disabled`, plus human-readable validation notes.
 
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).

@@ -2,11 +2,12 @@
 
 ## Status
 
-**Revised draft for owner review — 2026-08-23.**
+**Implemented — 2026-08-23.**
 
-This plan supersedes the live-preview Admin Studio plan. Implementation must
-not start until the owner approves the revised specification, this plan, and
-`tasks/ar-asset-admin-studio-todo.md`.
+This plan superseded the live-preview Admin Studio plan. The owner approved the
+revised specification, plan, and checklist before implementation. The
+server-driven one-person workflow is now shipped; browser preview remains
+deferred.
 
 ## Outcome
 
@@ -253,7 +254,9 @@ Apply `code-review-and-quality` to Task 3 and fix every actionable finding.
 
 No Node, Vite, or browser-preview verification is required because this plan
 adds no frontend runtime code. A real-browser smoke check of the Filament modal
-is still required after the automated tests pass.
+would be useful, but Chrome DevTools MCP is not configured in the implementation
+environment. The Livewire modal suite is the recorded verification fallback;
+the absence of a browser smoke run is documented rather than claimed as passed.
 
 ## Task 4: Reconcile system context and release evidence
 
@@ -293,6 +296,9 @@ git diff --check
 **Estimated scope:** Small (4 files)
 
 **Commit:** `docs: record one-person AR publication workflow`
+
+**Result:** Implemented. The context, spec, checklist, and release evidence
+were reconciled after the focused verification matrix passed.
 
 ## Checkpoint 3: Final quality and release review
 
@@ -336,6 +342,6 @@ actionable finding before handoff.
 
 ## Approval Gate
 
-- [ ] Owner approves the revised specification.
-- [ ] Owner approves this implementation plan and checklist.
-- [ ] Implementation may begin only after both approvals are explicit.
+- [x] Owner approves the revised specification.
+- [x] Owner approves this implementation plan and checklist.
+- [x] Implementation began after both approvals were explicit.

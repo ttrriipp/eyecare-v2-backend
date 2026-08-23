@@ -9,17 +9,8 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**One-Person AR Asset Publication** — revised 2026-08-23
-
-- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
-- Plan: `tasks/ar-asset-admin-studio-plan.md`
-- Checklist: `tasks/ar-asset-admin-studio-todo.md`
-
-This plan replaces the normal staged AR lifecycle actions with one state-aware
-Filament modal where one authorized staff/admin operator can validate and
-publish a GLB. Live preview and its frontend infrastructure are deferred.
-Implementation has not started and remains gated on approval of the revised
-specification, plan, and checklist.
+No project is currently active. The latest completed project is the one-person
+AR asset publication workflow documented below.
 
 ## Previous active entry (preserved)
 
@@ -33,6 +24,19 @@ Its named files are unchanged; switching the active pointer does not reinterpret
 or discard its existing progress.
 
 ## Completed (latest)
+
+**One-Person AR Asset Publication** — implemented 2026-08-23
+
+- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
+- Plan: `tasks/ar-asset-admin-studio-plan.md`
+- Checklist: `tasks/ar-asset-admin-studio-todo.md`
+
+The Products → Variants panel now uses one state-aware **Manage 3D model**
+modal. One active staff/admin operator can upload or resume a GLB, enter or
+review calibration, attest to the physical match, and validate/publish it in
+one controlled action. The existing private quarantine, immutable publication,
+audits, history, disablement, rollback, and patient API contract remain intact.
+Browser preview and its frontend infrastructure are explicitly deferred.
 
 **Consultation UI Terminology** — implemented 2026-08-21
 

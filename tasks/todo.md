@@ -1,12 +1,12 @@
 # Active Checklist
 
-The active checklist is:
+No checklist is currently active. The latest completed checklist is:
 
 → `tasks/ar-asset-admin-studio-todo.md`
 
-It was revised on 2026-08-23 as a one-person, server-driven publication flow.
-Implementation has not started; the planning gate requires owner approval of
-the revised specification, plan, and checklist. Live preview is deferred.
+It was implemented on 2026-08-23 as a one-person, server-driven publication
+flow. Live preview is explicitly deferred because it is not needed for the
+server-side publication contract.
 
 The previous appointment plan remains preserved at:
 
