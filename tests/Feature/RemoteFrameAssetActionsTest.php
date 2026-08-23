@@ -4,18 +4,60 @@ use App\Enums\ArAssetStatus;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Models\ArAsset;
+use App\Models\AuditLog;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+function makeGlbForActionsTest(): string
+{
+    $json = json_encode([
+        'asset' => ['version' => '2.0'],
+    ], JSON_THROW_ON_ERROR);
+    $json .= str_repeat(' ', (4 - (strlen($json) % 4)) % 4);
+    $chunk = pack('V2', strlen($json), 0x4E4F534A).$json;
+
+    return pack('V3', 0x46546C67, 2, 12 + strlen($chunk)).$chunk;
+}
+
+function frameCalibrationForActionsTest(): array
+{
+    return [
+        'frame_width_mm' => 123.0,
+        'outer_frame_height_mm' => 48.0,
+        'lens_width_mm' => 50.0,
+        'lens_height_mm' => 45.0,
+        'bridge_width_mm' => 20.0,
+        'temple_length_mm' => 140.0,
+        'scale_x' => 0.123,
+        'scale_y' => 0.144565,
+        'scale_z' => 0.123,
+        'anchor_x' => 0.0,
+        'anchor_y' => 0.0,
+        'anchor_z' => 0.0,
+        'rotation_x' => 0.0,
+        'rotation_y' => 0.0,
+        'rotation_z' => 0.0,
+    ];
+}
+
 beforeEach(function (): void {
+    Storage::fake('ar_quarantine');
+    Storage::fake('ar_published');
+    config([
+        'ar.assets.quarantine_disk' => 'ar_quarantine',
+        'ar.assets.published_disk' => 'ar_published',
+        'ar.assets.base_url' => 'https://cdn.example.com',
+    ]);
+
     $category = ProductCategory::factory()->create([
         'name' => 'AR actions test category '.fake()->uuid(),
     ]);
@@ -26,7 +68,7 @@ beforeEach(function (): void {
     $this->variant = ProductVariant::factory()->for($this->product)->create();
 });
 
-test('staff sees only the applicable first step of the controlled 3D asset workflow', function () {
+test('staff sees one state-aware 3D model management action', function () {
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff);
@@ -35,15 +77,16 @@ test('staff sees only the applicable first step of the controlled 3D asset workf
         'ownerRecord' => $this->product,
         'pageClass' => EditProduct::class,
     ])
-        ->assertActionVisible(TestAction::make('uploadArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('submitArAssetForReview')->table($this->variant))
-        ->assertActionHidden(TestAction::make('approveArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('publishArAsset')->table($this->variant))
+        ->assertActionVisible(TestAction::make('manageArAsset')->table($this->variant))
+        ->assertActionDoesNotExist(TestAction::make('uploadArAsset')->table($this->variant))
+        ->assertActionDoesNotExist(TestAction::make('submitArAssetForReview')->table($this->variant))
+        ->assertActionDoesNotExist(TestAction::make('approveArAsset')->table($this->variant))
+        ->assertActionDoesNotExist(TestAction::make('publishArAsset')->table($this->variant))
         ->assertActionHidden(TestAction::make('disableArAsset')->table($this->variant))
         ->assertActionHidden(TestAction::make('rollbackArAsset')->table($this->variant));
 });
 
-test('the 3D asset picker exposes the GLB extension to the file chooser', function () {
+test('the management modal explains the upload, calibration, and attestation steps', function () {
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff);
@@ -52,8 +95,317 @@ test('the 3D asset picker exposes the GLB extension to the file chooser', functi
         'ownerRecord' => $this->product,
         'pageClass' => EditProduct::class,
     ])
-        ->mountTableAction('uploadArAsset', $this->variant)
-        ->assertMountedActionModalSeeHtml('accept=".glb,model/gltf-binary,application/octet-stream"');
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSeeHtml('accept=".glb,model/gltf-binary,application/octet-stream"')
+        ->assertMountedActionModalSee([
+            'Upload and publish 3D model',
+            'Physical dimensions and placement',
+            'I compared this GLB with the physical frame and confirm that it represents this catalog variant, including its silhouette, bridge, material, color, and proportions.',
+            'Validate & publish',
+        ]);
+});
+
+test('the first modal pre-fills available variant measurements', function () {
+    $staff = User::factory()->staff()->create();
+    $this->variant->update([
+        'attributes' => [
+            'lens_width' => 52,
+            'lens_height' => 44,
+            'bridge' => 18,
+            'temple' => 140,
+        ],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertActionDataSet([
+            'lens_width_mm' => 52,
+            'lens_height_mm' => 44,
+            'bridge_width_mm' => 18,
+            'temple_length_mm' => 140,
+        ]);
+});
+
+test('one operator can upload, calibrate, attest, approve, and publish from the management modal', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->callAction(TestAction::make('manageArAsset')->table($this->variant), [
+            'file' => UploadedFile::fake()->createWithContent(
+                'round-frame.glb',
+                makeGlbForActionsTest(),
+                'model/gltf-binary',
+            ),
+            ...frameCalibrationForActionsTest(),
+            'physical_match_confirmed' => true,
+        ])
+        ->assertNotified('3D model published to the patient catalog');
+
+    $asset = ArAsset::query()->where('product_variant_id', $this->variant->id)->firstOrFail();
+
+    expect($asset->status)->toBe(ArAssetStatus::Published)
+        ->and($asset->uploaded_by)->toBe($staff->id)
+        ->and($asset->approved_by)->toBe($staff->id)
+        ->and($asset->published_by)->toBe($staff->id)
+        ->and($this->variant->fresh()->published_ar_asset_id)->toBe($asset->id)
+        ->and(Storage::disk('ar_published')->exists($asset->published_path))->toBeTrue();
+
+    $approvalLog = AuditLog::query()
+        ->where('subject_id', $asset->id)
+        ->where('action', 'ar_asset.approved')
+        ->sole();
+
+    expect($approvalLog->metadata)->toMatchArray([
+        'approval_mode' => 'coordinated_self_approval',
+        'separation_of_duties_bypassed' => true,
+    ]);
+});
+
+test('the management modal rejects a non-boolean attestation payload', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->callAction(TestAction::make('manageArAsset')->table($this->variant), [
+            'file' => UploadedFile::fake()->createWithContent(
+                'round-frame.glb',
+                makeGlbForActionsTest(),
+                'model/gltf-binary',
+            ),
+            ...frameCalibrationForActionsTest(),
+            'physical_match_confirmed' => 1,
+        ])
+        ->assertNotified('3D model was not published');
+
+    expect(ArAsset::query()->where('product_variant_id', $this->variant->id)->exists())->toBeFalse();
+});
+
+test('the modal reports a safe publication preflight failure', function () {
+    $staff = User::factory()->staff()->create();
+    config(['ar.assets.base_url' => null]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->callAction(TestAction::make('manageArAsset')->table($this->variant), [
+            'file' => UploadedFile::fake()->createWithContent(
+                'round-frame.glb',
+                makeGlbForActionsTest(),
+                'model/gltf-binary',
+            ),
+            ...frameCalibrationForActionsTest(),
+            'physical_match_confirmed' => true,
+        ])
+        ->assertNotified('3D model was not published');
+
+    expect(ArAsset::query()->where('product_variant_id', $this->variant->id)->exists())->toBeFalse();
+});
+
+test('the modal resumes an approved candidate without requesting a second upload', function () {
+    $staff = User::factory()->staff()->create();
+    $contents = makeGlbForActionsTest();
+
+    $asset = ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Approved,
+        'uploaded_by' => $staff->id,
+        'quarantine_path' => 'quarantine/model.glb',
+        'byte_size' => strlen($contents),
+        'sha256' => hash('sha256', $contents),
+        'calibration' => [
+            'frame_width_mm' => 123,
+            'outer_frame_height_mm' => 48,
+            'lens_width_mm' => 50,
+            'lens_height_mm' => 45,
+            'bridge_width_mm' => 20,
+            'temple_length_mm' => 140,
+            'scale' => ['x' => 0.123, 'y' => 0.144565, 'z' => 0.123],
+            'anchor' => ['x' => 0, 'y' => 0, 'z' => 0],
+            'rotation_degrees' => ['x' => 0, 'y' => 0, 'z' => 0],
+        ],
+    ]);
+    Storage::disk('ar_quarantine')->put($asset->quarantine_path, $contents);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSee([
+            'Finish publishing approved 3D model',
+            'Validate & publish',
+        ])
+        ->assertMountedActionModalSeeHtml('disabled')
+        ->fillForm(['physical_match_confirmed' => true])
+        ->callMountedTableAction()
+        ->assertNotified('3D model published to the patient catalog');
+
+    expect($asset->fresh()->status)->toBe(ArAssetStatus::Published);
+});
+
+test('the modal labels a validated candidate for approval and keeps calibration read-only', function () {
+    $staff = User::factory()->staff()->create();
+
+    ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Validated,
+        'uploaded_by' => $staff->id,
+        'calibration' => [
+            'frame_width_mm' => 123,
+            'outer_frame_height_mm' => 48,
+            'lens_width_mm' => 50,
+            'lens_height_mm' => 45,
+            'bridge_width_mm' => 20,
+            'temple_length_mm' => 140,
+            'scale' => ['x' => 0.123, 'y' => 0.144565, 'z' => 0.123],
+            'anchor' => ['x' => 0, 'y' => 0, 'z' => 0],
+            'rotation_degrees' => ['x' => 0, 'y' => 0, 'z' => 0],
+        ],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSee([
+            'Approve and publish 3D model',
+            'The model passed file validation.',
+            'Validate & publish',
+        ])
+        ->assertMountedActionModalSeeHtml('disabled');
+});
+
+test('the modal blocks a validated candidate with missing persisted calibration', function () {
+    $staff = User::factory()->staff()->create();
+
+    ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Validated,
+        'uploaded_by' => $staff->id,
+        'calibration' => [],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSee([
+            'Resolve invalid 3D model calibration',
+            'This validated candidate has no usable saved calibration.',
+            'Resolve this candidate through the administrator workflow',
+        ])
+        ->assertMountedActionModalDontSee('Validate & publish');
+});
+
+test('the modal blocks a validated candidate with unusable persisted calibration', function () {
+    $staff = User::factory()->staff()->create();
+
+    ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Validated,
+        'uploaded_by' => $staff->id,
+        'calibration' => [
+            'frame_width_mm' => 123,
+            'outer_frame_height_mm' => 48,
+            'lens_width_mm' => 50,
+            'lens_height_mm' => 45,
+            'bridge_width_mm' => 20,
+            'temple_length_mm' => 140,
+            'scale' => ['x' => 0, 'y' => 0.144565, 'z' => 0.123],
+            'anchor' => ['x' => 0, 'y' => 0, 'z' => 0],
+            'rotation_degrees' => ['x' => 0, 'y' => 0, 'z' => 0],
+        ],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSee([
+            'Resolve invalid 3D model calibration',
+            'This validated candidate has no usable saved calibration.',
+        ])
+        ->assertMountedActionModalDontSee('Validate & publish');
+});
+
+test('the modal blocks ambiguous pending candidates instead of choosing one', function () {
+    $staff = User::factory()->staff()->create();
+
+    ArAsset::factory()->count(2)->sequence(
+        ['version' => 1, 'status' => ArAssetStatus::Quarantined],
+        ['version' => 2, 'status' => ArAssetStatus::Approved],
+    )->create([
+        'product_variant_id' => $this->variant->id,
+        'uploaded_by' => $staff->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->assertMountedActionModalSee([
+            'Resolve pending 3D models',
+            'Multiple pending 3D model candidates were found',
+            'No candidate was selected automatically',
+        ])
+        ->assertMountedActionModalSeeHtml('Publication blocked');
+});
+
+test('patients and inactive staff cannot see the 3D model management action', function () {
+    foreach ([
+        User::factory()->patient()->create(),
+        User::factory()->staff()->create(['is_active' => false]),
+        User::factory()->optometrist()->create(),
+    ] as $user) {
+        $this->actingAs($user);
+
+        Livewire::test(VariantsRelationManager::class, [
+            'ownerRecord' => $this->product,
+            'pageClass' => EditProduct::class,
+        ])
+            ->assertActionHidden(TestAction::make('manageArAsset')->table($this->variant))
+            ->assertActionHidden(TestAction::make('disableArAsset')->table($this->variant))
+            ->assertActionHidden(TestAction::make('rollbackArAsset')->table($this->variant));
+    }
+
+    auth()->logout();
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->assertActionHidden(TestAction::make('manageArAsset')->table($this->variant));
 });
 
 test('staff can identify the current published version and inspect its history', function () {
@@ -88,117 +440,6 @@ test('staff can identify the current published version and inspect its history',
         ]);
 });
 
-test('the staff workflow exposes review and publication actions for the matching asset status', function () {
-    $uploader = User::factory()->staff()->create();
-    $reviewer = User::factory()->staff()->create();
-
-    ArAsset::factory()->create([
-        'product_variant_id' => $this->variant->id,
-        'status' => ArAssetStatus::Validated,
-        'uploaded_by' => $uploader->id,
-    ]);
-
-    $this->actingAs($uploader);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->assertActionVisible(TestAction::make('uploadArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('submitArAssetForReview')->table($this->variant))
-        ->assertActionHidden(TestAction::make('approveArAsset')->table($this->variant));
-
-    $this->actingAs($reviewer);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->assertActionVisible(TestAction::make('approveArAsset')->table($this->variant));
-
-    $asset = ArAsset::query()->where('product_variant_id', $this->variant->id)->firstOrFail();
-    $asset->update(['status' => ArAssetStatus::Approved]);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->assertActionVisible(TestAction::make('publishArAsset')->table($this->variant));
-});
-
-test('the publish table action publishes an approved asset after confirmation', function () {
-    $reviewer = User::factory()->staff()->create();
-    $contents = 'valid glb contents';
-
-    Storage::fake('ar_quarantine');
-    Storage::fake('ar_published');
-    config([
-        'ar.assets.quarantine_disk' => 'ar_quarantine',
-        'ar.assets.published_disk' => 'ar_published',
-        'ar.assets.base_url' => 'https://cdn.example.com',
-    ]);
-
-    $asset = ArAsset::factory()->create([
-        'product_variant_id' => $this->variant->id,
-        'status' => ArAssetStatus::Approved,
-        'quarantine_path' => 'quarantine/model.glb',
-        'byte_size' => strlen($contents),
-        'sha256' => hash('sha256', $contents),
-    ]);
-    Storage::disk('ar_quarantine')->put($asset->quarantine_path, $contents);
-
-    $this->actingAs($reviewer);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->callAction(TestAction::make('publishArAsset')->table($this->variant))
-        ->assertNotified('3D model published to the patient catalog')
-        ->assertActionHidden(TestAction::make('publishArAsset')->table($this->variant));
-
-    $published = $asset->fresh();
-
-    expect($published->status)->toBe(ArAssetStatus::Published)
-        ->and($this->variant->fresh()->published_ar_asset_id)->toBe($asset->id)
-        ->and(Storage::disk('ar_published')->exists($published->published_path))->toBeTrue();
-});
-
-test('the publish table action reports a missing HTTPS asset base URL', function () {
-    $reviewer = User::factory()->staff()->create();
-    $contents = 'valid glb contents';
-
-    Storage::fake('ar_quarantine');
-    Storage::fake('ar_published');
-    config([
-        'ar.assets.quarantine_disk' => 'ar_quarantine',
-        'ar.assets.published_disk' => 'ar_published',
-        'ar.assets.base_url' => null,
-    ]);
-
-    $asset = ArAsset::factory()->create([
-        'product_variant_id' => $this->variant->id,
-        'status' => ArAssetStatus::Approved,
-        'quarantine_path' => 'quarantine/model.glb',
-        'byte_size' => strlen($contents),
-        'sha256' => hash('sha256', $contents),
-    ]);
-    Storage::disk('ar_quarantine')->put($asset->quarantine_path, $contents);
-
-    $this->actingAs($reviewer);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->callAction(TestAction::make('publishArAsset')->table($this->variant))
-        ->assertNotified('3D asset was not published')
-        ->assertNotNotified('3D model published to the patient catalog');
-
-    expect($asset->fresh()->status)->toBe(ArAssetStatus::Approved)
-        ->and($this->variant->fresh()->published_ar_asset_id)->toBeNull();
-});
-
 test('rollback restores the explicitly selected previous version', function () {
     $staff = User::factory()->staff()->create();
     $contents = [
@@ -206,9 +447,6 @@ test('rollback restores the explicitly selected previous version', function () {
         2 => 'version two',
         3 => 'version three',
     ];
-
-    Storage::fake('ar_published');
-    config(['ar.assets.published_disk' => 'ar_published']);
 
     $assets = collect($contents)->mapWithKeys(function (string $content, int $version): array {
         $path = 'variants/'.$this->variant->id.'/v'.$version.'/model.glb';
@@ -250,38 +488,4 @@ test('rollback restores the explicitly selected previous version', function () {
     expect($this->variant->fresh()->published_ar_asset_id)->toBe($assets[1]->id)
         ->and($assets[1]->fresh()->status)->toBe(ArAssetStatus::Published)
         ->and($assets[3]->fresh()->status)->toBe(ArAssetStatus::Superseded);
-});
-
-test('patients cannot see or invoke the 3D asset workflow actions', function () {
-    $patient = User::factory()->patient()->create();
-
-    $this->actingAs($patient);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->assertActionHidden(TestAction::make('uploadArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('submitArAssetForReview')->table($this->variant))
-        ->assertActionHidden(TestAction::make('approveArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('publishArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('disableArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('rollbackArAsset')->table($this->variant));
-});
-
-test('inactive staff cannot see the 3D asset workflow actions', function () {
-    $staff = User::factory()->staff()->create(['is_active' => false]);
-
-    $this->actingAs($staff);
-
-    Livewire::test(VariantsRelationManager::class, [
-        'ownerRecord' => $this->product,
-        'pageClass' => EditProduct::class,
-    ])
-        ->assertActionHidden(TestAction::make('uploadArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('submitArAssetForReview')->table($this->variant))
-        ->assertActionHidden(TestAction::make('approveArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('publishArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('disableArAsset')->table($this->variant))
-        ->assertActionHidden(TestAction::make('rollbackArAsset')->table($this->variant));
 });

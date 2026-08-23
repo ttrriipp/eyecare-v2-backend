@@ -2,44 +2,50 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
-use App\Actions\ArAssets\ApproveArAsset;
 use App\Actions\ArAssets\DisableArAsset;
-use App\Actions\ArAssets\PublishArAsset;
+use App\Actions\ArAssets\PublishArAssetCandidate;
 use App\Actions\ArAssets\RollbackArAsset;
-use App\Actions\ArAssets\SubmitArAssetForReview;
-use App\Actions\ArAssets\UploadArAsset;
 use App\Enums\ArAssetStatus;
 use App\Filament\Support\CatalogLifecycleActions;
 use App\Filament\Support\StockActions;
 use App\Models\ArAsset;
 use App\Models\ProductVariant;
 use App\Models\User;
+use App\Services\ArAssets\ArCalibration;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Concerns\RestrictsFileUploadsToSchemaComponents;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 
 class VariantsRelationManager extends RelationManager
 {
+    use RestrictsFileUploadsToSchemaComponents;
+
     protected static string $relationship = 'variants';
 
     public function form(Schema $schema): Schema
@@ -215,7 +221,8 @@ class VariantsRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'Published' => 'success',
-                        'Awaiting physical review' => 'warning',
+                        'Awaiting physical approval' => 'warning',
+                        'Ready to publish' => 'success',
                         'Upload received' => 'info',
                         'Validation failed', 'Rejected', 'Disabled' => 'danger',
                         default => 'gray',
@@ -280,11 +287,8 @@ class VariantsRelationManager extends RelationManager
             ])
             ->recordActions([
                 ActionGroup::make([
-                    $this->uploadArAssetAction(),
+                    $this->manageArAssetAction(),
                     $this->viewArAssetHistoryAction(),
-                    $this->submitArAssetForReviewAction(),
-                    $this->approveArAssetAction(),
-                    $this->publishArAssetAction(),
                     $this->disableArAssetAction(),
                     $this->rollbackArAssetAction(),
                     EditAction::make()
@@ -365,144 +369,48 @@ class VariantsRelationManager extends RelationManager
                 && $record->latestArAsset !== null);
     }
 
-    private function uploadArAssetAction(): Action
+    private function manageArAssetAction(): Action
     {
-        return Action::make('uploadArAsset')
-            ->label('Upload 3D asset')
-            ->icon('heroicon-o-cloud-arrow-up')
-            ->schema([
-                FileUpload::make('file')
-                    ->label('GLB model')
-                    ->storeFiles(false)
-                    ->acceptedFileTypes(['.glb', 'model/gltf-binary', 'application/octet-stream'])
-                    ->mimeTypeMap(['glb' => 'model/gltf-binary'])
-                    ->extraInputAttributes([
-                        'accept' => '.glb,model/gltf-binary,application/octet-stream',
-                    ])
-                    ->maxSize(10240)
-                    ->rules(['required', 'file', 'extensions:glb'])
-                    ->helperText('GLB only, maximum 10 MiB. Catalog images remain the 2D fallback; calibration is completed during review.'),
-            ])
+        return Action::make('manageArAsset')
+            ->label('Manage 3D model')
+            ->icon('heroicon-o-cube')
+            ->modalIcon('heroicon-o-cube')
+            ->modalWidth('4xl')
+            ->modalHeading(fn (ProductVariant $record): string => $this->arManagementHeading($record))
+            ->modalDescription(fn (ProductVariant $record): string => $this->arManagementDescription($record))
+            ->modalSubmitActionLabel('Validate & publish')
+            ->modalSubmitAction(fn (ProductVariant $record, Action $action): Action|bool => $this->hasMultipleActionableArAssets($record) || $this->hasLockedCalibrationGap($record) ? false : $action)
+            ->schema(fn (ProductVariant $record): array => $this->arManagementSchema($record))
+            ->fillForm(fn (ProductVariant $record): array => $this->arManagementForm($record))
             ->visible(fn (): bool => $this->canManageAr())
             ->action(function (array $data, ProductVariant $record): void {
-                $file = $data['file'] ?? null;
-
-                if (! $file instanceof UploadedFile) {
-                    throw ValidationException::withMessages(['file' => 'Select a GLB file to upload.']);
-                }
-
-                /** @var User $actor */
                 $actor = auth()->user();
 
-                app(UploadArAsset::class)->handle(
-                    variant: $record,
-                    file: $file,
-                    calibration: [],
-                    actor: $actor,
-                );
-            })
-            ->successNotificationTitle('Upload received and queued for review');
-    }
-
-    private function submitArAssetForReviewAction(): Action
-    {
-        return Action::make('submitArAssetForReview')
-            ->label('Submit for review')
-            ->icon('heroicon-o-clipboard-document-check')
-            ->schema([$this->calibrationSection()])
-            ->fillForm(fn (ProductVariant $record): array => $this->calibrationFormFor(
-                $this->latestArAsset($record, [ArAssetStatus::Quarantined]),
-            ))
-            ->visible(fn (ProductVariant $record): bool => $this->canManageAr()
-                && $this->latestArAsset($record, [ArAssetStatus::Quarantined]) !== null)
-            ->action(function (array $data, ProductVariant $record): void {
-                $asset = $this->latestArAsset($record, [ArAssetStatus::Quarantined]);
-
-                if ($asset === null) {
-                    throw ValidationException::withMessages([
-                        'asset' => 'Upload a 3D model before submitting it for physical review.',
-                    ]);
+                if (! $actor instanceof User) {
+                    throw new AuthorizationException('Only active staff or administrators may manage AR assets.');
                 }
 
-                /** @var User $actor */
-                $actor = auth()->user();
-                app(SubmitArAssetForReview::class)->handle(
-                    asset: $asset,
-                    calibration: $this->calibrationFromData($data),
-                    actor: $actor,
-                );
-            })
-            ->successNotificationTitle('3D asset submitted for physical review');
-    }
-
-    private function approveArAssetAction(): Action
-    {
-        return Action::make('approveArAsset')
-            ->label('Approve physical review')
-            ->icon('heroicon-o-check-badge')
-            ->requiresConfirmation()
-            ->visible(function (ProductVariant $record): bool {
-                if (! $this->canManageAr()) {
-                    return false;
-                }
-
-                $asset = $this->latestArAsset($record, [ArAssetStatus::Validated]);
-
-                return $asset !== null
-                    && (int) $asset->uploaded_by !== (int) auth()->id();
-            })
-            ->action(function (ProductVariant $record): void {
-                $asset = $this->latestArAsset($record, [ArAssetStatus::Validated]);
-
-                if ($asset === null) {
-                    throw ValidationException::withMessages(['asset' => 'No 3D model is awaiting physical review.']);
-                }
-
-                /** @var User $actor */
-                $actor = auth()->user();
-                app(ApproveArAsset::class)->handle($asset, $actor);
-            })
-            ->successNotificationTitle('3D model physically approved');
-    }
-
-    private function publishArAssetAction(): Action
-    {
-        return Action::make('publishArAsset')
-            ->label('Publish 3D asset')
-            ->icon('heroicon-o-globe-alt')
-            ->requiresConfirmation()
-            ->modalHeading('Publish 3D asset')
-            ->modalDescription('This makes the approved model available to patients through the frame API.')
-            ->modalSubmitActionLabel('Publish')
-            ->visible(fn (ProductVariant $record): bool => $this->canManageAr()
-                && $this->latestArAsset($record, [ArAssetStatus::Approved]) !== null)
-            ->action(function (ProductVariant $record): void {
                 try {
-                    $asset = $this->latestArAsset($record, [ArAssetStatus::Approved]);
-
-                    if ($asset === null) {
-                        throw ValidationException::withMessages(['asset' => 'No physically approved 3D model is ready to publish.']);
-                    }
-
-                    /** @var User $actor */
-                    $actor = auth()->user();
-                    app(PublishArAsset::class)->handle($asset, $actor);
-
-                    Notification::make()
-                        ->title('3D model published to the patient catalog')
-                        ->success()
-                        ->send();
+                    app(PublishArAssetCandidate::class)->handle(
+                        variant: $record,
+                        file: ($data['file'] ?? null) instanceof UploadedFile ? $data['file'] : null,
+                        calibration: $this->calibrationFromData($data),
+                        physicalMatchConfirmed: $this->rawPhysicalMatchAttestation(),
+                        actor: $actor,
+                    );
                 } catch (ValidationException $exception) {
-                    $message = collect($exception->errors())->flatten()->first()
-                        ?? 'The 3D asset could not be published.';
+                    $message = collect($exception->errors())->flatten()->first();
 
                     Notification::make()
-                        ->title('3D asset was not published')
-                        ->body($message)
+                        ->title('3D model was not published')
+                        ->body(is_string($message) && $message !== '' ? $message : 'Correct the highlighted fields and try again.')
                         ->danger()
                         ->send();
+
+                    throw $exception;
                 }
-            });
+            })
+            ->successNotificationTitle('3D model published to the patient catalog');
     }
 
     private function disableArAssetAction(): Action
@@ -566,13 +474,164 @@ class VariantsRelationManager extends RelationManager
             ->successNotificationTitle('Selected 3D model version restored');
     }
 
-    private function calibrationSection(): Section
+    /**
+     * @return array<int, Component>
+     */
+    private function arManagementSchema(ProductVariant $record): array
+    {
+        if ($this->hasMultipleActionableArAssets($record)) {
+            return [
+                Section::make('Resolve pending models')
+                    ->description('Multiple pending 3D model candidates were found for this variant. Resolve the duplicate versions before publishing another model.')
+                    ->schema([
+                        Placeholder::make('workflow_blocked')
+                            ->label('Publication blocked')
+                            ->content('No candidate was selected automatically. Use version history or administrator support to resolve the pending candidates, then try again.'),
+                    ])
+                    ->columnSpanFull(),
+            ];
+        }
+
+        $asset = $this->actionableArAsset($record);
+
+        if ($this->hasLockedCalibrationGap($record)) {
+            return [
+                Section::make('Calibration requires resolution')
+                    ->description('This validated candidate has no usable saved calibration. It cannot be edited after validation.')
+                    ->schema([
+                        Placeholder::make('calibration_blocked')
+                            ->label('Publication blocked')
+                            ->content('Resolve this candidate through the administrator workflow before publishing it.'),
+                    ])
+                    ->columnSpanFull(),
+            ];
+        }
+
+        $isNewUpload = $asset === null;
+        $isCalibrationEditable = $asset === null || $asset->status === ArAssetStatus::Quarantined;
+
+        return [
+            Section::make('Model file')
+                ->description($isNewUpload
+                    ? 'Upload the GLB model that matches this frame. The file is kept private until publication succeeds.'
+                    : "A pending version (v{$asset->version}) is already in this workflow. Finish it before starting another upload.")
+                ->schema([
+                    FileUpload::make('file')
+                        ->label('GLB model')
+                        ->storeFiles(false)
+                        ->acceptedFileTypes(['.glb', 'model/gltf-binary', 'application/octet-stream'])
+                        ->mimeTypeMap(['glb' => 'model/gltf-binary'])
+                        ->extraInputAttributes([
+                            'accept' => '.glb,model/gltf-binary,application/octet-stream',
+                        ])
+                        ->maxSize(10240)
+                        ->rules(['file', 'extensions:glb'])
+                        ->required($isNewUpload)
+                        ->helperText('GLB only, maximum 10 MiB. Catalog images remain the 2D fallback if this model is disabled.')
+                        ->visible($isNewUpload),
+                    Placeholder::make('pending_model')
+                        ->label('Workflow state')
+                        ->content($isNewUpload
+                            ? 'No pending model. Upload a GLB to begin.'
+                            : $this->arWorkflowStateDescription($asset))
+                        ->visible(! $isNewUpload),
+                ])
+                ->columnSpanFull(),
+            $this->calibrationSection(readOnly: ! $isCalibrationEditable),
+            Checkbox::make('physical_match_confirmed')
+                ->label('I compared this GLB with the physical frame and confirm that it represents this catalog variant, including its silhouette, bridge, material, color, and proportions.')
+                ->helperText('Use the physical frame as the source of truth for measurements, placement, and orientation. This confirmation allows one operator to complete the controlled workflow.')
+                ->accepted()
+                ->columnSpanFull(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function arManagementForm(ProductVariant $record): array
+    {
+        $asset = $this->actionableArAsset($record);
+        $calibration = $this->calibrationFormFor($asset);
+
+        if ($calibration === [] && ($asset === null || $asset->status === ArAssetStatus::Quarantined)) {
+            $attributes = is_array($record->attributes) ? $record->attributes : [];
+            $calibration = [
+                'lens_width_mm' => $attributes['lens_width'] ?? null,
+                'lens_height_mm' => $attributes['lens_height'] ?? null,
+                'bridge_width_mm' => $attributes['bridge'] ?? null,
+                'temple_length_mm' => $attributes['temple'] ?? null,
+            ];
+        }
+
+        return [
+            ...$calibration,
+            'physical_match_confirmed' => false,
+        ];
+    }
+
+    private function arManagementHeading(ProductVariant $record): string
+    {
+        if ($this->hasMultipleActionableArAssets($record)) {
+            return 'Resolve pending 3D models';
+        }
+
+        if ($this->hasLockedCalibrationGap($record)) {
+            return 'Resolve invalid 3D model calibration';
+        }
+
+        return match ($this->actionableArAsset($record)?->status) {
+            ArAssetStatus::Quarantined => 'Finish and publish 3D model',
+            ArAssetStatus::Validated => 'Approve and publish 3D model',
+            ArAssetStatus::Approved => 'Finish publishing approved 3D model',
+            default => 'Upload and publish 3D model',
+        };
+    }
+
+    private function arManagementDescription(ProductVariant $record): string
+    {
+        if ($this->hasMultipleActionableArAssets($record)) {
+            return 'Publication is blocked until the duplicate pending candidates are resolved.';
+        }
+
+        if ($this->hasLockedCalibrationGap($record)) {
+            return 'Publication is blocked because this validated candidate has no usable saved calibration.';
+        }
+
+        return match ($this->actionableArAsset($record)?->status) {
+            ArAssetStatus::Quarantined => 'The GLB is received privately. Confirm the physical calibration and publish it when the model matches the frame.',
+            ArAssetStatus::Validated => 'The model passed file validation. Confirm the physical match, then approve and publish it in one step.',
+            ArAssetStatus::Approved => 'The model is approved and remains private until this action publishes it to the patient catalog.',
+            default => 'Upload one GLB, record the physical calibration, attest the match, and publish it in one controlled action.',
+        };
+    }
+
+    private function arWorkflowStateDescription(ArAsset $asset): string
+    {
+        return match ($asset->status) {
+            ArAssetStatus::Quarantined => "v{$asset->version} is received and awaiting calibration.",
+            ArAssetStatus::Validated => "v{$asset->version} passed file validation and is awaiting physical approval.",
+            ArAssetStatus::Approved => "v{$asset->version} is physically approved and ready to publish.",
+            default => "v{$asset->version} is pending publication.",
+        };
+    }
+
+    private function rawPhysicalMatchAttestation(): mixed
+    {
+        $schema = $this->getMountedActionSchema();
+        $state = $schema?->getRawState();
+
+        return is_array($state) ? ($state['physical_match_confirmed'] ?? null) : null;
+    }
+
+    private function calibrationSection(bool $readOnly = false): Section
     {
         $preset = (array) config('ar.presets.round_frame.calibration', []);
 
-        return Section::make('Physical review and calibration')
-            ->description('Optional while uploading. Required before submitting the model for physical review.')
-            ->collapsed()
+        return Section::make('Physical dimensions and placement')
+            ->description($readOnly
+                ? 'Locked after validation. Reopen the workflow only to publish the approved model.'
+                : 'Required before the model can be approved and published. Use the preset only when it matches this model and coordinate system.')
             ->schema([
                 Select::make('calibration_preset')
                     ->label('Reviewed preset')
@@ -603,23 +662,24 @@ class VariantsRelationManager extends RelationManager
                         $set('rotation_y', $preset['rotation_degrees']['y'] ?? null);
                         $set('rotation_z', $preset['rotation_degrees']['z'] ?? null);
                     })
+                    ->disabled($readOnly)
                     ->dehydrated(false),
                 Grid::make(3)->schema([
-                    TextInput::make('frame_width_mm')->label('Frame width (mm)')->numeric()->required(),
-                    TextInput::make('outer_frame_height_mm')->label('Outer height (mm)')->numeric()->required(),
-                    TextInput::make('lens_width_mm')->label('Lens width (mm)')->numeric()->required(),
-                    TextInput::make('lens_height_mm')->label('Lens height (mm)')->numeric()->required(),
-                    TextInput::make('bridge_width_mm')->label('Bridge width (mm)')->numeric()->required(),
-                    TextInput::make('temple_length_mm')->label('Temple length (mm)')->numeric()->required(),
-                    TextInput::make('scale_x')->label('Scale X')->numeric()->required(),
-                    TextInput::make('scale_y')->label('Scale Y')->numeric()->required(),
-                    TextInput::make('scale_z')->label('Scale Z')->numeric()->required(),
-                    TextInput::make('anchor_x')->label('Anchor X')->numeric()->required(),
-                    TextInput::make('anchor_y')->label('Anchor Y')->numeric()->required(),
-                    TextInput::make('anchor_z')->label('Anchor Z')->numeric()->required(),
-                    TextInput::make('rotation_x')->label('Rotation X°')->numeric()->required(),
-                    TextInput::make('rotation_y')->label('Rotation Y°')->numeric()->required(),
-                    TextInput::make('rotation_z')->label('Rotation Z°')->numeric()->required(),
+                    TextInput::make('frame_width_mm')->label('Frame width (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('outer_frame_height_mm')->label('Outer height (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('lens_width_mm')->label('Lens width (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('lens_height_mm')->label('Lens height (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('bridge_width_mm')->label('Bridge width (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('temple_length_mm')->label('Temple length (mm)')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('scale_x')->label('Scale X')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('scale_y')->label('Scale Y')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('scale_z')->label('Scale Z')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('anchor_x')->label('Anchor X')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('anchor_y')->label('Anchor Y')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('anchor_z')->label('Anchor Z')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('rotation_x')->label('Rotation X°')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('rotation_y')->label('Rotation Y°')->numeric()->required(! $readOnly)->disabled($readOnly),
+                    TextInput::make('rotation_z')->label('Rotation Z°')->numeric()->required(! $readOnly)->disabled($readOnly),
                 ]),
             ])
             ->columnSpanFull();
@@ -635,7 +695,8 @@ class VariantsRelationManager extends RelationManager
 
         return match ($asset->status) {
             ArAssetStatus::Quarantined => 'Upload received',
-            ArAssetStatus::Validated, ArAssetStatus::Approved => 'Awaiting physical review',
+            ArAssetStatus::Validated => 'Awaiting physical approval',
+            ArAssetStatus::Approved => 'Ready to publish',
             ArAssetStatus::Published => 'Published',
             ArAssetStatus::Rejected => filled($asset->validation_error) ? 'Validation failed' : 'Rejected',
             ArAssetStatus::Disabled => 'Disabled',
@@ -683,20 +744,54 @@ class VariantsRelationManager extends RelationManager
             ->all();
     }
 
-    /**
-     * @param  array<int, ArAssetStatus>  $statuses
-     */
-    private function latestArAsset(ProductVariant $record, array $statuses): ?ArAsset
+    private function actionableArAsset(ProductVariant $record): ?ArAsset
     {
-        if (! $record->relationLoaded('latestArAsset')) {
-            $record->load('latestArAsset');
+        return $this->actionableArAssets($record)->first();
+    }
+
+    /**
+     * @return Collection<int, ArAsset>
+     */
+    private function actionableArAssets(ProductVariant $record): Collection
+    {
+        return $record->arAssets()
+            ->whereIn('status', [
+                ArAssetStatus::Quarantined->value,
+                ArAssetStatus::Validated->value,
+                ArAssetStatus::Approved->value,
+            ])
+            ->latest('version')
+            ->limit(2)
+            ->get();
+    }
+
+    private function hasMultipleActionableArAssets(ProductVariant $record): bool
+    {
+        return $this->actionableArAssets($record)->count() > 1;
+    }
+
+    private function hasLockedCalibrationGap(ProductVariant $record): bool
+    {
+        $asset = $this->actionableArAsset($record);
+
+        if ($asset === null
+            || ! in_array($asset->status, [ArAssetStatus::Validated, ArAssetStatus::Approved], true)) {
+            return false;
         }
 
-        $asset = $record->latestArAsset;
+        $calibration = $asset->calibration;
 
-        return $asset !== null && in_array($asset->status, $statuses, true)
-            ? $asset
-            : null;
+        if (! is_array($calibration) || $calibration === []) {
+            return true;
+        }
+
+        try {
+            app(ArCalibration::class)->normalize($calibration);
+        } catch (ValidationException) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -706,7 +801,7 @@ class VariantsRelationManager extends RelationManager
     {
         $calibration = $asset?->calibration;
 
-        if (! is_array($calibration)) {
+        if (! is_array($calibration) || $calibration === []) {
             return [];
         }
 
