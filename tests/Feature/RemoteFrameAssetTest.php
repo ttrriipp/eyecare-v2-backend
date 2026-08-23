@@ -6,6 +6,7 @@ use App\Actions\ArAssets\PublishArAsset;
 use App\Actions\ArAssets\RollbackArAsset;
 use App\Actions\ArAssets\SubmitArAssetForReview;
 use App\Actions\ArAssets\UploadArAsset;
+use App\Actions\Audit\CreateAuditLog;
 use App\Models\ArAsset;
 use App\Models\AuditLog;
 use App\Models\Brand;
@@ -18,6 +19,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+
+use function Pest\Laravel\mock;
 
 uses(RefreshDatabase::class);
 
@@ -157,7 +160,35 @@ test('the uploader cannot approve their own submitted asset', function () {
     expect($submitted->fresh()->status->value)->toBe('validated');
 });
 
-test('invalid review calibration is retained as a human-readable failure', function () {
+test('coordinated self-approval records the explicit policy exception', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: [],
+        actor: $this->staff,
+    );
+    $submitted = submitArAssetForReviewForTest($asset, $this->staff);
+
+    $approved = app(ApproveArAsset::class)->handle(
+        asset: $submitted,
+        actor: $this->staff,
+        allowUploaderSelfApproval: true,
+    );
+
+    $approvalLog = AuditLog::query()
+        ->where('subject_id', $asset->id)
+        ->where('action', 'ar_asset.approved')
+        ->sole();
+
+    expect($approved->status->value)->toBe('approved')
+        ->and($approved->approved_by)->toBe($this->staff->id)
+        ->and($approvalLog->metadata)->toMatchArray([
+            'approval_mode' => 'coordinated_self_approval',
+            'separation_of_duties_bypassed' => true,
+        ]);
+});
+
+test('invalid review calibration leaves the candidate quarantined and correctable', function () {
     $asset = app(UploadArAsset::class)->handle(
         variant: $this->variant,
         file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
@@ -171,8 +202,31 @@ test('invalid review calibration is retained as a human-readable failure', funct
         actor: $this->staff,
     ))->toThrow(ValidationException::class);
 
-    expect($asset->fresh()->status->value)->toBe('rejected')
-        ->and($asset->fresh()->validation_error)->toContain('frame width');
+    $asset = $asset->fresh();
+
+    expect($asset->status->value)->toBe('quarantined')
+        ->and($asset->validation_error)->toBeNull()
+        ->and(AuditLog::query()
+            ->where('subject_id', $asset->id)
+            ->where('action', 'ar_asset.rejected')
+            ->count())->toBe(0);
+});
+
+test('a failed upload transaction removes the quarantine object', function () {
+    mock(CreateAuditLog::class)
+        ->shouldReceive('handle')
+        ->once()
+        ->andThrow(new RuntimeException('audit storage unavailable'));
+
+    expect(fn () => app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: [],
+        actor: $this->staff,
+    ))->toThrow(RuntimeException::class, 'audit storage unavailable');
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
 });
 
 test('variants without a published asset expose a null ar field', function () {

@@ -19,11 +19,14 @@ class ApproveArAsset
         private readonly DatabaseManager $database,
     ) {}
 
-    public function handle(ArAsset $asset, User $actor): ArAsset
-    {
+    public function handle(
+        ArAsset $asset,
+        User $actor,
+        bool $allowUploaderSelfApproval = false,
+    ): ArAsset {
         $this->authorizer->authorize($actor);
 
-        return $this->database->transaction(function () use ($asset, $actor): ArAsset {
+        return $this->database->transaction(function () use ($asset, $actor, $allowUploaderSelfApproval): ArAsset {
             $lockedAsset = ArAsset::query()
                 ->with('variant')
                 ->whereKey($asset->getKey())
@@ -41,8 +44,10 @@ class ApproveArAsset
                 ]);
             }
 
-            if ($lockedAsset->uploaded_by !== null
-                && (int) $lockedAsset->uploaded_by === (int) $actor->getKey()) {
+            $isUploader = $lockedAsset->uploaded_by !== null
+                && (int) $lockedAsset->uploaded_by === (int) $actor->getKey();
+
+            if ($isUploader && ! $allowUploaderSelfApproval) {
                 throw ValidationException::withMessages([
                     'asset' => 'The staff member who uploaded this model cannot approve its physical review.',
                 ]);
@@ -54,13 +59,20 @@ class ApproveArAsset
                 'approved_at' => now(),
             ]);
 
+            $metadata = [
+                'product_variant_id' => $lockedAsset->product_variant_id,
+                'version' => $lockedAsset->version,
+            ];
+
+            if ($isUploader && $allowUploaderSelfApproval) {
+                $metadata['approval_mode'] = 'coordinated_self_approval';
+                $metadata['separation_of_duties_bypassed'] = true;
+            }
+
             $this->createAuditLog->handle(
                 subject: $lockedAsset,
                 action: AuditEvent::ArAssetApproved,
-                metadata: [
-                    'product_variant_id' => $lockedAsset->product_variant_id,
-                    'version' => $lockedAsset->version,
-                ],
+                metadata: $metadata,
                 actorId: $actor->getKey(),
             );
 

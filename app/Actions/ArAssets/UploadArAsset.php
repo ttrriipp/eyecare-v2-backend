@@ -80,40 +80,46 @@ class UploadArAsset
             ]);
         }
 
-        $asset = $this->database->transaction(function () use ($variant, $actor, $quarantinePath, $contents): ArAsset {
-            $lockedVariant = ProductVariant::query()
-                ->whereKey($variant->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
-            $version = ((int) ArAsset::query()
-                ->where('product_variant_id', $lockedVariant->getKey())
-                ->max('version')) + 1;
+        try {
+            $asset = $this->database->transaction(function () use ($variant, $actor, $quarantinePath, $contents): ArAsset {
+                $lockedVariant = ProductVariant::query()
+                    ->whereKey($variant->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                $version = ((int) ArAsset::query()
+                    ->where('product_variant_id', $lockedVariant->getKey())
+                    ->max('version')) + 1;
 
-            $asset = ArAsset::query()->create([
-                'product_variant_id' => $lockedVariant->getKey(),
-                'version' => $version,
-                'status' => ArAssetStatus::Quarantined,
-                'format' => 'glb',
-                'quarantine_path' => $quarantinePath,
-                'byte_size' => strlen($contents),
-                'sha256' => hash('sha256', $contents),
-                'uploaded_by' => $actor->getKey(),
-                'uploaded_at' => now(),
-            ]);
-
-            $this->createAuditLog->handle(
-                subject: $asset,
-                action: AuditEvent::ArAssetUploaded,
-                metadata: [
+                $asset = ArAsset::query()->create([
                     'product_variant_id' => $lockedVariant->getKey(),
                     'version' => $version,
+                    'status' => ArAssetStatus::Quarantined,
+                    'format' => 'glb',
+                    'quarantine_path' => $quarantinePath,
                     'byte_size' => strlen($contents),
-                ],
-                actorId: $actor->getKey(),
-            );
+                    'sha256' => hash('sha256', $contents),
+                    'uploaded_by' => $actor->getKey(),
+                    'uploaded_at' => now(),
+                ]);
 
-            return $asset;
-        });
+                $this->createAuditLog->handle(
+                    subject: $asset,
+                    action: AuditEvent::ArAssetUploaded,
+                    metadata: [
+                        'product_variant_id' => $lockedVariant->getKey(),
+                        'version' => $version,
+                        'byte_size' => strlen($contents),
+                    ],
+                    actorId: $actor->getKey(),
+                );
+
+                return $asset;
+            });
+        } catch (Throwable $exception) {
+            Storage::disk($quarantineDisk)->delete($quarantinePath);
+
+            throw $exception;
+        }
 
         try {
             $normalizedCalibration = $calibration === []

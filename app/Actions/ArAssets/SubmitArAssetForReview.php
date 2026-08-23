@@ -31,13 +31,7 @@ class SubmitArAssetForReview
     {
         $this->authorizer->authorize($actor);
 
-        try {
-            $normalizedCalibration = $this->calibrationValidator->normalize($calibration);
-        } catch (ValidationException $exception) {
-            $this->reject($asset, $actor, $this->validationMessage($exception));
-
-            throw $exception;
-        }
+        $normalizedCalibration = $this->calibrationValidator->normalize($calibration);
 
         return $this->database->transaction(function () use ($asset, $actor, $normalizedCalibration): ArAsset {
             $lockedAsset = ArAsset::query()
@@ -70,43 +64,5 @@ class SubmitArAssetForReview
 
             return $lockedAsset->fresh();
         });
-    }
-
-    private function reject(ArAsset $asset, User $actor, string $message): void
-    {
-        $this->database->transaction(function () use ($asset, $actor, $message): void {
-            $lockedAsset = ArAsset::query()
-                ->whereKey($asset->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            if ($lockedAsset->status !== ArAssetStatus::Quarantined) {
-                return;
-            }
-
-            $lockedAsset->update([
-                'status' => ArAssetStatus::Rejected,
-                'validation_error' => $message,
-            ]);
-
-            $this->createAuditLog->handle(
-                subject: $lockedAsset,
-                action: AuditEvent::ArAssetRejected,
-                metadata: [
-                    'product_variant_id' => $lockedAsset->product_variant_id,
-                    'version' => $lockedAsset->version,
-                ],
-                actorId: $actor->getKey(),
-            );
-        });
-    }
-
-    private function validationMessage(ValidationException $exception): string
-    {
-        $message = collect($exception->errors())->flatten()->first();
-
-        return is_string($message) && $message !== ''
-            ? mb_substr($message, 0, 2000)
-            : 'The physical calibration could not be validated.';
     }
 }
