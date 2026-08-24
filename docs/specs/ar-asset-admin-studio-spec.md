@@ -23,8 +23,10 @@ evidence.
 3. Existing server-side GLB validation, private quarantine, immutable
    publication, checksums, audit events, version history, disablement, and
    rollback remain mandatory.
-4. The patient API, Android contract, database schema, status values, file
-   limits, and public storage configuration remain unchanged.
+4. The patient API, Android contract, database schema, file limits, and public
+   storage configuration remain unchanged. Internal lifecycle statuses may be
+   added for safe administrative cleanup; they are never exposed through the
+   patient contract.
 5. The operator reviews the GLB using the clinic's existing modeling tools and
    physical frame. This backend does not claim to visually verify the model.
 
@@ -41,7 +43,7 @@ Success means the operator can:
 3. complete calibration and one explicit physical-match attestation; and
 4. select **Validate & publish** to run the existing internal lifecycle.
 
-The internal states remain:
+The publication states remain:
 
 ```text
 quarantined → validated → approved → published
@@ -49,6 +51,12 @@ quarantined → validated → approved → published
 
 They may occur in one request so existing records, audits, and recovery
 semantics stay compatible.
+
+Unpublished candidates may instead be marked `discarded` by an authorized
+administrator action. This preserves the asset row and audit subject while
+removing its private quarantine file. Published, superseded, and disabled
+versions are not discardable; use **Disable 3D model** or **Rollback** for
+those lifecycle states.
 
 ## Users and Authorization
 
@@ -81,7 +89,9 @@ Each frame variant exposes one primary **Manage 3D model** action.
   message rather than choosing one silently.
 
 The outgoing Submit, Approve, and Publish row actions are removed from the
-normal UI. Version history, Disable, and Rollback remain secondary operations.
+normal UI. **Discard 3D upload** is available for an unpublished
+`quarantined`, `validated`, `approved`, or `rejected` candidate. Version
+history, Disable, and Rollback remain secondary operations.
 
 ### Calibration
 
@@ -200,9 +210,13 @@ separation of duties was explicitly bypassed by the one-person workflow.
   publication and the variant-pointer swap both succeed.
 - The same primary action resumes `quarantined`, `validated`, or `approved`
   candidates. Rejected candidates require a new GLB.
+- **Discard 3D upload** changes an unpublished candidate to `discarded`, keeps
+  its row and audit history, and removes its private quarantine object. A
+  failed object deletion is reported for operations follow-up; it does not
+  make the candidate publishable.
 
-No candidate is destructively deleted. Existing immutable history remains
-available for rollback.
+No candidate row is destructively deleted. Existing immutable published
+history remains available for rollback.
 
 ## Patient Contract
 
@@ -211,7 +225,8 @@ No `/api/v1` route or resource shape changes.
 - `product_variants.published_ar_asset_id` remains the patient-facing pointer.
 - Only a checksum-valid, non-expired `published` asset produces `ar.status:
   ready`.
-- Quarantined, validated, approved, and rejected candidates remain private.
+- Quarantined, validated, approved, rejected, and discarded candidates remain
+  private.
 - Variant `images` remain the 2D fallback.
 - `ar_eligible` and `ar_asset_reference` remain unchanged legacy fields.
 
@@ -230,7 +245,7 @@ No `/api/v1` route or resource shape changes.
 
 ### Ask first
 
-- add or alter database columns or status values;
+- add or alter database columns or patient-facing status values;
 - add a dependency;
 - change the patient or Android contract;
 - change file, triangle, or texture limits; or
@@ -251,6 +266,7 @@ Expected changes remain within existing locations:
 
 ```text
 app/Actions/ArAssets/PublishArAssetCandidate.php
+app/Actions/ArAssets/DiscardArAsset.php
 app/Actions/ArAssets/ApproveArAsset.php
 app/Actions/ArAssets/SubmitArAssetForReview.php
 app/Actions/ArAssets/UploadArAsset.php
@@ -258,6 +274,8 @@ app/Filament/Resources/Products/RelationManagers/VariantsRelationManager.php
 tests/Feature/RemoteFrameAssetTest.php
 tests/Feature/RemoteFrameAssetActionsTest.php
 tests/Feature/Api/V1/FrameCatalogTest.php
+app/Enums/ArAssetStatus.php
+app/Enums/AuditEvent.php
 docs/BACKEND_CONTEXT.md
 ```
 
@@ -277,6 +295,8 @@ Pest feature tests cover:
 - GLB validation and quarantine cleanup;
 - first publication, replacement, resume, publication retry, disablement, and
   rollback;
+- discarding unpublished candidates, private quarantine cleanup, and the
+  protected published/superseded/disabled states;
 - serialized candidate creation and legacy multiple-candidate ambiguity;
 - separate uploaded, validated, approved, and published audit events attributed
   to the same operator, including explicit self-approval-exception metadata;
@@ -292,10 +312,9 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php
 vendor/bin/sail bin pint --dirty --format agent
 ```
 
-The final focused run on 2026-08-24 passed 57 tests and 297 assertions across
-the three suites. The dedicated Filament action suite passed 14 tests and 119
-assertions. Pint and `git diff --check` also passed. A real-browser smoke run
-was not available because Chrome DevTools MCP is not configured in this
+The final focused run on 2026-08-24 passed 65 tests and 332 assertions across
+the three suites. Pint and `git diff --check` also passed. A real-browser smoke
+run was not available because Chrome DevTools MCP is not configured in this
 environment; the Livewire modal tests cover the server-rendered form, upload,
 authorization, state transitions, and failure notifications.
 
@@ -313,6 +332,8 @@ authorization, state transitions, and failure notifications.
 - [x] Invalid preflight input creates no candidate; invalid GLB never reaches
       public storage.
 - [x] An existing non-terminal candidate can be resumed safely.
+- [x] Unpublished candidates can be discarded without deleting audit history or
+      affecting a published patient model.
 - [x] Failed publication remains retryable and preserves the patient pointer.
 - [x] History, disable, rollback, integrity checks, and audit events remain.
 - [x] Patient API and Android contracts are unchanged.

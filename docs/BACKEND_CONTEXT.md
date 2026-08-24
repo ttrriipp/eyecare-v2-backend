@@ -40,9 +40,9 @@
 > Only active staff and administrators can manage 3D assets through the
 > variant actions in the Products panel. The workflow is upload to private
 > quarantine, server-side GLB/calibration validation, coordinated physical-match
-> approval, immutable publication, and optional disablement or rollback. Asset statuses
-> are `quarantined`, `validated`, `approved`, `published`,
-> `rejected`, `superseded`, and `disabled`. Replacements receive a new
+> approval, immutable publication, and optional discard, disablement, or rollback.
+> Asset statuses are `quarantined`, `validated`, `approved`, `published`,
+> `rejected`, `discarded`, `superseded`, and `disabled`. Replacements receive a new
 > version; the prior published file remains available for rollback and remains
 > active until the replacement is atomically published. Every lifecycle
 > transition is audit-logged with actor and timestamp.
@@ -54,8 +54,10 @@
 > `/ar/variants/{variantId}/v{version}/model.glb`. Uploads accept only GLB,
 > have a 10 MiB maximum, reject external resources and unsupported textures,
 > cap geometry at 100,000 triangles and textures at 2048×2048, and verify
-> checksums and file size before patient exposure. Rejected and quarantined
-> files are never exposed by the patient API.
+> checksums and file size before patient exposure. Rejected, quarantined, and
+> discarded files are never exposed by the patient API. Discarding an unpublished
+> candidate retains its append-only row and audit history, then removes its
+> private quarantine object; it cannot remove published history.
 >
 > **Android integration handoff:** New clients must gate 3D loading on
 > `ar.status: ready`, use the variant `images` array for the 2D fallback, and
@@ -65,7 +67,7 @@
 > written into the legacy reference because older Android fallback code may
 > treat it as an image URL.
 >
-> **Updated (2026-08-23): one-person publication workflow.** Active staff and
+> **Updated (2026-08-24): one-person publication workflow.** Active staff and
 > administrators now use one state-aware **Manage 3D model** action from the
 > Products → Variants panel. With no pending candidate, one operator uploads a
 > `.glb`, records the physical calibration, attests that it matches the
@@ -88,6 +90,12 @@
 > publication failure leaves the candidate approved and the existing patient
 > pointer active for retry. Catalog variant images remain the 2D fallback, and
 > checksum, byte size, URL, disk, and version are generated server-side.
+>
+> The **Discard 3D upload** action is available to active staff/admin users for
+> unpublished `quarantined`, `validated`, `approved`, or `rejected` candidates.
+> It records an `ar_asset.discarded` audit event, changes the row to
+> `discarded`, and removes the private quarantine object. The current published
+> model uses **Disable 3D model**; a retained previous version uses **Rollback**.
 >
 > For a separated-object GLB, the Manage 3D model modal accepts the complete
 > transformed rendered width measured at the current scale. The server computes
@@ -528,7 +536,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Patients: archive (duplicate/erroneous/deceased) | No | No | Yes |
 | Catalog (brands/categories/products): archive and restore | No | No | Yes |
 | Catalog: create, edit, and manage variants | Yes | Yes | Yes |
-| Catalog: upload, approve, publish, disable, and rollback frame 3D assets | Yes | No | Yes |
+| Catalog: upload, approve, publish, discard unpublished, disable, and rollback frame 3D assets | Yes | No | Yes |
 | Team accounts and role assignments | No | No | Yes |
 | Audit logs | Yes (view) | Yes (view) | Yes |
 | Privacy administration | Backend only — no panel UI | Backend only — no panel UI | Backend only — no panel UI |
@@ -603,7 +611,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. Variants own price, dimensions, SKU, stock, legacy AR compatibility fields, and the pointer to the current published 3D asset. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
 | `product_variants` | Catalog variants. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. |
-| `ar_assets` | Versioned GLB assets associated with a `product_variant_id`. Stores `version`, `status`, `format` (`glb`), private `quarantine_path`, immutable `published_path`/HTTPS `url`, server-computed `byte_size` and lowercase `sha256`, JSON `calibration`, upload/validation/approval/publication/disablement actors and timestamps, optional `expires_at`, and staff-only `validation_error`. Unique (`product_variant_id, version`); old published files are retained for rollback. |
+| `ar_assets` | Versioned GLB assets associated with a `product_variant_id`. Stores `version`, `status` (`quarantined`, `validated`, `approved`, `published`, `rejected`, `discarded`, `superseded`, or `disabled`), `format` (`glb`), private `quarantine_path`, immutable `published_path`/HTTPS `url`, server-computed `byte_size` and lowercase `sha256`, JSON `calibration`, upload/validation/approval/publication/disablement actors and timestamps, optional `expires_at`, and staff-only `validation_error`. Unique (`product_variant_id, version`); old published files are retained for rollback, while discarded unpublished rows retain audit history after their private quarantine object is removed. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/accepted/declined), `valid_until`, `subtotal`, `discount_amount`, `total`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`. |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
@@ -645,6 +653,10 @@ physical-match attestation moves it to `approved`, and publication makes it the
 variant's current `published` asset. The one-person coordinator may record the
 same actor for upload, approval, and publication with explicit audit metadata;
 direct approval still keeps the uploader self-approval guard.
+An unpublished `quarantined`, `validated`, `approved`, or `rejected` record may
+be marked `discarded` by the authorized **Discard 3D upload** action. The row
+and audit history remain, but its private quarantine object is removed. The
+action cannot discard `published`, `superseded`, or `disabled` versions.
 Publishing a replacement locks the variant, demotes the previous version to
 `superseded`, and switches the pointer atomically. Disablement clears only the
 published pointer and marks the version `disabled`; it does not delete the
@@ -665,6 +677,9 @@ patient upload route.
 **AR Assets:** `quarantined` → `validated` or `rejected` after coordinated
 review submission; `validated` → `approved` through the authorized one-person
 coordinator or a separate authorized reviewer; `approved` → `published`.
+Any unpublished `quarantined`, `validated`, `approved`, or `rejected` record
+may also move to `discarded`, which is terminal for that upload and removes its
+private quarantine object without deleting the row or audit history.
 Publishing a replacement marks the prior
 version `superseded` only after the new immutable file is stored and the
 variant pointer is switched in one transaction. The current `published`
@@ -712,7 +727,10 @@ match, and publish an immutable version. The action layer repeats
 authorization checks, so hidden Filament actions are not the security
 boundary. History, disablement, and rollback remain secondary operations. The
 table shows `Upload received`, `Awaiting physical approval`, `Ready to publish`,
-`Published`, `Rejected`, and `Disabled`, plus human-readable validation notes.
+`Published`, `Rejected`, `Discarded`, and `Disabled`, plus human-readable
+validation notes. **Discard 3D upload** is visible only for unpublished
+candidates; published models use **Disable 3D model**, and retained previous
+versions use **Rollback**.
 
 Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group order, item order per group, no orphaned/singleton groups, unique outlined icons).
 
@@ -901,6 +919,7 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `SubmitArAssetForReview` | `app/Actions/ArAssets/` | Validates explicit steward calibration and moves a received asset into the physical-review queue |
 | `ApproveArAsset` | `app/Actions/ArAssets/` | Records active staff/admin physical-review approval for a validated asset |
 | `PublishArAsset` | `app/Actions/ArAssets/` | Verifies quarantine integrity, writes the immutable public version, and atomically swaps the variant's published pointer while preserving the prior version |
+| `DiscardArAsset` | `app/Actions/ArAssets/` | Marks an unpublished candidate `discarded`, records the audit event, and removes its private quarantine object without touching published history |
 | `DisableArAsset` | `app/Actions/ArAssets/` | Removes only the variant's patient-facing AR pointer and records disablement; normal images and reservations remain available |
 | `RollbackArAsset` | `app/Actions/ArAssets/` | Verifies a retained published file and atomically restores it as the current version |
 | `CreateOpticalOrderFromQuotation` | `app/Actions/OpticalOrders/` | Accepts the quotation, creates an Optical Order from product lines, commits inventory, copies selected performed service lines into billing, records an optional deposit — idempotent |

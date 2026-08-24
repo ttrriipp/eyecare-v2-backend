@@ -68,7 +68,8 @@ preview remains deferred.
 
 - [x] Update `docs/BACKEND_CONTEXT.md` with the implemented workflow.
 - [x] Confirm no preview runtime, route, migration, dependency, patient API,
-      Android contract, status, or storage-configuration change was introduced.
+      Android contract, patient-facing status, or storage-configuration change
+      was introduced; the internal `discarded` cleanup status is documented.
 - [x] Mark the revised spec, plan, and checklist implemented after the
       evidence passes.
 - [x] Run the complete focused test matrix, Pint, and `git diff --check`.
@@ -103,6 +104,18 @@ preview remains deferred.
 - [x] Update `tasks/plan.md` and `tasks/todo.md` after evidence passes.
 - [x] Commit checkpoint fixes separately if code changed.
 - [x] Report exact commits and verification results for owner review.
+
+## Task 6: Unpublished upload cleanup
+
+- [x] Add an audited `discarded` lifecycle state without hard-deleting the
+      `ArAsset` row.
+- [x] Add the **Discard 3D upload** admin action for unpublished candidates.
+- [x] Remove private quarantine files after discard while protecting published,
+      superseded, and disabled history.
+- [x] Test authorization, state guards, audit metadata, cleanup, and reported
+      storage-delete failures.
+- [x] Run the focused lifecycle, Filament, and patient-contract suites.
+- [x] Apply `code-review-and-quality` and commit the domain/UI slices.
 
 ## Planning Gate
 

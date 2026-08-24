@@ -8,7 +8,9 @@ This plan superseded the live-preview Admin Studio plan. The owner approved the
 revised specification, plan, and checklist before implementation. The
 server-driven one-person workflow is now shipped; browser preview remains
 deferred. The measured transformed-width adjustment is now implemented without
-changing the patient contract or GLB storage lifecycle.
+changing the patient contract or GLB publication lifecycle. A follow-up admin
+cleanup action now safely discards unpublished uploads while retaining their
+append-only audit rows.
 
 ## Outcome
 
@@ -20,7 +22,8 @@ physical match, and run the existing internal lifecycle with one submit.
 The work preserves private quarantine, structural validation, immutable public
 versions, checksums, audits, version history, disablement, rollback, and the
 patient API. It adds no preview runtime, JavaScript module, route, migration, or
-dependency.
+dependency. Unpublished cleanup is represented by the internal `discarded`
+status; published history remains immutable.
 
 ## Planning Basis
 
@@ -282,7 +285,8 @@ final focused verification evidence and implementation commits.
 - The specification and checklists are marked implemented only after all
   acceptance criteria pass.
 - No route, migration, npm dependency, patient API shape, Android contract,
-  status value, or public-storage configuration changed.
+  patient-facing status, or public-storage configuration changed. The internal
+  `discarded` status is documented as an administrative cleanup state.
 - The final verification matrix passes.
 
 **Verification:**
@@ -384,7 +388,44 @@ actionable finding before handoff.
 - Commit checkpoint fixes separately if the review changes code.
 - Report the exact commits and test evidence for owner review.
 
-**Result:** Passed after the final 57-test focused matrix, Pint, and diff check.
+**Result:** Passed after the final 65-test, 332-assertion focused matrix, Pint,
+and diff check.
+
+## Task 6: Safely discard unpublished uploads
+
+Add one authorized admin action for removing an unpublished upload from the
+workflow without hard-deleting its `ArAsset` row or audit subject. The action
+marks `quarantined`, `validated`, `approved`, and `rejected` candidates as
+`discarded`, removes their private quarantine object, and leaves published,
+superseded, and disabled history protected behind Disable and Rollback.
+
+**Acceptance criteria:**
+
+- Active staff/admin users can discard an unpublished candidate from the
+  Variants relation manager.
+- The action is hidden for patients, optometrist-only users, inactive users,
+  guests, and published/history-only assets.
+- Discard records an audit event with the prior status and removes the private
+  quarantine object without changing the patient API or published pointer.
+- A failed storage deletion is reported without making the discarded row
+  publishable.
+
+**Verification:**
+
+```text
+vendor/bin/sail artisan test --compact tests/Feature/RemoteFrameAssetTest.php
+vendor/bin/sail artisan test --compact tests/Feature/RemoteFrameAssetActionsTest.php
+vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php
+vendor/bin/sail bin pint --dirty --format agent
+git diff --check
+```
+
+**Commit:** `feat: add discard lifecycle for unpublished AR assets` and
+`feat: expose AR upload discard action`
+
+**Result:** Implemented. Domain and Filament tests cover authorization, state
+guards, audit metadata, private-file cleanup, delete-failure reporting, and
+published-model protections.
 
 ## Risks and Mitigations
 
