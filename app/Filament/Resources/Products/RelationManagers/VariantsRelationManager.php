@@ -719,6 +719,7 @@ class VariantsRelationManager extends RelationManager
             ArAssetStatus::Approved => 'Ready to publish',
             ArAssetStatus::Published => 'Published',
             ArAssetStatus::Rejected => filled($asset->validation_error) ? 'Validation failed' : 'Rejected',
+            ArAssetStatus::Discarded => 'Discarded',
             ArAssetStatus::Disabled => 'Disabled',
             ArAssetStatus::Superseded => $record->publishedArAsset !== null ? 'Published' : '—',
         };

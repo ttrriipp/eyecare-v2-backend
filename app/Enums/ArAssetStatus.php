@@ -9,6 +9,7 @@ enum ArAssetStatus: string
     case Approved = 'approved';
     case Published = 'published';
     case Rejected = 'rejected';
+    case Discarded = 'discarded';
     case Superseded = 'superseded';
     case Disabled = 'disabled';
 }

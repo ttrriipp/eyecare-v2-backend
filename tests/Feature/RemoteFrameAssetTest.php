@@ -2,12 +2,14 @@
 
 use App\Actions\ArAssets\ApproveArAsset;
 use App\Actions\ArAssets\DisableArAsset;
+use App\Actions\ArAssets\DiscardArAsset;
 use App\Actions\ArAssets\PublishArAsset;
 use App\Actions\ArAssets\PublishArAssetCandidate;
 use App\Actions\ArAssets\RollbackArAsset;
 use App\Actions\ArAssets\SubmitArAssetForReview;
 use App\Actions\ArAssets\UploadArAsset;
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\ArAssetStatus;
 use App\Models\ArAsset;
 use App\Models\AuditLog;
 use App\Models\Brand;
@@ -16,8 +18,10 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -582,6 +586,76 @@ test('disabling a published asset removes only ar from the patient response', fu
 
     expect($response->json('data.variants.0.ar'))->toBeNull()
         ->and($response->json('data.variants.0.images'))->toBe(['variants/round-black.jpg']);
+});
+
+test('discarding an unpublished asset removes its private file and records the action', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        $this->variant,
+        UploadedFile::fake()->createWithContent('round.glb', makeGlbForTest(), 'model/gltf-binary'),
+        frameCalibrationForTest(),
+        $this->staff,
+    );
+
+    expect(Storage::disk('ar_quarantine')->exists($asset->quarantine_path))->toBeTrue();
+
+    $discarded = app(DiscardArAsset::class)->handle($asset, $this->staff);
+
+    expect($discarded->status)->toBe(ArAssetStatus::Discarded)
+        ->and(Storage::disk('ar_quarantine')->exists($asset->quarantine_path))->toBeFalse()
+        ->and(AuditLog::query()
+            ->where('subject_id', $asset->id)
+            ->where('action', 'ar_asset.discarded')
+            ->where('actor_id', $this->staff->id)
+            ->exists())->toBeTrue();
+});
+
+test('discarding a published or historical asset is rejected', function (string $status) {
+    $status = ArAssetStatus::from($status);
+
+    $asset = ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => $status,
+    ]);
+
+    expect(fn () => app(DiscardArAsset::class)->handle($asset, $this->staff))
+        ->toThrow(ValidationException::class);
+
+    expect($asset->fresh()->status)->toBe($status);
+})->with([
+    'published',
+    'superseded',
+    'disabled',
+]);
+
+test('patients cannot discard an unpublished asset', function () {
+    $asset = ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Quarantined,
+    ]);
+
+    expect(fn () => app(DiscardArAsset::class)->handle($asset, $this->patient))
+        ->toThrow(AuthorizationException::class);
+
+    expect($asset->fresh()->status)->toBe(ArAssetStatus::Quarantined);
+});
+
+test('discarding reports a private-file cleanup failure', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        $this->variant,
+        UploadedFile::fake()->createWithContent('round.glb', makeGlbForTest(), 'model/gltf-binary'),
+        frameCalibrationForTest(),
+        $this->staff,
+    );
+    $disk = mock(Filesystem::class);
+    $disk->shouldReceive('exists')->once()->with($asset->quarantine_path)->andReturnTrue();
+    $disk->shouldReceive('delete')->once()->with($asset->quarantine_path)->andReturnFalse();
+    Storage::shouldReceive('disk')->once()->with('ar_quarantine')->andReturn($disk);
+    Exceptions::fake();
+
+    $discarded = app(DiscardArAsset::class)->handle($asset, $this->staff);
+
+    Exceptions::assertReported(RuntimeException::class);
+    expect($discarded->status)->toBe(ArAssetStatus::Discarded);
 });
 
 test('a corrupted published file is omitted from the patient response', function () {

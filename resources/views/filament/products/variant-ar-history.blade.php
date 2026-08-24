@@ -43,6 +43,7 @@
                             ArAssetStatus::Approved => 'Approved',
                             ArAssetStatus::Published => 'Published',
                             ArAssetStatus::Rejected => 'Rejected',
+                            ArAssetStatus::Discarded => 'Discarded',
                             ArAssetStatus::Superseded => 'Superseded',
                             ArAssetStatus::Disabled => 'Disabled',
                         };

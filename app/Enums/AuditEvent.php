@@ -109,6 +109,7 @@ enum AuditEvent: string
     case ArAssetUploaded = 'ar_asset.uploaded';
     case ArAssetValidated = 'ar_asset.validated';
     case ArAssetRejected = 'ar_asset.rejected';
+    case ArAssetDiscarded = 'ar_asset.discarded';
     case ArAssetApproved = 'ar_asset.approved';
     case ArAssetPublished = 'ar_asset.published';
     case ArAssetReplaced = 'ar_asset.replaced';
