@@ -2,7 +2,7 @@
 
 ## Status
 
-**Implemented — 2026-08-23.**
+**Implemented; measured-width calibration follow-up approved — 2026-08-24.**
 
 This revision replaces the proposed live-preview Admin Studio with a smaller
 server-driven workflow. Live browser preview, Three.js, WebGL, a private
@@ -97,6 +97,9 @@ the Product Variant without selecting a model-specific preset. Existing
 candidate calibration takes priority when resuming. The reviewed round-frame
 preset remains an explicit choice and is never silently applied.
 
+- For separated-object models, the operator may enter the measured rendered
+  width to apply a uniform server-side scale correction.
+
 Calibration remains editable for a new upload or a quarantined candidate. A
 validated or approved candidate displays its persisted calibration read-only;
 the coordinator uses those saved values rather than accepting an unreviewed
@@ -104,6 +107,27 @@ change after validation.
 
 All values are revalidated by `ArCalibration`. Dimensions must be positive,
 all values finite, and scale values non-zero.
+
+### Measured-width adjustment
+
+For a separated-object GLB, the operator may enter the complete frame width
+measured after all relevant node/world transforms are applied, using the
+current renderer scale. The field is UI-only and is never stored as a second
+physical measurement. The server computes:
+
+```text
+factor = frame_width_mm / measured_rendered_width_mm
+adjusted_scale = current_scale × factor
+```
+
+The factor is applied uniformly to `scale.x`, `scale.y`, and `scale.z` so an
+existing non-uniform proportion correction is preserved. A model already
+measuring 123 mm is unchanged; a 61.5 mm result doubles the current scale. The
+operator must measure the complete frame, not one separated mesh, and must not
+bake the same correction into both the GLB node transforms and calibration.
+The physical dimensions remain unchanged. The adjustment is available only
+while calibration is editable; validated, approved, and published assets still
+require a replacement/version rather than in-place mutation.
 
 ### Physical-match attestation
 
@@ -133,6 +157,7 @@ final class PublishArAssetCandidate
         ProductVariant $variant,
         ?UploadedFile $file,
         array $calibration,
+        float|int|string|null $measuredRenderedWidthMm,
         bool|int|string|null $physicalMatchConfirmed,
         User $actor,
     ): ArAsset;
@@ -145,6 +170,8 @@ Before creating a candidate, the coordinator:
 - verifies the attestation;
 - normalizes calibration;
 - verifies the Product and Variant may publish;
+- when supplied, validates the measured transformed width and adjusts the
+  renderer scale from the physical frame width;
 - checks the HTTPS asset base URL and publication disk; and
 - serializes candidate selection and creation per variant, rejecting legacy
   ambiguity when more than one actionable candidate exists.
@@ -160,6 +187,8 @@ separation of duties was explicitly bypassed by the one-person workflow.
 - Invalid form calibration, missing attestation, a missing file when no
   actionable candidate exists, or known publication preflight failure creates
   no candidate.
+- A missing, non-finite, or non-positive measured rendered width is rejected
+  before a new candidate is created when the adjustment field is used.
 - Structurally invalid GLB data may retain the existing rejected record and
   human-readable validation reason, but never reaches public storage.
 - Invalid calibration on an existing structurally valid candidate leaves it
@@ -243,6 +272,7 @@ Pest feature tests cover:
   coordinated;
 - patient, inactive, guest, and optometrist-only authorization failures;
 - required attestation and calibration validation before candidate creation;
+- measured transformed-width adjustment and uniform scale-factor behavior;
 - GLB validation and quarantine cleanup;
 - first publication, replacement, resume, publication retry, disablement, and
   rollback;
@@ -276,6 +306,8 @@ authorization, state transitions, and failure notifications.
       without another account.
 - [x] Calibration reuses variant values where available and requires explicit
       values elsewhere.
+- [ ] A measured transformed width adjusts all scale axes by the server-computed
+      ratio while leaving physical measurements unchanged.
 - [x] Physical-match attestation is explicit and server-enforced.
 - [x] Invalid preflight input creates no candidate; invalid GLB never reaches
       public storage.

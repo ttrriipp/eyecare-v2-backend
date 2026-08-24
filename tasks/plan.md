@@ -9,8 +9,15 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-No project is currently active. The latest completed project is the one-person
-AR asset publication workflow documented below.
+**AR Measured-Width Calibration Follow-up** — approved 2026-08-24
+
+- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
+- Plan: `tasks/ar-asset-admin-studio-plan.md`
+- Checklist: `tasks/ar-asset-admin-studio-todo.md`
+
+This follow-up adds a server-side scale adjustment from the complete
+transformed rendered width of a separated-object GLB. The original one-person
+publication workflow remains shipped; browser preview is still deferred.
 
 ## Previous active entry (preserved)
 

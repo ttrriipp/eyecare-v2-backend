@@ -2,12 +2,13 @@
 
 ## Status
 
-**Implemented — 2026-08-23.**
+**Follow-up planned — 2026-08-24.**
 
 This plan superseded the live-preview Admin Studio plan. The owner approved the
 revised specification, plan, and checklist before implementation. The
 server-driven one-person workflow is now shipped; browser preview remains
-deferred.
+deferred. This follow-up adds a measured transformed-width adjustment without
+changing the patient contract or GLB storage lifecycle.
 
 ## Outcome
 
@@ -87,6 +88,14 @@ measurements prefill available calibration dimensions, the round-frame preset
 stays explicit, and a required physical-match checkbox is enforced in both the
 form and coordinator. No browser preview is part of this plan.
 
+### Adjust renderer scale from measured width
+
+For separated-object models, accept the complete transformed rendered width at
+the current scale as an operator input. The server computes the ratio from the
+variant's physical `frame_width_mm` and multiplies all three scale axes. This
+keeps physical measurements separate from model correction and avoids trusting
+client-calculated scale values.
+
 ## Dependency Graph
 
 ```text
@@ -96,7 +105,9 @@ Task 1: lifecycle safety
             -> Task 3: state-aware Filament modal
                 -> Checkpoint 2: UX review
                     -> Task 4: context and release evidence
-                        -> Checkpoint 3: final review
+                        -> Task 5: measured-width calibration
+                            -> Checkpoint 4: calibration review
+                                -> Checkpoint 5: final review
 ```
 
 Tasks are intentionally sequential because each consumes the contract created
@@ -300,7 +311,58 @@ git diff --check
 **Result:** Implemented. The context, spec, checklist, and release evidence
 were reconciled after the focused verification matrix passed.
 
-## Checkpoint 3: Final quality and release review
+## Task 5: Apply measured transformed-width calibration
+
+Add an optional measured rendered-width field to the editable portion of the
+Manage 3D model modal. The value represents the complete frame width after all
+relevant GLB node/world transforms, measured while the current renderer scale
+is applied. The coordinator validates the value and uniformly adjusts the
+scale vector using `frame_width_mm / measured_rendered_width_mm` before upload
+or quarantined-candidate resumption.
+
+**Acceptance criteria:**
+
+- The measurement is validated as a finite positive number and creates no new
+  candidate when invalid.
+- A measured width of 123 mm leaves the current scale unchanged; a 61.5 mm
+  width doubles all scale axes while preserving non-uniform proportions.
+- Physical calibration dimensions remain unchanged and the measurement is not
+  persisted as a second physical dimension.
+- Validated, approved, and published assets cannot be adjusted in place; a
+  replacement/version remains required.
+- Patient API output and immutable publication behavior remain unchanged.
+
+**Verification:**
+
+```text
+vendor/bin/sail artisan test --compact tests/Feature/RemoteFrameAssetTest.php tests/Feature/RemoteFrameAssetActionsTest.php
+vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php
+vendor/bin/sail bin pint --dirty --format agent
+git diff --check
+```
+
+**Dependencies:** Existing one-person publication workflow (Task 1–4)
+
+**Files likely touched:**
+
+- `app/Services/ArAssets/ArCalibration.php`
+- `app/Actions/ArAssets/PublishArAssetCandidate.php`
+- `app/Filament/Resources/Products/RelationManagers/VariantsRelationManager.php`
+- `tests/Feature/RemoteFrameAssetTest.php`
+- `tests/Feature/RemoteFrameAssetActionsTest.php`
+
+**Estimated scope:** Medium (5 files)
+
+**Commit:** `feat: adjust AR scale from measured rendered width`
+
+## Checkpoint 4: Measured-width calibration review
+
+Apply `code-review-and-quality` to Task 5. Review unit semantics, transformed
+width wording, scale-factor math, validation, state locks, and the unchanged
+patient contract. Fix every actionable finding, rerun the focused matrix and
+Pint, and commit any review fixes separately.
+
+## Checkpoint 5: Final quality and release review
 
 Apply `code-review-and-quality` to the complete implementation and fix every
 actionable finding before handoff.
