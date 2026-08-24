@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\RelationManagers;
 
 use App\Actions\ArAssets\DisableArAsset;
+use App\Actions\ArAssets\DiscardArAsset;
 use App\Actions\ArAssets\PublishArAssetCandidate;
 use App\Actions\ArAssets\RollbackArAsset;
 use App\Enums\ArAssetStatus;
@@ -288,6 +289,7 @@ class VariantsRelationManager extends RelationManager
             ->recordActions([
                 ActionGroup::make([
                     $this->manageArAssetAction(),
+                    $this->discardArAssetAction(),
                     $this->viewArAssetHistoryAction(),
                     $this->disableArAssetAction(),
                     $this->rollbackArAssetAction(),
@@ -418,6 +420,38 @@ class VariantsRelationManager extends RelationManager
                 }
             })
             ->successNotificationTitle('3D model published to the patient catalog');
+    }
+
+    private function discardArAssetAction(): Action
+    {
+        return Action::make('discardArAsset')
+            ->label('Discard 3D upload')
+            ->icon('heroicon-o-trash')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Discard 3D model upload')
+            ->modalDescription('This removes the unpublished model from the workflow and deletes its private upload. Published model history is not affected.')
+            ->modalSubmitActionLabel('Discard upload')
+            ->visible(fn (ProductVariant $record): bool => $this->canManageAr()
+                && $record->latestArAsset !== null
+                && in_array($record->latestArAsset->status, [
+                    ArAssetStatus::Quarantined,
+                    ArAssetStatus::Validated,
+                    ArAssetStatus::Approved,
+                    ArAssetStatus::Rejected,
+                ], true))
+            ->action(function (ProductVariant $record): void {
+                $asset = $record->latestArAsset;
+
+                if ($asset === null) {
+                    throw ValidationException::withMessages(['asset' => 'This variant has no unpublished 3D model upload.']);
+                }
+
+                /** @var User $actor */
+                $actor = auth()->user();
+                app(DiscardArAsset::class)->handle($asset, $actor);
+            })
+            ->successNotificationTitle('3D model upload discarded');
     }
 
     private function disableArAssetAction(): Action

@@ -83,6 +83,7 @@ test('staff sees one state-aware 3D model management action', function () {
         ->assertActionDoesNotExist(TestAction::make('submitArAssetForReview')->table($this->variant))
         ->assertActionDoesNotExist(TestAction::make('approveArAsset')->table($this->variant))
         ->assertActionDoesNotExist(TestAction::make('publishArAsset')->table($this->variant))
+        ->assertActionHidden(TestAction::make('discardArAsset')->table($this->variant))
         ->assertActionHidden(TestAction::make('disableArAsset')->table($this->variant))
         ->assertActionHidden(TestAction::make('rollbackArAsset')->table($this->variant));
 });
@@ -180,6 +181,45 @@ test('one operator can upload, calibrate, attest, approve, and publish from the 
         'approval_mode' => 'coordinated_self_approval',
         'separation_of_duties_bypassed' => true,
     ]);
+});
+
+test('staff can discard a pending 3D model from the variants table', function () {
+    $staff = User::factory()->staff()->create();
+    $asset = ArAsset::factory()->create([
+        'product_variant_id' => $this->variant->id,
+        'status' => ArAssetStatus::Quarantined,
+    ]);
+    Storage::disk('ar_quarantine')->put($asset->quarantine_path, 'pending model');
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->assertActionVisible(TestAction::make('discardArAsset')->table($this->variant))
+        ->callAction(TestAction::make('discardArAsset')->table($this->variant))
+        ->assertNotified('3D model upload discarded');
+
+    expect($asset->fresh()->status)->toBe(ArAssetStatus::Discarded)
+        ->and(Storage::disk('ar_quarantine')->exists($asset->quarantine_path))->toBeFalse();
+});
+
+test('the discard action is hidden for a published 3D model', function () {
+    $staff = User::factory()->staff()->create();
+    $asset = ArAsset::factory()->published()->create([
+        'product_variant_id' => $this->variant->id,
+    ]);
+    $this->variant->update(['published_ar_asset_id' => $asset->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->assertActionHidden(TestAction::make('discardArAsset')->table($this->variant))
+        ->assertActionVisible(TestAction::make('disableArAsset')->table($this->variant));
 });
 
 test('the management modal rejects a non-boolean attestation payload', function () {
