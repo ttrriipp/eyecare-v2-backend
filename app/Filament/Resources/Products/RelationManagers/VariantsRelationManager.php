@@ -401,10 +401,16 @@ class VariantsRelationManager extends RelationManager
                     );
                 } catch (ValidationException $exception) {
                     $message = collect($exception->errors())->flatten()->first();
+                    $variantLabel = filled($record->sku)
+                        ? sprintf('%s (SKU: %s)', $record->name, $record->sku)
+                        : $record->name;
+                    $failureMessage = is_string($message) && $message !== ''
+                        ? $message
+                        : 'Correct the highlighted fields and try again.';
 
                     Notification::make()
                         ->title('3D model was not published')
-                        ->body(is_string($message) && $message !== '' ? $message : 'Correct the highlighted fields and try again.')
+                        ->body(sprintf('Variant "%s": %s', $variantLabel, $failureMessage))
                         ->danger()
                         ->send();
 

@@ -10,6 +10,7 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -207,6 +208,10 @@ test('the management modal rejects a non-boolean attestation payload', function 
 test('the modal reports a safe publication preflight failure', function () {
     $staff = User::factory()->staff()->create();
     config(['ar.assets.base_url' => null]);
+    $this->variant->update([
+        'name' => 'Round Black',
+        'sku' => 'RB-001',
+    ]);
 
     $this->actingAs($staff);
 
@@ -223,7 +228,12 @@ test('the modal reports a safe publication preflight failure', function () {
             ...frameCalibrationForActionsTest(),
             'physical_match_confirmed' => true,
         ])
-        ->assertNotified('3D model was not published');
+        ->assertNotified(
+            Notification::make()
+                ->danger()
+                ->title('3D model was not published')
+                ->body('Variant "Round Black (SKU: RB-001)": A public HTTPS AR asset base URL is not configured.'),
+        );
 
     expect(ArAsset::query()->where('product_variant_id', $this->variant->id)->exists())->toBeFalse();
 });
