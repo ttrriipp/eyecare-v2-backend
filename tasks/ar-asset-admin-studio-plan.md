@@ -2,12 +2,12 @@
 
 ## Status
 
-**Follow-up planned — 2026-08-24.**
+**Implemented — 2026-08-24.**
 
 This plan superseded the live-preview Admin Studio plan. The owner approved the
 revised specification, plan, and checklist before implementation. The
 server-driven one-person workflow is now shipped; browser preview remains
-deferred. This follow-up adds a measured transformed-width adjustment without
+deferred. The measured transformed-width adjustment is now implemented without
 changing the patient contract or GLB storage lifecycle.
 
 ## Outcome
@@ -355,12 +355,20 @@ git diff --check
 
 **Commit:** `feat: adjust AR scale from measured rendered width`
 
+**Result:** Implemented. The coordinator and modal now apply the measured-width
+ratio only while calibration is editable; tests cover first upload, quarantine
+resumption, invalid input, locked states, and the patient contract.
+
 ## Checkpoint 4: Measured-width calibration review
 
 Apply `code-review-and-quality` to Task 5. Review unit semantics, transformed
 width wording, scale-factor math, validation, state locks, and the unchanged
 patient contract. Fix every actionable finding, rerun the focused matrix and
 Pint, and commit any review fixes separately.
+
+**Result:** Passed. The review required field-specific measured-width errors;
+the implementation now reports invalid adjustment input separately from the
+calibration contract.
 
 ## Checkpoint 5: Final quality and release review
 
@@ -375,6 +383,8 @@ actionable finding before handoff.
 - Confirm the worktree contains no unintended generated or unrelated files.
 - Commit checkpoint fixes separately if the review changes code.
 - Report the exact commits and test evidence for owner review.
+
+**Result:** Passed after the final 57-test focused matrix, Pint, and diff check.
 
 ## Risks and Mitigations
 

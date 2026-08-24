@@ -2,13 +2,14 @@
 
 ## Status
 
-**Implemented; measured-width calibration follow-up approved — 2026-08-24.**
+**Implemented — 2026-08-24.**
 
 This revision replaces the proposed live-preview Admin Studio with a smaller
 server-driven workflow. Live browser preview, Three.js, WebGL, a private
 candidate-preview route, and a dedicated Filament page are deferred.
 
-Automated Filament, lifecycle, and patient-contract verification is complete.
+Automated Filament, lifecycle, measured-width, and patient-contract
+verification is complete.
 The configured environment has no Chrome DevTools MCP server, so a real-browser
 smoke check remains an environment follow-up rather than implementation
 evidence.
@@ -157,9 +158,9 @@ final class PublishArAssetCandidate
         ProductVariant $variant,
         ?UploadedFile $file,
         array $calibration,
-        float|int|string|null $measuredRenderedWidthMm,
         bool|int|string|null $physicalMatchConfirmed,
         User $actor,
+        mixed $measuredRenderedWidthMm = null,
     ): ArAsset;
 }
 ```
@@ -291,8 +292,8 @@ vendor/bin/sail artisan test --compact tests/Feature/Api/V1/FrameCatalogTest.php
 vendor/bin/sail bin pint --dirty --format agent
 ```
 
-The final focused run on 2026-08-23 passed 53 tests and 266 assertions across
-the three suites. The dedicated Filament action suite passed 14 tests and 113
+The final focused run on 2026-08-24 passed 57 tests and 297 assertions across
+the three suites. The dedicated Filament action suite passed 14 tests and 119
 assertions. Pint and `git diff --check` also passed. A real-browser smoke run
 was not available because Chrome DevTools MCP is not configured in this
 environment; the Livewire modal tests cover the server-rendered form, upload,
@@ -306,7 +307,7 @@ authorization, state transitions, and failure notifications.
       without another account.
 - [x] Calibration reuses variant values where available and requires explicit
       values elsewhere.
-- [ ] A measured transformed width adjusts all scale axes by the server-computed
+- [x] A measured transformed width adjusts all scale axes by the server-computed
       ratio while leaving physical measurements unchanged.
 - [x] Physical-match attestation is explicit and server-enforced.
 - [x] Invalid preflight input creates no candidate; invalid GLB never reaches
@@ -330,6 +331,6 @@ authorization, state transitions, and failure notifications.
 
 ## Open Questions
 
-None. The owner approved the revised direction, and the server-driven
-one-person workflow is implemented. Browser preview remains explicitly
-deferred.
+None. The owner approved the revised direction and measured-width adjustment;
+the server-driven one-person workflow is implemented. Browser preview remains
+explicitly deferred.

@@ -1,12 +1,12 @@
 # Active Checklist
 
-The active checklist is:
+No checklist is currently active. The latest completed checklist is:
 
 → `tasks/ar-asset-admin-studio-todo.md`
 
-The checklist now tracks the approved measured-width calibration follow-up to
-the one-person, server-driven publication flow. Live preview remains explicitly
-deferred because it is not needed for the server-side publication contract.
+It includes the measured-width calibration follow-up implemented on 2026-08-24.
+Live preview remains explicitly deferred because it is not needed for the
+server-side publication contract.
 
 The previous appointment plan remains preserved at:
 

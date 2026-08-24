@@ -1,12 +1,13 @@
 # One-Person AR Asset Publication Checklist
 
-**Status:** Follow-up approved — 2026-08-24
+**Status:** Implemented — 2026-08-24
 
 - Spec: `docs/specs/ar-asset-admin-studio-spec.md`
 - Plan: `tasks/ar-asset-admin-studio-plan.md`
 
 The owner approved the measured-width calibration follow-up. The original
-server-driven one-person workflow is shipped; browser preview remains deferred.
+server-driven one-person workflow and this adjustment are shipped; browser
+preview remains deferred.
 
 ## Task 1: Lifecycle safety
 
@@ -75,33 +76,33 @@ server-driven one-person workflow is shipped; browser preview remains deferred.
 
 ## Task 5: Measured transformed-width calibration
 
-- [ ] Add the UI-only measured rendered-width field for editable candidates.
-- [ ] Validate finite positive measurements server-side before upload.
-- [ ] Apply `frame_width_mm / measured_rendered_width_mm` uniformly to the
+- [x] Add the UI-only measured rendered-width field for editable candidates.
+- [x] Validate finite positive measurements server-side before upload.
+- [x] Apply `frame_width_mm / measured_rendered_width_mm` uniformly to the
       current scale vector.
-- [ ] Keep physical measurements unchanged and do not persist a duplicate
+- [x] Keep physical measurements unchanged and do not persist a duplicate
       measured-width field.
-- [ ] Keep validated, approved, and published assets locked to replacement
+- [x] Keep validated, approved, and published assets locked to replacement
       workflow rather than in-place calibration mutation.
-- [ ] Test correct width, half-size correction, invalid input, resume, and the
+- [x] Test correct width, half-size correction, invalid input, resume, and the
       unchanged patient API contract.
-- [ ] Run focused tests and create the Task 5 commit.
+- [x] Run focused tests and create the Task 5 commit.
 
 ### Checkpoint 4: Measured-width calibration review
 
-- [ ] Apply `code-review-and-quality` to Task 5.
-- [ ] Fix all actionable unit, math, validation, state-lock, security, and
+- [x] Apply `code-review-and-quality` to Task 5.
+- [x] Fix all actionable unit, math, validation, state-lock, security, and
       patient-contract findings.
-- [ ] Re-run focused tests and Pint.
-- [ ] Commit checkpoint fixes separately if code changed.
+- [x] Re-run focused tests and Pint.
+- [x] Commit checkpoint fixes separately if code changed.
 
 ### Checkpoint 5: Final review
 
-- [ ] Apply `code-review-and-quality` to the complete change set.
-- [ ] Fix every actionable finding and re-run the release gate.
-- [ ] Update `tasks/plan.md` and `tasks/todo.md` after evidence passes.
-- [ ] Commit checkpoint fixes separately if code changed.
-- [ ] Report exact commits and verification results for owner review.
+- [x] Apply `code-review-and-quality` to the complete change set.
+- [x] Fix every actionable finding and re-run the release gate.
+- [x] Update `tasks/plan.md` and `tasks/todo.md` after evidence passes.
+- [x] Commit checkpoint fixes separately if code changed.
+- [x] Report exact commits and verification results for owner review.
 
 ## Planning Gate
 

@@ -39,8 +39,8 @@
 >
 > Only active staff and administrators can manage 3D assets through the
 > variant actions in the Products panel. The workflow is upload to private
-> quarantine, server-side GLB/calibration validation, physical-review approval,
-> immutable publication, and optional disablement or rollback. Asset statuses
+> quarantine, server-side GLB/calibration validation, coordinated physical-match
+> approval, immutable publication, and optional disablement or rollback. Asset statuses
 > are `quarantined`, `validated`, `approved`, `published`,
 > `rejected`, `superseded`, and `disabled`. Replacements receive a new
 > version; the prior published file remains available for rollback and remains
@@ -88,6 +88,14 @@
 > publication failure leaves the candidate approved and the existing patient
 > pointer active for retry. Catalog variant images remain the 2D fallback, and
 > checksum, byte size, URL, disk, and version are generated server-side.
+>
+> For a separated-object GLB, the Manage 3D model modal accepts the complete
+> transformed rendered width measured at the current scale. The server computes
+> `frame_width_mm / measured_rendered_width_mm` and multiplies all three scale
+> axes uniformly; it leaves the physical dimensions unchanged and does not
+> store the temporary measured-width input. Measurements must include all
+> relevant transformed frame objects, and the same correction must not be baked
+> into both node transforms and calibration metadata.
 >
 > **Shipped (2026-08-17): reservation maximum three.** New frame reservations
 > and item additions are capped at three variants per reservation, coordinated
@@ -632,9 +640,11 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 
 **Remote 3D asset lifecycle.** `ArAsset` records are append-only by version:
 staff/admin upload creates a quarantined record and validates the binary;
-explicit review submission validates calibration and moves it to `validated`,
-physical review moves it to `approved`, and publication makes it the variant's
-current `published` asset. The uploader cannot approve the same asset.
+coordinated submission validates calibration and moves it to `validated`,
+physical-match attestation moves it to `approved`, and publication makes it the
+variant's current `published` asset. The one-person coordinator may record the
+same actor for upload, approval, and publication with explicit audit metadata;
+direct approval still keeps the uploader self-approval guard.
 Publishing a replacement locks the variant, demotes the previous version to
 `superseded`, and switches the pointer atomically. Disablement clears only the
 published pointer and marks the version `disabled`; it does not delete the
@@ -652,9 +662,10 @@ patient upload route.
 
 ## Status Transition Rules
 
-**AR Assets:** `quarantined` → `validated` or `rejected` after explicit review
-submission; `validated` → `approved` only by a different authorized reviewer;
-`approved` → `published`. Publishing a replacement marks the prior
+**AR Assets:** `quarantined` → `validated` or `rejected` after coordinated
+review submission; `validated` → `approved` through the authorized one-person
+coordinator or a separate authorized reviewer; `approved` → `published`.
+Publishing a replacement marks the prior
 version `superseded` only after the new immutable file is stored and the
 variant pointer is switched in one transaction. The current `published`
 version can move to `disabled`; a retained `superseded` or `disabled`
@@ -695,7 +706,8 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 
 **Remote frame 3D assets** are managed from the `VariantsRelationManager` on
 frame products. Active staff/admin users use the single **Manage 3D model**
-action to upload or resume a candidate, calibrate it, attest to the physical
+action to upload or resume a candidate, calibrate it, optionally adjust scale
+from a complete transformed rendered-width measurement, attest to the physical
 match, and publish an immutable version. The action layer repeats
 authorization checks, so hidden Filament actions are not the security
 boundary. History, disablement, and rollback remain secondary operations. The

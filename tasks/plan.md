@@ -9,15 +9,8 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**AR Measured-Width Calibration Follow-up** — approved 2026-08-24
-
-- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
-- Plan: `tasks/ar-asset-admin-studio-plan.md`
-- Checklist: `tasks/ar-asset-admin-studio-todo.md`
-
-This follow-up adds a server-side scale adjustment from the complete
-transformed rendered width of a separated-object GLB. The original one-person
-publication workflow remains shipped; browser preview is still deferred.
+No project is currently active. The latest completed project is the measured-
+width calibration follow-up documented below.
 
 ## Previous active entry (preserved)
 
@@ -31,6 +24,18 @@ Its named files are unchanged; switching the active pointer does not reinterpret
 or discard its existing progress.
 
 ## Completed (latest)
+
+**AR Measured-Width Calibration Follow-up** — implemented 2026-08-24
+
+- Spec: `docs/specs/ar-asset-admin-studio-spec.md`
+- Plan: `tasks/ar-asset-admin-studio-plan.md`
+- Checklist: `tasks/ar-asset-admin-studio-todo.md`
+
+The Manage 3D model workflow now accepts the complete transformed rendered
+width for editable candidates and applies the server-computed physical-width
+ratio uniformly to the renderer scale. Physical measurements and the patient
+API remain unchanged; validated and published assets still require replacement.
+Browser preview remains explicitly deferred.
 
 **One-Person AR Asset Publication** — implemented 2026-08-23
 
