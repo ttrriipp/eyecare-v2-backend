@@ -103,7 +103,10 @@ test('the management modal explains the upload, calibration, and attestation ste
             'Measured rendered width (mm)',
             'I compared this GLB with the physical frame and confirm that it represents this catalog variant, including its silhouette, bridge, material, color, and proportions.',
             'Validate & publish',
-        ]);
+        ])
+        ->assertMountedActionModalDontSee('GLB only, maximum 10 MiB.')
+        ->assertMountedActionModalDontSee('Use the physical frame as the source of truth')
+        ->assertMountedActionModalDontSee('Selecting the preset is explicit');
 });
 
 test('the first modal pre-fills available variant measurements', function () {

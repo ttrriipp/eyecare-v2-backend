@@ -528,7 +528,6 @@ class VariantsRelationManager extends RelationManager
                         ->maxSize(10240)
                         ->rules(['file', 'extensions:glb'])
                         ->required($isNewUpload)
-                        ->helperText('GLB only, maximum 10 MiB. Catalog images remain the 2D fallback if this model is disabled.')
                         ->visible($isNewUpload),
                     Placeholder::make('pending_model')
                         ->label('Workflow state')
@@ -541,7 +540,6 @@ class VariantsRelationManager extends RelationManager
             $this->calibrationSection(readOnly: ! $isCalibrationEditable),
             Checkbox::make('physical_match_confirmed')
                 ->label('I compared this GLB with the physical frame and confirm that it represents this catalog variant, including its silhouette, bridge, material, color, and proportions.')
-                ->helperText('Use the physical frame as the source of truth for measurements, placement, and orientation. This confirmation allows one operator to complete the controlled workflow.')
                 ->accepted()
                 ->columnSpanFull(),
         ];
@@ -649,7 +647,6 @@ class VariantsRelationManager extends RelationManager
                         'round_frame' => (string) config('ar.presets.round_frame.label', 'Current round-frame preset'),
                     ])
                     ->placeholder('Choose only when this model matches the preset')
-                    ->helperText('Selecting the preset is explicit. Never use it for a different model or coordinate system.')
                     ->live()
                     ->afterStateUpdated(function (Set $set, ?string $state) use ($preset): void {
                         if ($state !== 'round_frame') {
@@ -697,7 +694,7 @@ class VariantsRelationManager extends RelationManager
                     ->minValue(0.000001)
                     ->nullable()
                     ->visible(! $readOnly)
-                    ->helperText('Optional: measure the complete transformed frame width at the current scale. The server adjusts all scale axes to match the physical frame width.'),
+                    ->helperText('Full transformed frame width at the current scale.'),
             ])
             ->columnSpanFull();
     }
