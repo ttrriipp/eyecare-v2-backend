@@ -100,6 +100,7 @@ test('the management modal explains the upload, calibration, and attestation ste
         ->assertMountedActionModalSee([
             'Upload and publish 3D model',
             'Physical dimensions and placement',
+            'Measured rendered width (mm)',
             'I compared this GLB with the physical frame and confirm that it represents this catalog variant, including its silhouette, bridge, material, color, and proportions.',
             'Validate & publish',
         ]);
@@ -147,6 +148,7 @@ test('one operator can upload, calibrate, attest, approve, and publish from the 
                 'model/gltf-binary',
             ),
             ...frameCalibrationForActionsTest(),
+            'measured_rendered_width_mm' => 61.5,
             'physical_match_confirmed' => true,
         ])
         ->assertNotified('3D model published to the patient catalog');
@@ -159,6 +161,11 @@ test('one operator can upload, calibrate, attest, approve, and publish from the 
         ->and($asset->published_by)->toBe($staff->id)
         ->and($this->variant->fresh()->published_ar_asset_id)->toBe($asset->id)
         ->and(Storage::disk('ar_published')->exists($asset->published_path))->toBeTrue();
+
+    expect($asset->calibration)->toMatchArray([
+        'frame_width_mm' => 123.0,
+        'scale' => ['x' => 0.246, 'y' => 0.28913, 'z' => 0.246],
+    ]);
 
     $approvalLog = AuditLog::query()
         ->where('subject_id', $asset->id)
@@ -294,6 +301,7 @@ test('the modal labels a validated candidate for approval and keeps calibration 
             'The model passed file validation.',
             'Validate & publish',
         ])
+        ->assertMountedActionModalDontSee('Measured rendered width (mm)')
         ->assertMountedActionModalSeeHtml('disabled');
 });
 

@@ -36,6 +36,7 @@ class PublishArAssetCandidate
      * Validate, approve, and publish one frame-variant GLB in one operator flow.
      *
      * @param  array<string, mixed>  $calibration
+     * @param  mixed  $measuredRenderedWidthMm  Optional transformed rendered width at the current scale.
      * @param  bool|int|string|null  $physicalMatchConfirmed  Raw form state; only literal true is accepted.
      */
     public function handle(
@@ -44,6 +45,7 @@ class PublishArAssetCandidate
         array $calibration,
         bool|int|string|null $physicalMatchConfirmed,
         User $actor,
+        mixed $measuredRenderedWidthMm = null,
     ): ArAsset {
         $this->authorizer->authorize($actor);
 
@@ -64,12 +66,14 @@ class PublishArAssetCandidate
                 $file,
                 $calibration,
                 $actor,
+                $measuredRenderedWidthMm,
             ): ArAsset {
                 return $this->publishWithinLock(
                     variant: $variant,
                     file: $file,
                     calibration: $calibration,
                     actor: $actor,
+                    measuredRenderedWidthMm: $measuredRenderedWidthMm,
                 );
             });
         } catch (LockTimeoutException) {
@@ -87,6 +91,7 @@ class PublishArAssetCandidate
         ?UploadedFile $file,
         array $calibration,
         User $actor,
+        mixed $measuredRenderedWidthMm,
     ): ArAsset {
         $activeVariant = $this->activeVariant($variant);
         $candidates = $this->actionableCandidates($activeVariant);
@@ -107,21 +112,43 @@ class PublishArAssetCandidate
                 ]);
             }
 
-            $normalizedCalibration = $this->calibrationValidator->normalize($calibration);
+            $normalizedCalibration = $this->normalizedCalibrationForInput(
+                calibration: $calibration,
+                measuredRenderedWidthMm: $measuredRenderedWidthMm,
+            );
             $candidate = $this->uploadArAsset->handle(
                 variant: $activeVariant,
                 file: $file,
                 calibration: $normalizedCalibration,
                 actor: $actor,
             );
-        } elseif ($file instanceof UploadedFile) {
-            throw ValidationException::withMessages([
-                'file' => 'Finish or resolve the existing pending 3D model before uploading another file.',
-            ]);
+        } else {
+            if ($file instanceof UploadedFile) {
+                throw ValidationException::withMessages([
+                    'file' => 'Finish or resolve the existing pending 3D model before uploading another file.',
+                ]);
+            }
+
+            if ($this->hasMeasuredRenderedWidth($measuredRenderedWidthMm)
+                && $candidate->status !== ArAssetStatus::Quarantined) {
+                throw ValidationException::withMessages([
+                    'measured_rendered_width_mm' => 'Scale adjustment is only available before the model is validated.',
+                ]);
+            }
         }
 
         if ($candidate->status === ArAssetStatus::Quarantined) {
-            $normalizedCalibration ??= $this->calibrationForQuarantinedCandidate($candidate, $calibration);
+            if ($normalizedCalibration === null) {
+                $normalizedCalibration = $this->calibrationForQuarantinedCandidate($candidate, $calibration);
+
+                if ($this->hasMeasuredRenderedWidth($measuredRenderedWidthMm)) {
+                    $normalizedCalibration = $this->calibrationValidator->adjustScaleToMeasuredWidth(
+                        calibration: $normalizedCalibration,
+                        measuredRenderedWidthMm: $measuredRenderedWidthMm,
+                    );
+                }
+            }
+
             $candidate = $this->submitArAssetForReview->handle(
                 asset: $candidate,
                 calibration: $normalizedCalibration,
@@ -147,6 +174,31 @@ class PublishArAssetCandidate
         $this->validatePersistedCalibration($candidate);
 
         return $this->publishArAsset->handle($candidate, $actor);
+    }
+
+    /**
+     * @param  array<string, mixed>  $calibration
+     * @return array<string, mixed>
+     */
+    private function normalizedCalibrationForInput(
+        array $calibration,
+        mixed $measuredRenderedWidthMm,
+    ): array {
+        $normalized = $this->calibrationValidator->normalize($calibration);
+
+        if (! $this->hasMeasuredRenderedWidth($measuredRenderedWidthMm)) {
+            return $normalized;
+        }
+
+        return $this->calibrationValidator->adjustScaleToMeasuredWidth(
+            calibration: $normalized,
+            measuredRenderedWidthMm: $measuredRenderedWidthMm,
+        );
+    }
+
+    private function hasMeasuredRenderedWidth(mixed $value): bool
+    {
+        return $value !== null && $value !== '';
     }
 
     private function activeVariant(ProductVariant $variant): ProductVariant

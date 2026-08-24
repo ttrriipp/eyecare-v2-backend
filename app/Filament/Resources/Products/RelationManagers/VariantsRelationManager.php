@@ -397,6 +397,7 @@ class VariantsRelationManager extends RelationManager
                         calibration: $this->calibrationFromData($data),
                         physicalMatchConfirmed: $this->rawPhysicalMatchAttestation(),
                         actor: $actor,
+                        measuredRenderedWidthMm: $this->rawMeasuredRenderedWidth(),
                     );
                 } catch (ValidationException $exception) {
                     $message = collect($exception->errors())->flatten()->first();
@@ -566,6 +567,7 @@ class VariantsRelationManager extends RelationManager
 
         return [
             ...$calibration,
+            'measured_rendered_width_mm' => null,
             'physical_match_confirmed' => false,
         ];
     }
@@ -622,6 +624,14 @@ class VariantsRelationManager extends RelationManager
         $state = $schema?->getRawState();
 
         return is_array($state) ? ($state['physical_match_confirmed'] ?? null) : null;
+    }
+
+    private function rawMeasuredRenderedWidth(): mixed
+    {
+        $schema = $this->getMountedActionSchema();
+        $state = $schema?->getRawState();
+
+        return is_array($state) ? ($state['measured_rendered_width_mm'] ?? null) : null;
     }
 
     private function calibrationSection(bool $readOnly = false): Section
@@ -681,6 +691,13 @@ class VariantsRelationManager extends RelationManager
                     TextInput::make('rotation_y')->label('Rotation Y°')->numeric()->required(! $readOnly)->disabled($readOnly),
                     TextInput::make('rotation_z')->label('Rotation Z°')->numeric()->required(! $readOnly)->disabled($readOnly),
                 ]),
+                TextInput::make('measured_rendered_width_mm')
+                    ->label('Measured rendered width (mm)')
+                    ->numeric()
+                    ->minValue(0.000001)
+                    ->nullable()
+                    ->visible(! $readOnly)
+                    ->helperText('Optional: measure the complete transformed frame width at the current scale. The server adjusts all scale axes to match the physical frame width.'),
             ])
             ->columnSpanFull();
     }

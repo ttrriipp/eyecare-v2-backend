@@ -69,26 +69,56 @@ class ArCalibration
         return $normalized;
     }
 
-    private function positiveNumber(mixed $value, string $label): float
+    /**
+     * Adjust renderer scale so a measured transformed model matches the
+     * physical frame width while preserving the current scale proportions.
+     *
+     * @param  array<string, mixed>  $calibration
+     * @return array<string, mixed>
+     */
+    public function adjustScaleToMeasuredWidth(array $calibration, mixed $measuredRenderedWidthMm): array
     {
-        $number = $this->number($value, $label);
+        $normalized = $this->normalize($calibration);
+        $measuredWidth = $this->positiveNumber(
+            value: $measuredRenderedWidthMm,
+            label: 'measured rendered width',
+            errorKey: 'measured_rendered_width_mm',
+        );
+        $factor = $normalized['frame_width_mm'] / $measuredWidth;
+
+        if (! is_finite($factor) || $factor <= 0) {
+            throw ValidationException::withMessages([
+                'measured_rendered_width_mm' => 'The measured rendered width cannot produce a finite scale adjustment.',
+            ]);
+        }
+
+        foreach (['x', 'y', 'z'] as $axis) {
+            $normalized['scale'][$axis] *= $factor;
+        }
+
+        return $this->normalize($normalized);
+    }
+
+    private function positiveNumber(mixed $value, string $label, string $errorKey = 'calibration'): float
+    {
+        $number = $this->number($value, $label, $errorKey);
 
         if ($number <= 0) {
             throw ValidationException::withMessages([
-                'calibration' => "The {$label} must be greater than zero.",
+                $errorKey => "The {$label} must be greater than zero.",
             ]);
         }
 
         return $number;
     }
 
-    private function number(mixed $value, string $label): float
+    private function number(mixed $value, string $label, string $errorKey = 'calibration'): float
     {
         if (is_bool($value)
             || ! is_int($value) && ! is_float($value) && ! is_string($value)
             || ! is_numeric($value)) {
             throw ValidationException::withMessages([
-                'calibration' => "The {$label} must be a finite number.",
+                $errorKey => "The {$label} must be a finite number.",
             ]);
         }
 
@@ -96,7 +126,7 @@ class ArCalibration
 
         if (! is_finite($number)) {
             throw ValidationException::withMessages([
-                'calibration' => "The {$label} must be a finite number.",
+                $errorKey => "The {$label} must be a finite number.",
             ]);
         }
 

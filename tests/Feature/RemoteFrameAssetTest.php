@@ -344,6 +344,92 @@ test('the coordinator rejects invalid calibration before creating a candidate', 
         ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
 });
 
+test('the coordinator adjusts every scale axis from the measured rendered width', function () {
+    $calibration = frameCalibrationForTest();
+    $calibration['scale'] = ['x' => 0.123, 'y' => 0.144565, 'z' => 0.123];
+
+    $published = app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: $calibration,
+        measuredRenderedWidthMm: 61.5,
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    );
+
+    expect($published->calibration)->toMatchArray([
+        'frame_width_mm' => 123.0,
+        'outer_frame_height_mm' => 48.0,
+        'scale' => ['x' => 0.246, 'y' => 0.28913, 'z' => 0.246],
+    ]);
+});
+
+test('an invalid measured rendered width is rejected before creating a candidate', function () {
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        measuredRenderedWidthMm: 0,
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    ))->toThrow(ValidationException::class);
+
+    expect(ArAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('ar_quarantine')->allFiles())->toBeEmpty();
+});
+
+test('the coordinator applies measured width when resuming a quarantined candidate', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        actor: $this->staff,
+    );
+
+    $published = app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: null,
+        calibration: [],
+        measuredRenderedWidthMm: 61.5,
+        physicalMatchConfirmed: true,
+        actor: $this->staff,
+    );
+
+    expect($published->id)->toBe($asset->id)
+        ->and($published->calibration['frame_width_mm'])->toEqual(123.0)
+        ->and($published->calibration['scale'])->toMatchArray([
+            'x' => 0.246,
+            'y' => 0.28913,
+            'z' => 0.246,
+        ]);
+});
+
+test('the coordinator keeps validated calibration locked against measured-width adjustment', function () {
+    $asset = app(UploadArAsset::class)->handle(
+        variant: $this->variant,
+        file: UploadedFile::fake()->createWithContent('round-black.glb', makeGlbForTest(), 'model/gltf-binary'),
+        calibration: frameCalibrationForTest(),
+        actor: $this->staff,
+    );
+    $validated = submitArAssetForReviewForTest($asset, $this->staff);
+
+    expect(fn () => app(PublishArAssetCandidate::class)->handle(
+        variant: $this->variant,
+        file: null,
+        calibration: [],
+        measuredRenderedWidthMm: 61.5,
+        physicalMatchConfirmed: true,
+        actor: $this->reviewer,
+    ))->toThrow(ValidationException::class);
+
+    expect($validated->fresh()->status->value)->toBe('validated')
+        ->and($validated->fresh()->calibration['scale'])->toMatchArray([
+            'x' => 0.123,
+            'y' => 0.144565,
+            'z' => 0.123,
+        ]);
+});
+
 test('the coordinator resumes an approved candidate without another upload', function () {
     $asset = app(UploadArAsset::class)->handle(
         variant: $this->variant,
