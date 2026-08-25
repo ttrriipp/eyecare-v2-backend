@@ -76,6 +76,48 @@ test('request queue shows scheduling context', function () {
         ->assertSee('Not requested');
 });
 
+test('pending requests appear before resolved requests in the default queue order', function () {
+    $staff = User::factory()->staff()->create();
+    $pending = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'created_at' => now()->subDays(2),
+    ]);
+    $accepted = AppointmentRequest::factory()->linked()->accepted()->create([
+        'created_at' => now(),
+    ]);
+    $rejected = AppointmentRequest::factory()->linked()->rejected()->create([
+        'created_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertCanSeeTableRecords([$pending, $accepted, $rejected], inOrder: true);
+});
+
+test('request queue shows all preferred times and submitted time', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->withAlternatives()->create([
+        'created_at' => now()->subHours(3),
+    ]);
+
+    $this->actingAs($staff);
+
+    $preferredTimes = collect($request->getAllTimePreferences())
+        ->map(fn (string $time, int $index): string => sprintf(
+            '%s: %s',
+            $index === 0 ? 'Primary' : "Alt {$index}",
+            Carbon::parse($time)->format('M j, g:i A'),
+        ))
+        ->all();
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertTableColumnStateSet('scheduled_at', $preferredTimes, record: $request)
+        ->assertSee('Preferred Times')
+        ->assertSee('Submitted')
+        ->assertSee($request->created_at->format('M j, Y g:i A'));
+});
+
 // --- Policy ---
 
 test('staff can access appointment requests', function () {

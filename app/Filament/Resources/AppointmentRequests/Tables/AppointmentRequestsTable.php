@@ -19,6 +19,8 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -58,8 +60,20 @@ class AppointmentRequestsTable
                     ->color(fn (?string $state): ?string => $state === null ? 'gray' : null),
 
                 TextColumn::make('scheduled_at')
-                    ->label('Preferred Time')
-                    ->dateTime('M j, g:i A')
+                    ->label('Preferred Times')
+                    ->state(fn (AppointmentRequest $record): array => collect($record->getAllTimePreferences())
+                        ->map(fn (string $time, int $index): string => sprintf(
+                            '%s: %s',
+                            $index === 0 ? 'Primary' : "Alt {$index}",
+                            Carbon::parse($time)->format('M j, g:i A'),
+                        ))
+                        ->all())
+                    ->listWithLineBreaks()
+                    ->sortable(),
+
+                TextColumn::make('created_at')
+                    ->label('Submitted')
+                    ->dateTime('M j, Y g:i A')
                     ->sortable(),
 
                 TextColumn::make('status')
@@ -73,7 +87,18 @@ class AppointmentRequestsTable
                     })
                     ->formatStateUsing(fn (AppointmentRequestStatus $state): string => Str::headline($state->value)),
             ])
-            ->defaultSort('expires_at', 'asc')
+            ->defaultSort(function (Builder $query): Builder {
+                $table = $query->getModel()->getTable();
+                $pendingStatus = AppointmentRequestStatus::Pending->value;
+
+                return $query
+                    ->orderByRaw(
+                        "CASE WHEN {$table}.status = ? AND {$table}.expires_at > ? THEN 0 WHEN {$table}.status = ? THEN 1 ELSE 2 END",
+                        [$pendingStatus, now(), $pendingStatus],
+                    )
+                    ->orderBy('expires_at', 'asc')
+                    ->orderBy('created_at', 'desc');
+            })
             ->filters([
                 SelectFilter::make('status')
                     ->options(AppointmentRequestStatus::class),
