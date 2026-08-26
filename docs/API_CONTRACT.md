@@ -1,6 +1,15 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-17) — remote frame 3D assets and reservation maximum three complete: `ar_assets` table with versioned GLB lifecycle, typed patient `ar` response on frame variants, secure upload/quarantine/GLB validation, independent review/publication/rollback, and reservation item cap changed from five to three. Previous: direct messaging hardening, optical commerce and dispensing, resilient patient invitation linking, simplified frame reservations, and commerce model simplification.
+> **Backend version:** Current repository state (2026-08-26) — Saved Frames
+> replacement complete: Frame Reservations replaced with account-owned Saved
+> Frames. Patients save frame variants as persistent preferences without
+> withholding inventory. Three new account-only routes (`GET/PUT/DELETE
+> /saved-frames`). Five reservation routes removed. `is_saved` field added to
+> frame catalog variants. Route count: 59 (8 public + 40 account-only +
+> 11 active-link). Previous: remote frame 3D assets, reservation maximum three,
+> direct messaging hardening, optical commerce and dispensing, resilient patient
+> invitation linking, simplified frame reservations, and commerce model
+> simplification.
 >
 > **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
@@ -55,7 +64,7 @@
 - [Appointment Availability](#9-appointment-availability)
 - [Confirmed Appointments](#10-confirmed-appointments)
 - [Frames](#11-frames)
-- [Frame Reservations](#12-frame-reservations)
+- [Saved Frames](#12-saved-frames)
 - [Prescriptions](#13-prescriptions)
 - [Optical Orders](#14-optical-orders)
 - [Conversation](#15-conversation)
@@ -1616,185 +1625,158 @@ the existing frame-catalog visibility rules.
 
 **Auth:** Required (Sanctum token). No active patient link required.
 
-Browsing the catalog does not grant access to frame reservations. Reservation
-endpoints remain restricted to accounts with an active patient link.
+Browsing the catalog does not grant access to saved frames. Saved frame
+endpoints are account-only routes that do not require an active patient link.
 
 The `variants` array uses the same additive shape documented for `GET /frames`,
 including the nullable `ar` field and the same image-preview fallback rules.
 
+Each variant now includes an account-specific `is_saved` boolean field.
+
 ---
 
-## 12. Frame Reservations
+## 12. Saved Frames
 
-**Active patient link required for all endpoints in this section.**
+**Authenticated account-only (no active patient link required).**
 
-### GET `/frame-reservations`
+Saved Frames let patients record frame variants they liked while browsing or
+using AR. Saving a frame records interest only — it never reserves stock or
+guarantees availability. Saved frames persist until the account removes them.
 
-Returns all reservations for the authenticated patient. **Not paginated** — returns full list via `->get()`.
+### GET `/saved-frames`
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+Returns the authenticated account's saved frames, newest first.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Query parameters:**
+
+| Parameter | Required | Validation | Default |
+|---|---|---|---|
+| `page` | No | integer, minimum 1 | `1` |
+| `per_page` | No | integer, 1 through 50 | `15` |
 
 **Response (200):**
 ```json
 {
   "data": [
     {
-      "id": 1,
-      "appointment_id": 42,
-      "is_held": false,
-      "expires_at": "2026-07-30T18:00:00+08:00",
-      "created_at": "2026-07-27T10:00:00+08:00",
-      "appointment": {
+      "product_variant_id": 42,
+      "saved_at": "2026-08-26T10:30:00+08:00",
+      "availability": "available",
+      "variant": {
         "id": 42,
-        "appointment_number": "APT-2026-000042",
-        "status": "scheduled",
-        "scheduled_at": "2026-07-30T09:00:00+08:00",
-        "duration_minutes": 30
-      },
-      "items": [
-        {
-          "id": 1,
-          "product_variant_id": 42,
-          "variant": {
-            "id": 42,
-            "name": "Black / 52mm",
-            "sku": "RB-CR-BLK-52",
-            "price": "4500.00",
-            "compare_at_price": null,
-            "attributes": { "color": "black", "size": "52mm" },
-            "images": [],
-            "product": {
-              "id": 7,
-              "name": "Classic Rectangle",
-              "slug": "classic-rectangle",
-              "description": "Timeless frame design",
-              "product_type": "frame",
-              "brand": "Ray-Ban",
-              "category": "Full Rim"
-            }
-          }
+        "name": "Black / 52mm",
+        "sku": "RB-CR-BLK-52",
+        "price": "4500.00",
+        "compare_at_price": null,
+        "attributes": { "color": "black", "size": "52mm" },
+        "images": [],
+        "ar": null,
+        "product": {
+          "id": 7,
+          "name": "Classic Rectangle",
+          "slug": "classic-rectangle",
+          "description": "Timeless frame design",
+          "product_type": "frame",
+          "brand": "Ray-Ban",
+          "category": "Full Rim"
         }
-      ]
+      }
     }
-  ]
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": null },
+  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
 }
 ```
 
-**Notes:**
-- Response is a plain array wrapper (`data: [...]`), no `links` or `meta` pagination envelope.
-- Sanitized via `FrameReservationResource`. Excludes: `patient_id`, `staff_notes`, `updated_at`.
-- Variant excludes: `cost_price`, `stock_quantity`, `low_stock_threshold`, `target_stock_level`, `is_active`, `ar_eligible`, `ar_asset_reference`, `product_id`, `deleted_at`, timestamps.
-- Product excludes: `brand_id`, `category_id`, `lens_category_id`, `is_active`, `images`, `deleted_at`, timestamps. `brand` and `category` are string names, not objects.
-- `is_held` is derived from `accepted_at` (null → false, set → true). The raw `accepted_at` timestamp is not exposed.
-- `expires_at` is derived from clinic close time on the appointment's scheduled date, not stored.
-- An appointment can have at most one frame reservation, ever.
-- Android presentation: `is_held: false` → "Request sent — the clinic will set these aside before your visit."; `is_held: true` → "Set aside for your visit until {expires_at}."
+**Availability values:**
+
+| Value | Rule |
+|---|---|
+| `available` | Variant and Product are active and not deleted, and `stock_quantity > 0`. |
+| `unavailable` | Any other state, including zero stock, deactivation, or soft deletion. |
+
+The response does not distinguish why a frame is unavailable and does not
+expose any inventory number. It reuses the existing patient-safe frame,
+variant, image, and published-AR serialization rules.
 
 ---
 
-### POST `/frame-reservations`
+### PUT `/saved-frames/{productVariant}`
 
-Creates a new frame reservation. Requires an active patient link and a confirmed eligible appointment.
+Ensures the active frame variant is saved for the authenticated account.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+- There is no request body.
+- The route parameter is the ProductVariant ID (integer).
+- The target must satisfy the same active frame Product and active variant
+  eligibility used by the patient frame catalog.
+- The operation uses the unique account/variant constraint as its concurrency
+  boundary.
+- The first and repeated request both return `200` with the same resource
+  shape.
+- A repeated save neither duplicates the row nor changes `saved_at`.
+- An inactive, deleted, non-frame, or nonexistent target returns `422`.
 
-**Request:**
-```json
-{
-  "appointment_id": "integer (required, exists:appointments,id — must belong to patient)",
-  "items": [
-    { "product_variant_id": "integer (required, exists:product_variants,id)" }
-  ]
-}
-```
+**Auth:** Required (Sanctum token). No active patient link required.
 
-**Validation:**
-- `appointment_id`: required; must belong to the authenticated patient's Patient record; must be `scheduled` and not past end time.
-- `items`: `required`, `array`, `min:1`, `max:3`.
-- Each `product_variant_id` must reference an active frame variant (product_type = frame, is_active = true, variant is_active = true).
-- Duplicate variants within a reservation are rejected.
-- No window check — a request may be submitted any time before the visit.
-- `POST` never fails on stock.
-
-**Response (201):**
+**Response (200):**
 ```json
 {
   "data": {
-    "id": 1,
-    "appointment_id": 42,
-    "is_held": false,
-    "expires_at": "2026-07-30T18:00:00+08:00",
-    "created_at": "2026-07-27T10:00:00+08:00",
-    "appointment": { "id": 42, "appointment_number": "APT-2026-000042", "status": "scheduled", "scheduled_at": "2026-07-30T09:00:00+08:00", "duration_minutes": 30 },
-    "items": [ /* same structure as GET */ ]
+    "product_variant_id": 42,
+    "saved_at": "2026-08-26T10:30:00+08:00",
+    "availability": "available",
+    "variant": { /* same structure as GET */ }
   }
 }
 ```
 
 ---
 
-### DELETE `/frame-reservations/{reservation}`
+### DELETE `/saved-frames/{productVariant}`
 
-Deletes a reservation. Returns 204 for the owner in either state, 403 for a non-owner, 404 for an already-deleted reservation.
+Ensures the variant is not saved by the authenticated account.
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+- There is no request body.
+- The operation is idempotent and always returns `204` whether or not that
+  account currently has the preference.
+- It deletes only a row whose `user_id` is the authenticated account.
+- An absent or force-deleted variant remains an idempotent `204`.
+- The route does not require the ProductVariant to remain active or
+  non-deleted, allowing an unavailable preference to be removed.
+
+**Auth:** Required (Sanctum token). No active patient link required.
 
 **Response (204):** No content.
 
-**Error (403):** If the reservation does not belong to the authenticated patient.
+---
+
+### Additive frame-catalog field
+
+Every variant returned by `GET /frames` and `GET /frames/{frame}` includes:
+
+```json
+{
+  "is_saved": true
+}
+```
+
+`is_saved` is a required boolean for authenticated responses. It is computed
+for the authenticated account without an N+1 query. No Saved Frame ID is
+exposed because the toggle contract is keyed by ProductVariant ID.
 
 ---
 
-### POST `/frame-reservations/{reservation}/items`
+### Patient-facing copy
 
-Adds a frame to an existing unaccepted reservation. Only allowed when `is_held` is `false`.
+The Android save surface must display or make readily accessible:
 
-**Auth:** Required (Sanctum token). **Active patient link required.**
+> Saved frames are preferences only. Availability is not guaranteed until
+> your purchase is confirmed.
 
-**Request:**
-```json
-{
-  "product_variant_id": "integer (required, exists:product_variants,id)"
-}
-```
-
-**Validation:**
-- `product_variant_id`: required; must reference an active frame variant.
-- Variant must not already be in the reservation.
-- Reservation must not be accepted (`is_held` must be `false`).
-- Reservation must have fewer than 3 items.
-
-**Response (200):**
-```json
-{
-  "data": { /* FrameReservationResource with updated items */ }
-}
-```
-
-**Errors:**
-- `403`: Reservation does not belong to the authenticated patient.
-- `422`: Variant is not an active frame, is a duplicate, reservation is accepted, or max 3 items reached.
-
----
-
-### DELETE `/frame-reservations/{reservation}/items/{item}`
-
-Removes a frame from a reservation. If it was the last item, the reservation is deleted.
-
-**Auth:** Required (Sanctum token). **Active patient link required.**
-
-**Response (200):** Updated reservation (when items remain).
-```json
-{
-  "data": { /* FrameReservationResource with updated items */ }
-}
-```
-
-**Response (204):** No content (when last item was removed and reservation deleted).
-
-**Errors:**
-- `403`: Reservation does not belong to the authenticated patient.
-- `404`: Item does not belong to the reservation.
+The app must not use "reserved," "held," "set aside," an expiry countdown, or
+appointment-selection language for this feature.
 
 ---
 
@@ -1849,12 +1831,9 @@ Single prescription, including historical superseded versions. Returns `404` if 
 Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
 record. Service-only accepted quotations do not create Optical Orders. When a
-staff member confirms a reservation-backed quotation, the resulting order
-contains the quotation's selected Frame and every other quoted
-inventory-backed product exactly once; the internal
-`job_orders.frame_reservation_id` link and candidate-selection details are not
-returned by the patient resource. Reservation item rows are retained in the
-reservation history rather than exposed as order item statuses.
+staff member confirms a quotation, the resulting order contains the
+quotation's selected Frame and every other quoted inventory-backed product
+exactly once.
 
 
 ### GET `/optical-orders`
@@ -2555,11 +2534,11 @@ check protects against a race after OTP issuance. The existing account is
 never signed in by the registration endpoint.
 
 ### Active patient link boundary
-Patient-specific clinical resources, confirmed appointments, and all frame
-reservation endpoints require an active patient link (`patients.user_id`).
-Appointment requests and frame catalog browsing are account-only routes, so an
-authenticated unlinked account may browse frames but cannot reserve one. The
-`link_status` field on `/me` reflects the current state.
+Patient-specific clinical resources and confirmed appointments require an
+active patient link (`patients.user_id`). Appointment requests, frame catalog
+browsing, and Saved Frames are account-only routes, so an authenticated
+unlinked account may browse frames and save preferences. The `link_status`
+field on `/me` reflects the current state.
 
 ### Appointment requests vs confirmed appointments
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
@@ -2681,6 +2660,9 @@ GET    /api/v1/appointment-requests/{id}       Get request detail
 POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 GET    /api/v1/frames                         List frames
 GET    /api/v1/frames/{id}                    Get frame detail
+GET    /api/v1/saved-frames                   List saved frames
+PUT    /api/v1/saved-frames/{productVariant}  Save a frame variant
+DELETE /api/v1/saved-frames/{productVariant}  Remove a saved frame
 ```
 
 ### Authenticated API rate limits
@@ -2711,12 +2693,6 @@ POST   /api/v1/appointments/{id}/cancel       Cancel appointment
 POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
-GET    /api/v1/frame-reservations                    List reservations
-POST   /api/v1/frame-reservations                    Create reservation
-DELETE /api/v1/frame-reservations/{id}               Delete reservation
-POST   /api/v1/frame-reservations/{id}/items         Add frame to reservation
-DELETE /api/v1/frame-reservations/{id}/items/{itemId} Remove frame from reservation
-
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
 GET    /api/v1/optical-orders                 List optical orders
@@ -2725,4 +2701,4 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 37 account-only + 16 active-link = **61 routes total.**
+**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**

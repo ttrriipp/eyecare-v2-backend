@@ -2,12 +2,13 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-15.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-26.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
-> separate Quotations and Optical Orders sections, and unified billing
-> with explicit charge provenance have been implemented. The admin sidebar
+> separate Quotations and Optical Orders sections, unified billing
+> with explicit charge provenance, and **Saved Frames** (replacing Frame
+> Reservations) have been implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
 > Filament cluster (Clinic Hours, Optometrist Hours, Schedule Overrides,
@@ -29,6 +30,23 @@
 > action names remain Encounter-based. User-readable validation messages may
 > use Consultation, while native Android labels remain a follow-up in the
 > separate Android repository.
+
+> **Shipped (2026-08-26): Saved Frames replaces Frame Reservations.**
+> Appointment-bound Frame Reservations have been replaced with account-owned
+> **Saved Frames** (patient-facing) / **Preferred Frames** (clinic-facing).
+> Patients save frame variants as persistent preferences without withholding
+> inventory. Three new account-only API routes (`GET/PUT/DELETE
+> /api/v1/saved-frames/{productVariant}`) replace five reservation routes.
+> Frame catalog variants now include an account-specific `is_saved` boolean.
+> The Patient Record exposes a full Preferred Frames relation manager;
+> Appointment and Consultation edit pages show the latest three saves.
+> No save, remove, link, unlink, or viewing operation changes stock or
+> creates an inventory movement. The `saved_frames` table uses
+> `user_id` + `product_variant_id` with a unique constraint. Historical
+> `inventory_movements.reservation_id` column and movement-type rows are
+> preserved for provenance. Spec/plan/tasks live in
+> `docs/specs/saved-frames-replacement-{spec,plan}.md` and
+> `tasks/saved-frames-replacement-{plan,todo}.md`.
 
 > **Shipped (2026-08-17): remote frame 3D assets.** Frame variants now have an
 > additive, nullable patient-facing `ar` object backed by a versioned
@@ -105,14 +123,15 @@
 > relevant transformed frame objects, and the same correction must not be baked
 > into both node transforms and calibration metadata.
 >
-> **Shipped (2026-08-17): reservation maximum three.** New frame reservations
-> and item additions are capped at three variants per reservation, coordinated
-> with the Android domain constant. `CreateFrameReservation` validates 1–3
-> items; `AddFrameReservationItem` rejects additions that would exceed three.
-> `StoreFrameReservationRequest` enforces `max:3` at the HTTP layer. Existing
-> reservations containing four or five items remain readable and may have items
-> removed; they are never truncated automatically. No addition is allowed until
-> the count is below three.
+> **Shipped (2026-08-17): reservation maximum three.** *(Superseded by Saved
+> Frames 2026-08-26.)* New frame reservations and item additions were capped at
+> three variants per reservation, coordinated with the Android domain constant.
+> `CreateFrameReservation` validated 1–3 items; `AddFrameReservationItem`
+> rejected additions that would exceed three. `StoreFrameReservationRequest`
+> enforced `max:3` at the HTTP layer. Existing reservations containing four or
+> five items remained readable and could have items removed; they were never
+> truncated automatically. No addition was allowed until the count was below
+> three. Frame Reservations have been replaced by Saved Frames.
 >
 > **Shipped (2026-08-15): direct messaging hardening.** Patient-side
 > `messages.read_at` is now written by `POST /conversation/messages/read`
@@ -187,33 +206,33 @@
 > requests/minute account-only rate limit and does not require an active
 > patient link.
 >
-> **Shipped (2026-08-12): simplified frame reservations.** Frame
-> reservations collapsed to two states carried by one nullable `accepted_at`
-> timestamp: a request holds nothing, an accepted reservation holds exactly
-> one unit per frame. The `ReservationStatus` enum, try-on, conversion to
-> a sale, closure reasons, reactivation, release attribution, stored
-> deadline, and every link between a reservation and a Quotation or Optical
-> Order were deleted rather than migrated. Five actions plus one stock
-> collaborator: `CreateFrameReservation`, `AcceptFrameReservation`,
-> `AddFrameReservationItem`, `RemoveFrameReservationItem`,
-> `DeleteFrameReservation`, `FrameReservationStock`. Acceptance is one-way
-> (deletion is the release), bounded by a seven-day window, and idempotent.
-> The sweep derives expiry from clinic close on the appointment date. The
-> patient API uses `DELETE` instead of cancel, returns `is_held` and derived
-> `expires_at`, and never exposes `status` or `accepted_at`. New reservations
-> accept a maximum of three frame variants (changed from five on 2026-08-17
-> to support the 3D pilot). Filament shows
-> two tabs (Awaiting acceptance / Set aside), an accept action, a release
-> action, and add/remove frame — no other lifecycle controls remain.
-> Spec/plan/tasks live in
+> **Shipped (2026-08-12): simplified frame reservations.** *(Superseded by
+> Saved Frames 2026-08-26.)* Frame reservations collapsed to two states carried
+> by one nullable `accepted_at` timestamp: a request holds nothing, an accepted
+> reservation holds exactly one unit per frame. The `ReservationStatus` enum,
+> try-on, conversion to a sale, closure reasons, reactivation, release
+> attribution, stored deadline, and every link between a reservation and a
+> Quotation or Optical Order were deleted rather than migrated. Five actions
+> plus one stock collaborator: `CreateFrameReservation`,
+> `AcceptFrameReservation`, `AddFrameReservationItem`,
+> `RemoveFrameReservationItem`, `DeleteFrameReservation`,
+> `FrameReservationStock`. Acceptance was one-way (deletion is the release),
+> bounded by a seven-day window, and idempotent. The sweep derived expiry from
+> clinic close on the appointment date. The patient API used `DELETE` instead
+> of cancel, returned `is_held` and derived `expires_at`, and never exposed
+> `status` or `accepted_at`. New reservations accepted a maximum of three frame
+> variants (changed from five on 2026-08-17 to support the 3D pilot). Filament
+> showed two tabs (Awaiting acceptance / Set aside), an accept action, a
+> release action, and add/remove frame — no other lifecycle controls remained.
+> Spec/plan/tasks lived in
 > `docs/specs/frame-reservation-simplification-{spec,plan}.md` and
-> `tasks/frame-reservation-simplification-{plan,todo}.md`. The Patient record gained
-> Encounters, Optical Orders, and Billing tabs alongside the existing
-> Prescriptions/Appointments/Health Record/Invitation History ones, so
-> staff no longer have to leave the patient page to see commercial history.
-> Patient app-invitation delivery is phone/SMS only (email invitation
-> delivery was removed) so the invitation-acceptance trust anchor matches
-> the verified login contact.
+> `tasks/frame-reservation-simplification-{plan,todo}.md`. The Patient record
+> gained Encounters, Optical Orders, and Billing tabs alongside the existing
+> Prescriptions/Appointments/Health Record/Invitation History ones, so staff no
+> longer have to leave the patient page to see commercial history. Patient
+> app-invitation delivery is phone/SMS only (email invitation delivery was
+> removed) so the invitation-acceptance trust anchor matches the verified login
+> contact. Frame Reservations have been replaced by Saved Frames.
 >
 > **Shipped (2026-08-13): commerce model simplification.** The commercial
 > item model was simplified around a single `item_kind` classification.
@@ -281,8 +300,8 @@ keeping the domain actions as the server-side source of truth:
   immutable charge set, and service-charge entry supports either a catalog
   Service or a custom line.
 - **Patient and reservation entry points.** Patient records expose a direct
-  Create Quotation action, and appointment/frame-reservation actions use the
-  same policy abilities as their underlying domain operations.
+  Create Quotation action, and appointment actions use the same policy
+  abilities as their underlying domain operations.
 
 These UI safeguards are additive to the action-level validation and do not
 replace it; hidden or tampered Filament fields remain subject to the same
@@ -305,24 +324,26 @@ server-side rules.
 >   Patient-owned Prescription at confirmation. Contact-lens-only and
 >   non-corrective quotations do not require the spectacle Prescription.
 
-> - **Reservation-backed quotations.** `quotations.frame_reservation_id` is
->   a nullable source reference, not a second sale entity or item-status
->   table. The selected reserved frame is the quotation's one catalog-backed
->   `Frame` line, with the normal catalog description, price, and immutable
->   item snapshot. Creation and revision selectors only offer individual
->   items whose reservation belongs to the quotation patient, is `requested`,
->   `prepared`, or `tried_on`, has an active frame variant, and is not already
->   linked to an Optical Order. Removing the Frame line or changing it away
->   from the selected candidate clears the source or fails validation rather
->   than leaving an inconsistent quotation.
+> - **Reservation-backed quotations.** *(Historical — Frame Reservations
+> superseded by Saved Frames 2026-08-26.)* `quotations.frame_reservation_id`
+> was a nullable source reference, not a second sale entity or item-status
+> table. The selected reserved frame was the quotation's one catalog-backed
+> `Frame` line, with the normal catalog description, price, and immutable
+> item snapshot. Creation and revision selectors only offered individual
+> items whose reservation belonged to the quotation patient, was `requested`,
+> `prepared`, or `tried_on`, had an active frame variant, and was not already
+> linked to an Optical Order. Removing the Frame line or changing it away
+> from the selected candidate cleared the source or failed validation rather
+> than leaving an inconsistent quotation.
 
-> - **Reservation conversion inventory.** A `prepared` or `tried_on`
->   reservation releases every reserved candidate before the normal Optical
->   Order commitment runs. The quoted frame is then committed once, while
->   each unselected candidate is returned once. A `requested` reservation has
->   no allocation-release movement; the quoted product lines are committed
->   once by the normal order path. `FrameReservationItem` rows are never
->   deleted during conversion.
+> - **Reservation conversion inventory.** *(Historical — Frame Reservations
+> superseded by Saved Frames 2026-08-26.)* A `prepared` or `tried_on`
+> reservation released every reserved candidate before the normal Optical
+> Order commitment ran. The quoted frame was then committed once, while
+> each unselected candidate was returned once. A `requested` reservation had
+> no allocation-release movement; the quoted product lines were committed
+> once by the normal order path. `FrameReservationItem` rows were never
+> deleted during conversion.
 >
 > - **Eyewear specification.** `job_order_eyewear_specifications` table
 >   stores one-to-one dispensing data per corrective Optical Order:
@@ -527,7 +548,6 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Optical Orders: prepare eyewear specification | Yes | Yes | Yes |
 | Optical Orders: approve corrective-eyewear specification | No | Yes | No, unless also optometrist |
 | Optical Orders: verify completed eyewear | Yes | Yes | Yes |
-| Frame Reservations: operational workflow | Yes | Yes | Yes |
 | Billing: view and record payment | Yes | Yes | Yes |
 | Billing: void/correct payment | No | No | Yes |
 | Billing: release with outstanding balance | No | No | Yes |
@@ -586,7 +606,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `roles` | admin, optometrist, staff, patient |
 | `appointment_statuses` | scheduled, checked_in, fulfilled, cancelled, no_show |
 | `appointment_types` | New Patient (45m), Follow-up (15m), Routine Check-up (30m), Problem/Urgent Visit (30m), Contact Lens Consultation (45m), Referral (45m, requires referral). Added `patient_label`, `patient_description`, `is_patient_visible` for mobile catalog. |
-| `inventory_movement_types` | restock, manual_adjustment, reservation_allocation, reservation_release, order_commitment, order_reversal, damaged |
+| `inventory_movement_types` | restock, manual_adjustment, reservation_allocation (historical), reservation_release (historical), order_commitment, order_reversal, damaged |
 | `payment_methods` | Cash, GCash, Bank Transfer, Credit Card, Check |
 | `notification_statuses` | queued, sent, failed, cancelled |
 
@@ -622,14 +642,13 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `billing_record_items` | `billing_record_id`, `source_kind` (optical_order/quotation/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `quotation_item_id` (nullable), `service_id` (nullable), `encounter_id` (nullable). |
 | `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`, `released_balance_amount` (default 0), `balance_override_by` (nullable FK users), encrypted `balance_override_reason`, `balance_due_date` (nullable date). |
-| `frame_reservations` | `patient_id`, `appointment_id` (required, restrict on delete, **unique** — one reservation per appointment, ever), `accepted_at` (nullable timestamp — null means request, set means held), `staff_notes`. Hard deleted on release; `inventory_movements.reservation_id` survives parent deletion. |
-| `frame_reservation_items` | `frame_reservation_id`, `product_variant_id`; candidate rows are retained as history after release. |
+| `saved_frames` | Account-owned frame preferences. `user_id` (FK users, cascade delete), `product_variant_id` (FK product_variants, cascade on force delete), `created_at` (stable `saved_at` for ordering), `updated_at`. Unique (`user_id`, `product_variant_id`); index (`user_id`, `created_at`). No `patient_id`, `appointment_id`, `status`, `accepted_at`, `expires_at`, quantity, stock snapshot, rank, or staff note. |
 | `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`. |
 | `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
 | `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics), `staff_last_read_at` (nullable timestamp, clinic-wide staff read watermark). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. Patient read uses per-message `messages.read_at`; staff read uses the clinic-wide `staff_last_read_at` watermark — the asymmetry is deliberate (one thread per patient, 2–3 staff). |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
-| `inventory_movements` | `product_variant_id`, `reservation_id`, `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
+| `inventory_movements` | `product_variant_id`, `reservation_id` (historical provenance, no active FK), `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
 | `clinic_hours` | `weekday` (0-6, Carbon convention: Sunday through Saturday), `open_time`, `close_time`, `enabled`. Staff-editable via the Availability cluster; exposed to authenticated mobile accounts as all seven rows through `GET /api/v1/clinic-hours`. |
