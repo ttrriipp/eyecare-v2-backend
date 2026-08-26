@@ -9,8 +9,17 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-No project is currently active. The latest completed project is the measured-
-width calibration follow-up documented below.
+**Replace Frame Reservations with Saved Frames** — plan approved 2026-08-26
+
+- Spec: `docs/specs/saved-frames-replacement-spec.md` (approved 2026-08-26)
+- Decision: `docs/decisions/003-replace-frame-reservations-with-saved-frames.md`
+- Plan: `tasks/saved-frames-replacement-plan.md` (approved 2026-08-26)
+- Checklist: `tasks/saved-frames-replacement-todo.md` (approved 2026-08-26;
+  implementation paused)
+
+The replacement is account-owned, never holds stock, and is visible to clinic
+staff only through the Patient's current account link. The checklist is
+approved, but implementation remains paused by project-owner instruction.
 
 ## Previous active entry (preserved)
 

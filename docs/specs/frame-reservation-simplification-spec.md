@@ -2,7 +2,13 @@
 
 ## Status
 
-**Rewritten and approved 2026-08-12.**
+**Superseded on 2026-08-26 by
+`docs/specs/saved-frames-replacement-spec.md`.**
+
+This document remains as historical context for the reservation design that
+preceded Saved Frames.
+
+**Previously rewritten and approved 2026-08-12.**
 
 This replaces the earlier revision of this file, which kept a five-value status
 enum, closure reasons, same-row reactivation, quotation backing, and

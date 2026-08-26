@@ -1,6 +1,14 @@
 # Active Checklist
 
-No checklist is currently active. The latest completed checklist is:
+**Replace Frame Reservations with Saved Frames** — approved 2026-08-26;
+implementation paused
+
+→ `tasks/saved-frames-replacement-todo.md`
+
+The specification, implementation plan, and detailed checklist are approved.
+The project owner explicitly paused implementation until further instruction.
+
+The latest completed checklist is:
 
 → `tasks/ar-asset-admin-studio-todo.md`
 
