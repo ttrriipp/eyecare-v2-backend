@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EncounterStatus;
 use App\Models\Appointment;
 use App\Models\BillingRecord;
 use App\Models\ClinicHour;
@@ -59,6 +60,80 @@ test('seeder creates encounters and prescriptions', function () {
 
     expect(Encounter::count())->toBeGreaterThanOrEqual(1)
         ->and(Prescription::count())->toBeGreaterThanOrEqual(1);
+});
+
+test('seeder creates a complete consultation with linked clinical records', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $encounter = Encounter::query()
+        ->where('encounter_number', 'ENC-000001')
+        ->firstOrFail();
+    $appointment = $encounter->appointment;
+    $prescription = $encounter->prescriptions()->firstOrFail();
+    $quotation = Quotation::query()->where('encounter_id', $encounter->id)->firstOrFail();
+    $jobOrder = $quotation->jobOrder;
+    $billingRecord = BillingRecord::query()->where('encounter_id', $encounter->id)->firstOrFail();
+
+    expect($encounter->status)->toBe(EncounterStatus::Completed)
+        ->and($encounter->patient_id)->toBe($appointment?->patient_id)
+        ->and($encounter->optometrist_id)->not->toBeNull()
+        ->and($encounter->completed_by)->toBe($encounter->optometrist_id)
+        ->and($encounter->started_at)->not->toBeNull()
+        ->and($encounter->completed_at)->not->toBeNull()
+        ->and($encounter->last_wizard_step)->toBe(4)
+        ->and($encounter->draft_saved_at)->not->toBeNull()
+        ->and($appointment)->not->toBeNull()
+        ->and($appointment->status?->name)->toBe('fulfilled')
+        ->and($appointment->optometrist_id)->toBe($encounter->optometrist_id)
+        ->and($appointment->checked_in_at)->not->toBeNull()
+        ->and($appointment->checked_in_by)->toBe($appointment->created_by)
+        ->and($appointment->fulfilled_at)->not->toBeNull()
+        ->and($appointment->reason_for_visit)->not->toBeEmpty()
+        ->and($appointment->staff_notes)->not->toBeEmpty()
+        ->and($prescription->patient_id)->toBe($encounter->patient_id)
+        ->and($prescription->appointment_id)->toBe($appointment->id)
+        ->and($prescription->created_by)->toBe($encounter->optometrist_id)
+        ->and($prescription->prescribed_at)->not->toBeNull()
+        ->and($quotation->patient_id)->toBe($encounter->patient_id)
+        ->and($quotation->prescription_id)->toBe($prescription->id)
+        ->and($jobOrder?->patient_id)->toBe($encounter->patient_id)
+        ->and($jobOrder?->prescription_id)->toBe($prescription->id)
+        ->and($billingRecord->patient_id)->toBe($encounter->patient_id)
+        ->and($billingRecord->job_order_id)->toBe($jobOrder?->id);
+
+    foreach ([
+        'chief_complaint',
+        'past_ocular_history',
+        'past_surgical_history',
+        'past_medical_history',
+        'allergies',
+        'medications',
+        'findings',
+        'supporting_test_results',
+        'assessment',
+        'plan',
+        'remarks',
+    ] as $field) {
+        expect($encounter->{$field})->toBeString()->not->toBeEmpty();
+    }
+
+    foreach ([
+        'main_od_value',
+        'main_od_sphere',
+        'main_od_cylinder',
+        'main_os_value',
+        'main_os_sphere',
+        'main_os_cylinder',
+        'add_od_value',
+        'add_od_sphere',
+        'add_od_cylinder',
+        'add_os_value',
+        'add_os_sphere',
+        'add_os_cylinder',
+        'remarks',
+    ] as $field) {
+        expect($prescription->{$field})->toBeString()->not->toBeEmpty();
+    }
 });
 
 test('seeder creates quotations and job orders', function () {
