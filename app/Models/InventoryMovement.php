@@ -33,14 +33,6 @@ class InventoryMovement extends Model
     }
 
     /**
-     * @return BelongsTo<FrameReservation, $this>
-     */
-    public function reservation(): BelongsTo
-    {
-        return $this->belongsTo(FrameReservation::class);
-    }
-
-    /**
      * @return BelongsTo<JobOrder, $this>
      */
     public function jobOrder(): BelongsTo

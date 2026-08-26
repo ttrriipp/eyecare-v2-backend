@@ -106,7 +106,6 @@ final class CatalogLifecycle
                 'quotation_items',
                 'job_order_items',
                 'inventory_movements',
-                'frame_reservation_items',
                 'frame_ratings',
             ],
         );

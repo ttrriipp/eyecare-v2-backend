@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -137,39 +136,6 @@ class Appointment extends Model implements Eventable
     public function appointmentType(): BelongsTo
     {
         return $this->belongsTo(AppointmentType::class);
-    }
-
-    /**
-     * @return HasOne<FrameReservation, $this>
-     */
-    public function frameReservation(): HasOne
-    {
-        return $this->hasOne(FrameReservation::class);
-    }
-
-    /**
-     * @deprecated Use frameReservation() instead
-     *
-     * @return HasOne<FrameReservation, $this>
-     */
-    public function frameReservations(): HasOne
-    {
-        return $this->frameReservation();
-    }
-
-    /**
-     * @return HasManyThrough<FrameReservationItem, FrameReservation, $this>
-     */
-    public function frameReservationItems(): HasManyThrough
-    {
-        return $this->hasManyThrough(
-            FrameReservationItem::class,
-            FrameReservation::class,
-            'appointment_id',
-            'frame_reservation_id',
-            'id',
-            'id',
-        );
     }
 
     /**
