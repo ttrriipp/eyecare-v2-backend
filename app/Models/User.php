@@ -100,6 +100,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Get the account's saved frame preferences, newest first.
+     *
+     * @return HasMany<SavedFrame, $this>
+     */
+    public function savedFrames(): HasMany
+    {
+        return $this->hasMany(SavedFrame::class)->latest('created_at');
+    }
+
+    /**
      * @return HasMany<ProviderHour, $this>
      */
     public function providerHours(): HasMany

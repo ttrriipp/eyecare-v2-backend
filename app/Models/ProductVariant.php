@@ -156,6 +156,14 @@ class ProductVariant extends Model
     }
 
     /**
+     * @return HasMany<SavedFrame, $this>
+     */
+    public function savedFrames(): HasMany
+    {
+        return $this->hasMany(SavedFrame::class);
+    }
+
+    /**
      * @return HasMany<ArAsset, $this>
      */
     public function arAssets(): HasMany
