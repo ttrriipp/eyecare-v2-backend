@@ -11,7 +11,6 @@ use App\Http\Controllers\Api\ClinicHourController;
 use App\Http\Controllers\Api\ConversationController;
 use App\Http\Controllers\Api\FrameController;
 use App\Http\Controllers\Api\FrameRatingController;
-use App\Http\Controllers\Api\FrameReservationController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OpticalOrderController;
 use App\Http\Controllers\Api\OtpChallengeController;
@@ -131,12 +130,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
-
-    Route::get('frame-reservations', [FrameReservationController::class, 'index']);
-    Route::post('frame-reservations', [FrameReservationController::class, 'store']);
-    Route::delete('frame-reservations/{reservation}', [FrameReservationController::class, 'destroy']);
-    Route::post('frame-reservations/{reservation}/items', [FrameReservationController::class, 'storeItem']);
-    Route::delete('frame-reservations/{reservation}/items/{item}', [FrameReservationController::class, 'destroyItem']);
 
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);
