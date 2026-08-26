@@ -1,8 +1,12 @@
 <?php
 
+use App\Filament\Resources\Appointments\Pages\EditAppointment;
+use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\RelationManagers\PreferredFramesRelationManager;
+use App\Models\Appointment;
 use App\Models\Brand;
+use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -176,4 +180,88 @@ test('preferred frames relation manager has no mutation actions', function () {
 
     // No create, edit, or delete actions should exist
     $component->assertTableBulkActionDoesNotExist('delete');
+});
+
+// --- Appointment context tests ---
+
+test('appointment edit shows preferred frames section for linked patient', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+        'stock_quantity' => 5,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Preferred Frames')
+        ->assertSee($this->frame->name);
+});
+
+test('appointment edit shows no linked account for unlinked patient', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create(['user_id' => null]);
+
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('No linked account');
+});
+
+test('appointment edit shows no preferred frames when linked but empty', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('No preferred frames');
+});
+
+// --- Consultation context tests ---
+
+test('consultation edit shows preferred frames section for linked patient', function () {
+    $staff = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+        'stock_quantity' => 5,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'optometrist_id' => $staff->id,
+        'status' => 'completed',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertSee('Preferred Frames')
+        ->assertSee($this->frame->name);
 });
