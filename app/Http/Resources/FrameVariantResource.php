@@ -31,6 +31,10 @@ class FrameVariantResource extends JsonResource
                 ? $this->publishedArAsset?->toPatientArray()
                 : null,
             'images' => $this->images ?? [],
+            'is_saved' => $this->when(
+                isset($this->is_saved),
+                (bool) $this->is_saved,
+            ),
             'product' => $this->when(
                 $this->relationLoaded('product') && $this->product !== null,
                 fn () => [

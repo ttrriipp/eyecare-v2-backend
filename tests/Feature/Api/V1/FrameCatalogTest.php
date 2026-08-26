@@ -3,6 +3,7 @@
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\SavedFrame;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,4 +185,87 @@ test('frames can be searched by name', function () {
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.name', 'Classic Rectangle');
+});
+
+test('frame variants include is_saved for authenticated account', function () {
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'ar-assets/test.glb',
+    ]);
+
+    SavedFrame::factory()->forAccount($this->user)->forVariant($variant)->create();
+
+    $this->actingAs($this->user)
+        ->getJson('/api/v1/frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.variants.0.is_saved', true);
+});
+
+test('frame variants show is_saved false when not saved', function () {
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'ar-assets/test.glb',
+    ]);
+
+    $this->actingAs($this->user)
+        ->getJson('/api/v1/frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.variants.0.is_saved', false);
+});
+
+test('is_saved is account-specific', function () {
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'ar-assets/test.glb',
+    ]);
+
+    $otherUser = User::factory()->create();
+    SavedFrame::factory()->forAccount($otherUser)->forVariant($variant)->create();
+
+    $this->actingAs($this->user)
+        ->getJson('/api/v1/frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.variants.0.is_saved', false);
+});
+
+test('frame detail includes is_saved', function () {
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'is_active' => true,
+        'brand_id' => $this->brand->id,
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'is_active' => true,
+        'ar_eligible' => true,
+        'ar_asset_reference' => 'ar-assets/test.glb',
+    ]);
+
+    SavedFrame::factory()->forAccount($this->user)->forVariant($variant)->create();
+
+    $this->actingAs($this->user)
+        ->getJson("/api/v1/frames/{$frame->id}")
+        ->assertOk()
+        ->assertJsonPath('data.variants.0.is_saved', true);
 });

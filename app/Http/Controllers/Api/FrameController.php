@@ -13,6 +13,8 @@ class FrameController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $userId = $request->user()?->id;
+
         $query = Product::query()
             ->active()
             ->where('product_type', 'frame')
@@ -31,7 +33,10 @@ class FrameController extends Controller
             })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->with(['ratings', 'publishedArAsset'])]);
+                ->with(['ratings', 'publishedArAsset'])
+                ->when($userId, fn ($vq) => $vq
+                    ->withExists(['savedFrames as is_saved' => fn ($sq) => $sq
+                        ->where('user_id', $userId)]))]);
 
         $query->when(
             $request->filled('search'),
@@ -63,6 +68,8 @@ class FrameController extends Controller
 
     public function show(Product $frame): JsonResponse
     {
+        $userId = request()->user()?->id;
+
         $catalogFrame = Product::query()
             ->active()
             ->where('product_type', 'frame')
@@ -82,7 +89,10 @@ class FrameController extends Controller
             })
             ->with(['brand', 'category', 'variants' => fn ($q) => $q
                 ->where('is_active', true)
-                ->with(['ratings', 'publishedArAsset'])])
+                ->with(['ratings', 'publishedArAsset'])
+                ->when($userId, fn ($vq) => $vq
+                    ->withExists(['savedFrames as is_saved' => fn ($sq) => $sq
+                        ->where('user_id', $userId)]))])
             ->first();
 
         abort_if($catalogFrame === null, 404);
