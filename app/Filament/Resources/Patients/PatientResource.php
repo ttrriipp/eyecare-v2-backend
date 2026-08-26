@@ -10,6 +10,7 @@ use App\Filament\Resources\Patients\RelationManagers\BillingRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\EncountersRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\InvitationHistoryRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\OpticalOrdersRelationManager;
+use App\Filament\Resources\Patients\RelationManagers\PreferredFramesRelationManager;
 use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
 use App\Filament\Resources\Patients\Schemas\PatientForm;
 use App\Filament\Resources\Patients\Tables\PatientsTable;
@@ -67,6 +68,7 @@ class PatientResource extends Resource
             EncountersRelationManager::class,
             OpticalOrdersRelationManager::class,
             BillingRelationManager::class,
+            PreferredFramesRelationManager::class,
             InvitationHistoryRelationManager::class,
         ];
     }

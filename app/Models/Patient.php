@@ -165,6 +165,17 @@ class Patient extends Model
     }
 
     /**
+     * Get the account's saved frame preferences through the linked user.
+     * Returns no records when user_id is null (unlinked patient).
+     *
+     * @return HasMany<SavedFrame, $this>
+     */
+    public function savedFrames(): HasMany
+    {
+        return $this->hasMany(SavedFrame::class, 'user_id', 'user_id');
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
