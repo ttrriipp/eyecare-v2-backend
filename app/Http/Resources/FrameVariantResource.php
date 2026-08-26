@@ -31,6 +31,18 @@ class FrameVariantResource extends JsonResource
                 ? $this->publishedArAsset?->toPatientArray()
                 : null,
             'images' => $this->images ?? [],
+            'product' => $this->when(
+                $this->relationLoaded('product') && $this->product !== null,
+                fn () => [
+                    'id' => $this->product->id,
+                    'name' => $this->product->name,
+                    'slug' => $this->product->slug,
+                    'description' => $this->product->description,
+                    'product_type' => $this->product->product_type,
+                    'brand' => $this->product->relationLoaded('brand') ? $this->product->brand?->name : null,
+                    'category' => $this->product->relationLoaded('category') ? $this->product->category?->name : null,
+                ],
+            ),
             // Deliberately excluded: cost_price, stock_quantity, low_stock_threshold
         ];
     }

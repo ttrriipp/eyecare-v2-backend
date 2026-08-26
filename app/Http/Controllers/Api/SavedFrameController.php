@@ -12,6 +12,28 @@ use Illuminate\Http\Request;
 
 class SavedFrameController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $account = $request->user();
+
+        $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $perPage = (int) $request->input('per_page', 15);
+
+        $savedFrames = SavedFrame::query()
+            ->where('user_id', $account->id)
+            ->with(['variant.product.brand', 'variant.product.category'])
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return SavedFrameResource::collection($savedFrames)
+            ->response()
+            ->setStatusCode(200);
+    }
+
     public function save(Request $request, int $productVariant): JsonResponse
     {
         $account = $request->user();

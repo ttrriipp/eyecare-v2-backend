@@ -116,6 +116,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('frames/{frame}', [FrameController::class, 'show']);
 
         // Saved Frames (account-owned preferences, no patient link required)
+        Route::get('saved-frames', [SavedFrameController::class, 'index']);
         Route::put('saved-frames/{productVariant}', [SavedFrameController::class, 'save']);
         Route::delete('saved-frames/{productVariant}', [SavedFrameController::class, 'remove']);
     });
