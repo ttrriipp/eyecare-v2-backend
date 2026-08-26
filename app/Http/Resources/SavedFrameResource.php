@@ -38,7 +38,7 @@ class SavedFrameResource extends JsonResource
             return 'unavailable';
         }
 
-        $product = $variant->relationLoaded('product') ? $variant->product : $variant->product;
+        $product = $variant->product;
 
         if ($product === null || $product->trashed() || ! $product->is_active) {
             return 'unavailable';
