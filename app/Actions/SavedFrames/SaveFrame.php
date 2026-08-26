@@ -5,6 +5,7 @@ namespace App\Actions\SavedFrames;
 use App\Models\ProductVariant;
 use App\Models\SavedFrame;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 final class SaveFrame
@@ -30,15 +31,16 @@ final class SaveFrame
 
     private function ensureVariantCanBeSaved(ProductVariant $variant): void
     {
-        $variant->loadMissing('product');
+        $isEligible = ProductVariant::query()
+            ->whereKey($variant->id)
+            ->active()
+            ->whereHas(
+                'product',
+                fn (Builder $productQuery): Builder => $productQuery->where('product_type', 'frame'),
+            )
+            ->exists();
 
-        if ($variant->trashed()
-            || ! $variant->is_active
-            || $variant->product === null
-            || $variant->product->trashed()
-            || ! $variant->product->is_active
-            || $variant->product->product_type !== 'frame'
-        ) {
+        if (! $isEligible) {
             abort(422, 'This frame variant cannot be saved.');
         }
     }

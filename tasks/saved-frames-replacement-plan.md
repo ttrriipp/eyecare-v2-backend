@@ -1,9 +1,9 @@
 # Implementation Plan: Replace Frame Reservations with Saved Frames
 
-**Status:** Approved by the project owner on 2026-08-26
+**Status:** Remediation implementation complete on 2026-08-26
 **Specification:** `docs/specs/saved-frames-replacement-spec.md` (approved 2026-08-26)
 **Decision:** `docs/decisions/003-replace-frame-reservations-with-saved-frames.md`
-**Checklist:** `tasks/saved-frames-replacement-todo.md` (approved 2026-08-26; implementation paused)
+**Checklist:** `tasks/saved-frames-replacement-todo.md` (approved 2026-08-26; remediation complete)
 
 ## Overview
 
@@ -304,5 +304,7 @@ confirmation that no released Android client depends on Frame Reservations.
 ## Checklist Review Gate
 
 The detailed checklist in `tasks/saved-frames-replacement-todo.md` was approved
-on 2026-08-26. The project owner explicitly paused implementation, so do not
-begin Task 1 until a later instruction to proceed.
+on 2026-08-26. The project owner authorized remediation implementation after
+the completion audit identified migration, read-model, UI, contract, and
+documentation gaps. The affected Saved Frames verification is complete; the
+full suite retains unrelated pre-existing failures outside this change.

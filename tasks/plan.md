@@ -9,17 +9,20 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Replace Frame Reservations with Saved Frames** — plan approved 2026-08-26
+**Replace Frame Reservations with Saved Frames** — remediation complete 2026-08-26
 
 - Spec: `docs/specs/saved-frames-replacement-spec.md` (approved 2026-08-26)
 - Decision: `docs/decisions/003-replace-frame-reservations-with-saved-frames.md`
 - Plan: `tasks/saved-frames-replacement-plan.md` (approved 2026-08-26)
 - Checklist: `tasks/saved-frames-replacement-todo.md` (approved 2026-08-26;
-  implementation paused)
+  remediation implementation complete)
 
 The replacement is account-owned, never holds stock, and is visible to clinic
-staff only through the Patient's current account link. The checklist is
-approved, but implementation remains paused by project-owner instruction.
+staff only through the Patient's current account link. The project owner
+authorized remediation implementation after verification found incomplete
+migration safety, read-model, staff UI, test, and documentation work. The
+affected Saved Frames suite is green; the full suite still has unrelated
+pre-existing failures in other domains.
 
 ## Previous active entry (preserved)
 

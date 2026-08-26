@@ -43,11 +43,21 @@ test('conversation is scoped through the patient relationship', function () {
     $response->assertSuccessful();
 });
 
-test('frame reservations are scoped through the patient relationship', function () {
+test('saved frames are scoped to the authenticated account', function () {
     $user = User::factory()->patient()->create();
 
     $this->actingAs($user)
-        ->getJson('/api/v1/frame-reservations')
+        ->getJson('/api/v1/saved-frames')
+        ->assertOk();
+});
+
+test('unlinked accounts can access saved frames without a patient relationship', function () {
+    $user = User::factory()->create();
+
+    expect($user->patient)->toBeNull();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/saved-frames')
         ->assertOk();
 });
 

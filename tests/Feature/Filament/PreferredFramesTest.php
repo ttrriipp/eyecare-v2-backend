@@ -52,7 +52,15 @@ test('linked patient record shows preferred frames', function () {
 
 test('unlinked patient record shows no preferred frames', function () {
     $staff = User::factory()->staff()->create();
-    $patient = Patient::factory()->create(['user_id' => null]);
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+    ]);
+    $savedFrame = SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+    $patient->update(['user_id' => null]);
 
     $this->actingAs($staff);
 
@@ -60,7 +68,24 @@ test('unlinked patient record shows no preferred frames', function () {
         'ownerRecord' => $patient,
         'pageClass' => EditPatient::class,
     ])
-        ->assertCanNotSeeTableRecords([]);
+        ->assertCanNotSeeTableRecords([$savedFrame])
+        ->assertSee('No linked account');
+});
+
+test('linked patient record distinguishes an empty preferred frames list', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(PreferredFramesRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertSee('No preferred frames')
+        ->assertDontSee('No linked account');
 });
 
 test('preferred frames are ordered newest first', function () {
@@ -159,6 +184,30 @@ test('preferred frames shows inactive badge for deactivated variant', function (
         ->assertSee('Inactive');
 });
 
+test('preferred frames keeps soft-deleted variants visible as inactive', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+    $variant->delete();
+
+    $this->actingAs($staff);
+
+    Livewire::test(PreferredFramesRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertCanSeeTableRecords([SavedFrame::query()->where('product_variant_id', $variant->id)->first()])
+        ->assertSee($this->frame->name)
+        ->assertSee('Inactive');
+});
+
 test('preferred frames relation manager has no mutation actions', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -208,6 +257,39 @@ test('appointment edit shows preferred frames section for linked patient', funct
         ->assertSee($this->frame->name);
 });
 
+test('appointment edit shows only the latest three preferences and a patient link', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variants = collect(range(1, 4))->map(function (int $index): ProductVariant {
+        return ProductVariant::factory()->create([
+            'product_id' => $this->frame->id,
+            'name' => "Variant {$index}",
+            'is_active' => true,
+            'stock_quantity' => 5,
+        ]);
+    });
+
+    foreach ($variants as $index => $variant) {
+        SavedFrame::factory()->forAccount($user)->forVariant($variant)->create([
+            'created_at' => now()->subDays(4 - $index),
+        ]);
+    }
+
+    $appointment = Appointment::factory()->create(['patient_id' => $patient->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Variant 2')
+        ->assertSee('Variant 3')
+        ->assertSee('Variant 4')
+        ->assertDontSee('Variant 1')
+        ->assertSee('View all preferred frames');
+});
+
 test('appointment edit shows no linked account for unlinked patient', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create(['user_id' => null]);
@@ -220,6 +302,28 @@ test('appointment edit shows no linked account for unlinked patient', function (
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertSee('No linked account');
+});
+
+test('appointment edit shows the richer availability badge for an out-of-stock preference', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+        'stock_quantity' => 0,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $appointment = Appointment::factory()->create(['patient_id' => $patient->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Out of stock')
+        ->assertDontSee('Unavailable');
 });
 
 test('appointment edit shows no preferred frames when linked but empty', function () {
@@ -257,6 +361,33 @@ test('consultation edit shows preferred frames section for linked patient', func
         'patient_id' => $patient->id,
         'optometrist_id' => $staff->id,
         'status' => 'completed',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertSee('Preferred Frames')
+        ->assertSee($this->frame->name);
+});
+
+test('in-progress consultation edit keeps preferred frames visible', function () {
+    $staff = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'is_active' => true,
+        'stock_quantity' => 5,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $encounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'optometrist_id' => $staff->id,
+        'status' => 'in_progress',
+        'started_at' => now()->subMinutes(10),
     ]);
 
     $this->actingAs($staff);

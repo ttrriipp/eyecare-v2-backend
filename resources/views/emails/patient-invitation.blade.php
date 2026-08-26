@@ -24,7 +24,7 @@
         <ul>
             <li>Your prescriptions and eyewear orders</li>
             <li>Order status and payment details</li>
-            <li>Frame reservations</li>
+            <li>Saved and preferred frame preferences</li>
             <li>Appointment history</li>
         </ul>
 

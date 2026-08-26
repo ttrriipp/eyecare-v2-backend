@@ -35,13 +35,18 @@
 > Appointment-bound Frame Reservations have been replaced with account-owned
 > **Saved Frames** (patient-facing) / **Preferred Frames** (clinic-facing).
 > Patients save frame variants as persistent preferences without withholding
-> inventory. Three new account-only API routes (`GET/PUT/DELETE
-> /api/v1/saved-frames/{productVariant}`) replace five reservation routes.
+> inventory. Three new account-only API routes (`GET /api/v1/saved-frames`,
+> `PUT /api/v1/saved-frames/{productVariant}`, and
+> `DELETE /api/v1/saved-frames/{productVariant}`) replace the reservation
+> routes.
 > Frame catalog variants now include an account-specific `is_saved` boolean.
 > The Patient Record exposes a full Preferred Frames relation manager;
 > Appointment and Consultation edit pages show the latest three saves.
 > No save, remove, link, unlink, or viewing operation changes stock or
-> creates an inventory movement. The `saved_frames` table uses
+> creates an inventory movement. The one-time
+> `saved-frames:migrate-reservations --execute` command converts any legacy
+> rows, releases held stock exactly once, and records historical provenance.
+> The `saved_frames` table uses
 > `user_id` + `product_variant_id` with a unique constraint. Historical
 > `inventory_movements.reservation_id` column and movement-type rows are
 > preserved for provenance. Spec/plan/tasks live in
@@ -299,9 +304,11 @@ keeping the domain actions as the server-side source of truth:
   and due date. The first payment requires explicit review of the current
   immutable charge set, and service-charge entry supports either a catalog
   Service or a custom line.
-- **Patient and reservation entry points.** Patient records expose a direct
-  Create Quotation action, and appointment actions use the same policy
-  abilities as their underlying domain operations.
+- **Patient and preferred-frame entry points.** Patient records expose a direct
+  Create Quotation action and a read-only Preferred Frames relation manager;
+  appointment and consultation pages show the latest three preferences. All
+  appointment actions use the same policy abilities as their underlying domain
+  operations.
 
 These UI safeguards are additive to the action-level validation and do not
 replace it; hidden or tampered Filament fields remain subject to the same
@@ -679,7 +686,7 @@ action cannot discard `published`, `superseded`, or `disabled` versions.
 Publishing a replacement locks the variant, demotes the previous version to
 `superseded`, and switches the pointer atomically. Disablement clears only the
 published pointer and marks the version `disabled`; it does not delete the
-file, frame images, variant, or reservation capability. Rollback restores a
+file, frame images, variant, or Saved Frame preferences. Rollback restores a
 previous valid published file and demotes the current version. There is no
 patient upload route.
 
@@ -719,7 +726,16 @@ published version as `status: ready`, otherwise `ar` is `null`.
 
 **Inventory** (`InventoryResource`, backed by `ProductVariant`): stock is variant-level, so this resource lists variants across every product rather than products — the Products table's quantity column sums a product's variants and hides the single variant sitting at zero. Sorted by `stock_quantity` ascending. Tabs: All (default) · Needs Reorder · Out of Stock. Navigation badge counts active variants matching the `needsReorder()` scope, and the dashboard's Low Stock stat deep-links to that tab. Read-only apart from the two stock movements — variant name, price, images, and attributes are edited in Products, so a variant has exactly one editor. Three fields drive it: `low_stock_threshold` (the tripwire; `0` means untracked), `target_stock_level` (the restock-to level, nullable), and the derived suggested order quantity (`target − current`, floored at zero, null when no target is set). Stock actions live in `App\Filament\Support\StockActions` and are shared with the Products → Variants relation manager so the ledger-writing logic has one definition.
 
-**Frame Reservations:** Two states carried by one nullable `accepted_at` timestamp: a **request** (`accepted_at` null) holds nothing, an **accepted** reservation (`accepted_at` set) holds exactly one unit per frame. An appointment gets exactly one reservation, ever (`frame_reservations.appointment_id` is unique at the DB level). Acceptance allocates stock and is one-way — deletion is the release. Staff can add/remove candidate frames via `AddFrameReservationItem`/`RemoveFrameReservationItem`. `reservations:expire` (scheduled every 15 minutes) deletes reservations past their derived expiry (clinic close on the appointment date) or whose appointment is no longer `scheduled`. Hard deletion restores stock for held reservations. Five actions plus one stock collaborator: `CreateFrameReservation`, `AcceptFrameReservation`, `AddFrameReservationItem`, `RemoveFrameReservationItem`, `DeleteFrameReservation`, `FrameReservationStock`.
+**Saved Frames:** Account-owned preferences keyed by `user_id` and
+`product_variant_id`. Saving, removing, linking, unlinking, and viewing are
+read-only with respect to inventory; a preference remains readable as
+`unavailable` when its variant, product, brand, or category is inactive or
+soft-deleted, or when stock reaches zero. Staff see preferences only through a
+Patient's current `user_id` link. The one-time
+`saved-frames:migrate-reservations` command converts legacy reservation rows in
+a transaction, releases each held unit once with `reservation_release`
+provenance, saves linked choices with their historical timestamp, skips
+unlinked choices, and deletes the legacy rows atomically.
 
 ---
 
@@ -733,7 +749,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Today — Appointments, Appointment Requests, Availability (cluster)
 - Patients — Patient Records, Patient Accounts, Link Requests, Conversations, Visit Feedback
 - Clinical — Encounters (4-step wizard, provider-owned), Prescriptions
-- Optical — Quotations, Optical Orders, Frame Reservations, Frame Ratings
+- Optical — Quotations, Optical Orders, Frame Ratings
 - Billing — Billing & Payments
 - Catalog — Products, Inventory, Inventory History, Brands, Lens Categories, Lens Options, Product Categories, Services
 - Admin — Staff Accounts, SMS Log, Audit Logs
@@ -839,13 +855,17 @@ GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
 GET    /api/v1/appointment-requests/{id}
 POST   /api/v1/appointment-requests/{id}/cancel
+GET    /api/v1/saved-frames                    List this account's preferences
+PUT    /api/v1/saved-frames/{productVariant}   Save a frame variant (idempotent)
+DELETE /api/v1/saved-frames/{productVariant}   Remove a preference (idempotent)
 ```
 
 The frame catalog responses include the additive `ar` field on every variant.
 It is `null` unless a current published GLB passes storage, expiry, byte-size,
 checksum, and calibration checks; only `status: ready` is patient-visible.
 Frame browsing remains account-only and does not require an active patient link,
-while reservations retain their existing active-link boundary.
+and Saved Frames are account-owned preferences that do not require an active
+patient link. Staff see them only through a Patient's current link.
 
 ### Active Patient Link Required (token + active link)
 ```
@@ -855,11 +875,6 @@ GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
 POST   /api/v1/appointments/{id}/reschedule
 POST   /api/v1/appointments/{id}/rating
-GET    /api/v1/frame-reservations
-POST   /api/v1/frame-reservations
-DELETE /api/v1/frame-reservations/{id}
-POST   /api/v1/frame-reservations/{id}/items
-DELETE /api/v1/frame-reservations/{id}/items/{itemId}
 GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
 GET    /api/v1/optical-orders
@@ -867,7 +882,7 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 37 account-only + 16 active-link = **61 routes total.**
+**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -893,7 +908,11 @@ Breaking changes from coordinated Android cutover:
 - `GET /appointment-types` restored as patient-visible (was previously removed as internal-only)
 - `POST /appointment-requests` now requires `appointment_type_id` (coordinated contract change)
 
-All patient-specific clinical resource access is scoped through the authenticated account's linked patient identity. The frame catalog is account-level catalog data; unlinked accounts may browse it but cannot create frame reservations. Patients cannot create job orders, billing records, payments, orders, billings, checkout records, or purchases.
+Patient-specific clinical resource access is scoped through the authenticated
+account's linked patient identity. The frame catalog and Saved Frames are
+account-level data; unlinked accounts may browse, save, list, and remove frame
+preferences. Patients cannot create job orders, billing records, payments,
+orders, billings, checkout records, or purchases.
 
 ---
 
@@ -928,18 +947,14 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
-| `CreateFrameReservation` | `app/Actions/Reservations/` | Creates a frame reservation with items for a patient/appointment; used by both the mobile API and the admin "Reserve Frames" action; rejects a second reservation for an appointment that already has one, ever |
-| `AcceptFrameReservation` | `app/Actions/Reservations/` | Allocates stock for an unaccepted reservation's items and stamps `accepted_at`; bounded by a seven-day window; idempotent |
-| `AddFrameReservationItem` | `app/Actions/Reservations/` | Adds another candidate frame to an existing reservation; allocates stock immediately if already accepted |
-| `RemoveFrameReservationItem` | `app/Actions/Reservations/` | Drops a candidate frame from a reservation, restoring allocated stock if accepted; deletes the whole reservation if the last item is removed |
-| `DeleteFrameReservation` | `app/Actions/Reservations/` | Releases every remaining item if accepted, deletes the reservation; idempotent |
-| `FrameReservationStock` | `app/Actions/Reservations/` | Single collaborator owning every allocation and release; lock order and movement shape cannot drift across the five actions |
+| `SaveFrame` | `app/Actions/SavedFrames/` | Validates an active frame variant and idempotently saves an account-owned preference without changing inventory |
+| `ConvertFrameReservation` | `app/Actions/SavedFrames/` | Converts one legacy reservation under row locks, releases held stock once with historical provenance, saves linked choices with their original timestamp, and deletes legacy rows atomically |
 | `UploadArAsset` | `app/Actions/ArAssets/` | Authorizes staff/admin, stores an opaque `.glb` in private quarantine, validates the binary, computes checksum/size, and records the upload audit event |
 | `SubmitArAssetForReview` | `app/Actions/ArAssets/` | Validates explicit steward calibration and moves a received asset into the physical-review queue |
 | `ApproveArAsset` | `app/Actions/ArAssets/` | Records active staff/admin physical-review approval for a validated asset |
 | `PublishArAsset` | `app/Actions/ArAssets/` | Verifies quarantine integrity, writes the immutable public version, and atomically swaps the variant's published pointer while preserving the prior version |
 | `DiscardArAsset` | `app/Actions/ArAssets/` | Marks an unpublished candidate `discarded`, records the audit event, and removes its private quarantine object without touching published history |
-| `DisableArAsset` | `app/Actions/ArAssets/` | Removes only the variant's patient-facing AR pointer and records disablement; normal images and reservations remain available |
+| `DisableArAsset` | `app/Actions/ArAssets/` | Removes only the variant's patient-facing AR pointer and records disablement; normal images and Saved Frame preferences remain available |
 | `RollbackArAsset` | `app/Actions/ArAssets/` | Verifies a retained published file and atomically restores it as the current version |
 | `CreateOpticalOrderFromQuotation` | `app/Actions/OpticalOrders/` | Accepts the quotation, creates an Optical Order from product lines, commits inventory, copies selected performed service lines into billing, records an optional deposit — idempotent |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates a product-only Optical Order with no source Quotation (walk-in sale); uses the shared `BuildOpticalOrder` collaborator |
@@ -947,8 +962,8 @@ All patient-specific clinical resource access is scoped through the authenticate
 | `ValidateOpticalQuotation` | `app/Actions/Quotations/` | Validates optical item matrix: exactly one lens package, at most one frame, lens options require package, corrective eyewear requires current Patient-owned Prescription |
 | `BuildQuotationItemSnapshot` | `app/Actions/Quotations/` | Converts controlled catalog selections into stable transaction snapshots with item_kind and identifying data |
 | `CreateDirectOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order directly for a patient without a preceding Quotation ("New Direct Order") |
-| `CreateQuotation` | `app/Actions/Quotations/` | Creates a quotation for a patient, from an in-progress or completed encounter or, independently, from any current-version prescription; applies an eligible reserved-frame item when selected; persists the reservation source; assigns item_kind and snapshot via `BuildQuotationItemSnapshot`; validates `service_id` items against active services |
-| `UpdateQuotationDraft` | `app/Actions/Quotations/` | Updates a draft quotation; applies, preserves, or clears the eligible reserved-frame source consistently with the exact Frame line; assigns item_kind and snapshot; enforces admin-only discount |
+| `CreateQuotation` | `app/Actions/Quotations/` | Creates a quotation for a patient, from an in-progress or completed encounter or, independently, from any current-version prescription; assigns item_kind and snapshot via `BuildQuotationItemSnapshot`; validates `service_id` items against active services |
+| `UpdateQuotationDraft` | `app/Actions/Quotations/` | Updates a draft quotation; assigns item_kind and snapshot; enforces admin-only discount |
 | `SaveEyewearSpecification` | `app/Actions/JobOrders/` | Validates and saves lens construction, frame source, PD representation, required heights, and lab instructions; clears approval on edit |
 | `ApproveEyewearSpecification` | `app/Actions/JobOrders/` | Active optometrist approves a corrective-eyewear specification; creates audit event |
 | `VerifyEyewear` | `app/Actions/JobOrders/` | Records who checked completed eyewear against the approved specification, when, and optional notes |
@@ -1004,7 +1019,11 @@ have never been referenced.
 - **Encounter provider assignment:** Staff, optometrists, and admins can assign an active optometrist to a planned Encounter. In-progress transfer requires the current provider or admin. Encounter and Appointment provider IDs are always synchronized.
 - **Encounter printing:** `GET /encounters/{id}/print` returns an authenticated Blade view of the completed record with addenda. Each print records an `encounter.printed` audit event with identifiers only.
 - **Encounter billing:** The Encounter edit page offers **Add Service Charge** (posts service-line charges via `AddChargesToBilling` keyed by `BillingItemSourceKind`) and **View Billing Record**, both resolving to the single open Billing Record for that patient visit via `ResolveOpenCheckoutBillingRecord` — charges added after a Quotation sale is confirmed land on the same record instead of opening a second one.
-- **Reserve Frames:** The Appointment edit page offers a staff-initiated **Reserve Frames** action for any scheduled, not-yet-elapsed appointment without an active reservation, regardless of `source` (mobile/walk-in/manual) — reuses `CreateFrameReservation`, the same action the mobile API uses.
+- **Preferred Frames:** Appointment and Consultation edit pages show the three
+  most recent Saved Frame preferences from the patient's currently linked
+  account. The Patient Record's read-only Preferred Frames relation manager
+  shows the complete list and labels inactive, out-of-stock, and low-stock
+  variants without offering mutations.
 - **Patient app invitations:** "Send App Invitation" is phone/SMS only; email is not an invitation delivery channel, since the verified phone is also the account's login contact. In `local`/`testing`, invitation codes are logged for `sail artisan pail` visibility, mirroring OTP delivery.
 - **Invitation acceptance:** The mobile API requires the authenticated account to own the verified invited contact. Acceptance is atomic and idempotent for that same account; it never revokes the existing Sanctum token, creates inventory activity, or relinks an already-linked account. Duplicate mobile requests may safely reuse the consumed challenge after the invitation has already been accepted by that account.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
@@ -1013,5 +1032,8 @@ have never been referenced.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks/assessment/supporting_test_results/addenda reason/content use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.
-- **Inventory:** `stock_quantity` represents available stock. Preparing a reservation reduces available stock. Dispensing does not deduct again.
+- **Inventory:** `stock_quantity` represents available stock. Saving a frame
+  preference never changes stock or creates an inventory movement. Normal order
+  commitment and dispensing rules remain the only active frame stock paths;
+  legacy reservation conversion releases any historical held units exactly once.
 - **Legacy tables:** `orders`, `order_items`, `order_statuses`, `billings`, `billing_items`, `billing_statuses`, `discount_types`, `payments`, `service_records` remain in the schema but have no canonical application consumers. They will be removed in a future cleanup migration.

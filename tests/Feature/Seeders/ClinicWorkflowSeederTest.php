@@ -9,6 +9,7 @@ use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
+use App\Models\SavedFrame;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,6 +44,19 @@ test('seeder creates linked and unlinked patients', function () {
 
     expect($linkedPatients)->toBeGreaterThanOrEqual(1)
         ->and($unlinkedPatients)->toBeGreaterThanOrEqual(1);
+});
+
+test('seeder creates idempotent saved frame preferences for the linked demo account', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $patientUser = User::query()->where('email', 'customer@eyecare.test')->firstOrFail();
+    $savedFrameCount = SavedFrame::query()->where('user_id', $patientUser->id)->count();
+
+    expect($savedFrameCount)->toBe(3);
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect(SavedFrame::query()->where('user_id', $patientUser->id)->count())->toBe($savedFrameCount);
 });
 
 test('seeder creates appointments in multiple statuses', function () {

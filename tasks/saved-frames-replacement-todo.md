@@ -1,13 +1,17 @@
 # Task Checklist: Replace Frame Reservations with Saved Frames
 
-**Status:** Approved by the project owner on 2026-08-26 — implementation paused
+**Status:** Approved by the project owner on 2026-08-26 — remediation implementation complete
 **Specification:** `docs/specs/saved-frames-replacement-spec.md` (approved 2026-08-26)
 **Plan:** `tasks/saved-frames-replacement-plan.md` (approved 2026-08-26)
 **Decision:** `docs/decisions/003-replace-frame-reservations-with-saved-frames.md`
 
 32 tasks across five implementation phases. The project owner approved this
-checklist on 2026-08-26 and explicitly paused implementation until further
-instruction.
+checklist on 2026-08-26; remediation implementation is complete for the
+repository state dated 2026-08-26.
+
+Affected Saved Frames, API contract, Filament, seeder, and migration tests pass.
+The full suite still reports unrelated pre-existing failures in appointment,
+catalog, OTP, quotation, and other domains.
 
 ## Execution Rules
 
@@ -1112,7 +1116,8 @@ quality review, and only then mark the feature records implemented.
 ## Parallelization Map
 
 Planning identifies opportunities only; it does not authorize agent
-delegation or implementation before checklist approval.
+delegation or changes outside this checklist. The checklist and remediation
+were authorized by the project owner.
 
 - Tasks 7 and 8 may proceed independently after Task 6, but they share the
   preferred-frames summary view and test file, so edits require coordination.
@@ -1128,8 +1133,8 @@ delegation or implementation before checklist approval.
 
 ## Final Implementation Gate
 
-The project owner approved this checklist on 2026-08-26 but explicitly directed
-that implementation must not begin yet. A later instruction to proceed will
-authorize implementation in task order; it will not authorize database reset,
-execution against non-disposable data, deployment, or changes to the separate
-Android repository beyond the documented coordination checkpoint.
+The project owner approved this checklist on 2026-08-26 and subsequently
+authorized remediation implementation. The repository-side Saved Frames
+remediation is complete; this does not authorize database reset, execution
+against non-disposable data, deployment, or changes to the separate Android
+repository beyond the documented coordination checkpoint.

@@ -7,6 +7,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class PreferredFramesRelationManager extends RelationManager
 {
@@ -22,12 +23,17 @@ class PreferredFramesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->withCatalogData())
             ->columns([
                 ImageColumn::make('variant.product.images')
                     ->label('')
                     ->size(40)
-                    ->getStateUsing(fn ($record): ?string => $record->variant?->images[0] ?? null)
-                    ->defaultImageUrl(url('/images/placeholder-frame.png')),
+                    ->getStateUsing(function ($record): ?string {
+                        $images = $record->variant?->images;
+
+                        return is_array($images) ? ($images[0] ?? null) : null;
+                    })
+                    ->defaultImageUrl(url('/images/placeholder-frame.svg')),
                 TextColumn::make('variant.product.name')
                     ->label('Frame')
                     ->searchable()
@@ -81,7 +87,12 @@ class PreferredFramesRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading(fn (): string => $this->getOwnerRecord()->user_id === null
+                ? 'No linked account'
+                : 'No preferred frames')
+            ->headerActions([])
+            ->toolbarActions([])
             ->recordActions([])
-            ->paginated(false);
+            ->paginated([10, 25, 50]);
     }
 }

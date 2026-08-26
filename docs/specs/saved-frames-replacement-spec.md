@@ -4,9 +4,10 @@
 
 **Approved by the project owner on 2026-08-26.**
 
-Phase 1 of the spec-driven workflow is complete. Implementation remains gated
-behind approval of the implementation plan and its later detailed task
-checklist.
+Implementation and remediation are complete in the repository state dated
+2026-08-26. The replacement API, read-only clinic surfaces, legacy conversion
+guard, contract migration, tests, and canonical documentation are verified;
+Android cutover remains an external deployment checkpoint.
 
 This specification supersedes
 `docs/specs/frame-reservation-simplification-spec.md`. The architectural reason

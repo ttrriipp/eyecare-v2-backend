@@ -121,6 +121,19 @@ final class ConvertFrameReservation
                 $savedAt = Carbon::parse(
                     $item->created_at ?? $reservation->created_at ?? now(),
                 )->toDateTimeString();
+                $inserted = DB::table('saved_frames')->insertOrIgnore([
+                    'user_id' => $userId,
+                    'product_variant_id' => $variantId,
+                    'created_at' => $savedAt,
+                    'updated_at' => now(),
+                ]);
+
+                if ($inserted > 0) {
+                    $savedFramesCreated++;
+
+                    continue;
+                }
+
                 $existing = DB::table('saved_frames')
                     ->where('user_id', $userId)
                     ->where('product_variant_id', $variantId)
@@ -128,21 +141,18 @@ final class ConvertFrameReservation
                     ->first();
 
                 if ($existing === null) {
-                    DB::table('saved_frames')->insert([
-                        'user_id' => $userId,
-                        'product_variant_id' => $variantId,
-                        'created_at' => $savedAt,
-                        'updated_at' => now(),
-                    ]);
-                    $savedFramesCreated++;
-
-                    continue;
+                    throw new \RuntimeException(
+                        "Cannot convert reservation #{$reservationId}: saved frame insert was ignored.",
+                    );
                 }
 
                 if (Carbon::parse($existing->created_at)->greaterThan(Carbon::parse($savedAt))) {
                     DB::table('saved_frames')
                         ->where('id', $existing->id)
-                        ->update(['created_at' => $savedAt]);
+                        ->update([
+                            'created_at' => $savedAt,
+                            'updated_at' => now(),
+                        ]);
                     $savedFramesUpdated++;
                 }
             }

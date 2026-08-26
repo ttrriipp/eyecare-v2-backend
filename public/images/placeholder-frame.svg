@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-labelledby="title">
+    <title id="title">Frame image unavailable</title>
+    <rect width="80" height="80" rx="8" fill="#e5e7eb"/>
+    <path d="M18 31h16l4 6 4-6h20v16a6 6 0 0 1-6 6H24a6 6 0 0 1-6-6V31Z" fill="none" stroke="#6b7280" stroke-width="4"/>
+    <circle cx="28" cy="40" r="6" fill="none" stroke="#6b7280" stroke-width="3"/>
+    <circle cx="52" cy="40" r="6" fill="none" stroke="#6b7280" stroke-width="3"/>
+</svg>

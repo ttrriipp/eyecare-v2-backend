@@ -25,8 +25,9 @@ class SavedFrameController extends Controller
 
         $savedFrames = SavedFrame::query()
             ->where('user_id', $account->id)
-            ->with(['variant.product.brand', 'variant.product.category'])
+            ->withCatalogData()
             ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate($perPage);
 
         return SavedFrameResource::collection($savedFrames)
@@ -48,7 +49,9 @@ class SavedFrameController extends Controller
 
         $savedFrame = app(SaveFrame::class)->handle($account, $variant);
 
-        $savedFrame->load(['variant.product']);
+        $savedFrame = SavedFrame::query()
+            ->withCatalogData()
+            ->findOrFail($savedFrame->id);
 
         return response()->json([
             'data' => SavedFrameResource::make($savedFrame),

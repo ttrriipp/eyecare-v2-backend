@@ -1,14 +1,23 @@
 # Active Checklist
 
-**Replace Frame Reservations with Saved Frames** — approved 2026-08-26;
-implementation paused
+**Replace Frame Reservations with Saved Frames** — remediation complete
+2026-08-26
 
 → `tasks/saved-frames-replacement-todo.md`
 
-The specification, implementation plan, and detailed checklist are approved.
-The project owner explicitly paused implementation until further instruction.
+The specification and implementation plan are approved. Remediation is
+complete for the repository state dated 2026-08-26; affected tests pass. The
+full suite retains unrelated pre-existing failures outside this feature.
 
 The latest completed checklist is:
+
+→ `tasks/saved-frames-replacement-todo.md`
+
+It includes the Saved Frames remediation implemented and verified on
+2026-08-26. The full suite retains unrelated pre-existing failures outside
+this feature.
+
+The previous latest completed checklist remains:
 
 → `tasks/ar-asset-admin-studio-todo.md`
 

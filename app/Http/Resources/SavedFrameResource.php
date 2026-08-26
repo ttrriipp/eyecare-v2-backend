@@ -28,7 +28,11 @@ class SavedFrameResource extends JsonResource
 
     private function computeAvailability(): string
     {
-        $variant = $this->whenLoaded('variant');
+        if (! $this->resource instanceof SavedFrame || ! $this->resource->relationLoaded('variant')) {
+            return 'unavailable';
+        }
+
+        $variant = $this->resource->getRelation('variant');
 
         if ($variant === null) {
             return 'unavailable';

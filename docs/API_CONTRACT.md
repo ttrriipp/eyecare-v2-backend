@@ -3,8 +3,9 @@
 > **Backend version:** Current repository state (2026-08-26) — Saved Frames
 > replacement complete: Frame Reservations replaced with account-owned Saved
 > Frames. Patients save frame variants as persistent preferences without
-> withholding inventory. Three new account-only routes (`GET/PUT/DELETE
-> /saved-frames`). Five reservation routes removed. `is_saved` field added to
+> withholding inventory. Three new account-only routes (`GET /saved-frames`,
+> `PUT /saved-frames/{productVariant}`, and `DELETE /saved-frames/{productVariant}`).
+> Five reservation routes removed. `is_saved` field added to
 > frame catalog variants. Route count: 59 (8 public + 40 account-only +
 > 11 active-link). Previous: remote frame 3D assets, reservation maximum three,
 > direct messaging hardening, optical commerce and dispensing, resilient patient
@@ -29,11 +30,10 @@
 > `Retry-After` header; middleware-backed limits retain the standard
 > `X-RateLimit-*` headers.
 
-> **Shipped 2026-08-12: simplified frame reservations.** The patient API now
-> uses `DELETE` instead of `POST .../cancel`, returns `is_held` and derived
-> `expires_at` instead of `status`, and never exposes `accepted_at`. Staff build
-> quotations by selecting frames from the catalog. No patient API route, request,
-> or response field was added beyond the `is_held`/`expires_at` contract change.
+> **Historical (superseded 2026-08-26): simplified frame reservations.** The
+> former reservation API used `DELETE` instead of `POST .../cancel`, returned
+> `is_held` and derived `expires_at`, and never exposed `accepted_at`. The
+> reservation routes are now retired; Saved Frames are documented in §12.
 
 > **Shipped 2026-08-14: appointment-request account-link synchronization.**
 > When staff approve a Patient Link Request, previously submitted appointment
@@ -1572,8 +1572,8 @@ to a model whose coordinate system has not been physically reviewed.
 When no approved and published 3D asset exists, or when an asset is missing,
 invalid, expired, or corrupted, the response returns `"ar": null`. Android
 must retain the existing image-preview fallback in that case. Disabling or
-rolling back AR changes only `ar`; normal frame images and reservation
-functionality remain available. Patients have no 3D upload API.
+rolling back AR changes only `ar`; normal frame images and Saved Frame
+preferences remain available. Patients have no 3D upload API.
 
 **Android migration requirements:**
 
@@ -2516,6 +2516,7 @@ The following old mobile features/routes are **intentionally retired**:
 | Appointment contact-note editing | Retired. |
 | `/api/user` (unversioned) | Absent. |
 | `/api/v1/patient/profile` | Absent. Profile is `/api/v1/me`. |
+| Frame Reservations (`/frame-reservations`) | Retired. Account-owned Saved Frames (`/saved-frames`) record preferences without holding inventory. |
 
 ---
 

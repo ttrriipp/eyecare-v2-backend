@@ -20,8 +20,7 @@ test('every approved v1 route is present exactly once', function () {
 
     $expected = [
         'DELETE api/v1/account/contacts/{contact}',
-        'DELETE api/v1/frame-reservations/{reservation}',
-        'DELETE api/v1/frame-reservations/{reservation}/items/{item}',
+        'DELETE api/v1/saved-frames/{productVariant}',
         'GET|HEAD api/v1/account/contacts',
         'GET|HEAD api/v1/account/link',
         'GET|HEAD api/v1/appointment-availability',
@@ -38,7 +37,6 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/conversation/attachments/{attachment}',
         'GET|HEAD api/v1/conversation/messages',
         'GET|HEAD api/v1/conversation/messages/search',
-        'GET|HEAD api/v1/frame-reservations',
         'GET|HEAD api/v1/frames',
         'GET|HEAD api/v1/frames/{frame}',
         'GET|HEAD api/v1/me',
@@ -49,6 +47,7 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/patient-link-requests/current',
         'GET|HEAD api/v1/prescriptions',
         'GET|HEAD api/v1/prescriptions/{prescription}',
+        'GET|HEAD api/v1/saved-frames',
         'PATCH api/v1/account/contacts/{contact}/primary',
         'PATCH api/v1/me',
         'PATCH api/v1/notifications/read-all',
@@ -72,14 +71,13 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/auth/step-up/verify',
         'POST api/v1/conversation/messages',
         'POST api/v1/conversation/messages/read',
-        'POST api/v1/frame-reservations',
-        'POST api/v1/frame-reservations/{reservation}/items',
         'POST api/v1/logout',
         'POST api/v1/logout-all',
         'POST api/v1/optical-order-items/{item}/rating',
         'POST api/v1/patient-invitations/accept',
         'POST api/v1/patient-invitations/acceptance/otp',
         'POST api/v1/patient-link-requests',
+        'PUT api/v1/saved-frames/{productVariant}',
     ];
 
     expect($v1Routes)->toBe($expected);

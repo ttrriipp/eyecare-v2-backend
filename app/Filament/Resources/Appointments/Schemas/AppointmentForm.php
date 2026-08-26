@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Actions\Patients\SearchPatientDuplicates;
 use App\Filament\Support\PatientDuplicateMatchCard;
+use App\Filament\Support\PreferredFramesSummary;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -353,59 +354,7 @@ class AppointmentForm
                         ->schema([
                             Placeholder::make('preferred_frames_summary')
                                 ->label('')
-                                ->content(function (?Appointment $record): string {
-                                    if ($record === null) {
-                                        return '';
-                                    }
-
-                                    $patient = $record->patient;
-                                    $account = $patient?->account;
-
-                                    if ($account === null) {
-                                        return '<div class="text-sm text-gray-500 dark:text-gray-400">No linked account</div>';
-                                    }
-
-                                    $frames = $account->savedFrames()
-                                        ->with(['variant.product'])
-                                        ->limit(3)
-                                        ->get();
-
-                                    if ($frames->isEmpty()) {
-                                        return '<div class="text-sm text-gray-500 dark:text-gray-400">No preferred frames</div>';
-                                    }
-
-                                    $html = '<div class="space-y-3">';
-                                    foreach ($frames as $frame) {
-                                        $variant = $frame->variant;
-                                        $product = $variant?->product;
-                                        $available = $variant && $variant->is_active && ! $variant->trashed()
-                                            && $product && $product->is_active && ! $product->trashed()
-                                            && $variant->stock_quantity > 0;
-
-                                        $html .= '<div class="flex items-center gap-3">';
-                                        $html .= '<div class="flex-1 min-w-0">';
-                                        $html .= '<div class="text-sm font-medium truncate">'.e($product?->name ?? 'Unknown').'</div>';
-                                        $html .= '<div class="text-xs text-gray-500 dark:text-gray-400 truncate">';
-                                        $html .= e($variant?->name ?? 'Unknown');
-                                        if ($variant?->sku) {
-                                            $html .= ' · '.e($variant->sku);
-                                        }
-                                        $html .= '</div>';
-                                        $html .= '<div class="text-xs text-gray-400">'.$frame->created_at->format('M j, Y').'</div>';
-                                        $html .= '</div>';
-                                        $html .= '<div>';
-                                        if ($available) {
-                                            $html .= '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Available</span>';
-                                        } else {
-                                            $html .= '<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">Unavailable</span>';
-                                        }
-                                        $html .= '</div>';
-                                        $html .= '</div>';
-                                    }
-                                    $html .= '</div>';
-
-                                    return new HtmlString($html);
-                                }),
+                                ->content(fn (?Appointment $record): HtmlString => PreferredFramesSummary::render($record?->patient)),
                         ]),
                 ]),
             ]),

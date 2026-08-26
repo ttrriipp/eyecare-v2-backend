@@ -58,8 +58,8 @@ class InventoryMovementsTable
                     ->label('Job Order')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('reservation.id')
-                    ->label('Reservation')
+                TextColumn::make('reservation_id')
+                    ->label('Legacy reservation ID')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('notes')

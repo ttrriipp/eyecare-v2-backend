@@ -18,8 +18,10 @@ use App\Models\JobOrderItem;
 use App\Models\Message;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
+use App\Models\SavedFrame;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -29,7 +31,7 @@ use Illuminate\Database\Seeder;
  * Demonstrates:
  *  - Appointment → check-in → encounter → prescription
  *  - Quotation → accepted → job order → dispensing → billing record
- *  - Frame reservation flow
+ *  - Saved Frame preferences surfaced in clinical context
  *  - Conversation with staff reply
  */
 class ClinicWorkflowSeeder extends Seeder
@@ -40,6 +42,7 @@ class ClinicWorkflowSeeder extends Seeder
         $optometrist = User::query()->where('email', 'owner@eyecare.test')->firstOrFail();
         $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
 
+        $this->seedSavedFrames($patient);
         $appointment = $this->seedAppointment($patient, $staff, $optometrist);
         $encounter = $this->seedEncounter($patient, $appointment, $optometrist);
         $prescription = $this->seedPrescription($patient, $encounter, $optometrist);
@@ -54,6 +57,42 @@ class ClinicWorkflowSeeder extends Seeder
         $user = User::query()->where('email', 'customer@eyecare.test')->firstOrFail();
 
         return Patient::query()->where('user_id', $user->id)->firstOrFail();
+    }
+
+    private function seedSavedFrames(Patient $patient): void
+    {
+        if ($patient->user_id === null) {
+            return;
+        }
+
+        $variants = ProductVariant::query()
+            ->withTrashed()
+            ->whereIn('sku', ['CRF-BLK-001', 'RMF-SLV-001', 'ASF-GLD-001'])
+            ->get()
+            ->keyBy('sku');
+
+        foreach ([
+            ['sku' => 'CRF-BLK-001', 'saved_at' => now()->subDays(12)],
+            ['sku' => 'RMF-SLV-001', 'saved_at' => now()->subDays(5)],
+            ['sku' => 'ASF-GLD-001', 'saved_at' => now()->subDay()],
+        ] as $preference) {
+            $variant = $variants->get($preference['sku']);
+
+            if ($variant === null) {
+                continue;
+            }
+
+            SavedFrame::query()->firstOrCreate(
+                [
+                    'user_id' => $patient->user_id,
+                    'product_variant_id' => $variant->id,
+                ],
+                [
+                    'created_at' => $preference['saved_at'],
+                    'updated_at' => $preference['saved_at'],
+                ],
+            );
+        }
     }
 
     private function seedAppointment(Patient $patient, User $staff, User $optometrist): Appointment

@@ -21,7 +21,7 @@ test('clinical routes are inaccessible without authentication', function () {
         ['GET', '/api/v1/optical-orders'],
         ['GET', '/api/v1/conversation'],
         ['GET', '/api/v1/frames'],
-        ['GET', '/api/v1/frame-reservations'],
+        ['GET', '/api/v1/saved-frames'],
         ['GET', '/api/v1/appointments'],
     ];
 
@@ -40,7 +40,7 @@ test('linked patient can access clinical routes through patient relationship', f
     $this->getJson('/api/v1/prescriptions')->assertOk();
     $this->getJson('/api/v1/optical-orders')->assertOk();
     $this->getJson('/api/v1/frames')->assertOk();
-    $this->getJson('/api/v1/frame-reservations')->assertOk();
+    $this->getJson('/api/v1/saved-frames')->assertOk();
     $this->getJson('/api/v1/appointments')->assertOk();
 });
 

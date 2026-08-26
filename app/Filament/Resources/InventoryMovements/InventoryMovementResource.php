@@ -56,7 +56,9 @@ class InventoryMovementResource extends Resource
                 TextEntry::make('new_stock')->label('After')->placeholder('—'),
                 TextEntry::make('createdBy.full_name')->label('Recorded By')->placeholder('System'),
                 TextEntry::make('jobOrder.job_order_number')->label('Job Order')->placeholder('—'),
-                TextEntry::make('reservation.id')->label('Reservation')->placeholder('—'),
+                TextEntry::make('reservation_id')
+                    ->label('Legacy reservation ID')
+                    ->placeholder('—'),
                 TextEntry::make('notes')->label('Notes')->placeholder('—')->columnSpanFull(),
             ]),
         ]);

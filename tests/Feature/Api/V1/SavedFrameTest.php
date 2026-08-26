@@ -148,6 +148,24 @@ test('saving a variant with inactive product returns 422', function () {
         ->assertUnprocessable();
 });
 
+test('saving a variant with an inactive brand returns 422', function () {
+    $user = User::factory()->create();
+    $this->brand->update(['is_active' => false]);
+
+    $this->actingAs($user)
+        ->putJson("/api/v1/saved-frames/{$this->variant->id}")
+        ->assertUnprocessable();
+});
+
+test('saving a variant with an inactive category returns 422', function () {
+    $user = User::factory()->create();
+    $this->frame->category->update(['is_active' => false]);
+
+    $this->actingAs($user)
+        ->putJson("/api/v1/saved-frames/{$this->variant->id}")
+        ->assertUnprocessable();
+});
+
 test('saving requires authentication', function () {
     $this->putJson("/api/v1/saved-frames/{$this->variant->id}")
         ->assertUnauthorized();
@@ -357,6 +375,36 @@ test('inactive saved variant shows as unavailable', function () {
         ->getJson('/api/v1/saved-frames')
         ->assertOk()
         ->assertJsonPath('data.0.availability', 'unavailable');
+});
+
+test('soft-deleted saved variant remains readable with its catalog data', function () {
+    $user = User::factory()->create();
+    SavedFrame::factory()->forAccount($user)->forVariant($this->variant)->create();
+
+    $this->variant->delete();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/saved-frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.product_variant_id', $this->variant->id)
+        ->assertJsonPath('data.0.availability', 'unavailable')
+        ->assertJsonPath('data.0.variant.id', $this->variant->id)
+        ->assertJsonPath('data.0.variant.product.id', $this->frame->id);
+});
+
+test('soft-deleted saved product remains readable with its catalog data', function () {
+    $user = User::factory()->create();
+    SavedFrame::factory()->forAccount($user)->forVariant($this->variant)->create();
+
+    $this->frame->delete();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/saved-frames')
+        ->assertOk()
+        ->assertJsonPath('data.0.product_variant_id', $this->variant->id)
+        ->assertJsonPath('data.0.availability', 'unavailable')
+        ->assertJsonPath('data.0.variant.id', $this->variant->id)
+        ->assertJsonPath('data.0.variant.product.id', $this->frame->id);
 });
 
 test('zero-stock saved variant shows as unavailable', function () {

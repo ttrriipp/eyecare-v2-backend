@@ -8,6 +8,8 @@ use App\Models\SavedFrame;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -74,26 +76,41 @@ class MigrateFrameReservationsToSavedFrames extends Command
         $savedFramesCreated = 0;
         $savedFramesUpdated = 0;
         $skippedUnlinkedItems = 0;
+        $releaseMovementsBefore = $this->reservationReleaseMovementCount();
 
-        foreach ($summary['reservation_ids'] as $reservationId) {
-            try {
-                $result = $this->convertReservation->handle($reservationId);
-                $converted++;
-                $releasedItems += $result['released_items'];
-                $savedFramesCreated += $result['saved_frames_created'];
-                $savedFramesUpdated += $result['saved_frames_updated'];
-                $skippedUnlinkedItems += $result['skipped_unlinked_items'];
-            } catch (Throwable $exception) {
-                $failed++;
-                $this->error("Failed to convert reservation #{$reservationId}: {$exception->getMessage()}");
-            }
-        }
+        DB::table('frame_reservations')->chunkById(
+            100,
+            function (Collection $reservations) use (
+                &$converted,
+                &$failed,
+                &$releasedItems,
+                &$savedFramesCreated,
+                &$savedFramesUpdated,
+                &$skippedUnlinkedItems,
+            ): void {
+                foreach ($reservations as $reservation) {
+                    $reservationId = (int) $reservation->id;
+
+                    try {
+                        $result = $this->convertReservation->handle($reservationId);
+                        $converted++;
+                        $releasedItems += $result['released_items'];
+                        $savedFramesCreated += $result['saved_frames_created'];
+                        $savedFramesUpdated += $result['saved_frames_updated'];
+                        $skippedUnlinkedItems += $result['skipped_unlinked_items'];
+                    } catch (Throwable $exception) {
+                        $failed++;
+                        $this->error("Failed to convert reservation #{$reservationId}: {$exception->getMessage()}");
+                    }
+                }
+            },
+            'id',
+        );
 
         $remainingReservations = DB::table('frame_reservations')->count();
         $remainingItems = DB::table('frame_reservation_items')->count();
-        $releaseMovements = InventoryMovement::query()
-            ->whereHas('movementType', fn ($query) => $query->where('name', 'reservation_release'))
-            ->count();
+        $releaseMovements = $this->reservationReleaseMovementCount();
+        $releaseMovementsCreated = $releaseMovements - $releaseMovementsBefore;
 
         $this->info("Converted: {$converted}");
         $this->info("Failed: {$failed}");
@@ -104,9 +121,16 @@ class MigrateFrameReservationsToSavedFrames extends Command
         $this->info("Remaining reservations: {$remainingReservations}");
         $this->info("Remaining items: {$remainingItems}");
         $this->info('Saved frames in database: '.SavedFrame::query()->count());
+        $this->info("Reservation release movements created: {$releaseMovementsCreated}");
         $this->info("Reservation release movements: {$releaseMovements}");
 
-        if ($failed > 0 || $remainingReservations > 0 || $remainingItems > 0) {
+        if (
+            $failed > 0
+            || $remainingReservations > 0
+            || $remainingItems > 0
+            || $releasedItems !== $summary['held_items']
+            || $releaseMovementsCreated !== $releasedItems
+        ) {
             $this->error('Verification failed: reservation conversion is incomplete.');
 
             return self::FAILURE;
@@ -119,7 +143,6 @@ class MigrateFrameReservationsToSavedFrames extends Command
 
     /**
      * @return array{
-     *     reservation_ids: list<int>,
      *     reservations: int,
      *     items: int,
      *     held_items: int,
@@ -129,12 +152,7 @@ class MigrateFrameReservationsToSavedFrames extends Command
      */
     private function summarizeLegacyReservations(): array
     {
-        $reservationIds = DB::table('frame_reservations')
-            ->orderBy('id')
-            ->pluck('id')
-            ->map(fn (mixed $id): int => (int) $id)
-            ->all();
-        $reservationCount = count($reservationIds);
+        $reservationCount = (int) DB::table('frame_reservations')->count();
         $itemCount = (int) DB::table('frame_reservation_items')->count();
         $heldItemCount = (int) DB::table('frame_reservations as reservations')
             ->join(
@@ -151,12 +169,21 @@ class MigrateFrameReservationsToSavedFrames extends Command
             ->count('reservations.id');
 
         return [
-            'reservation_ids' => $reservationIds,
             'reservations' => $reservationCount,
             'items' => $itemCount,
             'held_items' => $heldItemCount,
             'linked_reservations' => $linkedReservationCount,
             'unlinked_reservations' => $reservationCount - $linkedReservationCount,
         ];
+    }
+
+    private function reservationReleaseMovementCount(): int
+    {
+        return InventoryMovement::query()
+            ->whereHas(
+                'movementType',
+                fn (Builder $query): Builder => $query->where('name', 'reservation_release'),
+            )
+            ->count();
     }
 }
