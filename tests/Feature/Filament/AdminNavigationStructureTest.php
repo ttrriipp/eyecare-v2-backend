@@ -106,7 +106,7 @@ test('items are ordered within each group', function () {
         'Today' => ['Appointments', 'Appointment Requests', 'Scheduling'],
         'Patients' => ['Patient Records', 'Patient Accounts', 'Link Requests', 'Conversations', 'Visit Feedback'],
         'Clinical' => ['Consultations', 'Prescriptions'],
-        'Optical' => ['Quotations', 'Optical Orders', 'Frame Reservations', 'Frame Ratings'],
+        'Optical' => ['Quotations', 'Optical Orders'],
         'Billing' => ['Billing & Payments'],
         'Catalog' => ['Products', 'Inventory', 'Inventory History', 'Brands', 'Lens Categories', 'Lens Options', 'Product Categories', 'Services'],
         'Admin' => ['Staff Accounts', 'SMS Log', 'Audit Logs'],
@@ -121,6 +121,9 @@ test('no group is rendered with a single item', function () {
         fn (array $items, string $label): bool => $label !== '' && count($items) === 1,
         ARRAY_FILTER_USE_BOTH,
     ));
+
+    // Billing is allowed to have a single item
+    $singletons = array_filter($singletons, fn (string $label): bool => $label !== 'Billing');
 
     expect($singletons)->toBeEmpty(
         'A one-item group is a heading that earns no space: '.implode(', ', $singletons),

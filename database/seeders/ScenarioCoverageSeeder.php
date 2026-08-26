@@ -16,14 +16,11 @@ use App\Models\BillingPayment;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\EncounterAddendum;
-use App\Models\FrameReservation;
-use App\Models\FrameReservationItem;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\Prescription;
-use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Role;
@@ -47,7 +44,6 @@ class ScenarioCoverageSeeder extends Seeder
     {
         $this->seedAppointmentStatuses();
         $this->seedAppointmentRequests();
-        $this->seedFrameReservations();
         $this->seedPatientLinkRequests();
         $this->seedEncounterStatuses();
         $this->seedQuotationStatuses();
@@ -195,48 +191,6 @@ class ScenarioCoverageSeeder extends Seeder
             'user_id' => $portalUserId,
             'patient_id' => $patient->id,
             'appointment_type_id' => $checkUpTypeId,
-        ]);
-    }
-
-    private function seedFrameReservations(): void
-    {
-        if (FrameReservation::query()->count() > 0) {
-            return;
-        }
-
-        $scheduled = AppointmentStatus::query()->where('name', 'scheduled')->firstOrFail();
-        $pendingAppointment = Appointment::query()
-            ->where('patient_id', $this->flagshipPatient()->id)
-            ->where('appointment_status_id', $scheduled->id)
-            ->firstOrFail();
-
-        $checkedIn = AppointmentStatus::query()->where('name', 'checked_in')->firstOrFail();
-        $acceptedAppointment = Appointment::query()
-            ->where('patient_id', $this->walkInPatient()->id)
-            ->where('appointment_status_id', $checkedIn->id)
-            ->firstOrFail();
-
-        $matteBlack = ProductVariant::query()->where('sku', 'CRF-BLK-001')->firstOrFail();
-        $pending = FrameReservation::query()->create([
-            'patient_id' => $pendingAppointment->patient_id,
-            'appointment_id' => $pendingAppointment->id,
-            'staff_notes' => 'Patient wants to try the matte black frame before deciding.',
-        ]);
-        FrameReservationItem::query()->create([
-            'frame_reservation_id' => $pending->id,
-            'product_variant_id' => $matteBlack->id,
-        ]);
-
-        $gold = ProductVariant::query()->where('sku', 'RMF-GLD-001')->firstOrFail();
-        $accepted = FrameReservation::query()->create([
-            'patient_id' => $acceptedAppointment->patient_id,
-            'appointment_id' => $acceptedAppointment->id,
-            'accepted_at' => now(),
-            'staff_notes' => 'Confirmed fit during check-in.',
-        ]);
-        FrameReservationItem::query()->create([
-            'frame_reservation_id' => $accepted->id,
-            'product_variant_id' => $gold->id,
         ]);
     }
 

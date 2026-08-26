@@ -5,7 +5,6 @@ use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\PatientLinkRequests\PatientLinkRequestResource;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -14,7 +13,6 @@ use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
-use App\Models\FrameReservation;
 use App\Models\JobOrder;
 use App\Models\NotificationStatus;
 use App\Models\PatientLinkRequest;
@@ -50,10 +48,6 @@ test('navigation badges count actionable sidebar work', function () {
     JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);
     JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
 
-    FrameReservation::factory()->create();
-    FrameReservation::factory()->accepted()->create();
-    FrameReservation::factory()->accepted()->create();
-
     BillingRecord::factory()->create();
     BillingRecord::factory()->partiallyPaid()->create();
     BillingRecord::factory()->paid()->create();
@@ -70,7 +64,6 @@ test('navigation badges count actionable sidebar work', function () {
         'Consultations' => EncounterResource::getNavigationBadge(),
         'Quotations' => QuotationResource::getNavigationBadge(),
         'Optical Orders' => OpticalOrderResource::getNavigationBadge(),
-        'Frame Reservations' => FrameReservationResource::getNavigationBadge(),
         'Billing & Payments' => BillingRecordResource::getNavigationBadge(),
         'SMS Log' => SmsNotificationResource::getNavigationBadge(),
     ])->toBe([
@@ -80,7 +73,6 @@ test('navigation badges count actionable sidebar work', function () {
         'Consultations' => '1',
         'Quotations' => '1',
         'Optical Orders' => '1',
-        'Frame Reservations' => '1',
         'Billing & Payments' => '2',
         'SMS Log' => '1',
     ]);
@@ -94,7 +86,6 @@ test('navigation badges are omitted when there is no actionable work', function 
         EncounterResource::getNavigationBadge(),
         QuotationResource::getNavigationBadge(),
         OpticalOrderResource::getNavigationBadge(),
-        FrameReservationResource::getNavigationBadge(),
         BillingRecordResource::getNavigationBadge(),
         SmsNotificationResource::getNavigationBadge(),
     ])->each->toBeNull();

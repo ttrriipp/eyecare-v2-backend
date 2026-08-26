@@ -8,7 +8,6 @@ use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\Encounter;
-use App\Models\FrameReservation;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\RoleSeeder;
@@ -199,22 +198,6 @@ test('cancellation records actor reason and time', function () {
         ->and($appointment->cancelled_by_user_id)->toBe($staff->id)
         ->and($appointment->cancellation_reason_category)->toBe('patient_request')
         ->and($appointment->cancelled_at)->not->toBeNull();
-});
-
-test('cancellation cleans up active reservations', function () {
-    $staff = User::factory()->staff()->create();
-    $appointment = Appointment::factory()->create();
-    $reservation = FrameReservation::factory()->forAppointment($appointment)->create();
-
-    $this->actingAs($staff);
-
-    Livewire::test(ListAppointments::class)
-        ->callTableAction('cancel', $appointment, [
-            'reason_category' => 'patient_request',
-            'cancellation_details' => null,
-        ]);
-
-    expect($reservation->exists())->toBeFalse();
 });
 
 test('no show records actor and time', function () {
