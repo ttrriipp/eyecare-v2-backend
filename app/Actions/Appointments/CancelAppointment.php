@@ -3,7 +3,6 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
-use App\Actions\Reservations\DeleteFrameReservation;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
@@ -66,13 +65,6 @@ class CancelAppointment
                         'status' => EncounterStatus::Cancelled,
                     ]);
                 }
-            }
-
-            // Delete frame reservations and release stock if held
-            $reservation = $appointment->frameReservation;
-
-            if ($reservation !== null) {
-                app(DeleteFrameReservation::class)->handle($reservation);
             }
 
             // Audit

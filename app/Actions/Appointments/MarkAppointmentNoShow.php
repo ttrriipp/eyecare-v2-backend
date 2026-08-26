@@ -3,7 +3,6 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
-use App\Actions\Reservations\DeleteFrameReservation;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
@@ -42,13 +41,6 @@ class MarkAppointmentNoShow
                 'no_show_at' => now(),
                 'staff_notes' => $staffNotes ?? $appointment->staff_notes,
             ]);
-
-            // Delete frame reservations and release stock if held
-            $reservation = $appointment->frameReservation;
-
-            if ($reservation !== null) {
-                app(DeleteFrameReservation::class)->handle($reservation);
-            }
 
             // Audit
             app(CreateAuditLog::class)->handle(
