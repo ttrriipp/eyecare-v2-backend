@@ -13,7 +13,7 @@ return new class extends Migration
         $itemCount = DB::table('frame_reservation_items')->count();
 
         if ($reservationCount > 0 || $itemCount > 0) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "Cannot drop reservation tables: {$reservationCount} reservations and {$itemCount} items remain. ".
                 'Run saved-frames:migrate-reservations --execute first.'
             );
@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::create('frame_reservations', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('patient_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('appointment_id')->constrained()->restrictOnDelete();
             $table->timestamp('accepted_at')->nullable();
             $table->text('staff_notes')->nullable();
             $table->timestamps();
