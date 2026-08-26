@@ -9,16 +9,12 @@ use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\ScheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
-use App\Actions\Reservations\CreateFrameReservation;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\FrameReservations\FrameReservationResource;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
-use App\Models\FrameReservation;
-use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -85,67 +81,6 @@ class EditAppointment extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('viewReservation')
-                ->label('View Reservation')
-                ->icon('heroicon-o-eye')
-                ->color('gray')
-                ->visible(fn (): bool => FrameReservation::query()
-                    ->where('appointment_id', $this->getRecord()->id)
-                    ->exists())
-                ->url(fn (): string => FrameReservationResource::getUrl('edit', [
-                    'record' => FrameReservation::query()
-                        ->where('appointment_id', $this->getRecord()->id)
-                        ->firstOrFail(),
-                ])),
-
-            Action::make('reserveFrame')
-                ->label('Reserve Frame')
-                ->icon('heroicon-o-bookmark')
-                ->color('info')
-                ->visible(fn (): bool => ! FrameReservation::query()
-                    ->where('appointment_id', $this->getRecord()->id)
-                    ->exists()
-                    && $this->getRecord()->status?->name === 'scheduled')
-                ->schema([
-                    Select::make('product_variant_ids')
-                        ->label('Frames')
-                        ->options(fn (): array => ProductVariant::query()
-                            ->active()
-                            ->whereHas('product', fn ($q) => $q->where('is_active', true)->where('product_type', 'frame'))
-                            ->with('product')
-                            ->get()
-                            ->mapWithKeys(fn (ProductVariant $variant): array => [
-                                $variant->id => "{$variant->product->name} — {$variant->name} ({$variant->sku})",
-                            ])
-                            ->all())
-                        ->multiple()
-                        ->searchable()
-                        ->preload()
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        $reservation = app(CreateFrameReservation::class)->handle(
-                            patient: $this->getRecord()->patient,
-                            appointment: $this->getRecord(),
-                            items: collect($data['product_variant_ids'])
-                                ->map(fn ($id): array => ['product_variant_id' => (int) $id])
-                                ->all(),
-                        );
-
-                        Notification::make()
-                            ->title('Frames reserved')
-                            ->body("Reservation #{$reservation->id}")
-                            ->success()
-                            ->send();
-
-                        $this->refreshFormData(['status']);
-                    } catch (ValidationException $e) {
-                        $message = collect($e->errors())->flatten()->first() ?? 'Cannot reserve frames.';
-                        Notification::make()->title('Cannot reserve frames')->body($message)->danger()->send();
-                    }
-                }),
-
             Action::make('startConsultation')
                 ->label('Start Consultation')
                 ->icon('heroicon-o-play')
