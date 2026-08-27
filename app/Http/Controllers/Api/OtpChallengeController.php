@@ -6,6 +6,7 @@ use App\Actions\Auth\IssueOtpChallenge;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\PatientAccounts\AcceptPatientInvitation;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\LoadPatientAccountContext;
 use App\Actions\PatientAccounts\NormalizeContact;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
@@ -136,8 +137,11 @@ class OtpChallengeController extends Controller
         ]);
     }
 
-    public function accept(Request $request, AcceptPatientInvitation $accept): JsonResponse
-    {
+    public function accept(
+        Request $request,
+        AcceptPatientInvitation $accept,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
         $request->validate([
             'invitation_code' => ['required', 'string'],
             'challenge_id' => ['required', 'string'],
@@ -150,8 +154,7 @@ class OtpChallengeController extends Controller
             code: $request->input('code'),
         );
 
-        $user = $result['user'];
-        $user->load('role', 'contacts');
+        $user = $loadPatientAccountContext->handle($result['user']);
 
         return response()->json([
             'data' => [
