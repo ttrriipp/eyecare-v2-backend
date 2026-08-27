@@ -17,31 +17,32 @@ class SubmitPatientLinkRequest
 
     public function handle(User $account): PatientLinkRequest
     {
-        // Check for existing active request
-        $existingRequest = PatientLinkRequest::where('user_id', $account->id)
-            ->where('status', 'pending')
-            ->first();
+        return DB::transaction(function () use ($account): PatientLinkRequest {
+            $lockedAccount = User::query()->lockForUpdate()->findOrFail($account->id);
+            $existingRequest = PatientLinkRequest::query()
+                ->where('user_id', $lockedAccount->id)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first();
 
-        if ($existingRequest !== null) {
-            return $existingRequest;
-        }
+            if ($existingRequest !== null) {
+                return $existingRequest;
+            }
 
-        // Check if already linked
-        if ($account->patient !== null) {
-            throw ValidationException::withMessages([
-                'account' => ['This account is already linked to a patient.'],
-            ]);
-        }
+            if ($lockedAccount->patient()->exists()) {
+                throw ValidationException::withMessages([
+                    'account' => ['This account is already linked to a patient.'],
+                ]);
+            }
 
-        return DB::transaction(function () use ($account) {
             $request = PatientLinkRequest::create([
-                'user_id' => $account->id,
-                'encrypted_identity_snapshot' => $this->identitySnapshot->fromAccount($account),
+                'user_id' => $lockedAccount->id,
+                'encrypted_identity_snapshot' => $this->identitySnapshot->fromAccount($lockedAccount),
                 'status' => 'pending',
             ]);
 
             // Rank and store candidates
-            $candidates = $this->rankCandidates->handle($account);
+            $candidates = $this->rankCandidates->handle($lockedAccount);
 
             foreach ($candidates as $rank => $candidate) {
                 PatientLinkCandidate::create([
