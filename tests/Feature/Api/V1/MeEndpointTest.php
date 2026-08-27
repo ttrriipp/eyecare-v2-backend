@@ -294,6 +294,28 @@ test('me endpoint treats normalized no-op identity updates as no-ops', function 
             ->exists())->toBeFalse();
 });
 
+test('me endpoint reports pending link status consistently on get and patch responses', function () {
+    $user = User::factory()->create();
+    PatientLinkRequest::factory()->for($user)->pending()->create();
+
+    $getResponse = $this->actingAs($user)
+        ->getJson('/api/v1/me')
+        ->assertSuccessful()
+        ->assertJsonPath('data.link_status', 'pending_review')
+        ->assertJsonPath('data.linked_patient', null);
+
+    $patchResponse = $this->actingAs($user)
+        ->patchJson('/api/v1/me', ['first_name' => $user->first_name])
+        ->assertSuccessful()
+        ->assertJsonPath('data.link_status', 'pending_review')
+        ->assertJsonPath('data.linked_patient', null);
+
+    expect($patchResponse->json('data'))->toMatchArray([
+        'link_status' => $getResponse->json('data.link_status'),
+        'linked_patient' => $getResponse->json('data.linked_patient'),
+    ]);
+});
+
 test('patient profile routes are absent', function () {
     $user = User::factory()->patient()->create();
 

@@ -11,6 +11,7 @@ use App\Actions\Auth\RegisterPatientAccount;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Auth\VerifyStepUpOtp;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\LoadPatientAccountContext;
 use App\Actions\PatientAccounts\UpdateAccountProfile;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
@@ -101,8 +102,11 @@ class AuthController extends Controller
     /**
      * Step 2: Complete registration with profile data.
      */
-    public function registerWithOtp(RegisterPatientAccountRequest $request, RegisterPatientAccount $register): JsonResponse
-    {
+    public function registerWithOtp(
+        RegisterPatientAccountRequest $request,
+        RegisterPatientAccount $register,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
         $result = $register->handle($request->validated());
 
         if ($result['contact_already_owned'] ?? false) {
@@ -116,8 +120,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user = $result['user'];
-        $user->load('role', 'contacts');
+        $user = $loadPatientAccountContext->handle($result['user']);
 
         return response()->json([
             'data' => [
@@ -141,8 +144,11 @@ class AuthController extends Controller
         ]);
     }
 
-    public function patientLogin(PatientLoginRequest $request, BeginPatientLogin $login): JsonResponse
-    {
+    public function patientLogin(
+        PatientLoginRequest $request,
+        BeginPatientLogin $login,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
         $result = $login->handle(
             contactValue: $request->validated('contact_value'),
             password: $request->validated('password'),
@@ -151,8 +157,7 @@ class AuthController extends Controller
         );
 
         if (! $result['step_up_required']) {
-            $user = $result['user'];
-            $user->load('role', 'contacts');
+            $user = $loadPatientAccountContext->handle($result['user']);
 
             return response()->json([
                 'data' => [
@@ -172,8 +177,11 @@ class AuthController extends Controller
         ]);
     }
 
-    public function patientLoginVerify(PatientLoginVerifyRequest $request, IssuePatientDeviceToken $issueToken): JsonResponse
-    {
+    public function patientLoginVerify(
+        PatientLoginVerifyRequest $request,
+        IssuePatientDeviceToken $issueToken,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
         $result = $issueToken->handle(
             challengeId: $request->validated('challenge_id'),
             code: $request->validated('code'),
@@ -181,8 +189,7 @@ class AuthController extends Controller
             installationId: $request->validated('installation_id'),
         );
 
-        $user = $result['user'];
-        $user->load('role', 'contacts');
+        $user = $loadPatientAccountContext->handle($result['user']);
 
         return response()->json([
             'data' => [
@@ -192,10 +199,9 @@ class AuthController extends Controller
         ]);
     }
 
-    public function user(Request $request): JsonResponse
+    public function user(Request $request, LoadPatientAccountContext $loadPatientAccountContext): JsonResponse
     {
-        $user = $request->user();
-        $user->load('role', 'contacts', 'patient');
+        $user = $loadPatientAccountContext->handle($request->user());
 
         return response()->json([
             'data' => PatientAccountResource::make($user),
@@ -216,10 +222,14 @@ class AuthController extends Controller
         return response()->json(null, 204);
     }
 
-    public function update(UpdateMeRequest $request, UpdateAccountProfile $updateAccountProfile): JsonResponse
-    {
-        $user = $updateAccountProfile->handle($request->user(), $request->validated());
-        $user->load('role', 'contacts', 'patient', 'linkRequests');
+    public function update(
+        UpdateMeRequest $request,
+        UpdateAccountProfile $updateAccountProfile,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
+        $user = $loadPatientAccountContext->handle(
+            $updateAccountProfile->handle($request->user(), $request->validated()),
+        );
 
         return response()->json([
             'data' => PatientAccountResource::make($user),
@@ -357,8 +367,11 @@ class AuthController extends Controller
     /**
      * Verify recovery OTP and reset password.
      */
-    public function recoveryVerify(Request $request, RecoverPatientPassword $recover): JsonResponse
-    {
+    public function recoveryVerify(
+        Request $request,
+        RecoverPatientPassword $recover,
+        LoadPatientAccountContext $loadPatientAccountContext,
+    ): JsonResponse {
         $request->validate([
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
@@ -376,8 +389,7 @@ class AuthController extends Controller
             installationId: $request->input('installation_id'),
         );
 
-        $user = $result['user'];
-        $user->load('role', 'contacts');
+        $user = $loadPatientAccountContext->handle($result['user']);
 
         return response()->json([
             'data' => [
