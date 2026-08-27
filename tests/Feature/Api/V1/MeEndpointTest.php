@@ -1,7 +1,11 @@
 <?php
 
+use App\Enums\AuditEvent;
 use App\Enums\OtpPurpose;
+use App\Models\AuditLog;
 use App\Models\OtpChallenge;
+use App\Models\Patient;
+use App\Models\PatientLinkRequest;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -157,6 +161,137 @@ test('me endpoint rejects a non-exact date of birth format', function () {
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['date_of_birth']);
+});
+
+test('me endpoint persists account identity and expires its pending link request without changing the patient record', function () {
+    $user = User::factory()->create([
+        'first_name' => 'Original',
+        'middle_name' => null,
+        'last_name' => 'Account',
+        'date_of_birth' => '1988-01-01',
+    ]);
+    $patient = Patient::factory()->unlinked()->create([
+        'first_name' => 'Clinic',
+        'middle_name' => 'Record',
+        'last_name' => 'Patient',
+        'date_of_birth' => '1970-02-02',
+    ]);
+    $linkRequest = PatientLinkRequest::factory()->for($user)->pending()->create([
+        'encrypted_identity_snapshot' => [
+            'first_name' => 'Original',
+            'middle_name' => null,
+            'last_name' => 'Account',
+            'date_of_birth' => '1988-01-01',
+        ],
+    ]);
+    $patientBefore = $patient->fresh()->only([
+        'first_name',
+        'middle_name',
+        'last_name',
+        'date_of_birth',
+        'occupation',
+        'address',
+        'gender',
+        'contact_email',
+        'phone',
+    ]);
+    $token = 'valid-step-up-token';
+
+    OtpChallenge::factory()
+        ->forUser($user)
+        ->purpose(OtpPurpose::SensitiveChange)
+        ->state([
+            'consumed_at' => now(),
+            'delivery_status' => 'step_up_token_issued:'.Hash::make($token),
+        ])
+        ->create();
+
+    $this->actingAs($user)
+        ->withHeader('X-Step-Up-Token', $token)
+        ->patchJson('/api/v1/me', [
+            'first_name' => 'Updated',
+            'middle_name' => 'Middle',
+            'last_name' => 'Name',
+            'date_of_birth' => '1990-03-03',
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.first_name', 'Updated')
+        ->assertJsonPath('data.middle_name', 'Middle')
+        ->assertJsonPath('data.date_of_birth', '1990-03-03');
+
+    expect($user->fresh()->only([
+        'first_name',
+        'middle_name',
+        'last_name',
+    ]))->toMatchArray([
+        'first_name' => 'Updated',
+        'middle_name' => 'Middle',
+        'last_name' => 'Name',
+    ])
+        ->and($user->fresh()->date_of_birth?->toDateString())->toBe('1990-03-03')
+        ->and($patient->fresh()->only([
+            'first_name',
+            'middle_name',
+            'last_name',
+            'date_of_birth',
+            'occupation',
+            'address',
+            'gender',
+            'contact_email',
+            'phone',
+        ]))->toMatchArray($patientBefore)
+        ->and($linkRequest->fresh()->status)->toBe('expired');
+
+    $profileAudit = AuditLog::query()
+        ->where('subject_type', $user->getMorphClass())
+        ->where('subject_id', $user->id)
+        ->where('action', AuditEvent::UserProfileUpdated->value)
+        ->latest('id')
+        ->first();
+    $expiryAudit = AuditLog::query()
+        ->where('subject_type', $linkRequest->getMorphClass())
+        ->where('subject_id', $linkRequest->id)
+        ->where('action', AuditEvent::PatientLinkRequestExpired->value)
+        ->latest('id')
+        ->first();
+
+    expect($profileAudit)->not->toBeNull()
+        ->and($profileAudit->metadata)->toMatchArray([
+            'changed_fields' => ['first_name', 'middle_name', 'last_name', 'date_of_birth'],
+            'pending_link_request_expired' => true,
+            'pending_link_request_id' => $linkRequest->id,
+        ])
+        ->and($profileAudit->metadata)->not->toHaveKey('old_values')
+        ->and($profileAudit->metadata)->not->toHaveKey('new_values')
+        ->and($expiryAudit)->not->toBeNull()
+        ->and($expiryAudit->metadata)->toMatchArray([
+            'reason' => 'account_identity_changed',
+            'account_id' => $user->id,
+        ]);
+});
+
+test('me endpoint treats normalized no-op identity updates as no-ops', function () {
+    $user = User::factory()->create([
+        'first_name' => 'Original',
+        'middle_name' => null,
+        'last_name' => 'Account',
+    ]);
+    $linkRequest = PatientLinkRequest::factory()->for($user)->pending()->create();
+
+    $this->actingAs($user)
+        ->patchJson('/api/v1/me', [
+            'first_name' => '  Original  ',
+            'middle_name' => '   ',
+            'last_name' => ' Account ',
+        ])
+        ->assertSuccessful();
+
+    expect($linkRequest->fresh()->status)->toBe('pending')
+        ->and(AuditLog::query()
+            ->where('subject_type', $user->getMorphClass())
+            ->where('subject_id', $user->id)
+            ->where('action', AuditEvent::UserProfileUpdated->value)
+            ->exists())->toBeFalse();
 });
 
 test('patient profile routes are absent', function () {

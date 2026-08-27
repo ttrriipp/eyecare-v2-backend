@@ -78,6 +78,7 @@ enum AuditEvent: string
     case UserLoggedOut = 'user.logged_out';
     case UserLoginFailed = 'user.login_failed';
     case UserPasswordChanged = 'user.password_changed';
+    case UserProfileUpdated = 'user.profile_updated';
     case UserDeactivated = 'user.deactivated';
     case UserReactivated = 'user.reactivated';
 
@@ -97,6 +98,7 @@ enum AuditEvent: string
     case PatientAccountUnlinked = 'patient_account_unlinked';
     case PatientLinkApproved = 'patient_link_request.approved';
     case PatientLinkRejected = 'patient_link_request.rejected';
+    case PatientLinkRequestExpired = 'patient_link_request.expired';
 
     case PrivacyRequestProcessed = 'privacy_request.processed';
     case PrivacyIncidentUpdated = 'privacy_incident.updated';

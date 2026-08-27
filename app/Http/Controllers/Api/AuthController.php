@@ -11,6 +11,7 @@ use App\Actions\Auth\RegisterPatientAccount;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Auth\VerifyStepUpOtp;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\UpdateAccountProfile;
 use App\Enums\OtpPurpose;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
@@ -215,20 +216,10 @@ class AuthController extends Controller
         return response()->json(null, 204);
     }
 
-    public function update(UpdateMeRequest $request): JsonResponse
+    public function update(UpdateMeRequest $request, UpdateAccountProfile $updateAccountProfile): JsonResponse
     {
-        $user = $request->user();
-        $validated = $request->validated();
-
-        $accountFields = array_intersect_key($validated, array_flip(['first_name', 'middle_name', 'last_name']));
-
-        DB::transaction(function () use ($user, $accountFields): void {
-            if ($accountFields !== []) {
-                $user->update($accountFields);
-            }
-        });
-
-        $user->load('role', 'contacts');
+        $user = $updateAccountProfile->handle($request->user(), $request->validated());
+        $user->load('role', 'contacts', 'patient', 'linkRequests');
 
         return response()->json([
             'data' => PatientAccountResource::make($user),
