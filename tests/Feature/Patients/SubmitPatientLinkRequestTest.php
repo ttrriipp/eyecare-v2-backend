@@ -42,6 +42,29 @@ test('unlinked account can submit a link request', function () {
         ->assertJsonStructure(['data' => ['request_number', 'status', 'submitted_at']]);
 });
 
+test('new link request snapshots include the normalized middle name', function () {
+    $user = User::factory()->create([
+        'role_id' => Role::where('name', 'patient')->first()->id,
+        'first_name' => '  Ana  ',
+        'middle_name' => '  Santos  ',
+        'last_name' => '  Reyes  ',
+        'date_of_birth' => '1990-05-15',
+    ]);
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/patient-link-requests')
+        ->assertCreated();
+
+    $request = PatientLinkRequest::query()->where('user_id', $user->id)->firstOrFail();
+
+    expect($request->encrypted_identity_snapshot)->toMatchArray([
+        'first_name' => 'Ana',
+        'middle_name' => 'Santos',
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+    ]);
+});
+
 test('repeated submission returns existing request', function () {
     $user = User::factory()->create([
         'role_id' => Role::where('name', 'patient')->first()->id,

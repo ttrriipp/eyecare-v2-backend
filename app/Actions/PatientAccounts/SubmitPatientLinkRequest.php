@@ -12,6 +12,7 @@ class SubmitPatientLinkRequest
 {
     public function __construct(
         protected RankPatientCandidates $rankCandidates,
+        protected PatientLinkIdentitySnapshot $identitySnapshot,
     ) {}
 
     public function handle(User $account): PatientLinkRequest
@@ -35,11 +36,7 @@ class SubmitPatientLinkRequest
         return DB::transaction(function () use ($account) {
             $request = PatientLinkRequest::create([
                 'user_id' => $account->id,
-                'encrypted_identity_snapshot' => [
-                    'first_name' => $account->first_name,
-                    'last_name' => $account->last_name,
-                    'date_of_birth' => $account->date_of_birth?->format('Y-m-d'),
-                ],
+                'encrypted_identity_snapshot' => $this->identitySnapshot->fromAccount($account),
                 'status' => 'pending',
             ]);
 
