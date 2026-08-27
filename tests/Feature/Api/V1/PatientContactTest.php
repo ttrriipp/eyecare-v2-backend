@@ -49,6 +49,32 @@ test('verifying an email contact updates the account email verification state', 
         ->and($user->fresh()->email_verified_at)->not->toBeNull();
 });
 
+test('wrong contact verification code increments attempts without mutating the account', function () {
+    $user = User::factory()->create();
+    $linkRequest = PatientLinkRequest::factory()->for($user)->pending()->create();
+    $challenge = OtpChallenge::factory()->forUser($user)->pending()->create([
+        'purpose' => OtpPurpose::AddContact,
+        'channel' => 'email',
+        'encrypted_destination' => 'new@example.com',
+        'destination_hash' => app(CreateContactLookupHash::class)
+            ->forEmail('new@example.com'),
+        'code_digest' => Hash::make('123456'),
+    ]);
+
+    Sanctum::actingAs($user);
+
+    $this->postJson('/api/v1/account/contacts/verify', [
+        'challenge_id' => $challenge->public_id,
+        'code' => '999999',
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['code']);
+
+    expect($challenge->fresh()->attempts)->toBe(1)
+        ->and($challenge->fresh()->invalidated_at)->toBeNull()
+        ->and($linkRequest->fresh()->status)->toBe('pending')
+        ->and($user->fresh()->email)->not->toBe('new@example.com');
+});
+
 test('contact verification cannot claim another user\'s challenge', function () {
     $owner = User::factory()->patient()->create();
     $attacker = User::factory()->patient()->create();

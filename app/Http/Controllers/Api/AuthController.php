@@ -504,14 +504,16 @@ class AuthController extends Controller
             'code' => ['required', 'string', 'size:6'],
         ]);
 
-        $contact = DB::transaction(function () use ($request, $verifyOtp, $expirePendingLinkRequest): PatientAccountContact {
-            $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
-            $challenge = $verifyOtp->handle(
-                challengeId: $request->input('challenge_id'),
-                code: $request->input('code'),
-                expectedPurpose: OtpPurpose::AddContact,
-                expectedUserId: $user->id,
-            );
+        $userId = $request->user()->id;
+        $challenge = $verifyOtp->handle(
+            challengeId: $request->input('challenge_id'),
+            code: $request->input('code'),
+            expectedPurpose: OtpPurpose::AddContact,
+            expectedUserId: $userId,
+        );
+
+        $contact = DB::transaction(function () use ($userId, $challenge, $expirePendingLinkRequest): PatientAccountContact {
+            $user = User::query()->lockForUpdate()->findOrFail($userId);
 
             $contactType = $challenge->channel;
             $destination = $challenge->encrypted_destination;
