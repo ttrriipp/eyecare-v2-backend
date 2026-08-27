@@ -51,6 +51,15 @@ test('rejected request records a decision note', function () {
         ->and($request->reviewed_at)->not->toBeNull();
 });
 
+test('expired request is recognized without reviewer decision fields', function () {
+    $request = PatientLinkRequest::factory()->expired()->create();
+
+    expect($request->isExpired())->toBeTrue()
+        ->and($request->reviewer_id)->toBeNull()
+        ->and($request->reviewed_patient_id)->toBeNull()
+        ->and($request->reviewed_at)->toBeNull();
+});
+
 test('link request can have candidates', function () {
     $request = PatientLinkRequest::factory()->create();
     $patient = Patient::factory()->create();

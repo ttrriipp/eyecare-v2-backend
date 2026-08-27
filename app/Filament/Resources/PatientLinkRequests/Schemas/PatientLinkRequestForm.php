@@ -96,6 +96,12 @@ class PatientLinkRequestForm
                         Placeholder::make('request_age')
                             ->label('Submitted')
                             ->content(fn ($record): string => $record?->created_at?->diffForHumans() ?? '—'),
+
+                        Placeholder::make('expiry_reason')
+                            ->label('Expiry Reason')
+                            ->content(fn (?PatientLinkRequest $record): string => $record?->expiryReasonLabel() ?? '—')
+                            ->visible(fn (?PatientLinkRequest $record): bool => $record?->isExpired() ?? false)
+                            ->columnSpanFull(),
                     ])
                     ->columns(3),
 

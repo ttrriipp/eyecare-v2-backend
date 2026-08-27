@@ -33,6 +33,7 @@ class PatientLinkRequestsTable
                         'pending' => 'warning',
                         'approved' => 'success',
                         'rejected' => 'danger',
+                        'expired' => 'gray',
                         default => 'gray',
                     }),
 
@@ -53,6 +54,7 @@ class PatientLinkRequestsTable
                         'pending' => 'Pending',
                         'approved' => 'Approved',
                         'rejected' => 'Rejected',
+                        'expired' => 'Expired',
                     ]),
             ])
             ->recordActions([

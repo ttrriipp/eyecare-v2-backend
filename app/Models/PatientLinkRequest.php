@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\AuditEvent;
 use Database\Factories\PatientLinkRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class PatientLinkRequest extends Model
 {
@@ -75,6 +77,14 @@ class PatientLinkRequest extends Model
         return $this->hasMany(PatientLinkCandidate::class, 'link_request_id');
     }
 
+    /**
+     * @return MorphMany<AuditLog, $this>
+     */
+    public function auditLogs(): MorphMany
+    {
+        return $this->morphMany(AuditLog::class, 'subject');
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';
@@ -88,5 +98,35 @@ class PatientLinkRequest extends Model
     public function isRejected(): bool
     {
         return $this->status === 'rejected';
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->status === 'expired';
+    }
+
+    public function expiryReason(): ?string
+    {
+        $audit = $this->auditLogs()
+            ->where('action', AuditEvent::PatientLinkRequestExpired->value)
+            ->latest('id')
+            ->first();
+        $metadata = $audit?->metadata;
+
+        if (! is_array($metadata) || ! is_string($metadata['reason'] ?? null)) {
+            return null;
+        }
+
+        return $metadata['reason'];
+    }
+
+    public function expiryReasonLabel(): string
+    {
+        return match ($this->expiryReason()) {
+            'account_identity_changed' => 'Account identity changed after submission.',
+            'verified_contact_changed' => 'Verified contact data changed after submission.',
+            'stale_identity_snapshot' => 'Account identity no longer matches the submitted snapshot.',
+            default => 'Request expired; submit a new request for review.',
+        };
     }
 }

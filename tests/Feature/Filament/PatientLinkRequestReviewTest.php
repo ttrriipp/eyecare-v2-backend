@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\AuditEvent;
+use App\Filament\Resources\PatientLinkRequests\Pages\ListPatientLinkRequests;
 use App\Filament\Resources\PatientLinkRequests\Pages\ViewPatientLinkRequest;
+use App\Models\AuditLog;
 use App\Models\Patient;
 use App\Models\PatientLinkCandidate;
 use App\Models\PatientLinkRequest;
@@ -95,4 +98,43 @@ test('approving a non-strong or unranked match requires a decision note', functi
         ->assertHasActionErrors(['decision_note' => 'required']);
 
     expect($request->fresh()->status)->toBe('pending');
+});
+
+test('expired requests are clearly labelled and have no review actions', function () {
+    $staff = User::factory()->staff()->create();
+    $account = unlinkedPatientAccount();
+    $request = PatientLinkRequest::factory()->forAccount($account)->expired()->create();
+
+    AuditLog::factory()->create([
+        'subject_type' => $request->getMorphClass(),
+        'subject_id' => $request->id,
+        'action' => AuditEvent::PatientLinkRequestExpired->value,
+        'metadata' => [
+            'account_id' => $account->id,
+            'reason' => 'verified_contact_changed',
+        ],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Expired')
+        ->assertSee('Verified contact data changed after submission.')
+        ->assertActionHidden('approve')
+        ->assertActionHidden('reject');
+});
+
+test('expired requests have a dedicated staff queue tab', function () {
+    $staff = User::factory()->staff()->create();
+    $request = PatientLinkRequest::factory()->forAccount(unlinkedPatientAccount())->expired()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ListPatientLinkRequests::class);
+    $tabs = $component->instance()->getTabs();
+    $expiredQuery = PatientLinkRequest::query();
+    $tabs['expired']->modifyQuery($expiredQuery);
+
+    expect($expiredQuery->pluck('id')->all())->toBe([$request->id]);
 });

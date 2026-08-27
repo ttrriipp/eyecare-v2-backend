@@ -61,6 +61,16 @@ class PatientLinkRequestFactory extends Factory
         ]);
     }
 
+    public function expired(): static
+    {
+        return $this->state([
+            'status' => 'expired',
+            'reviewed_patient_id' => null,
+            'reviewer_id' => null,
+            'reviewed_at' => null,
+        ]);
+    }
+
     public function forAccount(User $account): static
     {
         return $this->state([

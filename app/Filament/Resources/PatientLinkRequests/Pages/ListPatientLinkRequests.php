@@ -21,6 +21,8 @@ class ListPatientLinkRequests extends ListRecords
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'approved')),
             'rejected' => Tab::make()
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'rejected')),
+            'expired' => Tab::make()
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'expired')),
         ];
     }
 }
