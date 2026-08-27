@@ -13,12 +13,22 @@ class ExpirePendingPatientLinkRequest
         private readonly CreateAuditLog $createAuditLog,
     ) {}
 
-    public function handle(User $account, string $reason): ?PatientLinkRequest
-    {
-        $linkRequest = $account->linkRequests()
-            ->where('status', 'pending')
-            ->lockForUpdate()
-            ->first();
+    public function handle(
+        User $account,
+        string $reason,
+        ?PatientLinkRequest $linkRequest = null,
+    ): ?PatientLinkRequest {
+        $linkRequest = $linkRequest === null
+            ? $account->linkRequests()
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first()
+            : PatientLinkRequest::query()
+                ->whereKey($linkRequest->id)
+                ->where('user_id', $account->id)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first();
 
         if ($linkRequest === null) {
             return null;

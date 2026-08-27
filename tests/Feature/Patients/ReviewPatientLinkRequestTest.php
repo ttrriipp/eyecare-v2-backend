@@ -3,7 +3,9 @@
 use App\Actions\PatientAccounts\ReviewPatientLinkRequest;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
+use App\Models\AuditLog;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\Role;
@@ -25,7 +27,7 @@ test('approval activates the patient link', function () {
     $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
     $reviewer = User::factory()->staff()->create();
 
-    $request = PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]);
+    $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
 
     $result = app(ReviewPatientLinkRequest::class)->approve(
         linkRequest: $request,
@@ -50,7 +52,7 @@ test('approval links the account appointment requests to the reviewed patient', 
     ]);
 
     app(ReviewPatientLinkRequest::class)->approve(
-        linkRequest: PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]),
+        linkRequest: PatientLinkRequest::factory()->forAccount($account)->pending()->create(),
         patient: $patient,
         reviewer: $reviewer,
     );
@@ -63,7 +65,7 @@ test('approval rechecks patient eligibility under lock', function () {
     $patient = Patient::factory()->create(['user_id' => null]);
     $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
     $reviewer = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]);
+    $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
 
     // Create another user without a patient and link the patient to them
     $otherUser = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
@@ -80,7 +82,7 @@ test('approval fails if account is already linked', function () {
     $patient = Patient::factory()->create(['user_id' => null]);
     $account = User::factory()->patient()->create(); // Already linked
     $reviewer = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]);
+    $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
 
     expect(fn () => app(ReviewPatientLinkRequest::class)->approve(
         linkRequest: $request,
@@ -89,12 +91,77 @@ test('approval fails if account is already linked', function () {
     ))->toThrow(ValidationException::class);
 });
 
+test('approval expires a request when the account identity changed', function () {
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+    ]);
+    $patient = Patient::factory()->create(['user_id' => null]);
+    $reviewer = User::factory()->staff()->create();
+    $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
+
+    $account->update(['first_name' => 'Maria']);
+
+    expect(fn () => app(ReviewPatientLinkRequest::class)->approve(
+        linkRequest: $request,
+        patient: $patient,
+        reviewer: $reviewer,
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe('expired')
+        ->and($patient->fresh()->user_id)->toBeNull();
+
+    $expiryAudit = AuditLog::query()
+        ->where('subject_type', $request->getMorphClass())
+        ->where('subject_id', $request->id)
+        ->where('action', AuditEvent::PatientLinkRequestExpired->value)
+        ->firstOrFail();
+
+    expect($expiryAudit->metadata)->toMatchArray([
+        'account_id' => $account->id,
+        'reason' => 'stale_identity_snapshot',
+    ]);
+});
+
+test('approval normalizes historical identity names and missing middle names', function () {
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+    ]);
+    $patient = Patient::factory()->create(['user_id' => null]);
+    $reviewer = User::factory()->staff()->create();
+    $request = PatientLinkRequest::factory()
+        ->forAccount($account)
+        ->state([
+            'encrypted_identity_snapshot' => [
+                'first_name' => '  ANA  ',
+                'middle_name' => '',
+                'last_name' => ' ReYES ',
+                'date_of_birth' => '1990-05-15',
+            ],
+        ])
+        ->pending()
+        ->create();
+
+    $result = app(ReviewPatientLinkRequest::class)->approve(
+        linkRequest: $request,
+        patient: $patient,
+        reviewer: $reviewer,
+    );
+
+    expect($result->status)->toBe('approved')
+        ->and($patient->fresh()->user_id)->toBe($account->id);
+});
+
 // --- Reject ---
 
 test('reject closes the request without linking', function () {
     $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
     $reviewer = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->pending()->create(['user_id' => $account->id]);
+    $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
 
     $result = app(ReviewPatientLinkRequest::class)->reject(
         linkRequest: $request,

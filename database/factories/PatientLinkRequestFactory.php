@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Actions\PatientAccounts\PatientLinkIdentitySnapshot;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\User;
@@ -57,6 +58,14 @@ class PatientLinkRequestFactory extends Factory
             'reviewed_patient_id' => null,
             'reviewer_id' => null,
             'reviewed_at' => null,
+        ]);
+    }
+
+    public function forAccount(User $account): static
+    {
+        return $this->state([
+            'user_id' => $account->id,
+            'encrypted_identity_snapshot' => app(PatientLinkIdentitySnapshot::class)->fromAccount($account),
         ]);
     }
 }

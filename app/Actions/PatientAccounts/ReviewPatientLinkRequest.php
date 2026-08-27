@@ -14,7 +14,12 @@ use Illuminate\Validation\ValidationException;
 
 class ReviewPatientLinkRequest
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
+        private readonly PatientLinkIdentitySnapshot $identitySnapshot,
+        private readonly AssociateAccountConversation $associateAccountConversation,
+    ) {}
 
     public function approve(
         PatientLinkRequest $linkRequest,
@@ -22,41 +27,50 @@ class ReviewPatientLinkRequest
         User $reviewer,
         ?string $note = null,
     ): PatientLinkRequest {
-        if (! $linkRequest->isPending()) {
-            throw ValidationException::withMessages([
-                'request' => ['Only pending link requests can be approved.'],
-            ]);
-        }
-
-        if ($patient->user_id !== null) {
-            throw ValidationException::withMessages([
-                'patient' => ['This patient is already linked to another account.'],
-            ]);
-        }
-
-        $account = $linkRequest->user;
-
-        if ($account->patient !== null) {
-            throw ValidationException::withMessages([
-                'account' => ['This account is already linked to a patient.'],
-            ]);
-        }
-
-        return DB::transaction(function () use ($linkRequest, $patient, $reviewer, $note, $account) {
-            // Re-check under lock
+        $result = DB::transaction(function () use ($linkRequest, $patient, $reviewer, $note): array {
+            // Keep account, request, and patient locks in this order so a
+            // profile change cannot race a staff approval decision.
+            $account = User::query()->lockForUpdate()->findOrFail($linkRequest->user_id);
+            $lockedRequest = PatientLinkRequest::query()
+                ->whereKey($linkRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
-            if ($patient->user_id !== null) {
+            if (! $lockedRequest->isPending()) {
                 throw ValidationException::withMessages([
-                    'patient' => ['This patient was linked by another operation.'],
+                    'request' => ['Only pending link requests can be approved.'],
                 ]);
             }
 
-            // Activate the link
-            $patient->update(['user_id' => $linkRequest->user_id]);
+            if ($patient->user_id !== null) {
+                throw ValidationException::withMessages([
+                    'patient' => ['This patient is already linked to another account.'],
+                ]);
+            }
 
-            // Update the request
-            $linkRequest->update([
+            if ($account->patient()->exists()) {
+                throw ValidationException::withMessages([
+                    'account' => ['This account is already linked to a patient.'],
+                ]);
+            }
+
+            if (! $this->identitySnapshot->matchesAccount($lockedRequest->encrypted_identity_snapshot, $account)) {
+                $this->expirePendingLinkRequest->handle(
+                    account: $account,
+                    reason: 'stale_identity_snapshot',
+                    linkRequest: $lockedRequest,
+                );
+
+                return [
+                    'stale' => true,
+                    'request' => null,
+                ];
+            }
+
+            $patient->update(['user_id' => $account->id]);
+
+            $lockedRequest->update([
                 'status' => 'approved',
                 'reviewed_patient_id' => $patient->id,
                 'reviewer_id' => $reviewer->id,
@@ -66,11 +80,10 @@ class ReviewPatientLinkRequest
 
             $linkedAppointmentRequestCount = $this->linkUnlinkedAppointmentRequests($account, $patient);
 
-            // Associate the account's conversation with the Patient
-            app(AssociateAccountConversation::class)->handle($account, $patient);
+            $this->associateAccountConversation->handle($account, $patient);
 
             $this->createAuditLog->handle(
-                subject: $linkRequest,
+                subject: $lockedRequest,
                 action: AuditEvent::PatientLinkApproved,
                 metadata: [
                     'patient_id' => $patient->id,
@@ -86,13 +99,28 @@ class ReviewPatientLinkRequest
                 action: AuditEvent::PatientAccountLinked,
                 metadata: [
                     'account_id' => $account->id,
-                    'link_request_id' => $linkRequest->id,
+                    'link_request_id' => $lockedRequest->id,
                 ],
                 actorId: $reviewer->id,
             );
 
-            return $linkRequest->fresh(['user', 'reviewedPatient', 'reviewer']);
+            return [
+                'stale' => false,
+                'request' => $lockedRequest->fresh(['user', 'reviewedPatient', 'reviewer']),
+            ];
         });
+
+        if ($result['stale']) {
+            throw ValidationException::withMessages([
+                'request' => ['This link request is no longer current. Submit a new request before approving it.'],
+            ]);
+        }
+
+        if (! $result['request'] instanceof PatientLinkRequest) {
+            throw new \LogicException('Approved link request was not returned.');
+        }
+
+        return $result['request'];
     }
 
     /**
@@ -122,14 +150,20 @@ class ReviewPatientLinkRequest
         User $reviewer,
         ?string $note = null,
     ): PatientLinkRequest {
-        if (! $linkRequest->isPending()) {
-            throw ValidationException::withMessages([
-                'request' => ['Only pending link requests can be rejected.'],
-            ]);
-        }
-
         return DB::transaction(function () use ($linkRequest, $reviewer, $note): PatientLinkRequest {
-            $linkRequest->update([
+            User::query()->lockForUpdate()->findOrFail($linkRequest->user_id);
+            $lockedRequest = PatientLinkRequest::query()
+                ->whereKey($linkRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedRequest->isPending()) {
+                throw ValidationException::withMessages([
+                    'request' => ['Only pending link requests can be rejected.'],
+                ]);
+            }
+
+            $lockedRequest->update([
                 'status' => 'rejected',
                 'reviewer_id' => $reviewer->id,
                 'decision_note' => $note,
@@ -137,16 +171,16 @@ class ReviewPatientLinkRequest
             ]);
 
             $this->createAuditLog->handle(
-                subject: $linkRequest,
+                subject: $lockedRequest,
                 action: AuditEvent::PatientLinkRejected,
                 metadata: [
-                    'account_id' => $linkRequest->user_id,
+                    'account_id' => $lockedRequest->user_id,
                     'note_provided' => filled($note),
                 ],
                 actorId: $reviewer->id,
             );
 
-            return $linkRequest->fresh();
+            return $lockedRequest->fresh();
         });
     }
 }

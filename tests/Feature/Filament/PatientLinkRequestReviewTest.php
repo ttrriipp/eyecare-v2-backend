@@ -28,7 +28,8 @@ function unlinkedPatientAccount(): User
 
 test('staff sees ranked candidates on the link request page', function () {
     $staff = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->create(['user_id' => unlinkedPatientAccount()->id]);
+    $account = unlinkedPatientAccount();
+    $request = PatientLinkRequest::factory()->forAccount($account)->create();
     $strongPatient = Patient::factory()->create(['first_name' => 'Ana', 'middle_name' => null, 'last_name' => 'Reyes']);
     $weakPatient = Patient::factory()->create(['first_name' => 'Ana', 'middle_name' => null, 'last_name' => 'Cruz']);
 
@@ -59,7 +60,8 @@ test('staff sees ranked candidates on the link request page', function () {
 
 test('approving a strong match does not require a decision note', function () {
     $staff = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->create(['user_id' => unlinkedPatientAccount()->id]);
+    $account = unlinkedPatientAccount();
+    $request = PatientLinkRequest::factory()->forAccount($account)->create();
     $patient = Patient::factory()->create(['user_id' => null]);
 
     PatientLinkCandidate::create([
@@ -82,14 +84,15 @@ test('approving a strong match does not require a decision note', function () {
 
 test('approving a non-strong or unranked match requires a decision note', function () {
     $staff = User::factory()->staff()->create();
-    $request = PatientLinkRequest::factory()->create(['user_id' => unlinkedPatientAccount()->id]);
+    $account = unlinkedPatientAccount();
+    $request = PatientLinkRequest::factory()->forAccount($account)->create();
     $patient = Patient::factory()->create(['user_id' => null]);
 
     $this->actingAs($staff);
 
     Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
-        ->callAction('approve', ['patient_id' => $patient->id, 'note' => null])
-        ->assertHasActionErrors(['note' => 'required']);
+        ->callAction('approve', ['patient_id' => $patient->id, 'decision_note' => null])
+        ->assertHasActionErrors(['decision_note' => 'required']);
 
     expect($request->fresh()->status)->toBe('pending');
 });
