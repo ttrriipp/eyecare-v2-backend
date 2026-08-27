@@ -11,6 +11,7 @@ use App\Actions\Auth\RegisterPatientAccount;
 use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Auth\VerifyStepUpOtp;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\ExpirePendingPatientLinkRequest;
 use App\Actions\PatientAccounts\LoadPatientAccountContext;
 use App\Actions\PatientAccounts\UpdateAccountProfile;
 use App\Enums\OtpPurpose;
@@ -493,49 +494,77 @@ class AuthController extends Controller
     /**
      * Verify a contact OTP.
      */
-    public function verifyContact(Request $request, VerifyOtpChallenge $verifyOtp): JsonResponse
-    {
+    public function verifyContact(
+        Request $request,
+        VerifyOtpChallenge $verifyOtp,
+        ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
+    ): JsonResponse {
         $request->validate([
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
         ]);
 
-        $user = $request->user();
+        $contact = DB::transaction(function () use ($request, $verifyOtp, $expirePendingLinkRequest): PatientAccountContact {
+            $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+            $challenge = $verifyOtp->handle(
+                challengeId: $request->input('challenge_id'),
+                code: $request->input('code'),
+                expectedPurpose: OtpPurpose::AddContact,
+                expectedUserId: $user->id,
+            );
 
-        $challenge = $verifyOtp->handle(
-            challengeId: $request->input('challenge_id'),
-            code: $request->input('code'),
-            expectedPurpose: OtpPurpose::AddContact,
-            expectedUserId: $user->id,
-        );
+            $contactType = $challenge->channel;
+            $destination = $challenge->encrypted_destination;
 
-        $contactType = $challenge->channel;
-        $destination = $challenge->encrypted_destination;
+            $lookupHash = app(CreateContactLookupHash::class);
+            $hash = $contactType === 'email'
+                ? $lookupHash->forEmail($destination)
+                : $lookupHash->forPhone($destination);
+            $contact = PatientAccountContact::query()
+                ->where('user_id', $user->id)
+                ->where('type', $contactType)
+                ->lockForUpdate()
+                ->first();
+            $contactChanged = $contact === null
+                || ! $contact->isVerified()
+                || $contact->lookup_hash !== $hash;
+            $verifiedAt = now();
 
-        $lookupHash = app(CreateContactLookupHash::class);
-        $hash = $contactType === 'email'
-            ? $lookupHash->forEmail($destination)
-            : $lookupHash->forPhone($destination);
+            if ($contact === null) {
+                $contact = PatientAccountContact::query()->create([
+                    'user_id' => $user->id,
+                    'type' => $contactType,
+                    'encrypted_value' => $destination,
+                    'lookup_hash' => $hash,
+                    'verified_at' => $verifiedAt,
+                    'is_primary' => false,
+                ]);
+            } else {
+                $contact->fill([
+                    'encrypted_value' => $destination,
+                    'lookup_hash' => $hash,
+                    'verified_at' => $verifiedAt,
+                ])->save();
+            }
 
-        // Create or update the contact
-        $contact = PatientAccountContact::updateOrCreate(
-            ['user_id' => $user->id, 'type' => $contactType],
-            [
-                'encrypted_value' => $destination,
-                'lookup_hash' => $hash,
-                'verified_at' => now(),
-                'is_primary' => false,
-            ],
-        );
+            if ($contactType === 'email') {
+                $user->forceFill([
+                    'email' => $destination,
+                    'email_verified_at' => $verifiedAt,
+                ])->save();
+            } elseif ($contactType === 'phone') {
+                $user->forceFill(['phone' => $destination])->save();
+            }
 
-        if ($contactType === 'email') {
-            $user->forceFill([
-                'email' => $destination,
-                'email_verified_at' => now(),
-            ])->save();
-        } elseif ($contactType === 'phone') {
-            $user->forceFill(['phone' => $destination])->save();
-        }
+            if ($contactChanged) {
+                $expirePendingLinkRequest->handle(
+                    account: $user,
+                    reason: 'verified_contact_changed',
+                );
+            }
+
+            return $contact;
+        });
 
         return response()->json([
             'data' => [
@@ -595,21 +624,42 @@ class AuthController extends Controller
     /**
      * Remove a contact. Requires step-up.
      */
-    public function removeContact(Request $request): JsonResponse
+    public function removeContact(Request $request, ExpirePendingPatientLinkRequest $expirePendingLinkRequest): JsonResponse
     {
-        $contact = PatientAccountContact::where('id', $request->route('contact'))
-            ->where('user_id', $request->user()->id)
-            ->first();
+        $result = DB::transaction(function () use ($request, $expirePendingLinkRequest): string {
+            $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
+            $contact = PatientAccountContact::query()
+                ->where('id', $request->route('contact'))
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
 
-        if ($contact === null) {
+            if ($contact === null) {
+                return 'not_found';
+            }
+
+            $wasVerified = $contact->isVerified();
+            if ($wasVerified && $user->contacts()->whereNotNull('verified_at')->count() <= 1) {
+                return 'last_contact';
+            }
+
+            $contact->delete();
+
+            if ($wasVerified) {
+                $expirePendingLinkRequest->handle(
+                    account: $user,
+                    reason: 'verified_contact_changed',
+                );
+            }
+
+            return 'removed';
+        });
+
+        if ($result === 'not_found') {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        $verifiedContacts = $request->user()->contacts()
-            ->whereNotNull('verified_at')
-            ->count();
-
-        if ($verifiedContacts <= 1) {
+        if ($result === 'last_contact') {
             return response()->json([
                 'error' => [
                     'code' => 'LAST_CONTACT_REMAINING',
@@ -617,8 +667,6 @@ class AuthController extends Controller
                 ],
             ], 422);
         }
-
-        $contact->delete();
 
         return response()->json(null, 204);
     }
