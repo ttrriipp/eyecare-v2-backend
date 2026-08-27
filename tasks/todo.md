@@ -1,5 +1,16 @@
 # Active Checklist
 
+**Patient Account Self-Service Profile Editing** — awaiting implementation-plan
+approval
+
+→ `tasks/patient-account-self-service-profile-todo.md`
+
+The specification was approved on 2026-08-28. The dependency-ordered plan and
+checklist are ready for separate project-owner review. This planning state does
+not authorize application-code changes.
+
+The latest completed checklist remains:
+
 **Replace Frame Reservations with Saved Frames** — remediation complete
 2026-08-26
 
@@ -8,14 +19,6 @@
 The specification and implementation plan are approved. Remediation is
 complete for the repository state dated 2026-08-26; affected tests pass. The
 full suite retains unrelated pre-existing failures outside this feature.
-
-The latest completed checklist is:
-
-→ `tasks/saved-frames-replacement-todo.md`
-
-It includes the Saved Frames remediation implemented and verified on
-2026-08-26. The full suite retains unrelated pre-existing failures outside
-this feature.
 
 The previous latest completed checklist remains:
 

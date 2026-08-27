@@ -2,11 +2,12 @@
 
 ## Status
 
-**Drafted for project-owner review on 2026-08-28.**
+**Approved by the project owner on 2026-08-28.**
 
-This document is Phase 1 (**Specify**) only. It does not authorize
-implementation, database changes, deployment, or Android changes. Planning and
-implementation remain gated on explicit approval of this specification.
+Phase 1 (**Specify**) is complete. This approval authorizes Phase 2 planning
+only; it does not authorize implementation, database changes, deployment, or
+Android changes. The implementation plan and task checklist require separate
+project-owner approval.
 
 ## Objective
 
@@ -537,6 +538,7 @@ surface the smallest contract-safe alternative before implementation.
 
 ## Approval Gate
 
-Approval of this specification authorizes Phase 2 planning only. It does not
-authorize implementation. After approval, produce a dependency-ordered plan
-and task checklist for separate review before modifying application code.
+The project owner approved this specification on 2026-08-28, authorizing Phase
+2 planning only. The dependency-ordered implementation plan and task checklist
+remain subject to separate approval. No application code may be modified until
+that approval is given.

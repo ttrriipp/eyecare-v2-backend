@@ -9,6 +9,22 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Patient Account Self-Service Profile Editing** — planning review
+
+- Spec: `docs/specs/patient-account-self-service-profile-spec.md` (approved
+  2026-08-28)
+- Plan: `tasks/patient-account-self-service-profile-plan.md` (awaiting approval)
+- Checklist: `tasks/patient-account-self-service-profile-todo.md` (awaiting
+  approval)
+
+The approved specification separates account-owned identity from the clinic's
+Patient record. The plan permits self-service account names and step-up-gated
+date of birth, keeps contacts/password on their verified workflows, prohibits
+Patient writes, and expires stale pending link requests. No application code is
+authorized until the plan and checklist receive separate approval.
+
+## Previous active entry (preserved)
+
 **Replace Frame Reservations with Saved Frames** — remediation complete 2026-08-26
 
 - Spec: `docs/specs/saved-frames-replacement-spec.md` (approved 2026-08-26)
@@ -24,7 +40,7 @@ migration safety, read-model, staff UI, test, and documentation work. The
 affected Saved Frames suite is green; the full suite still has unrelated
 pre-existing failures in other domains.
 
-## Previous active entry (preserved)
+## Earlier proposed entry (preserved)
 
 **Appointment Calendar and Request Schedule Review** — proposed 2026-08-21
 
