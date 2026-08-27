@@ -4,11 +4,20 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateMeRequest extends FormRequest
 {
+    /**
+     * @var list<string>
+     */
+    private const ALLOWED_FIELDS = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'date_of_birth',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -20,30 +29,51 @@ class UpdateMeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // Account fields
-            'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->user()->id)],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
-            'address' => ['sometimes', 'nullable', 'string', 'max:255'],
-            // Patient fields
-            'first_name' => ['sometimes', 'string', 'max:255'],
+            'first_name' => ['sometimes', 'string', 'max:255', 'filled'],
             'middle_name' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'last_name' => ['sometimes', 'string', 'max:255'],
-            'date_of_birth' => ['sometimes', 'nullable', 'date', 'before:today'],
-            'occupation' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'gender' => ['sometimes', 'nullable', 'string', 'in:male,female,other'],
-            'contact_email' => ['sometimes', 'nullable', 'string', 'email', 'max:255'],
+            'last_name' => ['sometimes', 'string', 'max:255', 'filled'],
+            'date_of_birth' => ['sometimes', 'date_format:Y-m-d', 'before:today'],
         ];
     }
 
-    public function withValidator(Validator $validator): void
+    protected function prepareForValidation(): void
     {
-        $validator->after(function (Validator $validator): void {
-            $accountFields = ['email', 'phone', 'address'];
-            $patientFields = ['first_name', 'last_name', 'date_of_birth', 'occupation', 'gender', 'contact_email'];
+        $normalized = [];
 
-            if (! array_intersect(array_keys($this->all()), array_merge($accountFields, $patientFields))) {
-                $validator->errors()->add('general', 'At least one field is required.');
+        foreach (['first_name', 'middle_name', 'last_name'] as $field) {
+            if (! $this->exists($field)) {
+                continue;
             }
-        });
+
+            $value = $this->input($field);
+
+            if (! is_string($value)) {
+                continue;
+            }
+
+            $value = trim($value);
+            $normalized[$field] = $field === 'middle_name' && $value === '' ? null : $value;
+        }
+
+        $this->merge($normalized);
+    }
+
+    /**
+     * @return list<callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $submittedFields = array_keys($this->all());
+            $unsupportedFields = array_diff($submittedFields, self::ALLOWED_FIELDS);
+
+            foreach ($unsupportedFields as $field) {
+                $validator->errors()->add($field, 'This field is not editable through this endpoint.');
+            }
+
+            if ($submittedFields === []) {
+                $validator->errors()->add('profile', 'At least one editable field is required.');
+            }
+        }];
     }
 }

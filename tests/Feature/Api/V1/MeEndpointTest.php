@@ -92,6 +92,73 @@ test('valid step-up verification allows a date of birth profile request through 
         ->assertSuccessful();
 });
 
+test('me endpoint rejects unsupported profile fields instead of ignoring them', function () {
+    $user = User::factory()->patient()->create([
+        'first_name' => 'Original',
+    ]);
+
+    foreach (['email', 'phone', 'address', 'occupation', 'gender', 'contact_email'] as $field) {
+        $this->actingAs($user)
+            ->patchJson('/api/v1/me', [$field => 'unsupported'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([$field]);
+    }
+
+    expect($user->fresh()->first_name)->toBe('Original');
+});
+
+test('me endpoint rejects mixed supported and unsupported profile fields atomically', function () {
+    $user = User::factory()->patient()->create([
+        'first_name' => 'Original',
+    ]);
+
+    $this->actingAs($user)
+        ->patchJson('/api/v1/me', [
+            'first_name' => 'Changed',
+            'address' => 'Unsupported',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['address']);
+
+    expect($user->fresh()->first_name)->toBe('Original');
+});
+
+test('me endpoint normalizes account names at the validation boundary', function () {
+    $user = User::factory()->patient()->create();
+
+    $this->actingAs($user)
+        ->patchJson('/api/v1/me', [
+            'first_name' => '  Trimmed  ',
+            'middle_name' => '   ',
+            'last_name' => '  Name  ',
+        ])
+        ->assertSuccessful()
+        ->assertJsonPath('data.first_name', 'Trimmed')
+        ->assertJsonPath('data.last_name', 'Name');
+});
+
+test('me endpoint rejects a non-exact date of birth format', function () {
+    $user = User::factory()->patient()->create();
+    $token = 'valid-step-up-token';
+
+    OtpChallenge::factory()
+        ->forUser($user)
+        ->purpose(OtpPurpose::SensitiveChange)
+        ->state([
+            'consumed_at' => now(),
+            'delivery_status' => 'step_up_token_issued:'.Hash::make($token),
+        ])
+        ->create();
+
+    $this->actingAs($user)
+        ->withHeader('X-Step-Up-Token', $token)
+        ->patchJson('/api/v1/me', [
+            'date_of_birth' => '1990-1-1',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['date_of_birth']);
+});
+
 test('patient profile routes are absent', function () {
     $user = User::factory()->patient()->create();
 
