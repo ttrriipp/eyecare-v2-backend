@@ -54,7 +54,8 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
     Route::middleware('throttle:api-account')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::post('logout-all', [AuthController::class, 'logoutAll']);
-        Route::patch('me', [AuthController::class, 'update']);
+        Route::patch('me', [AuthController::class, 'update'])
+            ->middleware('require.step-up:date_of_birth');
 
         // Step-up OTP for sensitive changes
         Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);

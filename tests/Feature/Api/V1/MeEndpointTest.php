@@ -1,8 +1,11 @@
 <?php
 
+use App\Enums\OtpPurpose;
+use App\Models\OtpChallenge;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
@@ -42,6 +45,51 @@ test('me endpoint can update account name', function () {
         ->assertSuccessful()
         ->assertJsonPath('data.first_name', 'New')
         ->assertJsonPath('data.name', 'New Name');
+});
+
+test('me endpoint requires step-up verification when date of birth is submitted', function () {
+    $user = User::factory()->patient()->create();
+
+    $this->actingAs($user)
+        ->patchJson('/api/v1/me', [
+            'date_of_birth' => '1990-01-01',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'STEP_UP_REQUIRED');
+});
+
+test('password changes remain unconditionally protected by step-up verification', function () {
+    $user = User::factory()->patient()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/auth/password', [
+            'current_password' => 'password',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'STEP_UP_REQUIRED');
+});
+
+test('valid step-up verification allows a date of birth profile request through the middleware', function () {
+    $user = User::factory()->patient()->create();
+    $token = 'valid-step-up-token';
+
+    OtpChallenge::factory()
+        ->forUser($user)
+        ->purpose(OtpPurpose::SensitiveChange)
+        ->state([
+            'consumed_at' => now(),
+            'delivery_status' => 'step_up_token_issued:'.Hash::make($token),
+        ])
+        ->create();
+
+    $this->actingAs($user)
+        ->withHeader('X-Step-Up-Token', $token)
+        ->patchJson('/api/v1/me', [
+            'date_of_birth' => '1990-01-01',
+        ])
+        ->assertSuccessful();
 });
 
 test('patient profile routes are absent', function () {

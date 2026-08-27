@@ -13,8 +13,14 @@ class RequireStepUpToken
         protected VerifyStepUpOtp $verifyStepUp,
     ) {}
 
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, string ...$requiredFields): Response
     {
+        if ($requiredFields !== [] && ! collect($requiredFields)->contains(
+            fn (string $field): bool => array_key_exists($field, $request->all()),
+        )) {
+            return $next($request);
+        }
+
         $stepUpToken = $request->header('X-Step-Up-Token');
 
         if (empty($stepUpToken)) {
