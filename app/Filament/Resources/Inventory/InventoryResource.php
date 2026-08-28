@@ -61,7 +61,7 @@ class InventoryResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['product:id,name,brand_id', 'product.brand:id,name']);
+        return parent::getEloquentQuery()->with(['product:id,name,brand_id,product_type', 'product.brand:id,name']);
     }
 
     public static function canCreate(): bool

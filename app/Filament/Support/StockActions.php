@@ -2,11 +2,15 @@
 
 namespace App\Filament\Support;
 
+use App\Actions\Inventory\ReceiveContactLensStock;
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Models\ProductVariant;
+use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Illuminate\Auth\AuthenticationException;
 
 /**
  * Stock movements shared by every surface that adjusts inventory.
@@ -23,26 +27,35 @@ class StockActions
             ->label('Receive Stock')
             ->icon('heroicon-o-archive-box')
             ->color('success')
-            ->schema([
-                TextInput::make('quantity')
-                    ->label('Quantity')
-                    ->required()
-                    ->numeric()
-                    ->minValue(1),
-                TextInput::make('source_reference')
-                    ->label('Reference')
-                    ->placeholder('PO number or supplier reference'),
-                TextInput::make('notes')
-                    ->placeholder('Optional notes'),
-            ])
+            ->schema(fn (ProductVariant $record): array => self::receiveSchema($record))
             ->action(function (array $data, ProductVariant $record): void {
-                app(RecordInventoryMovement::class)->handle(
-                    variant: $record,
-                    quantityChange: (int) $data['quantity'],
-                    type: 'restock',
-                    notes: $data['notes'] ?? null,
-                    actingUser: auth()->user(),
-                );
+                $record->load('product');
+
+                if ($record->product?->product_type === 'contact_lens') {
+                    $actor = auth()->user();
+
+                    if (! $actor instanceof User) {
+                        throw new AuthenticationException;
+                    }
+
+                    app(ReceiveContactLensStock::class)->handle(
+                        variant: $record,
+                        quantity: (int) $data['quantity'],
+                        lotNumber: (string) $data['lot_number'],
+                        expiryMonth: (string) $data['expiry_month'],
+                        receiver: $actor,
+                        sourceReference: $data['source_reference'] ?? null,
+                        notes: $data['notes'] ?? null,
+                    );
+                } else {
+                    app(RecordInventoryMovement::class)->handle(
+                        variant: $record,
+                        quantityChange: (int) $data['quantity'],
+                        type: 'restock',
+                        notes: $data['notes'] ?? null,
+                        actingUser: auth()->user(),
+                    );
+                }
 
                 $updatedStock = $record->fresh()->stock_quantity;
 
@@ -61,6 +74,43 @@ class StockActions
                     ->success()
                     ->send();
             });
+    }
+
+    /**
+     * @return list<Field>
+     */
+    private static function receiveSchema(ProductVariant $record): array
+    {
+        $record->load('product');
+
+        $fields = [
+            TextInput::make('quantity')
+                ->label('Quantity')
+                ->required()
+                ->numeric()
+                ->minValue(1),
+        ];
+
+        if ($record->product?->product_type === 'contact_lens') {
+            $fields[] = TextInput::make('lot_number')
+                ->label('Lot number')
+                ->required()
+                ->maxLength(50)
+                ->placeholder('Printed on the box');
+            $fields[] = TextInput::make('expiry_month')
+                ->label('Expiry month')
+                ->required()
+                ->type('month')
+                ->placeholder('YYYY-MM');
+        }
+
+        $fields[] = TextInput::make('source_reference')
+            ->label('Reference')
+            ->placeholder('PO number or supplier reference');
+        $fields[] = TextInput::make('notes')
+            ->placeholder('Optional notes');
+
+        return $fields;
     }
 
     public static function writeOffDamaged(): Action

@@ -1,15 +1,19 @@
 <?php
 
+use App\Actions\Inventory\RecordInventoryMovement;
 use App\Filament\Resources\Inventory\InventoryResource;
 use App\Filament\Resources\Inventory\Pages\ListInventory;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
+use App\Models\InventoryLot;
+use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -157,6 +161,57 @@ test('receiving stock raises the quantity and writes a ledger entry', function (
         'previous_stock' => 4,
         'new_stock' => 14,
     ]);
+});
+
+test('receiving contact lenses captures their lot and expiry month', function () {
+    $product = Product::factory()->contactLens()->create();
+    $variant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 0,
+    ]);
+    expect($variant->product->product_type)->toBe('contact_lens');
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 10,
+            'lot_number' => 'ACME-001',
+            'expiry_month' => '2027-06',
+            'source_reference' => 'PO-42',
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    expect(InventoryMovement::query()->count())->toBe(1);
+
+    $lot = InventoryLot::query()->sole();
+
+    expect($variant->fresh()->stock_quantity)->toBe(10)
+        ->and($lot->lot_number)->toBe('ACME-001')
+        ->and($lot->expires_on->toDateString())->toBe('2027-06-30')
+        ->and($lot->quantity_on_hand)->toBe(10);
+});
+
+test('aggregate movements use the locked stock value for ledger boundaries', function () {
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 4]);
+    $staleVariant = $variant->fresh();
+
+    DB::table('product_variants')
+        ->where('id', $variant->id)
+        ->update(['stock_quantity' => 9]);
+
+    app(RecordInventoryMovement::class)->handle(
+        variant: $staleVariant,
+        quantityChange: 1,
+        type: 'restock',
+        actingUser: $this->staff,
+    );
+
+    $movement = InventoryMovement::query()->sole();
+
+    expect($movement->previous_stock)->toBe(9)
+        ->and($movement->new_stock)->toBe(10)
+        ->and($variant->fresh()->stock_quantity)->toBe(10);
 });
 
 test('writing off damaged stock lowers the quantity and writes a ledger entry', function () {

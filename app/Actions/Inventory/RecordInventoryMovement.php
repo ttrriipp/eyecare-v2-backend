@@ -31,30 +31,27 @@ class RecordInventoryMovement
         ?User $actingUser = null,
     ): InventoryMovement {
         return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes, $actingUser): InventoryMovement {
-            $previousStock = $variant->stock_quantity;
+            $lockedVariant = ProductVariant::query()
+                ->lockForUpdate()
+                ->findOrFail($variant->id);
+            $previousStock = (int) $lockedVariant->stock_quantity;
 
             if ($quantityChange < 0) {
                 $deduction = abs($quantityChange);
 
-                $affected = ProductVariant::query()
-                    ->where('id', $variant->id)
-                    ->where('stock_quantity', '>=', $deduction)
-                    ->decrement('stock_quantity', $deduction);
-
-                if ($affected === 0) {
+                if ($previousStock < $deduction) {
                     throw new \RuntimeException(
-                        "Insufficient stock for variant #{$variant->id}: cannot deduct {$deduction} unit(s)."
+                        "Insufficient stock for variant #{$lockedVariant->id}: cannot deduct {$deduction} unit(s)."
                     );
                 }
-            } else {
-                $variant->increment('stock_quantity', $quantityChange);
             }
 
             $newStock = $previousStock + $quantityChange;
+            $lockedVariant->update(['stock_quantity' => $newStock]);
 
             $movement = InventoryMovement::query()->create([
-                'product_variant_id' => $variant->id,
-                'order_id' => $orderId,
+                'product_variant_id' => $lockedVariant->id,
+                'job_order_id' => $orderId,
                 'inventory_movement_type_id' => InventoryMovementType::query()
                     ->firstOrCreate(['name' => $type])->id,
                 'quantity_change' => $quantityChange,
@@ -67,13 +64,13 @@ class RecordInventoryMovement
             app(CreateAuditLog::class)->handle(
                 subject: $movement,
                 action: AuditEvent::InventoryMovementRecorded,
-                metadata: ['type' => $type, 'quantity_change' => $quantityChange, 'variant_id' => $variant->id],
+                metadata: ['type' => $type, 'quantity_change' => $quantityChange, 'variant_id' => $lockedVariant->id],
                 actorId: $actingUser?->id,
             );
 
             // Fire low stock alert if stock dropped to or below threshold after deduction
             if ($quantityChange < 0) {
-                $fresh = $variant->fresh(['product']);
+                $fresh = $lockedVariant->fresh(['product']);
                 if ($fresh->low_stock_threshold > 0 && $fresh->stock_quantity <= $fresh->low_stock_threshold) {
                     $this->notifyLowStock($fresh);
                 }
