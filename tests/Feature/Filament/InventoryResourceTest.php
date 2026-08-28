@@ -3,6 +3,7 @@
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Filament\Resources\Inventory\InventoryResource;
 use App\Filament\Resources\Inventory\Pages\ListInventory;
+use App\Filament\Resources\Inventory\Widgets\InventoryStatsWidget;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Models\InventoryLot;
@@ -10,6 +11,7 @@ use App\Models\InventoryMovement;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+afterEach(fn () => Carbon::setTestNow());
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
@@ -118,6 +122,96 @@ test('out of stock tab shows only depleted variants', function () {
         ->set('activeTab', 'out_of_stock')
         ->assertCanSeeTableRecords([$empty])
         ->assertCanNotSeeTableRecords([$stocked]);
+});
+
+test('expiry tabs show expiring and fully expired contact-lens variants', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+
+    $expiring = ProductVariant::factory()->for($product)->create(['stock_quantity' => 2]);
+    InventoryLot::factory()->for($expiring, 'variant')->create([
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 2,
+    ]);
+
+    $expired = ProductVariant::factory()->for($product)->create(['stock_quantity' => 2]);
+    InventoryLot::factory()->for($expired, 'variant')->create([
+        'expires_on' => '2026-08-27',
+        'quantity_on_hand' => 2,
+    ]);
+
+    $good = ProductVariant::factory()->for($product)->create(['stock_quantity' => 2]);
+    InventoryLot::factory()->for($good, 'variant')->create([
+        'expires_on' => '2027-08-31',
+        'quantity_on_hand' => 2,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->set('activeTab', 'expiring_soon')
+        ->assertCanSeeTableRecords([$expiring])
+        ->assertCanNotSeeTableRecords([$expired, $good]);
+
+    Livewire::test(ListInventory::class)
+        ->set('activeTab', 'expired')
+        ->assertCanSeeTableRecords([$expired])
+        ->assertCanNotSeeTableRecords([$expiring, $good]);
+});
+
+test('contact lens inventory shows usable quantity, earliest expiry, and status', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 5]);
+    InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'ACME-001',
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 3,
+    ]);
+    InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'ACME-002',
+        'expires_on' => '2026-08-27',
+        'quantity_on_hand' => 2,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->assertTableColumnStateSet('usable_stock', 3, record: $variant)
+        ->assertTableColumnStateSet('earliest_expiry', '2026-09-30', record: $variant)
+        ->assertTableColumnStateSet('expiry_status', 'Expiring Soon', record: $variant)
+        ->assertActionVisible(TestAction::make('viewBatches')->table($variant))
+        ->mountTableAction('viewBatches', $variant)
+        ->assertMountedActionModalSee([
+            'ACME-001',
+            '2026-09-30',
+            'ACME-002',
+            'Expired',
+        ]);
+});
+
+test('inventory stats include contact-lens expiry queues', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+
+    $expiring = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
+    InventoryLot::factory()->for($expiring, 'variant')->create([
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 1,
+    ]);
+
+    $expired = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
+    InventoryLot::factory()->for($expired, 'variant')->create([
+        'expires_on' => '2026-08-27',
+        'quantity_on_hand' => 1,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(InventoryStatsWidget::class)
+        ->assertSuccessful()
+        ->assertSee('Expiring Soon')
+        ->assertSee('Expired');
 });
 
 test('the default tab shows every variant', function () {

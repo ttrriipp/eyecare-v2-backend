@@ -31,7 +31,7 @@ class InventoryTable
                     ->toggleable(),
 
                 TextColumn::make('stock_quantity')
-                    ->label('In Stock')
+                    ->label('On Hand')
                     ->numeric()
                     ->sortable()
                     ->badge()
@@ -40,6 +40,35 @@ class InventoryTable
                         $record->isLowStock() => 'warning',
                         default => 'success',
                     }),
+
+                TextColumn::make('usable_stock')
+                    ->label('Usable')
+                    ->state(fn (ProductVariant $record): ?int => $record->usableStockQuantity())
+                    ->numeric()
+                    ->badge()
+                    ->color(fn (ProductVariant $record): string => match ($record->expiryStatus()) {
+                        'out_of_stock', 'expired' => 'danger',
+                        'expiring_soon' => 'warning',
+                        default => 'success',
+                    })
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
+
+                TextColumn::make('earliest_expiry')
+                    ->label('Earliest Expiry')
+                    ->state(fn (ProductVariant $record): ?string => $record->earliestUsableExpiry()?->toDateString())
+                    ->placeholder('—')
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
+
+                TextColumn::make('expiry_status')
+                    ->label('Expiry Status')
+                    ->state(fn (ProductVariant $record): ?string => $record->expiryStatusLabel())
+                    ->badge()
+                    ->color(fn (ProductVariant $record): string => match ($record->expiryStatus()) {
+                        'out_of_stock', 'expired' => 'danger',
+                        'expiring_soon' => 'warning',
+                        default => 'success',
+                    })
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
 
                 TextColumn::make('low_stock_threshold')
                     ->label('Threshold')
@@ -77,6 +106,7 @@ class InventoryTable
             ])
             ->recordActions([
                 ActionGroup::make([
+                    StockActions::viewBatches(),
                     StockActions::receive(),
                     StockActions::writeOffDamaged(),
                 ]),

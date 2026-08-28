@@ -112,3 +112,54 @@ test('the expiring-soon window uses the inventory configuration by default', fun
         ->and(InventoryLot::query()->expiringSoon(1)->pluck('id')->all())
         ->toEqualCanonicalizing([$today->id, $tomorrow->id]);
 });
+
+test('contact lens variants derive usable stock and expiry status from their lots', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+
+    $variant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 5,
+    ]);
+    InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'SOON',
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 3,
+    ]);
+    InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'EXPIRED',
+        'expires_on' => '2026-08-27',
+        'quantity_on_hand' => 2,
+    ]);
+
+    expect($variant->isContactLens())->toBeTrue()
+        ->and($variant->usableStockQuantity())->toBe(3)
+        ->and($variant->earliestUsableExpiry()?->toDateString())->toBe('2026-09-30')
+        ->and($variant->expiryStatus())->toBe('expiring_soon')
+        ->and($variant->expiryStatusLabel())->toBe('Expiring Soon');
+
+    $goodVariant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 1,
+    ]);
+    InventoryLot::factory()->for($goodVariant, 'variant')->create([
+        'expires_on' => '2027-08-31',
+        'quantity_on_hand' => 1,
+    ]);
+
+    expect($goodVariant->expiryStatus())->toBe('good');
+
+    $expiredVariant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 1,
+    ]);
+    InventoryLot::factory()->for($expiredVariant, 'variant')->create([
+        'expires_on' => '2026-08-27',
+        'quantity_on_hand' => 1,
+    ]);
+
+    expect($expiredVariant->expiryStatus())->toBe('expired');
+
+    $emptyVariant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 0,
+    ]);
+
+    expect($emptyVariant->expiryStatus())->toBe('out_of_stock');
+});

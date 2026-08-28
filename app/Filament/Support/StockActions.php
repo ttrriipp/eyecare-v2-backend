@@ -24,6 +24,30 @@ use Illuminate\Auth\AuthenticationException;
  */
 class StockActions
 {
+    public static function viewBatches(): Action
+    {
+        return Action::make('viewBatches')
+            ->label('View Batches')
+            ->icon('heroicon-o-rectangle-stack')
+            ->color('gray')
+            ->modalHeading('Contact-lens batches')
+            ->modalWidth('3xl')
+            ->modalContent(function (ProductVariant $record) {
+                $lots = $record->inventoryLots()
+                    ->with('receivedBy')
+                    ->orderBy('expires_on')
+                    ->orderBy('id')
+                    ->get();
+
+                return view('filament.inventory.inventory-lots', [
+                    'lots' => $lots,
+                ]);
+            })
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Close')
+            ->visible(fn (ProductVariant $record): bool => $record->isContactLens());
+    }
+
     public static function receive(): Action
     {
         return Action::make('adjustStock')

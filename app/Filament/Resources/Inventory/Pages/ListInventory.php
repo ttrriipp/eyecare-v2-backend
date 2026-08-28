@@ -39,6 +39,22 @@ class ListInventory extends ListRecords
             'needs_reorder' => Tab::make('Needs Reorder')
                 ->modifyQueryUsing(fn (Builder $query) => $query->active()->needsReorder()),
 
+            'expiring_soon' => Tab::make('Expiring Soon')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->active()
+                    ->contactLenses()
+                    ->whereHas('inventoryLots', fn (Builder $lotQuery): Builder => $lotQuery->expiringSoon())),
+
+            'expired' => Tab::make('Expired')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->active()
+                    ->contactLenses()
+                    ->whereHas('inventoryLots', fn (Builder $lotQuery): Builder => $lotQuery->expired()->available())
+                    ->whereDoesntHave(
+                        'inventoryLots',
+                        fn (Builder $lotQuery): Builder => $lotQuery->notExpired()->available(),
+                    )),
+
             'out_of_stock' => Tab::make('Out of Stock')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('stock_quantity', '<=', 0)),
         ];

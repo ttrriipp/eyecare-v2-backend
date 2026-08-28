@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ArAssetStatus;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Database\Factories\ProductVariantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 #[Fillable([
     'product_id',
@@ -59,6 +62,17 @@ class ProductVariant extends Model
         $query
             ->where('is_active', true)
             ->whereHas('product', fn (Builder $productQuery): Builder => $productQuery->active());
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
+    public function scopeContactLenses(Builder $query): void
+    {
+        $query->whereHas(
+            'product',
+            fn (Builder $productQuery): Builder => $productQuery->where('product_type', 'contact_lens'),
+        );
     }
 
     /**
@@ -155,6 +169,80 @@ class ProductVariant extends Model
         return $this->hasMany(InventoryLot::class);
     }
 
+    public function isContactLens(): bool
+    {
+        return $this->product?->product_type === 'contact_lens';
+    }
+
+    public function usableStockQuantity(?CarbonInterface $asOf = null): ?int
+    {
+        if (! $this->isContactLens()) {
+            return null;
+        }
+
+        return (int) $this->inventoryLotsForDisplay()
+            ->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf))
+            ->sum('quantity_on_hand');
+    }
+
+    public function earliestUsableExpiry(?CarbonInterface $asOf = null): ?CarbonImmutable
+    {
+        if (! $this->isContactLens()) {
+            return null;
+        }
+
+        $lot = $this->inventoryLotsForDisplay()
+            ->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf))
+            ->sortBy(fn (InventoryLot $lot): array => [
+                $lot->expires_on->toDateString(),
+                $lot->id,
+            ])
+            ->first();
+
+        return $lot?->expires_on?->toImmutable();
+    }
+
+    public function expiryStatus(?CarbonInterface $asOf = null): ?string
+    {
+        if (! $this->isContactLens()) {
+            return null;
+        }
+
+        $lots = $this->inventoryLotsForDisplay();
+        $physicalQuantity = (int) $lots->sum('quantity_on_hand');
+
+        if ($physicalQuantity === 0) {
+            return 'out_of_stock';
+        }
+
+        $usableLots = $lots->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf));
+
+        if ($usableLots->isEmpty()) {
+            return 'expired';
+        }
+
+        $warningDays = max(0, (int) config(
+            'inventory.contact_lens_expiry_warning_days',
+            InventoryLot::EXPIRY_WARNING_DAYS,
+        ));
+        $warningEnd = self::asOfDate($asOf)->addDays($warningDays);
+
+        return $usableLots->contains(
+            fn (InventoryLot $lot): bool => $lot->expires_on->toDateString() <= $warningEnd->toDateString(),
+        ) ? 'expiring_soon' : 'good';
+    }
+
+    public function expiryStatusLabel(?CarbonInterface $asOf = null): ?string
+    {
+        return match ($this->expiryStatus($asOf)) {
+            'good' => 'Good',
+            'expiring_soon' => 'Expiring Soon',
+            'expired' => 'Expired',
+            'out_of_stock' => 'Out of Stock',
+            default => null,
+        };
+    }
+
     /**
      * @return HasMany<FrameRating, $this>
      */
@@ -214,5 +302,25 @@ class ProductVariant extends Model
             'published_ar_asset_id' => 'integer',
             'images' => 'array',
         ];
+    }
+
+    /**
+     * @return Collection<int, InventoryLot>
+     */
+    private function inventoryLotsForDisplay(): Collection
+    {
+        if ($this->relationLoaded('inventoryLots')) {
+            return $this->inventoryLots;
+        }
+
+        return $this->inventoryLots()->get();
+    }
+
+    private static function asOfDate(?CarbonInterface $asOf): CarbonImmutable
+    {
+        return ($asOf === null
+            ? CarbonImmutable::now()
+            : CarbonImmutable::instance($asOf)
+        )->startOfDay();
     }
 }

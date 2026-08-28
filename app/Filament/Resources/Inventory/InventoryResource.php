@@ -61,7 +61,12 @@ class InventoryResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['product:id,name,brand_id,product_type', 'product.brand:id,name']);
+        return parent::getEloquentQuery()->with([
+            'product:id,name,brand_id,product_type',
+            'product.brand:id,name',
+            'inventoryLots:id,product_variant_id,lot_number,expires_on,quantity_on_hand,received_at,received_by,source_reference',
+            'inventoryLots.receivedBy:id,first_name,middle_name,last_name',
+        ]);
     }
 
     public static function canCreate(): bool
