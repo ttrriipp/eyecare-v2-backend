@@ -9,6 +9,20 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Contact-Lens Expiry Tracking** — approved 2026-08-28; implementation pending
+
+- Spec: `docs/specs/contact-lens-expiry-tracking-spec.md`
+- Plan: `tasks/contact-lens-expiry-tracking-plan.md`
+- Checklist: `tasks/contact-lens-expiry-tracking-todo.md`
+
+The approved scope keeps expiry lot-aware in the backend but simple for the
+clinic owner: contact-lens receiving adds only lot number and expiry month,
+sales allocate automatically by multi-lot FEFO, expired stock is blocked, and
+the existing Inventory screen gains concise read-only expiry visibility.
+Development stock is disposable, so no reconciliation workflow is built.
+
+## Previous active entry (preserved)
+
 **Patient Account Self-Service Profile Editing** — implemented and verified
 
 - Spec: `docs/specs/patient-account-self-service-profile-spec.md` (approved
@@ -25,7 +39,7 @@ Patient writes, and expires stale pending link requests. Backend implementation
 and focused verification are complete; deployment and Android changes remain
 separate approval gates.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Replace Frame Reservations with Saved Frames** — remediation complete 2026-08-26
 

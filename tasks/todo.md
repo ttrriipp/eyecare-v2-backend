@@ -1,5 +1,14 @@
 # Active Checklist
 
+**Contact-Lens Expiry Tracking** — approved 2026-08-28; implementation pending
+
+→ `tasks/contact-lens-expiry-tracking-todo.md`
+
+The specification and dependency-ordered plan are approved. Implementation is
+starting with the lot schema and test-first inventory invariants.
+
+The previous completed checklist remains:
+
 **Patient Account Self-Service Profile Editing** — implemented and verified
 2026-08-28
 
