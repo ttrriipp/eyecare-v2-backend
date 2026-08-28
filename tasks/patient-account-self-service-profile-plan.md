@@ -1,10 +1,10 @@
 # Implementation Plan: Patient Account Self-Service Profile Editing
 
-**Status:** Drafted for project-owner review on 2026-08-28
+**Status:** Implemented and verified on 2026-08-28
 **Specification:** `docs/specs/patient-account-self-service-profile-spec.md`
 (approved 2026-08-28)
-**Checklist:** `tasks/patient-account-self-service-profile-todo.md` (awaiting
-approval)
+**Checklist:** `tasks/patient-account-self-service-profile-todo.md`
+(implementation complete)
 
 ## Outcome
 
@@ -249,7 +249,7 @@ partial contract is exposed.
 
 ## Approval Gate
 
-This plan and its checklist are drafts. Project-owner approval authorizes the
-implementation tasks in dependency order; it does not authorize deployment,
-external Android changes, database changes, new dependencies, or scope changes.
-Until that approval is given, no application code may be modified.
+This plan and its checklist were approved by the project owner on 2026-08-28.
+Implementation is complete in this backend repository. Deployment, external
+Android changes, database changes, new dependencies, and scope changes remain
+separate approval gates.

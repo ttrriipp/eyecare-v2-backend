@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-26.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-28.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -52,6 +52,20 @@
 > preserved for provenance. Spec/plan/tasks live in
 > `docs/specs/saved-frames-replacement-{spec,plan}.md` and
 > `tasks/saved-frames-replacement-{plan,todo}.md`.
+
+> **Shipped (2026-08-28): patient account self-service profile boundary.**
+> Authenticated mobile accounts may edit only their own `users.first_name`,
+> `middle_name`, and `last_name` through `PATCH /api/v1/me`; account
+> `date_of_birth` is also editable there only with a same-account step-up
+> token. The request boundary rejects every unsupported, clinic-owned,
+> contact, password, consent, or server-state field. Account edits never write
+> `patients`; verified contacts and passwords retain their dedicated workflows.
+> Actual identity or relevant verified-contact changes expire a pending
+> patient-link request atomically and create PII-safe audit metadata. Staff
+> approval locks User → PatientLinkRequest → Patient, compares the immutable
+> identity snapshot, and fails closed by expiring stale requests before
+> returning a validation error. The Filament queue labels expired requests,
+> shows a safe reason category, and offers no review actions for them.
 
 > **Shipped (2026-08-17): remote frame 3D assets.** Frame variants now have an
 > additive, nullable patient-facing `ar` object backed by a versioned
@@ -621,12 +635,12 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. Mobile self-service may edit only these three names and `date_of_birth` (DOB requires step-up); address and all clinic-owned demographics remain outside the account API. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
 | `role_user` | Many-to-many pivot between `users` and `roles`. Unique `(role_id, user_id)`. Supports multi-role assignments: `admin + optometrist` for dual-duty accounts. |
 | `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `invalidated_at`, `delivery_status`. |
 | `personal_access_tokens` | Sanctum mobile tokens. Device-labelled, expiring tokens with optional `installation_id` for trusted-device login and same-installation replacement. |
-| `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. |
+| `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected/expired), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. New snapshots include normalized nullable `middle_name`; historical snapshots without it compare as null. Actual account identity or relevant verified-contact changes expire pending requests while preserving snapshot and candidate evidence; expiry audits store only safe reason categories. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
 | `appointment_requests` | Patient appointment requests. `request_number`, `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (unique), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required when type requires referral), `encrypted_identity_snapshot` for unlinked submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time for new requests), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
@@ -821,7 +835,7 @@ Patient authentication rules:
 POST   /api/v1/logout
 POST   /api/v1/logout-all
 GET    /api/v1/me
-PATCH  /api/v1/me
+PATCH  /api/v1/me                             Account names; DOB requires step-up
 POST   /api/v1/auth/step-up/otp               Request sensitive-change OTP
 POST   /api/v1/auth/step-up/verify            Get step_up_token (15min)
 POST   /api/v1/auth/password                  Change password (X-Step-Up-Token header)
@@ -859,6 +873,25 @@ GET    /api/v1/saved-frames                    List this account's preferences
 PUT    /api/v1/saved-frames/{productVariant}   Save a frame variant (idempotent)
 DELETE /api/v1/saved-frames/{productVariant}   Remove a preference (idempotent)
 ```
+
+`PATCH /api/v1/me` accepts only `first_name`, `middle_name`, `last_name`, and
+`date_of_birth`. Names are trimmed (blank middle name becomes `null`); DOB
+must be an exact `Y-m-d` date before today and any payload containing it must
+carry a valid same-account `X-Step-Up-Token`. Unknown or clinic-owned fields,
+including address, occupation, gender, contacts, password, consent, and
+server state, fail with `422` rather than being ignored. Actual account
+identity changes expire a pending Patient Link Request in the same transaction;
+normalized no-ops do not. The response uses the same complete
+`PatientAccountResource` shape as `GET /me`, and account changes never update
+the clinic `patients` row.
+
+When a pending Patient Link Request's account identity or relevant verified
+contact data changes, the request becomes `expired` while its encrypted
+snapshot and candidate evidence remain intact. Staff can read the request and
+its safe expiry category, but expired requests have no approve or reject
+actions. Approval re-locks User → PatientLinkRequest → Patient and fails closed
+if the snapshot is stale; the expiry is committed before the validation error
+is returned.
 
 The frame catalog responses include the additive `ar` field on every variant.
 It is `null` unless a current published GLB passes storage, expiry, byte-size,
@@ -929,9 +962,13 @@ orders, billings, checkout records, or purchases.
 | `RecoverPatientPassword` | `app/Actions/Auth/` | Resets password through verified phone recovery OTP, revokes other tokens, issues device token |
 | `NormalizeContact` | `app/Actions/PatientAccounts/` | Deterministic email/phone/name normalization |
 | `CreateContactLookupHash` | `app/Actions/PatientAccounts/` | HMAC blind indexes for contact lookups |
+| `LoadPatientAccountContext` | `app/Actions/PatientAccounts/` | Loads the role, contacts, linked Patient, and pending link-request state required by `PatientAccountResource` |
+| `UpdateAccountProfile` | `app/Actions/PatientAccounts/` | Transactionally updates allowlisted account identity fields, expires a pending link request on actual changes, and records PII-safe audit metadata |
+| `ExpirePendingPatientLinkRequest` | `app/Actions/PatientAccounts/` | Marks one pending link request expired with a categorical audit reason |
+| `PatientLinkIdentitySnapshot` | `app/Actions/PatientAccounts/` | Builds and compares normalized encrypted link-request identity snapshots, including nullable middle name |
 | `RankPatientCandidates` | `app/Actions/PatientAccounts/` | Searches clinic data by contact/name/DOB, returns ranked candidates |
 | `SubmitPatientLinkRequest` | `app/Actions/PatientAccounts/` | Creates link request with candidates, returns existing on repeat |
-| `ReviewPatientLinkRequest` | `app/Actions/PatientAccounts/` | Approve (with row-lock recheck) or reject link request |
+| `ReviewPatientLinkRequest` | `app/Actions/PatientAccounts/` | Approves or rejects link requests under account/request/patient locks and expires stale identity snapshots before failing closed |
 | `UnlinkPatientAccount` | `app/Actions/PatientAccounts/` | Revokes tokens, removes link, creates audit log |
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
@@ -1029,6 +1066,7 @@ have never been referenced.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
+- **Patient account profile:** `PATCH /api/v1/me` is a strict account-owned allowlist for `first_name`, `middle_name`, `last_name`, and `date_of_birth`; DOB requires same-account step-up verification. Names are trimmed and account changes never synchronize to `patients`. Address, occupation, gender, and all `linked_patient` fields remain clinic-owned; email/phone and password use their dedicated verified workflows. Actual identity or relevant verified-contact changes expire pending patient-link requests, while primary-contact-only changes and normalized no-ops do not.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks/assessment/supporting_test_results/addenda reason/content use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.

@@ -9,19 +9,21 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Patient Account Self-Service Profile Editing** — planning review
+**Patient Account Self-Service Profile Editing** — implemented and verified
 
 - Spec: `docs/specs/patient-account-self-service-profile-spec.md` (approved
   2026-08-28)
-- Plan: `tasks/patient-account-self-service-profile-plan.md` (awaiting approval)
-- Checklist: `tasks/patient-account-self-service-profile-todo.md` (awaiting
-  approval)
+- Plan: `tasks/patient-account-self-service-profile-plan.md` (implemented and
+  verified 2026-08-28)
+- Checklist: `tasks/patient-account-self-service-profile-todo.md` (implemented
+  and verified 2026-08-28)
 
 The approved specification separates account-owned identity from the clinic's
 Patient record. The plan permits self-service account names and step-up-gated
 date of birth, keeps contacts/password on their verified workflows, prohibits
-Patient writes, and expires stale pending link requests. No application code is
-authorized until the plan and checklist receive separate approval.
+Patient writes, and expires stale pending link requests. Backend implementation
+and focused verification are complete; deployment and Android changes remain
+separate approval gates.
 
 ## Previous active entry (preserved)
 

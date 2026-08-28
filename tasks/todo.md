@@ -1,13 +1,13 @@
 # Active Checklist
 
-**Patient Account Self-Service Profile Editing** — awaiting implementation-plan
-approval
+**Patient Account Self-Service Profile Editing** — implemented and verified
+2026-08-28
 
 → `tasks/patient-account-self-service-profile-todo.md`
 
-The specification was approved on 2026-08-28. The dependency-ordered plan and
-checklist are ready for separate project-owner review. This planning state does
-not authorize application-code changes.
+The specification, dependency-ordered plan, and checklist were approved on
+2026-08-28. Backend implementation and focused verification are complete;
+deployment and Android changes remain separate approval gates.
 
 The latest completed checklist remains:
 

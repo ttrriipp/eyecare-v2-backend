@@ -2,12 +2,12 @@
 
 ## Status
 
-**Approved by the project owner on 2026-08-28.**
+**Approved and implemented in the backend on 2026-08-28.**
 
-Phase 1 (**Specify**) is complete. This approval authorizes Phase 2 planning
-only; it does not authorize implementation, database changes, deployment, or
-Android changes. The implementation plan and task checklist require separate
-project-owner approval.
+The project owner approved the implementation plan and task checklist. The
+backend implementation is complete and verified; deployment and Android
+repository changes remain outside this repository and require their own
+authorization.
 
 ## Objective
 
@@ -538,7 +538,8 @@ surface the smallest contract-safe alternative before implementation.
 
 ## Approval Gate
 
-The project owner approved this specification on 2026-08-28, authorizing Phase
-2 planning only. The dependency-ordered implementation plan and task checklist
-remain subject to separate approval. No application code may be modified until
-that approval is given.
+The project owner approved this specification on 2026-08-28 and subsequently
+approved the dependency-ordered implementation plan and task checklist. The
+backend implementation is complete and verified. Deployment, database or
+dependency changes, and external Android changes remain separate approval
+gates.

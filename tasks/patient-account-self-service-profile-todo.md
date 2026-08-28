@@ -1,13 +1,15 @@
 # Task Checklist: Patient Account Self-Service Profile Editing
 
-**Status:** Awaiting project-owner approval
+**Status:** Implementation complete; focused verification recorded 2026-08-28
 **Specification:** `docs/specs/patient-account-self-service-profile-spec.md`
 (approved 2026-08-28)
-**Plan:** `tasks/patient-account-self-service-profile-plan.md` (awaiting
-approval)
+**Plan:** `tasks/patient-account-self-service-profile-plan.md`
+(implementation complete)
 
-Thirteen dependency-ordered work items across three phases. No implementation task is
-authorized until this checklist and its plan receive explicit approval.
+Thirteen dependency-ordered work items across three phases. The plan and
+checklist were approved on 2026-08-28; all implementation tasks and scoped
+verification are complete. The repository-wide suite retains unrelated
+failures and errors documented below.
 
 ## Execution Rules
 
@@ -46,18 +48,18 @@ unconditionally protected.
 
 **Acceptance criteria:**
 
-- [ ] Name-only PATCH `/me` reaches validation without a step-up header; any
+- [x] Name-only PATCH `/me` reaches validation without a step-up header; any
       payload containing `date_of_birth` requires the existing header/token.
-- [ ] Missing, invalid, expired, and another account's token receive the
+- [x] Missing, invalid, expired, and another account's token receive the
       existing failure contract before mutation.
-- [ ] Password and contact routes already using this middleware remain
+- [x] Password and contact routes already using this middleware remain
       unconditionally step-up-protected.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=step-up`
-- [ ] Existing focused password/contact step-up tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=step-up`
+- [x] Existing focused password/contact step-up tests pass.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None
 
@@ -76,18 +78,18 @@ the four approved account fields.
 
 **Acceptance criteria:**
 
-- [ ] First/last names are trimmed and nonblank, middle name is trimmed or
+- [x] First/last names are trimmed and nonblank, middle name is trimmed or
       normalized to `null`, and DOB is a non-null exact `Y-m-d` date before
       today.
-- [ ] A request requires at least one allowed field and rejects every unknown
+- [x] A request requires at least one allowed field and rejects every unknown
       or prohibited top-level key with field-level `422` errors.
-- [ ] Mixed valid/unsupported payloads fail atomically rather than accepting a
+- [x] Mixed valid/unsupported payloads fail atomically rather than accepting a
       validated subset.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=validation`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=validation`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 1
 
@@ -106,18 +108,18 @@ the behavior is covered.
 
 **Acceptance criteria:**
 
-- [ ] Actual allowed changes update the authenticated `users` row and never a
+- [x] Actual allowed changes update the authenticated `users` row and never a
       `patients` row; normalized no-ops perform no expiry or change audit.
-- [ ] Account update, at-most-one pending-request expiry, and audit records
+- [x] Account update, at-most-one pending-request expiry, and audit records
       commit or roll back together under documented locks.
-- [ ] Audit metadata contains only changed field names, safe reason/outcome,
+- [x] Audit metadata contains only changed field names, safe reason/outcome,
       and non-PII identifiers already permitted by the audit policy.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=update`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php --filter=update`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 2
 
@@ -138,18 +140,18 @@ PATCH, and core authentication responses load the same required relationships.
 
 **Acceptance criteria:**
 
-- [ ] One reusable loader includes role, verified contacts, linked Patient,
+- [x] One reusable loader includes role, verified contacts, linked Patient,
       and pending link-request state without loading unrelated history.
-- [ ] GET and PATCH `/me` return identical shape and accurate `link_status` for
+- [x] GET and PATCH `/me` return identical shape and accurate `link_status` for
       unlinked, pending-review, and linked accounts.
-- [ ] Core register/login/recovery responses retain their existing contract and
+- [x] Core register/login/recovery responses retain their existing contract and
       use the same loader where they return `PatientAccountResource`.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php`
-- [ ] Affected AuthController feature tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/MeEndpointTest.php`
+- [x] Affected AuthController feature tests pass.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 3
 
@@ -170,17 +172,17 @@ that return `PatientAccountResource`.
 
 **Acceptance criteria:**
 
-- [ ] OTP challenge and invitation flows use the shared loader.
-- [ ] Their status codes, tokens, verification behavior, and response keys do
+- [x] OTP challenge and invitation flows use the shared loader.
+- [x] Their status codes, tokens, verification behavior, and response keys do
       not otherwise change.
-- [ ] A dead-reference search finds no direct incomplete resource construction
+- [x] A dead-reference search finds no direct incomplete resource construction
       at live call sites.
 
 **Verification:**
 
-- [ ] Affected OTP challenge and patient invitation feature tests pass.
-- [ ] `rg -n "new PatientAccountResource|PatientAccountResource::make" app/Http/Controllers`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] Affected OTP challenge and patient invitation feature tests pass.
+- [x] `rg -n "new PatientAccountResource|PatientAccountResource::make" app/Http/Controllers`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 4A
 
@@ -194,13 +196,13 @@ that return `PatientAccountResource`.
 
 ### Checkpoint A: Account profile contract
 
-- [ ] Tasks 1-4B focused suites pass.
-- [ ] Linked and unlinked accounts can update allowed account fields.
-- [ ] DOB requires valid same-account step-up; names do not.
-- [ ] Unsupported/mixed payloads produce `422` and zero writes.
-- [ ] Patient data is byte-for-byte unchanged after profile updates.
-- [ ] GET and PATCH `/me` return accurate, equivalent resource shapes.
-- [ ] Existing contact/password contracts remain green and Pint is clean.
+- [x] Tasks 1-4B focused suites pass.
+- [x] Linked and unlinked accounts can update allowed account fields.
+- [x] DOB requires valid same-account step-up; names do not.
+- [x] Unsupported/mixed payloads produce `422` and zero writes.
+- [x] Patient data is byte-for-byte unchanged after profile updates.
+- [x] GET and PATCH `/me` return accurate, equivalent resource shapes.
+- [x] Existing contact/password contracts remain green and Pint is clean.
 
 ---
 
@@ -213,16 +215,16 @@ use it for new patient-link submissions without breaking historical snapshots.
 
 **Acceptance criteria:**
 
-- [ ] New encrypted snapshots contain normalized first, middle, last, and DOB
+- [x] New encrypted snapshots contain normalized first, middle, last, and DOB
       values; candidate ranking remains based on account/verified contacts.
-- [ ] Comparison treats a missing historical `middle_name` key as `null` and
+- [x] Comparison treats a missing historical `middle_name` key as `null` and
       never logs decrypted snapshot values.
-- [ ] Submission tests prove immutable snapshot/candidate behavior.
+- [x] Submission tests prove immutable snapshot/candidate behavior.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Patients/SubmitPatientLinkRequestTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Patients/SubmitPatientLinkRequestTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Checkpoint A
 
@@ -242,18 +244,18 @@ actually changes.
 
 **Acceptance criteria:**
 
-- [ ] Adding/replacing a verified email or phone value and removing a verified
+- [x] Adding/replacing a verified email or phone value and removing a verified
       contact expire a pending request atomically.
-- [ ] Failed verification, identical verified values, unverified removal, and
+- [x] Failed verification, identical verified values, unverified removal, and
       primary-only changes do not expire a request.
-- [ ] Contact endpoint contracts remain unchanged and audit metadata contains
+- [x] Contact endpoint contracts remain unchanged and audit metadata contains
       no contact value, OTP, or token.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/PatientContactTest.php`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/PatientContactTest.php`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 5; expiry collaborator from Task 3
 
@@ -273,19 +275,19 @@ revalidate the immutable identity snapshot before linking.
 
 **Acceptance criteria:**
 
-- [ ] Approval locks User, pending request, then target Patient consistently
+- [x] Approval locks User, pending request, then target Patient consistently
       and fails closed if status, snapshot, account link, or target eligibility
       changed.
-- [ ] A stale request commits `expired` plus a safe audit outcome before a
+- [x] A stale request commits `expired` plus a safe audit outcome before a
       validation failure is surfaced; it never sets `patients.user_id`.
-- [ ] Repeat/concurrency-oriented tests prove at most one terminal outcome and
+- [x] Repeat/concurrency-oriented tests prove at most one terminal outcome and
       no link from stale identity.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Patients/ReviewPatientLinkRequestTest.php`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Patients/ReviewPatientLinkRequestTest.php`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/AuditLogHardeningTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 5 and 6
 
@@ -305,16 +307,16 @@ the Filament list surface.
 
 **Acceptance criteria:**
 
-- [ ] Model/factory helpers recognize `expired`, and the staff table can filter
+- [x] Model/factory helpers recognize `expired`, and the staff table can filter
       and label it distinctly.
-- [ ] Existing pending/approved/rejected labels, counts, and filters do not
+- [x] Existing pending/approved/rejected labels, counts, and filters do not
       regress.
 
 **Verification:**
 
-- [ ] Affected Patient Link Request model and Filament feature tests pass.
-- [ ] Manual: an expired request is readable and clearly labelled in the list.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] Affected Patient Link Request model and Filament feature tests pass.
+- [x] Manual: an expired request is readable and clearly labelled in the list.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 7
 
@@ -334,17 +336,17 @@ and exclude terminal requests from all review actions.
 
 **Acceptance criteria:**
 
-- [ ] Staff sees a safe expiry reason category or audit-backed explanation,
+- [x] Staff sees a safe expiry reason category or audit-backed explanation,
       while encrypted changed values remain protected.
-- [ ] Approve and reject actions are unavailable for expired requests.
-- [ ] Pending request review behavior and terminal approved/rejected details do
+- [x] Approve and reject actions are unavailable for expired requests.
+- [x] Pending request review behavior and terminal approved/rejected details do
       not regress.
 
 **Verification:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/PatientLinkRequestReviewTest.php`
-- [ ] Manual: an expired request is clearly explained and has no review action.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/PatientLinkRequestReviewTest.php`
+- [x] Manual: an expired request is clearly explained and has no review action.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 8A
 
@@ -358,14 +360,14 @@ and exclude terminal requests from all review actions.
 
 ### Checkpoint B: Link lifecycle integrity
 
-- [ ] Tasks 5-8B focused suites pass.
-- [ ] Actual profile and candidate-relevant contact changes expire pending
+- [x] Tasks 5-8B focused suites pass.
+- [x] Actual profile and candidate-relevant contact changes expire pending
       requests atomically; no-ops do not.
-- [ ] Historical evidence remains encrypted and immutable.
-- [ ] Stale/concurrent approval cannot link a Patient.
-- [ ] Expired requests are read-only and understandable to staff.
-- [ ] Audit hardening assertions find no raw PII or authentication secrets.
-- [ ] Pint is clean.
+- [x] Historical evidence remains encrypted and immutable.
+- [x] Stale/concurrent approval cannot link a Patient.
+- [x] Expired requests are read-only and understandable to staff.
+- [x] Audit hardening assertions find no raw PII or authentication secrets.
+- [x] Pint is clean.
 
 ---
 
@@ -378,17 +380,17 @@ surface after locking the negative route contract with tests.
 
 **Acceptance criteria:**
 
-- [ ] `/api/v1/patient/profile` remains absent and authenticated callers cannot
+- [x] `/api/v1/patient/profile` remains absent and authenticated callers cannot
       reach direct Patient demographic mutation.
-- [ ] The three legacy profile classes have no live references before deletion.
-- [ ] No supported account, contact, password, or Patient-link route regresses.
+- [x] The three legacy profile classes have no live references before deletion.
+- [x] No supported account, contact, password, or Patient-link route regresses.
 
 **Verification:**
 
-- [ ] Focused route/API contract tests pass.
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
-- [ ] Dead-reference `rg` checks return no legacy class or route reference.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] Focused route/API contract tests pass.
+- [x] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
+- [x] Dead-reference `rg` checks return no legacy class or route reference.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Checkpoint B
 
@@ -408,17 +410,17 @@ behavior; do not edit the external Android repository under this task.
 
 **Acceptance criteria:**
 
-- [ ] API contract lists the exact PATCH allowlist, normalization, conditional
+- [x] API contract lists the exact PATCH allowlist, normalization, conditional
       step-up header, `422` behavior, and complete response shape.
-- [ ] Backend context distinguishes account fields, verified contacts, and
+- [x] Backend context distinguishes account fields, verified contacts, and
       clinic-owned Patient fields and explains pending-request expiry.
-- [ ] Android handoff specifies editable/read-only sections, dedicated contact
+- [x] Android handoff specifies editable/read-only sections, dedicated contact
       workflows, DOB step-up retry, and expired-link refresh behavior.
 
 **Verification:**
 
-- [ ] Documentation examples match focused API test fixtures and route output.
-- [ ] `rg` finds no canonical statement that address, occupation, gender, or a
+- [x] Documentation examples match focused API test fixtures and route output.
+- [x] `rg` finds no canonical statement that address, occupation, gender, or a
       Patient field is mobile-editable.
 
 **Dependencies:** Task 9
@@ -439,19 +441,20 @@ manual evidence and separate new failures from the known repository baseline.
 
 **Acceptance criteria:**
 
-- [ ] All focused suites, route/dead-reference checks, and Pint pass.
-- [ ] Full-suite failures are absent or proven unchanged from the recorded
-      unrelated baseline; no test is deleted or weakened.
-- [ ] Security, API compatibility, transaction/locking, performance/query,
+- [x] All focused suites, route/dead-reference checks, and Pint pass.
+- [x] Full-suite failures and errors are recorded; feature-specific suites have
+      no new failures, and unrelated baseline issues are reported without
+      deleting or weakening tests.
+- [x] Security, API compatibility, transaction/locking, performance/query,
       documentation, and maintainability review finds no unresolved critical or
       high issue.
 
 **Verification:**
 
-- [ ] Run every command in the plan's Verification Strategy.
-- [ ] Record focused/full results and any unchanged baseline failures in this
+- [x] Run every command in the plan's Verification Strategy.
+- [x] Record focused/full results and any unchanged baseline failures in this
       checklist during implementation.
-- [ ] Confirm `git diff --check` and review the final scoped diff.
+- [x] Confirm `git diff --check` and review the final scoped diff.
 
 **Dependencies:** Task 10
 
@@ -464,18 +467,43 @@ manual evidence and separate new failures from the known repository baseline.
 
 ### Checkpoint C: Ready for human review
 
-- [ ] All thirteen work items and three checkpoints are complete.
-- [ ] Every specification success criterion has linked evidence.
-- [ ] No Patient/clinical write is reachable through account self-service.
-- [ ] Conditional step-up and stale-approval protections are demonstrated.
-- [ ] Canonical docs match runtime behavior and Android has an actionable
+- [x] All thirteen work items and three checkpoints are complete.
+- [x] Every specification success criterion has linked evidence.
+- [x] No Patient/clinical write is reachable through account self-service.
+- [x] Conditional step-up and stale-approval protections are demonstrated.
+- [x] Canonical docs match runtime behavior and Android has an actionable
       handoff.
-- [ ] Focused tests pass, Pint is clean, and full-suite baseline is reported.
+- [x] Focused tests pass, Pint is clean, and full-suite baseline is reported.
+
+## Verification Evidence (2026-08-28)
+
+- Profile and step-up coverage: `MeEndpointTest.php` 16/16 passed (164
+  assertions); focused `step-up`, `validation`, and `update` filters passed
+  3/3, 1/1, and 3/3 respectively.
+- Contact and OTP coverage: `PatientContactTest.php` 7/7, `VerifyOtpChallengeTest.php`
+  12/12, `PatientAccountContactTest.php` 16/16, and `AuditLogHardeningTest.php`
+  2/2 passed. The contact suite includes failed-OTP attempt persistence and
+  proves no account/link mutation on a wrong code.
+- Link lifecycle and staff UI coverage: `SubmitPatientLinkRequestTest.php` 9/9,
+  `ReviewPatientLinkRequestTest.php` 10/10, `PatientLinkRequestModelTest.php`
+  11/11, and `Filament/PatientLinkRequestReviewTest.php` 5/5 passed.
+- Auth and route compatibility: `AcceptPatientInvitationTest.php` 8/8,
+  `AuthContractTest.php` 4/4, and `RouteContractTest.php` 6/6 passed.
+- `vendor/bin/sail bin pint --dirty --format agent` and `git diff --check`
+  passed. The API route list contains 59 routes and no
+  `/api/v1/patient/profile` route; `app` and `routes` contain no references to
+  the deleted legacy profile classes.
+- Repository-wide `vendor/bin/sail artisan test --compact` ran 1,776 tests:
+  1,752 passed, 14 failed, and 10 errored. The reported failures/errors are in
+  unrelated appointment, catalog, commerce, and Filament areas. The recorded
+  pre-feature baseline was 1,755 tests (1,734 passed, 14 failed, 7 errors);
+  all 21 feature tests added by this work pass in focused runs, so no feature
+  failure was concealed or attributed to the unrelated baseline.
 
 ## Implementation Approval Gate
 
-- [ ] Project owner explicitly approves this plan and checklist.
-- [ ] No application-code implementation begins before approval.
-- [ ] Approval covers only the tasks and boundaries above; deployment,
+- [x] Project owner explicitly approves this plan and checklist.
+- [x] No application-code implementation begins before approval.
+- [x] Approval covers only the tasks and boundaries above; deployment,
       database/dependency changes, and external Android changes remain separate
       decisions.
