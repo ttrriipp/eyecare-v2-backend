@@ -237,6 +237,39 @@ test('writing off damaged stock lowers the quantity and writes a ledger entry', 
     ]);
 });
 
+test('writing off contact lenses requires and decrements a selected lot', function () {
+    $product = Product::factory()->contactLens()->create();
+    $variant = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 5,
+    ]);
+    $lot = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'ACME-001',
+        'quantity_on_hand' => 5,
+        'received_quantity' => 5,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('writeOffDamaged')->table($variant), [
+            'quantity' => 2,
+            'inventory_lot_id' => $lot->id,
+            'notes' => 'Box crushed',
+        ])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    expect($variant->fresh()->stock_quantity)->toBe(3)
+        ->and($lot->fresh()->quantity_on_hand)->toBe(3);
+
+    $this->assertDatabaseHas('inventory_movements', [
+        'product_variant_id' => $variant->id,
+        'inventory_lot_id' => $lot->id,
+        'quantity_change' => -2,
+        'notes' => 'Box crushed',
+    ]);
+});
+
 // --- Shared action definitions ---
 
 test('the products variants tab still receives stock through the shared action', function () {

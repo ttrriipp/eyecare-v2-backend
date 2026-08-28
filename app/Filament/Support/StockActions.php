@@ -4,10 +4,13 @@ namespace App\Filament\Support;
 
 use App\Actions\Inventory\ReceiveContactLensStock;
 use App\Actions\Inventory\RecordInventoryMovement;
+use App\Actions\Inventory\WriteOffContactLensStock;
+use App\Models\InventoryLot;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Illuminate\Auth\AuthenticationException;
@@ -122,25 +125,33 @@ class StockActions
             ->requiresConfirmation()
             ->modalHeading('Write off damaged stock')
             ->modalDescription('This will permanently reduce the stock count and record the loss in Inventory History.')
-            ->schema([
-                TextInput::make('quantity')
-                    ->label('Units to write off')
-                    ->required()
-                    ->numeric()
-                    ->minValue(1),
-                TextInput::make('notes')
-                    ->label('Damage reason')
-                    ->required()
-                    ->placeholder('e.g. Frame scratched during display, lens cracked in storage'),
-            ])
+            ->schema(fn (ProductVariant $record): array => self::writeOffSchema($record))
             ->action(function (array $data, ProductVariant $record): void {
-                app(RecordInventoryMovement::class)->handle(
-                    variant: $record,
-                    quantityChange: -(int) $data['quantity'],
-                    type: 'damaged',
-                    notes: $data['notes'],
-                    actingUser: auth()->user(),
-                );
+                $record->load('product');
+
+                if ($record->product?->product_type === 'contact_lens') {
+                    $actor = auth()->user();
+
+                    if (! $actor instanceof User) {
+                        throw new AuthenticationException;
+                    }
+
+                    app(WriteOffContactLensStock::class)->handle(
+                        variant: $record,
+                        quantity: (int) $data['quantity'],
+                        inventoryLotId: (int) $data['inventory_lot_id'],
+                        actor: $actor,
+                        notes: (string) $data['notes'],
+                    );
+                } else {
+                    app(RecordInventoryMovement::class)->handle(
+                        variant: $record,
+                        quantityChange: -(int) $data['quantity'],
+                        type: 'damaged',
+                        notes: $data['notes'],
+                        actingUser: auth()->user(),
+                    );
+                }
 
                 Notification::make()
                     ->title('Damaged stock written off')
@@ -148,5 +159,48 @@ class StockActions
                     ->warning()
                     ->send();
             });
+    }
+
+    /**
+     * @return list<Field>
+     */
+    private static function writeOffSchema(ProductVariant $record): array
+    {
+        $record->load('product');
+
+        $fields = [
+            TextInput::make('quantity')
+                ->label('Units to write off')
+                ->required()
+                ->numeric()
+                ->minValue(1),
+        ];
+
+        if ($record->product?->product_type === 'contact_lens') {
+            $lotOptions = InventoryLot::query()
+                ->where('product_variant_id', $record->id)
+                ->available()
+                ->orderBy('expires_on')
+                ->orderBy('id')
+                ->get()
+                ->mapWithKeys(fn (InventoryLot $lot): array => [
+                    $lot->id => "{$lot->lot_number} — expires {$lot->expires_on->format('M Y')} ({$lot->quantity_on_hand} on hand)",
+                ])
+                ->all();
+
+            $fields[] = Select::make('inventory_lot_id')
+                ->label('Lot')
+                ->options($lotOptions)
+                ->searchable()
+                ->required()
+                ->helperText('Choose the lot containing the damaged units.');
+        }
+
+        $fields[] = TextInput::make('notes')
+            ->label('Damage reason')
+            ->required()
+            ->placeholder('e.g. Frame scratched during display, lens cracked in storage');
+
+        return $fields;
     }
 }
