@@ -5,11 +5,13 @@ namespace App\Actions\JobOrders;
 use App\Actions\Audit\CreateAuditLog;
 use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
+use App\Models\InventoryLot;
 use App\Models\InventoryMovement;
 use App\Models\InventoryMovementType;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -115,6 +117,32 @@ class UpdateJobOrderStatus
                 ->where('inventory_movement_type_id', $commitmentType->id)
                 ->get();
 
+            if ($commitmentMovements->isEmpty()) {
+                continue;
+            }
+
+            $variant = ProductVariant::query()
+                ->with('product')
+                ->whereKey($item->product_variant_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($variant === null) {
+                continue;
+            }
+
+            if ($variant->product?->product_type === 'contact_lens') {
+                $reversedQuantity += $this->reverseContactLensMovements(
+                    jobOrder: $jobOrder,
+                    variant: $variant,
+                    commitmentMovements: $commitmentMovements,
+                    reversalType: $reversalType,
+                    actorId: $actorId,
+                );
+
+                continue;
+            }
+
             $reversedQty = InventoryMovement::query()
                 ->where('job_order_id', $jobOrder->id)
                 ->where('product_variant_id', $item->product_variant_id)
@@ -128,28 +156,19 @@ class UpdateJobOrderStatus
                 continue;
             }
 
-            $variant = ProductVariant::query()
-                ->whereKey($item->product_variant_id)
-                ->lockForUpdate()
-                ->first();
+            $previousStock = (int) $variant->stock_quantity;
+            $newStock = $previousStock + $netCommitment;
+            $variant->update(['stock_quantity' => $newStock]);
 
-            if ($variant === null) {
-                continue;
-            }
-
-            $previousStock = $variant->stock_quantity;
-            $variant->increment('stock_quantity', $netCommitment);
-
-            InventoryMovement::query()->create([
-                'product_variant_id' => $variant->id,
-                'job_order_id' => $jobOrder->id,
-                'inventory_movement_type_id' => $reversalType->id,
-                'quantity_change' => $netCommitment,
-                'previous_stock' => $previousStock,
-                'new_stock' => $variant->fresh()->stock_quantity,
-                'created_by' => $actorId,
-                'notes' => "Reversal for cancelled job order #{$jobOrder->job_order_number}",
-            ]);
+            $this->createReversalMovement(
+                jobOrder: $jobOrder,
+                variant: $variant,
+                reversalType: $reversalType,
+                quantity: (int) $netCommitment,
+                previousStock: $previousStock,
+                newStock: $newStock,
+                actorId: $actorId,
+            );
 
             $reversedQuantity += (int) $netCommitment;
         }
@@ -164,5 +183,110 @@ class UpdateJobOrderStatus
         }
 
         return $reversedQuantity;
+    }
+
+    /**
+     * @param  Collection<int, InventoryMovement>  $commitmentMovements
+     */
+    private function reverseContactLensMovements(
+        JobOrder $jobOrder,
+        ProductVariant $variant,
+        Collection $commitmentMovements,
+        InventoryMovementType $reversalType,
+        ?int $actorId,
+    ): int {
+        $reversalMovements = InventoryMovement::query()
+            ->where('job_order_id', $jobOrder->id)
+            ->where('product_variant_id', $variant->id)
+            ->where('inventory_movement_type_id', $reversalType->id)
+            ->get();
+        $commitmentsByLot = $commitmentMovements
+            ->groupBy(fn (InventoryMovement $movement): int => (int) ($movement->inventory_lot_id ?? 0));
+        $reversalsByLot = $reversalMovements
+            ->groupBy(fn (InventoryMovement $movement): int => (int) ($movement->inventory_lot_id ?? 0));
+        $totalLotQuantity = (int) InventoryLot::query()
+            ->where('product_variant_id', $variant->id)
+            ->sum('quantity_on_hand');
+
+        if ($totalLotQuantity !== (int) $variant->stock_quantity) {
+            throw ValidationException::withMessages([
+                'inventory' => ["Contact-lens stock for variant {$variant->id} needs lot reconciliation."],
+            ]);
+        }
+
+        $reversedQuantity = 0;
+
+        foreach ($commitmentsByLot as $lotId => $lotCommitments) {
+            $lotId = (int) $lotId;
+
+            if ($lotId === 0) {
+                throw ValidationException::withMessages([
+                    'inventory' => ["The contact-lens commitment for variant {$variant->id} has no source lot."],
+                ]);
+            }
+
+            $committedQuantity = abs((int) $lotCommitments->sum('quantity_change'));
+            $alreadyReversed = abs((int) ($reversalsByLot->get($lotId)?->sum('quantity_change') ?? 0));
+            $netQuantity = $committedQuantity - $alreadyReversed;
+
+            if ($netQuantity <= 0) {
+                continue;
+            }
+
+            $lot = InventoryLot::query()
+                ->whereKey($lotId)
+                ->where('product_variant_id', $variant->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($lot === null) {
+                throw ValidationException::withMessages([
+                    'inventory' => ["The source lot for contact-lens variant {$variant->id} no longer exists."],
+                ]);
+            }
+
+            $previousStock = (int) $variant->stock_quantity;
+            $newStock = $previousStock + $netQuantity;
+            $lot->update(['quantity_on_hand' => $lot->quantity_on_hand + $netQuantity]);
+            $variant->update(['stock_quantity' => $newStock]);
+
+            $this->createReversalMovement(
+                jobOrder: $jobOrder,
+                variant: $variant,
+                reversalType: $reversalType,
+                quantity: $netQuantity,
+                previousStock: $previousStock,
+                newStock: $newStock,
+                actorId: $actorId,
+                lot: $lot,
+            );
+
+            $reversedQuantity += $netQuantity;
+        }
+
+        return $reversedQuantity;
+    }
+
+    private function createReversalMovement(
+        JobOrder $jobOrder,
+        ProductVariant $variant,
+        InventoryMovementType $reversalType,
+        int $quantity,
+        int $previousStock,
+        int $newStock,
+        ?int $actorId,
+        ?InventoryLot $lot = null,
+    ): InventoryMovement {
+        return InventoryMovement::query()->create([
+            'product_variant_id' => $variant->id,
+            'job_order_id' => $jobOrder->id,
+            'inventory_lot_id' => $lot?->id,
+            'inventory_movement_type_id' => $reversalType->id,
+            'quantity_change' => $quantity,
+            'previous_stock' => $previousStock,
+            'new_stock' => $newStock,
+            'created_by' => $actorId,
+            'notes' => "Reversal for cancelled job order #{$jobOrder->job_order_number}",
+        ]);
     }
 }
