@@ -3,13 +3,17 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
+use App\Models\InventoryLot;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
+use App\Models\Role;
 use App\Models\Service;
+use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class CatalogSeeder extends Seeder
 {
@@ -88,6 +92,7 @@ class CatalogSeeder extends Seeder
         $lensCareCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lens Care']);
         $casesCategory = ProductCategory::query()->firstOrCreate(['name' => 'Cases & Storage']);
         ProductCategory::query()->firstOrCreate(['name' => 'Reading Glasses (Discontinued)'], ['is_active' => false]);
+        $inventoryReceiver = $this->inventoryReceiver();
 
         // Contact-lens products
         $contactLensProduct = Product::query()->firstOrCreate(
@@ -121,6 +126,20 @@ class CatalogSeeder extends Seeder
                 'stock_quantity' => 18,
                 'low_stock_threshold' => 4,
                 'target_stock_level' => 24,
+                'lots' => [
+                    [
+                        'lot_number' => 'ACOASYS-200-6PK-EXP',
+                        'expires_in_days' => 45,
+                        'received_quantity' => 10,
+                        'source_reference' => 'DEMO-PO-ACU-001',
+                    ],
+                    [
+                        'lot_number' => 'ACOASYS-200-6PK-GOOD',
+                        'expires_in_days' => 180,
+                        'received_quantity' => 8,
+                        'source_reference' => 'DEMO-PO-ACU-002',
+                    ],
+                ],
             ],
             [
                 'name' => 'Toric -3.00 / -1.25 x 180 / 6-pack',
@@ -139,9 +158,23 @@ class CatalogSeeder extends Seeder
                 'stock_quantity' => 12,
                 'low_stock_threshold' => 3,
                 'target_stock_level' => 18,
+                'lots' => [
+                    [
+                        'lot_number' => 'ACOASYS-TORIC-EXP',
+                        'expires_in_days' => 60,
+                        'received_quantity' => 6,
+                        'source_reference' => 'DEMO-PO-ACU-003',
+                    ],
+                    [
+                        'lot_number' => 'ACOASYS-TORIC-GOOD',
+                        'expires_in_days' => 240,
+                        'received_quantity' => 6,
+                        'source_reference' => 'DEMO-PO-ACU-004',
+                    ],
+                ],
             ],
         ] as $variantData) {
-            ProductVariant::query()->firstOrCreate(
+            $variant = ProductVariant::query()->firstOrCreate(
                 ['sku' => $variantData['sku']],
                 [
                     'product_id' => $contactLensProduct->id,
@@ -157,6 +190,8 @@ class CatalogSeeder extends Seeder
                     'images' => [],
                 ],
             );
+
+            $this->seedContactLensLots($variant, $inventoryReceiver, $variantData['lots']);
         }
 
         // Accessory products
@@ -369,5 +404,54 @@ class CatalogSeeder extends Seeder
                 'ar_asset_reference' => null,
             ],
         );
+    }
+
+    /**
+     * @param  array<int, array{lot_number: string, expires_in_days: int, received_quantity: int, source_reference: string}>  $lots
+     */
+    private function seedContactLensLots(ProductVariant $variant, User $receiver, array $lots): void
+    {
+        foreach ($lots as $lotData) {
+            InventoryLot::query()->firstOrCreate(
+                [
+                    'product_variant_id' => $variant->id,
+                    'lot_number' => $lotData['lot_number'],
+                ],
+                [
+                    'expires_on' => now()->addDays($lotData['expires_in_days'])->endOfMonth()->toDateString(),
+                    'received_quantity' => $lotData['received_quantity'],
+                    'quantity_on_hand' => $lotData['received_quantity'],
+                    'received_at' => now(),
+                    'received_by' => $receiver->id,
+                    'source_reference' => $lotData['source_reference'],
+                ],
+            );
+        }
+
+        $variant->update([
+            'stock_quantity' => (int) InventoryLot::query()
+                ->where('product_variant_id', $variant->id)
+                ->sum('quantity_on_hand'),
+        ]);
+    }
+
+    private function inventoryReceiver(): User
+    {
+        $staffRole = Role::query()->firstOrCreate(['name' => Role::Staff]);
+        $staff = User::query()->firstOrCreate(
+            ['email' => 'staff@eyecare.test'],
+            [
+                'first_name' => 'Ana',
+                'last_name' => 'Garcia',
+                'password' => Hash::make('password'),
+                'role_id' => $staffRole->id,
+                'is_active' => true,
+                'is_optometrist' => false,
+                'email_verified_at' => now(),
+            ],
+        );
+        $staff->roles()->syncWithoutDetaching([$staffRole->id]);
+
+        return $staff;
     }
 }
