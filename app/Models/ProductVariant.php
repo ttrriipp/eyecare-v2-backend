@@ -148,6 +148,14 @@ class ProductVariant extends Model
     }
 
     /**
+     * @return HasMany<InventoryLot, $this>
+     */
+    public function inventoryLots(): HasMany
+    {
+        return $this->hasMany(InventoryLot::class);
+    }
+
+    /**
      * @return HasMany<FrameRating, $this>
      */
     public function ratings(): HasMany
