@@ -91,9 +91,39 @@ class ProductVariant extends Model
      */
     public function scopeNeedsReorder(Builder $query): void
     {
+        $variantTable = $query->getModel()->getTable();
+        $today = now()->toDateString();
+
         $query
             ->where('low_stock_threshold', '>', 0)
-            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
+            ->where(function (Builder $stockQuery) use ($today, $variantTable): void {
+                $stockQuery
+                    ->where(function (Builder $aggregateQuery): void {
+                        $aggregateQuery
+                            ->whereDoesntHave(
+                                'product',
+                                fn (Builder $productQuery): Builder => $productQuery
+                                    ->where('product_type', 'contact_lens'),
+                            )
+                            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
+                    })
+                    ->orWhere(function (Builder $contactLensQuery) use ($today, $variantTable): void {
+                        $contactLensQuery
+                            ->whereHas(
+                                'product',
+                                fn (Builder $productQuery): Builder => $productQuery
+                                    ->where('product_type', 'contact_lens'),
+                            )
+                            ->whereRaw(
+                                "(SELECT COALESCE(SUM(inventory_lots.quantity_on_hand), 0)
+                                    FROM inventory_lots
+                                    WHERE inventory_lots.product_variant_id = {$variantTable}.id
+                                      AND inventory_lots.quantity_on_hand > 0
+                                      AND inventory_lots.expires_on >= ?) <= {$variantTable}.low_stock_threshold",
+                                [$today],
+                            );
+                    });
+            });
     }
 
     /**
@@ -102,8 +132,13 @@ class ProductVariant extends Model
      */
     public function isLowStock(): bool
     {
+        $stockQuantity = $this->isContactLens()
+            ? $this->usableStockQuantity()
+            : $this->stock_quantity;
+
         return $this->low_stock_threshold > 0
-            && $this->stock_quantity <= $this->low_stock_threshold;
+            && $stockQuantity !== null
+            && $stockQuantity <= $this->low_stock_threshold;
     }
 
     public function replenishmentTarget(): ?int
@@ -117,7 +152,11 @@ class ProductVariant extends Model
             return null;
         }
 
-        return max($this->replenishmentTarget() - $this->stock_quantity, 0);
+        $stockQuantity = $this->isContactLens()
+            ? $this->usableStockQuantity()
+            : $this->stock_quantity;
+
+        return max($this->replenishmentTarget() - ($stockQuantity ?? 0), 0);
     }
 
     /**

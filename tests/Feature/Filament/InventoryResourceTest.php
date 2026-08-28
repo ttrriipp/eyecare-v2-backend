@@ -104,6 +104,47 @@ test('needs reorder tab shows only variants at or below threshold', function () 
         ->assertCanNotSeeTableRecords([$healthy]);
 });
 
+test('needs reorder uses usable contact-lens quantity instead of expired physical stock', function (): void {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+
+    $needsReorder = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 10,
+        'low_stock_threshold' => 3,
+        'target_stock_level' => 12,
+    ]);
+    InventoryLot::factory()->for($needsReorder, 'variant')->create([
+        'expires_on' => '2026-08-27',
+        'received_quantity' => 8,
+        'quantity_on_hand' => 8,
+    ]);
+    InventoryLot::factory()->for($needsReorder, 'variant')->create([
+        'expires_on' => '2026-12-31',
+        'received_quantity' => 2,
+        'quantity_on_hand' => 2,
+    ]);
+
+    $healthy = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 10,
+        'low_stock_threshold' => 3,
+    ]);
+    InventoryLot::factory()->for($healthy, 'variant')->create([
+        'expires_on' => '2027-12-31',
+        'received_quantity' => 10,
+        'quantity_on_hand' => 10,
+    ]);
+
+    expect($needsReorder->isLowStock())->toBeTrue()
+        ->and($needsReorder->suggestedReorderQuantity())->toBe(10);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->set('activeTab', 'needs_reorder')
+        ->assertCanSeeTableRecords([$needsReorder])
+        ->assertCanNotSeeTableRecords([$healthy]);
+});
+
 test('out of stock tab shows only depleted variants', function () {
     $product = Product::factory()->create();
 
