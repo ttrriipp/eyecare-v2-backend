@@ -9,7 +9,7 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Contact-Lens Expiry Tracking** — approved 2026-08-28; implementation pending
+**Contact-Lens Expiry Tracking** — implemented and verified 2026-08-28
 
 - Spec: `docs/specs/contact-lens-expiry-tracking-spec.md`
 - Plan: `tasks/contact-lens-expiry-tracking-plan.md`

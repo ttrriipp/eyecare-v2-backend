@@ -67,6 +67,27 @@
 > returning a validation error. The Filament queue labels expired requests,
 > shows a safe reason category, and offers no review actions for them.
 
+> **Shipped (2026-08-28): contact-lens expiry-tracked inventory.** Contact-lens
+> variants now use `inventory_lots` for lot number, month-end `expires_on`,
+> received quantity, on-hand quantity, receiver, and optional source reference.
+> The forward migration recreates the table and adds nullable
+> `inventory_movements.inventory_lot_id`; the historical create/drop migrations
+> remain unchanged. `product_variants.stock_quantity` remains physical on-hand
+> and must equal the sum of its lot quantities. Receiving requires a trimmed
+> lot number and `YYYY-MM` expiry month (stored as the final day in the
+> clinic's `Asia/Manila` timezone), and a repeated lot may not change its
+> expiry. Lot write-off is explicit and lot-specific.
+>
+> Expired lots remain visible but cannot satisfy an Optical Order. Commitments
+> allocate usable lots automatically in deterministic FEFO order and may split
+> across lots; cancellation restores the exact source lots once. The Inventory
+> workspace shows contact-lens usable quantity, earliest usable expiry, Good /
+> Expiring Soon / Expired states, Expiring Soon and Expired tabs, usable-stock
+> reorder signals, and a read-only View Batches action. Frames and accessories
+> retain aggregate-stock behavior. Demo contact-lens stock is seeded with
+> representative lot records after the demo staff account is created. Lot and
+> expiry data is internal to Filament and is not added to patient API resources.
+
 > **Shipped (2026-08-17): remote frame 3D assets.** Frame variants now have an
 > additive, nullable patient-facing `ar` object backed by a versioned
 > `ar_assets` table. The legacy `ar_eligible` and `ar_asset_reference` columns
@@ -274,7 +295,9 @@
 > `products` table no longer has `lens_category_id`; permitted product types
 > are `frame`, `contact_lens`, `accessory`. The commerce reconciliation reduced
 > the route count from 55 to 54; subsequent messaging hardening brought the
-> current total to 61.
+> current total to 61. The historical aggregate-only inventory simplification
+> was superseded by the contact-lens lot tracking shipped on 2026-08-28 (see
+> the current inventory note above).
 >
 > **Shipped (2026-08-11): resilient patient invitation linking.** Invitation
 > acceptance is bound to the authenticated account's verified invited contact,
@@ -651,7 +674,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
 | `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. Variants own price, dimensions, SKU, stock, legacy AR compatibility fields, and the pointer to the current published 3D asset. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
-| `product_variants` | Catalog variants. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. |
+| `product_variants` | Catalog variants. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. Contact-lens variants also expose internal lot-backed stock through `inventory_lots`; `stock_quantity` is physical on-hand and equals the lot quantity sum. |
 | `ar_assets` | Versioned GLB assets associated with a `product_variant_id`. Stores `version`, `status` (`quarantined`, `validated`, `approved`, `published`, `rejected`, `discarded`, `superseded`, or `disabled`), `format` (`glb`), private `quarantine_path`, immutable `published_path`/HTTPS `url`, server-computed `byte_size` and lowercase `sha256`, JSON `calibration`, upload/validation/approval/publication/disablement actors and timestamps, optional `expires_at`, and staff-only `validation_error`. Unique (`product_variant_id, version`); old published files are retained for rollback, while discarded unpublished rows retain audit history after their private quarantine object is removed. |
 | `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/accepted/declined), `valid_until`, `subtotal`, `discount_amount`, `total`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`. |
 | `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
@@ -669,7 +692,8 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics), `staff_last_read_at` (nullable timestamp, clinic-wide staff read watermark). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. Patient read uses per-message `messages.read_at`; staff read uses the clinic-wide `staff_last_read_at` watermark — the asymmetry is deliberate (one thread per patient, 2–3 staff). |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
-| `inventory_movements` | `product_variant_id`, `reservation_id` (historical provenance, no active FK), `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
+| `inventory_lots` | Contact-lens-only batches: `product_variant_id`, unique per-variant `lot_number`, month-end `expires_on`, `received_quantity`, `quantity_on_hand`, `received_at`, restricted `received_by`, optional `source_reference`, and timestamps. Indexes support variant FEFO display and expiry queues; expired physical stock remains stored until an explicit lot write-off. |
+| `inventory_movements` | `product_variant_id`, nullable `inventory_lot_id` for lot-aware contact-lens receipts, commitments, reversals, and write-offs, `reservation_id` (historical provenance, no active FK), `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
 | `clinic_hours` | `weekday` (0-6, Carbon convention: Sunday through Saturday), `open_time`, `close_time`, `enabled`. Staff-editable via the Availability cluster; exposed to authenticated mobile accounts as all seven rows through `GET /api/v1/clinic-hours`. |
@@ -738,7 +762,7 @@ published version as `status: ready`, otherwise `ar` is `null`.
 
 **Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. Overpayments are rejected; the balance comparison occurs under the Billing Record row lock. First posted payment locks the charge set. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates. Routine dispensing requires zero balance. Admin may release with an outstanding balance only with a nonblank reason and a current/future payment due date; the Dispensing Event snapshots the override attribution.
 
-**Inventory** (`InventoryResource`, backed by `ProductVariant`): stock is variant-level, so this resource lists variants across every product rather than products — the Products table's quantity column sums a product's variants and hides the single variant sitting at zero. Sorted by `stock_quantity` ascending. Tabs: All (default) · Needs Reorder · Out of Stock. Navigation badge counts active variants matching the `needsReorder()` scope, and the dashboard's Low Stock stat deep-links to that tab. Read-only apart from the two stock movements — variant name, price, images, and attributes are edited in Products, so a variant has exactly one editor. Three fields drive it: `low_stock_threshold` (the tripwire; `0` means untracked), `target_stock_level` (the restock-to level, nullable), and the derived suggested order quantity (`target − current`, floored at zero, null when no target is set). Stock actions live in `App\Filament\Support\StockActions` and are shared with the Products → Variants relation manager so the ledger-writing logic has one definition.
+**Inventory** (`InventoryResource`, backed by `ProductVariant`): stock is variant-level, so this resource lists variants across every product rather than products — the Products table's quantity column sums a product's variants and hides the single variant sitting at zero. Sorted by physical `stock_quantity` ascending. Tabs: All (default) · Needs Reorder · Expiring Soon · Expired · Out of Stock. Contact-lens rows add usable quantity, earliest usable expiry, and Good / Expiring Soon / Expired states; the Expiring Soon and Expired queues consider only on-hand lots and leave expired physical stock visible. Navigation badge and suggested order quantity use usable lot quantity for contact lenses and aggregate quantity for frames/accessories. Navigation badge counts active variants matching the `needsReorder()` scope, and the dashboard's Low Stock stat deep-links to that tab. Read-only apart from receiving and lot-specific write-off — variant name, price, images, and attributes are edited in Products, so a variant has exactly one editor. Three fields drive it: `low_stock_threshold` (the tripwire; `0` means untracked), `target_stock_level` (the restock-to level, nullable), and the derived suggested order quantity (target minus usable/current quantity, floored at zero, null when no target is set). The read-only View Batches action shows lot details without sale-time lot selection. Stock actions live in `App\Filament\Support\StockActions` and are shared with the Products → Variants relation manager so the ledger-writing logic has one definition.
 
 **Saved Frames:** Account-owned preferences keyed by `user_id` and
 `product_variant_id`. Saving, removing, linking, unlinking, and viewing are
@@ -883,7 +907,10 @@ server state, fail with `422` rather than being ignored. Actual account
 identity changes expire a pending Patient Link Request in the same transaction;
 normalized no-ops do not. The response uses the same complete
 `PatientAccountResource` shape as `GET /me`, and account changes never update
-the clinic `patients` row.
+the clinic `patients` row. Field-validation failures use Laravel's
+`{"message":"The given data was invalid.","errors":{"field":["..."]}}`
+envelope; missing or invalid DOB step-up proof uses the machine-readable
+`error.code` envelope instead.
 
 When a pending Patient Link Request's account identity or relevant verified
 contact data changes, the request becomes `expired` while its encrypted
@@ -1004,7 +1031,11 @@ orders, billings, checkout records, or purchases.
 | `SaveEyewearSpecification` | `app/Actions/JobOrders/` | Validates and saves lens construction, frame source, PD representation, required heights, and lab instructions; clears approval on edit |
 | `ApproveEyewearSpecification` | `app/Actions/JobOrders/` | Active optometrist approves a corrective-eyewear specification; creates audit event |
 | `VerifyEyewear` | `app/Actions/JobOrders/` | Records who checked completed eyewear against the approved specification, when, and optional notes |
-| `RecordInventoryMovement` | `app/Actions/Inventory/` | Single writer for every stock change: adjusts `stock_quantity` and appends the `inventory_movements` ledger row in one transaction, guarding against negative stock on deductions |
+| `RecordInventoryMovement` | `app/Actions/Inventory/` | Aggregate stock writer for frames/accessories: adjusts `stock_quantity` and appends the `inventory_movements` ledger row in one transaction, guarding against negative stock on deductions |
+| `ReceiveContactLensStock` | `app/Actions/Inventory/` | Receives a contact-lens lot, normalizes month-only expiry to month-end, rejects conflicting repeated-lot expiry, updates aggregate/lot quantities atomically, and records a lot-linked restock movement |
+| `WriteOffContactLensStock` | `app/Actions/Inventory/` | Writes off a selected contact-lens lot atomically while preserving the aggregate/lot invariant and append-only audit trail |
+| `CommitJobOrderInventory` | `app/Actions/JobOrders/` | Commits contact-lens quantities by locked, multi-lot FEFO and records one lot-linked movement per consumed lot; aggregate products retain the existing path |
+| `UpdateJobOrderStatus` | `app/Actions/JobOrders/` | Reverses contact-lens commitments to their exact source lots once during Optical Order cancellation |
 | `CancelOpticalOrder` | `app/Actions/OpticalOrders/` | Reverses inventory, voids unpaid billing, preserves payments |
 | `ResolveOpenCheckoutBillingRecord` | `app/Actions/BillingRecords/` | Resolves or reuses the one open Billing Record for a patient visit (matched by `job_order_id`/`encounter_id`) instead of creating a separate record per charge source |
 | `AddChargesToBilling` | `app/Actions/BillingRecords/` | Adds charges to the visit's open Billing Record, keyed by `BillingItemSourceKind` (encounter service, direct service, optical order, quotation) |
@@ -1070,8 +1101,13 @@ have never been referenced.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks/assessment/supporting_test_results/addenda reason/content use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.
-- **Inventory:** `stock_quantity` represents available stock. Saving a frame
-  preference never changes stock or creates an inventory movement. Normal order
-  commitment and dispensing rules remain the only active frame stock paths;
-  legacy reservation conversion releases any historical held units exactly once.
+- **Inventory:** `stock_quantity` represents physical on-hand stock. Frames and
+  accessories use aggregate stock movements. Contact-lens variants require
+  lot-backed quantities whose sum equals `stock_quantity`; usable quantity is
+  derived from on-hand lots with `expires_on >= today` in the clinic timezone.
+  Receiving captures lot number and month-only expiry, commitments allocate usable
+  lots by FEFO, cancellation restores source lots, and explicit write-off handles
+  expired or damaged physical stock. Saving a frame preference never changes
+  stock or creates an inventory movement. Lot/expiry fields remain internal to
+  the Filament Inventory workspace and are absent from patient APIs.
 - **Legacy tables:** `orders`, `order_items`, `order_statuses`, `billings`, `billing_items`, `billing_statuses`, `discount_types`, `payments`, `service_records` remain in the schema but have no canonical application consumers. They will be removed in a future cleanup migration.
