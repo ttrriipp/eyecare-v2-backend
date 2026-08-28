@@ -35,6 +35,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -505,15 +506,28 @@ class AuthController extends Controller
         ]);
 
         $userId = $request->user()->id;
-        $challenge = $verifyOtp->handle(
-            challengeId: $request->input('challenge_id'),
-            code: $request->input('code'),
-            expectedPurpose: OtpPurpose::AddContact,
-            expectedUserId: $userId,
-        );
-
-        $contact = DB::transaction(function () use ($userId, $challenge, $expirePendingLinkRequest): PatientAccountContact {
+        $verificationFailure = null;
+        $contact = DB::transaction(function () use (
+            &$verificationFailure,
+            $request,
+            $userId,
+            $verifyOtp,
+            $expirePendingLinkRequest,
+        ): ?PatientAccountContact {
             $user = User::query()->lockForUpdate()->findOrFail($userId);
+
+            try {
+                $challenge = $verifyOtp->handle(
+                    challengeId: $request->input('challenge_id'),
+                    code: $request->input('code'),
+                    expectedPurpose: OtpPurpose::AddContact,
+                    expectedUserId: $user->id,
+                );
+            } catch (ValidationException $exception) {
+                $verificationFailure = $exception;
+
+                return null;
+            }
 
             $contactType = $challenge->channel;
             $destination = $challenge->encrypted_destination;
@@ -567,6 +581,14 @@ class AuthController extends Controller
 
             return $contact;
         });
+
+        if ($verificationFailure instanceof ValidationException) {
+            throw $verificationFailure;
+        }
+
+        if (! $contact instanceof PatientAccountContact) {
+            throw new \LogicException('Verified contact was not persisted.');
+        }
 
         return response()->json([
             'data' => [
