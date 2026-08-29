@@ -24,6 +24,7 @@ test('optical orders report separates created, dispensed, and cancelled event co
     $inProgress = JobOrder::factory()->create([
         'status' => JobOrderStatus::InProgress,
         'fulfillment_mode' => 'immediate',
+        'uses_external_supplier' => true,
         'created_at' => '2026-08-10 09:00:00',
     ]);
     $dispensed = JobOrder::factory()->create([
@@ -102,6 +103,13 @@ test('optical orders report separates created, dispensed, and cancelled event co
         ->and($modes->get('Prepared')['value'])
         ->toBe(4)
         ->and($modes->get('Immediate')['value'])
+        ->toBe(1);
+
+    $suppliers = collect($sections->get('Supplier mode')['rows'])->keyBy('label');
+
+    expect($suppliers->get('In-house')['value'])
+        ->toBe(4)
+        ->and($suppliers->get('External supplier')['value'])
         ->toBe(1);
 });
 

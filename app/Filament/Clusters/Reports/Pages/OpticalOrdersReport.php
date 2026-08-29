@@ -27,6 +27,7 @@ class OpticalOrdersReport extends ReportsClusterPage
             'Dispensed' => 'Dispensing events recorded in the selected period.',
             'Cancelled' => 'Current cancelled orders whose cancelled_at falls in the selected period.',
             'Avg. time to dispense' => 'Average time from order creation to dispensing event for events in the period.',
+            'Supplier mode' => 'Created-cohort orders grouped by in-house or external supplier fulfillment.',
         ];
     }
 
@@ -74,6 +75,12 @@ class OpticalOrdersReport extends ReportsClusterPage
             ->orderBy('fulfillment_mode')
             ->pluck('order_count', 'fulfillment_mode')
             ->map(fn (int|string $count): int => (int) $count);
+        $supplierCounts = (clone $orders)
+            ->select('uses_external_supplier', DB::raw('COUNT(*) AS order_count'))
+            ->groupBy('uses_external_supplier')
+            ->orderBy('uses_external_supplier')
+            ->pluck('order_count', 'uses_external_supplier')
+            ->map(fn (int|string $count): int => (int) $count);
 
         $statusLabels = [
             JobOrderStatus::Queued->value => 'Confirmed',
@@ -92,6 +99,18 @@ class OpticalOrdersReport extends ReportsClusterPage
         $modeRows = $modeCounts
             ->map(fn (int $count, string $mode): array => [
                 'label' => Str::headline($mode),
+                'value' => $count,
+                'percentage' => $this->percentage($count, $totalOrders),
+            ])
+            ->values()
+            ->all();
+        $supplierRows = $supplierCounts
+            ->map(fn (int $count, int|string|null $usesExternalSupplier): array => [
+                'label' => match ((string) $usesExternalSupplier) {
+                    '0' => 'In-house',
+                    '1' => 'External supplier',
+                    default => 'Unknown',
+                },
                 'value' => $count,
                 'percentage' => $this->percentage($count, $totalOrders),
             ])
@@ -116,6 +135,12 @@ class OpticalOrdersReport extends ReportsClusterPage
                     'title' => 'Fulfillment mode',
                     'description' => 'Orders grouped by the fulfillment mode captured at creation.',
                     'rows' => $modeRows,
+                    'has_data' => $totalOrders > 0,
+                ],
+                [
+                    'title' => 'Supplier mode',
+                    'description' => 'Orders grouped by whether an external supplier was required.',
+                    'rows' => $supplierRows,
                     'has_data' => $totalOrders > 0,
                 ],
             ],
