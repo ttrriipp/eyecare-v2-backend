@@ -83,8 +83,8 @@ class FinancialReport extends ReportsClusterPage
         ])->all();
 
         $paymentRows = $paymentAmounts
-            ->map(fn (float $amount, string $method): array => [
-                'label' => Str::headline($method),
+            ->map(fn (float $amount, ?string $method): array => [
+                'label' => filled($method) ? Str::headline($method) : 'Unknown',
                 'value' => $this->formatMoney($amount),
                 'percentage' => $this->percentage($amount, $paymentTotal),
             ])
@@ -112,6 +112,15 @@ class FinancialReport extends ReportsClusterPage
                 ];
             })
             ->filter()
+            ->values();
+        $sourceRows = $sourceRows
+            ->merge(
+                $sourceAmounts->except(array_keys($sourceLabels))->map(fn (float $amount): array => [
+                    'label' => 'Unknown source',
+                    'value' => $this->formatMoney($amount),
+                    'percentage' => $this->percentage($amount, $sourceTotal),
+                ])->values(),
+            )
             ->values()
             ->all();
 
