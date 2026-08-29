@@ -1,5 +1,15 @@
 # Active Checklist
 
+**Reports Feature** — approved 2026-08-30; implementation intentionally paused
+
+→ `tasks/reports-feature-todo.md`
+
+The administrator-only access model, four report contracts, internal navigation,
+and aggregate CSV scope are approved. Implementation remains paused until the
+owner explicitly asks to begin.
+
+The previous completed checklist remains:
+
 **Contact-Lens Expiry Tracking** — approved 2026-08-28; implementation pending
 
 → `tasks/contact-lens-expiry-tracking-todo.md`
@@ -7,7 +17,7 @@
 The specification and dependency-ordered plan are approved. Implementation is
 starting with the lot schema and test-first inventory invariants.
 
-The previous completed checklist remains:
+The earlier completed checklist remains:
 
 **Patient Account Self-Service Profile Editing** — implemented and verified
 2026-08-28

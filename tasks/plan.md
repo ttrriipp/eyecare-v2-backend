@@ -9,6 +9,21 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Reports Feature** — approved 2026-08-30; implementation intentionally paused
+
+- Spec: `docs/specs/reports-feature-spec.md`
+- Plan: `tasks/reports-feature-plan.md`
+- Checklist: `tasks/reports-feature-todo.md`
+
+The proposed scope is an admin-only Filament Reports cluster with Financial,
+Appointments, Optical Orders, and Feedback pages. It uses canonical current
+tables, keeps the patient API unchanged, and explicitly separates period flows
+from current snapshots. The owner approved the administrator-only access model,
+four internal report pages, metric definitions, and aggregate CSV scope, then
+explicitly paused implementation until further instruction.
+
+## Previous active entry (preserved)
+
 **Contact-Lens Expiry Tracking** — implemented and verified 2026-08-28
 
 - Spec: `docs/specs/contact-lens-expiry-tracking-spec.md`
@@ -21,7 +36,7 @@ sales allocate automatically by multi-lot FEFO, expired stock is blocked, and
 the existing Inventory screen gains concise read-only expiry visibility.
 Development stock is disposable, so no reconciliation workflow is built.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Patient Account Self-Service Profile Editing** — implemented and verified
 
