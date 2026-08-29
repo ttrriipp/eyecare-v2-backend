@@ -22,6 +22,8 @@ class ReportsCluster extends Cluster
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->isAdmin() ?? false;
+        $user = auth()->user();
+
+        return $user?->is_active === true && $user->isAdmin();
     }
 }

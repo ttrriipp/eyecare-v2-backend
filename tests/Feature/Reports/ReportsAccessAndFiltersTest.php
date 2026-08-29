@@ -19,6 +19,14 @@ test('reports are available only to administrators', function () {
         ->and(FinancialReport::canAccess())
         ->toBeTrue();
 
+    $inactiveAdmin = User::factory()->admin()->create(['is_active' => false]);
+    $this->actingAs($inactiveAdmin);
+
+    expect(ReportsCluster::canAccess())
+        ->toBeFalse()
+        ->and(FinancialReport::canAccess())
+        ->toBeFalse();
+
     foreach (['staff', 'optometrist', 'patient'] as $state) {
         $user = User::factory()->{$state}()->create();
         $this->actingAs($user);
