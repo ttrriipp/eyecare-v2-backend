@@ -527,6 +527,47 @@ Updates account-owned identity fields. At least one allowed field is required.
 - Clinical Patient demographics are read-only and never editable via the mobile API. A successful change never writes the `patients` row.
 - An actual identity change expires the account's pending patient-link request in the same transaction and records only field names and workflow outcomes in audit metadata. A normalized no-op does not expire or audit.
 
+**Validation errors (422):** Field validation uses the standard Laravel
+validation envelope. The proposed `error.code = VALIDATION_ERROR` envelope is
+not currently returned by this endpoint.
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "date_of_birth": [
+      "The date of birth field must be a date before today."
+    ]
+  }
+}
+```
+
+`errors` is an object keyed by the submitted field (or `profile` when no
+editable field was supplied); every value is an array of patient-safe
+messages. For this endpoint, representative messages are:
+
+| Condition | Field | Message |
+|---|---|---|
+| Invalid date format | `date_of_birth` | `The date of birth field must match the format Y-m-d.` |
+| Date is today or in the future | `date_of_birth` | `The date of birth field must be a date before today.` |
+| Unsupported or clinic-owned field | submitted field | `This field is not editable through this endpoint.` |
+| Blank `first_name` or `last_name` | submitted field | `The <field> field must have a value.` |
+| Empty request | `profile` | `At least one editable field is required.` |
+
+The top-level `message` is Laravel's human-readable summary; clients should
+use the field-keyed `errors` map for field display. Missing, invalid, or
+expired step-up proof is handled before validation and instead returns the
+machine-readable envelope documented in §4, for example:
+
+```json
+{
+  "error": {
+    "code": "STEP_UP_REQUIRED",
+    "message": "A step-up verification token is required for this action. Request one via POST /auth/step-up/otp and POST /auth/step-up/verify."
+  }
+}
+```
+
 **Android handoff:** Render the account editor from the four fields above and
 label `linked_patient` as clinic-owned/read-only. Send only changed supported
 fields; when editing DOB, complete the existing step-up OTP flow and send its
@@ -554,6 +595,7 @@ Certain security-sensitive operations require an authenticated step-up OTP to pr
 **Endpoints requiring step-up:**
 | Endpoint | Method | Header |
 |----------|--------|--------|
+| `/me` when `date_of_birth` is present | PATCH | `X-Step-Up-Token` |
 | `/account/contacts/otp` | POST | `X-Step-Up-Token` |
 | `/account/contacts/{id}/primary` | PATCH | `X-Step-Up-Token` |
 | `/account/contacts/{id}` | DELETE | `X-Step-Up-Token` |
@@ -2258,6 +2300,9 @@ paginated with the same cursor shape as the messages endpoint.
 
 **Query parameters:**
 - `q` (required, string, max 500): Search term.
+- `cursor` (optional, opaque string): Cursor returned in `meta.next_cursor` by
+  the previous response. Omit it for the first page and URL-encode it when
+  requesting the next page. The fixed page size is 50 messages.
 
 **Validation:**
 - `q`: required, string, maximum 500 characters
@@ -2391,7 +2436,21 @@ Marks all unread notifications as read.
 
 ## 16. Error Responses
 
-All API errors use one consistent JSON shape:
+Two JSON error envelopes are currently exposed. Validation exceptions,
+including Form Request and action-level validation failures, use Laravel's
+validation envelope:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "field": ["Patient-safe validation message"]
+  }
+}
+```
+
+Endpoints that return an explicit machine-readable error code (for example,
+step-up middleware and rate limiting) use this envelope:
 
 ```json
 {
