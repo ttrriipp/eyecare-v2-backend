@@ -3,6 +3,7 @@
 use App\Filament\Clusters\Reports\Pages\FinancialReport;
 use App\Filament\Clusters\Reports\ReportsCluster;
 use App\Models\User;
+use Filament\Pages\Enums\SubNavigationPosition;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
@@ -27,6 +28,15 @@ test('reports are available only to administrators', function () {
             ->and(FinancialReport::canAccess())
             ->toBeFalse();
     }
+});
+
+test('reports use one admin navigation entry with four internal destinations', function () {
+    expect(ReportsCluster::getNavigationLabel())
+        ->toBe('Reports')
+        ->and(ReportsCluster::getSubNavigationPosition())
+        ->toBe(SubNavigationPosition::Top)
+        ->and(FinancialReport::getCluster())
+        ->toBe(ReportsCluster::class);
 });
 
 test('reports default to the current Manila month and defer manual range changes', function () {
