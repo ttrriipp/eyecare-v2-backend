@@ -38,6 +38,13 @@ test('reports are available only to administrators', function () {
     }
 });
 
+test('non-admins cannot open a report page by direct URL', function () {
+    $this->actingAs(User::factory()->staff()->create());
+
+    $this->get(route('filament.admin.reports.pages.financial-report'))
+        ->assertForbidden();
+});
+
 test('reports use one admin navigation entry with four internal destinations', function () {
     expect(ReportsCluster::getNavigationLabel())
         ->toBe('Reports')
