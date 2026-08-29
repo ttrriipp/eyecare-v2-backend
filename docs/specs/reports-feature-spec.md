@@ -1,6 +1,6 @@
 # Spec: Reports Feature
 
-**Status:** Approved 2026-08-30 — implementation intentionally paused by the owner.
+**Status:** Implemented 2026-08-30.
 
 ## Assumptions
 
@@ -41,7 +41,7 @@ The cluster contains four pages:
 4. Feedback
 
 Each page shares the same period controls, preset ranges, KPI presentation,
-accessible breakdown tables, empty state, and CSV action. Filters are reflected
+accessible breakdowns, empty state, and CSV action. Filters are reflected
 in the URL so a report view can be bookmarked or shared with another authorized
 administrator.
 
@@ -89,7 +89,7 @@ past point in time.
 
 ### Optical Orders
 
-Canonical source: `job_orders`.
+Canonical sources: `job_orders` and `dispensing_events`.
 
 - **Orders created:** records whose `created_at` falls in the period.
 - Current status breakdown for that created cohort: Confirmed (`queued`),
@@ -180,7 +180,7 @@ populations and must never be merged into one average.
 
 - PHP 8.5, Laravel 13, Filament 5, Livewire 4, Pest 4, MySQL, Laravel Sail.
 - Focused tests:
-  `vendor/bin/sail artisan test --compact tests/Feature/Filament/ReportsTest.php tests/Feature/Filament/AdminNavigationStructureTest.php`
+  `vendor/bin/sail artisan test --compact tests/Feature/Reports tests/Feature/Filament/AdminNavigationStructureTest.php`
 - Format modified PHP:
   `vendor/bin/sail bin pint --dirty --format agent`
 - Frontend build when report views or theme classes change:
@@ -210,9 +210,9 @@ populations and must never be merged into one average.
 - **Always:** use canonical current models; authorize page and export access;
   validate filters; use clinic-timezone half-open ranges; run focused tests,
   Pint, and the frontend build; update `BACKEND_CONTEXT.md` when shipped.
-- **Ask first:** add database indexes, add dependencies, expose reports outside
-  Filament, widen access beyond administrators, or add a historical snapshot
-  model.
+- **Ask first:** add indexes beyond the shipped report-query migration, add
+  dependencies, expose reports outside Filament, widen access beyond
+  administrators, or add a historical snapshot model.
 - **Never:** add report routes to the patient `/api/v1` contract; expose PII or
   clinical narrative; resurrect legacy models; call the current balance an
   historical as-of balance; present mutable payments as an audited cash ledger.
@@ -235,5 +235,18 @@ populations and must never be merged into one average.
    exports, and scheduled delivery are deferred.
 4. The Reports cluster has one main-sidebar entry and four internal report
    destinations: Financial, Appointments, Optical Orders, and Feedback.
-5. Approval does not authorize implementation; work remains paused until the
-   owner explicitly asks to begin.
+5. Implementation is complete in the admin-only Reports cluster. The patient
+   API contract remains unchanged.
+
+## Implementation Reconciliation
+
+The shipped feature uses `app/Filament/Clusters/Reports/` with one Reports
+navigation entry under Admin and four top-sub-navigation pages: Financial,
+Appointments, Optical Orders, and Feedback. The shared page shell owns
+authorization, clinic-timezone date filters, presets, half-open boundaries,
+aggregate CSV export, and validation. The retired report scaffold and view were
+removed rather than reused. CSV cells are formula-safe and monetary values are
+exported as numeric strings; page and export payloads contain no patient PII.
+
+Final query-plan review justified one reversible migration adding report cohort
+indexes. No reporting tables, dependencies, or patient API routes were added.

@@ -1,12 +1,12 @@
 # Active Checklist
 
-**Reports Feature** — approved 2026-08-30; implementation intentionally paused
+**Reports Feature** — implemented and verified 2026-08-30
 
 → `tasks/reports-feature-todo.md`
 
 The administrator-only access model, four report contracts, internal navigation,
-and aggregate CSV scope are approved. Implementation remains paused until the
-owner explicitly asks to begin.
+and aggregate CSV scope are implemented and verified. See the feature checklist
+for task and checkpoint commits.
 
 The previous completed checklist remains:
 

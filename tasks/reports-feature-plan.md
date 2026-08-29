@@ -1,7 +1,6 @@
 # Implementation Plan: Reports Feature
 
-**Status:** Approved 2026-08-30 — implementation intentionally paused until the
-owner explicitly asks to begin.
+**Status:** Implemented 2026-08-30.
 
 ## Overview
 
@@ -22,8 +21,8 @@ patient API changes.
   clearly labeled current snapshots or current cohort outcomes.
 - Use half-open datetime bounds in `Asia/Manila`, conditional aggregates, and
   zero-filled bounded groups. Do not use `whereDate()` on report predicates.
-- Start without schema changes. Review final query plans before proposing any
-  report-specific indexes.
+- Start without schema changes, then review final query plans. Add only the
+  reversible report-specific indexes justified by those plans.
 
 ## Dependency Graph
 
@@ -84,22 +83,24 @@ domain metric fixtures before implementation.
 
 **Acceptance criteria:**
 
-- [ ] Tests describe access, filtering, all four metric contracts, empty
-  states, and CSV behavior.
-- [ ] New behavior tests fail for the expected reason against the disabled
-  legacy scaffold.
-- [ ] Existing navigation tests remain unchanged and green before the new
-  cluster is exposed.
+- [x] Focused tests describe access, filtering, all four metric contracts,
+  empty states, and CSV behavior.
+- [x] Characterization tests were committed red before the shared shell and
+  then turned green by the implementation.
+- [x] Existing navigation tests remain green with the Reports cluster exposed.
 
-**Verification:**
-`vendor/bin/sail artisan test --compact tests/Feature/Filament/ReportsTest.php`
-fails only on the intentionally missing feature assertions.
+**Verification:** Focused report tests and the navigation structure test pass.
 
 **Dependencies:** Task 1.
 
 **Files likely touched:**
 
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/ReportsAccessAndFiltersTest.php`
+- `tests/Feature/Reports/FinancialReportTest.php`
+- `tests/Feature/Reports/AppointmentsReportTest.php`
+- `tests/Feature/Reports/OpticalOrdersReportTest.php`
+- `tests/Feature/Reports/FeedbackReportTest.php`
+- `tests/Feature/Reports/ReportExportsTest.php`
 
 **Estimated scope:** Small.
 
@@ -114,21 +115,21 @@ KPI and breakdown sections.
 
 **Acceptance criteria:**
 
-- [ ] Only active administrators can access the cluster or direct report URLs.
-- [ ] This month is the default; presets and valid custom ranges produce the
+- [x] Only active administrators can access the cluster or direct report URLs.
+- [x] This month is the default; presets and valid custom ranges produce the
   expected half-open boundaries in `Asia/Manila`.
-- [ ] Invalid and reversed date ranges render field-level errors and do not run
+- [x] Invalid and reversed date ranges render field-level errors and do not run
   report/export queries.
 
-**Verification:** Run the access/filter subset of `ReportsTest.php` and
-`AdminNavigationStructureTest.php`.
+**Verification:** `ReportsAccessAndFiltersTest.php` and
+`AdminNavigationStructureTest.php` pass.
 
 **Dependencies:** Task 2.
 
 **Files likely touched:**
 
 - `app/Filament/Clusters/Reports/ReportsCluster.php`
-- `app/Filament/Clusters/Reports/Pages/BaseReport.php`
+- `app/Filament/Clusters/Reports/Pages/ReportsClusterPage.php`
 - `resources/views/filament/clusters/reports/pages/report.blade.php`
 - `app/Providers/Filament/AdminPanelProvider.php`
 - `tests/Feature/Filament/AdminNavigationStructureTest.php`
@@ -137,9 +138,10 @@ KPI and breakdown sections.
 
 ## Checkpoint: Shared Shell
 
-- [ ] Access and date-filter tests pass.
-- [ ] Admin navigation contains one Reports entry with a unique outlined icon.
-- [ ] Staff navigation has no empty or unauthorized group.
+- [x] Access and date-filter tests pass.
+- [x] Admin navigation contains one Reports entry with a unique outlined icon.
+- [x] Staff navigation has no empty or unauthorized group.
+- [x] Code review completed; shell typing and title handling findings were fixed.
 
 ## Phase 2: Vertical Report Slices
 
@@ -151,19 +153,19 @@ without double-counting Optical Orders.
 
 **Acceptance criteria:**
 
-- [ ] KPI values and breakdowns match the Financial contract at both date
+- [x] KPI values and breakdowns match the Financial contract at both date
   boundaries.
-- [ ] Voided bills and reversed payments are excluded.
-- [ ] Flow and current-snapshot labels are visibly distinct.
+- [x] Voided bills and reversed payments are excluded.
+- [x] Flow and current-snapshot labels are visibly distinct.
 
-**Verification:** Run Financial cases in `ReportsTest.php`.
+**Verification:** `FinancialReportTest.php` passes.
 
 **Dependencies:** Task 3.
 
 **Files likely touched:**
 
 - `app/Filament/Clusters/Reports/Pages/FinancialReport.php`
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/FinancialReportTest.php`
 
 **Estimated scope:** Medium.
 
@@ -174,18 +176,18 @@ breakdowns, and terminal-only fulfillment/no-show rates.
 
 **Acceptance criteria:**
 
-- [ ] All five appointment outcomes are represented, including zero counts.
-- [ ] Nonterminal appointments do not dilute terminal outcome rates.
-- [ ] Source and appointment-type totals reconcile to the scheduled cohort.
+- [x] All five appointment outcomes are represented, including zero counts.
+- [x] Nonterminal appointments do not dilute terminal outcome rates.
+- [x] Source and appointment-type totals reconcile to the scheduled cohort.
 
-**Verification:** Run Appointment cases in `ReportsTest.php`.
+**Verification:** `AppointmentsReportTest.php` passes.
 
 **Dependencies:** Task 3.
 
 **Files likely touched:**
 
 - `app/Filament/Clusters/Reports/Pages/AppointmentsReport.php`
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/AppointmentsReportTest.php`
 
 **Estimated scope:** Medium.
 
@@ -196,20 +198,20 @@ dispensed/cancelled period events with average fulfillment time.
 
 **Acceptance criteria:**
 
-- [ ] Current created-cohort status counts reconcile to orders created in the
+- [x] Current created-cohort status counts reconcile to orders created in the
   period.
-- [ ] Dispensed and cancelled event metrics use their transition timestamps,
+- [x] Dispensed and cancelled event metrics use their transition timestamps,
   regardless of order creation date.
-- [ ] Average fulfillment time includes only orders dispensed in the period.
+- [x] Average fulfillment time includes only orders dispensed in the period.
 
-**Verification:** Run Optical Order cases in `ReportsTest.php`.
+**Verification:** `OpticalOrdersReportTest.php` passes.
 
 **Dependencies:** Task 3.
 
 **Files likely touched:**
 
 - `app/Filament/Clusters/Reports/Pages/OpticalOrdersReport.php`
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/OpticalOrdersReportTest.php`
 
 **Estimated scope:** Medium.
 
@@ -220,26 +222,28 @@ averages, and star distributions without exposing comments or PII.
 
 **Acceptance criteria:**
 
-- [ ] Visit and frame populations are never combined into one average.
-- [ ] Each 1–5 distribution is zero-filled and reconciles to its count.
-- [ ] Hidden comments contribute stars but no text or moderation data appears.
+- [x] Visit and frame populations are never combined into one average.
+- [x] Each 1–5 distribution is zero-filled and reconciles to its count.
+- [x] Hidden comments contribute stars but no text or moderation data appears.
 
-**Verification:** Run Feedback cases in `ReportsTest.php`.
+**Verification:** `FeedbackReportTest.php` passes.
 
 **Dependencies:** Task 3.
 
 **Files likely touched:**
 
 - `app/Filament/Clusters/Reports/Pages/FeedbackReport.php`
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/FeedbackReportTest.php`
 
 **Estimated scope:** Medium.
 
 ## Checkpoint: Report Semantics
 
-- [ ] All four pages render useful populated and empty states.
-- [ ] KPI totals reconcile with every applicable breakdown.
-- [ ] The patient API route contract remains unchanged.
+- [x] All four pages render useful populated and empty states.
+- [x] KPI totals reconcile with every applicable breakdown.
+- [x] The patient API route contract remains unchanged.
+- [x] Code review completed; unknown/null breakdown values now use explicit
+  safe labels and do not disappear or type-error.
 
 ## Phase 3: Export, Performance, and Reconciliation
 
@@ -251,50 +255,57 @@ loading, and empty-state behavior.
 
 **Acceptance criteria:**
 
-- [ ] CSV metadata, KPIs, and breakdowns match the visible report.
-- [ ] Exports contain no PII and use formula-safe cells.
-- [ ] Report pages remain usable at the required breakpoints and without color
+- [x] CSV metadata, metric definitions, KPIs, and breakdowns match the visible
+  report; monetary values are raw two-decimal numeric strings.
+- [x] Exports contain no PII and use formula-safe cells.
+- [x] Report pages remain usable at the required breakpoints and without color
   as the only status signal.
 
-**Verification:** Run CSV/UI cases in `ReportsTest.php`, then
-`vendor/bin/sail npm run build` and perform the documented browser checks.
+**Verification:** `ReportExportsTest.php` passes and the frontend build is
+green; the rendered view includes labeled empty, validation, and loading states.
 
 **Dependencies:** Tasks 4–7.
 
 **Files likely touched:**
 
-- `app/Filament/Clusters/Reports/Pages/BaseReport.php`
+- `app/Filament/Clusters/Reports/Pages/ReportsClusterPage.php`
 - `resources/views/filament/clusters/reports/pages/report.blade.php`
-- `tests/Feature/Filament/ReportsTest.php`
+- `tests/Feature/Reports/ReportExportsTest.php`
 
 **Estimated scope:** Medium.
+
+**Review:** Checkpoint review fixed presentation-formatted currency in CSVs,
+added formula-safe numeric handling, and added explicit filter/export loading
+states.
 
 ### Task 9: Review query plans and add only justified indexes
 
 **Description:** Run `EXPLAIN` for the final aggregate queries against
-representative data. If existing indexes are inadequate, pause for approval,
-then add one reversible migration containing only the justified report access
-paths.
+representative data. The reviewed plans showed full scans on the principal
+report cohorts, so one reversible migration adds only the justified report
+access paths.
 
 **Acceptance criteria:**
 
-- [ ] Every report query has a reviewed plan and bounded result shape.
-- [ ] No migration is created when current indexes and clinic volume are
-  adequate.
-- [ ] Any proposed index names its supporting query and is covered by a focused
-  schema test before migration.
+- [x] Every report query has a reviewed plan and bounded result shape.
+- [x] The migration contains only indexes justified by the reviewed plans.
+- [x] Each index names its supporting query and is covered by a focused schema
+  test.
 
-**Verification:** Focused report tests; if approved and added, run the new
-schema test plus `vendor/bin/sail artisan migrate:status`.
+**Verification:** Focused report tests, `ReportQueryIndexTest.php`, and
+`vendor/bin/sail artisan migrate:status` pass after migration.
 
 **Dependencies:** Tasks 4–7.
 
 **Files likely touched:**
 
-- `database/migrations/*_add_report_query_indexes.php` (conditional)
-- `tests/Feature/Reports/ReportQueryIndexTest.php` (conditional)
+- `database/migrations/2026_08_30_003957_add_report_query_indexes.php`
+- `tests/Feature/Reports/ReportQueryIndexTest.php`
 
 **Estimated scope:** Small without migration; Medium with migration.
+
+**Review:** Query-plan review justified the single reversible index migration;
+the schema regression test verifies every named index.
 
 ### Task 10: Reconcile documentation and run final verification
 
@@ -304,15 +315,15 @@ and run the focused quality gates.
 
 **Acceptance criteria:**
 
-- [ ] `BACKEND_CONTEXT.md` describes the Reports cluster and canonical metric
+- [x] `BACKEND_CONTEXT.md` describes the Reports cluster and canonical metric
   semantics.
-- [ ] The historical `reports-ui-spec.md` is left as history or clearly marked
+- [x] The historical `reports-ui-spec.md` is left as history or clearly marked
   superseded; it is not treated as current truth.
-- [ ] No API contract or route count changes are made.
+- [x] No API contract or route count changes are made.
 
 **Verification:**
 
-- `vendor/bin/sail artisan test --compact tests/Feature/Filament/ReportsTest.php tests/Feature/Filament/AdminNavigationStructureTest.php`
+- `vendor/bin/sail artisan test --compact tests/Feature/Reports tests/Feature/Filament/AdminNavigationStructureTest.php`
 - `vendor/bin/sail bin pint --dirty --format agent`
 - `vendor/bin/sail npm run build`
 - `git diff --check`
@@ -323,9 +334,9 @@ and run the focused quality gates.
 
 - `docs/BACKEND_CONTEXT.md`
 - `docs/specs/reports-ui-spec.md`
-- `app/Filament/Pages/Reports/BaseReport.php` (remove after replacement)
-- `resources/views/filament/pages/reports/report.blade.php` (remove after replacement)
-- `resources/views/filament/pages/reports/reorder.blade.php` (remove after replacement)
+- `app/Filament/Pages/Reports/BaseReport.php` (removed)
+- `resources/views/filament/pages/reports/report.blade.php` (removed)
+- `resources/views/filament/pages/reports/reorder.blade.php` (removed)
 
 **Estimated scope:** Medium.
 

@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-08-28.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-08-30.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -20,7 +20,9 @@
 > `CreateDirectOpticalOrder` direct-creation flow). Order creation,
 > Encounter service charges, and direct Billing Record charges now share
 > one open checkout per patient visit instead of creating duplicate billing
-> records per source.
+> records per source. The admin-only **Reports** cluster now provides
+> aggregate Financial, Appointments, Optical Orders, and Feedback pages with
+> shared clinic-timezone filters and safe CSV exports.
 
 > **Consultation presentation terminology (2026-08-21).** The Filament panel
 > presents the backend `Encounter` record as a **Consultation** across clinical,
@@ -790,7 +792,7 @@ Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::
 - Optical — Quotations, Optical Orders, Frame Ratings
 - Billing — Billing & Payments
 - Catalog — Products, Inventory, Inventory History, Brands, Lens Categories, Lens Options, Product Categories, Services
-- Admin — Staff Accounts, SMS Log, Audit Logs
+- Admin — Staff Accounts, SMS Log, Audit Logs, Reports (cluster)
 
 **Remote frame 3D assets** are managed from the `VariantsRelationManager` on
 frame products. Active staff/admin users use the single **Manage 3D model**
@@ -812,6 +814,18 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 - **Optometrist Hours** — per-optometrist `provider_hours` schedule.
 - **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete; the upcoming-overrides list is a real Filament table (`HasTable`/`InteractsWithTable` on the page), not hand-rolled HTML.
 - **Appointment Types** (admin-only resource) — manages appointment type labels, description, duration (5-minute step, 5–240 range), referral requirement, patient visibility, and active state. The resource has no delete action; deactivate a type to remove it from new patient selections while preserving existing appointment snapshots.
+
+**Reports cluster** (`app/Filament/Clusters/Reports/`) is admin-only and contains
+four top-sub-navigation pages: **Financial**, **Appointments**, **Optical
+Orders**, and **Feedback**. Reports are read-only aggregates over canonical
+workflow tables and use inclusive calendar dates interpreted in
+`Asia/Manila`, translated to half-open timestamp bounds. Financial billed and
+collected amounts are period flows; open balance and status breakdowns are
+current snapshots for the selected cohort. Optical dispensed/cancelled metrics
+use their transition timestamps, and feedback keeps visit and frame ratings
+separate. Pages and CSV exports never include patient names, comments, clinical
+narrative, or other PII. There is no patient-mobile reports endpoint; the API
+contract remains unchanged.
 
 **Patient Record tabs** (`app/Filament/Resources/Patients/RelationManagers/`): Prescriptions, Appointments, **Encounters**, **Optical Orders**, **Billing**, Health Record, Invitation History — all read-only lists with a `ViewAction` linking out to the full resource page. Encounters/Optical Orders reuse the existing `Patient::encounters()`/`jobOrders()` relations; Billing required a new `Patient::billingRecords()` relation.
 

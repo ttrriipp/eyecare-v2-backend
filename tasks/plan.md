@@ -9,18 +9,18 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
-**Reports Feature** — approved 2026-08-30; implementation intentionally paused
+**Reports Feature** — implemented and verified 2026-08-30
 
 - Spec: `docs/specs/reports-feature-spec.md`
 - Plan: `tasks/reports-feature-plan.md`
 - Checklist: `tasks/reports-feature-todo.md`
 
-The proposed scope is an admin-only Filament Reports cluster with Financial,
+The shipped scope is an admin-only Filament Reports cluster with Financial,
 Appointments, Optical Orders, and Feedback pages. It uses canonical current
 tables, keeps the patient API unchanged, and explicitly separates period flows
 from current snapshots. The owner approved the administrator-only access model,
-four internal report pages, metric definitions, and aggregate CSV scope, then
-explicitly paused implementation until further instruction.
+four internal report pages, metric definitions, and aggregate CSV scope. The
+feature is implemented, reviewed, tested, and documented.
 
 ## Previous active entry (preserved)
 

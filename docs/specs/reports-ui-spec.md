@@ -1,5 +1,9 @@
 # Spec: Reports Module UI Improvements
 
+> **Historical / superseded (2026-08-30).** This earlier UI proposal refers to
+> the retired Sales/Orders labels and legacy report scaffold. The current truth
+> is `docs/specs/reports-feature-spec.md` and the shipped Reports cluster.
+
 ## Objective
 
 Make the 4 report pages (Sales, Orders, Appointments, Feedback) more useful and visually rich for the defense, without adding fragile client-side JS.
