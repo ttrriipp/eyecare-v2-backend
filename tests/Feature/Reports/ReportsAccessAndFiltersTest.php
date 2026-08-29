@@ -19,6 +19,14 @@ test('reports are available only to administrators', function () {
         ->and(FinancialReport::canAccess())
         ->toBeTrue();
 
+    $dualRoleAdmin = User::factory()->adminOptometrist()->create();
+    $this->actingAs($dualRoleAdmin);
+
+    expect(ReportsCluster::canAccess())
+        ->toBeTrue()
+        ->and(FinancialReport::canAccess())
+        ->toBeTrue();
+
     $inactiveAdmin = User::factory()->admin()->create(['is_active' => false]);
     $this->actingAs($inactiveAdmin);
 
