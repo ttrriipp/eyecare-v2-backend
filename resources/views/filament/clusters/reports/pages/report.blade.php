@@ -12,10 +12,13 @@
                 <button
                     type="button"
                     wire:click="exportCsv"
+                    wire:loading.attr="disabled"
+                    wire:target="exportCsv"
                     class="fi-btn fi-btn-size-md inline-grid grid-flow-col items-center justify-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-950 shadow-sm ring-1 ring-gray-950/10 outline-none transition hover:bg-gray-50 dark:bg-white/5 dark:text-white dark:ring-white/20 dark:hover:bg-white/10"
                 >
                     <x-filament::icon icon="heroicon-o-arrow-down-tray" class="h-4 w-4" />
-                    Export CSV
+                    <span wire:loading.remove wire:target="exportCsv">Export CSV</span>
+                    <span wire:loading wire:target="exportCsv">Preparing export...</span>
                 </button>
             </div>
 
@@ -24,6 +27,8 @@
                     <button
                         type="button"
                         wire:click="applyPreset('{{ $key }}')"
+                        wire:loading.attr="disabled"
+                        wire:target="applyPreset"
                         @class([
                             'fi-btn rounded-lg px-3 py-1.5 text-sm font-medium transition',
                             'bg-primary-600 text-white shadow-sm hover:bg-primary-500' => $activePreset === $key,
@@ -35,7 +40,7 @@
                 @endforeach
             </div>
 
-            <form wire:submit="applyDateRange" class="flex flex-wrap items-end gap-4 border-t border-gray-100 pt-4 dark:border-white/5">
+            <form wire:submit="applyDateRange" wire:loading.class="opacity-60" wire:target="applyDateRange,applyPreset" class="flex flex-wrap items-end gap-4 border-t border-gray-100 pt-4 dark:border-white/5">
                 <div class="w-44">
                     <label for="report-date-from" class="text-sm font-medium text-gray-950 dark:text-white">From</label>
                     <input
@@ -66,11 +71,18 @@
 
                 <button
                     type="submit"
+                    wire:loading.attr="disabled"
+                    wire:target="applyDateRange"
                     class="fi-btn fi-btn-size-md rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm outline-none transition hover:bg-primary-500"
                 >
-                    Apply range
+                    <span wire:loading.remove wire:target="applyDateRange">Apply range</span>
+                    <span wire:loading wire:target="applyDateRange">Applying range...</span>
                 </button>
             </form>
+
+            <p wire:loading wire:target="applyDateRange,applyPreset" class="text-sm text-gray-500 dark:text-gray-400" role="status" aria-live="polite">
+                Updating report...
+            </p>
         </div>
     </div>
 

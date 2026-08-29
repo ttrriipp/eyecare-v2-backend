@@ -54,7 +54,10 @@ test('every report exports metadata, metric definitions, and aggregate values on
             ->not->toContain('Visible visit comment');
 
         if ($pageClass === FinancialReport::class) {
-            expect($content)->toContain("'=Cmd");
+            expect($content)
+                ->toContain("'=Cmd")
+                ->toContain('"Net billed",500.00')
+                ->not->toContain('₱');
         }
     }
 });
@@ -67,6 +70,9 @@ test('report page renders accessible filter controls and empty states', function
         ->assertSee('Report period')
         ->assertSee('Report period presets')
         ->assertSee('Apply range')
+        ->assertSee('Preparing export...')
+        ->assertSee('Applying range...')
+        ->assertSee('Updating report...')
         ->assertSee('No records in this period')
         ->assertSee('Try a different date range.');
 });

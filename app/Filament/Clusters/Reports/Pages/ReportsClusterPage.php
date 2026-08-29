@@ -248,7 +248,7 @@ abstract class ReportsClusterPage extends Page
             $this->writeCsvRow($handle, ['Key metrics']);
 
             foreach ($report['stats'] as $stat) {
-                $this->writeCsvRow($handle, [$stat->getLabel(), $stat->getValue()]);
+                $this->writeCsvRow($handle, [$stat->getLabel(), $this->normalizeCsvValue($stat->getValue())]);
             }
 
             foreach ($report['sections'] as $section) {
@@ -259,7 +259,7 @@ abstract class ReportsClusterPage extends Page
                 foreach ($section['rows'] as $row) {
                     $this->writeCsvRow($handle, [
                         $row['label'],
-                        $row['value'],
+                        $this->normalizeCsvValue($row['value']),
                         $row['percentage'].'%',
                     ]);
                 }
@@ -431,6 +431,19 @@ abstract class ReportsClusterPage extends Page
     {
         $value = is_scalar($value) || $value === null ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR);
 
-        return preg_match('/^[=+\-@]/', $value) === 1 ? "'{$value}" : $value;
+        return is_numeric($value) || preg_match('/^[=+\-@]/', $value) !== 1 ? $value : "'{$value}";
+    }
+
+    private function normalizeCsvValue(mixed $value): mixed
+    {
+        if (! is_string($value) || ! str_starts_with($value, '₱')) {
+            return $value;
+        }
+
+        $normalized = str_replace([',', '₱'], '', $value);
+
+        return is_numeric($normalized)
+            ? number_format((float) $normalized, 2, '.', '')
+            : $value;
     }
 }
