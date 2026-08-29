@@ -21,6 +21,19 @@ class FinancialReport extends ReportsClusterPage
     protected static ?int $navigationSort = 1;
 
     /**
+     * @return array<string, string>
+     */
+    public function getMetricDefinitions(): array
+    {
+        return [
+            'Net billed' => 'Sum of non-voided billing record totals by recorded date.',
+            'Discounts' => 'Sum of discounts on the same non-voided billing record cohort.',
+            'Collections' => 'Posted payments recorded in the period; reversed payments and voided bills are excluded.',
+            'Open balance (snapshot)' => 'Current balance_due snapshot for the billing record cohort; not historical aging.',
+        ];
+    }
+
+    /**
      * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
      */
     protected function buildReport(): array
@@ -129,7 +142,7 @@ class FinancialReport extends ReportsClusterPage
                 Stat::make('Net billed', $this->formatMoney($summary?->net_billed ?? 0)),
                 Stat::make('Discounts', $this->formatMoney($summary?->discounts ?? 0)),
                 Stat::make('Collections', $this->formatMoney($collections)),
-                Stat::make('Open balance', $this->formatMoney($summary?->open_balance ?? 0)),
+                Stat::make('Open balance (snapshot)', $this->formatMoney($summary?->open_balance ?? 0)),
             ],
             'sections' => [
                 [

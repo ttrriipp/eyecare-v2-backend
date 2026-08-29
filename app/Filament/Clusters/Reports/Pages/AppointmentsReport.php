@@ -17,6 +17,19 @@ class AppointmentsReport extends ReportsClusterPage
     protected static ?int $navigationSort = 2;
 
     /**
+     * @return array<string, string>
+     */
+    public function getMetricDefinitions(): array
+    {
+        return [
+            'Appointments' => 'Appointments scheduled in the selected period.',
+            'Terminal outcomes' => 'Fulfilled, cancelled, and no-show appointments in the current-status cohort.',
+            'Fulfillment rate' => 'Fulfilled appointments divided by terminal outcomes; zero when the denominator is empty.',
+            'No-show rate' => 'No-show appointments divided by terminal outcomes; zero when the denominator is empty.',
+        ];
+    }
+
+    /**
      * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
      */
     protected function buildReport(): array

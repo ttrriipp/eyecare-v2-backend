@@ -232,6 +232,18 @@ abstract class ReportsClusterPage extends Page
             $this->writeCsvRow($handle, [$title]);
             $this->writeCsvRow($handle, ['Period', $this->getPeriodLabel()]);
             $this->writeCsvRow($handle, ['Timezone', $this->getTimezoneLabel()]);
+
+            $metricDefinitions = $this->getMetricDefinitions();
+
+            if ($metricDefinitions !== []) {
+                $this->writeCsvRow($handle, []);
+                $this->writeCsvRow($handle, ['Metric definitions']);
+
+                foreach ($metricDefinitions as $metric => $definition) {
+                    $this->writeCsvRow($handle, [$metric, $definition]);
+                }
+            }
+
             $this->writeCsvRow($handle, []);
             $this->writeCsvRow($handle, ['Key metrics']);
 
@@ -326,6 +338,17 @@ abstract class ReportsClusterPage extends Page
     protected function reportTimezone(): string
     {
         return (string) config('app.timezone', 'UTC');
+    }
+
+    /**
+     * Definitions are included in exports so an aggregate value keeps its
+     * cohort and exclusion rules when it leaves the admin panel.
+     *
+     * @return array<string, string>
+     */
+    public function getMetricDefinitions(): array
+    {
+        return [];
     }
 
     /**

@@ -110,7 +110,7 @@ test('financial report uses the bill cohort and excludes voided, reversed, and o
         ->toBe('₱150.00')
         ->and($stats->get('Collections')?->getValue())
         ->toBe('₱500.00')
-        ->and($stats->get('Open balance')?->getValue())
+        ->and($stats->get('Open balance (snapshot)')?->getValue())
         ->toBe('₱1,200.00');
 
     $sections = collect($component->instance()->getSections())->keyBy('title');

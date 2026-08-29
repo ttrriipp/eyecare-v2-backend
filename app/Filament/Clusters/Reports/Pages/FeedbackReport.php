@@ -17,6 +17,19 @@ class FeedbackReport extends ReportsClusterPage
     protected static ?int $navigationSort = 4;
 
     /**
+     * @return array<string, string>
+     */
+    public function getMetricDefinitions(): array
+    {
+        return [
+            'Visit responses' => 'Visit ratings created in the selected period, including hidden star values.',
+            'Visit average' => 'Average visit star rating for the same response cohort.',
+            'Frame responses' => 'Frame ratings created in the selected period, including hidden star values.',
+            'Frame average' => 'Average frame star rating for the same response cohort.',
+        ];
+    }
+
+    /**
      * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
      */
     protected function buildReport(): array

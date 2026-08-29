@@ -18,6 +18,19 @@ class OpticalOrdersReport extends ReportsClusterPage
     protected static ?int $navigationSort = 3;
 
     /**
+     * @return array<string, string>
+     */
+    public function getMetricDefinitions(): array
+    {
+        return [
+            'Orders created' => 'Orders created in the selected period.',
+            'Dispensed' => 'Dispensing events recorded in the selected period.',
+            'Cancelled' => 'Current cancelled orders whose cancelled_at falls in the selected period.',
+            'Avg. time to dispense' => 'Average time from order creation to dispensing event for events in the period.',
+        ];
+    }
+
+    /**
      * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
      */
     protected function buildReport(): array
