@@ -1032,7 +1032,17 @@ Returns active, patient-visible appointment types.
       "name": "First eye examination",
       "description": "For your first examination at the clinic.",
       "duration_minutes": 45,
-      "requires_referral": false
+      "requires_referral": false,
+      "visit_reason_presets": [
+        {
+          "id": 21,
+          "label": "Blurred or reduced vision"
+        },
+        {
+          "id": 22,
+          "label": "Eye pain or discomfort"
+        }
+      ]
     }
   ]
 }
@@ -1042,6 +1052,10 @@ Returns active, patient-visible appointment types.
 - Only active, patient-visible types are returned.
 - `name` is the patient label (falls back to internal name if patient label is null).
 - Inactive types and internal-only types are excluded.
+- Every appointment type includes a `visit_reason_presets` array. The array may be empty. It contains only active presets for the appointment type, ordered by `sort_order`.
+- Presets expose only `id` and `label`; they are convenience suggestions, not diagnoses or restrictions on the patient's free-text reason.
+- Each preset `label` is a trimmed, nonblank string with a maximum length of 255 characters.
+- The mobile app supplies an `Other` option separately. `Other` is not stored as a preset.
 - Results are ordered by the internal appointment type name in ascending order; internal names are not exposed when a patient label is configured.
 
 ---
@@ -2661,10 +2675,10 @@ field on `/me` reflects the current state.
 Every mobile booking creates an `AppointmentRequest`, not an `Appointment`. Staff accept requests to create confirmed `Appointment` records. Only confirmed appointments appear in the confirmed appointments list and calendar.
 
 ### Appointment type selection by patients
-The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
+The mobile API exposes `GET /appointment-types` as an authenticated, account-only catalog. Patients use the returned active, patient-visible type ID when requesting availability and creating an appointment request. Every appointment type includes a `visit_reason_presets` array. The array may be empty. Active presets help the patient choose a common reason after selecting a type, but preset selection is optional. Both `GET /appointment-request-availability` and `POST /appointment-requests` require `appointment_type_id`, and the server validates that it references an active, patient-visible type. Confirmed appointment type and duration snapshots remain server-controlled; rescheduling derives them from the existing appointment.
 
 ### Reason for visit
-Appointment requests require a free-text `reason_for_visit` (max 1000 characters). This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
+Appointment requests require a free-text `reason_for_visit` (max 1000 characters), whether or not the patient chooses a preset. The patient may use the mobile app's `Other` option to enter an exact custom description; no preset ID is submitted or stored. This is copied to the confirmed Appointment and prefills the Encounter chief complaint at check-in. It remains clinician-editable.
 
 ### Identity verification
 The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `middle_name`, `last_name`, and step-up-protected `date_of_birth`) never silently update the clinic Patient record. A pending link request is

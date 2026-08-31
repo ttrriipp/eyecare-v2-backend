@@ -15,6 +15,7 @@ use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -267,6 +268,20 @@ test('inventory stats stay focused on actionable stock queues', function () {
     expect($stats)->toHaveCount(4)
         ->and($stats)->toHaveKeys(['Low Stock', 'Out of Stock', 'Expiring Soon', 'Expired'])
         ->and($stats)->not->toHaveKeys(['Active Variants', 'Stock Value']);
+});
+
+test('inventory KPI stats omit helper descriptions', function () {
+    $this->actingAs($this->staff);
+
+    $widget = Livewire::test(InventoryStatsWidget::class)->instance();
+    $stats = (fn (): array => $this->getStats())->call($widget);
+
+    $descriptions = array_map(
+        fn (Stat $stat): string|Htmlable|null => $stat->getDescription(),
+        $stats,
+    );
+
+    expect($descriptions)->toBe([null, null, null, null]);
 });
 
 test('the default tab shows every variant', function () {

@@ -13,6 +13,7 @@ class AppointmentTypeController extends Controller
     {
         $types = AppointmentType::query()
             ->patientVisible()
+            ->with('activeVisitReasonPresets')
             ->orderBy('name')
             ->get();
 

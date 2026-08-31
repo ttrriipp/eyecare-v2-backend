@@ -43,19 +43,16 @@ class InventoryStatsWidget extends BaseWidget
 
         return [
             Stat::make('Low Stock', number_format($lowStock))
-                ->color($lowStock > 0 ? 'warning' : 'success')
-                ->description('At or below reorder level'),
+                ->color($lowStock > 0 ? 'warning' : 'success'),
 
             Stat::make('Out of Stock', number_format($outOfStock))
                 ->color($outOfStock > 0 ? 'danger' : 'success'),
 
             Stat::make('Expiring Soon', number_format($expiringSoon))
-                ->color($expiringSoon > 0 ? 'warning' : 'success')
-                ->description('Usable lots within the warning window'),
+                ->color($expiringSoon > 0 ? 'warning' : 'success'),
 
             Stat::make('Expired', number_format($expired))
-                ->color($expired > 0 ? 'danger' : 'success')
-                ->description('No usable lot remains'),
+                ->color($expired > 0 ? 'danger' : 'success'),
         ];
     }
 }

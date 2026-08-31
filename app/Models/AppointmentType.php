@@ -30,6 +30,24 @@ class AppointmentType extends Model
     }
 
     /**
+     * @return HasMany<AppointmentTypeVisitReasonPreset, $this>
+     */
+    public function visitReasonPresets(): HasMany
+    {
+        return $this->hasMany(AppointmentTypeVisitReasonPreset::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    /**
+     * @return HasMany<AppointmentTypeVisitReasonPreset, $this>
+     */
+    public function activeVisitReasonPresets(): HasMany
+    {
+        return $this->visitReasonPresets()->active();
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

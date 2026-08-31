@@ -2,6 +2,7 @@
 
 namespace App\Filament\Clusters\Availability\Resources\AppointmentTypes\Schemas;
 
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
@@ -14,7 +15,8 @@ class AppointmentTypesForm
     {
         return $schema
             ->components([
-                Grid::make(3)
+                Grid::make(['default' => 1, 'lg' => 2])
+                    ->columnSpan(['default' => 'full', 'lg' => 'full'])
                     ->schema([
                         Section::make('Basic Information')
                             ->schema([
@@ -31,9 +33,11 @@ class AppointmentTypesForm
                                 TextInput::make('patient_description')
                                     ->label('Patient Description')
                                     ->maxLength(65535)
-                                    ->columnSpanFull(),
+                                    ->columnSpanFull()
+                                    ->columnSpan(['lg' => 2]),
                             ])
-                            ->columnSpanFull(),
+                            ->columns(['default' => 1, 'lg' => 2])
+                            ->columnSpan(1),
 
                         Section::make('Scheduling')
                             ->schema([
@@ -58,7 +62,34 @@ class AppointmentTypesForm
                                     ->label('Active')
                                     ->default(true),
                             ])
-                            ->columnSpanFull(),
+                            ->columns(['default' => 1, 'lg' => 2])
+                            ->columnSpan(1),
+
+                        Section::make('Visit Reason Presets')
+                            ->description('Add common reasons patients may choose after selecting this appointment type. The mobile app provides "Other" separately.')
+                            ->schema([
+                                Repeater::make('visit_reason_presets')
+                                    ->label('Presets')
+                                    ->relationship('visitReasonPresets')
+                                    ->schema([
+                                        TextInput::make('label')
+                                            ->label('Reason')
+                                            ->trim()
+                                            ->required()
+                                            ->minLength(1)
+                                            ->maxLength(255),
+
+                                        Toggle::make('is_active')
+                                            ->label('Active')
+                                            ->default(true),
+                                    ])
+                                    ->columns(['default' => 1, 'lg' => 2])
+                                    ->reorderable()
+                                    ->orderColumn('sort_order')
+                                    ->addActionLabel('Add preset')
+                                    ->columnSpanFull(),
+                            ])
+                            ->columnSpan(['default' => 'full', 'lg' => 2]),
                     ]),
             ]);
     }

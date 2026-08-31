@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AppointmentType;
+use App\Models\AppointmentTypeVisitReasonPreset;
 use App\Models\User;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\RoleSeeder;
@@ -32,9 +33,58 @@ test('response contains only patient-safe fields', function () {
         ->assertOk()
         ->assertJsonStructure([
             'data' => [
-                '*' => ['id', 'name', 'description', 'duration_minutes', 'requires_referral'],
+                '*' => [
+                    'id',
+                    'name',
+                    'description',
+                    'duration_minutes',
+                    'requires_referral',
+                    'visit_reason_presets' => [
+                        '*' => ['id', 'label'],
+                    ],
+                ],
             ],
         ]);
+});
+
+test('active visit reason presets are returned in sort order', function () {
+    $appointmentType = AppointmentType::query()
+        ->where('name', 'Problem/Urgent Visit')
+        ->firstOrFail();
+
+    $blurredVision = AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->create([
+        'label' => 'Blurred or reduced vision',
+        'sort_order' => 20,
+    ]);
+    $eyePain = AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->create([
+        'label' => 'Eye pain or discomfort',
+        'sort_order' => 10,
+    ]);
+    AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->inactive()->create([
+        'label' => 'Internal note',
+        'sort_order' => 1,
+    ]);
+
+    $response = $this->actingAs($this->user)
+        ->getJson('/api/v1/appointment-types')
+        ->assertOk();
+
+    $type = collect($response->json('data'))->firstWhere('id', $appointmentType->id);
+
+    expect($type['visit_reason_presets'])->toBe([
+        ['id' => $eyePain->id, 'label' => 'Eye pain or discomfort'],
+        ['id' => $blurredVision->id, 'label' => 'Blurred or reduced vision'],
+    ]);
+});
+
+test('appointment types without active visit reason presets return an empty array', function () {
+    $response = $this->actingAs($this->user)
+        ->getJson('/api/v1/appointment-types')
+        ->assertOk();
+
+    collect($response->json('data'))->each(function (array $appointmentType): void {
+        expect($appointmentType['visit_reason_presets'])->toBe([]);
+    });
 });
 
 test('inactive types are excluded', function () {
