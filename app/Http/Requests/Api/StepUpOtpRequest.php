@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Api;
 
+use App\Enums\OtpPurpose;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class StepUpOtpRequest extends FormRequest
 {
@@ -16,7 +18,10 @@ class StepUpOtpRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'purpose' => ['required', 'string', 'in:change_primary_contact,remove_contact,change_password,security_settings'],
+            'purpose' => [
+                'sometimes',
+                Rule::enum(OtpPurpose::class)->only(OtpPurpose::SensitiveChange),
+            ],
         ];
     }
 

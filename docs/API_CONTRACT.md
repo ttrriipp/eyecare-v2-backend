@@ -592,6 +592,10 @@ Certain security-sensitive operations require an authenticated step-up OTP to pr
 - **Short-lived:** 15-minute expiry
 - **Single-use:** Consumed on first successful validation
 
+Unexpected API server failures return a `500` response with the generic
+`INTERNAL_SERVER_ERROR` code. SQL, database names, column names, stack traces,
+and other internal exception details are never included in the response.
+
 **Endpoints requiring step-up:**
 | Endpoint | Method | Header |
 |----------|--------|--------|
@@ -609,12 +613,16 @@ Requests a step-up OTP sent to the user's primary verified contact.
 
 **Auth:** Required (Sanctum token).
 
-**Request:**
+**Request (optional):**
 ```json
 {
   "purpose": "sensitive_change"
 }
 ```
+
+The `purpose` field may be omitted because this endpoint always issues a
+`sensitive_change` challenge. If supplied, it must be `sensitive_change`; the
+client does not select an action-specific purpose.
 
 **Response (200):**
 ```json
@@ -2469,6 +2477,7 @@ step-up middleware and rate limiting) use this envelope:
 | `INVALID_OTP` | 422 | Wrong, expired, or consumed OTP code |
 | `STEP_UP_REQUIRED` | 422 | A DOB or other sensitive mutation requires a step-up token |
 | `INVALID_STEP_UP_TOKEN` | 422 | The supplied step-up token is invalid or expired |
+| `INTERNAL_SERVER_ERROR` | 500 | Unexpected API server failure; internal exception details are not exposed |
 | `OTP_ATTEMPT_LIMIT_REACHED` | 422 | Too many verification attempts on a challenge |
 | `OTP_RATE_LIMIT_REACHED` | 429 | Invitation OTP requests or OTP verification attempts exceeded the applicable account, destination, or IP limit |
 | `INVITATION_RATE_LIMIT_REACHED` | 429 | Invitation acceptance requests exceeded the authenticated account limit |

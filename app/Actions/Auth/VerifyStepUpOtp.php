@@ -5,6 +5,7 @@ namespace App\Actions\Auth;
 use App\Enums\OtpPurpose;
 use App\Models\OtpChallenge;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -74,20 +75,33 @@ class VerifyStepUpOtp
      */
     public function validateStepUpToken(string $stepUpToken, User $user): bool
     {
-        // Find recently consumed sensitive_change challenges for this user
-        $challenge = OtpChallenge::where('user_id', $user->id)
-            ->where('purpose', OtpPurpose::SensitiveChange)
-            ->whereNotNull('consumed_at')
-            ->where('consumed_at', '>', now()->subMinutes(15))
-            ->where('delivery_status', 'like', 'step_up_token_issued:%')
-            ->first();
+        return DB::transaction(function () use ($stepUpToken, $user): bool {
+            $challenges = OtpChallenge::query()
+                ->where('user_id', $user->id)
+                ->where('purpose', OtpPurpose::SensitiveChange)
+                ->whereNotNull('consumed_at')
+                ->where('consumed_at', '>', now()->subMinutes(15))
+                ->whereNull('step_up_token_consumed_at')
+                ->where('delivery_status', 'like', 'step_up_token_issued:%')
+                ->orderByDesc('consumed_at')
+                ->lockForUpdate()
+                ->get();
 
-        if ($challenge === null) {
+            foreach ($challenges as $challenge) {
+                $storedHash = substr($challenge->delivery_status, strlen('step_up_token_issued:'));
+
+                if (! Hash::check($stepUpToken, $storedHash)) {
+                    continue;
+                }
+
+                $challenge->update([
+                    'step_up_token_consumed_at' => now(),
+                ]);
+
+                return true;
+            }
+
             return false;
-        }
-
-        $storedHash = substr($challenge->delivery_status, strlen('step_up_token_issued:'));
-
-        return Hash::check($stepUpToken, $storedHash);
+        });
     }
 }

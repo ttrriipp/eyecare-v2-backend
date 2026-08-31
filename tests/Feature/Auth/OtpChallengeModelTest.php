@@ -32,10 +32,19 @@ test('otp challenge belongs to a user optionally', function () {
 // --- Purpose Enum ---
 
 test('otp purpose covers all required values', function () {
-    expect(OtpPurpose::cases())->toHaveCount(6);
+    expect(OtpPurpose::cases())->toHaveCount(8);
 
     $values = array_map(fn ($c) => $c->value, OtpPurpose::cases());
-    expect($values)->toContain('registration', 'login_step_up', 'password_recovery', 'add_contact', 'replace_primary_contact', 'invitation_acceptance');
+    expect($values)->toContain(
+        'registration',
+        'login_step_up',
+        'password_recovery',
+        'add_contact',
+        'replace_primary_contact',
+        'invitation_acceptance',
+        'sensitive_change',
+        'step_up',
+    );
 });
 
 // --- Encrypted Destination ---

@@ -27,6 +27,7 @@ class OtpChallenge extends Model
         'expires_at',
         'last_sent_at',
         'consumed_at',
+        'step_up_token_consumed_at',
         'invalidated_at',
         'delivery_status',
     ];
@@ -41,6 +42,7 @@ class OtpChallenge extends Model
             'expires_at' => 'datetime',
             'last_sent_at' => 'datetime',
             'consumed_at' => 'datetime',
+            'step_up_token_consumed_at' => 'datetime',
             'invalidated_at' => 'datetime',
         ];
     }

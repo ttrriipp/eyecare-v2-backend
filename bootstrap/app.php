@@ -10,6 +10,7 @@ use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -81,5 +82,18 @@ return Application::configure(basePath: dirname(__DIR__))
                     'retry_after_seconds' => $retryAfter,
                 ],
             ], 429, $headers);
+        });
+
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request): Response {
+            if (! $request->is('api/*') || $response->getStatusCode() < 500) {
+                return $response;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'INTERNAL_SERVER_ERROR',
+                    'message' => 'An unexpected server error occurred.',
+                ],
+            ], 500);
         });
     })->create();

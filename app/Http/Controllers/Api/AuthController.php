@@ -241,7 +241,7 @@ class AuthController extends Controller
     /**
      * Request step-up OTP for sensitive changes.
      */
-    public function requestStepUp(StepUpOtpRequest $request, IssueOtpChallenge $issueOtp, DispatchOtpChallenge $dispatch): JsonResponse
+    public function requestStepUp(StepUpOtpRequest $request, IssueOtpChallenge $issueOtp): JsonResponse
     {
         $user = $request->user();
 
@@ -262,7 +262,7 @@ class AuthController extends Controller
 
         $result = $issueOtp->handle(
             contactType: $primaryContact->type,
-            contactValue: $primaryContact->encrypted_destination,
+            contactValue: $primaryContact->encrypted_value,
             purpose: OtpPurpose::SensitiveChange,
             userId: $user->id,
         );
@@ -272,7 +272,7 @@ class AuthController extends Controller
                 'challenge_id' => $result['challenge']->public_id,
                 'expires_at' => $result['challenge']->expires_at->toISOString(),
                 'contact_type' => $primaryContact->type,
-                'masked_contact' => $this->maskContact($primaryContact->encrypted_destination, $primaryContact->type),
+                'masked_contact' => $this->maskContact($primaryContact->encrypted_value, $primaryContact->type),
             ],
         ]);
     }
