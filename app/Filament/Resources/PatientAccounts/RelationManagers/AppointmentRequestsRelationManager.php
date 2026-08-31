@@ -32,6 +32,7 @@ class AppointmentRequestsRelationManager extends RelationManager
 
                 TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (AppointmentRequestStatus $state): string => ucfirst($state->value))
                     ->color(fn (AppointmentRequestStatus $state) => match ($state) {
                         AppointmentRequestStatus::Pending => 'warning',
                         AppointmentRequestStatus::Accepted => 'success',

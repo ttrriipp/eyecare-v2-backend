@@ -9,6 +9,7 @@ use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Models\Appointment;
 use App\Models\Encounter;
 use App\Models\Quotation;
 use App\Models\User;
@@ -179,6 +180,65 @@ class EncountersTable
                         }),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort(function (Builder $query): Builder {
+                $encounterTable = $query->getModel()->getTable();
+                $appointmentTable = (new Appointment)->getTable();
+                $appointmentScheduledAt = Appointment::query()
+                    ->select("{$appointmentTable}.scheduled_at")
+                    ->whereColumn("{$appointmentTable}.id", "{$encounterTable}.appointment_id")
+                    ->limit(1);
+
+                return $query
+                    ->addSelect([
+                        'appointment_scheduled_at' => $appointmentScheduledAt,
+                    ])
+                    ->orderByRaw(
+                        "CASE
+                            WHEN {$encounterTable}.status = ? THEN 0
+                            WHEN {$encounterTable}.status = ? THEN 1
+                            WHEN {$encounterTable}.status IN (?, ?, ?) THEN 2
+                            ELSE 3
+                        END",
+                        [
+                            EncounterStatus::InProgress->value,
+                            EncounterStatus::Planned->value,
+                            EncounterStatus::Completed->value,
+                            EncounterStatus::Cancelled->value,
+                            EncounterStatus::Voided->value,
+                        ],
+                    )
+                    ->orderByRaw(
+                        "CASE
+                            WHEN {$encounterTable}.status = ? AND {$encounterTable}.started_at IS NULL THEN 1
+                            WHEN {$encounterTable}.status = ? AND appointment_scheduled_at IS NULL THEN 1
+                            WHEN {$encounterTable}.status IN (?, ?, ?) AND {$encounterTable}.created_at IS NULL THEN 1
+                            ELSE 0
+                        END ASC",
+                        [
+                            EncounterStatus::InProgress->value,
+                            EncounterStatus::Planned->value,
+                            EncounterStatus::Completed->value,
+                            EncounterStatus::Cancelled->value,
+                            EncounterStatus::Voided->value,
+                        ],
+                    )
+                    ->orderByRaw(
+                        "CASE WHEN {$encounterTable}.status = ? THEN {$encounterTable}.started_at END ASC",
+                        [EncounterStatus::InProgress->value],
+                    )
+                    ->orderByRaw(
+                        "CASE WHEN {$encounterTable}.status = ? THEN appointment_scheduled_at END ASC",
+                        [EncounterStatus::Planned->value],
+                    )
+                    ->orderByRaw(
+                        "CASE WHEN {$encounterTable}.status IN (?, ?, ?) THEN {$encounterTable}.created_at END DESC",
+                        [
+                            EncounterStatus::Completed->value,
+                            EncounterStatus::Cancelled->value,
+                            EncounterStatus::Voided->value,
+                        ],
+                    )
+                    ->orderBy("{$encounterTable}.id");
+            });
     }
 }

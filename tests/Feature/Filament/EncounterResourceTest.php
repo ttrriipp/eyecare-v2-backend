@@ -26,6 +26,83 @@ test('optometrist can list encounters', function () {
         ->assertCanSeeTableRecords($encounters);
 });
 
+test('consultation table prioritizes active work and sorts each workflow group', function (): void {
+    $optometrist = User::factory()->optometrist()->create();
+    $baseTime = now()->startOfDay();
+
+    $inProgressOldest = Encounter::factory()->inProgress()->create([
+        'started_at' => $baseTime->copy()->subHours(4),
+        'created_at' => $baseTime->copy()->subHours(8),
+    ]);
+    $inProgressNewest = Encounter::factory()->inProgress()->create([
+        'started_at' => $baseTime->copy()->subHours(2),
+        'created_at' => $baseTime->copy()->subHours(7),
+    ]);
+    $inProgressWithoutStart = Encounter::factory()->create([
+        'status' => EncounterStatus::InProgress,
+        'started_at' => null,
+        'created_at' => $baseTime->copy()->subHours(6),
+    ]);
+
+    $earliestAppointment = Appointment::factory()->create([
+        'scheduled_at' => $baseTime->copy()->addHour(),
+    ]);
+    $latestAppointment = Appointment::factory()->create([
+        'scheduled_at' => $baseTime->copy()->addHours(3),
+    ]);
+    $deletedAppointment = Appointment::factory()->create([
+        'scheduled_at' => $baseTime->copy()->subHour(),
+    ]);
+    $deletedAppointment->delete();
+
+    $plannedEarliest = Encounter::factory()->create([
+        'appointment_id' => $earliestAppointment->id,
+        'patient_id' => $earliestAppointment->patient_id,
+        'created_at' => $baseTime->copy()->subHours(5),
+    ]);
+    $plannedLatest = Encounter::factory()->create([
+        'appointment_id' => $latestAppointment->id,
+        'patient_id' => $latestAppointment->patient_id,
+        'created_at' => $baseTime->copy()->subHours(4),
+    ]);
+    $plannedWithoutAvailableAppointment = Encounter::factory()->create([
+        'appointment_id' => $deletedAppointment->id,
+        'patient_id' => $deletedAppointment->patient_id,
+        'created_at' => $baseTime->copy()->subHours(3),
+    ]);
+
+    $cancelled = Encounter::factory()->create([
+        'status' => EncounterStatus::Cancelled,
+        'created_at' => $baseTime->copy()->subHour(),
+    ]);
+    $completedNewest = Encounter::factory()->completed()->create([
+        'created_at' => $baseTime->copy()->subHours(2),
+    ]);
+    $voided = Encounter::factory()->create([
+        'status' => EncounterStatus::Voided,
+        'created_at' => $baseTime->copy()->subHours(3),
+    ]);
+    $completedOlder = Encounter::factory()->completed()->create([
+        'created_at' => $baseTime->copy()->subHours(4),
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ListEncounters::class)
+        ->assertCanSeeTableRecords([
+            $inProgressOldest,
+            $inProgressNewest,
+            $inProgressWithoutStart,
+            $plannedEarliest,
+            $plannedLatest,
+            $plannedWithoutAvailableAppointment,
+            $cancelled,
+            $completedNewest,
+            $voided,
+            $completedOlder,
+        ], inOrder: true);
+});
+
 test('optometrist can view encounter details', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();

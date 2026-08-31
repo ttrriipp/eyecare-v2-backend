@@ -8,6 +8,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class PatientsTable
 {
@@ -31,6 +32,11 @@ class PatientsTable
                 TextColumn::make('full_name')
                     ->label('Name')
                     ->searchable(['first_name', 'last_name']),
+                TextColumn::make('gender')
+                    ->label('Gender')
+                    ->formatStateUsing(fn (?string $state): string => filled($state) ? Str::headline($state) : '—')
+                    ->placeholder('—')
+                    ->sortable(),
                 TextColumn::make('phone')
                     ->searchable()
                     ->placeholder('—'),

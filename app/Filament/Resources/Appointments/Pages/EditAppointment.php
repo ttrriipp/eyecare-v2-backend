@@ -39,6 +39,12 @@ class EditAppointment extends EditRecord
      */
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
+        if ($record instanceof Appointment && $record->isTerminal()) {
+            throw ValidationException::withMessages([
+                'appointment' => ['Terminal appointments cannot be edited.'],
+            ]);
+        }
+
         if (! $record instanceof Appointment || $record->status?->name !== 'scheduled') {
             return parent::handleRecordUpdate($record, $data);
         }
@@ -76,6 +82,21 @@ class EditAppointment extends EditRecord
 
             return parent::handleRecordUpdate($record, $data);
         }, attempts: 3);
+    }
+
+    protected function getFormActions(): array
+    {
+        if ($this->record->isTerminal()) {
+            return [
+                Action::make('back')
+                    ->label('Back')
+                    ->icon('heroicon-o-arrow-left')
+                    ->color('gray')
+                    ->url(AppointmentResource::getUrl('index')),
+            ];
+        }
+
+        return parent::getFormActions();
     }
 
     protected function getHeaderActions(): array
@@ -130,10 +151,7 @@ class EditAppointment extends EditRecord
                 ->label('View Consultation')
                 ->icon('heroicon-o-eye')
                 ->color('info')
-                ->visible(fn (): bool => in_array($this->getRecord()->encounter?->status, [
-                    EncounterStatus::InProgress,
-                    EncounterStatus::Completed,
-                ], true))
+                ->visible(fn (): bool => $this->getRecord()->encounter !== null)
                 ->url(fn (): string => EncounterResource::getUrl('edit', [
                     'record' => $this->getRecord()->encounter,
                 ])),

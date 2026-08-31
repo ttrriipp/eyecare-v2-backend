@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AppointmentStatusName;
 use Carbon\CarbonInterface;
 use Database\Factories\AppointmentFactory;
 use Guava\Calendar\Contracts\Eventable;
@@ -96,6 +97,15 @@ class Appointment extends Model implements Eventable
             ->start($this->scheduled_at)
             ->end($this->scheduled_at->copy()->addMinutes($this->duration_minutes ?? 30))
             ->backgroundColor($color);
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this->status?->name, [
+            AppointmentStatusName::Fulfilled->value,
+            AppointmentStatusName::Cancelled->value,
+            AppointmentStatusName::NoShow->value,
+        ], true);
     }
 
     /**

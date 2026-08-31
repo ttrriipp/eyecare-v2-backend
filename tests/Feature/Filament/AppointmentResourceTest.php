@@ -44,6 +44,44 @@ test('appointment table shows the populated appointment type', function () {
         ->assertDontSee('Visit reason');
 });
 
+test('appointment table prioritizes active appointments and sorts them by earliest time', function () {
+    $staff = User::factory()->staff()->create();
+    $checkedInEarlier = Appointment::factory()->checkedIn()->create([
+        'scheduled_at' => now()->addHours(2),
+    ]);
+    $checkedInLater = Appointment::factory()->checkedIn()->create([
+        'scheduled_at' => now()->addHours(4),
+    ]);
+    $scheduledEarlier = Appointment::factory()->create([
+        'scheduled_at' => now()->addHour(),
+    ]);
+    $scheduledLater = Appointment::factory()->create([
+        'scheduled_at' => now()->addHours(3),
+    ]);
+    $fulfilled = Appointment::factory()->fulfilled()->create([
+        'scheduled_at' => now()->addMinutes(30),
+    ]);
+    $noShow = Appointment::factory()->noShow()->create([
+        'scheduled_at' => now()->addMinutes(45),
+    ]);
+    $cancelled = Appointment::factory()->cancelled()->create([
+        'scheduled_at' => now()->addMinutes(15),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertCanSeeTableRecords([
+            $checkedInEarlier,
+            $checkedInLater,
+            $scheduledEarlier,
+            $scheduledLater,
+            $fulfilled,
+            $noShow,
+            $cancelled,
+        ], inOrder: true);
+});
+
 test('appointment resource has no billing relation manager', function () {
     expect(AppointmentResource::getRelations())->toBeEmpty();
 });
@@ -200,6 +238,50 @@ test('cancellation records actor reason and time', function () {
         ->and($appointment->cancelled_at)->not->toBeNull();
 });
 
+test('terminal appointments cannot be edited', function (string $factoryState) {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->{$factoryState}()->create([
+        'staff_notes' => 'Original appointment notes',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionDoesNotExist('save')
+        ->assertSee('Back')
+        ->assertSchemaComponentExists(
+            'appointment-details',
+            checkComponentUsing: function (Section $section): bool {
+                $fields = $section->getChildSchema()->getFlatFields(withHidden: true);
+
+                foreach (['appointment_type_id', 'duration_minutes', 'reason_for_visit', 'staff_notes'] as $fieldName) {
+                    expect($fields[$fieldName]?->isDisabled())->toBeTrue();
+                }
+
+                return true;
+            },
+        )
+        ->fillForm(['staff_notes' => 'Changed after appointment became terminal'])
+        ->call('save')
+        ->assertHasErrors(['appointment']);
+
+    expect($appointment->fresh()->staff_notes)->toBe('Original appointment notes');
+})->with([
+    'cancelled' => 'cancelled',
+    'no-show' => 'noShow',
+    'fulfilled' => 'fulfilled',
+]);
+
+test('terminal appointments are labelled as view actions in the table', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->cancelled()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertActionHasLabel(TestAction::make('edit')->table($appointment), 'View');
+});
+
 test('no show records actor and time', function () {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->create([
@@ -287,7 +369,12 @@ test('edit page starts a planned consultation and views a started encounter', fu
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertActionVisible('startConsultation')
-        ->assertActionHidden('viewEncounter')
+        ->assertActionVisible('viewEncounter')
+        ->assertActionHasLabel('viewEncounter', 'View Consultation')
+        ->assertActionHasUrl(
+            'viewEncounter',
+            route('filament.admin.resources.encounters.edit', ['record' => $encounter]),
+        )
         ->callAction('startConsultation')
         ->assertRedirect(route('filament.admin.resources.encounters.edit', ['record' => $encounter]));
 

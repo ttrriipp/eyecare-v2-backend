@@ -8,10 +8,12 @@ use App\Actions\Appointments\MarkAppointmentNoShow;
 use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
+use App\Enums\AppointmentStatusName;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
+use App\Models\AppointmentStatus;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -119,6 +121,7 @@ class AppointmentsTable
             ->recordActions([
                 ActionGroup::make([
                     EditAction::make()
+                        ->label(fn (Appointment $record): string => $record->isTerminal() ? 'View' : 'Edit')
                         ->color('gray'),
                     Action::make('startConsultation')
                         ->label('Start Consultation')
@@ -384,6 +387,40 @@ class AppointmentsTable
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])
-            ->defaultSort('scheduled_at', 'desc');
+            ->defaultSort(function (Builder $query): Builder {
+                $statusPriority = [
+                    AppointmentStatusName::CheckedIn->value => 0,
+                    AppointmentStatusName::Scheduled->value => 1,
+                    AppointmentStatusName::Fulfilled->value => 2,
+                    AppointmentStatusName::NoShow->value => 3,
+                    AppointmentStatusName::Cancelled->value => 4,
+                ];
+                $statusIds = AppointmentStatus::query()
+                    ->whereIn('name', array_keys($statusPriority))
+                    ->pluck('id', 'name');
+                $priorityCases = [];
+                $bindings = [];
+
+                foreach ($statusPriority as $status => $priority) {
+                    $statusId = $statusIds->get($status);
+
+                    if ($statusId === null) {
+                        continue;
+                    }
+
+                    $priorityCases[] = "WHEN ? THEN {$priority}";
+                    $bindings[] = $statusId;
+                }
+
+                $appointmentTable = $query->getModel()->getTable();
+
+                return $query
+                    ->orderByRaw(
+                        "CASE {$appointmentTable}.appointment_status_id ".implode(' ', $priorityCases).' ELSE ? END',
+                        [...$bindings, count($statusPriority)],
+                    )
+                    ->orderBy("{$appointmentTable}.scheduled_at")
+                    ->orderBy("{$appointmentTable}.id");
+            });
     }
 }
