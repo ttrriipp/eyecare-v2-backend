@@ -423,7 +423,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
     "first_name": "Ana",
     "middle_name": null,
     "last_name": "Reyes",
-    "email": "ana@example.com",
+    "email": "ana.account@example.com",
     "phone": "09171234567",
     "role": "patient",
     "date_of_birth": "1990-05-15",
@@ -438,7 +438,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
       "occupation": "Teacher",
       "address": "123 Main St, Manila",
       "phone": "09171234567",
-      "contact_email": "ana@example.com"
+      "contact_email": "ana.clinic@example.com"
     }
   }
 }
@@ -476,7 +476,7 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `first_name` | string | yes | yes | Account first name |
 | `middle_name` | string | yes | yes | Account middle name; blank input is normalized to `null` |
 | `last_name` | string | yes | yes | Account last name |
-| `email` | string | yes | no | Primary verified email contact, if one is configured; not a login identifier |
+| `email` | string | yes | no | Full verified account email contact, if one exists; not a login identifier |
 | `phone` | string | yes | no | Primary verified phone contact and patient login identifier |
 | `role` | string | no | no | Always `patient` |
 | `date_of_birth` | string | yes | yes | Account DOB, exact `Y-m-d`; any request containing it requires a valid step-up token |
@@ -499,6 +499,13 @@ standard rate-limit error shape with `API_RATE_LIMIT_REACHED` and
 | `contact_email` | string | yes | Clinic patient email (may differ from account email) |
 
 **Important:** `linked_patient` fields are read-only clinical demographics from the authoritative Patient record. They are never editable via the mobile API. PATCH `/me` updates only account `first_name`, `middle_name`, `last_name`, and (with step-up) `date_of_birth`. Contact changes use the dedicated Contact Management endpoints.
+
+**Contact exposure:** `PatientAccountResource.email` returns the full value of
+the account's verified email contact even when the verified phone remains the
+primary login contact. It is `null` when no verified account email exists.
+`PatientAccountResource.phone` continues to return the full primary verified
+phone. `linked_patient.contact_email` is the clinic Patient record's separate
+contact email and may differ from the account email.
 
 ### PATCH `/me`
 
@@ -726,6 +733,9 @@ Lists verified and pending contacts for the authenticated account.
 
 **Notes:**
 - `masked_value` is always returned; raw contact values are never exposed.
+- This endpoint returns only masked contact values, including for verified
+  email contacts. The full verified account email is available only through
+  `PatientAccountResource.email` in authenticated account/profile responses.
 - Unverified contacts (`verified_at: null`) cannot be used for login.
 - A registration email remains pending until it is verified through the contact endpoints; even after verification, email is not a login identifier.
 

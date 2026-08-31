@@ -5,6 +5,7 @@ use App\Enums\OtpPurpose;
 use App\Models\AuditLog;
 use App\Models\OtpChallenge;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\PatientLinkRequest;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -26,6 +27,54 @@ test('me endpoint returns patient profile data', function () {
         ->assertJsonPath('data.linked_patient.patient_number', $user->patient->patient_number)
         ->assertJsonPath('data.linked_patient.full_name', $user->patient->full_name)
         ->assertJsonPath('data.name', $user->full_name);
+});
+
+test('me endpoint returns the verified account email separately from the linked patient email', function () {
+    $accountEmail = 'account@example.com';
+    $accountPhone = '+639171234567';
+    $clinicEmail = 'clinic@example.com';
+    $clinicPhone = '+639181234567';
+    $user = User::factory()->patient()->create([
+        'email' => $accountEmail,
+        'email_verified_at' => now(),
+        'phone' => $accountPhone,
+    ]);
+
+    $user->patient()->update([
+        'contact_email' => $clinicEmail,
+        'phone' => $clinicPhone,
+    ]);
+
+    PatientAccountContact::factory()->email($accountEmail)->verified()->create([
+        'user_id' => $user->id,
+    ]);
+    PatientAccountContact::factory()->phone($accountPhone)->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/me')
+        ->assertSuccessful()
+        ->assertJsonPath('data.email', $accountEmail)
+        ->assertJsonPath('data.phone', $accountPhone)
+        ->assertJsonPath('data.linked_patient.contact_email', $clinicEmail)
+        ->assertJsonPath('data.linked_patient.phone', $clinicPhone);
+});
+
+test('me endpoint returns a null account email when no verified email exists', function () {
+    $user = User::factory()->patient()->create([
+        'email' => 'pending@example.com',
+        'email_verified_at' => null,
+    ]);
+
+    PatientAccountContact::factory()->email('pending@example.com')->create([
+        'user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/me')
+        ->assertSuccessful()
+        ->assertJsonPath('data.email', null);
 });
 
 test('me endpoint can update account fields', function () {

@@ -21,7 +21,15 @@ beforeEach(function () {
 
 test('verifying an email contact updates the account email verification state', function () {
     $email = 'user@example.com';
-    $user = User::factory()->patient()->create();
+    $phone = '+639171234567';
+    $user = User::factory()->patient()->create([
+        'email' => null,
+        'email_verified_at' => null,
+        'phone' => $phone,
+    ]);
+    PatientAccountContact::factory()->phone($phone)->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
     $pendingContact = PatientAccountContact::factory()->email($email)->create([
         'user_id' => $user->id,
     ]);
@@ -44,9 +52,48 @@ test('verifying an email contact updates the account email verification state', 
     $response->assertOk()
         ->assertJsonPath('data.type', 'email');
 
+    $this->getJson('/api/v1/me')
+        ->assertOk()
+        ->assertJsonPath('data.email', $email)
+        ->assertJsonPath('data.phone', $phone);
+
     expect($pendingContact->fresh()->verified_at)->not->toBeNull()
         ->and($user->fresh()->email)->toBe($email)
         ->and($user->fresh()->email_verified_at)->not->toBeNull();
+});
+
+test('account contacts expose masked values without raw contact values', function () {
+    $email = 'user@example.com';
+    $phone = '+639171234567';
+    $user = User::factory()->create([
+        'email' => $email,
+        'email_verified_at' => now(),
+        'phone' => $phone,
+    ]);
+
+    PatientAccountContact::factory()->email($email)->verified()->create([
+        'user_id' => $user->id,
+    ]);
+    PatientAccountContact::factory()->phone($phone)->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->getJson('/api/v1/account/contacts')
+        ->assertOk();
+
+    expect($response->json('data'))->toHaveCount(2);
+
+    foreach ($response->json('data') as $contact) {
+        expect($contact)
+            ->toHaveKeys(['id', 'type', 'masked_value', 'is_primary', 'verified_at'])
+            ->not->toHaveKey('encrypted_value')
+            ->not->toHaveKey('value');
+    }
+
+    $response
+        ->assertJsonPath('data.0.masked_value', '+63***4567')
+        ->assertJsonPath('data.1.masked_value', 'u***@example.com');
 });
 
 test('wrong contact verification code increments attempts without mutating the account', function () {
