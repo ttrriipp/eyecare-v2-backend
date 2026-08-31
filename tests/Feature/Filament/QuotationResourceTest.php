@@ -6,6 +6,7 @@ use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\Quotations\Widgets\QuotationStatsWidget;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
@@ -17,6 +18,7 @@ use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -29,7 +31,36 @@ test('staff can list quotations', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListQuotations::class)
-        ->assertCanSeeTableRecords($quotations);
+        ->assertCanSeeTableRecords($quotations)
+        ->assertSee('Draft Value');
+});
+
+test('quotation list statistics summarize status counts and draft value', function () {
+    $staff = User::factory()->staff()->create();
+
+    Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'total' => 12500,
+    ]);
+    Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'total' => 3500,
+    ]);
+    Quotation::factory()->accepted()->create();
+    Quotation::factory()->create(['status' => QuotationStatus::Declined]);
+
+    $this->actingAs($staff);
+
+    $widget = Livewire::test(QuotationStatsWidget::class)->instance();
+    $stats = collect((fn (): array => $this->getStats())->call($widget))->keyBy(
+        fn (Stat $stat): string => (string) $stat->getLabel(),
+    );
+
+    expect($stats)->toHaveCount(4)
+        ->and($stats->get('Draft')?->getValue())->toBe('2')
+        ->and($stats->get('Accepted')?->getValue())->toBe('1')
+        ->and($stats->get('Declined')?->getValue())->toBe('1')
+        ->and($stats->get('Draft Value')?->getValue())->toBe('₱16,000.00');
 });
 
 test('the quotations list offers a direct new quotation action that opens the create page', function () {

@@ -6,7 +6,6 @@ use App\Models\ProductVariant;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 class InventoryStatsWidget extends BaseWidget
 {
@@ -16,8 +15,6 @@ class InventoryStatsWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $totalVariants = ProductVariant::query()->active()->count();
-
         $lowStock = ProductVariant::query()
             ->active()
             ->needsReorder()
@@ -44,13 +41,7 @@ class InventoryStatsWidget extends BaseWidget
             )
             ->count();
 
-        $totalValue = ProductVariant::query()
-            ->active()
-            ->sum(DB::raw('stock_quantity * price'));
-
         return [
-            Stat::make('Active Variants', number_format($totalVariants)),
-
             Stat::make('Low Stock', number_format($lowStock))
                 ->color($lowStock > 0 ? 'warning' : 'success')
                 ->description('At or below reorder level'),
@@ -65,8 +56,6 @@ class InventoryStatsWidget extends BaseWidget
             Stat::make('Expired', number_format($expired))
                 ->color($expired > 0 ? 'danger' : 'success')
                 ->description('No usable lot remains'),
-
-            Stat::make('Stock Value', '₱'.number_format($totalValue, 0)),
         ];
     }
 }

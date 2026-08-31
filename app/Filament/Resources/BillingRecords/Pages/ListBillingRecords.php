@@ -8,6 +8,7 @@ use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
+use App\Filament\Resources\BillingRecords\Widgets\BillingRecordStatsWidget;
 use App\Models\Patient;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -73,6 +74,11 @@ class ListBillingRecords extends ListRecords
                     $this->redirect(BillingRecordResource::getUrl('edit', ['record' => $billingRecord]));
                 }),
         ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [BillingRecordStatsWidget::class];
     }
 
     /**

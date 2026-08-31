@@ -14,6 +14,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -253,6 +254,19 @@ test('inventory stats include contact-lens expiry queues', function () {
         ->assertSuccessful()
         ->assertSee('Expiring Soon')
         ->assertSee('Expired');
+});
+
+test('inventory stats stay focused on actionable stock queues', function () {
+    $this->actingAs($this->staff);
+
+    $widget = Livewire::test(InventoryStatsWidget::class)->instance();
+    $stats = collect((fn (): array => $this->getStats())->call($widget))->keyBy(
+        fn (Stat $stat): string => (string) $stat->getLabel(),
+    );
+
+    expect($stats)->toHaveCount(4)
+        ->and($stats)->toHaveKeys(['Low Stock', 'Out of Stock', 'Expiring Soon', 'Expired'])
+        ->and($stats)->not->toHaveKeys(['Active Variants', 'Stock Value']);
 });
 
 test('the default tab shows every variant', function () {

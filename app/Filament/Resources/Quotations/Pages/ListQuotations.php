@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Quotations\Pages;
 
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\Quotations\Widgets\QuotationStatsWidget;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
@@ -19,6 +20,11 @@ class ListQuotations extends ListRecords
             CreateAction::make()
                 ->label('New Quotation'),
         ];
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [QuotationStatsWidget::class];
     }
 
     /**
