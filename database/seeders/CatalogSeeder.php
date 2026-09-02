@@ -3,18 +3,23 @@
 namespace Database\Seeders;
 
 use App\Models\Brand;
-use App\Models\InventoryLot;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
-use App\Models\Role;
 use App\Models\Service;
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
+/**
+ * Seeds the clinic's current physical catalog.
+ *
+ * Prices and stock quantities are provisional local-development values where
+ * the workbook did not provide verified figures. Contact-lens lots remain
+ * empty until receiving data is available.
+ */
 class CatalogSeeder extends Seeder
 {
     public function run(): void
@@ -83,375 +88,470 @@ class CatalogSeeder extends Seeder
             ],
         );
 
-        $brand = Brand::query()->firstOrCreate(['name' => 'VisionCraft']);
-        Brand::query()->firstOrCreate(['name' => 'Heritage Eyewear Co. (Inactive)'], ['is_active' => false]);
-        $fullRimCategory = ProductCategory::query()->firstOrCreate(['name' => 'Full Rim']);
-        $sunglassesCategory = ProductCategory::query()->firstOrCreate(['name' => 'Sunglasses']);
-        $dailyContactCategory = ProductCategory::query()->firstOrCreate(['name' => 'Daily Disposable']);
-        $toricContactCategory = ProductCategory::query()->firstOrCreate(['name' => 'Toric']);
-        $lensCareCategory = ProductCategory::query()->firstOrCreate(['name' => 'Lens Care']);
-        $casesCategory = ProductCategory::query()->firstOrCreate(['name' => 'Cases & Storage']);
-        ProductCategory::query()->firstOrCreate(['name' => 'Reading Glasses (Discontinued)'], ['is_active' => false]);
-        $inventoryReceiver = $this->inventoryReceiver();
+        $this->retireLegacyCatalog();
 
-        // Contact-lens products
-        $contactLensProduct = Product::query()->firstOrCreate(
-            ['slug' => 'acuvue-oasys'],
-            [
-                'brand_id' => $brand->id,
-                'category_id' => $dailyContactCategory->id,
-                'name' => 'Acuvue Oasys',
-                'description' => 'Reusable contact lenses with clear and toric prescription variants.',
-                'is_active' => true,
-                'product_type' => 'contact_lens',
-                'images' => [],
-            ],
-        );
+        $brands = [];
+        foreach ([
+            'SOFIA EYEWEAR',
+            'Mormaii',
+            'ANTHOS',
+            "C'est Joli",
+            'Unknown',
+            'New Look',
+            'Systane / Alcon',
+            'EnSight / Cipla Health',
+            'Alcon',
+        ] as $brandName) {
+            $brands[$brandName] = Brand::query()->updateOrCreate(
+                ['name' => $brandName],
+                ['is_active' => true],
+            );
+        }
+
+        $categories = [];
+        foreach ([
+            'Optical Frame',
+            'Rimless Optical Frame',
+            'Sports Optical Frame',
+            'Sports Sunglasses',
+            'Contact Lens Care',
+            'Eye Drops',
+            'Colored Contact Lens',
+        ] as $categoryName) {
+            $categories[$categoryName] = ProductCategory::query()->updateOrCreate(
+                ['name' => $categoryName],
+                ['is_active' => true],
+            );
+        }
 
         foreach ([
             [
-                'name' => 'Clear -2.00 / 6-pack',
-                'sku' => 'ACOASYS-200-6PK',
-                'price' => 1299.00,
-                'attributes' => [
-                    'power' => '-2.00',
-                    'base_curve' => 8.4,
-                    'diameter' => 14.0,
-                    'cylinder' => null,
-                    'axis' => null,
-                    'add' => null,
-                    'color' => null,
-                    'pack_size' => 6,
-                ],
-                'stock_quantity' => 18,
-                'low_stock_threshold' => 4,
-                'target_stock_level' => 24,
-                'lots' => [
-                    [
-                        'lot_number' => 'ACOASYS-200-6PK-EXP',
-                        'expires_in_days' => 45,
-                        'received_quantity' => 10,
-                        'source_reference' => 'DEMO-PO-ACU-001',
-                    ],
-                    [
-                        'lot_number' => 'ACOASYS-200-6PK-GOOD',
-                        'expires_in_days' => 180,
-                        'received_quantity' => 8,
-                        'source_reference' => 'DEMO-PO-ACU-002',
-                    ],
-                ],
-            ],
-            [
-                'name' => 'Toric -3.00 / -1.25 x 180 / 6-pack',
-                'sku' => 'ACOASYS-TORIC-300-125-180',
-                'price' => 1699.00,
-                'attributes' => [
-                    'power' => '-3.00',
-                    'base_curve' => 8.7,
-                    'diameter' => 14.5,
-                    'cylinder' => '-1.25',
-                    'axis' => 180,
-                    'add' => null,
-                    'color' => null,
-                    'pack_size' => 6,
-                ],
-                'stock_quantity' => 12,
-                'low_stock_threshold' => 3,
-                'target_stock_level' => 18,
-                'lots' => [
-                    [
-                        'lot_number' => 'ACOASYS-TORIC-EXP',
-                        'expires_in_days' => 60,
-                        'received_quantity' => 6,
-                        'source_reference' => 'DEMO-PO-ACU-003',
-                    ],
-                    [
-                        'lot_number' => 'ACOASYS-TORIC-GOOD',
-                        'expires_in_days' => 240,
-                        'received_quantity' => 6,
-                        'source_reference' => 'DEMO-PO-ACU-004',
-                    ],
-                ],
-            ],
-        ] as $variantData) {
-            $variant = ProductVariant::query()->firstOrCreate(
-                ['sku' => $variantData['sku']],
-                [
-                    'product_id' => $contactLensProduct->id,
-                    'name' => $variantData['name'],
-                    'is_active' => true,
-                    'price' => $variantData['price'],
-                    'attributes' => $variantData['attributes'],
-                    'stock_quantity' => $variantData['stock_quantity'],
-                    'low_stock_threshold' => $variantData['low_stock_threshold'],
-                    'target_stock_level' => $variantData['target_stock_level'],
-                    'ar_eligible' => false,
-                    'ar_asset_reference' => null,
-                    'images' => [],
-                ],
-            );
-
-            $this->seedContactLensLots($variant, $inventoryReceiver, $variantData['lots']);
-        }
-
-        // Accessory products
-        $accessoryProducts = [
-            [
-                'name' => 'Lens Cleaning Kit',
-                'slug' => 'lens-cleaning-kit',
-                'description' => 'Complete cleaning kit with lens-safe solution and microfiber cloth.',
-                'category_id' => $lensCareCategory->id,
-                'variants' => [
-                    [
-                        'name' => 'Standard',
-                        'sku' => 'LCK-STD-001',
-                        'price' => 299.00,
-                        'stock_quantity' => 24,
-                        'low_stock_threshold' => 5,
-                        'target_stock_level' => 30,
-                    ],
-                    [
-                        'name' => 'Travel Size',
-                        'sku' => 'LCK-TRV-001',
-                        'price' => 179.00,
-                        'stock_quantity' => 18,
-                        'low_stock_threshold' => 4,
-                        'target_stock_level' => 24,
-                    ],
-                ],
-            ],
-            [
-                'name' => 'Hard Shell Glasses Case',
-                'slug' => 'hard-shell-glasses-case',
-                'description' => 'Protective hard shell case suitable for most eyeglasses and sunglasses.',
-                'category_id' => $casesCategory->id,
-                'variants' => [
-                    [
-                        'name' => 'Standard',
-                        'sku' => 'HSC-STD-001',
-                        'price' => 249.00,
-                        'stock_quantity' => 15,
-                        'low_stock_threshold' => 3,
-                        'target_stock_level' => 20,
-                    ],
-                ],
-            ],
-            [
-                'name' => 'Microfiber Cleaning Cloth',
-                'slug' => 'microfiber-cleaning-cloth',
-                'description' => 'Reusable lint-free microfiber cloth for everyday lens cleaning.',
-                'category_id' => $lensCareCategory->id,
-                'variants' => [
-                    [
-                        'name' => 'Standard',
-                        'sku' => 'MCC-STD-001',
-                        'price' => 99.00,
-                        'stock_quantity' => 40,
-                        'low_stock_threshold' => 10,
-                        'target_stock_level' => 50,
-                    ],
-                ],
-            ],
-        ];
-
-        foreach ($accessoryProducts as $productData) {
-            $product = Product::query()->firstOrCreate(
-                ['slug' => $productData['slug']],
-                [
-                    'brand_id' => $brand->id,
-                    'category_id' => $productData['category_id'],
-                    'name' => $productData['name'],
-                    'description' => $productData['description'],
-                    'is_active' => true,
-                    'product_type' => 'accessory',
-                    'images' => [],
-                ],
-            );
-
-            foreach ($productData['variants'] as $variantData) {
-                ProductVariant::query()->firstOrCreate(
-                    ['sku' => $variantData['sku']],
-                    [
-                        'product_id' => $product->id,
-                        'name' => $variantData['name'],
-                        'is_active' => true,
-                        'price' => $variantData['price'],
-                        'stock_quantity' => $variantData['stock_quantity'],
-                        'low_stock_threshold' => $variantData['low_stock_threshold'],
-                        'target_stock_level' => $variantData['target_stock_level'],
-                        'ar_eligible' => false,
-                        'ar_asset_reference' => null,
-                        'images' => [],
-                    ],
-                );
-            }
-        }
-
-        // Frame products
-        $products = [
-            [
-                'name' => 'Classic Rectangle Frame',
-                'slug' => 'classic-rectangle-frame',
-                'description' => 'Demo acetate frame for defense walkthrough.',
-                'variants' => [
-                    [
-                        'name' => 'Matte Black',
-                        'sku' => 'CRF-BLK-001',
-                        'price' => 159.99,
-                        'attributes' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
-                        'stock_quantity' => 10,
-                        'low_stock_threshold' => 2,
-                        'ar_eligible' => true,
-                        'ar_asset_reference' => 'frames/classic-rectangle-matte-black.glb',
-                    ],
-                    [
-                        'name' => 'Tortoise',
-                        'sku' => 'CRF-TRT-001',
-                        'price' => 169.99,
-                        'attributes' => ['lens_width' => 52, 'bridge' => 18, 'temple' => 140],
-                        'stock_quantity' => 8,
-                        'low_stock_threshold' => 2,
-                        'ar_eligible' => true,
-                        'ar_asset_reference' => 'frames/classic-rectangle-tortoise.glb',
-                    ],
-                ],
-            ],
-            [
-                'name' => 'Round Metal Frame',
-                'slug' => 'round-metal-frame',
-                'description' => 'Lightweight metal frame for demo catalog browsing.',
-                'variants' => [
-                    [
-                        'name' => 'Gold',
-                        'sku' => 'RMF-GLD-001',
-                        'price' => 139.99,
-                        'attributes' => ['lens_width' => 48, 'bridge' => 20, 'temple' => 145],
-                        'stock_quantity' => 6,
-                        'low_stock_threshold' => 2,
-                        'ar_eligible' => true,
-                        'ar_asset_reference' => 'frames/round-metal-gold.glb',
-                    ],
-                    [
-                        'name' => 'Silver',
-                        'sku' => 'RMF-SLV-001',
-                        'price' => 139.99,
-                        'attributes' => ['lens_width' => 48, 'bridge' => 20, 'temple' => 145],
-                        // Below low_stock_threshold on purpose, to demonstrate the low-stock alert.
-                        'stock_quantity' => 1,
-                        'low_stock_threshold' => 3,
-                        'ar_eligible' => false,
-                        'ar_asset_reference' => null,
-                    ],
-                ],
-            ],
-        ];
-
-        foreach ($products as $productData) {
-            $product = Product::query()->firstOrCreate(
-                ['slug' => $productData['slug']],
-                [
-                    'brand_id' => $brand->id,
-                    'category_id' => $fullRimCategory->id,
-                    'name' => $productData['name'],
-                    'description' => $productData['description'],
-                    'is_active' => true,
-                    'product_type' => 'frame',
-                ],
-            );
-
-            foreach ($productData['variants'] as $variantData) {
-                ProductVariant::query()->firstOrCreate(
-                    ['sku' => $variantData['sku']],
-                    [
-                        'product_id' => $product->id,
-                        'name' => $variantData['name'],
-                        'is_active' => true,
-                        'price' => $variantData['price'],
-                        'attributes' => $variantData['attributes'] ?? null,
-                        'stock_quantity' => $variantData['stock_quantity'],
-                        'low_stock_threshold' => $variantData['low_stock_threshold'],
-                        'ar_eligible' => $variantData['ar_eligible'],
-                        'ar_asset_reference' => $variantData['ar_asset_reference'],
-                    ],
-                );
-            }
-        }
-
-        // Discontinued frame — demonstrates the catalog deactivation lifecycle.
-        $discontinuedProduct = Product::query()->firstOrCreate(
-            ['slug' => 'aviator-sunglass-frame'],
-            [
-                'brand_id' => $brand->id,
-                'category_id' => $sunglassesCategory->id,
-                'name' => 'Aviator Sunglass Frame',
-                'description' => 'Discontinued frame kept for historical order records.',
-                'is_active' => false,
+                'brand' => 'SOFIA EYEWEAR',
+                'category' => 'Optical Frame',
+                'name' => 'SOFIA 2860',
+                'slug' => 'sofia-2860',
+                'description' => 'Full-rim oversized cat-eye optical frame; transparent smoke-gray or champagne/blush finish. Demo lens is marked TR90 100%.',
                 'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Transparent Smoke Gray',
+                        'sku' => 'FRM-SOFIA-2860-GRY',
+                        'price' => 2500.00,
+                        'attributes' => [
+                            'color' => 'Transparent smoke gray',
+                            'material' => 'TR90',
+                            'lens_width' => 59,
+                            'bridge' => 12,
+                            'temple' => 145,
+                        ],
+                        'stock_quantity' => 4,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 5,
+                    ],
+                    [
+                        'name' => 'Transparent Champagne / Blush',
+                        'sku' => 'FRM-SOFIA-2860-CHAMP',
+                        'price' => 2500.00,
+                        'attributes' => [
+                            'color' => 'Transparent champagne / blush',
+                            'material' => 'TR90',
+                            'lens_width' => 59,
+                            'bridge' => 12,
+                            'temple' => 145,
+                        ],
+                        'stock_quantity' => 3,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 5,
+                    ],
+                ],
             ],
-        );
-
-        ProductVariant::query()->firstOrCreate(
-            ['sku' => 'ASF-GLD-001'],
             [
-                'product_id' => $discontinuedProduct->id,
-                'name' => 'Gold',
-                'is_active' => false,
-                'price' => 189.99,
-                'attributes' => ['lens_width' => 58, 'bridge' => 14, 'temple' => 135],
-                'stock_quantity' => 0,
-                'low_stock_threshold' => 2,
-                'ar_eligible' => false,
-                'ar_asset_reference' => null,
+                'brand' => 'Mormaii',
+                'category' => 'Sports Sunglasses',
+                'name' => 'Mormaii Floater Street 280',
+                'slug' => 'mormaii-floater-street-280',
+                'description' => "Wraparound sports sunglasses with a glossy black frame and dark smoke lenses. Temple marking reads 'Tech Division 28021001 Floater Street'.",
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Black / Smoke',
+                        'sku' => 'SUN-MORMAII-FLOATER280-BLK',
+                        'price' => 650.00,
+                        'attributes' => [
+                            'color' => 'Black frame / smoke lens',
+                            'material' => 'Plastic sports frame; exact polymer not confirmed',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
             ],
-        );
+            [
+                'brand' => 'ANTHOS',
+                'category' => 'Optical Frame',
+                'name' => 'ANTHOS MB 1399-A',
+                'slug' => 'anthos-mb-1399-a',
+                'description' => 'Full-rim rectangular optical frame with a dark tortoise pattern and amber highlights.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'C4 Dark Tortoise',
+                        'sku' => 'FRM-ANTHOS-MB1399A-C4',
+                        'price' => 1800.00,
+                        'attributes' => [
+                            'color' => 'Dark tortoise / black / amber',
+                            'material' => 'Plastic / acetate-style; exact material not marked',
+                            'lens_width' => 54,
+                            'bridge' => 18,
+                            'temple' => 145,
+                        ],
+                        'stock_quantity' => 3,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 5,
+                    ],
+                ],
+            ],
+            [
+                'brand' => "C'est Joli",
+                'category' => 'Rimless Optical Frame',
+                'name' => "C'est Joli 2860",
+                'slug' => 'cest-joli-2860',
+                'description' => 'Rimless rectangular optical frame with gold-tone bridge/temples, clear nose pads, and black temple tips.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'C4 Gold / Black',
+                        'sku' => 'FRM-CESTJOLI-2860-C4',
+                        'price' => 2200.00,
+                        'attributes' => [
+                            'color' => 'Gold-tone / black',
+                            'material' => 'Metal with plastic temple tips',
+                            'lens_width' => 59,
+                            'bridge' => 12,
+                            'temple' => 145,
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Unknown',
+                'category' => 'Sports Optical Frame',
+                'name' => 'Black/Red Sports Optical Frame',
+                'slug' => 'black-red-sports-optical-frame',
+                'description' => 'Full-rim wraparound sports optical frame with red nose/temple grip inserts and an oval O-style hinge logo. No reliable brand/model text is visible.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Black / Red',
+                        'sku' => 'FRM-SPORT-BLKRED-001',
+                        'price' => 1500.00,
+                        'attributes' => [
+                            'color' => 'Black / red',
+                            'material' => 'Plastic frame with rubber-like grip inserts',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'New Look',
+                'category' => 'Contact Lens Care',
+                'name' => 'New Look Multi-Purpose All-In-One Solution',
+                'slug' => 'new-look-multi-purpose-all-in-one-solution',
+                'description' => 'Sterile multi-purpose contact lens solution; package states it removes lipid build-up, cleans and disinfects lenses, keeps lenses moist, and relieves dryness/irritation.',
+                'product_type' => 'accessory',
+                'variants' => [
+                    [
+                        'name' => 'New Extra Comfort Formula - 90 mL',
+                        'sku' => 'ACC-NEWLOOK-MPS-90ML',
+                        'price' => 350.00,
+                        'attributes' => [
+                            'volume_ml' => 90,
+                            'package_size' => '90 mL',
+                            'material' => 'Multi-purpose contact lens solution',
+                        ],
+                        'stock_quantity' => 12,
+                        'low_stock_threshold' => 3,
+                        'target_stock_level' => 18,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Systane / Alcon',
+                'category' => 'Eye Drops',
+                'name' => 'Systane Complete Preservative-Free Lubricant Eye Drops',
+                'slug' => 'systane-complete-preservative-free-lubricant-eye-drops',
+                'description' => 'Preservative-free lubricant eye drops marketed for all-in-one dry eye relief.',
+                'product_type' => 'accessory',
+                'variants' => [
+                    [
+                        'name' => 'Preservative-Free - 10 mL',
+                        'sku' => 'ACC-SYSTANE-COMPLETE-PF-10ML',
+                        'price' => 850.00,
+                        'attributes' => [
+                            'volume_ml' => 10,
+                            'package_size' => '10 mL',
+                            'material' => 'Lubricant eye drops',
+                        ],
+                        'stock_quantity' => 10,
+                        'low_stock_threshold' => 3,
+                        'target_stock_level' => 15,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Systane / Alcon',
+                'category' => 'Eye Drops',
+                'name' => 'Systane Hydration Preservative-Free Lubricant Eye Drops',
+                'slug' => 'systane-hydration-preservative-free-lubricant-eye-drops',
+                'description' => 'Preservative-free lubricant eye drops marketed for long-lasting dry eye relief.',
+                'product_type' => 'accessory',
+                'variants' => [
+                    [
+                        'name' => 'Hydration Preservative-Free - 10 mL',
+                        'sku' => 'ACC-SYSTANE-HYDRATION-PF-10ML',
+                        'price' => 750.00,
+                        'attributes' => [
+                            'volume_ml' => 10,
+                            'package_size' => '10 mL',
+                            'material' => 'Lubricant eye drops',
+                        ],
+                        'stock_quantity' => 10,
+                        'low_stock_threshold' => 3,
+                        'target_stock_level' => 15,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Systane / Alcon',
+                'category' => 'Eye Drops',
+                'name' => 'Systane Ultra Preservative-Free Lubricant Eye Drops',
+                'slug' => 'systane-ultra-preservative-free-lubricant-eye-drops',
+                'description' => 'Preservative-free lubricant eye drops marketed for fast-acting dry eye relief and extended protection.',
+                'product_type' => 'accessory',
+                'variants' => [
+                    [
+                        'name' => 'Ultra Preservative-Free - 10 mL',
+                        'sku' => 'ACC-SYSTANE-ULTRA-PF-10ML',
+                        'price' => 650.00,
+                        'attributes' => [
+                            'volume_ml' => 10,
+                            'package_size' => '10 mL',
+                            'material' => 'Lubricant eye drops',
+                        ],
+                        'stock_quantity' => 10,
+                        'low_stock_threshold' => 3,
+                        'target_stock_level' => 15,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'EnSight / Cipla Health',
+                'category' => 'Eye Drops',
+                'name' => 'Lacryl Hydrate Eye Drops',
+                'slug' => 'lacryl-hydrate-eye-drops',
+                'description' => 'Advanced ocular lubrication for long-lasting dry eye relief; package highlights post-operative/post-LASIK use, moderate-to-severe dry eyes and digital eye strain.',
+                'product_type' => 'accessory',
+                'variants' => [
+                    [
+                        'name' => '10 mL',
+                        'sku' => 'ACC-LACRYL-HYDRATE-10ML',
+                        'price' => 450.00,
+                        'attributes' => [
+                            'volume_ml' => 10,
+                            'package_size' => '10 mL',
+                            'material' => 'Lubricant eye drops',
+                        ],
+                        'stock_quantity' => 10,
+                        'low_stock_threshold' => 3,
+                        'target_stock_level' => 15,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Alcon',
+                'category' => 'Colored Contact Lens',
+                'name' => 'AIR OPTIX COLORS',
+                'slug' => 'air-optix-colors',
+                'description' => 'Monthly replacement colored silicone-hydrogel contact lens with 3-in-1 Color Technology; daily wear only and removed for cleaning/disinfection between uses. Actual power, lot, expiry, and received quantity are not yet verified.',
+                'product_type' => 'contact_lens',
+                'variants' => array_map(
+                    fn (string $color): array => [
+                        'name' => $color,
+                        'sku' => 'CL-ALCON-AOC2-'.strtoupper(str_replace(' ', '-', $color)),
+                        'price' => 1500.00,
+                        'attributes' => [
+                            'base_curve' => 8.6,
+                            'diameter' => 14.2,
+                            'color' => $color,
+                            'pack_size' => 2,
+                        ],
+                        'stock_quantity' => 0,
+                        'low_stock_threshold' => 0,
+                        'target_stock_level' => null,
+                    ],
+                    [
+                        'Brown',
+                        'Pure Hazel',
+                        'Amethyst',
+                        'Blue',
+                        'Green',
+                        'Gray',
+                        'Honey',
+                        'Brilliant Blue',
+                        'True Sapphire',
+                        'Turquoise',
+                        'Gemstone Green',
+                        'Sterling Gray',
+                    ],
+                ),
+            ],
+        ] as $productData) {
+            $this->upsertClinicProduct($productData, $brands, $categories);
+        }
     }
 
     /**
-     * @param  array<int, array{lot_number: string, expires_in_days: int, received_quantity: int, source_reference: string}>  $lots
+     * @param  array{brand: string, category: string, name: string, slug: string, description: string, product_type: string, variants: array<int, array<string, mixed>>}  $productData
+     * @param  array<string, Brand>  $brands
+     * @param  array<string, ProductCategory>  $categories
      */
-    private function seedContactLensLots(ProductVariant $variant, User $receiver, array $lots): void
+    private function upsertClinicProduct(array $productData, array $brands, array $categories): void
     {
-        foreach ($lots as $lotData) {
-            InventoryLot::query()->firstOrCreate(
+        $productImages = $this->copySeededImages('products', $productData['slug']);
+
+        $product = Product::query()->updateOrCreate(
+            ['slug' => $productData['slug']],
+            [
+                'brand_id' => $brands[$productData['brand']]->id,
+                'category_id' => $categories[$productData['category']]->id,
+                'name' => $productData['name'],
+                'description' => $productData['description'],
+                'is_active' => true,
+                'product_type' => $productData['product_type'],
+                'images' => $productImages,
+            ],
+        );
+
+        $primaryVariantImages = [];
+
+        foreach ($productData['variants'] as $variantData) {
+            $variantImages = $this->copySeededImages('variants', $variantData['sku']);
+
+            if ($primaryVariantImages === [] && $variantImages !== []) {
+                $primaryVariantImages = $variantImages;
+            }
+
+            ProductVariant::query()->updateOrCreate(
+                ['sku' => $variantData['sku']],
                 [
-                    'product_variant_id' => $variant->id,
-                    'lot_number' => $lotData['lot_number'],
-                ],
-                [
-                    'expires_on' => now()->addDays($lotData['expires_in_days'])->endOfMonth()->toDateString(),
-                    'received_quantity' => $lotData['received_quantity'],
-                    'quantity_on_hand' => $lotData['received_quantity'],
-                    'received_at' => now(),
-                    'received_by' => $receiver->id,
-                    'source_reference' => $lotData['source_reference'],
+                    'product_id' => $product->id,
+                    'name' => $variantData['name'],
+                    'is_active' => true,
+                    'price' => $variantData['price'],
+                    'compare_at_price' => null,
+                    'cost_price' => null,
+                    'attributes' => $variantData['attributes'] ?? [],
+                    'stock_quantity' => $variantData['stock_quantity'],
+                    'low_stock_threshold' => $variantData['low_stock_threshold'],
+                    'target_stock_level' => $variantData['target_stock_level'] ?? null,
+                    'ar_eligible' => false,
+                    'ar_asset_reference' => null,
+                    'images' => $variantImages,
                 ],
             );
         }
 
-        $variant->update([
-            'stock_quantity' => (int) InventoryLot::query()
-                ->where('product_variant_id', $variant->id)
-                ->sum('quantity_on_hand'),
-        ]);
+        if ($productImages === [] && $primaryVariantImages !== []) {
+            $product->update(['images' => $primaryVariantImages]);
+        }
     }
 
-    private function inventoryReceiver(): User
+    /**
+     * @return array<int, string>
+     */
+    private function copySeededImages(string $collection, string $identifier): array
     {
-        $staffRole = Role::query()->firstOrCreate(['name' => Role::Staff]);
-        $staff = User::query()->firstOrCreate(
-            ['email' => 'staff@eyecare.test'],
-            [
-                'first_name' => 'Ana',
-                'last_name' => 'Garcia',
-                'password' => Hash::make('password'),
-                'role_id' => $staffRole->id,
-                'is_active' => true,
-                'is_optometrist' => false,
-                'email_verified_at' => now(),
-            ],
-        );
-        $staff->roles()->syncWithoutDetaching([$staffRole->id]);
+        $sourceDirectory = database_path("seeders/data/clinic-product-images/{$collection}/{$identifier}");
 
-        return $staff;
+        if (! is_dir($sourceDirectory)) {
+            return [];
+        }
+
+        $disk = Storage::disk('public');
+
+        return collect(File::files($sourceDirectory))
+            ->filter(fn (\SplFileInfo $file): bool => in_array(
+                strtolower($file->getExtension()),
+                ['jpg', 'jpeg', 'png', 'webp'],
+                true,
+            ))
+            ->sortBy(fn (\SplFileInfo $file): string => $file->getFilename(), SORT_NATURAL)
+            ->map(function (\SplFileInfo $file) use ($collection, $identifier, $disk): string {
+                $relativePath = "{$collection}/{$identifier}/{$file->getFilename()}";
+
+                $disk->put($relativePath, File::get($file->getPathname()));
+
+                return $relativePath;
+            })
+            ->values()
+            ->all();
+    }
+
+    private function retireLegacyCatalog(): void
+    {
+        $legacyProductSlugs = [
+            'acuvue-oasys',
+            'lens-cleaning-kit',
+            'hard-shell-glasses-case',
+            'microfiber-cleaning-cloth',
+            'classic-rectangle-frame',
+            'round-metal-frame',
+            'aviator-sunglass-frame',
+        ];
+
+        $legacyVariantSkus = [
+            'ACOASYS-200-6PK',
+            'ACOASYS-TORIC-300-125-180',
+            'LCK-STD-001',
+            'LCK-TRV-001',
+            'HSC-STD-001',
+            'MCC-STD-001',
+            'CRF-BLK-001',
+            'CRF-TRT-001',
+            'RMF-GLD-001',
+            'RMF-SLV-001',
+            'ASF-GLD-001',
+        ];
+
+        Product::query()
+            ->whereIn('slug', $legacyProductSlugs)
+            ->update(['is_active' => false]);
+
+        ProductVariant::query()
+            ->whereIn('sku', $legacyVariantSkus)
+            ->update(['is_active' => false]);
+
+        Brand::query()
+            ->whereIn('name', ['VisionCraft'])
+            ->update(['is_active' => false]);
+
+        ProductCategory::query()
+            ->whereIn('name', [
+                'Full Rim',
+                'Sunglasses',
+                'Daily Disposable',
+                'Toric',
+                'Lens Care',
+                'Cases & Storage',
+                'Reading Glasses (Discontinued)',
+            ])
+            ->update(['is_active' => false]);
     }
 }

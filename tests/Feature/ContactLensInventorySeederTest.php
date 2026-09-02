@@ -2,20 +2,12 @@
 
 use App\Models\InventoryLot;
 use App\Models\ProductVariant;
-use Carbon\Carbon;
 use Database\Seeders\DatabaseSeeder;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-afterEach(function (): void {
-    Carbon::setTestNow();
-});
-
-test('canonical seed data gives every contact lens variant lot-backed stock', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-08-28 09:00:00', 'Asia/Manila'));
-
+test('canonical seed data leaves unreceived contact lenses without stock or lots', function (): void {
     $this->seed(DatabaseSeeder::class);
 
     $variants = ProductVariant::query()
@@ -24,40 +16,28 @@ test('canonical seed data gives every contact lens variant lot-backed stock', fu
         ->orderBy('sku')
         ->get();
 
-    expect($variants)->toHaveCount(2);
+    expect($variants)->toHaveCount(12);
 
     $variants->each(function (ProductVariant $variant): void {
-        expect($variant->inventoryLots)->not->toBeEmpty()
-            ->and($variant->stock_quantity)
-            ->toBe($variant->inventoryLots->sum('quantity_on_hand'))
-            ->and($variant->inventoryLots->every(
-                fn (InventoryLot $lot): bool => $lot->received_quantity >= $lot->quantity_on_hand,
-            ))->toBeTrue();
+        expect($variant->inventoryLots)->toBeEmpty()
+            ->and($variant->stock_quantity)->toBe(0)
+            ->and($variant->attributes)->toHaveKeys(['base_curve', 'diameter', 'color', 'pack_size']);
     });
 
-    expect(InventoryLot::query()->expiringSoon(90, Carbon::now())->count())->toBe(2)
-        ->and(InventoryLot::query()
-            ->whereDate('expires_on', '>', Carbon::now()->addDays(90)->toDateString())
-            ->count())->toBe(2)
-        ->and(InventoryLot::query()->count())->toBe(4)
-        ->and(InventoryLot::query()->whereHas(
-            'receivedBy',
-            fn (Builder $query): Builder => $query->where('email', 'staff@eyecare.test'),
-        )->count())
-        ->toBe(4);
+    expect(InventoryLot::query()->count())->toBe(0);
 });
 
-test('canonical contact lens lots are idempotent when the database is reseeded', function (): void {
-    Carbon::setTestNow(Carbon::parse('2026-08-28 09:00:00', 'Asia/Manila'));
-
+test('canonical contact lens inventory is idempotent when the database is reseeded', function (): void {
     $this->seed(DatabaseSeeder::class);
 
     $initialLots = InventoryLot::query()->count();
+    $initialVariants = ProductVariant::query()->contactLenses()->count();
     $initialStocks = ProductVariant::query()->contactLenses()->pluck('stock_quantity', 'sku');
 
     $this->seed(DatabaseSeeder::class);
 
     expect(InventoryLot::query()->count())->toBe($initialLots)
+        ->and(ProductVariant::query()->contactLenses()->count())->toBe($initialVariants)
         ->and(ProductVariant::query()->contactLenses()->pluck('stock_quantity', 'sku')->all())
         ->toBe($initialStocks->all());
 });

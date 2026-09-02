@@ -81,6 +81,7 @@ class AppointmentTypesForm
 
                                         Toggle::make('is_active')
                                             ->label('Active')
+                                            ->inline(false)
                                             ->default(true),
                                     ])
                                     ->columns(['default' => 1, 'lg' => 2])

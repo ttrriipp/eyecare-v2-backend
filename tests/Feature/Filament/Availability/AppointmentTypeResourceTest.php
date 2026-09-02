@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -105,15 +106,24 @@ test('appointment type form uses a responsive section layout', function () {
 });
 
 test('appointment type form provides a reorderable visit reason preset repeater', function () {
-    $schema = AppointmentTypesResource::form(Schema::make());
+    $this->actingAs($this->admin);
+
+    $schema = Livewire::test(CreateAppointmentTypes::class)->instance()->form;
     $grid = $schema->getComponents()[0];
     $presetSection = $grid->getDefaultChildComponents()[2];
     $repeater = $presetSection->getDefaultChildComponents()[0];
+    $activeToggle = $repeater->getDefaultChildComponents()[1];
 
     expect($repeater)
         ->toBeInstanceOf(Repeater::class)
         ->and($repeater->getName())
-        ->toBe('visit_reason_presets');
+        ->toBe('visit_reason_presets')
+        ->and($activeToggle)
+        ->toBeInstanceOf(Toggle::class)
+        ->and($activeToggle->getName())
+        ->toBe('is_active')
+        ->and($activeToggle->isInline())
+        ->toBeFalse();
 });
 
 test('admins can create visit reason presets from an appointment type form', function () {

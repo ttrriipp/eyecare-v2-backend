@@ -67,14 +67,18 @@ class ClinicWorkflowSeeder extends Seeder
 
         $variants = ProductVariant::query()
             ->withTrashed()
-            ->whereIn('sku', ['CRF-BLK-001', 'RMF-SLV-001', 'ASF-GLD-001'])
+            ->whereIn('sku', [
+                'FRM-SOFIA-2860-GRY',
+                'FRM-SPORT-BLKRED-001',
+                'SUN-MORMAII-FLOATER280-BLK',
+            ])
             ->get()
             ->keyBy('sku');
 
         foreach ([
-            ['sku' => 'CRF-BLK-001', 'saved_at' => now()->subDays(12)],
-            ['sku' => 'RMF-SLV-001', 'saved_at' => now()->subDays(5)],
-            ['sku' => 'ASF-GLD-001', 'saved_at' => now()->subDay()],
+            ['sku' => 'FRM-SOFIA-2860-GRY', 'saved_at' => now()->subDays(12)],
+            ['sku' => 'FRM-SPORT-BLKRED-001', 'saved_at' => now()->subDays(5)],
+            ['sku' => 'SUN-MORMAII-FLOATER280-BLK', 'saved_at' => now()->subDay()],
         ] as $preference) {
             $variant = $variants->get($preference['sku']);
 

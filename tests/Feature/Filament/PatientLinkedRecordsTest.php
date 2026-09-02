@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\EncounterStatus;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\PatientResource;
 use App\Filament\Resources\Patients\RelationManagers\BillingRelationManager;
@@ -37,6 +38,24 @@ test('encounters relation manager lists the patient\'s encounters', function () 
         ->assertDontSee('Encounter #')
         ->assertCanSeeTableRecords([$encounter])
         ->assertCanNotSeeTableRecords([$otherEncounter]);
+});
+
+test('encounters relation manager renders voided consultations', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $voidedEncounter = Encounter::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => EncounterStatus::Voided,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EncountersRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertCanSeeTableRecords([$voidedEncounter])
+        ->assertTableColumnFormattedStateSet('status', 'Voided', record: $voidedEncounter);
 });
 
 test('optical orders relation manager lists the patient\'s job orders', function () {
