@@ -151,7 +151,7 @@ class ClinicWorkflowSeeder extends Seeder
         return Encounter::query()->updateOrCreate(
             ['appointment_id' => $appointment->id],
             [
-                'encounter_number' => 'ENC-000001',
+                'encounter_number' => 'CON-2026-000001',
                 'patient_id' => $patient->id,
                 'optometrist_id' => $optometrist->id,
                 'status' => EncounterStatus::Completed,

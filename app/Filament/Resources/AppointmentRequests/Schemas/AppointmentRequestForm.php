@@ -216,6 +216,18 @@ class AppointmentRequestForm
                             ->content(fn ($record): string => $record?->resolved_at?->format('M j, Y g:i A') ?? '—')
                             ->visible(fn ($record): bool => $record?->resolved_at !== null),
 
+                        Placeholder::make('outcome')
+                            ->label('Outcome')
+                            ->content(fn ($record): string => match ($record?->status) {
+                                AppointmentRequestStatus::Cancelled => 'Cancelled by patient.',
+                                AppointmentRequestStatus::Expired => 'Expired before staff review.',
+                                default => '—',
+                            })
+                            ->visible(fn ($record): bool => in_array($record?->status, [
+                                AppointmentRequestStatus::Cancelled,
+                                AppointmentRequestStatus::Expired,
+                            ], true)),
+
                         Placeholder::make('resulting_appointment')
                             ->label('Appointment')
                             ->content(function ($record): HtmlString {

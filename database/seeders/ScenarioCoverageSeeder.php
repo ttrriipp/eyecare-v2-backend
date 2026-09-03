@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AppointmentRequestStatus;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\EncounterAddendumType;
@@ -128,10 +129,6 @@ class ScenarioCoverageSeeder extends Seeder
 
     private function seedAppointmentRequests(): void
     {
-        if (AppointmentRequest::query()->count() > 0) {
-            return;
-        }
-
         // Reuses the flagship portal account rather than the factory's default
         // nested User::factory()->patient(), whose auto-created Patient relies
         // on a `creating` event that WithoutModelEvents silences here.
@@ -143,16 +140,39 @@ class ScenarioCoverageSeeder extends Seeder
         // factory spawns a brand-new random-word AppointmentType per call.
         $checkUpTypeId = AppointmentType::query()->where('name', 'Routine Check-up')->value('id');
 
-        // A real submission from a linked portal account always resolves
-        // patient_id (see SubmitAppointmentRequest), so every seeded row
-        // here should carry it too — leaving it null misrepresents the
-        // account as unlinked in the admin panel.
-        AppointmentRequest::factory()->create([
-            'request_number' => 'APR-2026-000001',
+        $sharedAttributes = [
             'user_id' => $portalUserId,
             'patient_id' => $patient->id,
             'appointment_type_id' => $checkUpTypeId,
-        ]);
+            'provisional_duration_minutes' => 30,
+            'alternative_scheduled_times' => null,
+            'encrypted_identity_snapshot' => null,
+            'encrypted_referring_source' => null,
+            'rejection_reason' => null,
+        ];
+
+        $requestedTime = now()->addDays(2)->setTime(10, 0);
+        $requestExpiry = $requestedTime->copy()->addDay();
+
+        // A real submission from a linked portal account always resolves
+        // patient_id (see SubmitAppointmentRequest), so every seeded row
+        // here should carry it too — leaving it null misrepresents the
+        // account as unlinked in the admin panel. Keep the records keyed by
+        // their demo request numbers so rerunning this seeder repairs stale
+        // or previously random fixture values instead of leaving them behind.
+        AppointmentRequest::query()->updateOrCreate(
+            ['request_number' => 'APR-2026-000001'],
+            [
+                ...$sharedAttributes,
+                'appointment_id' => null,
+                'scheduled_at' => $requestedTime,
+                'expires_at' => $requestExpiry,
+                'encrypted_reason_for_visit' => 'Routine eye exam and prescription update.',
+                'status' => AppointmentRequestStatus::Pending,
+                'resolved_by_user_id' => null,
+                'resolved_at' => null,
+            ],
+        );
 
         // AcceptAppointmentRequest always produces a linked Appointment —
         // an "accepted" request with no resulting appointment can't happen
@@ -160,38 +180,62 @@ class ScenarioCoverageSeeder extends Seeder
         // already-seeded scheduled appointment (ClinicWorkflowSeeder)
         // rather than fabricating an orphan second one.
         $resultingAppointment = Appointment::query()->where('appointment_number', 'APT-2026-000001')->firstOrFail();
-        AppointmentRequest::factory()->accepted()->create([
-            'request_number' => 'APR-2026-000002',
-            'user_id' => $portalUserId,
-            'patient_id' => $patient->id,
-            'appointment_type_id' => $checkUpTypeId,
-            'scheduled_at' => $resultingAppointment->scheduled_at,
-            'appointment_id' => $resultingAppointment->id,
-            'resolved_by_user_id' => $staffId,
-        ]);
+        AppointmentRequest::query()->updateOrCreate(
+            ['request_number' => 'APR-2026-000002'],
+            [
+                ...$sharedAttributes,
+                'appointment_id' => $resultingAppointment->id,
+                'scheduled_at' => $resultingAppointment->scheduled_at,
+                'expires_at' => $resultingAppointment->scheduled_at->copy()->addDay(),
+                'encrypted_reason_for_visit' => 'Blurred vision and eye strain while working on a computer.',
+                'status' => AppointmentRequestStatus::Accepted,
+                'resolved_by_user_id' => $staffId,
+                'resolved_at' => now()->subDays(2),
+            ],
+        );
 
-        AppointmentRequest::factory()->rejected()->create([
-            'request_number' => 'APR-2026-000003',
-            'user_id' => $portalUserId,
-            'patient_id' => $patient->id,
-            'appointment_type_id' => $checkUpTypeId,
-            'resolved_by_user_id' => $staffId,
-            'rejection_reason' => 'Requested time is outside clinic hours for this appointment type.',
-        ]);
+        AppointmentRequest::query()->updateOrCreate(
+            ['request_number' => 'APR-2026-000003'],
+            [
+                ...$sharedAttributes,
+                'appointment_id' => null,
+                'scheduled_at' => $requestedTime,
+                'expires_at' => $requestExpiry,
+                'encrypted_reason_for_visit' => 'Eye pain and redness needing urgent assessment.',
+                'status' => AppointmentRequestStatus::Rejected,
+                'resolved_by_user_id' => $staffId,
+                'resolved_at' => now()->subDay(),
+                'rejection_reason' => 'Requested time is outside clinic hours for this appointment type.',
+            ],
+        );
 
-        AppointmentRequest::factory()->cancelled()->create([
-            'request_number' => 'APR-2026-000004',
-            'user_id' => $portalUserId,
-            'patient_id' => $patient->id,
-            'appointment_type_id' => $checkUpTypeId,
-        ]);
+        AppointmentRequest::query()->updateOrCreate(
+            ['request_number' => 'APR-2026-000004'],
+            [
+                ...$sharedAttributes,
+                'appointment_id' => null,
+                'scheduled_at' => $requestedTime,
+                'expires_at' => $requestExpiry,
+                'encrypted_reason_for_visit' => 'Patient requested cancellation due to a schedule conflict.',
+                'status' => AppointmentRequestStatus::Cancelled,
+                'resolved_by_user_id' => null,
+                'resolved_at' => null,
+            ],
+        );
 
-        AppointmentRequest::factory()->expired()->create([
-            'request_number' => 'APR-2026-000005',
-            'user_id' => $portalUserId,
-            'patient_id' => $patient->id,
-            'appointment_type_id' => $checkUpTypeId,
-        ]);
+        AppointmentRequest::query()->updateOrCreate(
+            ['request_number' => 'APR-2026-000005'],
+            [
+                ...$sharedAttributes,
+                'appointment_id' => null,
+                'scheduled_at' => now()->subHours(2),
+                'expires_at' => now()->subHour(),
+                'encrypted_reason_for_visit' => 'Follow-up after a recent prescription change.',
+                'status' => AppointmentRequestStatus::Expired,
+                'resolved_by_user_id' => null,
+                'resolved_at' => null,
+            ],
+        );
     }
 
     private function seedPatientLinkRequests(): void
@@ -236,23 +280,23 @@ class ScenarioCoverageSeeder extends Seeder
 
         Encounter::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Planned],
-            ['encounter_number' => 'ENC-000002', 'optometrist_id' => $optometrist->id],
+            ['encounter_number' => 'CON-2026-000002', 'optometrist_id' => $optometrist->id],
         );
 
         Encounter::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'status' => EncounterStatus::InProgress],
-            ['encounter_number' => 'ENC-000003', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subMinutes(20)],
+            ['encounter_number' => 'CON-2026-000003', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subMinutes(20)],
         );
 
         Encounter::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Cancelled],
-            ['encounter_number' => 'ENC-000004', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subDays(3)],
+            ['encounter_number' => 'CON-2026-000004', 'optometrist_id' => $optometrist->id, 'started_at' => now()->subDays(3)],
         );
 
         Encounter::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Voided],
             [
-                'encounter_number' => 'ENC-000005',
+                'encounter_number' => 'CON-2026-000005',
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(10),
                 'completed_at' => now()->subDays(10)->addHour(),
@@ -267,7 +311,7 @@ class ScenarioCoverageSeeder extends Seeder
         $secondCompletedEncounter = Encounter::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Completed],
             [
-                'encounter_number' => 'ENC-000006',
+                'encounter_number' => 'CON-2026-000006',
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(4),
                 'completed_at' => now()->subDays(4)->addHour(),
@@ -344,7 +388,7 @@ class ScenarioCoverageSeeder extends Seeder
         $encounter = Encounter::query()
             ->where('patient_id', $patient->id)
             ->where('status', EncounterStatus::Completed)
-            ->where('encounter_number', 'ENC-000006')
+            ->where('encounter_number', 'CON-2026-000006')
             ->firstOrFail();
         $prescription = Prescription::query()->where('encounter_id', $encounter->id)->firstOrFail();
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Conversations\ConversationResource;
 use App\Filament\Resources\Conversations\Pages\ConversationChatPage;
 use App\Filament\Resources\Patients\PatientResource;
 use App\Models\Conversation;
@@ -16,6 +17,13 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+});
+
+test('staff messaging page uses messages as its user-facing title', function () {
+    expect(ConversationResource::getNavigationLabel())->toBe('Messages')
+        ->and(ConversationResource::getPluralModelLabel())->toBe('Messages')
+        ->and(ConversationResource::getBreadcrumb())->toBe('Messages')
+        ->and((new ConversationChatPage)->getTitle())->toBe('Messages');
 });
 
 test('conversation chat refreshes link status after the account becomes linked', function () {

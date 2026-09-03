@@ -20,7 +20,7 @@ class EncounterFactory extends Factory
     public function definition(): array
     {
         return [
-            'encounter_number' => 'ENC-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
+            'encounter_number' => 'CON-'.now()->format('Y').'-'.str_pad(fake()->unique()->numberBetween(1, 999999), 6, '0', STR_PAD_LEFT),
             'patient_id' => Patient::factory(),
             'appointment_id' => null,
             'optometrist_id' => null,

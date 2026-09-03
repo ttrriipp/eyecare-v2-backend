@@ -212,6 +212,23 @@ test('rejection reason appears only for rejected requests', function () {
         ->assertDontSee('Rejection Reason');
 });
 
+test('cancelled and expired requests show outcome details', function () {
+    $cancelled = AppointmentRequest::factory()->linked()->cancelled()->create();
+    $expired = AppointmentRequest::factory()->linked()->expired()->create();
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ViewAppointmentRequest::class, ['record' => $cancelled->getRouteKey()])
+        ->assertSee('Decision Details')
+        ->assertSee('Outcome')
+        ->assertSee('Cancelled by patient.');
+
+    Livewire::test(ViewAppointmentRequest::class, ['record' => $expired->getRouteKey()])
+        ->assertSee('Decision Details')
+        ->assertSee('Outcome')
+        ->assertSee('Expired before staff review.');
+});
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 test('link accept and reject actions remain available under same conditions', function () {

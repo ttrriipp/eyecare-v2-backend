@@ -60,7 +60,7 @@ class Encounter extends Model
             ->withTrashed()
             ->count() + 1;
 
-        return sprintf('ENC-%s-%06d', $year, $sequence);
+        return sprintf('CON-%s-%06d', $year, $sequence);
     }
 
     /**

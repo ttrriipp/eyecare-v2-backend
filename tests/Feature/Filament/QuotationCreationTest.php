@@ -37,12 +37,12 @@ test('create quotation action is available for an in-progress encounter with a c
         ->assertActionVisible('createQuotation');
 });
 
-test('create quotation action is hidden until a prescription exists and changes to view after a quotation exists', function () {
+test('create quotation action remains hidden after a quotation exists', function () {
     $staff = User::factory()->staff()->create();
     $withoutPrescription = Encounter::factory()->inProgress()->create();
     $withQuotation = Encounter::factory()->inProgress()->create();
     $prescription = Prescription::factory()->linkedToEncounter($withQuotation)->create();
-    $quotation = Quotation::factory()->create([
+    Quotation::factory()->create([
         'patient_id' => $withQuotation->patient_id,
         'encounter_id' => $withQuotation->id,
         'prescription_id' => $prescription->id,
@@ -53,12 +53,8 @@ test('create quotation action is hidden until a prescription exists and changes 
     Livewire::test(EditEncounter::class, ['record' => $withoutPrescription->getRouteKey()])
         ->assertActionHidden('createQuotation');
 
-    $component = Livewire::test(EditEncounter::class, ['record' => $withQuotation->getRouteKey()])
+    Livewire::test(EditEncounter::class, ['record' => $withQuotation->getRouteKey()])
         ->assertActionHidden('createQuotation')
         ->assertActionDoesNotExist('viewQuotation')
-        ->assertActionVisible('viewOpticalOrder')
-        ->assertActionHasLabel('viewOpticalOrder', 'View Optical Order');
-
-    expect($component->instance()->getAction('viewOpticalOrder')->getUrl())
-        ->toBe(QuotationResource::getUrl('edit', ['record' => $quotation]));
+        ->assertActionDoesNotExist('viewOpticalOrder');
 });

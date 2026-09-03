@@ -30,7 +30,7 @@ test('prescription lists show retained operational columns', function () {
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
         'optometrist_id' => $optometrist->id,
-        'encounter_number' => 'ENC-000123',
+        'encounter_number' => 'CON-2026-000123',
     ]);
     $prescription = Prescription::factory()->create([
         'patient_id' => $patient->id,
@@ -44,7 +44,7 @@ test('prescription lists show retained operational columns', function () {
         ->assertSee('Consultation')
         ->assertDontSee('Encounter')
         ->assertTableColumnStateSet('patient.full_name', 'Maria Santos', record: $prescription)
-        ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
+        ->assertTableColumnStateSet('encounter.encounter_number', 'CON-2026-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
         ->assertTableColumnStateSet('author.first_name', 'Dr. Padilla', record: $prescription)
         ->assertTableColumnDoesNotExist('expires_at')
@@ -55,7 +55,7 @@ test('prescription lists show retained operational columns', function () {
         'ownerRecord' => $patient,
         'pageClass' => EditPatient::class,
     ])
-        ->assertTableColumnStateSet('encounter.encounter_number', 'ENC-000123', record: $prescription)
+        ->assertTableColumnStateSet('encounter.encounter_number', 'CON-2026-000123', record: $prescription)
         ->assertTableColumnStateSet('version_status', 'Original', record: $prescription)
         ->assertTableColumnStateSet('author.first_name', 'Dr. Padilla', record: $prescription)
         ->assertTableColumnDoesNotExist('od_sphere')

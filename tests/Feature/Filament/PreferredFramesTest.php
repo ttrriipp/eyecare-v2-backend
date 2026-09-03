@@ -4,6 +4,7 @@ use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\RelationManagers\PreferredFramesRelationManager;
+use App\Filament\Resources\Products\ProductResource;
 use App\Models\Appointment;
 use App\Models\Brand;
 use App\Models\Encounter;
@@ -14,6 +15,7 @@ use App\Models\SavedFrame;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -255,6 +257,32 @@ test('appointment edit shows preferred frames section for linked patient', funct
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
         ->assertSee('Preferred Frames')
         ->assertSee($this->frame->name);
+});
+
+test('appointment edit renders preferred frame thumbnails and product links', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    Storage::fake('public');
+    Storage::disk('public')->put('variants/appointment-frame.png', 'frame image');
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'images' => ['variants/appointment-frame.png'],
+        'is_active' => true,
+        'stock_quantity' => 5,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $appointment = Appointment::factory()->create(['patient_id' => $patient->id]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee(Storage::disk('public')->url('variants/appointment-frame.png'))
+        ->assertSee('href="'.ProductResource::getUrl('edit', ['record' => $this->frame]).'"', false);
 });
 
 test('appointment edit shows only the latest three preferences and a patient link', function () {

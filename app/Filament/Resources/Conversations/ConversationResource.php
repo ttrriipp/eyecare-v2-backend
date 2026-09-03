@@ -16,7 +16,9 @@ class ConversationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
 
-    protected static ?string $navigationLabel = 'Conversations';
+    protected static ?string $navigationLabel = 'Messages';
+
+    protected static ?string $pluralModelLabel = 'Messages';
 
     protected static ?int $navigationSort = 40;
 

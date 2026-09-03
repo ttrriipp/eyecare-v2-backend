@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
+use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\BillingPayment;
@@ -98,6 +100,56 @@ test('canonical seed data creates appointments with duration snapshots', functio
         expect($appointment->duration_minutes)->not->toBeNull()
             ->and($appointment->duration_minutes)->toBe($appointment->appointmentType->duration_minutes);
     });
+});
+
+test('canonical seed data creates deterministic appointment request scenarios with complete decisions', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $requests = AppointmentRequest::query()
+        ->with('resolvedBy')
+        ->get()
+        ->keyBy('request_number');
+
+    $expectedReasons = [
+        'APR-2026-000001' => 'Routine eye exam and prescription update.',
+        'APR-2026-000002' => 'Blurred vision and eye strain while working on a computer.',
+        'APR-2026-000003' => 'Eye pain and redness needing urgent assessment.',
+        'APR-2026-000004' => 'Patient requested cancellation due to a schedule conflict.',
+        'APR-2026-000005' => 'Follow-up after a recent prescription change.',
+    ];
+
+    expect($requests)->toHaveCount(count($expectedReasons));
+
+    foreach ($expectedReasons as $requestNumber => $reason) {
+        $request = $requests->get($requestNumber);
+
+        expect($request)->not->toBeNull()
+            ->and($request?->encrypted_reason_for_visit)->toBe($reason);
+    }
+
+    $accepted = $requests->get('APR-2026-000002');
+    $rejected = $requests->get('APR-2026-000003');
+    $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
+
+    expect($accepted?->status)->toBe(AppointmentRequestStatus::Accepted)
+        ->and($accepted?->resolvedBy?->id)->toBe($staff->id)
+        ->and($accepted?->resolved_at)->not->toBeNull()
+        ->and($accepted?->appointment_id)->not->toBeNull()
+        ->and($rejected?->status)->toBe(AppointmentRequestStatus::Rejected)
+        ->and($rejected?->resolvedBy?->id)->toBe($staff->id)
+        ->and($rejected?->resolved_at)->not->toBeNull()
+        ->and($rejected?->rejection_reason)->toBe('Requested time is outside clinic hours for this appointment type.');
+});
+
+test('rerunning the canonical seeder repairs edited appointment request demo data', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $pending = AppointmentRequest::query()->where('request_number', 'APR-2026-000001')->firstOrFail();
+    $pending->update(['encrypted_reason_for_visit' => 'Random demo text.']);
+
+    $this->seed(DatabaseSeeder::class);
+
+    expect($pending->fresh()->encrypted_reason_for_visit)->toBe('Routine eye exam and prescription update.');
 });
 
 test('appointment statuses are seeded canonically without pruning the transition bridge', function () {

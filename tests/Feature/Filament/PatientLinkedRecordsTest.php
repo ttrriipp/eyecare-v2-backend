@@ -23,7 +23,7 @@ test('encounters relation manager lists the patient\'s encounters', function () 
     $patient = Patient::factory()->create();
     $encounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
-        'encounter_number' => 'ENC-000456',
+        'encounter_number' => 'CON-2026-000456',
     ]);
     $otherEncounter = Encounter::factory()->create();
 

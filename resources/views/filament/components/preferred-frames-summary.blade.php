@@ -8,6 +8,7 @@
             @php
                 $variant = $frame->variant;
                 $product = $variant?->product;
+                $frameUrl = $frameUrls[$frame->id] ?? null;
                 $availability = match (true) {
                     $variant === null => 'Inactive',
                     $variant->trashed() || !$variant->is_active => 'Inactive',
@@ -17,7 +18,12 @@
                     $variant->isLowStock() => 'Low stock',
                     default => 'Available',
                 };
-                $imageUrl = is_array($variant?->images) ? ($variant->images[0] ?? null) : null;
+                $imagePath = is_array($variant?->images) ? ($variant->images[0] ?? null) : null;
+                $imageUrl = match (true) {
+                    ! is_string($imagePath) || trim($imagePath) === '' => null,
+                    filter_var($imagePath, FILTER_VALIDATE_URL) !== false => $imagePath,
+                    default => \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath),
+                };
                 $availabilityClasses = match ($availability) {
                     'Available' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
                     'Low stock' => 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
@@ -25,7 +31,11 @@
                     default => 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
                 };
             @endphp
-            <div class="flex items-center gap-3">
+            @if($frameUrl !== null)
+                <a href="{{ $frameUrl }}" class="group flex items-center gap-3 rounded-md transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:bg-white/5">
+            @else
+                <div class="flex items-center gap-3">
+            @endif
                 @if($imageUrl !== null)
                     <img src="{{ $imageUrl }}" alt="" class="h-10 w-10 rounded object-cover">
                 @else
@@ -50,7 +60,11 @@
                 <span class="inline-flex shrink-0 items-center rounded px-2 py-0.5 text-xs font-medium {{ $availabilityClasses }}">
                     {{ $availability }}
                 </span>
-            </div>
+            @if($frameUrl !== null)
+                </a>
+            @else
+                </div>
+            @endif
         @endforeach
 
         @if($total > 0 && $patientUrl !== null)

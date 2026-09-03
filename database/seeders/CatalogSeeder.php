@@ -251,7 +251,7 @@ class CatalogSeeder extends Seeder
                         'price' => 1500.00,
                         'attributes' => [
                             'color' => 'Black / red',
-                            'material' => 'Plastic frame with rubber-like grip inserts',
+                            'material' => 'Plastic / rubber grips',
                         ],
                         'stock_quantity' => 2,
                         'low_stock_threshold' => 1,

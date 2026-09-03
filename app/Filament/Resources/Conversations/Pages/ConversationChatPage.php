@@ -22,6 +22,8 @@ class ConversationChatPage extends Page
 
     protected static string $resource = ConversationResource::class;
 
+    protected static ?string $title = 'Messages';
+
     protected string $view = 'filament.resources.conversations.pages.conversation-chat-page';
 
     public ?int $selectedConversationId = null;

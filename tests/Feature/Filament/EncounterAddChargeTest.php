@@ -1,6 +1,5 @@
 <?php
 
-use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
@@ -47,14 +46,14 @@ test('staff can add a service charge to a completed encounter', function () {
         ->and($billing->items)->toHaveCount(1);
 });
 
-test('view billing record action appears once a charge exists and links to it', function () {
+test('edit consultation does not expose a view billing record action', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->completed()->create();
 
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionHidden('viewBillingRecord')
+        ->assertActionDoesNotExist('viewBillingRecord')
         ->callAction('addCharge', [
             'items' => [[
                 'service_source' => 'custom',
@@ -64,13 +63,10 @@ test('view billing record action appears once a charge exists and links to it', 
             ]],
         ]);
 
-    $billing = BillingRecord::query()->where('encounter_id', $encounter->id)->firstOrFail();
+    expect(BillingRecord::query()->where('encounter_id', $encounter->id)->exists())->toBeTrue();
 
-    $component = Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('viewBillingRecord');
-
-    expect($component->instance()->getAction('viewBillingRecord')->getUrl())
-        ->toBe(BillingRecordResource::getUrl('edit', ['record' => $billing]));
+    Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
+        ->assertActionDoesNotExist('viewBillingRecord');
 });
 
 test('catalog service charges from a completed encounter use the selected service price', function () {

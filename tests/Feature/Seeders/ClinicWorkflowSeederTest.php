@@ -80,7 +80,7 @@ test('seeder creates a complete consultation with linked clinical records', func
     $this->seed(DatabaseSeeder::class);
 
     $encounter = Encounter::query()
-        ->where('encounter_number', 'ENC-000001')
+        ->where('encounter_number', 'CON-2026-000001')
         ->firstOrFail();
     $appointment = $encounter->appointment;
     $prescription = $encounter->prescriptions()->firstOrFail();
