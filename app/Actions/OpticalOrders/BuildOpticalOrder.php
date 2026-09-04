@@ -8,6 +8,7 @@ use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
+use App\Models\Patient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,8 @@ class BuildOpticalOrder
         ?int $actorId = null,
     ): JobOrder {
         return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId): JobOrder {
+            $patient = Patient::query()->findOrFail($patientId);
+
             $order = JobOrder::create([
                 'patient_id' => $patientId,
                 'encounter_id' => $encounterId,
@@ -79,6 +82,7 @@ class BuildOpticalOrder
                     DispensingEvent::create([
                         'job_order_id' => $order->id,
                         'dispensed_by' => $dispensedBy ?? auth()->id(),
+                        'recipient_name' => $patient->full_name,
                         'notes' => 'Immediate fulfillment',
                     ]);
                 }

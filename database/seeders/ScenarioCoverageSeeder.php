@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\EncounterAddendumType;
@@ -15,6 +16,7 @@ use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use App\Models\Encounter;
 use App\Models\EncounterAddendum;
 use App\Models\JobOrder;
@@ -355,7 +357,7 @@ class ScenarioCoverageSeeder extends Seeder
     {
         $patient = $this->walkInPatient();
 
-        Quotation::query()->firstOrCreate(
+        $draft = Quotation::query()->firstOrCreate(
             ['quotation_number' => 'QUO-2026-000002'],
             [
                 'patient_id' => $patient->id,
@@ -368,7 +370,17 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        Quotation::query()->firstOrCreate(
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $draft->id, 'description' => 'Everyday Frame — Tortoise'],
+            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+        );
+
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $draft->id, 'description' => 'Single Vision Lens'],
+            ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500, 'item_kind' => CommercialItemKind::LensPackage],
+        );
+
+        $declined = Quotation::query()->firstOrCreate(
             ['quotation_number' => 'QUO-2026-000003'],
             [
                 'patient_id' => $patient->id,
@@ -379,6 +391,16 @@ class ScenarioCoverageSeeder extends Seeder
                 'total' => 5800,
                 'notes' => 'Patient opted for a different provider.',
             ],
+        );
+
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $declined->id, 'description' => 'Classic Frame — Matte Black'],
+            ['quantity' => 1, 'unit_price' => 3000, 'amount' => 3000, 'item_kind' => CommercialItemKind::Frame],
+        );
+
+        QuotationItem::query()->firstOrCreate(
+            ['quotation_id' => $declined->id, 'description' => 'Single Vision Lens with AR Coating'],
+            ['quantity' => 1, 'unit_price' => 2800, 'amount' => 2800, 'item_kind' => CommercialItemKind::LensPackage],
         );
 
         // Accepted quotation tied to the walk-in patient's own completed
@@ -424,13 +446,18 @@ class ScenarioCoverageSeeder extends Seeder
     {
         $patient = $this->walkInPatient();
 
-        JobOrder::query()->firstOrCreate(
+        $queued = JobOrder::query()->firstOrCreate(
             ['job_order_number' => 'ORD-2026-000002'],
             [
                 'patient_id' => $patient->id,
                 'status' => JobOrderStatus::Queued,
                 'total_amount' => 3200,
             ],
+        );
+
+        JobOrderItem::query()->firstOrCreate(
+            ['job_order_id' => $queued->id, 'description' => 'Everyday Frame — Tortoise'],
+            ['quantity' => 1, 'unit_price' => 3200, 'amount' => 3200, 'item_kind' => CommercialItemKind::Frame],
         );
 
         // Linked to the accepted quotation/encounter/prescription seeded in
@@ -461,7 +488,7 @@ class ScenarioCoverageSeeder extends Seeder
             ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500, 'item_kind' => CommercialItemKind::LensPackage],
         );
 
-        JobOrder::query()->firstOrCreate(
+        $dispensed = JobOrder::query()->firstOrCreate(
             ['job_order_number' => 'ORD-2026-000004'],
             [
                 'patient_id' => $patient->id,
@@ -473,7 +500,12 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrder::query()->firstOrCreate(
+        JobOrderItem::query()->firstOrCreate(
+            ['job_order_id' => $dispensed->id, 'description' => 'Classic Frame — Matte Black'],
+            ['quantity' => 1, 'unit_price' => 2800, 'amount' => 2800, 'item_kind' => CommercialItemKind::Frame],
+        );
+
+        $cancelled = JobOrder::query()->firstOrCreate(
             ['job_order_number' => 'ORD-2026-000005'],
             [
                 'patient_id' => $patient->id,
@@ -483,6 +515,11 @@ class ScenarioCoverageSeeder extends Seeder
                 'notes' => 'Patient cancelled after the frame went out of stock.',
             ],
         );
+
+        JobOrderItem::query()->firstOrCreate(
+            ['job_order_id' => $cancelled->id, 'description' => 'Classic Frame — Black'],
+            ['quantity' => 1, 'unit_price' => 1800, 'amount' => 1800, 'item_kind' => CommercialItemKind::Frame],
+        );
     }
 
     private function seedBillingRecordStatuses(): void
@@ -491,7 +528,7 @@ class ScenarioCoverageSeeder extends Seeder
         $patient = $this->walkInPatient();
 
         $queued = JobOrder::query()->where('job_order_number', 'ORD-2026-000002')->firstOrFail();
-        BillingRecord::query()->firstOrCreate(
+        $queuedBilling = BillingRecord::query()->firstOrCreate(
             ['billing_record_number' => 'BR-2026-000002'],
             [
                 'patient_id' => $patient->id,
@@ -507,6 +544,7 @@ class ScenarioCoverageSeeder extends Seeder
                 'payment_due_date' => now()->addDays(14),
             ],
         );
+        $this->seedBillingRecordItems($queuedBilling, $queued);
 
         $dispensed = JobOrder::query()->where('job_order_number', 'ORD-2026-000004')->firstOrFail();
         $paid = BillingRecord::query()->firstOrCreate(
@@ -524,6 +562,8 @@ class ScenarioCoverageSeeder extends Seeder
                 'recorded_at' => now()->subDays(3),
             ],
         );
+        $this->seedBillingRecordItems($paid, $dispensed);
+
         BillingPayment::query()->firstOrCreate(
             ['billing_record_id' => $paid->id, 'amount' => 2800],
             [
@@ -535,7 +575,7 @@ class ScenarioCoverageSeeder extends Seeder
         );
 
         $cancelled = JobOrder::query()->where('job_order_number', 'ORD-2026-000005')->firstOrFail();
-        BillingRecord::query()->firstOrCreate(
+        $cancelledBilling = BillingRecord::query()->firstOrCreate(
             ['billing_record_number' => 'BR-2026-000004'],
             [
                 'patient_id' => $patient->id,
@@ -553,5 +593,25 @@ class ScenarioCoverageSeeder extends Seeder
                 'void_reason' => 'Order cancelled before dispensing.',
             ],
         );
+        $this->seedBillingRecordItems($cancelledBilling, $cancelled);
+    }
+
+    private function seedBillingRecordItems(BillingRecord $billingRecord, JobOrder $jobOrder): void
+    {
+        foreach ($jobOrder->items as $jobOrderItem) {
+            BillingRecordItem::query()->updateOrCreate(
+                [
+                    'billing_record_id' => $billingRecord->id,
+                    'job_order_item_id' => $jobOrderItem->id,
+                ],
+                [
+                    'source_kind' => BillingItemSourceKind::OpticalOrder,
+                    'description' => $jobOrderItem->description,
+                    'quantity' => $jobOrderItem->quantity,
+                    'unit_price' => $jobOrderItem->unit_price,
+                    'amount' => $jobOrderItem->amount,
+                ],
+            );
+        }
     }
 }

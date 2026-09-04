@@ -271,10 +271,6 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->label('External lab/supplier')
                                         ->default(false)
                                         ->visible(fn (Get $get): bool => $get('fulfillment_mode') === 'prepared'),
-                                    TextInput::make('recipient_name')
-                                        ->label('Dispensing Recipient')
-                                        ->maxLength(255)
-                                        ->visible(fn (Get $get): bool => $get('fulfillment_mode') === 'immediate'),
                                 ]),
                             Section::make('Payment')
                                 ->schema([
@@ -392,7 +388,6 @@ class CreateDirectOpticalOrder extends CreateRecord
                     : null,
                 depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                 depositReference: $data['deposit_reference'] ?? null,
-                recipientName: $data['recipient_name'] ?? null,
                 discountAmount: filled($data['discount_amount'] ?? null)
                     ? (float) $data['discount_amount']
                     : null,

@@ -53,13 +53,12 @@ test('immediate fulfillment completes and dispenses in one step', function () {
         creator: $this->staff,
         items: [['description' => 'Readers', 'quantity' => 1, 'unit_price' => 1000, 'product_variant_id' => $variant->id]],
         fulfillmentMode: 'immediate',
-        recipientName: 'Walk-in customer',
     );
 
     expect($result['job_order']->status)->toBe(JobOrderStatus::Dispensed)
         ->and($result['job_order']->dispensed_at)->not->toBeNull()
         ->and($result['dispensing_event'])->not->toBeNull()
-        ->and($result['dispensing_event']->recipient_name)->toBe('Walk-in customer');
+        ->and($result['dispensing_event']->recipient_name)->toBe($patient->full_name);
 });
 
 test('corrective items require a current prescription', function () {

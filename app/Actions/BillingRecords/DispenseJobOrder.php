@@ -46,6 +46,8 @@ class DispenseJobOrder
         }
 
         return DB::transaction(function () use ($jobOrder, $dispenser, $recipientName, $notes, $pickupPaymentAmount, $pickupPaymentMethod, $pickupPaymentReference, $adminOverride, $overrideReason, $overrideDueDate): DispensingEvent {
+            $jobOrder->loadMissing('patient');
+
             // Require existing active billing record (created at confirmation)
             $billingRecord = BillingRecord::query()
                 ->where('job_order_id', $jobOrder->id)
@@ -114,7 +116,7 @@ class DispenseJobOrder
                 'job_order_id' => $jobOrder->id,
                 'billing_record_id' => $billingRecord->id,
                 'dispensed_by' => $dispenser->id,
-                'recipient_name' => $recipientName,
+                'recipient_name' => $recipientName ?? $jobOrder->patient?->full_name,
                 'notes' => $notes,
                 'released_balance_amount' => (float) $billingRecord->balance_due,
                 'balance_override_by' => $balanceOverrideApplied ? $dispenser->id : null,

@@ -224,31 +224,11 @@ class EditOpticalOrder extends EditRecord
                     && ($this->outstandingBalance() <= 0 || auth()->user()?->isAdmin() === true))
                 ->requiresConfirmation()
                 ->modalHeading('Dispense Order')
-                ->modalDescription('Confirm the recipient, payment, and balance-release decision. Releasing with an outstanding balance requires an administrator, a reason, and a payment due date.')
                 ->schema([
-                    TextInput::make('recipient_name')
-                        ->label('Recipient Name')
-                        ->nullable()
-                        ->maxLength(255),
                     Textarea::make('notes')
                         ->label('Notes')
                         ->nullable()
                         ->maxLength(1000),
-                    TextInput::make('initial_payment_amount')
-                        ->label('Initial Payment')
-                        ->numeric()
-                        ->prefix('₱')
-                        ->nullable(),
-                    Select::make('initial_payment_method')
-                        ->label('Payment Method')
-                        ->options([
-                            'cash' => 'Cash',
-                            'gcash' => 'GCash',
-                            'bank_transfer' => 'Bank Transfer',
-                            'card' => 'Card',
-                        ])
-                        ->nullable()
-                        ->visible(fn (Get $get): bool => filled($get('initial_payment_amount'))),
                     Toggle::make('admin_override')
                         ->label('Release with outstanding balance')
                         ->helperText('Administrator-only exception. The order will be released while the remaining balance stays due.')
@@ -272,10 +252,7 @@ class EditOpticalOrder extends EditRecord
                         app(DispenseJobOrder::class)->handle(
                             jobOrder: $this->record,
                             dispenser: auth()->user(),
-                            recipientName: $data['recipient_name'] ?? null,
                             notes: $data['notes'] ?? null,
-                            pickupPaymentAmount: $data['initial_payment_amount'] ?? null,
-                            pickupPaymentMethod: $data['initial_payment_method'] ?? null,
                             adminOverride: (bool) ($data['admin_override'] ?? false),
                             overrideReason: $data['override_reason'] ?? null,
                             overrideDueDate: $data['override_due_date'] ?? null,

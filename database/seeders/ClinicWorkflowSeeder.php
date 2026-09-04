@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
@@ -11,6 +12,7 @@ use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use App\Models\Conversation;
 use App\Models\Encounter;
 use App\Models\JobOrder;
@@ -292,7 +294,28 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
+        $this->seedBillingRecordItems($billingRecord, $jobOrder);
+
         return $billingRecord;
+    }
+
+    private function seedBillingRecordItems(BillingRecord $billingRecord, JobOrder $jobOrder): void
+    {
+        foreach ($jobOrder->items as $jobOrderItem) {
+            BillingRecordItem::query()->updateOrCreate(
+                [
+                    'billing_record_id' => $billingRecord->id,
+                    'job_order_item_id' => $jobOrderItem->id,
+                ],
+                [
+                    'source_kind' => BillingItemSourceKind::OpticalOrder,
+                    'description' => $jobOrderItem->description,
+                    'quantity' => $jobOrderItem->quantity,
+                    'unit_price' => $jobOrderItem->unit_price,
+                    'amount' => $jobOrderItem->amount,
+                ],
+            );
+        }
     }
 
     private function seedConversation(Patient $patient, User $staff, Appointment $appointment): void

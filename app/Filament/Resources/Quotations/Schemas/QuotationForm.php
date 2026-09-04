@@ -206,16 +206,6 @@ class QuotationForm
                             QuotationStatus::Declined,
                         ], true)),
 
-                    Section::make('Workflow Stages')
-                        ->schema([
-                            Placeholder::make('optical_order_number')
-                                ->label('Optical Order')
-                                ->content(fn (Quotation $record): string => $record->jobOrder?->job_order_number ?? 'Created after confirmation'),
-                            Placeholder::make('billing_record_number')
-                                ->label('Billing Record')
-                                ->content(fn (Quotation $record): string => $record->billingRecord?->billing_record_number ?? 'Created after confirmation'),
-                        ])
-                        ->visible(fn (Quotation $record): bool => $record->status === QuotationStatus::Accepted),
                 ]),
             ]),
         ]);

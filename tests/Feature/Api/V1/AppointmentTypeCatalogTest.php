@@ -48,9 +48,9 @@ test('response contains only patient-safe fields', function () {
 });
 
 test('active visit reason presets are returned in sort order', function () {
-    $appointmentType = AppointmentType::query()
-        ->where('name', 'Problem/Urgent Visit')
-        ->firstOrFail();
+    $appointmentType = AppointmentType::factory()->create([
+        'name' => 'Preset ordering test',
+    ]);
 
     $blurredVision = AppointmentTypeVisitReasonPreset::factory()->for($appointmentType)->create([
         'label' => 'Blurred or reduced vision',
@@ -78,13 +78,17 @@ test('active visit reason presets are returned in sort order', function () {
 });
 
 test('appointment types without active visit reason presets return an empty array', function () {
+    $appointmentType = AppointmentType::factory()->create([
+        'name' => 'Preset-free appointment type',
+    ]);
+
     $response = $this->actingAs($this->user)
         ->getJson('/api/v1/appointment-types')
         ->assertOk();
 
-    collect($response->json('data'))->each(function (array $appointmentType): void {
-        expect($appointmentType['visit_reason_presets'])->toBe([]);
-    });
+    $type = collect($response->json('data'))->firstWhere('id', $appointmentType->id);
+
+    expect($type['visit_reason_presets'])->toBe([]);
 });
 
 test('inactive types are excluded', function () {

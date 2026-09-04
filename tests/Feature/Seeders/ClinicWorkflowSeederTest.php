@@ -3,12 +3,15 @@
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
 use App\Models\BillingRecord;
+use App\Models\BillingRecordItem;
 use App\Models\ClinicHour;
 use App\Models\Encounter;
 use App\Models\JobOrder;
+use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
+use App\Models\QuotationItem;
 use App\Models\SavedFrame;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
@@ -164,6 +167,47 @@ test('seeder creates billing-records', function () {
     $this->seed(DatabaseSeeder::class);
 
     expect(BillingRecord::count())->toBeGreaterThanOrEqual(1);
+});
+
+test('seeded billing records include itemized charges', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $billingRecords = BillingRecord::query()->with('items')->get();
+
+    expect($billingRecords)->not->toBeEmpty();
+
+    $billingRecords->each(function (BillingRecord $billingRecord): void {
+        expect($billingRecord->items)->not->toBeEmpty()
+            ->and($billingRecord->items->sum(fn (BillingRecordItem $item): float => (float) $item->amount))
+            ->toBe((float) $billingRecord->subtotal_amount);
+    });
+
+    $itemCount = BillingRecordItem::count();
+    $this->seed(DatabaseSeeder::class);
+
+    expect(BillingRecordItem::count())->toBe($itemCount);
+});
+
+test('seeded quotations and orders include itemized products', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $quotations = Quotation::query()->with('items')->get();
+    $orders = JobOrder::query()->with('items')->get();
+
+    expect($quotations)->not->toBeEmpty()
+        ->and($orders)->not->toBeEmpty();
+
+    $quotations->each(function (Quotation $quotation): void {
+        expect($quotation->items)->not->toBeEmpty()
+            ->and($quotation->items->sum(fn (QuotationItem $item): float => (float) $item->amount))
+            ->toBe((float) $quotation->subtotal);
+    });
+
+    $orders->each(function (JobOrder $order): void {
+        expect($order->items)->not->toBeEmpty()
+            ->and($order->items->sum(fn (JobOrderItem $item): float => (float) $item->amount))
+            ->toBe((float) $order->total_amount);
+    });
 });
 
 test('seeded quotations, job orders, and billing records have internally consistent data', function () {

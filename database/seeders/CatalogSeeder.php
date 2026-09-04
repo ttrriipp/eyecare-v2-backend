@@ -52,14 +52,45 @@ class CatalogSeeder extends Seeder
             ],
         );
 
-        LensOption::query()->firstOrCreate(
-            ['name' => 'Anti-Reflective'],
+        collect([
             [
+                'name' => 'Anti-Reflective',
                 'description' => 'Reduces glare and improves visual clarity on prescription lenses.',
                 'price' => 1000.00,
+            ],
+            [
+                'name' => 'Photochromic Treatment',
+                'description' => 'Automatically darkens in bright light and returns to a clear state indoors.',
+                'price' => 2500.00,
+            ],
+            [
+                'name' => 'Polarized Lens Treatment',
+                'description' => 'Reduces glare from bright outdoor surfaces for more comfortable daylight wear.',
+                'price' => 1800.00,
+            ],
+            [
+                'name' => 'Scratch-Resistant Coating',
+                'description' => 'Adds a durable protective coating to help reduce everyday surface scratches.',
+                'price' => 500.00,
+            ],
+            [
+                'name' => 'Tinted Lens Treatment',
+                'description' => 'Applies a cosmetic or light-filtering tint selected for the patient’s eyewear.',
+                'price' => 700.00,
+            ],
+            [
+                'name' => 'UV Protection',
+                'description' => 'Adds ultraviolet light protection to the selected prescription lens package.',
+                'price' => 400.00,
+            ],
+        ])->each(fn (array $attributes) => LensOption::query()->firstOrCreate(
+            ['name' => $attributes['name']],
+            [
+                'description' => $attributes['description'],
+                'price' => $attributes['price'],
                 'is_active' => true,
             ],
-        );
+        ));
 
         LensOption::query()->firstOrCreate(
             ['name' => 'Blue Light Filter (Discontinued)'],

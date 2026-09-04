@@ -27,6 +27,40 @@ test('product factory states cover the supported physical product types', functi
         ->and(Product::factory()->accessory()->make()->product_type)->toBe('accessory');
 });
 
+test('catalog seeder provides a complete active lens option catalog', function (): void {
+    Storage::fake('public');
+
+    $this->seed(CatalogSeeder::class);
+
+    $expectedOptions = [
+        'Anti-Reflective' => 1000.00,
+        'Photochromic Treatment' => 2500.00,
+        'Polarized Lens Treatment' => 1800.00,
+        'Scratch-Resistant Coating' => 500.00,
+        'Tinted Lens Treatment' => 700.00,
+        'UV Protection' => 400.00,
+    ];
+
+    $activeOptions = LensOption::query()
+        ->active()
+        ->orderBy('name')
+        ->get()
+        ->keyBy('name');
+
+    expect($activeOptions->keys()->all())->toBe(array_keys($expectedOptions));
+
+    foreach ($expectedOptions as $name => $price) {
+        $option = $activeOptions->get($name);
+
+        expect($option)->not->toBeNull()
+            ->and((float) $option?->price)->toEqualWithDelta($price, 0.001)
+            ->and($option?->description)->not->toBeEmpty();
+    }
+
+    expect(LensOption::query()->where('name', 'Blue Light Filter (Discontinued)')->value('is_active'))
+        ->toBeFalse();
+});
+
 test('catalog seeder imports the approved clinic product catalog idempotently', function (): void {
     Storage::fake('public');
 

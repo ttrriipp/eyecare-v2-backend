@@ -156,12 +156,6 @@ class EditQuotation extends EditRecord
                             ->visible(fn (Get $get): bool => $hasProductItems
                                 && $get('fulfillment_mode') === 'prepared'),
 
-                        TextInput::make('recipient_name')
-                            ->label('Dispensing Recipient')
-                            ->maxLength(255)
-                            ->visible(fn (Get $get): bool => $hasProductItems
-                                && $get('fulfillment_mode') === 'immediate'),
-
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
                             ->helperText('Unselected services stay proposed — bill them later from "Bill Remaining Services".')
@@ -222,7 +216,6 @@ class EditQuotation extends EditRecord
                             fulfillmentMode: $data['fulfillment_mode'] ?? 'prepared',
                             usesExternalSupplier: ($data['fulfillment_mode'] ?? 'prepared') === 'prepared'
                                 && (bool) ($data['uses_external_supplier'] ?? false),
-                            recipientName: $data['recipient_name'] ?? null,
                         );
                     } catch (ValidationException $e) {
                         Notification::make()

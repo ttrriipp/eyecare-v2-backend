@@ -59,7 +59,8 @@ test('immediate product creates dispensing event', function () {
 
     $dispensingEvent = $result['optical_order']->dispensingEvents()->latest()->first();
     expect($dispensingEvent)->toBeInstanceOf(DispensingEvent::class)
-        ->and($dispensingEvent->dispensed_by)->toBe($this->staff->id);
+        ->and($dispensingEvent->dispensed_by)->toBe($this->staff->id)
+        ->and($dispensingEvent->recipient_name)->toBe($quotation->patient->full_name);
 });
 
 test('immediate product commits inventory', function () {

@@ -3,6 +3,8 @@
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
+use App\Filament\Resources\BillingRecords\BillingRecordResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -87,7 +89,7 @@ test('staff can view a quotation', function () {
         ->assertDontSee('Customer Notes');
 });
 
-test('accepted quotation review is read-only and shows future workflow stages', function () {
+test('accepted quotation review is read-only and hides workflow stage details', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create([
         'status' => QuotationStatus::Accepted,
@@ -102,7 +104,10 @@ test('accepted quotation review is read-only and shows future workflow stages', 
         ->assertFormFieldDisabled('notes')
         ->assertActionHidden('confirmSale')
         ->assertActionHidden('reviseItems')
-        ->assertSee('Created after confirmation');
+        ->assertFormFieldDoesNotExist('optical_order_number')
+        ->assertFormFieldDoesNotExist('billing_record_number')
+        ->assertDontSee('Workflow Stages')
+        ->assertDontSee('Created after confirmation');
 });
 
 test('quotation review links to its optical order and billing record', function () {
@@ -120,12 +125,15 @@ test('quotation review links to its optical order and billing record', function 
 
     $this->actingAs($staff);
 
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+    $component = Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->assertSuccessful()
-        ->assertSee($order->job_order_number)
-        ->assertSee($billing->billing_record_number)
         ->assertActionVisible('viewJobOrder')
         ->assertActionVisible('viewBillingRecord');
+
+    expect($component->instance()->getAction('viewJobOrder')->getUrl())
+        ->toBe(OpticalOrderResource::getUrl('edit', ['record' => $order]))
+        ->and($component->instance()->getAction('viewBillingRecord')->getUrl())
+        ->toBe(BillingRecordResource::getUrl('edit', ['record' => $billing]));
 });
 
 test('staff can see product and service items on a quotation', function () {
@@ -212,6 +220,13 @@ test('confirm sale exposes fulfillment choices and defaults prescription eyewear
         ->assertActionDataSet([
             'fulfillment_mode' => 'prepared',
             'uses_external_supplier' => false,
+        ])
+        ->setActionData([
+            'fulfillment_mode' => 'immediate',
+        ])
+        ->assertMountedActionModalDontSee('Dispensing Recipient')
+        ->setActionData([
+            'fulfillment_mode' => 'prepared',
         ])
         ->assertMountedActionModalSee([
             'Fulfillment',

@@ -86,9 +86,7 @@ class UploadArAsset
                     ->whereKey($variant->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
-                $version = ((int) ArAsset::query()
-                    ->where('product_variant_id', $lockedVariant->getKey())
-                    ->max('version')) + 1;
+                $version = $this->nextAvailableVersion($lockedVariant);
 
                 $asset = ArAsset::query()->create([
                     'product_variant_id' => $lockedVariant->getKey(),
@@ -164,6 +162,24 @@ class UploadArAsset
                 'file' => $message,
             ]);
         }
+    }
+
+    private function nextAvailableVersion(ProductVariant $variant): int
+    {
+        $version = ((int) ArAsset::query()
+            ->where('product_variant_id', $variant->getKey())
+            ->max('version')) + 1;
+        $disk = Storage::disk((string) config('ar.assets.published_disk'));
+
+        while ($disk->exists(sprintf('variants/%d/v%d/model.glb', $variant->getKey(), $version))) {
+            if ($version === PHP_INT_MAX) {
+                throw new RuntimeException('No AR asset version is available for this variant.');
+            }
+
+            $version++;
+        }
+
+        return $version;
     }
 
     private function humanValidationMessage(Throwable $exception): string

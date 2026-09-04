@@ -17,6 +17,11 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 45,
                 'requires_referral' => false,
                 'old_duration' => 30,
+                'visit_reason_presets' => [
+                    'First eye examination',
+                    'Blurred or reduced vision',
+                    'Eye strain or headaches',
+                ],
             ],
             [
                 'name' => 'Follow-up',
@@ -25,6 +30,11 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 15,
                 'requires_referral' => false,
                 'old_duration' => null,
+                'visit_reason_presets' => [
+                    'Follow-up after a recent prescription change',
+                    'Review test results',
+                    'Monitor an ongoing eye condition',
+                ],
             ],
             [
                 'name' => 'Routine Check-up',
@@ -33,6 +43,11 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 30,
                 'requires_referral' => false,
                 'old_duration' => null,
+                'visit_reason_presets' => [
+                    'Routine eye examination',
+                    'Prescription update',
+                    'Eye health screening',
+                ],
             ],
             [
                 'name' => 'Referral',
@@ -41,6 +56,11 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 45,
                 'requires_referral' => true,
                 'old_duration' => 30,
+                'visit_reason_presets' => [
+                    'Referral from another provider',
+                    'Second opinion',
+                    'Specialist assessment',
+                ],
             ],
             [
                 'name' => 'Problem/Urgent Visit',
@@ -49,6 +69,12 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 30,
                 'requires_referral' => false,
                 'old_duration' => null,
+                'visit_reason_presets' => [
+                    'Blurred or reduced vision',
+                    'Eye pain or discomfort',
+                    'Redness or irritation',
+                    'Sudden flashes or floaters',
+                ],
             ],
             [
                 'name' => 'Contact Lens Consultation',
@@ -57,6 +83,11 @@ class AppointmentTypeSeeder extends Seeder
                 'duration_minutes' => 45,
                 'requires_referral' => false,
                 'old_duration' => null,
+                'visit_reason_presets' => [
+                    'New contact lens fitting',
+                    'Contact lens prescription update',
+                    'Contact lens discomfort',
+                ],
             ],
         ];
 
@@ -64,6 +95,7 @@ class AppointmentTypeSeeder extends Seeder
             $existing = AppointmentType::query()->where('name', $type['name'])->first();
 
             if ($existing) {
+                $appointmentType = $existing;
                 $existing->update([
                     'patient_label' => $type['patient_label'],
                     'patient_description' => $type['patient_description'],
@@ -76,7 +108,7 @@ class AppointmentTypeSeeder extends Seeder
                     $existing->update(['duration_minutes' => $type['duration_minutes']]);
                 }
             } else {
-                AppointmentType::query()->create([
+                $appointmentType = AppointmentType::query()->create([
                     'name' => $type['name'],
                     'patient_label' => $type['patient_label'],
                     'patient_description' => $type['patient_description'],
@@ -86,6 +118,24 @@ class AppointmentTypeSeeder extends Seeder
                     'is_patient_visible' => true,
                 ]);
             }
+
+            $this->seedVisitReasonPresets($appointmentType, $type['visit_reason_presets']);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $labels
+     */
+    private function seedVisitReasonPresets(AppointmentType $appointmentType, array $labels): void
+    {
+        foreach ($labels as $sortOrder => $label) {
+            $appointmentType->visitReasonPresets()->updateOrCreate(
+                ['label' => $label],
+                [
+                    'sort_order' => $sortOrder + 1,
+                    'is_active' => true,
+                ],
+            );
         }
     }
 }

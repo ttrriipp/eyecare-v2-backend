@@ -2,6 +2,7 @@
 
 use App\Models\Appointment;
 use App\Models\AppointmentType;
+use App\Models\AppointmentTypeVisitReasonPreset;
 use App\Models\Patient;
 use Database\Seeders\AppointmentTypeSeeder;
 use Database\Seeders\RoleSeeder;
@@ -139,4 +140,59 @@ test('seeder adds Contact Lens Consultation type', function () {
         ->and($type->requires_referral)->toBeFalse()
         ->and($type->patient_label)->toBe('Contact lens consultation')
         ->and($type->is_patient_visible)->toBeTrue();
+});
+
+test('seeder adds ordered visit reason presets to every canonical type', function () {
+    $this->seed(AppointmentTypeSeeder::class);
+
+    $expectedPresets = [
+        'New Patient' => [
+            'First eye examination',
+            'Blurred or reduced vision',
+            'Eye strain or headaches',
+        ],
+        'Follow-up' => [
+            'Follow-up after a recent prescription change',
+            'Review test results',
+            'Monitor an ongoing eye condition',
+        ],
+        'Routine Check-up' => [
+            'Routine eye examination',
+            'Prescription update',
+            'Eye health screening',
+        ],
+        'Referral' => [
+            'Referral from another provider',
+            'Second opinion',
+            'Specialist assessment',
+        ],
+        'Problem/Urgent Visit' => [
+            'Blurred or reduced vision',
+            'Eye pain or discomfort',
+            'Redness or irritation',
+            'Sudden flashes or floaters',
+        ],
+        'Contact Lens Consultation' => [
+            'New contact lens fitting',
+            'Contact lens prescription update',
+            'Contact lens discomfort',
+        ],
+    ];
+
+    foreach ($expectedPresets as $typeName => $labels) {
+        $type = AppointmentType::query()->where('name', $typeName)->firstOrFail();
+
+        expect($type->activeVisitReasonPresets()->pluck('label')->all())->toBe($labels);
+    }
+});
+
+test('seeder does not duplicate visit reason presets when rerun', function () {
+    $this->seed(AppointmentTypeSeeder::class);
+    $firstCount = AppointmentTypeVisitReasonPreset::query()->count();
+
+    $this->seed(AppointmentTypeSeeder::class);
+    $secondCount = AppointmentTypeVisitReasonPreset::query()->count();
+
+    expect($firstCount)->toBe(19)
+        ->and($secondCount)->toBe($firstCount);
 });

@@ -114,9 +114,17 @@ test('marking an optical order ready records the required supplier invoice numbe
         ->and($jobOrder->fresh()->supplier_invoice_number)->toBe('SUP-INV-3002');
 });
 
-test('staff dispenses a ready fully paid order and records the recipient', function () {
+test('staff dispenses a ready fully paid order and records the patient as recipient', function () {
     $staff = User::factory()->staff()->create();
-    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::ReadyForDispensing]);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Juan',
+        'middle_name' => null,
+        'last_name' => 'dela Cruz',
+    ]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $patient->id,
+        'status' => JobOrderStatus::ReadyForDispensing,
+    ]);
     BillingRecord::factory()->create([
         'job_order_id' => $jobOrder->id,
         'total_amount' => 1000,
@@ -128,14 +136,24 @@ test('staff dispenses a ready fully paid order and records the recipient', funct
     $this->actingAs($staff);
 
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
-        ->callAction('dispense', [
-            'recipient_name' => 'Juan dela Cruz',
+        ->mountAction('dispense')
+        ->assertMountedActionModalDontSee([
+            'Recipient Name',
+            'Initial Payment',
+            'Payment Method',
+            'Confirm this order is being released to the patient.',
+        ])
+        ->setActionData([
             'notes' => 'Picked up by patient\'s son.',
         ])
+        ->callMountedAction()
         ->assertHasNoActionErrors();
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed)
-        ->and(DispensingEvent::query()->where('job_order_id', $jobOrder->id)->where('recipient_name', 'Juan dela Cruz')->exists())->toBeTrue();
+        ->and(DispensingEvent::query()
+            ->where('job_order_id', $jobOrder->id)
+            ->where('recipient_name', $patient->full_name)
+            ->exists())->toBeTrue();
 });
 
 test('admin can release a ready order with an outstanding balance using the dispense override', function () {

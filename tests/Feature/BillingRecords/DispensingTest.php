@@ -6,6 +6,7 @@ use App\Enums\JobOrderStatus;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\JobOrder;
+use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,8 +109,14 @@ test('only ready-for-dispensing can be dispensed', function () {
     app(DispenseJobOrder::class)->handle($jobOrder, $this->dispenser);
 })->throws(ValidationException::class);
 
-test('dispensing records event with recipient and notes', function () {
+test('dispensing records the linked patient as recipient and stores notes', function () {
+    $patient = Patient::factory()->create([
+        'first_name' => 'Juan',
+        'middle_name' => null,
+        'last_name' => 'dela Cruz',
+    ]);
     $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $patient->id,
         'status' => JobOrderStatus::ReadyForDispensing,
         'supplier_invoice_number' => 'INV-005',
     ]);
@@ -121,11 +128,10 @@ test('dispensing records event with recipient and notes', function () {
     $event = app(DispenseJobOrder::class)->handle(
         $jobOrder,
         $this->dispenser,
-        recipientName: 'Juan dela Cruz',
         notes: 'Picked up by patient',
     );
 
-    expect($event->recipient_name)->toBe('Juan dela Cruz')
+    expect($event->recipient_name)->toBe($patient->full_name)
         ->and($event->notes)->toBe('Picked up by patient')
         ->and($event->dispensed_by)->toBe($this->dispenser->id);
 });

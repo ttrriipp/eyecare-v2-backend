@@ -61,6 +61,10 @@ test('immediate checkout paid in full is dispensed with a zero balance', functio
 
     Livewire::test(CreateDirectOpticalOrder::class)
         ->fillForm([
+            'fulfillment_mode' => 'immediate',
+        ])
+        ->assertFormFieldDoesNotExist('recipient_name')
+        ->fillForm([
             'patient_id' => $patient->id,
             'fulfillment_mode' => 'immediate',
             'items' => [[
@@ -79,7 +83,8 @@ test('immediate checkout paid in full is dispensed with a zero balance', functio
 
     expect($jobOrder->status->value)->toBe('dispensed')
         ->and($jobOrder->billingRecord->status)->toBe(BillingRecordStatus::Paid)
-        ->and((float) $jobOrder->billingRecord->balance_due)->toBe(0.0);
+        ->and((float) $jobOrder->billingRecord->balance_due)->toBe(0.0)
+        ->and($jobOrder->dispensingEvents()->latest()->value('recipient_name'))->toBe($patient->full_name);
 });
 
 test('new direct order action requires at least one item', function () {
