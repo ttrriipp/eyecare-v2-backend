@@ -624,7 +624,8 @@ class EncounterForm
                     Placeholder::make('preferred_frames_summary')
                         ->label('')
                         ->content(fn (Encounter $record): HtmlString => PreferredFramesSummary::render($record->patient)),
-                ]),
+                ])
+                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
         ]);
     }
 

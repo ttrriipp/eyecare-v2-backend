@@ -334,21 +334,18 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            // ── In-progress or completed encounter with a current
-            // prescription and no quotation yet: primary action ──
+            // ── Completed encounter, with or without a prescription,
+            // and no quotation yet: primary action ──
             Action::make('createQuotation')
                 ->label('Create Quotation')
                 ->icon('heroicon-o-document-currency-dollar')
                 ->color('success')
-                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::InProgress, EncounterStatus::Completed], true)
+                ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
                     && (
                         auth()->user()?->isAdmin() === true
                         || auth()->user()?->isStaff() === true
                         || auth()->user()?->isOptometrist() === true
                     )
-                    && $this->record->prescriptions()
-                        ->whereDoesntHave('nextPrescription')
-                        ->exists()
                     && ! Quotation::query()
                         ->withTrashed()
                         ->where('encounter_id', $this->record->id)

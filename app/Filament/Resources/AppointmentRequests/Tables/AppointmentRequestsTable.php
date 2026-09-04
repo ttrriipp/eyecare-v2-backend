@@ -7,6 +7,7 @@ use App\Actions\Appointments\RejectAppointmentRequest;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use App\Filament\Support\AppointmentRequestTimeAvailability;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use Filament\Actions\Action;
@@ -17,10 +18,10 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -59,21 +60,15 @@ class AppointmentRequestsTable
                     ->placeholder('Not requested')
                     ->color(fn (?string $state): ?string => $state === null ? 'gray' : null),
 
-                TextColumn::make('scheduled_at')
+                ViewColumn::make('scheduled_at')
                     ->label('Preferred Times')
-                    ->state(fn (AppointmentRequest $record): array => collect($record->getAllTimePreferences())
-                        ->map(fn (string $time, int $index): string => sprintf(
-                            '%s: %s',
-                            $index === 0 ? 'Primary' : "Alt {$index}",
-                            Carbon::parse($time)->format('M j, g:i A'),
-                        ))
-                        ->all())
-                    ->listWithLineBreaks()
+                    ->view('filament.tables.columns.appointment-request-preferred-times')
+                    ->state(fn (AppointmentRequest $record): array => AppointmentRequestTimeAvailability::forTable($record))
                     ->sortable(),
 
                 TextColumn::make('created_at')
                     ->label('Submitted')
-                    ->dateTime('M j, Y g:i A')
+                    ->dateTime('M j, g:i A')
                     ->sortable(),
 
                 TextColumn::make('status')

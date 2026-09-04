@@ -3,6 +3,7 @@
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
+use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\User;
@@ -103,19 +104,86 @@ test('request queue shows all preferred times and submitted time', function () {
 
     $this->actingAs($staff);
 
-    $preferredTimes = collect($request->getAllTimePreferences())
-        ->map(fn (string $time, int $index): string => sprintf(
-            '%s: %s',
-            $index === 0 ? 'Primary' : "Alt {$index}",
-            Carbon::parse($time)->format('M j, g:i A'),
-        ))
-        ->all();
-
-    Livewire::test(ListAppointmentRequests::class)
-        ->assertTableColumnStateSet('scheduled_at', $preferredTimes, record: $request)
+    $component = Livewire::test(ListAppointmentRequests::class)
         ->assertSee('Preferred Times')
         ->assertSee('Submitted')
-        ->assertSee($request->created_at->format('M j, Y g:i A'));
+        ->assertSee($request->created_at->format('M j, g:i A'));
+
+    foreach ($request->getAllTimePreferences() as $time) {
+        $component->assertSee(Carbon::parse($time)->format('M j, g:i A'));
+    }
+});
+
+test('request queue shows availability beside each pending preferred time', function () {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $primary = Carbon::parse('2026-07-13 10:00:00');
+    $alternative = Carbon::parse('2026-07-13 11:00:00');
+    $request = AppointmentRequest::factory()->linked()->create([
+        'scheduled_at' => $primary,
+        'alternative_scheduled_times' => [$alternative->toISOString()],
+        'provisional_duration_minutes' => 30,
+        'expires_at' => Carbon::parse('2026-07-14 17:00:00'),
+    ]);
+
+    Appointment::factory()->create([
+        'scheduled_at' => $primary,
+        'duration_minutes' => 30,
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee('No longer available')
+        ->assertSee('Available')
+        ->assertSee('Primary')
+        ->assertSee('Alt 1');
+});
+
+test('request queue keeps unavailable preferred times visible without a summary', function () {
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $primary = Carbon::parse('2026-07-13 10:00:00');
+    $alternative = Carbon::parse('2026-07-13 11:00:00');
+    $request = AppointmentRequest::factory()->linked()->create([
+        'scheduled_at' => $primary,
+        'alternative_scheduled_times' => [$alternative->toISOString()],
+        'provisional_duration_minutes' => 30,
+        'expires_at' => Carbon::parse('2026-07-14 17:00:00'),
+    ]);
+
+    Appointment::factory()->create([
+        'scheduled_at' => $primary,
+        'duration_minutes' => 30,
+        'optometrist_id' => $optometrist->id,
+    ]);
+    Appointment::factory()->create([
+        'scheduled_at' => $alternative,
+        'duration_minutes' => 30,
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee('No longer available')
+        ->assertDontSee('No submitted times available')
+        ->assertDontSee('0 of 2 available');
+});
+
+test('resolved requests keep preferred times without live availability indicators', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->accepted()->create([
+        'scheduled_at' => Carbon::parse('2026-07-13 10:00:00'),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee(Carbon::parse($request->getAllTimePreferences()[0])->format('M j, g:i A'))
+        ->assertDontSee('Available')
+        ->assertDontSee('No submitted times available');
 });
 
 // --- Policy ---

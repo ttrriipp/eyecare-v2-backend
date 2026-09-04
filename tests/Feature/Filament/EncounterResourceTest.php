@@ -238,7 +238,7 @@ test('encounter page has no cancel appointment action', function () {
         ->assertActionDoesNotExist('cancelAppointment');
 });
 
-test('an optometrist can create a quotation from an active encounter', function () {
+test('an optometrist cannot create a quotation from an active encounter', function () {
     $optometrist = User::factory()->optometrist()->create();
     $encounter = Encounter::factory()->inProgress()->create([
         'optometrist_id' => $optometrist->id,
@@ -248,7 +248,7 @@ test('an optometrist can create a quotation from an active encounter', function 
     $this->actingAs($optometrist);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertActionVisible('createQuotation');
+        ->assertActionHidden('createQuotation');
 });
 
 test('the original completing optometrist can add an addendum', function () {

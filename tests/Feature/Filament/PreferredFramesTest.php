@@ -398,7 +398,7 @@ test('consultation edit shows preferred frames section for linked patient', func
         ->assertSee($this->frame->name);
 });
 
-test('in-progress consultation edit keeps preferred frames visible', function () {
+test('in-progress consultation edit hides preferred frames', function () {
     $staff = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -421,6 +421,6 @@ test('in-progress consultation edit keeps preferred frames visible', function ()
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertSee('Preferred Frames')
-        ->assertSee($this->frame->name);
+        ->assertDontSee('Preferred Frames')
+        ->assertDontSee($this->frame->name);
 });
