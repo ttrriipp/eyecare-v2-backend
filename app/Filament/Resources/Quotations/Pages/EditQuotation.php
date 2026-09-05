@@ -110,6 +110,7 @@ class EditQuotation extends EditRecord
                         Placeholder::make('order_summary')
                             ->label('Order summary')
                             ->content(new HtmlString($configurationItems->implode('<br>')))
+                            ->visible($hasProductItems)
                             ->columnSpanFull(),
 
                         Placeholder::make('prescription_reference')
@@ -158,7 +159,6 @@ class EditQuotation extends EditRecord
 
                         CheckboxList::make('performed_service_item_ids')
                             ->label('Services to bill now')
-                            ->helperText('Unselected services stay proposed — bill them later from "Bill Remaining Services".')
                             ->options($serviceItems->mapWithKeys(fn ($item): array => [
                                 $item->id => "{$item->description} (₱".number_format((float) $item->amount, 2).')',
                             ]))
@@ -515,6 +515,10 @@ class EditQuotation extends EditRecord
             'description' => $item->description,
             'quantity' => $item->quantity,
             'unit_price' => (float) $item->unit_price,
+            'line_total' => number_format(
+                ((float) $item->quantity) * ((float) $item->unit_price),
+                2,
+            ),
         ];
     }
 }

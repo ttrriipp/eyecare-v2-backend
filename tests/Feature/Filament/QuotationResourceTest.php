@@ -236,6 +236,33 @@ test('confirm sale exposes fulfillment choices and defaults prescription eyewear
         ]);
 });
 
+test('confirm sale hides the empty order summary for service-only quotations', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create([
+        'status' => QuotationStatus::Draft,
+        'subtotal' => 1200,
+        'total' => 1200,
+    ]);
+    QuotationItem::factory()->service()->create([
+        'quotation_id' => $quotation->id,
+        'description' => 'Contact Lens Fitting',
+        'quantity' => 1,
+        'unit_price' => 1200,
+        'amount' => 1200,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->mountAction('confirmSale')
+        ->assertMountedActionModalDontSee('Order summary')
+        ->assertMountedActionModalDontSee('Unselected services stay proposed')
+        ->assertMountedActionModalSee([
+            'Services to bill now',
+            'Contact Lens Fitting',
+        ]);
+});
+
 test('confirm sale saves the selected fulfillment and supplier settings', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
@@ -434,9 +461,15 @@ test('opening revise items pre-fills the existing item', function () {
 
     $this->actingAs($staff);
 
-    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+    $component = Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->mountAction('reviseItems')
         ->assertSee('Classic Black Frame');
+
+    $component->assertSet('mountedActions.0.data.items', function (array $items): bool {
+        $item = array_values($items)[0] ?? [];
+
+        return ($item['line_total'] ?? null) === '4,500.00';
+    });
 });
 
 test('the revise items action is hidden once a quotation has an optical order', function () {
