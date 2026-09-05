@@ -213,6 +213,32 @@ class EvaluateAppointmentAvailability
     }
 
     /**
+     * Calculate the remaining clinic capacity for a candidate interval.
+     *
+     * The total is the number of active optometrists who can cover the full
+     * interval. Existing active appointments reduce that total according to
+     * the maximum simultaneous overlap within the interval.
+     *
+     * @return array{available: int, total: int}
+     */
+    public function clinicCapacityForInterval(
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
+        ?Appointment $ignoreAppointment = null,
+        ?Collection $blockingAppointments = null,
+    ): array {
+        $total = $this->eligibleOptometristCapacity($startsAt, $endsAt);
+        $appointments = $blockingAppointments
+            ?? $this->blockingAppointmentsBetween($startsAt, $endsAt, $ignoreAppointment);
+        $used = $this->maximumConcurrentAppointments($startsAt, $endsAt, $appointments);
+
+        return [
+            'available' => max(0, $total - $used),
+            'total' => $total,
+        ];
+    }
+
+    /**
      * Check if a specific optometrist is eligible for the exact interval.
      */
     public function isOptometristEligible(
@@ -301,6 +327,30 @@ class EvaluateAppointmentAvailability
         int $capacity,
         ?User $optometrist,
     ): bool {
+        foreach ($this->capacitySegments($startsAt, $endsAt, $appointments) as $overlapping) {
+            if ($optometrist !== null && $overlapping->contains(
+                fn (Appointment $appointment): bool => $appointment->optometrist_id === $optometrist->id,
+            )) {
+                return true;
+            }
+
+            if ($overlapping->count() >= $capacity) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  Collection<int, Appointment>  $appointments
+     * @return \Generator<int, Collection<int, Appointment>>
+     */
+    private function capacitySegments(
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
+        Collection $appointments,
+    ): \Generator {
         $boundaries = collect([$startsAt->copy(), $endsAt->copy()]);
 
         $appointments->each(function (Appointment $appointment) use ($boundaries, $startsAt, $endsAt): void {
@@ -327,26 +377,31 @@ class EvaluateAppointmentAvailability
             $segmentStartsAt = $orderedBoundaries[$index];
             $segmentEndsAt = $orderedBoundaries[$index + 1];
 
-            $overlapping = $appointments->filter(
+            yield $appointments->filter(
                 fn (Appointment $appointment): bool => $this->appointmentOverlapsSegment(
                     appointment: $appointment,
                     segmentStartsAt: $segmentStartsAt,
                     segmentEndsAt: $segmentEndsAt,
                 ),
             );
+        }
+    }
 
-            if ($optometrist !== null && $overlapping->contains(
-                fn (Appointment $appointment): bool => $appointment->optometrist_id === $optometrist->id,
-            )) {
-                return true;
-            }
+    /**
+     * @param  Collection<int, Appointment>  $appointments
+     */
+    private function maximumConcurrentAppointments(
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
+        Collection $appointments,
+    ): int {
+        $maximum = 0;
 
-            if ($overlapping->count() >= $capacity) {
-                return true;
-            }
+        foreach ($this->capacitySegments($startsAt, $endsAt, $appointments) as $overlapping) {
+            $maximum = max($maximum, $overlapping->count());
         }
 
-        return false;
+        return $maximum;
     }
 
     private function appointmentOverlapsSegment(

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AppointmentRequests\Pages;
 
 use App\Actions\Appointments\AcceptAppointmentRequest;
+use App\Actions\Appointments\EvaluateAppointmentAvailability;
 use App\Actions\Appointments\EvaluateAppointmentRequestPreferences;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\AppointmentRequests\Widgets\AppointmentRequestScheduleCalendar;
@@ -79,6 +80,13 @@ class ReviewAppointmentRequestSchedule extends Page
                 ->color('gray')
                 ->outlined()
                 ->url(AppointmentRequestResource::getUrl('view', ['record' => $this->getRecord()])),
+            Action::make('accept')
+                ->label('Accept & Schedule')
+                ->icon('heroicon-o-check')
+                ->color('success')
+                ->action(function (): void {
+                    $this->accept();
+                }),
         ];
     }
 
@@ -122,7 +130,7 @@ class ReviewAppointmentRequestSchedule extends Page
     public function reasonLabel(?string $reason): string
     {
         if ($reason === null) {
-            return $this->optometristId === null ? 'Clinic capacity available' : 'Available';
+            return $this->optometristId === null ? 'Clinic capacity available' : 'Provider available';
         }
 
         return match ($reason) {
@@ -137,11 +145,104 @@ class ReviewAppointmentRequestSchedule extends Page
         };
     }
 
-    public function availabilityScopeDescription(): string
+    public function preferenceAvailabilityLabel(bool $available, ?string $reason): string
     {
-        return $this->optometristId === null
-            ? 'Availability is based on clinic capacity until a provider is selected.'
-            : 'Availability is checked against the selected provider.';
+        if ($available) {
+            return 'Available';
+        }
+
+        return match ($reason) {
+            'clinic_closed' => 'Clinic closed',
+            'outside_clinic_hours' => 'Outside clinic hours',
+            'capacity_reached' => $this->optometristId === null ? 'Capacity reached' : 'Provider unavailable',
+            'elapsed' => 'Elapsed',
+            'outside_slot_grid' => 'Outside available grid',
+            default => 'Unavailable',
+        };
+    }
+
+    /**
+     * @return array{state: 'available'|'unavailable'|'incomplete', label: string}
+     */
+    public function selectedSlotStatus(): array
+    {
+        $appointmentType = $this->selectedAppointmentType();
+
+        if ($appointmentType === null) {
+            return [
+                'state' => 'incomplete',
+                'label' => 'Select an appointment type',
+            ];
+        }
+
+        if ($this->durationMinutes < 5 || $this->durationMinutes > 240) {
+            return [
+                'state' => 'incomplete',
+                'label' => 'Enter a valid duration',
+            ];
+        }
+
+        try {
+            $startsAt = $this->selectedScheduledAt();
+        } catch (\Throwable) {
+            return [
+                'state' => 'incomplete',
+                'label' => 'Enter a valid date and time',
+            ];
+        }
+
+        $optometrist = $this->selectedOptometrist();
+
+        if ($this->optometristId !== null && $optometrist === null) {
+            return [
+                'state' => 'incomplete',
+                'label' => 'Select an active optometrist or leave the provider unassigned',
+            ];
+        }
+
+        $evaluator = app(EvaluateAppointmentAvailability::class);
+        $decision = $evaluator->handle(
+            startsAt: $startsAt,
+            durationMinutes: $this->durationMinutes,
+            optometrist: $optometrist,
+            enforceFuture: true,
+            enforceGrid: true,
+        );
+
+        if (! $decision->available) {
+            return [
+                'state' => 'unavailable',
+                'label' => $this->unavailableSlotLabel($decision->reason, $optometrist),
+            ];
+        }
+
+        if ($optometrist !== null) {
+            return [
+                'state' => 'available',
+                'label' => 'Provider available',
+            ];
+        }
+
+        $capacity = $evaluator->clinicCapacityForInterval(
+            startsAt: $decision->startsAt,
+            endsAt: $decision->endsAt,
+        );
+
+        if ($capacity['total'] === 0) {
+            return [
+                'state' => 'available',
+                'label' => 'Clinic capacity available',
+            ];
+        }
+
+        return [
+            'state' => 'available',
+            'label' => sprintf(
+                '%d of %d clinic slots available',
+                $capacity['available'],
+                $capacity['total'],
+            ),
+        ];
     }
 
     public function selectPreference(int $index): void
@@ -249,6 +350,12 @@ class ReviewAppointmentRequestSchedule extends Page
             return;
         }
 
+        if ($this->optometristId !== null && $optometrist === null) {
+            $this->addError('optometristId', 'Select an active optometrist or leave the provider unassigned.');
+
+            return;
+        }
+
         try {
             $appointment = app(AcceptAppointmentRequest::class)->handle(
                 request: $this->getRecord(),
@@ -289,36 +396,6 @@ class ReviewAppointmentRequestSchedule extends Page
         } catch (\Throwable) {
             return null;
         }
-    }
-
-    public function selectedSlotSummary(): string
-    {
-        try {
-            $startsAt = $this->selectedScheduledAt();
-        } catch (\Throwable) {
-            return 'Choose a valid date and time';
-        }
-
-        $endsAt = $startsAt->copy()->addMinutes($this->durationMinutes);
-
-        return $startsAt->format('D, M j').' · '.$startsAt->format('g:i A').'–'.$endsAt->format('g:i A');
-    }
-
-    public function selectedSlotSourceLabel(): string
-    {
-        try {
-            $selected = $this->selectedScheduledAt();
-        } catch (\Throwable) {
-            return 'Not selected';
-        }
-
-        foreach ($this->getRecord()->getAllTimePreferences() as $index => $preference) {
-            if ($this->matchesScheduledMinute(Carbon::parse($preference), $selected)) {
-                return $index === 0 ? 'Primary preference' : 'Alternative '.$index;
-            }
-        }
-
-        return 'Custom time';
     }
 
     public function isSelectedPreference(string $start): bool
@@ -363,6 +440,20 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         return Carbon::parse($this->scheduledDate.' '.$this->scheduledTime, config('app.timezone'));
+    }
+
+    private function unavailableSlotLabel(?string $reason, ?User $optometrist): string
+    {
+        return match ($reason) {
+            'capacity_reached' => $optometrist === null
+                ? 'Unavailable — capacity reached'
+                : 'Unavailable — provider unavailable',
+            'clinic_closed' => 'Unavailable — clinic closed',
+            'outside_clinic_hours' => 'Unavailable — outside clinic hours',
+            'elapsed' => 'Unavailable — elapsed',
+            'outside_slot_grid' => 'Unavailable — outside available time grid',
+            default => 'Unavailable — '.Str::lower(Str::headline($reason ?? 'unavailable')),
+        };
     }
 
     private function setScheduledSlot(CarbonInterface $selected): void

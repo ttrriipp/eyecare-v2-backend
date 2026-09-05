@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Appointments\EvaluateAppointmentAvailability;
+use App\Models\Appointment;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -87,6 +88,29 @@ test('per-interval capacity excludes optometrists whose hours do not cover the i
     $afternoonStart = $date->copy()->setTime(13, 0);
     $afternoonEnd = $date->copy()->setTime(13, 30);
     expect($evaluator->eligibleOptometristCapacity($afternoonStart, $afternoonEnd))->toBe(1);
+});
+
+test('clinic capacity reports remaining slots for a candidate interval', function () {
+    $firstOptometrist = User::factory()->optometrist()->create();
+    User::factory()->optometrist()->create();
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+
+    Appointment::factory()->create([
+        'optometrist_id' => $firstOptometrist->id,
+        'scheduled_at' => $startsAt,
+        'duration_minutes' => 30,
+    ]);
+
+    $capacity = app(EvaluateAppointmentAvailability::class)->clinicCapacityForInterval(
+        startsAt: $startsAt,
+        endsAt: $startsAt->copy()->addMinutes(30),
+    );
+
+    expect($capacity)->toBe([
+        'available' => 1,
+        'total' => 2,
+    ]);
 });
 
 test('partial absence affects only overlapping intervals', function () {
