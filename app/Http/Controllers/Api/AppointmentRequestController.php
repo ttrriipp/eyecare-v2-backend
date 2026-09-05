@@ -85,7 +85,7 @@ class AppointmentRequestController extends Controller
         return [
             'id' => $request->id,
             'request_number' => $request->request_number,
-            'status' => $request->status->value ?? $request->status,
+            'status' => $request->effectiveStatus()->value,
             'patient_id' => $request->patient_id,
             'appointment_type' => $request->appointmentType ? [
                 'id' => $request->appointmentType->id,

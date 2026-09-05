@@ -72,6 +72,7 @@ class AppointmentRequestsTable
                     ->sortable(),
 
                 TextColumn::make('status')
+                    ->state(fn (AppointmentRequest $record): AppointmentRequestStatus => $record->effectiveStatus())
                     ->badge()
                     ->color(fn (AppointmentRequestStatus $state) => match ($state) {
                         AppointmentRequestStatus::Pending => 'warning',
@@ -85,25 +86,65 @@ class AppointmentRequestsTable
             ->defaultSort(function (Builder $query): Builder {
                 $table = $query->getModel()->getTable();
                 $pendingStatus = AppointmentRequestStatus::Pending->value;
+                $now = now();
 
                 return $query
                     ->orderByRaw(
-                        "CASE WHEN {$table}.status = ? AND {$table}.expires_at > ? THEN 0 WHEN {$table}.status = ? THEN 1 ELSE 2 END",
-                        [$pendingStatus, now(), $pendingStatus],
+                        "CASE WHEN {$table}.status = ? AND {$table}.expires_at > ? THEN 0 WHEN {$table}.status = ? AND {$table}.expires_at <= ? THEN 1 ELSE 2 END",
+                        [$pendingStatus, $now, $pendingStatus, $now],
                     )
                     ->orderBy('expires_at', 'asc')
                     ->orderBy('created_at', 'desc');
             })
             ->filters([
                 SelectFilter::make('status')
-                    ->options(AppointmentRequestStatus::class),
+                    ->options(AppointmentRequestStatus::class)
+                    ->query(function (Builder $query, array $data): void {
+                        $status = $data['value'] ?? null;
+
+                        if (blank($status)) {
+                            return;
+                        }
+
+                        if ($status === AppointmentRequestStatus::Pending->value) {
+                            $query
+                                ->where('status', AppointmentRequestStatus::Pending)
+                                ->where('expires_at', '>', now());
+
+                            return;
+                        }
+
+                        if ($status === AppointmentRequestStatus::Expired->value) {
+                            $query->where(function (Builder $query): void {
+                                $query
+                                    ->where('status', AppointmentRequestStatus::Expired)
+                                    ->orWhere(function (Builder $query): void {
+                                        $query
+                                            ->where('status', AppointmentRequestStatus::Pending)
+                                            ->where('expires_at', '<=', now());
+                                    });
+                            });
+
+                            return;
+                        }
+
+                        $query->where('status', $status);
+                    }),
             ])
             ->recordActions([
                 ActionGroup::make([
                     Action::make('view')
-                        ->label('Review')
+                        ->label('View request')
                         ->icon('heroicon-o-eye')
                         ->url(fn (AppointmentRequest $record) => AppointmentRequestResource::getUrl('view', ['record' => $record])),
+
+                    Action::make('reviewSchedule')
+                        ->label('Review & Schedule')
+                        ->icon('heroicon-o-calendar-days')
+                        ->color('success')
+                        ->visible(fn (AppointmentRequest $record): bool => $record->isReadyForScheduleReview())
+                        ->authorize('accept')
+                        ->url(fn (AppointmentRequest $record): string => AppointmentRequestResource::getUrl('schedule', ['record' => $record])),
 
                     Action::make('linkToPatient')
                         ->label('Link to Patient')

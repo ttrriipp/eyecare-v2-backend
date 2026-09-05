@@ -58,6 +58,69 @@ test('request queue does not expose a quick accept action', function () {
         ->assertActionDoesNotExist(TestAction::make('accept')->table($request));
 });
 
+test('request queue separates viewing from scheduling actions', function () {
+    $staff = User::factory()->staff()->create();
+    $ready = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+    $expired = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+    $unlinked = AppointmentRequest::factory()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertActionVisible(TestAction::make('view')->table($ready))
+        ->assertActionVisible(TestAction::make('reviewSchedule')->table($ready))
+        ->assertActionHidden(TestAction::make('reviewSchedule')->table($expired))
+        ->assertActionHidden(TestAction::make('reviewSchedule')->table($unlinked))
+        ->assertSee('View request')
+        ->assertSee('Review & Schedule')
+        ->assertSee('href="'.AppointmentRequestResource::getUrl('schedule', ['record' => $ready]).'"', false);
+});
+
+test('expired pending requests display as expired in the request queue', function () {
+    $staff = User::factory()->staff()->create();
+    $expired = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee($expired->request_number)
+        ->assertTableColumnFormattedStateSet('status', 'Expired', record: $expired);
+});
+
+test('status filters use the effective expired status', function () {
+    $staff = User::factory()->staff()->create();
+    $expiredPending = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+    $activePending = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->filterTable('status', AppointmentRequestStatus::Expired->value)
+        ->assertCanSeeTableRecords([$expiredPending])
+        ->assertCanNotSeeTableRecords([$activePending])
+        ->filterTable('status', AppointmentRequestStatus::Pending->value)
+        ->assertCanSeeTableRecords([$activePending])
+        ->assertCanNotSeeTableRecords([$expiredPending]);
+});
+
 test('request queue shows scheduling context', function () {
     $staff = User::factory()->staff()->create();
     $type = AppointmentType::factory()->create([
@@ -83,6 +146,11 @@ test('pending requests appear before resolved requests in the default queue orde
         'status' => AppointmentRequestStatus::Pending,
         'created_at' => now()->subDays(2),
     ]);
+    $expired = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+        'created_at' => now()->subDays(3),
+    ]);
     $accepted = AppointmentRequest::factory()->linked()->accepted()->create([
         'created_at' => now(),
     ]);
@@ -93,7 +161,7 @@ test('pending requests appear before resolved requests in the default queue orde
     $this->actingAs($staff);
 
     Livewire::test(ListAppointmentRequests::class)
-        ->assertCanSeeTableRecords([$pending, $accepted, $rejected], inOrder: true);
+        ->assertCanSeeTableRecords([$pending, $expired, $accepted, $rejected], inOrder: true);
 });
 
 test('request queue shows all preferred times and submitted time', function () {
@@ -250,4 +318,26 @@ test('expired pending requests are not placed in actionable request tabs', funct
     $tabs['needs_link']->modifyQuery($needsLinkQuery);
 
     expect($needsLinkQuery->count())->toBe(0);
+});
+
+test('expired pending requests appear in the resolved request tab', function () {
+    $staff = User::factory()->staff()->create();
+    $expired = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+    $active = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ListAppointmentRequests::class);
+    $resolvedQuery = AppointmentRequest::query();
+    $component->instance()->getTabs()['resolved']->modifyQuery($resolvedQuery);
+
+    expect($resolvedQuery->pluck('id')->all())
+        ->toContain($expired->id)
+        ->not->toContain($active->id);
 });

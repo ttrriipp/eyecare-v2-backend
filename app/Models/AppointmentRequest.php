@@ -104,6 +104,15 @@ class AppointmentRequest extends Model
             && ! $this->isExpired();
     }
 
+    public function effectiveStatus(): AppointmentRequestStatus
+    {
+        if ($this->status === AppointmentRequestStatus::Pending && $this->isExpired()) {
+            return AppointmentRequestStatus::Expired;
+        }
+
+        return $this->status;
+    }
+
     public function isExpired(): bool
     {
         return $this->expires_at->isPast();

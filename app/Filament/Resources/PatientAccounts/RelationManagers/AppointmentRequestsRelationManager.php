@@ -4,6 +4,7 @@ namespace App\Filament\Resources\PatientAccounts\RelationManagers;
 
 use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\Schemas\AppointmentRequestForm;
+use App\Models\AppointmentRequest;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -31,6 +32,7 @@ class AppointmentRequestsRelationManager extends RelationManager
                     ->searchable(),
 
                 TextColumn::make('status')
+                    ->state(fn (AppointmentRequest $record): AppointmentRequestStatus => $record->effectiveStatus())
                     ->badge()
                     ->formatStateUsing(fn (AppointmentRequestStatus $state): string => ucfirst($state->value))
                     ->color(fn (AppointmentRequestStatus $state) => match ($state) {

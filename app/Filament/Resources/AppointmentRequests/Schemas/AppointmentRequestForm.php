@@ -121,9 +121,9 @@ class AppointmentRequestForm
 
                         Placeholder::make('status')
                             ->label('Request Status')
-                            ->content(fn ($record): string => Str::headline($record?->status->value ?? '—'))
+                            ->content(fn ($record): string => Str::headline($record?->effectiveStatus()->value ?? '—'))
                             ->badge()
-                            ->color(fn ($record): string => match ($record?->status) {
+                            ->color(fn ($record): string => match ($record?->effectiveStatus()) {
                                 AppointmentRequestStatus::Pending => 'warning',
                                 AppointmentRequestStatus::Accepted => 'success',
                                 AppointmentRequestStatus::Rejected => 'danger',
@@ -203,7 +203,7 @@ class AppointmentRequestForm
 
                 // ── 6. Decision Details ─────────────────────────────────────
                 Section::make('Decision Details')
-                    ->visible(fn ($record): bool => $record?->status !== AppointmentRequestStatus::Pending)
+                    ->visible(fn ($record): bool => $record?->effectiveStatus() !== AppointmentRequestStatus::Pending)
                     ->columnSpanFull()
                     ->schema([
                         Placeholder::make('resolved_by')
@@ -218,12 +218,12 @@ class AppointmentRequestForm
 
                         Placeholder::make('outcome')
                             ->label('Outcome')
-                            ->content(fn ($record): string => match ($record?->status) {
+                            ->content(fn ($record): string => match ($record?->effectiveStatus()) {
                                 AppointmentRequestStatus::Cancelled => 'Cancelled by patient.',
                                 AppointmentRequestStatus::Expired => 'Expired before staff review.',
                                 default => '—',
                             })
-                            ->visible(fn ($record): bool => in_array($record?->status, [
+                            ->visible(fn ($record): bool => in_array($record?->effectiveStatus(), [
                                 AppointmentRequestStatus::Cancelled,
                                 AppointmentRequestStatus::Expired,
                             ], true)),

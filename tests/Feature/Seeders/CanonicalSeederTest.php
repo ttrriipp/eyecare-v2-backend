@@ -128,10 +128,15 @@ test('canonical seed data creates deterministic appointment request scenarios wi
     }
 
     $accepted = $requests->get('APR-2026-000002');
+    $pending = $requests->get('APR-2026-000001');
     $rejected = $requests->get('APR-2026-000003');
     $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
+    $flagshipPatient = Patient::query()->where('first_name', 'Liza')->where('last_name', 'Mendoza')->firstOrFail();
 
-    expect($accepted?->status)->toBe(AppointmentRequestStatus::Accepted)
+    expect($pending?->status)->toBe(AppointmentRequestStatus::Pending)
+        ->and($pending?->patient_id)->toBe($flagshipPatient->id)
+        ->and($pending?->expires_at?->isFuture())->toBeTrue()
+        ->and($accepted?->status)->toBe(AppointmentRequestStatus::Accepted)
         ->and($accepted?->resolvedBy?->id)->toBe($staff->id)
         ->and($accepted?->resolved_at)->not->toBeNull()
         ->and($accepted?->appointment_id)->not->toBeNull()

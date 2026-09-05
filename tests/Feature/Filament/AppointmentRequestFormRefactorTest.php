@@ -196,6 +196,20 @@ test('decision details appear only for resolved requests', function () {
         ->assertSee('Resolved At');
 });
 
+test('stale pending requests show their effective expired status', function () {
+    $request = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ViewAppointmentRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSee('Expired')
+        ->assertSee('Decision Details')
+        ->assertSee('Expired before staff review.');
+});
+
 test('rejection reason appears only for rejected requests', function () {
     $rejected = AppointmentRequest::factory()->linked()->rejected()->create([
         'rejection_reason' => 'Patient no longer needs this slot.',
@@ -239,12 +253,12 @@ test('link accept and reject actions remain available under same conditions', fu
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $unlinked->getRouteKey()])
         ->assertActionVisible('linkToPatient')
-        ->assertActionHidden('accept')
+        ->assertActionDoesNotExist('accept')
         ->assertActionVisible('reject');
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $linked->getRouteKey()])
         ->assertActionHidden('linkToPatient')
-        ->assertActionVisible('accept')
+        ->assertActionDoesNotExist('accept')
         ->assertActionVisible('reject');
 });
 

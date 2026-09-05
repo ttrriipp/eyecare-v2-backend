@@ -78,7 +78,15 @@ class ListAppointmentRequests extends ListRecords
                 ),
 
             'resolved' => Tab::make('Resolved')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', AppointmentRequestStatus::Pending)),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where(function (Builder $query): void {
+                    $query
+                        ->where('status', '!=', AppointmentRequestStatus::Pending)
+                        ->orWhere(function (Builder $query): void {
+                            $query
+                                ->where('status', AppointmentRequestStatus::Pending)
+                                ->where('expires_at', '<=', now());
+                        });
+                })),
         ];
     }
 }

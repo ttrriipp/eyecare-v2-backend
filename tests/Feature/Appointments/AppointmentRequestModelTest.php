@@ -1,9 +1,30 @@
 <?php
 
+use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
+
+test('a pending request reports expired as its effective status after its deadline', function (): void {
+    $request = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    expect($request->status)->toBe(AppointmentRequestStatus::Pending)
+        ->and($request->isPending())->toBeFalse()
+        ->and($request->effectiveStatus())->toBe(AppointmentRequestStatus::Expired);
+});
+
+test('a pending request keeps its effective status before its deadline', function (): void {
+    $request = AppointmentRequest::factory()->linked()->create([
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->addMinute(),
+    ]);
+
+    expect($request->effectiveStatus())->toBe(AppointmentRequestStatus::Pending);
+});
 
 test('encrypted identity snapshot is cast correctly', function () {
     $snapshot = [

@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class VisitRatingResource extends Resource
@@ -43,6 +44,17 @@ class VisitRatingResource extends Resource
     public static function table(Table $table): Table
     {
         return VisitRatingsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->with([
+            'patient',
+            'appointment.appointmentType',
+            'appointment.status',
+            'encounter',
+            'optometrist',
+        ]);
     }
 
     public static function getRelations(): array

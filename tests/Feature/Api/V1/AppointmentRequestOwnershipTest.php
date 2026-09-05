@@ -2,22 +2,31 @@
 
 use App\Enums\AppointmentRequestStatus;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentType;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(RoleSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
+
+afterEach(fn () => Carbon::setTestNow());
 
 test('submit response for linked account contains no snapshot data', function () {
     $user = User::factory()->patient()->create();
+    $appointmentType = AppointmentType::factory()->create();
 
     $response = $this->actingAs($user)
         ->postJson('/api/v1/appointment-requests', [
-            'scheduled_at' => now()->addDays(3)->format('Y-m-d\TH:i:sP'),
+            'appointment_type_id' => $appointmentType->id,
+            'scheduled_at' => now()->addDays(3)->setTime(10, 0)->format('Y-m-d\TH:i:sP'),
             'reason_for_visit' => 'Blurred vision',
         ])
         ->assertCreated();
@@ -85,6 +94,28 @@ test('appointment request list response excludes identity snapshot data', functi
         ->not->toContain('123 Main St, Manila')
         ->not->toContain('verified_contact_hash')
         ->and($response->json('data.0.reason_for_visit'))->toBeString();
+});
+
+test('appointment request API returns expired for due pending requests', function () {
+    $user = User::factory()->patient()->create();
+    $request = AppointmentRequest::factory()->create([
+        'user_id' => $user->id,
+        'status' => AppointmentRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/appointment-requests')
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $request->id)
+        ->assertJsonPath('data.0.status', AppointmentRequestStatus::Expired->value);
+
+    $this->actingAs($user)
+        ->getJson("/api/v1/appointment-requests/{$request->id}")
+        ->assertOk()
+        ->assertJsonPath('data.status', AppointmentRequestStatus::Expired->value);
+
+    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
 });
 
 test('cancel response has no snapshot fields', function () {
