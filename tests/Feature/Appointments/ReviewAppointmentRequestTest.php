@@ -163,7 +163,7 @@ test('accepting requires an active optometrist', function () {
     ))->toThrow(ValidationException::class);
 });
 
-test('accepting requires an assigned optometrist', function () {
+test('accepting can leave the appointment unassigned', function () {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();
 
@@ -174,15 +174,17 @@ test('accepting requires an assigned optometrist', function () {
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    expect(fn () => app(AcceptAppointmentRequest::class)->handle(
+    $appointment = app(AcceptAppointmentRequest::class)->handle(
         request: $request,
         reviewer: $reviewer,
         appointmentType: $this->appointmentType,
         durationMinutes: $this->appointmentType->duration_minutes,
         scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
-    ))->toThrow(ValidationException::class);
+    );
 
-    expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);
+    expect($appointment->optometrist_id)->toBeNull()
+        ->and($request->fresh()->status)->toBe(AppointmentRequestStatus::Accepted)
+        ->and($request->fresh()->appointment_id)->toBe($appointment->id);
 });
 
 test('an expired pending request cannot be accepted', function () {

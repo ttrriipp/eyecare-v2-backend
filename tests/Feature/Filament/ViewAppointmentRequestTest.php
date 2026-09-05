@@ -7,6 +7,7 @@ use App\Models\AppointmentType;
 use App\Models\Patient;
 use App\Models\Role;
 use App\Models\User;
+use Carbon\Carbon;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -61,9 +62,10 @@ test('accepting a linked request from the detail page does not error and creates
     $this->seed(NotificationStatusSeeder::class);
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
     $request = AppointmentRequest::factory()->create([
         'patient_id' => $patient->id,
-        'scheduled_at' => now()->addDay()->setTime(10, 0),
+        'scheduled_at' => $scheduledAt,
     ]);
     $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
     // AcceptAppointmentRequest re-checks availability against the chosen

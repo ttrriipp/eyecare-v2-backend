@@ -29,8 +29,9 @@ class AcceptAppointmentRequest
     /**
      * Accept an appointment request, creating a confirmed appointment.
      *
-     * Requires final provider, type, duration, and start. Uses schedule-date
-     * lock and retries on deadlock.
+     * Requires final type, duration, and start. A provider may be assigned
+     * now or left unassigned for later. Uses schedule-date lock and retries
+     * on deadlock.
      */
     public function handle(
         AppointmentRequest $request,
@@ -71,14 +72,8 @@ class AcceptAppointmentRequest
             ]);
         }
 
-        if ($optometrist === null) {
-            throw ValidationException::withMessages([
-                'optometrist_id' => ['An active optometrist is required before accepting the request.'],
-            ]);
-        }
-
-        // Validate the optometrist is active.
-        if (! $optometrist->isOptometrist() || ! $optometrist->is_active) {
+        // Validate the optometrist when one was selected.
+        if ($optometrist !== null && (! $optometrist->isOptometrist() || ! $optometrist->is_active)) {
             throw ValidationException::withMessages([
                 'optometrist_id' => ['The selected optometrist is not available.'],
             ]);
@@ -168,19 +163,21 @@ class AcceptAppointmentRequest
             // transitions cannot race the terminal acceptance state.
             $this->lockScheduleDate->handle($scheduledAt);
 
-            $optometrist = User::query()->lockForUpdate()->find($optometrist->id);
+            if ($optometrist !== null) {
+                $optometrist = User::query()->lockForUpdate()->find($optometrist->id);
 
-            if ($optometrist === null || ! $optometrist->is_active || ! $optometrist->isOptometrist()) {
-                throw ValidationException::withMessages([
-                    'optometrist_id' => ['The selected optometrist is no longer available.'],
-                ]);
-            }
+                if ($optometrist === null || ! $optometrist->is_active || ! $optometrist->isOptometrist()) {
+                    throw ValidationException::withMessages([
+                        'optometrist_id' => ['The selected optometrist is no longer available.'],
+                    ]);
+                }
 
-            // Recheck the provider interval under the lock.
-            if (! $this->evaluateAvailability->isOptometristEligible($optometrist, $scheduledAt, $scheduledAt->copy()->addMinutes($durationMinutes))) {
-                throw ValidationException::withMessages([
-                    'optometrist_id' => ['The selected optometrist is no longer available for this time slot.'],
-                ]);
+                // Recheck the provider interval under the lock.
+                if (! $this->evaluateAvailability->isOptometristEligible($optometrist, $scheduledAt, $scheduledAt->copy()->addMinutes($durationMinutes))) {
+                    throw ValidationException::withMessages([
+                        'optometrist_id' => ['The selected optometrist is no longer available for this time slot.'],
+                    ]);
+                }
             }
 
             // Recheck general availability

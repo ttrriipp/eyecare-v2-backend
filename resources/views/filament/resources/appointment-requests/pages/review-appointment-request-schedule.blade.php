@@ -29,7 +29,80 @@
                     </dl>
                 </x-filament::section>
 
-                <x-filament::section heading="Submitted preferences">
+                <x-filament::section
+                    heading="Scheduling details"
+                    description="Set the appointment type and duration, then optionally assign a provider before reviewing availability."
+                >
+                    <div class="space-y-4">
+                        <div class="fi-fo-field">
+                            <label for="appointment-type" class="fi-fo-field-label">
+                                <span class="fi-fo-field-label-content">Appointment type</span>
+                            </label>
+                            <x-filament::input.wrapper :valid="! $errors->has('appointmentTypeId')">
+                                <x-filament::input.select
+                                    id="appointment-type"
+                                    wire:model.live="appointmentTypeId"
+                                    :aria-describedby="$errors->has('appointmentTypeId') ? 'appointment-type-error' : null"
+                                    :aria-invalid="$errors->has('appointmentTypeId') ? 'true' : 'false'"
+                                >
+                                    <option value="">Select a type</option>
+                                    @foreach ($this->appointmentTypes() as $id => $label)
+                                        <option value="{{ $id }}">{{ $label }}</option>
+                                    @endforeach
+                                </x-filament::input.select>
+                            </x-filament::input.wrapper>
+                            @error('appointmentTypeId')
+                                <p id="appointment-type-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="fi-fo-field">
+                                <label for="duration" class="fi-fo-field-label">
+                                    <span class="fi-fo-field-label-content">Duration (minutes)</span>
+                                </label>
+                                <x-filament::input.wrapper :valid="! $errors->has('durationMinutes')">
+                                    <x-filament::input
+                                        id="duration"
+                                        type="number"
+                                        min="5"
+                                        max="240"
+                                        step="5"
+                                        wire:model.live="durationMinutes"
+                                        :aria-describedby="$errors->has('durationMinutes') ? 'duration-error' : null"
+                                        :aria-invalid="$errors->has('durationMinutes') ? 'true' : 'false'"
+                                    />
+                                </x-filament::input.wrapper>
+                                @error('durationMinutes')
+                                    <p id="duration-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="fi-fo-field">
+                                <label for="optometrist" class="fi-fo-field-label">
+                                    <span class="fi-fo-field-label-content">Optometrist (optional)</span>
+                                </label>
+                                <x-filament::input.wrapper :valid="! $errors->has('optometristId')">
+                                    <x-filament::input.select
+                                        id="optometrist"
+                                        wire:model.live="optometristId"
+                                        :aria-describedby="$errors->has('optometristId') ? 'optometrist-error' : null"
+                                        :aria-invalid="$errors->has('optometristId') ? 'true' : 'false'"
+                                    >
+                                        <option value="">Select a provider (optional)</option>
+                                        @foreach ($this->optometrists() as $id => $label)
+                                            <option value="{{ $id }}">{{ $label }}</option>
+                                        @endforeach
+                                    </x-filament::input.select>
+                                </x-filament::input.wrapper>
+                                @error('optometristId')
+                                    <p id="optometrist-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                    </div>
+                </x-filament::section>
+
+                <x-filament::section heading="Submitted preferences" :description="$this->availabilityScopeDescription()">
                     <div class="space-y-3">
                         @foreach ($this->preferenceDecisions() as $index => $decision)
                             <button
@@ -70,58 +143,80 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label for="appointment-type" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Appointment type</label>
-                            <select id="appointment-type" wire:model.live="appointmentTypeId" class="fi-select-input mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                                <option value="">Select a type</option>
-                                @foreach ($this->appointmentTypes() as $id => $label)
-                                    <option value="{{ $id }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            @error('appointmentTypeId') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
-                        </div>
-
                         <div class="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <label for="duration" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Duration (minutes)</label>
-                                <input id="duration" type="number" min="5" max="240" step="5" wire:model.live="durationMinutes" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
-                                @error('durationMinutes') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
+                            <div class="fi-fo-field">
+                                <label for="scheduled-date" class="fi-fo-field-label">
+                                    <span class="fi-fo-field-label-content">Date</span>
+                                </label>
+                                <x-filament::input.wrapper :valid="! $errors->has('scheduledDate')">
+                                    <x-filament::input
+                                        id="scheduled-date"
+                                        type="date"
+                                        wire:model.live="scheduledDate"
+                                        :aria-describedby="$errors->has('scheduledDate') ? 'scheduled-date-error' : null"
+                                        :aria-invalid="$errors->has('scheduledDate') ? 'true' : 'false'"
+                                    />
+                                </x-filament::input.wrapper>
+                                @error('scheduledDate')
+                                    <p id="scheduled-date-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                                @enderror
                             </div>
-                            <div>
-                                <label for="optometrist" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Optometrist <span class="text-danger-600">*</span></label>
-                                <select id="optometrist" wire:model.live="optometristId" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
-                                    <option value="">Select a provider</option>
-                                    @foreach ($this->optometrists() as $id => $label)
-                                        <option value="{{ $id }}">{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                                @error('optometristId') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
+                            <div class="fi-fo-field">
+                                <label for="scheduled-time" class="fi-fo-field-label">
+                                    <span class="fi-fo-field-label-content">Time</span>
+                                </label>
+                                <x-filament::input.wrapper :valid="! $errors->has('scheduledTime')">
+                                    <x-filament::input
+                                        id="scheduled-time"
+                                        type="time"
+                                        step="900"
+                                        wire:model.live="scheduledTime"
+                                        :aria-describedby="$errors->has('scheduledTime') ? 'scheduled-time-error' : null"
+                                        :aria-invalid="$errors->has('scheduledTime') ? 'true' : 'false'"
+                                    />
+                                </x-filament::input.wrapper>
+                                @error('scheduledTime')
+                                    <p id="scheduled-time-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
 
-                        <div class="grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <label for="scheduled-date" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Date</label>
-                                <input id="scheduled-date" type="date" wire:model.live="scheduledDate" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
-                                @error('scheduledDate') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
-                            </div>
-                            <div>
-                                <label for="scheduled-time" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Time</label>
-                                <input id="scheduled-time" type="time" step="900" wire:model.live="scheduledTime" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
-                                @error('scheduledTime') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
-                            </div>
+                        <div class="fi-fo-field">
+                            <label for="referring-source" class="fi-fo-field-label">
+                                <span class="fi-fo-field-label-content">Referring source</span>
+                            </label>
+                            <x-filament::input.wrapper :valid="! $errors->has('referringSource')">
+                                <x-filament::input
+                                    id="referring-source"
+                                    type="text"
+                                    wire:model.live="referringSource"
+                                    :aria-describedby="$errors->has('referringSource') ? 'referring-source-error' : null"
+                                    :aria-invalid="$errors->has('referringSource') ? 'true' : 'false'"
+                                />
+                            </x-filament::input.wrapper>
+                            @error('referringSource')
+                                <p id="referring-source-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
 
-                        <div>
-                            <label for="referring-source" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Referring source</label>
-                            <input id="referring-source" type="text" wire:model.live="referringSource" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white" />
-                            @error('referringSource') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
-                        </div>
-
-                        <div>
-                            <label for="contact-note" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Contact note</label>
-                            <textarea id="contact-note" rows="3" wire:model.live="contactNote" placeholder="Required when choosing a time outside the submitted preferences" class="mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white"></textarea>
-                            @error('contactNote') <p class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p> @enderror
+                        <div class="fi-fo-field">
+                            <label for="contact-note" class="fi-fo-field-label">
+                                <span class="fi-fo-field-label-content">Contact note</span>
+                            </label>
+                            <x-filament::input.wrapper :valid="! $errors->has('contactNote')">
+                                <textarea
+                                    id="contact-note"
+                                    rows="3"
+                                    wire:model.live="contactNote"
+                                    placeholder="Required when choosing a time outside the submitted preferences"
+                                    :aria-describedby="$errors->has('contactNote') ? 'contact-note-error' : null"
+                                    :aria-invalid="$errors->has('contactNote') ? 'true' : 'false'"
+                                    class="block w-full resize-y border-none bg-transparent px-3 py-1.5 text-sm leading-6 text-gray-950 placeholder:text-gray-400 outline-none focus:ring-0 dark:text-white dark:placeholder:text-gray-500"
+                                ></textarea>
+                            </x-filament::input.wrapper>
+                            @error('contactNote')
+                                <p id="contact-note-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                            @enderror
                         </div>
 
                         <div class="flex items-center justify-end border-t border-gray-200 pt-4 dark:border-white/10">

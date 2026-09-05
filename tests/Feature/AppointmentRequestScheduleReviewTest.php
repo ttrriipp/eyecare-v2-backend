@@ -81,6 +81,41 @@ test('review page initializes the submitted primary preference', function () {
         ->assertSee('Primary preference');
 });
 
+test('final appointment details use standard Filament input wrappers', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->create();
+
+    $this->actingAs($staff);
+
+    $html = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])->html();
+
+    expect(substr_count($html, 'class="fi-input-wrp"'))->toBe(7)
+        ->and($html)->toContain('fi-input')
+        ->and($html)->toContain('fi-select-input');
+});
+
+test('review page clarifies clinic-wide availability before an optional provider is selected', function () {
+    $staff = User::factory()->staff()->create();
+    User::factory()->optometrist()->create();
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $request = AppointmentRequest::factory()->linked()->create([
+        'scheduled_at' => $scheduledAt,
+        'expires_at' => $scheduledAt->copy()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()]);
+    $html = $component->html();
+
+    expect($component->instance()->optometristId)->toBeNull()
+        ->and($html)->toContain('Optometrist (optional)')
+        ->and($html)->toContain('Availability is based on clinic capacity until a provider is selected.')
+        ->and($html)->toContain('Clinic capacity available')
+        ->and($html)->not->toContain('>Available</span>')
+        ->and(strpos($html, 'Optometrist (optional)'))->toBeLessThan(strpos($html, 'Submitted preferences'));
+});
+
 test('selecting a preference or open calendar slot updates one scheduling state', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->withAlternatives()->create();

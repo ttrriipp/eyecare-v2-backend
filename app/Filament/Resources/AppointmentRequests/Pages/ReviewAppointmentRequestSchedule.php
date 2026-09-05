@@ -121,15 +121,27 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function reasonLabel(?string $reason): string
     {
+        if ($reason === null) {
+            return $this->optometristId === null ? 'Clinic capacity available' : 'Available';
+        }
+
         return match ($reason) {
-            null => 'Available',
             'clinic_closed' => 'Clinic closed',
             'outside_clinic_hours' => 'Outside clinic hours',
-            'capacity_reached' => 'Provider unavailable / capacity reached',
+            'capacity_reached' => $this->optometristId === null
+                ? 'Clinic capacity reached'
+                : 'Provider unavailable / capacity reached',
             'elapsed' => 'Elapsed',
             'outside_slot_grid' => 'Outside available time grid',
             default => Str::headline($reason),
         };
+    }
+
+    public function availabilityScopeDescription(): string
+    {
+        return $this->optometristId === null
+            ? 'Availability is based on clinic capacity until a provider is selected.'
+            : 'Availability is checked against the selected provider.';
     }
 
     public function selectPreference(int $index): void
@@ -202,7 +214,7 @@ class ReviewAppointmentRequestSchedule extends Page
         $this->validate([
             'appointmentTypeId' => ['required', 'integer'],
             'durationMinutes' => ['required', 'integer', 'min:5', 'max:240'],
-            'optometristId' => ['required', 'integer'],
+            'optometristId' => ['nullable', 'integer'],
             'scheduledDate' => ['required', 'date'],
             'scheduledTime' => ['required', 'date_format:H:i'],
             'referringSource' => [
@@ -233,12 +245,6 @@ class ReviewAppointmentRequestSchedule extends Page
 
         if ($appointmentType === null) {
             $this->addError('appointmentTypeId', 'Select an active appointment type.');
-
-            return;
-        }
-
-        if ($optometrist === null) {
-            $this->addError('optometristId', 'Select an active optometrist.');
 
             return;
         }
