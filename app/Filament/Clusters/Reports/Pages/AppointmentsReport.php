@@ -94,6 +94,28 @@ class AppointmentsReport extends ReportsClusterPage
             ])
             ->values()
             ->all();
+        $charts = $totalAppointments > 0
+            ? [
+                $this->buildDoughnutChart(
+                    'appointment-outcomes',
+                    'Appointment outcomes',
+                    'Current outcomes for appointments scheduled in the selected period.',
+                    array_column($outcomeRows, 'label'),
+                    array_column($outcomeRows, 'value'),
+                    'Appointments',
+                ),
+                ...($typeRows === [] ? [] : [$this->buildBarChart(
+                    'appointment-types',
+                    'Appointments by type',
+                    'Appointment volume grouped by the selected appointment type.',
+                    array_column($typeRows, 'label'),
+                    [[
+                        'label' => 'Appointments',
+                        'data' => array_column($typeRows, 'value'),
+                    ]],
+                )]),
+            ]
+            : [];
 
         return [
             'stats' => [
@@ -122,6 +144,7 @@ class AppointmentsReport extends ReportsClusterPage
                     'has_data' => $totalAppointments > 0,
                 ],
             ],
+            'charts' => $charts,
         ];
     }
 }

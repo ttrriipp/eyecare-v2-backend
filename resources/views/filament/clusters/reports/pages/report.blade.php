@@ -43,13 +43,14 @@
             <form wire:submit="applyDateRange" wire:loading.class="opacity-60" wire:target="applyDateRange,applyPreset" class="flex flex-wrap items-end gap-4 border-t border-gray-100 pt-4 dark:border-white/5">
                 <div class="w-44">
                     <label for="report-date-from" class="text-sm font-medium text-gray-950 dark:text-white">From</label>
-                    <input
-                        type="date"
-                        id="report-date-from"
-                        wire:model="dateInputFrom"
-                        class="fi-input mt-1 w-full"
-                        aria-describedby="report-date-from-error"
-                    >
+                    <x-filament::input.wrapper class="mt-1">
+                        <x-filament::input
+                            type="date"
+                            id="report-date-from"
+                            wire:model="dateInputFrom"
+                            aria-describedby="report-date-from-error"
+                        />
+                    </x-filament::input.wrapper>
                     @error('dateInputFrom')
                         <p id="report-date-from-error" class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
                     @enderror
@@ -57,13 +58,14 @@
 
                 <div class="w-44">
                     <label for="report-date-until" class="text-sm font-medium text-gray-950 dark:text-white">Until</label>
-                    <input
-                        type="date"
-                        id="report-date-until"
-                        wire:model="dateInputUntil"
-                        class="fi-input mt-1 w-full"
-                        aria-describedby="report-date-until-error"
-                    >
+                    <x-filament::input.wrapper class="mt-1">
+                        <x-filament::input
+                            type="date"
+                            id="report-date-until"
+                            wire:model="dateInputUntil"
+                            aria-describedby="report-date-until-error"
+                        />
+                    </x-filament::input.wrapper>
                     @error('dateInputUntil')
                         <p id="report-date-until-error" class="mt-1 text-sm text-danger-600 dark:text-danger-400">{{ $message }}</p>
                     @enderror
@@ -92,6 +94,23 @@
                 <div class="fi-wi-stats-overview-stat rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
                     <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ $stat->getLabel() }}</span>
                     <div class="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">{{ $stat->getValue() }}</div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    @if ($reportCharts !== [])
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-2" aria-label="Report charts">
+            @foreach ($reportCharts as $chart)
+                @php($chartKey = 'report-chart-'.$chart['key'].'-'.md5(json_encode($chart['data'])))
+                <div wire:key="{{ $chartKey }}">
+                    @livewire(\App\Filament\Widgets\ReportChartWidget::class, [
+                        'chartType' => $chart['type'],
+                        'chartData' => $chart['data'],
+                        'chartHeading' => $chart['heading'],
+                        'chartDescription' => $chart['description'],
+                        'chartOptions' => $chart['options'],
+                    ], key($chartKey))
                 </div>
             @endforeach
         </div>

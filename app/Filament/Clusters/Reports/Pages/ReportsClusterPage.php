@@ -40,9 +40,26 @@ abstract class ReportsClusterPage extends Page
     public ?string $activePreset = null;
 
     /**
-     * @var array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}|null
+     * @var array{
+     *     stats: array<int, Stat>,
+     *     sections: array<int, array<string, mixed>>,
+     *     charts: array<int, array<string, mixed>>,
+     * }|null
      */
     private ?array $reportCache = null;
+
+    /**
+     * @var array<int, string>
+     */
+    private const CHART_COLORS = [
+        '#4F8DD7',
+        '#16A34A',
+        '#D97706',
+        '#DC2626',
+        '#7C3AED',
+        '#0891B2',
+        '#64748B',
+    ];
 
     public static function canAccess(): bool
     {
@@ -183,6 +200,16 @@ abstract class ReportsClusterPage extends Page
     }
 
     /**
+     * Chart definitions for the report.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getCharts(): array
+    {
+        return $this->getReport()['charts'];
+    }
+
+    /**
      * Human-readable period shown in the report header and CSV metadata.
      */
     public function getPeriodLabel(): string
@@ -273,6 +300,7 @@ abstract class ReportsClusterPage extends Page
      * @return array{
      *     reportStats: array<int, Stat>,
      *     reportSections: array<int, array<string, mixed>>,
+     *     reportCharts: array<int, array<string, mixed>>,
      *     reportPresets: array<string, string>,
      *     reportPeriodLabel: string,
      *     reportTimezone: string,
@@ -283,6 +311,7 @@ abstract class ReportsClusterPage extends Page
         return [
             'reportStats' => $this->getStats(),
             'reportSections' => $this->getSections(),
+            'reportCharts' => $this->getCharts(),
             'reportPresets' => $this->getPresets(),
             'reportPeriodLabel' => $this->getPeriodLabel(),
             'reportTimezone' => $this->getTimezoneLabel(),
@@ -330,6 +359,142 @@ abstract class ReportsClusterPage extends Page
         return (int) round(($value / $total) * 100);
     }
 
+    /**
+     * @param  array<int, string>  $labels
+     * @param  array<int, int|float>  $values
+     * @return array{
+     *     key: string,
+     *     type: string,
+     *     heading: string,
+     *     description: string,
+     *     data: array<string, mixed>,
+     *     options: array<string, mixed>,
+     * }
+     */
+    protected function buildDoughnutChart(
+        string $key,
+        string $heading,
+        string $description,
+        array $labels,
+        array $values,
+        string $datasetLabel,
+    ): array {
+        $colors = [];
+
+        foreach (array_values($labels) as $index => $_label) {
+            $colors[] = self::CHART_COLORS[$index % count(self::CHART_COLORS)];
+        }
+
+        return [
+            'key' => $key,
+            'type' => 'doughnut',
+            'heading' => $heading,
+            'description' => $description,
+            'data' => [
+                'labels' => array_values($labels),
+                'datasets' => [[
+                    'label' => $datasetLabel,
+                    'data' => array_values($values),
+                    'backgroundColor' => $colors,
+                    'borderColor' => '#FFFFFF',
+                    'borderWidth' => 2,
+                ]],
+            ],
+            'options' => [
+                'maintainAspectRatio' => false,
+                'plugins' => [
+                    'legend' => [
+                        'position' => 'bottom',
+                        'labels' => [
+                            'usePointStyle' => true,
+                            'padding' => 16,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $labels
+     * @param  array<int, array{
+     *     label: string,
+     *     data: array<int, int|float>,
+     *     backgroundColor?: string|array<int, string>,
+     *     borderColor?: string|array<int, string>,
+     *     borderWidth?: int|float,
+     *     borderRadius?: int|float,
+     * }>  $datasets
+     * @return array{
+     *     key: string,
+     *     type: string,
+     *     heading: string,
+     *     description: string,
+     *     data: array<string, mixed>,
+     *     options: array<string, mixed>,
+     * }
+     */
+    protected function buildBarChart(
+        string $key,
+        string $heading,
+        string $description,
+        array $labels,
+        array $datasets,
+        bool $horizontal = false,
+        string $valueFormat = 'count',
+    ): array {
+        $normalizedDatasets = array_map(
+            fn (array $dataset): array => array_merge([
+                'backgroundColor' => self::CHART_COLORS[0],
+                'borderColor' => self::CHART_COLORS[0],
+                'borderWidth' => 1,
+                'borderRadius' => 6,
+            ], $dataset),
+            $datasets,
+        );
+        $precision = $valueFormat === 'currency' ? 2 : 0;
+        $scale = [
+            'beginAtZero' => true,
+            'ticks' => ['precision' => $precision],
+        ];
+
+        if ($valueFormat === 'currency') {
+            $scale['title'] = [
+                'display' => true,
+                'text' => 'Amount (₱)',
+            ];
+        }
+
+        return [
+            'key' => $key,
+            'type' => 'bar',
+            'heading' => $heading,
+            'description' => $description,
+            'data' => [
+                'labels' => array_values($labels),
+                'datasets' => array_values($normalizedDatasets),
+            ],
+            'options' => [
+                'indexAxis' => $horizontal ? 'y' : 'x',
+                'maintainAspectRatio' => false,
+                'plugins' => [
+                    'legend' => [
+                        'display' => count($normalizedDatasets) > 1,
+                        'position' => 'bottom',
+                        'labels' => [
+                            'usePointStyle' => true,
+                            'padding' => 16,
+                        ],
+                    ],
+                ],
+                'scales' => [
+                    'x' => $scale,
+                    'y' => $scale,
+                ],
+            ],
+        ];
+    }
+
     protected function formatMoney(int|float|string $amount): string
     {
         return '₱'.number_format((float) $amount, 2);
@@ -352,17 +517,25 @@ abstract class ReportsClusterPage extends Page
     }
 
     /**
-     * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
+     * @return array{
+     *     stats: array<int, Stat>,
+     *     sections: array<int, array<string, mixed>>,
+     *     charts: array<int, array<string, mixed>>,
+     * }
      */
     abstract protected function buildReport(): array;
 
     /**
-     * @return array{stats: array<int, Stat>, sections: array<int, array<string, mixed>>}
+     * @return array{
+     *     stats: array<int, Stat>,
+     *     sections: array<int, array<string, mixed>>,
+     *     charts: array<int, array<string, mixed>>,
+     * }
      */
     private function getReport(): array
     {
         if (! $this->dateRangeIsValid()) {
-            return ['stats' => [], 'sections' => []];
+            return ['stats' => [], 'sections' => [], 'charts' => []];
         }
 
         return $this->reportCache ??= $this->buildReport();

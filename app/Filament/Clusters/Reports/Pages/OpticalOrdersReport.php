@@ -116,6 +116,36 @@ class OpticalOrdersReport extends ReportsClusterPage
             ])
             ->values()
             ->all();
+        $charts = $totalOrders > 0
+            ? [
+                $this->buildBarChart(
+                    'order-status',
+                    'Order pipeline',
+                    'Current status of orders created in the selected period.',
+                    array_column($statusRows, 'label'),
+                    [[
+                        'label' => 'Orders',
+                        'data' => array_column($statusRows, 'value'),
+                        'backgroundColor' => [
+                            '#4F8DD7',
+                            '#7C3AED',
+                            '#16A34A',
+                            '#DC2626',
+                            '#64748B',
+                        ],
+                    ]],
+                    horizontal: true,
+                ),
+                ...($supplierRows === [] ? [] : [$this->buildDoughnutChart(
+                    'supplier-mode',
+                    'Supplier mode',
+                    'Orders grouped by in-house or external supplier fulfillment.',
+                    array_column($supplierRows, 'label'),
+                    array_column($supplierRows, 'value'),
+                    'Orders',
+                )]),
+            ]
+            : [];
 
         return [
             'stats' => [
@@ -144,6 +174,7 @@ class OpticalOrdersReport extends ReportsClusterPage
                     'has_data' => $totalOrders > 0,
                 ],
             ],
+            'charts' => $charts,
         ];
     }
 

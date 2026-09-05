@@ -76,3 +76,12 @@ test('report page renders accessible filter controls and empty states', function
         ->assertSee('No records in this period')
         ->assertSee('Try a different date range.');
 });
+
+test('report date filters use bordered Filament input wrappers', function () {
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(FinancialReport::class)
+        ->assertSee('id="report-date-from"', false)
+        ->assertSee('id="report-date-until"', false)
+        ->assertSee('fi-input-wrp', false);
+});

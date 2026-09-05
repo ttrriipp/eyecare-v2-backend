@@ -136,6 +136,41 @@ class FinancialReport extends ReportsClusterPage
             )
             ->values()
             ->all();
+        $sourceChartLabels = [];
+        $sourceChartValues = [];
+
+        foreach ($sourceAmounts as $sourceKind => $amount) {
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $sourceChartLabels[] = $sourceLabels[$sourceKind] ?? 'Unknown source';
+            $sourceChartValues[] = $amount;
+        }
+        $charts = $recordTotal > 0 || $sourceTotal > 0
+            ? [
+                ...($recordTotal === 0 ? [] : [$this->buildDoughnutChart(
+                    'bill-status',
+                    'Bill status',
+                    'Current status of non-voided bills recorded in the selected period.',
+                    array_column($statusRows, 'label'),
+                    array_column($statusRows, 'value'),
+                    'Bills',
+                )]),
+                ...($sourceTotal <= 0 ? [] : [$this->buildBarChart(
+                    'charge-source',
+                    'Charges by source',
+                    'Itemized charge amounts grouped by their recorded source.',
+                    $sourceChartLabels,
+                    [[
+                        'label' => 'Amount (₱)',
+                        'data' => $sourceChartValues,
+                    ]],
+                    horizontal: true,
+                    valueFormat: 'currency',
+                )]),
+            ]
+            : [];
 
         return [
             'stats' => [
@@ -164,6 +199,7 @@ class FinancialReport extends ReportsClusterPage
                     'has_data' => $paymentTotal > 0,
                 ],
             ],
+            'charts' => $charts,
         ];
     }
 }

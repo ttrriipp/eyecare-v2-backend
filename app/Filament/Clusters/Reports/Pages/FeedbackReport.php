@@ -58,6 +58,28 @@ class FeedbackReport extends ReportsClusterPage
             ->groupBy('rating')
             ->pluck('rating_count', 'rating')
             ->map(fn (int|string $count): int => (int) $count);
+        $visitRows = $this->distributionRows($visitDistribution, $visitCount);
+        $frameRows = $this->distributionRows($frameDistribution, $frameCount);
+        $charts = $visitCount + $frameCount > 0
+            ? [$this->buildBarChart(
+                'feedback-distribution',
+                'Rating distribution',
+                'Visit and frame rating responses grouped by star value.',
+                array_column($visitRows, 'label'),
+                [
+                    [
+                        'label' => 'Visit responses',
+                        'data' => array_column($visitRows, 'value'),
+                        'backgroundColor' => '#4F8DD7',
+                    ],
+                    [
+                        'label' => 'Frame responses',
+                        'data' => array_column($frameRows, 'value'),
+                        'backgroundColor' => '#7C3AED',
+                    ],
+                ],
+            )]
+            : [];
 
         return [
             'stats' => [
@@ -70,16 +92,17 @@ class FeedbackReport extends ReportsClusterPage
                 [
                     'title' => 'Visit rating distribution',
                     'description' => 'Star values from visible and hidden visit ratings; comments are never shown here.',
-                    'rows' => $this->distributionRows($visitDistribution, $visitCount),
+                    'rows' => $visitRows,
                     'has_data' => $visitCount > 0,
                 ],
                 [
                     'title' => 'Frame rating distribution',
                     'description' => 'Star values from visible and hidden frame ratings; comments are never shown here.',
-                    'rows' => $this->distributionRows($frameDistribution, $frameCount),
+                    'rows' => $frameRows,
                     'has_data' => $frameCount > 0,
                 ],
             ],
+            'charts' => $charts,
         ];
     }
 
