@@ -52,6 +52,31 @@ test('linked patient record shows preferred frames', function () {
         ->assertCanSeeTableRecords([$variant->savedFrames()->first()]);
 });
 
+test('preferred frames table renders the variant thumbnail', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $user = User::factory()->create();
+    $patient->update(['user_id' => $user->id]);
+
+    Storage::fake('public');
+    Storage::disk('public')->put('variants/preferred-frame.png', 'frame image');
+
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $this->frame->id,
+        'images' => ['variants/preferred-frame.png'],
+        'is_active' => true,
+    ]);
+    SavedFrame::factory()->forAccount($user)->forVariant($variant)->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(PreferredFramesRelationManager::class, [
+        'ownerRecord' => $patient,
+        'pageClass' => EditPatient::class,
+    ])
+        ->assertSee(Storage::disk('public')->url('variants/preferred-frame.png'));
+});
+
 test('unlinked patient record shows no preferred frames', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();

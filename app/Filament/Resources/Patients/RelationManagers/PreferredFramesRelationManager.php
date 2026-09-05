@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Patients\RelationManagers;
 
+use App\Models\SavedFrame;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\ImageColumn;
@@ -27,12 +28,16 @@ class PreferredFramesRelationManager extends RelationManager
             ->columns([
                 ImageColumn::make('variant.product.images')
                     ->label('')
+                    ->state(fn (SavedFrame $record): ?string => collect($record->variant?->images ?? [])->first())
+                    ->disk('public')
+                    ->square()
                     ->size(40)
-                    ->getStateUsing(function ($record): ?string {
-                        $images = $record->variant?->images;
-
-                        return is_array($images) ? ($images[0] ?? null) : null;
-                    })
+                    ->extraImgAttributes(fn (SavedFrame $record): array => [
+                        'alt' => $record->variant?->product?->name
+                            ? "{$record->variant->product->name} frame thumbnail"
+                            : 'Preferred frame thumbnail',
+                        'loading' => 'lazy',
+                    ])
                     ->defaultImageUrl(url('/images/placeholder-frame.svg')),
                 TextColumn::make('variant.product.name')
                     ->label('Frame')
