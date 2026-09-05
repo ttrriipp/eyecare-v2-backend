@@ -5,6 +5,7 @@ use App\Enums\CommercialItemKind;
 use App\Enums\QuotationStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
+use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Quotations\Pages\EditQuotation;
 use App\Filament\Resources\Quotations\Pages\ListQuotations;
 use App\Filament\Resources\Quotations\QuotationResource;
@@ -20,6 +21,7 @@ use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
+use Filament\Forms\Components\Placeholder;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -155,7 +157,7 @@ test('staff can see product and service items on a quotation', function () {
         ->assertSee('4,500.00');
 });
 
-test('quotation details show the linked prescription reference and prescriber', function () {
+test('quotation details link to the prescription and show its prescriber', function () {
     $staff = User::factory()->staff()->create();
     $author = User::factory()->optometrist()->create([
         'first_name' => 'Lina',
@@ -175,7 +177,22 @@ test('quotation details show the linked prescription reference and prescriber', 
     $this->actingAs($staff);
 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->assertSchemaComponentExists(
+            'prescription_number',
+            checkComponentUsing: function (Placeholder $component) use ($prescription): bool {
+                expect($component->getUrl())
+                    ->toBe(PrescriptionResource::getUrl('view', ['record' => $prescription]))
+                    ->and($component->getColor($prescription->prescription_number))
+                    ->toBe('primary');
+
+                return true;
+            },
+        )
         ->assertSee($prescription->prescription_number)
+        ->assertSee(
+            'href="'.PrescriptionResource::getUrl('view', ['record' => $prescription]).'"',
+            false,
+        )
         ->assertSee('Lina Santos')
         ->assertSee('Current');
 });

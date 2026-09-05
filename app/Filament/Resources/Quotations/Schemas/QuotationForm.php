@@ -84,6 +84,7 @@ class QuotationForm
                             Placeholder::make('prescription_number')
                                 ->label('Prescription')
                                 ->content(fn (Quotation $record): string => $record->prescription?->prescription_number ?? '—')
+                                ->color('primary')
                                 ->url(fn (Quotation $record): ?string => $record->prescription
                                     ? PrescriptionResource::getUrl('view', ['record' => $record->prescription])
                                     : null),
