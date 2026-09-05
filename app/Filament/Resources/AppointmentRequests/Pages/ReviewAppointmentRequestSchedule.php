@@ -58,8 +58,7 @@ class ReviewAppointmentRequestSchedule extends Page
 
         $this->appointmentTypeId = $defaultType?->id;
         $this->durationMinutes = $defaultType?->duration_minutes ?? $this->record->provisional_duration_minutes ?? 30;
-        $this->scheduledDate = $this->record->scheduled_at?->toDateString() ?? today()->toDateString();
-        $this->scheduledTime = $this->record->scheduled_at?->format('H:i') ?? '09:00';
+        $this->setScheduledSlot($this->record->scheduled_at ?? today()->setTime(9, 0));
         $this->referringSource = $this->record->encrypted_referring_source;
     }
 
@@ -142,8 +141,7 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         $selected = Carbon::parse($preference);
-        $this->scheduledDate = $selected->toDateString();
-        $this->scheduledTime = $selected->format('H:i');
+        $this->setScheduledSlot($selected);
         $this->resetValidation();
         $this->focusCalendar();
     }
@@ -151,8 +149,7 @@ class ReviewAppointmentRequestSchedule extends Page
     public function selectCalendarSlot(string $start): void
     {
         $selected = Carbon::parse($start);
-        $this->scheduledDate = $selected->toDateString();
-        $this->scheduledTime = $selected->format('H:i');
+        $this->setScheduledSlot($selected);
         $this->resetValidation();
     }
 
@@ -279,19 +276,49 @@ class ReviewAppointmentRequestSchedule extends Page
         $this->redirect(AppointmentResource::getUrl('edit', ['record' => $appointment]));
     }
 
-    public function selectedDateTime(): string
+    public function selectedDateTime(): ?string
     {
         try {
             return $this->selectedScheduledAt()->toIso8601String();
         } catch (\Throwable) {
-            return now()->toIso8601String();
+            return null;
         }
+    }
+
+    public function selectedSlotSummary(): string
+    {
+        try {
+            $startsAt = $this->selectedScheduledAt();
+        } catch (\Throwable) {
+            return 'Choose a valid date and time';
+        }
+
+        $endsAt = $startsAt->copy()->addMinutes($this->durationMinutes);
+
+        return $startsAt->format('D, M j').' · '.$startsAt->format('g:i A').'–'.$endsAt->format('g:i A');
+    }
+
+    public function selectedSlotSourceLabel(): string
+    {
+        try {
+            $selected = $this->selectedScheduledAt();
+        } catch (\Throwable) {
+            return 'Not selected';
+        }
+
+        foreach ($this->getRecord()->getAllTimePreferences() as $index => $preference) {
+            if ($this->matchesScheduledMinute(Carbon::parse($preference), $selected)) {
+                return $index === 0 ? 'Primary preference' : 'Alternative '.$index;
+            }
+        }
+
+        return 'Custom time';
     }
 
     public function isSelectedPreference(string $start): bool
     {
         try {
-            return Carbon::parse($start)->equalTo($this->selectedScheduledAt());
+            return $this->matchesScheduledMinute(Carbon::parse($start), $this->selectedScheduledAt());
         } catch (\Throwable) {
             return false;
         }
@@ -306,7 +333,7 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         return collect($this->getRecord()->getAllTimePreferences())
-            ->contains(fn (string $preference): bool => Carbon::parse($preference)->equalTo($selected));
+            ->contains(fn (string $preference): bool => $this->matchesScheduledMinute(Carbon::parse($preference), $selected));
     }
 
     private function selectedAppointmentType(): ?AppointmentType
@@ -325,14 +352,37 @@ class ReviewAppointmentRequestSchedule extends Page
 
     private function selectedScheduledAt(): Carbon
     {
-        return Carbon::parse($this->scheduledDate.' '.$this->scheduledTime);
+        if (blank($this->scheduledDate) || blank($this->scheduledTime)) {
+            throw new \InvalidArgumentException('A date and time are required to identify the selected slot.');
+        }
+
+        return Carbon::parse($this->scheduledDate.' '.$this->scheduledTime, config('app.timezone'));
+    }
+
+    private function setScheduledSlot(CarbonInterface $selected): void
+    {
+        $selected = $selected->copy()->setTimezone(config('app.timezone'));
+        $this->scheduledDate = $selected->toDateString();
+        $this->scheduledTime = $selected->format('H:i');
+    }
+
+    private function matchesScheduledMinute(CarbonInterface $first, CarbonInterface $second): bool
+    {
+        return $first->copy()->setTimezone(config('app.timezone'))->format('Y-m-d H:i')
+            === $second->copy()->setTimezone(config('app.timezone'))->format('Y-m-d H:i');
     }
 
     private function focusCalendar(): void
     {
+        $selectedDateTime = $this->selectedDateTime();
+
+        if ($selectedDateTime === null) {
+            return;
+        }
+
         $this->dispatch(
             'appointment-request-calendar-focus',
-            start: $this->selectedDateTime(),
+            start: $selectedDateTime,
         )->to(AppointmentRequestScheduleCalendar::class);
     }
 

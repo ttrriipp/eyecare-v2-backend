@@ -84,14 +84,38 @@ test('review page initializes the submitted primary preference', function () {
 test('selecting a preference or open calendar slot updates one scheduling state', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->withAlternatives()->create();
+    $primary = $request->scheduled_at->copy()->setTimezone(config('app.timezone'));
+    $alternative = Carbon::parse($request->alternative_scheduled_times[0])->setTimezone(config('app.timezone'));
+    $duration = $request->appointmentType->duration_minutes;
+    $calendarSelection = Carbon::parse('2026-07-14T14:15:00+08:00')->setTimezone(config('app.timezone'));
 
     $this->actingAs($staff);
 
-    Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+        ->assertSee('Selected slot')
+        ->assertSee('From Primary preference')
+        ->assertSeeHtml('aria-pressed="true"')
+        ->assertSee($primary->format('D, M j').' · '.$primary->format('g:i A').'–'.$primary->copy()->addMinutes($duration)->format('g:i A'))
         ->call('selectPreference', 1)
-        ->assertSet('scheduledDate', $request->alternative_scheduled_times[0] ? Carbon::parse($request->alternative_scheduled_times[0])->toDateString() : null)
-        ->assertSet('scheduledTime', $request->alternative_scheduled_times[0] ? Carbon::parse($request->alternative_scheduled_times[0])->format('H:i') : null)
-        ->call('selectCalendarSlot', '2026-07-14T14:15:00+08:00')
-        ->assertSet('scheduledDate', '2026-07-14')
-        ->assertSet('scheduledTime', '14:15');
+        ->assertSet('scheduledDate', $alternative->toDateString())
+        ->assertSet('scheduledTime', $alternative->format('H:i'))
+        ->assertSee('From Alternative 1')
+        ->assertSee($alternative->format('D, M j').' · '.$alternative->format('g:i A').'–'.$alternative->copy()->addMinutes($duration)->format('g:i A'))
+        ->call('selectCalendarSlot', $calendarSelection->toIso8601String())
+        ->assertSet('scheduledDate', $calendarSelection->toDateString())
+        ->assertSet('scheduledTime', $calendarSelection->format('H:i'))
+        ->assertSee('From Custom time');
+
+    $manual = Carbon::parse('2026-07-15 11:45', config('app.timezone'));
+
+    $component
+        ->set('scheduledDate', $manual->toDateString())
+        ->set('scheduledTime', $manual->format('H:i'))
+        ->assertSee('From Custom time')
+        ->assertSee($manual->format('D, M j').' · '.$manual->format('g:i A').'–'.$manual->copy()->addMinutes($duration)->format('g:i A'));
+
+    $component
+        ->set('scheduledDate', '')
+        ->assertSee('Choose a valid date and time')
+        ->assertSee('Not selected');
 });

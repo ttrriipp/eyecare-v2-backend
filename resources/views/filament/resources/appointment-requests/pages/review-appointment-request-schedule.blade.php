@@ -35,6 +35,7 @@
                             <button
                                 type="button"
                                 wire:click="selectPreference({{ $index }})"
+                                aria-pressed="{{ $this->isSelectedPreference($decision['starts_at']->toIso8601String()) ? 'true' : 'false' }}"
                                 class="flex w-full items-start gap-3 rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {{ $this->isSelectedPreference($decision['starts_at']->toIso8601String()) ? 'border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-500/10' : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5' }}"
                             >
                                 <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full {{ $decision['available'] ? 'bg-success-100 text-success-700 dark:bg-success-500/15 dark:text-success-400' : 'bg-danger-100 text-danger-700 dark:bg-danger-500/15 dark:text-danger-400' }}">
@@ -59,6 +60,16 @@
 
                 <x-filament::section heading="Final appointment details">
                     <div class="space-y-4">
+                        <div class="rounded-lg border border-primary-200 bg-primary-50 px-3 py-3 dark:border-primary-500/30 dark:bg-primary-500/10" aria-live="polite">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-primary-900 dark:text-primary-100">Selected slot</p>
+                                    <p class="mt-1 text-sm text-primary-800 dark:text-primary-200">{{ $this->selectedSlotSummary() }}</p>
+                                </div>
+                                <span class="shrink-0 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-semibold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">From {{ $this->selectedSlotSourceLabel() }}</span>
+                            </div>
+                        </div>
+
                         <div>
                             <label for="appointment-type" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium leading-6 text-gray-950 dark:text-white">Appointment type</label>
                             <select id="appointment-type" wire:model.live="appointmentTypeId" class="fi-select-input mt-2 block w-full rounded-lg border-gray-300 bg-white text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white">
