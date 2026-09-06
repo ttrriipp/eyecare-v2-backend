@@ -15,9 +15,10 @@ keeps its own feature-named pair and this file points at whichever is active.
   2026-09-06)
 - Decision:
   `docs/decisions/004-use-temporary-participant-code-authentication-for-capstone-pilot.md`
-- Plan: `tasks/capstone-pilot-deployment-readiness-plan.md` (awaiting approval)
-- Checklist: `tasks/capstone-pilot-deployment-readiness-todo.md` (awaiting
-  approval)
+- Plan: `tasks/capstone-pilot-deployment-readiness-plan.md` (approved
+  2026-09-06)
+- Checklist: `tasks/capstone-pilot-deployment-readiness-todo.md` (Task 1
+  baseline complete)
 
 The provider-neutral work can begin before hosting is selected. Public launch
 remains gated by hosting, the approved study-data allowlist, named technical

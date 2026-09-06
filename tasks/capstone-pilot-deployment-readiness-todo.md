@@ -1,9 +1,9 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Proposed on 2026-09-06 — awaiting plan approval
+**Status:** Plan approved on 2026-09-06 — Task 1 baseline complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
-**Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (proposed)
+**Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
 
 Seventeen dependency-ordered tasks across five phases. Detailed acceptance
 criteria, files, risks, and verification are in the plan.
@@ -26,8 +26,9 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 0: Trustworthy Release Baseline
 
-- [ ] Task 1 — capture fresh full test/build/audit/migration/schedule/route
-      evidence and classify every failure.
+- [x] Task 1 — capture fresh full test/build/audit/migration/schedule/route
+      evidence and classify every failure (recorded below; application code
+      untouched).
 - [ ] Task 2 — remediate exposed PHP dependency advisories in reviewed groups.
 - [ ] Task 3 — remediate frontend build-chain advisories without force fixes.
 - [ ] Task 4 — align CI to PHP 8.5/MySQL 8.4 and enforce test/build/audit/cache
@@ -111,8 +112,34 @@ criteria, files, risks, and verification are in the plan.
 
 - 2026-09-06 pre-plan focused baseline: 26 tests and 196 assertions passed for
   patient login, production configuration, and canonical seeding.
-- 2026-09-06 Composer audit: release-blocking high advisories currently affect
-  installed exposed packages; Task 2 is required.
-- 2026-09-06 npm audit: five high/critical build-chain advisories; Task 3 is
-  required.
-- Fresh full-suite and clean-build evidence: pending Task 1.
+- 2026-09-06 fresh full Pest baseline: 1,988 tests, 1,964 passed, 14 failed,
+  10 errors, and 7,076 assertions in about 18 minutes. No pilot files were
+  changed during the run.
+- Full-suite failure classification: dependency/advisory blockers are recorded
+  separately below; quotation-action/missing-class, commerce guard, duplicate
+  Faker category, canonical conversation schema, and unlinked-conversation
+  authorization failures are pre-existing non-pilot findings unless those
+  workflows are included in the frozen study/demo path. Appointment and
+  optical-order Filament rendering failures are conditional launch blockers:
+  they must be fixed or explicitly excluded from the staff demonstration scope
+  before Checkpoint D. No test was deleted, skipped, or weakened.
+- 2026-09-06 Composer validation: passed with `composer validate --strict`.
+- 2026-09-06 Composer audit: failed with 31 advisories across six packages,
+  including high findings in Filament MFA, Guzzle, and CommonMark; Dompdf and
+  Livewire also have findings. Task 2 is required before an exposed release.
+- 2026-09-06 npm baseline: `npm ci` completed; `npm run build` passed with Vite
+  8.0.14; `npm audit --audit-level=high` failed with five findings (three high,
+  two critical) in NanoID, PostCSS, `shell-quote`/concurrently, and Vite.
+  Task 3 is required before an exposed release.
+- 2026-09-06 migration status: every listed migration ran successfully;
+  fresh-install rehearsal remains a later checkpoint task.
+- 2026-09-06 scheduler inventory: five scheduled commands are registered,
+  including per-minute SMS processing and appointment expiry; SMS remains
+  disabled/gated for the pilot unless separately approved.
+- 2026-09-06 route inventory: 59 non-vendor `api/v1` routes; the dedicated
+  participant-login route does not yet exist, as expected before Phase 1.
+- 2026-09-06 Laravel/Filament cache rehearsal: `artisan optimize` passed;
+  caches were cleared afterward with `artisan optimize:clear`.
+- Protected worktree edits remain unstaged in the four user-modified files:
+  `VariantsRelationManager.php`, `ScenarioCoverageSeeder.php`,
+  `VariantFormVisibilityTest.php`, and `CanonicalSeederTest.php`.

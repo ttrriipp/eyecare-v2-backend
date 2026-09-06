@@ -4,8 +4,9 @@
 
 → `tasks/capstone-pilot-deployment-readiness-todo.md`
 
-The specification and temporary participant-code ADR are approved. The
-17-task provider-neutral implementation plan is awaiting owner approval.
+The specification, temporary participant-code ADR, and 17-task
+provider-neutral implementation plan are approved. Task 1 baseline evidence
+is recorded; dependency remediation is next.
 Hosting, the external Android change, study fields, owners, and retention stay
 as explicit pre-launch gates.
 

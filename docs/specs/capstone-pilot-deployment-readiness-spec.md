@@ -1,7 +1,7 @@
 # Spec: Capstone Pilot Deployment Readiness
 
 **Status:** Approved on 2026-09-06 — unresolved operational decisions remain pre-launch gates
-**Implementation plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (awaiting approval)
+**Implementation plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
 **Applies to:** EyeCare backend, Filament staff panel, and Android-facing API
 **Runtime baseline:** PHP 8.5, Laravel 13, MySQL, Filament 5, Livewire 4, Sanctum 4, Pest 4, and Tailwind CSS 4
 **Deployment classification:** Time-limited capstone research/demo pilot; not a clinical production service

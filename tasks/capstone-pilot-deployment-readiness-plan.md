@@ -1,6 +1,6 @@
 # Implementation Plan: Capstone Pilot Deployment Readiness
 
-**Status:** Proposed on 2026-09-06 — owner approval required before application code changes
+**Status:** Approved on 2026-09-06 — implementation in progress
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Decision:**
@@ -775,9 +775,8 @@ environment and explicit operator authorization.
 
 ## Approval Gate
 
-The specification and ADR are approved. This implementation plan and checklist
-are proposed and require owner approval before Task 1 begins. Approving the
-plan authorizes local repository implementation and verification only. It does
+The specification, plan, checklist, and ADR are approved. Approval authorizes
+local repository implementation and verification only. It does
 not authorize package exceptions, a hosting purchase, public resource creation,
 Android-repository changes, participant-data collection, production deployment,
 credential distribution, or destructive teardown; those remain at their named
