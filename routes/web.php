@@ -5,6 +5,7 @@ use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Http\Controllers\MessageAttachmentDownloadController;
 use App\Http\Controllers\MessageAttachmentPreviewController;
+use App\Http\Controllers\PilotReadinessController;
 use App\Models\Encounter;
 use App\Models\Prescription;
 use App\Services\PdfService;
@@ -26,6 +27,9 @@ Route::get('/health', function () {
         return response()->json(['status' => 'error', 'database' => 'disconnected'], 503);
     }
 });
+
+Route::get('/internal/readiness', PilotReadinessController::class)
+    ->name('internal.readiness');
 
 // ── Admin panel file responses (authenticated staff/admin only) ─────────────
 Route::middleware(['auth', 'web'])->group(function () {

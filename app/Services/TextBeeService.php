@@ -11,8 +11,7 @@ class TextBeeService implements SmsGateway
     {
         if (! config('services.textbee.enabled')) {
             Log::info('SMS delivery skipped (TextBee disabled)', [
-                'recipient' => $recipient,
-                'message' => $message,
+                'driver' => 'textbee',
             ]);
 
             return true;
@@ -29,9 +28,15 @@ class TextBeeService implements SmsGateway
             $payload['deviceId'] = $deviceId;
         }
 
-        $response = Http::withHeaders([
-            'x-api-key' => config('services.textbee.api_key'),
-        ])->post('https://api.textbee.dev/api/v1/gateway/send-sms', $payload);
+        $response = Http::timeout((int) config('services.textbee.timeout', 10))
+            ->retry((int) config('services.textbee.retries', 2), 100, throw: false)
+            ->withHeaders([
+                'x-api-key' => config('services.textbee.api_key'),
+            ])
+            ->post(
+                (string) config('services.textbee.endpoint', 'https://api.textbee.dev/api/v1/gateway/send-sms'),
+                $payload,
+            );
 
         return $response->successful();
     }

@@ -74,16 +74,19 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
             ->middleware('require.step-up:date_of_birth');
 
         // Step-up OTP for sensitive changes
-        Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp']);
-        Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp']);
+        Route::post('auth/step-up/otp', [AuthController::class, 'requestStepUp'])
+            ->middleware('reject.phone.auth');
+        Route::post('auth/step-up/verify', [AuthController::class, 'verifyStepUp'])
+            ->middleware('reject.phone.auth');
         Route::post('auth/password', [AuthController::class, 'changePassword'])
             ->middleware('require.step-up');
 
         // Contact management - read is free, mutations require step-up
         Route::get('account/contacts', [AuthController::class, 'listContacts']);
         Route::post('account/contacts/otp', [AuthController::class, 'requestContactOtp'])
-            ->middleware('require.step-up');
-        Route::post('account/contacts/verify', [AuthController::class, 'verifyContact']);
+            ->middleware(['require.step-up', 'reject.phone.auth']);
+        Route::post('account/contacts/verify', [AuthController::class, 'verifyContact'])
+            ->middleware('reject.phone.auth');
         Route::patch('account/contacts/{contact}/primary', [AuthController::class, 'setPrimaryContact'])
             ->middleware('require.step-up');
         Route::delete('account/contacts/{contact}', [AuthController::class, 'removeContact'])

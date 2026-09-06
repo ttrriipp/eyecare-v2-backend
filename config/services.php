@@ -38,12 +38,20 @@ return [
     'semaphore' => [
         'api_key' => env('SEMAPHORE_API_KEY', ''),
         'sender_name' => env('SEMAPHORE_SENDER_NAME', 'PadillaOptical'),
+        'endpoint' => env('SEMAPHORE_ENDPOINT', 'https://api.semaphore.co/api/v4/messages'),
+        'timeout' => (int) env('SEMAPHORE_TIMEOUT', 10),
+        'retries' => (int) env('SEMAPHORE_RETRIES', 2),
+        'webhook_secret' => env('SEMAPHORE_WEBHOOK_SECRET'),
         'enabled' => env('SEMAPHORE_ENABLED', false),
     ],
 
     'textbee' => [
         'api_key' => env('TEXTBEE_API_KEY', ''),
         'device_id' => env('TEXTBEE_DEVICE_ID', ''),
+        'endpoint' => env('TEXTBEE_ENDPOINT', 'https://api.textbee.dev/api/v1/gateway/send-sms'),
+        'timeout' => (int) env('TEXTBEE_TIMEOUT', 10),
+        'retries' => (int) env('TEXTBEE_RETRIES', 2),
+        'webhook_secret' => env('TEXTBEE_WEBHOOK_SECRET'),
         'enabled' => env('TEXTBEE_ENABLED', false),
     ],
 

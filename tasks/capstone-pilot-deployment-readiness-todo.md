@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–12 complete; Checkpoint A open; Checkpoint B complete
+**Status:** Plan approved on 2026-09-07 — Tasks 1–13 complete; Checkpoint A open; Checkpoint B complete; Checkpoint C open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -69,7 +69,7 @@ criteria, files, risks, and verification are in the plan.
 - [x] Task 11 — add a pilot-only safe seeder and secure MFA-admin bootstrap.
 - [x] Task 12 — move message attachments to a configurable private logical
       disk.
-- [ ] Task 13 — add redacted production preflight and protected readiness.
+- [x] Task 13 — add redacted production preflight and protected readiness.
 
 ### Checkpoint C
 
@@ -277,6 +277,23 @@ criteria, files, risks, and verification are in the plan.
   complete; Checkpoint A remains open because the documented full-suite
   launch-critical baseline failures have not yet been resolved or explicitly
   excluded from the staff demonstration scope.
+- 2026-09-07 Task 13 deployment preflight: added the provider-neutral
+  `pilot:preflight` command, cached trusted-host/proxy configuration,
+  explicit production CORS settings, and endpoint/timeout/retry controls for
+  the supported SMS adapters. The preflight checks production/debug/HTTPS/key
+  separation, the 75-participant bound and expiry, cookie/network boundaries,
+  database/cache/queue/session/mail/logging/scheduler configuration, private
+  and public logical disks, release/readiness/alert identifiers, policy URLs,
+  route gating, and adapter settings. It reports stable check names and
+  generic failure messages only. The protected
+  `GET /internal/readiness` endpoint requires a dedicated header token and
+  returns only `ready`/`unready`; `/up` remains the framework liveness route.
+  Disabled SMS is accepted only with all phone/SMS routes gated. Focused
+  preflight, route-gate, and SMS suites passed (47 tests, 145 assertions);
+  the preflight-only suite passed 31 tests with 66 assertions. SMS disabled
+  logs were also redacted and configured adapter endpoints/retries are now
+  honored. Pint and route/schedule inspections passed. Task 13 is ready for
+  commit.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,

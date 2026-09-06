@@ -3,6 +3,7 @@
 use App\Actions\Sms\ProcessSmsNotification;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Services\SemaphoreService;
 use App\Services\TextBeeService;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\NotificationStatusSeeder;
@@ -45,6 +46,26 @@ test('ProcessSmsNotification marks sms as failed when service fails', function (
         ->and($sms->fresh()->failure_reason)->not->toBeNull();
 });
 
+test('Semaphore uses the configured endpoint and retry policy', function (): void {
+    Http::fake([
+        'https://sms.example.test/*' => Http::sequence()
+            ->push([], 500)
+            ->push(['status' => 'Queued'], 200),
+    ]);
+    config([
+        'services.semaphore.enabled' => true,
+        'services.semaphore.api_key' => str_repeat('semaphore-key', 3),
+        'services.semaphore.endpoint' => 'https://sms.example.test/messages',
+        'services.semaphore.timeout' => 3,
+        'services.semaphore.retries' => 2,
+    ]);
+
+    expect(app(SemaphoreService::class)->send('+639171234567', 'Test message'))->toBeTrue();
+
+    Http::assertSentCount(2);
+    Http::assertSent(fn ($request): bool => $request->url() === 'https://sms.example.test/messages');
+});
+
 test('ProcessSmsNotification marks sms as sent without HTTP call when disabled', function () {
     Http::fake();
     Log::spy();
@@ -58,10 +79,7 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when disabled',
     Http::assertNothingSent();
     Log::shouldHaveReceived('info')
         ->once()
-        ->with('SMS delivery skipped (Semaphore disabled)', [
-            'recipient' => $sms->recipient,
-            'message' => $sms->message,
-        ]);
+        ->with('SMS delivery skipped (Semaphore disabled)', ['driver' => 'semaphore']);
 });
 
 test('sms:process command processes queued notifications', function () {
@@ -103,6 +121,21 @@ test('ProcessSmsNotification uses TextBee when the sms driver is textbee', funct
     });
 });
 
+test('TextBee uses the configured endpoint and timeout', function (): void {
+    Http::fake(['https://sms.example.test/*' => Http::response(['success' => true], 200)]);
+    config([
+        'services.textbee.enabled' => true,
+        'services.textbee.api_key' => str_repeat('textbee-key', 3),
+        'services.textbee.endpoint' => 'https://sms.example.test/send',
+        'services.textbee.timeout' => 4,
+        'services.textbee.retries' => 0,
+    ]);
+
+    app(TextBeeService::class)->send('+639171234567', 'Test message');
+
+    Http::assertSent(fn ($request): bool => $request->url() === 'https://sms.example.test/send');
+});
+
 test('ProcessSmsNotification marks sms as failed when TextBee returns an error', function () {
     Http::fake(['https://api.textbee.dev/*' => Http::response([], 500)]);
     config([
@@ -134,10 +167,7 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is
     Http::assertNothingSent();
     Log::shouldHaveReceived('info')
         ->once()
-        ->with('SMS delivery skipped (TextBee disabled)', [
-            'recipient' => $sms->recipient,
-            'message' => $sms->message,
-        ]);
+        ->with('SMS delivery skipped (TextBee disabled)', ['driver' => 'textbee']);
 });
 
 test('TextBee gateway includes deviceId only when configured', function () {

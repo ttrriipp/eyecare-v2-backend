@@ -2,6 +2,7 @@
 
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\OtpRateLimitReached;
+use App\Http\Middleware\ConfigureTrustedProxies;
 use App\Http\Middleware\RejectPhoneAuthenticationDuringPilot;
 use App\Http\Middleware\RequireActivePatientLink;
 use App\Http\Middleware\RequireStepUpToken;
@@ -24,6 +25,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
+        $middleware->trustHosts(
+            at: static fn (): array => array_map(
+                static fn (mixed $host): string => is_string($host)
+                    ? '^'.preg_quote($host, '/').'\\.?$'
+                    : '',
+                (array) config('deployment.trusted_hosts', []),
+            ),
+            subdomains: false,
+        );
+        $middleware->prepend(ConfigureTrustedProxies::class);
+
         $middleware->alias([
             'require.patient.link' => RequireActivePatientLink::class,
             'require.step-up' => RequireStepUpToken::class,

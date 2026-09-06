@@ -69,6 +69,20 @@ test('pilot mode returns 404 for every participant-facing phone and invitation r
         expect($response->status(), "Unexpected status for {$uri}")->toBe(404);
     }
 
+    $accountPhoneRequests = [
+        ['/api/v1/auth/step-up/otp', []],
+        ['/api/v1/auth/step-up/verify', ['id' => 'missing', 'code' => '123456']],
+        ['/api/v1/account/contacts/otp', ['contact_type' => 'phone', 'contact_value' => '09171234567']],
+        ['/api/v1/account/contacts/verify', ['challenge_id' => 'missing', 'code' => '123456']],
+    ];
+
+    foreach ($accountPhoneRequests as [$uri, $payload]) {
+        $response = $this->withToken($user->createToken('pilot-gate')->plainTextToken)
+            ->postJson($uri, $payload);
+
+        expect($response->status(), "Unexpected status for {$uri}")->toBe(404);
+    }
+
     expect(User::query()->count())->toBe($initialUsers)
         ->and(OtpChallenge::query()->count())->toBe($initialChallenges)
         ->and(PatientInvitation::query()->count())->toBe($initialInvitations);
@@ -120,6 +134,10 @@ test('the phone and invitation route inventory carries the pilot gate', function
         'api/v1/auth/login/verify',
         'api/v1/auth/password-recovery/otp',
         'api/v1/auth/password-recovery/verify',
+        'api/v1/auth/step-up/otp',
+        'api/v1/auth/step-up/verify',
+        'api/v1/account/contacts/otp',
+        'api/v1/account/contacts/verify',
         'api/v1/patient-invitations/acceptance/otp',
         'api/v1/patient-invitations/accept',
     ];
