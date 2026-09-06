@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–6 complete; Checkpoint A open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–7 complete; Checkpoint A open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -47,7 +47,7 @@ criteria, files, risks, and verification are in the plan.
       factory, and User relation.
 - [x] Task 6 — implement generic pilot authentication and pilot-bounded Sanctum
       token expiry.
-- [ ] Task 7 — add the dedicated participant-login request/controller/route and
+- [x] Task 7 — add the dedicated participant-login request/controller/route and
       dual rate limiter.
 - [ ] Task 8 — make phone registration/login/OTP/recovery/invitation routes
       unavailable only in pilot mode.
@@ -197,6 +197,19 @@ criteria, files, risks, and verification are in the plan.
   including code normalization, generic failures, disabled/malformed config,
   and both expiry bounds. Existing phone login, registration, and recovery
   suites also passed (23 tests, 102 assertions); Task 6 PHP files pass Pint.
+- 2026-09-07 Task 7 participant-login boundary: added the named additive
+  `POST /api/v1/auth/participant-login` route outside the email-keyed legacy
+  login limiter. The request fails closed with `404` when pilot mode is
+  disabled or its expiry is missing/invalid, rejects undocumented fields, and
+  returns the shared direct-login token/resource shape when enabled. The
+  limiter applies independent per-IP and SHA-256(normalized-code) thresholds;
+  neither response nor rate-limit logs contain the participant code. Successful
+  and known-account failed attempts write redacted participant authentication
+  audit events without passwords, codes, device names, or installation IDs.
+  Focused participant API/auth and existing patient authentication suites
+  passed (35 tests, 174 assertions); Pint and PHP syntax checks passed. Route
+  inventory confirms the named route and `throttle:participant-login`
+  middleware.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
