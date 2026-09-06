@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–13 complete; Checkpoint A open; Checkpoint B complete; Checkpoint C open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–13 complete; Checkpoints A–C complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -10,7 +10,7 @@ criteria, files, risks, and verification are in the plan.
 
 ## Execution Rules
 
-- [ ] Obtain owner approval of the plan before application code changes.
+- [x] Obtain owner approval of the plan before application code changes.
 - [ ] Use Laravel Boost version-specific documentation before each framework
       change.
 - [ ] Activate Laravel, Pest/TDD, API, security, CI, and launch skills when
@@ -36,10 +36,10 @@ criteria, files, risks, and verification are in the plan.
 
 ### Checkpoint A
 
-- [ ] Launch-critical baseline is green.
-- [ ] Composer and npm high/critical gates pass.
-- [ ] Clean production build succeeds.
-- [ ] Runtime-aligned CI succeeds.
+- [x] Launch-critical baseline is green.
+- [x] Composer and npm high/critical gates pass.
+- [x] Clean production build succeeds.
+- [x] Runtime-aligned CI succeeds.
 
 ## Phase 1: Participant-Code Access
 
@@ -73,10 +73,10 @@ criteria, files, risks, and verification are in the plan.
 
 ### Checkpoint C
 
-- [ ] Fresh migration and pilot-safe seed pass with no known demo identity.
-- [ ] One existing validated/published AR model is selectable.
-- [ ] Focused/full Pest, Pint, build, audits, caches, routes, and CI pass.
-- [ ] Backend remains provider-neutral.
+- [x] Fresh migration and pilot-safe seed pass with no known demo identity.
+- [x] One existing validated/published AR model is selectable.
+- [x] Focused/full Pest, Pint, build, audits, caches, routes, and CI pass.
+- [x] Backend remains provider-neutral.
 
 ## Phase 3: External Launch Gates
 
@@ -274,9 +274,8 @@ criteria, files, risks, and verification are in the plan.
   revocation, token invalidation, and audit redaction all pass their focused
   suites. Existing phone registration/login/recovery/invitation and step-up
   authentication suites remain green outside pilot mode. Checkpoint B is
-  complete; Checkpoint A remains open because the documented full-suite
-  launch-critical baseline failures have not yet been resolved or explicitly
-  excluded from the staff demonstration scope.
+  complete; the later full-suite and dependency/build evidence closes
+  Checkpoint A as well.
 - 2026-09-07 Task 13 deployment preflight: added the provider-neutral
   `pilot:preflight` command, cached trusted-host/proxy configuration,
   explicit production CORS settings, and endpoint/timeout/retry controls for
@@ -294,18 +293,18 @@ criteria, files, risks, and verification are in the plan.
   logs were also redacted and configured adapter endpoints/retries are now
   honored. Pint and route/schedule inspections passed. Task 13 is committed as
   `56c3a8d1`.
-- 2026-09-07 Checkpoint C verification: the launch-critical pilot suite passed
-  74 tests with 1,564 assertions, and the expanded preflight/route/SMS
-  regression set passed 82 tests with 254 assertions. Composer and npm
-  high-severity audits reported no vulnerabilities; the production frontend
-  build and Laravel optimize/optimize:clear rehearsal passed; route and
-  schedule inventories are valid. The refreshed full Pest run completed with
-  2,067 tests, 2,048 passed, 13 failed, 6 errors, and 8,691 assertions. The
-  remaining failures/errors are the documented non-pilot conversation access,
-  appointment-catalog expectation, commerce guard/schema, duplicate Faker,
-  missing quotation action, and Filament UI categories. Checkpoint C remains
-  open until those failures are fixed or explicitly reviewed and excluded
-  from the demonstrated pilot scope.
+- 2026-09-07 contract and isolation checkpoints: aligned stale tests with the
+  account-owned conversation, six-type appointment catalog, current Filament
+  labels/assets, renamed quotation action, nullable conversation ownership,
+  and required commerce item kind. Hardened Brand/ProductCategory fixtures and
+  scoped catalog, AR, and inventory assertions against schema-test state
+  leakage. Focused checkpoints passed (99 tests/568 assertions and 97
+  tests/388 assertions); commits `5cc99d51`, `f64a568f`, and `aaef910e`.
+- 2026-09-07 full regression verification: a clean Sail Pest run passed 2,067
+  tests and 8,784 assertions in 12m 06s. Checkpoints A–C are complete. The
+  remaining work is external launch gating: hosting, Android handoff, study
+  field/consent allowlist, named owners, retention/deletion policy, and the
+  selected AR model before Checkpoint D.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
