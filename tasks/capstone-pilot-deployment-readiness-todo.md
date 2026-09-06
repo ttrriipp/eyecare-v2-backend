@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–4 complete; Checkpoint A open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–5 complete; Checkpoint A open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -43,7 +43,7 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 1: Participant-Code Access
 
-- [ ] Task 5 — add fail-closed pilot configuration, eligibility table/model,
+- [x] Task 5 — add fail-closed pilot configuration, eligibility table/model,
       factory, and User relation.
 - [ ] Task 6 — implement generic pilot authentication and pilot-bounded Sanctum
       token expiry.
@@ -173,6 +173,17 @@ criteria, files, risks, and verification are in the plan.
   been silently waived; appointment/optical-order rendering cases remain
   conditional staff-demo blockers, while the other gaps remain outside the
   participant pilot path unless the frozen study uses those workflows.
+- 2026-09-07 Task 5 foundation: added the disabled-by-default
+  capstone_pilot configuration with an explicit expiry requirement, a
+  75-account provisioning limit, and a private credential-disk default. Added
+  the pilot_participant_accounts table with unique participant code and user
+  foreign key, expiry/revocation timestamps, and supporting indexes; schema
+  inspection confirmed the user index is unique and cascades on deletion. The
+  model exposes typed relationships, datetime casts, and an eligibleAt() scope
+  requiring an active patient role before expiry. The default factory creates a
+  pseudonymous patient-role user without a Patient record. Six focused Pest
+  tests passed (13 assertions), including duplicate-code and duplicate-user
+  constraints, and the Task 5 PHP files pass Pint.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
