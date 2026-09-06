@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Conversations\MarkConversationRead;
 use App\Actions\Conversations\ResolveAccountConversation;
 use App\Actions\Conversations\SearchConversationMessages;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreMessageRequest;
 use App\Http\Resources\ConversationResource;
@@ -13,7 +14,6 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\User;
-use App\Notifications\NewMessageReceived;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -23,6 +23,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ConversationController extends Controller
 {
+    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+
     /**
      * GET /conversation — returns (or creates) the account's single conversation.
      */
@@ -109,7 +111,7 @@ class ConversationController extends Controller
         $message->load('attachments');
 
         if ($request->user()->isPatient()) {
-            $this->notifyStaffOfMessage($conversation, $message);
+            $this->notifyStaffOfMessage($message);
         }
 
         return response()->json([
@@ -140,15 +142,8 @@ class ConversationController extends Controller
         return app(ResolveAccountConversation::class)->handle($user);
     }
 
-    private function notifyStaffOfMessage(Conversation $conversation, Message $message): void
+    private function notifyStaffOfMessage(Message $message): void
     {
-        $recipients = User::query()
-            ->where('is_active', true)
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
-            ->get();
-
-        foreach ($recipients as $recipient) {
-            $recipient->notify(new NewMessageReceived($message, $conversation));
-        }
+        $this->notifyAdminUsers->patientMessageReceived($message);
     }
 }

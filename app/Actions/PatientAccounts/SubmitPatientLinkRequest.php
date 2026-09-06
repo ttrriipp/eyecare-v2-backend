@@ -2,6 +2,7 @@
 
 namespace App\Actions\PatientAccounts;
 
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Models\PatientLinkCandidate;
 use App\Models\PatientLinkRequest;
 use App\Models\User;
@@ -13,11 +14,14 @@ class SubmitPatientLinkRequest
     public function __construct(
         protected RankPatientCandidates $rankCandidates,
         protected PatientLinkIdentitySnapshot $identitySnapshot,
+        protected NotifyAdminUsers $notifyAdminUsers,
     ) {}
 
     public function handle(User $account): PatientLinkRequest
     {
-        return DB::transaction(function () use ($account): PatientLinkRequest {
+        $created = false;
+
+        $request = DB::transaction(function () use ($account, &$created): PatientLinkRequest {
             $lockedAccount = User::query()->lockForUpdate()->findOrFail($account->id);
             $existingRequest = PatientLinkRequest::query()
                 ->where('user_id', $lockedAccount->id)
@@ -40,6 +44,7 @@ class SubmitPatientLinkRequest
                 'encrypted_identity_snapshot' => $this->identitySnapshot->fromAccount($lockedAccount),
                 'status' => 'pending',
             ]);
+            $created = true;
 
             // Rank and store candidates
             $candidates = $this->rankCandidates->handle($lockedAccount);
@@ -56,5 +61,11 @@ class SubmitPatientLinkRequest
 
             return $request->load('candidates.patient');
         });
+
+        if ($created) {
+            $this->notifyAdminUsers->patientLinkRequestSubmitted($request);
+        }
+
+        return $request;
     }
 }

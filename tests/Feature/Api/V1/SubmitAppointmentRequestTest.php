@@ -194,6 +194,61 @@ test('linked account can submit an appointment request', function () {
         ->assertJsonStructure(['data' => ['id', 'request_number', 'status', 'scheduled_at', 'reason_for_visit']]);
 });
 
+test('two cancelled appointment requests no longer block a third request', function () {
+    $user = User::factory()->patient()->create();
+
+    $first = $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ]))
+        ->assertCreated()
+        ->json('data');
+
+    $second = $this->postJson('/api/v1/appointment-requests', defaultRequestData([
+        'scheduled_at' => '2026-07-13T11:00:00+08:00',
+    ]))
+        ->assertCreated()
+        ->json('data');
+
+    foreach ([$first, $second] as $request) {
+        $this->postJson("/api/v1/appointment-requests/{$request['id']}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled');
+    }
+
+    $this->getJson('/api/v1/appointment-requests')
+        ->assertOk()
+        ->assertJsonPath('data.0.status', 'cancelled')
+        ->assertJsonPath('data.1.status', 'cancelled');
+
+    $this->postJson('/api/v1/appointment-requests', defaultRequestData([
+        'scheduled_at' => '2026-07-13T12:00:00+08:00',
+    ]))
+        ->assertCreated()
+        ->assertJsonPath('data.status', 'pending');
+});
+
+test('active appointment request limit returns a stable error code', function () {
+    $user = User::factory()->patient()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/appointment-requests', defaultRequestData([
+            'scheduled_at' => '2026-07-13T10:00:00+08:00',
+        ]))
+        ->assertCreated();
+
+    $this->postJson('/api/v1/appointment-requests', defaultRequestData([
+        'scheduled_at' => '2026-07-13T11:00:00+08:00',
+    ]))
+        ->assertCreated();
+
+    $this->postJson('/api/v1/appointment-requests', defaultRequestData([
+        'scheduled_at' => '2026-07-13T12:00:00+08:00',
+    ]))
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'ACTIVE_REQUEST_LIMIT_REACHED');
+});
+
 test('submitting an appointment request queues a confirmation sms', function () {
     $user = User::factory()->patient()->create(['phone' => '+639171234567']);
 

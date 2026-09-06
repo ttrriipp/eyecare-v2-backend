@@ -22,3 +22,12 @@ test('staff can list frame ratings', function () {
 test('frame rating resource is registered', function () {
     expect(FrameRatingResource::getModel())->toBe(FrameRating::class);
 });
+
+test('staff can open a frame rating from an actionable notification link', function () {
+    $staff = User::factory()->staff()->create();
+    $rating = FrameRating::factory()->create();
+
+    $this->actingAs($staff)
+        ->get(FrameRatingResource::getUrl('edit', ['record' => $rating], panel: 'admin'))
+        ->assertSuccessful();
+});

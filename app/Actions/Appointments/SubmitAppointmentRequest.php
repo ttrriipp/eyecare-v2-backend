@@ -3,7 +3,10 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
+use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
+use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\NotificationStatus;
@@ -23,6 +26,7 @@ class SubmitAppointmentRequest
         protected BuildAppointmentRequestIdentitySnapshot $buildSnapshot,
         protected ListAppointmentRequestAvailabilitySlots $listSlots,
         protected CreateAuditLog $createAuditLog,
+        protected NotifyAdminUsers $notifyAdminUsers,
     ) {}
 
     /**
@@ -48,16 +52,14 @@ class SubmitAppointmentRequest
 
         // Check active request limit
         $activeRequests = AppointmentRequest::where('user_id', $account->id)
-            ->where('status', 'pending')
+            ->where('status', AppointmentRequestStatus::Pending)
             ->where('expires_at', '>', now())
             ->count();
 
         $maxActive = config('patient_accounts.appointment_requests.max_active_per_account', 2);
 
         if ($activeRequests >= $maxActive) {
-            throw ValidationException::withMessages([
-                'scheduled_at' => ['You have reached the maximum number of active appointment requests.'],
-            ]);
+            throw new ActiveAppointmentRequestLimitReached($maxActive);
         }
 
         $provisionalDuration = $appointmentType->duration_minutes;
@@ -82,7 +84,7 @@ class SubmitAppointmentRequest
         // Calculate expiry: latest submitted preference
         $expiresAt = $this->calculateExpiry($allTimes);
 
-        return DB::transaction(function () use (
+        $request = DB::transaction(function () use (
             $account,
             $appointmentType,
             $scheduledAt,
@@ -125,6 +127,10 @@ class SubmitAppointmentRequest
 
             return $request;
         });
+
+        $this->notifyAdminUsers->appointmentRequestSubmitted($request);
+
+        return $request;
     }
 
     private function createSmsNotification(User $account, CarbonInterface $scheduledAt): void

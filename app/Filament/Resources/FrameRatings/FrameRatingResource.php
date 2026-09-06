@@ -17,6 +17,8 @@ class FrameRatingResource extends Resource
 {
     protected static ?string $model = FrameRating::class;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedStar;
 
     protected static ?string $navigationLabel = 'Frame Ratings';
@@ -31,7 +33,10 @@ class FrameRatingResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return false;
+        $user = auth()->user();
+
+        return $user?->is_active === true
+            && ($user->isAdmin() || $user->isStaff());
     }
 
     public static function form(Schema $schema): Schema

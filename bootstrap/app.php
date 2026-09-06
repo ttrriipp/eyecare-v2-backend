@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\OtpRateLimitReached;
 use App\Http\Middleware\RequireActivePatientLink;
 use App\Http\Middleware\RequireStepUpToken;
@@ -30,6 +31,20 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (ActiveAppointmentRequestLimitReached $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'ACTIVE_REQUEST_LIMIT_REACHED',
+                    'message' => $exception->getMessage(),
+                    'max_active_requests' => $exception->maxActiveRequests,
+                ],
+            ], 422);
+        });
 
         $exceptions->render(function (OtpRateLimitReached $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {

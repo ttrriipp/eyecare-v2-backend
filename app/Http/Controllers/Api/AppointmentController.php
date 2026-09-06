@@ -111,16 +111,6 @@ class AppointmentController extends Controller
 
         $appointment->load(['appointmentType', 'status', 'patient', 'latestReschedule']);
 
-        $staff = User::query()
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
-            ->get();
-
-        Notification::make()
-            ->title('Appointment Cancelled by Patient')
-            ->body("{$appointment->patient->full_name} cancelled appointment {$appointment->appointment_number} on {$appointment->scheduled_at->format('M d, Y g:i A')}.")
-            ->warning()
-            ->sendToDatabase($staff);
-
         return response()->json([
             'data' => AppointmentResource::make($appointment),
         ]);
@@ -146,8 +136,6 @@ class AppointmentController extends Controller
         Appointment $appointment,
         RescheduleAppointment $rescheduleAppointment,
     ): JsonResponse {
-        $previousScheduledAt = $appointment->scheduled_at->format('M d, Y g:i A');
-
         $appointment = $rescheduleAppointment->handle(
             appointment: $appointment,
             scheduledAt: Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone')),
@@ -155,22 +143,6 @@ class AppointmentController extends Controller
             rescheduleReason: $request->input('reason_details'),
             reasonCategory: $request->input('reason_category'),
         );
-
-        $staff = User::query()
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['staff', 'admin']))
-            ->get();
-
-        Notification::make()
-            ->title('Appointment Rescheduled by Patient')
-            ->body("{$appointment->patient->full_name} rescheduled appointment {$appointment->appointment_number} from {$previousScheduledAt} to {$appointment->scheduled_at->format('M d, Y g:i A')}.")
-            ->actions([
-                Action::make('view')
-                    ->label('View')
-                    ->url('/admin/appointments/'.$appointment->id.'/edit')
-                    ->markAsRead(),
-            ])
-            ->warning()
-            ->sendToDatabase($staff);
 
         $appointment->load('latestReschedule');
 

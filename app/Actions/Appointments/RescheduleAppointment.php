@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentReschedule;
@@ -21,6 +22,7 @@ class RescheduleAppointment
         private readonly ScheduleAppointment $scheduleAppointment,
         private readonly LockAppointmentScheduleDate $lockAppointmentScheduleDate,
         private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyAdminUsers $notifyAdminUsers,
     ) {}
 
     public function handle(
@@ -54,7 +56,9 @@ class RescheduleAppointment
 
         $appointment->loadMissing(['appointmentType', 'optometrist', 'patient']);
 
-        return DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory): Appointment {
+        $previousScheduledAtForNotification = $appointment->scheduled_at->format('M d, Y g:i A');
+
+        $rescheduledAppointment = DB::transaction(function () use ($appointment, $scheduledAt, $customerInitiated, $rescheduleReason, $reasonCategory): Appointment {
             $this->lockScheduleDates($appointment, $scheduledAt);
 
             try {
@@ -110,6 +114,15 @@ class RescheduleAppointment
 
             return $appointment->fresh(['patient', 'appointmentType', 'status', 'optometrist']);
         }, attempts: 3);
+
+        if ($customerInitiated) {
+            $this->notifyAdminUsers->appointmentRescheduled(
+                $rescheduledAppointment,
+                $previousScheduledAtForNotification,
+            );
+        }
+
+        return $rescheduledAppointment;
     }
 
     private function lockScheduleDates(Appointment $appointment, CarbonInterface $scheduledAt): void

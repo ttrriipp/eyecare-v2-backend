@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CancelAppointment
 {
+    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+
     public function handle(
         Appointment $appointment,
         string $initiator,
@@ -42,7 +45,7 @@ class CancelAppointment
             ]);
         }
 
-        return DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails, $currentStatus): Appointment {
+        $cancelledAppointment = DB::transaction(function () use ($appointment, $initiator, $actor, $reasonCategory, $reasonDetails, $currentStatus): Appointment {
             $cancelledStatus = AppointmentStatus::query()
                 ->where('name', 'cancelled')
                 ->firstOrFail();
@@ -83,5 +86,11 @@ class CancelAppointment
 
             return $appointment->fresh(['appointmentType', 'status', 'patient']);
         });
+
+        if ($initiator === 'patient') {
+            $this->notifyAdminUsers->appointmentCancelled($cancelledAppointment);
+        }
+
+        return $cancelledAppointment;
     }
 }

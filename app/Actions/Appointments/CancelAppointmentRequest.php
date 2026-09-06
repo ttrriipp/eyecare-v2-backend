@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
@@ -12,7 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class CancelAppointmentRequest
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+    ) {}
 
     public function handle(AppointmentRequest $request, User $account): AppointmentRequest
     {
@@ -26,7 +30,7 @@ class CancelAppointmentRequest
             ]);
         }
 
-        return DB::transaction(function () use ($request, $account): AppointmentRequest {
+        $request = DB::transaction(function () use ($request, $account): AppointmentRequest {
             $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if (! $request->isPending()) {
@@ -49,5 +53,9 @@ class CancelAppointmentRequest
 
             return $request->fresh();
         });
+
+        $this->notifyAdminUsers->appointmentRequestCancelled($request);
+
+        return $request;
     }
 }

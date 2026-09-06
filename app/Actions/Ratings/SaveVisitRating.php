@@ -2,6 +2,7 @@
 
 namespace App\Actions\Ratings;
 
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Models\Appointment;
 use App\Models\BillingRecordItem;
 use App\Models\Patient;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class SaveVisitRating
 {
+    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+
     /**
      * Create or revise a patient's rating of one fulfilled visit.
      *
@@ -34,7 +37,9 @@ class SaveVisitRating
             ]);
         }
 
-        return DB::transaction(function () use ($patient, $appointment, $rating, $comment): VisitRating {
+        $shouldNotify = false;
+
+        $visitRating = DB::transaction(function () use ($patient, $appointment, $rating, $comment, &$shouldNotify): VisitRating {
             $lockedAppointment = Appointment::query()
                 ->lockForUpdate()
                 ->findOrFail($appointment->id);
@@ -44,6 +49,9 @@ class SaveVisitRating
                 ->first();
 
             if ($existing !== null) {
+                $shouldNotify = $rating <= 2
+                    && ($existing->rating !== $rating || $existing->comment !== $comment);
+
                 $existing->update([
                     'rating' => $rating,
                     'comment' => $comment,
@@ -51,6 +59,8 @@ class SaveVisitRating
 
                 return $existing->fresh();
             }
+
+            $shouldNotify = $rating <= 2;
 
             $encounter = $lockedAppointment->encounter;
             $optometristId = $encounter?->optometrist_id;
@@ -66,6 +76,12 @@ class SaveVisitRating
                 'service_ids' => $serviceIds,
             ]);
         });
+
+        if ($shouldNotify) {
+            $this->notifyAdminUsers->lowVisitRating($visitRating);
+        }
+
+        return $visitRating;
     }
 
     /**

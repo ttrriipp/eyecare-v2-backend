@@ -2,6 +2,7 @@
 
 namespace App\Actions\Ratings;
 
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Models\DispensingEvent;
 use App\Models\FrameRating;
 use App\Models\Patient;
@@ -11,6 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class SaveFrameRating
 {
+    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+
     /**
      * Create or update a frame rating. Eligibility derives from dispensing.
      *
@@ -29,13 +32,19 @@ class SaveFrameRating
             ]);
         }
 
-        return DB::transaction(function () use ($patient, $variant, $rating, $comment, $dispensingEvent): FrameRating {
+        $shouldNotify = false;
+
+        $frameRating = DB::transaction(function () use ($patient, $variant, $rating, $comment, $dispensingEvent, &$shouldNotify): FrameRating {
             $existing = FrameRating::query()
                 ->where('patient_id', $patient->id)
                 ->where('product_variant_id', $variant->id)
+                ->lockForUpdate()
                 ->first();
 
             if ($existing !== null) {
+                $shouldNotify = $rating <= 2
+                    && ($existing->rating !== $rating || $existing->comment !== $comment);
+
                 $existing->update([
                     'rating' => $rating,
                     'comment' => $comment,
@@ -43,6 +52,8 @@ class SaveFrameRating
 
                 return $existing->fresh();
             }
+
+            $shouldNotify = $rating <= 2;
 
             return FrameRating::query()->create([
                 'patient_id' => $patient->id,
@@ -52,5 +63,11 @@ class SaveFrameRating
                 'comment' => $comment,
             ]);
         });
+
+        if ($shouldNotify) {
+            $this->notifyAdminUsers->lowFrameRating($frameRating);
+        }
+
+        return $frameRating;
     }
 }
