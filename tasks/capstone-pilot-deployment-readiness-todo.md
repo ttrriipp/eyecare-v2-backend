@@ -164,6 +164,15 @@ criteria, files, risks, and verification are in the plan.
   the focused touched-test suites passed (14 tests, 40 assertions), and
   `artisan optimize` passed. Checkpoint A remains open until the known
   launch-critical tests are fixed or explicitly removed from the demo scope.
+- 2026-09-07 Checkpoint A review: correctness, security, maintainability,
+  performance, and testability review found no regression in the dependency or
+  CI changes. Composer and npm audits are clean, the production build and
+  Pint pass, and the clean full-suite delta is better than the recorded
+  baseline (20 versus 24 non-passing cases). The full-suite gate remains
+  intentionally red because the documented pre-existing failures have not
+  been silently waived; appointment/optical-order rendering cases remain
+  conditional staff-demo blockers, while the other gaps remain outside the
+  participant pilot path unless the frozen study uses those workflows.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
