@@ -18,9 +18,11 @@ class MessageAttachmentPreviewController extends Controller
                 || $attachment->mime_type === 'application/pdf',
             404,
         );
-        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
 
-        return Storage::disk('local')->response(
+        $disk = Storage::disk((string) config('filesystems.message_attachments_disk', 'message_attachments'));
+        abort_unless($disk->exists($attachment->file_path), 404);
+
+        return $disk->response(
             $attachment->file_path,
             $attachment->original_name,
             [

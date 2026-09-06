@@ -10,6 +10,7 @@ use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -224,7 +225,7 @@ test('empty thread still renders without error', function () {
 });
 
 test('staff chat exposes view and download links for pdf attachments', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();
@@ -243,7 +244,7 @@ test('staff chat exposes view and download links for pdf attachments', function 
         'mime_type' => 'application/pdf',
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     $this->actingAs($admin);
 
@@ -260,6 +261,35 @@ test('staff chat exposes view and download links for pdf attachments', function 
         ->not->toContain('data-message-body')
         ->toContain('View')
         ->toContain('Download');
+});
+
+test('staff replies store attachments on the configured private disk', function (): void {
+    Storage::fake('message_attachments');
+    Storage::fake('local');
+
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->set('pendingAttachment', UploadedFile::fake()->create(
+            'staff-note.pdf',
+            10,
+            'application/pdf',
+        ))
+        ->call('sendReply');
+
+    $attachment = MessageAttachment::query()->sole();
+
+    Storage::disk('message_attachments')->assertExists($attachment->file_path);
+    expect(Storage::disk('message_attachments')->getVisibility($attachment->file_path))->toBe('private')
+        ->and(Storage::disk('local')->allFiles())->toBeEmpty();
 });
 
 test('staff chat shows a seen indicator on the last read staff message', function () {

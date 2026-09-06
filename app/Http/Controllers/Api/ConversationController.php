@@ -98,7 +98,10 @@ class ConversationController extends Controller
             abort_unless($request->user()->patient !== null, 422, 'Attachments require a linked patient account.');
 
             $file = $request->file('attachment');
-            $path = $file->store('attachments', 'local');
+            $disk = Storage::disk((string) config('filesystems.message_attachments_disk', 'message_attachments'));
+            $path = $disk->putFile('attachments', $file, ['visibility' => 'private']);
+
+            abort_if($path === false, 500, 'Attachment storage is unavailable.');
 
             $message->attachments()->create([
                 'file_path' => $path,
@@ -125,9 +128,11 @@ class ConversationController extends Controller
 
         // Must own the conversation (patient link already enforced by middleware)
         abort_unless($conversation->account_user_id === $request->user()->id, 404);
-        abort_unless(Storage::disk('local')->exists($attachment->file_path), 404);
 
-        return Storage::disk('local')->download(
+        $disk = Storage::disk((string) config('filesystems.message_attachments_disk', 'message_attachments'));
+        abort_unless($disk->exists($attachment->file_path), 404);
+
+        return $disk->download(
             $attachment->file_path,
             $attachment->original_name,
             [

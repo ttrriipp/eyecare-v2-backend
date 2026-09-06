@@ -63,7 +63,7 @@ test('patient conversation messages do not include another patients conversation
 });
 
 test('patient can download own conversation attachment through singular attachment route', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $patient = User::factory()->patient()->create();
     $conversation = Conversation::query()->create([
@@ -81,7 +81,7 @@ test('patient can download own conversation attachment through singular attachme
         'mime_type' => 'application/pdf',
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     $this->actingAs($patient)
         ->get("/api/v1/conversation/attachments/{$attachment->id}")
@@ -89,7 +89,7 @@ test('patient can download own conversation attachment through singular attachme
 });
 
 test('staff can preview and download patient conversation attachments from the admin panel', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $staff = User::factory()->staff()->create();
     $patient = User::factory()->patient()->create();
@@ -108,7 +108,7 @@ test('staff can preview and download patient conversation attachments from the a
         'mime_type' => 'application/pdf',
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     $this->actingAs($staff)
         ->get("/attachments/{$attachment->id}/preview")
@@ -121,7 +121,7 @@ test('staff can preview and download patient conversation attachments from the a
 });
 
 test('patients cannot use staff attachment routes', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $patient = User::factory()->patient()->create();
     $conversation = Conversation::query()->create([
@@ -136,7 +136,7 @@ test('patients cannot use staff attachment routes', function () {
         'message_id' => $message->id,
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     $this->actingAs($patient)
         ->get("/attachments/{$attachment->id}/download")
@@ -144,7 +144,7 @@ test('patients cannot use staff attachment routes', function () {
 });
 
 test('patient cannot download another patients conversation attachment', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $patient1 = User::factory()->patient()->create();
     $patient2 = User::factory()->patient()->create();
@@ -163,7 +163,7 @@ test('patient cannot download another patients conversation attachment', functio
         'mime_type' => 'application/pdf',
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     $this->actingAs($patient1)
         ->get("/api/v1/conversation/attachments/{$attachment->id}")
@@ -293,7 +293,7 @@ test('last page of conversation messages reports has_more false', function () {
 });
 
 test('cross-account attachment access returns not found', function () {
-    Storage::fake('local');
+    Storage::fake('message_attachments');
 
     $patient1 = User::factory()->patient()->create();
     $patient2 = User::factory()->patient()->create();
@@ -312,7 +312,7 @@ test('cross-account attachment access returns not found', function () {
         'mime_type' => 'application/pdf',
     ]);
 
-    Storage::disk('local')->put($attachment->file_path, 'private-file');
+    Storage::disk('message_attachments')->put($attachment->file_path, 'private-file');
 
     // Patient1 cannot access Patient2's attachment
     $this->actingAs($patient1)
