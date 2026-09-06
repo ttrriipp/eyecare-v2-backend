@@ -16,10 +16,18 @@ use App\Http\Controllers\Api\OpticalOrderController;
 use App\Http\Controllers\Api\OtpChallengeController;
 use App\Http\Controllers\Api\PatientInvitationController;
 use App\Http\Controllers\Api\PatientLinkRequestController;
+use App\Http\Controllers\Api\PilotParticipantLoginController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\SavedFrameController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
+
+// Additive pilot authentication path. It is unavailable unless pilot mode is
+// explicitly enabled with a future expiry in the request authorization check.
+Route::prefix('v1')->middleware('throttle:participant-login')->group(function (): void {
+    Route::post('auth/participant-login', PilotParticipantLoginController::class)
+        ->name('api.v1.auth.participant-login');
+});
 
 // Public auth routes (versioned)
 Route::prefix('v1')->middleware('throttle:login')->group(function (): void {

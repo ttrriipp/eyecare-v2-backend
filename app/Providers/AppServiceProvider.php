@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Actions\Auth\AuthenticatePilotParticipant;
 use App\Listeners\RecordAuthenticationAudit;
 use App\Listeners\ReleaseSingleSession;
 use App\Models\Brand;
@@ -55,6 +56,18 @@ class AppServiceProvider extends ServiceProvider
             return [
                 Limit::perMinute(10)->by($request->ip()),
                 Limit::perMinute(5)->by($request->input('email')),
+            ];
+        });
+
+        RateLimiter::for('participant-login', function (Request $request): array {
+            $participantCode = app(AuthenticatePilotParticipant::class)
+                ->normalizeCode((string) $request->input('participant_code', ''));
+
+            return [
+                Limit::perMinute((int) config('capstone_pilot.rate_limits.ip_per_minute', 10))
+                    ->by('participant-login:ip:'.(string) $request->ip()),
+                Limit::perMinute((int) config('capstone_pilot.rate_limits.code_per_minute', 5))
+                    ->by('participant-login:code:'.hash('sha256', $participantCode)),
             ];
         });
 

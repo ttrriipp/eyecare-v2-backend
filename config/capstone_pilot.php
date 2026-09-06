@@ -40,4 +40,19 @@ return [
 
     'credential_disk' => env('CAPSTONE_PILOT_CREDENTIAL_DISK', 'local'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Participant login limits
+    |--------------------------------------------------------------------------
+    |
+    | The endpoint applies both limits independently. The participant-code
+    | key is hashed before it reaches the rate limiter or any cache backend.
+    |
+    */
+
+    'rate_limits' => [
+        'ip_per_minute' => (int) env('CAPSTONE_PILOT_LOGIN_IP_RATE_LIMIT', 10),
+        'code_per_minute' => (int) env('CAPSTONE_PILOT_LOGIN_CODE_RATE_LIMIT', 5),
+    ],
+
 ];

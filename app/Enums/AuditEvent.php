@@ -77,6 +77,8 @@ enum AuditEvent: string
     case UserLoggedIn = 'user.logged_in';
     case UserLoggedOut = 'user.logged_out';
     case UserLoginFailed = 'user.login_failed';
+    case ParticipantLoggedIn = 'participant.logged_in';
+    case ParticipantLoginFailed = 'participant.login_failed';
     case UserPasswordChanged = 'user.password_changed';
     case UserProfileUpdated = 'user.profile_updated';
     case UserDeactivated = 'user.deactivated';

@@ -2,6 +2,8 @@
 
 namespace App\Actions\Auth;
 
+use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AuditEvent;
 use App\Models\PilotParticipantAccount;
 use App\Models\User;
 use Carbon\Carbon;
@@ -19,6 +21,7 @@ class AuthenticatePilotParticipant
 
     public function __construct(
         protected IssuePatientDeviceToken $issueToken,
+        protected CreateAuditLog $createAuditLog,
     ) {}
 
     /**
@@ -59,6 +62,15 @@ class AuthenticatePilotParticipant
             ->first();
 
         if (! $this->passwordMatches($account?->user, $password)) {
+            if ($account?->user !== null) {
+                $this->createAuditLog->handle(
+                    subject: $account->user,
+                    action: AuditEvent::ParticipantLoginFailed,
+                    metadata: ['auth_method' => 'participant_code'],
+                    actorId: $account->user_id,
+                );
+            }
+
             $this->throwGenericFailure();
         }
 
@@ -78,6 +90,16 @@ class AuthenticatePilotParticipant
             expiresAt: $tokenExpiresAt,
         );
 
+        $this->createAuditLog->handle(
+            subject: $account->user,
+            action: AuditEvent::ParticipantLoggedIn,
+            metadata: [
+                'auth_method' => 'participant_code',
+                'installation_bound' => $installationId !== null,
+            ],
+            actorId: $account->user_id,
+        );
+
         return [
             'step_up_required' => false,
             'token' => $tokenResult['token'],
@@ -85,7 +107,7 @@ class AuthenticatePilotParticipant
         ];
     }
 
-    private function normalizeCode(string $participantCode): string
+    public function normalizeCode(string $participantCode): string
     {
         return strtoupper(trim($participantCode));
     }
