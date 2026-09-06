@@ -30,7 +30,7 @@ Route::prefix('v1')->middleware('throttle:participant-login')->group(function ()
 });
 
 // Public auth routes (versioned)
-Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
+Route::prefix('v1')->middleware(['throttle:login', 'reject.phone.auth'])->group(function (): void {
     // Registration flow
     Route::post('auth/registration/otp', [OtpChallengeController::class, 'issue']);
     Route::post('auth/registration/verify', [AuthController::class, 'registrationVerify']);
@@ -48,16 +48,24 @@ Route::prefix('v1')->middleware('throttle:login')->group(function (): void {
     Route::get('auth/policies', [AuthController::class, 'policies']);
 });
 
+// Invitation acceptance uses OTP and remains account-authenticated outside
+// pilot mode. Keep the pilot gate outside the auth group so it returns 404
+// before an unauthenticated request can observe the route's auth behavior.
+Route::prefix('v1')->middleware('reject.phone.auth')->group(function (): void {
+    Route::middleware('auth:sanctum')->group(function (): void {
+        Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp'])
+            ->name('api.v1.patient-invitations.acceptance.otp')
+            ->middleware('throttle:invitation-otp');
+        Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept'])
+            ->name('api.v1.patient-invitations.accept')
+            ->middleware('throttle:invitation-acceptance');
+    });
+});
+
 // Authenticated account-only routes (no active link required)
 Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
     Route::get('me', [AuthController::class, 'user'])
         ->middleware('throttle:api-profile');
-    Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp'])
-        ->name('api.v1.patient-invitations.acceptance.otp')
-        ->middleware('throttle:invitation-otp');
-    Route::post('patient-invitations/accept', [PatientInvitationController::class, 'accept'])
-        ->name('api.v1.patient-invitations.accept')
-        ->middleware('throttle:invitation-acceptance');
 
     Route::middleware('throttle:api-account')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout']);

@@ -2,8 +2,10 @@
 
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\OtpRateLimitReached;
+use App\Http\Middleware\RejectPhoneAuthenticationDuringPilot;
 use App\Http\Middleware\RequireActivePatientLink;
 use App\Http\Middleware\RequireStepUpToken;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,7 +27,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'require.patient.link' => RequireActivePatientLink::class,
             'require.step-up' => RequireStepUpToken::class,
+            'reject.phone.auth' => RejectPhoneAuthenticationDuringPilot::class,
         ]);
+        $middleware->prependToPriorityList(
+            AuthenticatesRequests::class,
+            RejectPhoneAuthenticationDuringPilot::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
