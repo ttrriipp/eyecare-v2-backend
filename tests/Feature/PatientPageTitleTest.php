@@ -48,7 +48,7 @@ test('patient detail pages use the patient name in their title', function (strin
     expect($page->getTitle())->toBe($expected);
 })->with([
     'ViewAppointmentRequest' => [ViewAppointmentRequest::class, AppointmentRequest::class, 'Appointment Request for Liza Mendoza'],
-    'EditAppointment' => [EditAppointment::class, Appointment::class, 'Edit for Liza Mendoza'],
+    'EditAppointment' => [EditAppointment::class, Appointment::class, 'Appointment for Liza Mendoza'],
     'EditOpticalOrder' => [EditOpticalOrder::class, JobOrder::class, 'Optical Order for Liza Mendoza'],
     'EditQuotation' => [EditQuotation::class, Quotation::class, 'Quotation for Liza Mendoza'],
     'EditBillingRecord' => [EditBillingRecord::class, BillingRecord::class, 'Billing for Liza Mendoza'],

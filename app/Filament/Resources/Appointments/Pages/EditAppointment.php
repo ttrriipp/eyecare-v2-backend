@@ -36,7 +36,7 @@ class EditAppointment extends EditRecord
         $record = $this->getRecord();
         $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
-        return 'Edit for '.$patientName;
+        return 'Appointment for '.$patientName;
     }
 
     /**
