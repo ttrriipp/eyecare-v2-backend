@@ -4,6 +4,7 @@ namespace App\Actions\Auth;
 
 use App\Enums\OtpPurpose;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 class IssuePatientDeviceToken
@@ -33,8 +34,9 @@ class IssuePatientDeviceToken
         User $user,
         ?string $deviceName = null,
         ?string $installationId = null,
+        ?CarbonInterface $expiresAt = null,
     ): array {
-        return DB::transaction(function () use ($user, $deviceName, $installationId) {
+        return DB::transaction(function () use ($user, $deviceName, $installationId, $expiresAt): array {
             // Revoke existing token for same installation if provided
             if ($installationId !== null) {
                 $user->tokens()
@@ -57,10 +59,15 @@ class IssuePatientDeviceToken
                 }
             }
 
+            $normalExpiry = now()->addDays(config('patient_accounts.tokens.expiry_days', 30));
+            $tokenExpiry = $expiresAt?->isBefore($normalExpiry) === true
+                ? $expiresAt
+                : $normalExpiry;
+
             $newToken = $user->createToken(
                 $deviceName ?? 'mobile',
                 ['*'],
-                now()->addDays(config('patient_accounts.tokens.expiry_days', 30))
+                $tokenExpiry,
             );
 
             if ($installationId !== null) {
