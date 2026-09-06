@@ -6,19 +6,24 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     runs-on: ubuntu-latest
 
     services:
       mysql:
-        image: mysql:8.0
+        image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: password
           MYSQL_DATABASE: testing
         ports:
           - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword"
+          --health-interval=10s --health-timeout=5s --health-retries=5
 
     steps:
       - uses: actions/checkout@v4
@@ -26,18 +31,52 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.5'
           extensions: mbstring, xml, curl, mysql, zip, bcmath, gd
           coverage: none
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Validate Composer lockfile
+        run: composer validate --strict --no-interaction
 
       - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        run: composer install --no-interaction --no-progress --prefer-dist --optimize-autoloader
+
+      - name: Audit Composer dependencies
+        run: composer audit --locked --no-interaction
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+
+      - name: Build frontend assets
+        run: npm run build
 
       - name: Copy environment
         run: cp .env.example .env
 
       - name: Generate app key
-        run: php artisan key:generate
+        run: php artisan key:generate --force --ansi
+
+      - name: Migrate test database
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: testing
+          DB_USERNAME: root
+          DB_PASSWORD: password
+          APP_TIMEZONE: Asia/Manila
+        run: php artisan migrate --force --ansi
 
       - name: Run Pint (lint check)
         run: vendor/bin/pint --test
@@ -52,3 +91,14 @@ jobs:
           DB_PASSWORD: password
           APP_TIMEZONE: Asia/Manila
         run: php artisan test --compact
+
+      - name: Validate optimized caches
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: testing
+          DB_USERNAME: root
+          DB_PASSWORD: password
+          APP_TIMEZONE: Asia/Manila
+        run: php artisan optimize --ansi

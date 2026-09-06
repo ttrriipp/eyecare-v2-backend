@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\User;
+use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\RoleSeeder;
+use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -13,7 +15,7 @@ beforeEach(function () {
 test('production MFA is configured in panel', function () {
     // Verify the User model implements HasAppAuthentication
     $user = User::factory()->admin()->create();
-    expect($user)->toBeInstanceOf(\Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication::class);
+    expect($user)->toBeInstanceOf(HasAppAuthentication::class);
 });
 
 test('patient role cannot access admin panel', function () {
@@ -45,6 +47,6 @@ test('privacy notice fields exist on users table', function () {
 
 test('migrate fresh seed succeeds', function () {
     // Verify the canonical rebuild works
-    $this->seed(\Database\Seeders\DatabaseSeeder::class);
+    $this->seed(DatabaseSeeder::class);
     expect(true)->toBeTrue();
 });

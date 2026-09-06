@@ -18,8 +18,8 @@ class MessageAttachmentFactory extends Factory
     {
         return [
             'message_id' => Message::factory(),
-            'file_path' => 'attachments/' . fake()->uuid() . '.pdf',
-            'original_name' => fake()->word() . '.pdf',
+            'file_path' => 'attachments/'.fake()->uuid().'.pdf',
+            'original_name' => fake()->word().'.pdf',
             'mime_type' => 'application/pdf',
             'file_size' => fake()->numberBetween(1024, 5 * 1024 * 1024),
         ];

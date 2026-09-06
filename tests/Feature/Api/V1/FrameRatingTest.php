@@ -3,6 +3,7 @@
 use App\Enums\JobOrderStatus;
 use App\Models\Brand;
 use App\Models\DispensingEvent;
+use App\Models\FrameRating;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Product;
@@ -252,7 +253,7 @@ test('hidden rating still counts toward average_rating and rating_count', functi
         ->assertCreated();
 
     // Hide the second rating
-    $rating2 = \App\Models\FrameRating::where('patient_id', $user2->patient->id)
+    $rating2 = FrameRating::where('patient_id', $user2->patient->id)
         ->where('product_variant_id', $variant->id)
         ->first();
     $rating2->update(['is_hidden' => true, 'moderation_reason' => 'Abusive']);
