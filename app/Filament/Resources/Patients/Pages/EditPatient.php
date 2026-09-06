@@ -23,6 +23,14 @@ class EditPatient extends EditRecord
 {
     protected static string $resource = PatientResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->full_name ?? 'Unknown patient';
+
+        return 'Edit Records for '.$patientName;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

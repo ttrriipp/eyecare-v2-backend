@@ -28,7 +28,7 @@ class ProductsRelationManager extends RelationManager
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->withoutGlobalScope(SoftDeletingScope::class))
             ->columns([
-                TextColumn::make('name')->searchable()->sortable(),
+                TextColumn::make('name')->weight('bold')->searchable()->sortable(),
                 TextColumn::make('product_type')
                     ->label('Type')
                     ->badge()

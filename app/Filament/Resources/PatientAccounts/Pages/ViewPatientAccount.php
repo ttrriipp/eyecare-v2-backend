@@ -18,6 +18,14 @@ class ViewPatientAccount extends ViewRecord
 {
     protected static string $resource = PatientAccountResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? $record->full_name ?? 'Unknown patient';
+
+        return 'View Account for '.$patientName;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

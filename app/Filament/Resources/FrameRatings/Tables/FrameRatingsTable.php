@@ -20,8 +20,10 @@ class FrameRatingsTable
         return $table
             ->columns([
                 TextColumn::make('patient.first_name')
+                    ->weight('bold')
                     ->label('Patient'),
                 TextColumn::make('variant.name')
+                    ->weight('bold')
                     ->label('Frame')
                     ->searchable(),
                 TextColumn::make('rating')

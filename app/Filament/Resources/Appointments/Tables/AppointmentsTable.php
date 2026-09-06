@@ -46,6 +46,7 @@ class AppointmentsTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
                     ->searchable(['patient.first_name', 'patient.last_name'])
                     ->sortable(),
@@ -70,6 +71,7 @@ class AppointmentsTable
                     ->searchable(['optometrist.first_name', 'optometrist.last_name'])
                     ->sortable(),
                 TextColumn::make('createdBy.first_name')
+                    ->weight('bold')
                     ->label('Booked by')
                     ->placeholder('System / patient')
                     ->state(fn (Appointment $record): string => $record->createdBy?->full_name ?? 'System / patient')

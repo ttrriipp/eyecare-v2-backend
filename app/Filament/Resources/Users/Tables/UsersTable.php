@@ -19,6 +19,7 @@ class UsersTable
         return $table
             ->columns([
                 TextColumn::make('first_name')
+                    ->weight('bold')
                     ->label('Name')
                     ->searchable(['first_name', 'last_name'])
                     ->formatStateUsing(fn ($record): string => $record->full_name)

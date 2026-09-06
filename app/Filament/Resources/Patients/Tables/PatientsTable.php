@@ -30,6 +30,7 @@ class PatientsTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('full_name')
+                    ->weight('bold')
                     ->label('Name')
                     ->searchable(['first_name', 'last_name']),
                 TextColumn::make('gender')

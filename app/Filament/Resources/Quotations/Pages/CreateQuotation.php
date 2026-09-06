@@ -98,7 +98,8 @@ class CreateQuotation extends CreateRecord
                             ? [
                                 Placeholder::make('patient_display')
                                     ->label('Patient')
-                                    ->content("{$patient->full_name} ({$patient->patient_number})"),
+                                    ->content("{$patient->full_name} ({$patient->patient_number})")
+                                    ->weight('bold'),
                             ]
                             : [
                                 Select::make('patient_id')

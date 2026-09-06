@@ -203,6 +203,7 @@ class VariantsRelationManager extends RelationManager
                     ->square()
                     ->size(40),
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->searchable(),
                 TextColumn::make('sku')
                     ->searchable(),

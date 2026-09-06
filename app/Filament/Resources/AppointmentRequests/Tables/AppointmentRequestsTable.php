@@ -47,6 +47,7 @@ class AppointmentRequestsTable
                         : 'Linked to a patient record'),
 
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
                     ->default(fn (AppointmentRequest $record): string => $record->patient?->full_name ?? $record->user?->full_name ?? '—')
                     ->searchable(['patient.first_name', 'patient.last_name', 'user.first_name', 'user.last_name']),

@@ -22,6 +22,7 @@ class PatientLinkRequestsTable
                     ->sortable(),
 
                 TextColumn::make('user.first_name')
+                    ->weight('bold')
                     ->label('Account Owner')
                     ->state(fn (PatientLinkRequest $record): string => $record->user?->full_name ?? '—')
                     ->searchable(['user.first_name', 'user.last_name']),
@@ -38,6 +39,7 @@ class PatientLinkRequestsTable
                     }),
 
                 TextColumn::make('reviewer.first_name')
+                    ->weight('bold')
                     ->label('Reviewed By')
                     ->state(fn (PatientLinkRequest $record): string => $record->reviewer?->full_name ?? '—')
                     ->placeholder('—'),

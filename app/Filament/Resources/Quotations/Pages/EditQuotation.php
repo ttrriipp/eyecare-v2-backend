@@ -39,6 +39,14 @@ class EditQuotation extends EditRecord
 {
     protected static string $resource = QuotationResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
+
+        return 'Quotation for '.$patientName;
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -398,7 +406,8 @@ class EditQuotation extends EditRecord
                             ->content($this->record->quotation_number),
                         Placeholder::make('revision_patient')
                             ->label('Patient')
-                            ->content($this->record->patient?->full_name ?? '—'),
+                            ->content($this->record->patient?->full_name ?? '—')
+                            ->weight('bold'),
                         Placeholder::make('revision_prescription')
                             ->label('Prescription')
                             ->content($this->record->prescription?->prescription_number ?? 'None')

@@ -40,10 +40,12 @@ class PreferredFramesRelationManager extends RelationManager
                     ])
                     ->defaultImageUrl(url('/images/placeholder-frame.svg')),
                 TextColumn::make('variant.product.name')
+                    ->weight('bold')
                     ->label('Frame')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('variant.name')
+                    ->weight('bold')
                     ->label('Variant')
                     ->searchable(),
                 TextColumn::make('variant.sku')

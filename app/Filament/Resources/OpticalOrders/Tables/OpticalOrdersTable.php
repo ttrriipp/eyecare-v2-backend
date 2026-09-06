@@ -30,6 +30,7 @@ class OpticalOrdersTable
                     ->sortable(),
 
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
                     ->searchable()
                     ->sortable(),

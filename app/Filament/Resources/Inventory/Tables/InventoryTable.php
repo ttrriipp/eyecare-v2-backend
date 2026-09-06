@@ -16,12 +16,14 @@ class InventoryTable
         return $table
             ->columns([
                 TextColumn::make('product.name')
+                    ->weight('bold')
                     ->label('Product')
                     ->searchable()
                     ->sortable()
                     ->description(fn (ProductVariant $record): ?string => $record->product?->brand?->name),
 
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->label('Variant')
                     ->searchable(),
 

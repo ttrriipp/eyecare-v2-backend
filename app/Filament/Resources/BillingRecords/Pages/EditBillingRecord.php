@@ -31,7 +31,10 @@ class EditBillingRecord extends EditRecord
 
     public function getTitle(): string
     {
-        return $this->record->billing_record_number;
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
+
+        return 'Billing for '.$patientName;
     }
 
     public function form(Schema $schema): Schema
@@ -45,7 +48,8 @@ class EditBillingRecord extends EditRecord
                             ->content(fn (BillingRecord $record): string => $record->billing_record_number),
                         Placeholder::make('patient_name')
                             ->label('Patient')
-                            ->content(fn (BillingRecord $record): string => $record->patient?->full_name ?? '—'),
+                            ->content(fn (BillingRecord $record): string => $record->patient?->full_name ?? '—')
+                            ->weight('bold'),
                         Placeholder::make('quotation_number')
                             ->label('Quotation')
                             ->content(fn (BillingRecord $record): string => $record->quotation?->quotation_number ?? '—')

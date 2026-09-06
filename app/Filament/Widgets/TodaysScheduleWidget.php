@@ -95,13 +95,14 @@ class TodaysScheduleWidget extends TableWidget
                     ->label('Time')
                     ->time('g:i A'),
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
-                    ->description(fn (Appointment $record): string => $record->patient?->patient_number ?? 'No patient number')
-                    ->weight('medium'),
+                    ->description(fn (Appointment $record): string => $record->patient?->patient_number ?? 'No patient number'),
                 TextColumn::make('patient.phone')
                     ->label('Phone')
                     ->placeholder('—'),
                 TextColumn::make('appointmentType.name')
+                    ->weight('bold')
                     ->label('Visit')
                     ->wrap(),
                 TextColumn::make('optometrist.full_name')

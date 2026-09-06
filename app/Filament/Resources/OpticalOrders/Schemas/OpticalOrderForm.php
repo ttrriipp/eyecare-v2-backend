@@ -35,7 +35,8 @@ class OpticalOrderForm
                                 ->content(fn (JobOrder $record): string => $record->job_order_number ?? '—'),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
-                                ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—'),
+                                ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—')
+                                ->weight('bold'),
                             Placeholder::make('source_quotation')
                                 ->label('Source Quotation')
                                 ->content(fn (JobOrder $record): string => $record->quotation?->quotation_number ?? 'Direct order')

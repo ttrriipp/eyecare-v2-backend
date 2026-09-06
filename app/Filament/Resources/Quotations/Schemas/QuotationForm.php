@@ -33,7 +33,8 @@ class QuotationForm
                                 ->content(fn (Quotation $record): string => $record->quotation_number ?? '—'),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
-                                ->content(fn (Quotation $record): string => $record->patient?->full_name ?? '—'),
+                                ->content(fn (Quotation $record): string => $record->patient?->full_name ?? '—')
+                                ->weight('bold'),
                             Placeholder::make('status_badge')
                                 ->label('Status')
                                 ->content(fn (Quotation $record): string => Str::headline($record->status->value))

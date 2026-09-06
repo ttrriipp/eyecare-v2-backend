@@ -42,10 +42,12 @@ class LinkRequestsRelationManager extends RelationManager
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
                 TextColumn::make('reviewedPatient.full_name')
+                    ->weight('bold')
                     ->label('Matched Patient')
                     ->placeholder('—'),
 
                 TextColumn::make('reviewer.first_name')
+                    ->weight('bold')
                     ->label('Reviewed By')
                     ->state(fn (PatientLinkRequest $record): string => $record->reviewer?->full_name ?? '—')
                     ->placeholder('—'),

@@ -15,6 +15,7 @@ class ProductCategoriesTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('products_count')

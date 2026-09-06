@@ -111,7 +111,8 @@ class PatientLinkRequestForm
                     ->schema([
                         Placeholder::make('linked_patient')
                             ->label('Linked Patient')
-                            ->content(fn ($record) => $record?->reviewedPatient?->full_name ?? '—'),
+                            ->content(fn ($record) => $record?->reviewedPatient?->full_name ?? '—')
+                            ->weight('bold'),
 
                         Placeholder::make('reviewer')
                             ->label('Reviewed By')

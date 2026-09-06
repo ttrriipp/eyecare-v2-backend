@@ -160,6 +160,7 @@ class AppointmentForm
                             Placeholder::make('patient_name_display')
                                 ->label('Name')
                                 ->content(fn (Appointment $record): string => $record->patient?->full_name ?? '—')
+                                ->weight('bold')
                                 ->hiddenOn('create')
                                 ->columnSpanFull(),
 

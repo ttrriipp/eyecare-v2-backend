@@ -18,6 +18,14 @@ class ViewPatientLinkRequest extends ViewRecord
 {
     protected static string $resource = PatientLinkRequestResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->reviewedPatient?->full_name ?? $record->user?->full_name ?? 'Unknown patient';
+
+        return 'View Link Request for '.$patientName;
+    }
+
     protected function getHeaderActions(): array
     {
         return [

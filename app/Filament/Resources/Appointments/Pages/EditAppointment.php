@@ -31,6 +31,14 @@ class EditAppointment extends EditRecord
 {
     protected static string $resource = AppointmentResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
+
+        return 'Edit for '.$patientName;
+    }
+
     /**
      * Revalidate schedule-defining edits through the same scheduling boundary
      * used by appointment creation and rescheduling.

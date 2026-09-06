@@ -93,13 +93,10 @@ class EditEncounter extends EditRecord
 
     public function getTitle(): string
     {
-        $status = $this->record->status;
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
-        if ($status === EncounterStatus::Planned) {
-            return 'Waiting — '.$this->record->encounter_number;
-        }
-
-        return "Edit {$this->record->encounter_number}";
+        return 'Consultation for '.$patientName;
     }
 
     public function getBreadcrumbs(): array

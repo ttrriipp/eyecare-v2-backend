@@ -22,9 +22,11 @@ class InventoryMovementsTable
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
                 TextColumn::make('variant.product.name')
+                    ->weight('bold')
                     ->label('Product')
                     ->searchable(),
                 TextColumn::make('variant.name')
+                    ->weight('bold')
                     ->label('Variant')
                     ->searchable(),
                 TextColumn::make('movementType.name')
@@ -50,6 +52,7 @@ class InventoryMovementsTable
                     ->label('After')
                     ->placeholder('—'),
                 TextColumn::make('createdBy.first_name')
+                    ->weight('bold')
                     ->label('By')
                     ->state(fn (InventoryMovement $record): string => $record->createdBy?->full_name ?? 'System')
                     ->placeholder('System')

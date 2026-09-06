@@ -29,6 +29,7 @@ class DeviceSessionsRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->label('Device')
                     ->searchable(),
 

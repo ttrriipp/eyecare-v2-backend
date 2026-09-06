@@ -25,13 +25,16 @@ class ProductsTable
                     ->square()
                     ->size(48),
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('brand.name')
+                    ->weight('bold')
                     ->label('Brand')
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('category.name')
+                    ->weight('bold')
                     ->label('Category')
                     ->searchable()
                     ->toggleable(),

@@ -23,6 +23,14 @@ class ViewAppointmentRequest extends ViewRecord
 {
     protected static string $resource = AppointmentRequestResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? $record->getSnapshotDisplayName() ?? $record->user?->full_name ?? 'Unknown patient';
+
+        return 'Appointment Request for '.$patientName;
+    }
+
     public function getBreadcrumbs(): array
     {
         return [

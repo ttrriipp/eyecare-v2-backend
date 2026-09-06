@@ -49,7 +49,8 @@ class AppointmentRequestForm
                                     .e($record->patient->full_name)
                                     .'</a>'
                                 );
-                            }),
+                            })
+                            ->weight('bold'),
                     ]),
 
                 Section::make('Patient Information')
@@ -58,7 +59,8 @@ class AppointmentRequestForm
                     ->schema([
                         Placeholder::make('snapshot_name')
                             ->label('Name')
-                            ->content(fn ($record): string => $record?->getSnapshotDisplayName() ?? '—'),
+                            ->content(fn ($record): string => $record?->getSnapshotDisplayName() ?? '—')
+                            ->weight('bold'),
 
                         Placeholder::make('snapshot_dob')
                             ->label('Date of Birth')

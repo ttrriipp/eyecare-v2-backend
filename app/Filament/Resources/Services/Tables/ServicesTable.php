@@ -15,6 +15,7 @@ class ServicesTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('price')

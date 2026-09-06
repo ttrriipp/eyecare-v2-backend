@@ -35,6 +35,7 @@ class EncountersTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
                     ->searchable(['patient.first_name', 'patient.last_name'])
                     ->sortable(),

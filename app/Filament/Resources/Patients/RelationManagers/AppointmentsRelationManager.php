@@ -24,7 +24,7 @@ class AppointmentsRelationManager extends RelationManager
         return $table
             ->columns([
                 TextColumn::make('scheduled_at')->label('Date')->dateTime('M j, Y g:i A')->sortable(),
-                TextColumn::make('appointmentType.name')->label('Appointment Type')->placeholder('—'),
+                TextColumn::make('appointmentType.name')->weight('bold')->label('Appointment Type')->placeholder('—'),
                 TextColumn::make('status.name')
                     ->label('Status')
                     ->badge()

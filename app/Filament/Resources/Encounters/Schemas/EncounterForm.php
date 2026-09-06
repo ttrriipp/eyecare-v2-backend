@@ -74,7 +74,8 @@ class EncounterForm
                                 ->content(fn (Encounter $record): string => $record->encounter_number),
                             Placeholder::make('patient_name')
                                 ->label('Patient')
-                                ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                                ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—')
+                                ->weight('bold'),
                             Placeholder::make('appointment_type')
                                 ->label('Appointment Type')
                                 ->content(fn (Encounter $record): string => $record->appointment?->appointmentType?->name ?? '—'),
@@ -178,7 +179,8 @@ class EncounterForm
                             ->schema([
                                 Placeholder::make('summary_patient_name')
                                     ->label('Name')
-                                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                                    ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—')
+                                    ->weight('bold'),
                                 Placeholder::make('summary_patient_dob')
                                     ->label('Date of Birth')
                                     ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),
@@ -414,7 +416,8 @@ class EncounterForm
                 ->schema([
                     Placeholder::make('patient_name')
                         ->label('Name')
-                        ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—'),
+                        ->content(fn (Encounter $record): string => $record->patient?->full_name ?? '—')
+                        ->weight('bold'),
                     Placeholder::make('patient_dob')
                         ->label('Date of Birth')
                         ->content(fn (Encounter $record): string => $record->patient?->date_of_birth?->format('M d, Y') ?? '—'),

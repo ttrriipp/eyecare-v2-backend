@@ -48,6 +48,7 @@ class PaymentsRelationManager extends RelationManager
                         default => 'gray',
                     }),
                 TextColumn::make('recordedBy.first_name')
+                    ->weight('bold')
                     ->label('Recorded By')
                     ->state(fn (BillingPayment $record): string => $record->recordedBy?->full_name ?? '—')
                     ->placeholder('—'),

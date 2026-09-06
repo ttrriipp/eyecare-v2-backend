@@ -21,6 +21,7 @@ class VisitRatingInfolist
                         TextEntry::make('patient.full_name')
                             ->label('Patient')
                             ->placeholder('Patient record unavailable')
+                            ->weight('bold')
                             ->url(fn (VisitRating $record): ?string => $record->patient === null
                                 ? null
                                 : PatientResource::getUrl('edit', ['record' => $record->patient])),

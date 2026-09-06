@@ -31,6 +31,14 @@ class EditOpticalOrder extends EditRecord
 {
     protected static string $resource = OpticalOrderResource::class;
 
+    public function getTitle(): string
+    {
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
+
+        return 'Optical Order for '.$patientName;
+    }
+
     #[On('billing-payment-updated')]
     public function refreshBillingSummary(): void
     {

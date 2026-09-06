@@ -11,11 +11,10 @@ class ViewVisitRating extends ViewRecord
 
     public function getTitle(): string
     {
-        $appointmentNumber = $this->record->appointment?->appointment_number;
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
 
-        return $appointmentNumber !== null
-            ? "Feedback for {$appointmentNumber}"
-            : 'Visit Feedback';
+        return 'View for '.$patientName;
     }
 
     public function getBreadcrumbs(): array

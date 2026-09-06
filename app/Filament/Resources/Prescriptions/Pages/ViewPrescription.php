@@ -26,7 +26,10 @@ class ViewPrescription extends ViewRecord
 
     public function getTitle(): string
     {
-        return 'View '.$this->getRecord()->prescription_number;
+        $record = $this->getRecord();
+        $patientName = $record->patient?->full_name ?? 'Unknown patient';
+
+        return 'Prescription for '.$patientName;
     }
 
     public function getBreadcrumb(): string
@@ -80,7 +83,8 @@ class ViewPrescription extends ViewRecord
                             ->content($record->prescription_number ?? '—'),
                         Placeholder::make('patient_name')
                             ->label('Patient')
-                            ->content($record->patient?->full_name ?? '—'),
+                            ->content($record->patient?->full_name ?? '—')
+                            ->weight('bold'),
                         Placeholder::make('patient_number')
                             ->label('Patient Number')
                             ->content($record->patient?->patient_number ?? '—'),
@@ -92,8 +96,16 @@ class ViewPrescription extends ViewRecord
                                 }
 
                                 $url = EncounterResource::getUrl('edit', ['record' => $record->encounter]);
+                                $consultationDate = $record->encounter->started_at?->format('M j, Y')
+                                    ?? $record->encounter->created_at?->format('M j, Y');
+                                $consultationLabel = $record->encounter->encounter_number
+                                    .($consultationDate === null ? '' : ' ('.$consultationDate.')');
 
-                                return new HtmlString('<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'.e($record->encounter->encounter_number).'</a>');
+                                return new HtmlString(
+                                    '<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                    .e($consultationLabel)
+                                    .'</a>'
+                                );
                             }),
                         Placeholder::make('optometrist')
                             ->label('Prescribing Optometrist')

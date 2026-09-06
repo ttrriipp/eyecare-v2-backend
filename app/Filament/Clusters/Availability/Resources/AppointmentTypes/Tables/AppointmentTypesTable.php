@@ -16,6 +16,7 @@ class AppointmentTypesTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->label('Internal Name')
                     ->searchable()
                     ->sortable(),

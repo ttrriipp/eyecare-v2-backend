@@ -75,7 +75,8 @@ class PatientAccountForm
 
                         Placeholder::make('linked_patient')
                             ->label('Linked Patient')
-                            ->content(fn ($record) => $record?->patient?->full_name ?? '—'),
+                            ->content(fn ($record) => $record?->patient?->full_name ?? '—')
+                            ->weight('bold'),
 
                         Placeholder::make('patient_number')
                             ->label('Patient Number')

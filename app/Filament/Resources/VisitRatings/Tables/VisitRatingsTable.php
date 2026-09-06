@@ -16,6 +16,7 @@ class VisitRatingsTable
         return $table
             ->columns([
                 TextColumn::make('patient.full_name')
+                    ->weight('bold')
                     ->label('Patient')
                     ->searchable()
                     ->sortable(),

@@ -26,6 +26,7 @@ class AuditLogsTable
                 TextColumn::make('subject_id')
                     ->label('Subject ID'),
                 TextColumn::make('actor.first_name')
+                    ->weight('bold')
                     ->label('Actor')
                     ->state(fn (AuditLog $record): string => $record->actor?->full_name ?? 'System')
                     ->default('System')

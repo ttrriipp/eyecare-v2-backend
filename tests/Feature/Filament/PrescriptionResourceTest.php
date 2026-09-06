@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\EncounterStatus;
+use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\Patients\Pages\EditPatient;
 use App\Filament\Resources\Patients\RelationManagers\PrescriptionsRelationManager;
@@ -15,6 +16,8 @@ use App\Models\Encounter;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Filament\Forms\Components\Placeholder;
+use Filament\Support\Enums\FontWeight;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -192,6 +195,37 @@ test('a finalized prescription is read only and offers amendment to optometrists
         ->assertActionDoesNotExist('edit')
         ->assertActionDoesNotExist('archive')
         ->assertActionDoesNotExist('restore');
+});
+
+test('prescription details emphasize the patient and link the consultation date', function () {
+    $optometrist = User::factory()->optometrist()->create();
+    $consultationStartedAt = now()->subDays(2)->setTime(10, 0);
+    $encounter = Encounter::factory()->completed()->create([
+        'started_at' => $consultationStartedAt,
+        'completed_at' => $consultationStartedAt->copy()->addMinutes(30),
+    ]);
+    $prescription = Prescription::factory()
+        ->linkedToEncounter($encounter)
+        ->create(['prescribed_at' => now()->subDay()]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(ViewPrescription::class, ['record' => $prescription->getRouteKey()])
+        ->assertSchemaComponentExists(
+            'patient_name',
+            'content',
+            checkComponentUsing: function (Placeholder $component): bool {
+                expect($component->getWeight())->toBe(FontWeight::Bold);
+
+                return true;
+            },
+        )
+        ->assertSee($encounter->encounter_number)
+        ->assertSee("{$encounter->encounter_number} ({$consultationStartedAt->format('M j, Y')})")
+        ->assertSee(
+            'href="'.EncounterResource::getUrl('edit', ['record' => $encounter]).'"',
+            false,
+        );
 });
 
 test('a receptionist can view but cannot amend a finalized prescription', function () {

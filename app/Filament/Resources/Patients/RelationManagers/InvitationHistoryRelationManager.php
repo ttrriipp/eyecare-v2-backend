@@ -47,6 +47,7 @@ class InvitationHistoryRelationManager extends RelationManager
                     }),
 
                 TextColumn::make('sender.first_name')
+                    ->weight('bold')
                     ->label('Sent By')
                     ->state(fn (PatientInvitation $record): string => $record->sender?->full_name ?? '—')
                     ->placeholder('—'),

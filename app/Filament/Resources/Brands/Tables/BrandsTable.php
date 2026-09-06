@@ -14,7 +14,7 @@ class BrandsTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')->searchable()->sortable(),
+                TextColumn::make('name')->weight('bold')->searchable()->sortable(),
                 TextColumn::make('products_count')
                     ->counts('products')
                     ->label('Products')

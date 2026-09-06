@@ -17,6 +17,7 @@ class PatientAccountsTable
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->weight('bold')
                     ->label('Account Name')
                     ->searchable(['first_name', 'last_name', 'name']),
 
