@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-06 — Task 1 baseline complete
+**Status:** Plan approved on 2026-09-06 — Tasks 1–2 complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -29,7 +29,7 @@ criteria, files, risks, and verification are in the plan.
 - [x] Task 1 — capture fresh full test/build/audit/migration/schedule/route
       evidence and classify every failure (recorded below; application code
       untouched).
-- [ ] Task 2 — remediate exposed PHP dependency advisories in reviewed groups.
+- [x] Task 2 — remediate exposed PHP dependency advisories in reviewed groups.
 - [ ] Task 3 — remediate frontend build-chain advisories without force fixes.
 - [ ] Task 4 — align CI to PHP 8.5/MySQL 8.4 and enforce test/build/audit/cache
       gates.
@@ -127,6 +127,16 @@ criteria, files, risks, and verification are in the plan.
 - 2026-09-06 Composer audit: failed with 31 advisories across six packages,
   including high findings in Filament MFA, Guzzle, and CommonMark; Dompdf and
   Livewire also have findings. Task 2 is required before an exposed release.
+- 2026-09-06 PHP dependency remediation: reviewed groups upgraded Dompdf to
+  3.1.6, CommonMark to 2.10.0, Guzzle to 7.15.5, PSR-7 to 2.13.1, promises to
+  2.5.3, Filament to 5.7.8, and Livewire to 4.4.3. The Filament upgrade also
+  published its version-matched CSS, JavaScript, and Inter font assets.
+  `composer validate --strict` passed, `composer audit --locked` reports no
+  advisories, and focused patient-login/configuration tests passed (20 tests,
+  63 assertions). The Filament suite passed 355 of 358 tests; the three
+  remaining rendering assertions are the same pre-existing appointment,
+  optical-order, and prescription findings recorded in the baseline and were
+  not weakened or deleted. The production Vite build passed with Vite 8.0.14.
 - 2026-09-06 npm baseline: `npm ci` completed; `npm run build` passed with Vite
   8.0.14; `npm audit --audit-level=high` failed with five findings (three high,
   two critical) in NanoID, PostCSS, `shell-quote`/concurrently, and Vite.
