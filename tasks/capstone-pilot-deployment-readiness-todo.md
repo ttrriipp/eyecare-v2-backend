@@ -292,8 +292,8 @@ criteria, files, risks, and verification are in the plan.
   preflight, route-gate, and SMS suites passed (47 tests, 145 assertions);
   the preflight-only suite passed 31 tests with 66 assertions. SMS disabled
   logs were also redacted and configured adapter endpoints/retries are now
-  honored. Pint and route/schedule inspections passed. Task 13 is ready for
-  commit.
+  honored. Pint and route/schedule inspections passed. Task 13 is committed as
+  `56c3a8d1`.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
