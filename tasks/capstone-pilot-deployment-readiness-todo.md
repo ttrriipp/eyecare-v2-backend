@@ -294,6 +294,18 @@ criteria, files, risks, and verification are in the plan.
   logs were also redacted and configured adapter endpoints/retries are now
   honored. Pint and route/schedule inspections passed. Task 13 is committed as
   `56c3a8d1`.
+- 2026-09-07 Checkpoint C verification: the launch-critical pilot suite passed
+  74 tests with 1,564 assertions, and the expanded preflight/route/SMS
+  regression set passed 82 tests with 254 assertions. Composer and npm
+  high-severity audits reported no vulnerabilities; the production frontend
+  build and Laravel optimize/optimize:clear rehearsal passed; route and
+  schedule inventories are valid. The refreshed full Pest run completed with
+  2,067 tests, 2,048 passed, 13 failed, 6 errors, and 8,691 assertions. The
+  remaining failures/errors are the documented non-pilot conversation access,
+  appointment-catalog expectation, commerce guard/schema, duplicate Faker,
+  missing quotation action, and Filament UI categories. Checkpoint C remains
+  open until those failures are fixed or explicitly reviewed and excluded
+  from the demonstrated pilot scope.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
