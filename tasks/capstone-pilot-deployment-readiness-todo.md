@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–7 complete; Checkpoint A open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–8 complete; Checkpoint A open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -49,7 +49,7 @@ criteria, files, risks, and verification are in the plan.
       token expiry.
 - [x] Task 7 — add the dedicated participant-login request/controller/route and
       dual rate limiter.
-- [ ] Task 8 — make phone registration/login/OTP/recovery/invitation routes
+- [x] Task 8 — make phone registration/login/OTP/recovery/invitation routes
       unavailable only in pilot mode.
 - [ ] Task 9 — provision exactly 75 minimal accounts and one-time private
       credentials.
@@ -210,6 +210,16 @@ criteria, files, risks, and verification are in the plan.
   passed (35 tests, 174 assertions); Pint and PHP syntax checks passed. Route
   inventory confirms the named route and `throttle:participant-login`
   middleware.
+- 2026-09-07 Task 8 pilot route gate: added a fail-closed middleware that
+  returns `404` for registration, phone login/verification, recovery, and
+  invitation OTP/acceptance operations only while `CAPSTONE_PILOT_ENABLED` is
+  true. The middleware is prioritized before authentication so even
+  unauthenticated invitation requests cannot observe a `401`; it never creates
+  users, OTP challenges, invitations, messages, or audit entries. Non-pilot
+  validation behavior and unrelated authenticated account routes remain
+  available. Focused gate, participant-login, auth, invitation, route-contract,
+  and regression suites passed (57 tests, 280 assertions); Pint and PHP syntax
+  checks passed.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
