@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-06 — Tasks 1–2 complete
+**Status:** Plan approved on 2026-09-06 — Tasks 1–3 complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -30,7 +30,7 @@ criteria, files, risks, and verification are in the plan.
       evidence and classify every failure (recorded below; application code
       untouched).
 - [x] Task 2 — remediate exposed PHP dependency advisories in reviewed groups.
-- [ ] Task 3 — remediate frontend build-chain advisories without force fixes.
+- [x] Task 3 — remediate frontend build-chain advisories without force fixes.
 - [ ] Task 4 — align CI to PHP 8.5/MySQL 8.4 and enforce test/build/audit/cache
       gates.
 
@@ -141,6 +141,13 @@ criteria, files, risks, and verification are in the plan.
   8.0.14; `npm audit --audit-level=high` failed with five findings (three high,
   two critical) in NanoID, PostCSS, `shell-quote`/concurrently, and Vite.
   Task 3 is required before an exposed release.
+- 2026-09-06 frontend dependency remediation: upgraded the direct build-chain
+  packages to `@tailwindcss/vite` 4.3.3, `concurrently` 9.2.4,
+  `laravel-vite-plugin` 3.2.0, `tailwindcss` 4.3.3, and Vite 8.2.2. The
+  resolved vulnerable paths now use `shell-quote` 1.9.0, PostCSS 8.5.28, and
+  NanoID 3.3.18. `npm ci` completed, `npm audit --audit-level=high` reports
+  zero vulnerabilities, and `npm run build` passed. No force audit fix was
+  used; the build emits only the optional `fontaine` optimization notice.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
