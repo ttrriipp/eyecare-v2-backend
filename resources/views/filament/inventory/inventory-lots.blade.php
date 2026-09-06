@@ -1,11 +1,4 @@
 <div class="space-y-4">
-    <div>
-        <h2 class="text-lg font-semibold text-gray-950 dark:text-white">Contact-lens batches</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-            Stock is issued from the earliest usable expiry first. Expired units remain visible until written off.
-        </p>
-    </div>
-
     @if ($lots->isEmpty())
         <p class="text-sm text-gray-500 dark:text-gray-400">No batches have been received for this variant.</p>
     @else

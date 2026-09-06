@@ -226,11 +226,13 @@ test('contact lens inventory shows usable quantity, earliest expiry, and status'
         ->assertActionVisible(TestAction::make('viewBatches')->table($variant))
         ->mountTableAction('viewBatches', $variant)
         ->assertMountedActionModalSee([
+            'Contact-lens batches',
             'ACME-001',
             '2026-09-30',
             'ACME-002',
             'Expired',
-        ]);
+        ])
+        ->assertMountedActionModalDontSee('Stock is issued from the earliest usable expiry first.');
 });
 
 test('inventory stats include contact-lens expiry queues', function () {
