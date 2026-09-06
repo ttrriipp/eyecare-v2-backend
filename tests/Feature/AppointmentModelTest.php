@@ -116,6 +116,8 @@ test('appointment types are seeded idempotently', function () {
             'New Patient',
             'Referral',
             'Routine Check-up',
+            'Problem/Urgent Visit',
+            'Contact Lens Consultation',
         ])
-        ->and(AppointmentType::query()->count())->toBe(4);
+        ->and(AppointmentType::query()->count())->toBe(6);
 });

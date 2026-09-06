@@ -104,7 +104,7 @@ test('appointment status is read only on the edit form', function () {
                 expect($component)
                     ->toBeInstanceOf(TextEntry::class)
                     ->and($component->isBadge())->toBeTrue()
-                    ->and($component->getSize($component->getState()))->toBe(TextSize::Large)
+                    ->and($component->getSize($component->getState()))->toBe(TextSize::Small)
                     ->and($component->getExtraAttributeBag()->get('class'))->toContain('appointment-status-entry');
 
                 return true;

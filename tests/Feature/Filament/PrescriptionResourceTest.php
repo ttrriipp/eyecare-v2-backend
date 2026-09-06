@@ -190,7 +190,7 @@ test('a finalized prescription is read only and offers amendment to optometrists
         ->assertDontSee('Encounter')
         ->assertSee($prescription->patient->full_name)
         ->assertSee('-2.00')
-        ->assertSee('Stable distance vision.')
+        ->assertFormSet(['remarks' => 'Stable distance vision.'])
         ->assertActionVisible('amendPrescription')
         ->assertActionDoesNotExist('edit')
         ->assertActionDoesNotExist('archive')

@@ -45,7 +45,7 @@ test('staff can navigate from feedback to its related visit records', function (
 
     Livewire::test(ViewVisitRating::class, ['record' => $rating->getRouteKey()])
         ->assertSuccessful()
-        ->assertSee("Feedback for {$appointment->appointment_number}")
+        ->assertSee("View for {$patient->full_name}")
         ->assertSee('Visit context')
         ->assertSee('Patient feedback')
         ->assertSee($patient->full_name)

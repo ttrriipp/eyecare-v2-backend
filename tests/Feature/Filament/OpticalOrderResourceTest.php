@@ -57,7 +57,7 @@ test('ready unpaid order prioritizes payment and does not offer dispensing to st
         ->assertActionVisible('viewBillingRecord')
         ->assertActionVisible('recordPayment')
         ->assertActionHidden('dispense')
-        ->assertSee('Outstanding balance');
+        ->assertSee('Balance Due');
 });
 
 test('staff can see line items on an optical order', function () {

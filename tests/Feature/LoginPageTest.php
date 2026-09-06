@@ -25,9 +25,8 @@ test('login page offers a password reset link', function () {
 
 test('login page displays stock images', function () {
     $this->get('/admin/login')
-        ->assertSee('images/login/eyeglass1.png')
-        ->assertSee('images/login/eyeglass2.png')
-        ->assertSee('images/login/eyeglass3.png');
+        ->assertSee('images/eyecare-light.svg')
+        ->assertSee('images/dark-mode.svg');
 });
 
 test('valid credentials authenticate user', function () {

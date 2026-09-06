@@ -1,7 +1,7 @@
 <?php
 
+use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
 use App\Actions\Quotations\BuildQuotationItemSnapshot;
-use App\Actions\Quotations\ConfirmQuotationSale;
 use App\Actions\Quotations\CreateQuotation;
 use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\CommercialItemKind;
@@ -260,7 +260,7 @@ test('confirmation copies options, snapshots, billing, and no inventory movement
     $quotation = quotationWithLensBuild($lensCategory, $option);
     $quotation->load('patient');
 
-    $result = app(ConfirmQuotationSale::class)->handle($quotation, $this->staff);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle($quotation, $this->staff);
     $order = $result['optical_order']->fresh(['items']);
     $optionItem = $order->items->firstWhere('lens_option_id', $option->id);
 
@@ -280,7 +280,7 @@ test('confirmed option snapshots survive catalog edits', function (): void {
     $option = LensOption::factory()->create(['name' => 'Tint', 'price' => 500]);
     $quotation = quotationWithLensBuild($lensCategory, $option);
 
-    $result = app(ConfirmQuotationSale::class)->handle($quotation, $this->staff);
+    $result = app(CreateOpticalOrderFromQuotation::class)->handle($quotation, $this->staff);
     $option->update(['name' => 'Renamed tint', 'is_active' => false]);
 
     $confirmedItem = $result['optical_order']->items()->where('lens_option_id', $option->id)->firstOrFail();
@@ -293,8 +293,8 @@ test('confirmation retry does not duplicate option lines or billing', function (
     $option = LensOption::factory()->create(['price' => 500]);
     $quotation = quotationWithLensBuild($lensCategory, $option);
 
-    $first = app(ConfirmQuotationSale::class)->handle($quotation, $this->staff);
-    $second = app(ConfirmQuotationSale::class)->handle($quotation->fresh(), $this->staff);
+    $first = app(CreateOpticalOrderFromQuotation::class)->handle($quotation, $this->staff);
+    $second = app(CreateOpticalOrderFromQuotation::class)->handle($quotation->fresh(), $this->staff);
 
     expect($first['optical_order']->id)->toBe($second['optical_order']->id)
         ->and($second['optical_order']->items()->where('lens_option_id', $option->id)->count())->toBe(1)

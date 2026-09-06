@@ -60,7 +60,7 @@ test('item_kind is required on quotation_items', function () {
 });
 
 test('item_kind is required on job_order_items', function () {
-    $this->expectException(QueryException::class);
+    $this->expectException(InvalidArgumentException::class);
 
     JobOrderItem::factory()->product()->create([
         'item_kind' => null,

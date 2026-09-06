@@ -173,7 +173,7 @@ test('conversations are created with a canonical patient owner only', function (
         ->and(file_exists(database_path('migrations/2026_07_27_010000_migrate_feedback_conversations_to_patient_id.php')))->toBeFalse();
 });
 
-test('conversation database columns and indexes match canonical constraints', function () {
+test('conversation database columns and indexes support account-owned conversations', function () {
     $columns = collect(DB::select("
         SELECT COLUMN_NAME, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS
@@ -213,10 +213,11 @@ test('conversation database columns and indexes match canonical constraints', fu
     "))->keyBy('COLUMN_NAME');
 
     expect($columns)->not->toHaveKeys(['customer_id', 'staff_id', 'appointment_id', 'order_id', 'subject'])
-        ->and($columns['patient_id']->IS_NULLABLE)->toBe('NO')
-        ->and($indexes->contains(fn (object $index): bool => (int) $index->NON_UNIQUE === 0))->toBeTrue()
+        ->and($columns['patient_id']->IS_NULLABLE)->toBe('YES')
+        ->and($indexes->contains(fn (object $index): bool => (int) $index->NON_UNIQUE === 1))->toBeTrue()
+        ->and($indexes->every(fn (object $index): bool => (int) $index->NON_UNIQUE === 1))->toBeTrue()
         ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
-        ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE');
+        ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('RESTRICT');
 });
 
 test('retired tables are absent from the canonical schema', function () {
