@@ -1,5 +1,16 @@
 # Active Checklist
 
+**Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
+
+→ `tasks/capstone-pilot-deployment-readiness-todo.md`
+
+The specification and temporary participant-code ADR are approved. The
+17-task provider-neutral implementation plan is awaiting owner approval.
+Hosting, the external Android change, study fields, owners, and retention stay
+as explicit pre-launch gates.
+
+The previous completed checklist remains:
+
 **Reports Feature** — implemented and verified 2026-08-30
 
 → `tasks/reports-feature-todo.md`
@@ -8,7 +19,7 @@ The administrator-only access model, four report contracts, internal navigation,
 and aggregate CSV scope are implemented and verified. See the feature checklist
 for task and checkpoint commits.
 
-The previous completed checklist remains:
+The earlier completed checklist remains:
 
 **Contact-Lens Expiry Tracking** — approved 2026-08-28; implementation pending
 

@@ -9,6 +9,23 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
+
+- Spec: `docs/specs/capstone-pilot-deployment-readiness-spec.md` (approved
+  2026-09-06)
+- Decision:
+  `docs/decisions/004-use-temporary-participant-code-authentication-for-capstone-pilot.md`
+- Plan: `tasks/capstone-pilot-deployment-readiness-plan.md` (awaiting approval)
+- Checklist: `tasks/capstone-pilot-deployment-readiness-todo.md` (awaiting
+  approval)
+
+The provider-neutral work can begin before hosting is selected. Public launch
+remains gated by hosting, the approved study-data allowlist, named technical
+and research-data owners, retention/deletion rules, the external Android
+participant-login change, and all security/rehearsal checks.
+
+## Previous active entry (preserved)
+
 **Reports Feature** — implemented and verified 2026-08-30
 
 - Spec: `docs/specs/reports-feature-spec.md`
@@ -22,7 +39,7 @@ from current snapshots. The owner approved the administrator-only access model,
 four internal report pages, metric definitions, and aggregate CSV scope. The
 feature is implemented, reviewed, tested, and documented.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Contact-Lens Expiry Tracking** — implemented and verified 2026-08-28
 
