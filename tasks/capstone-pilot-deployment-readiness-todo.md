@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–11 complete; Checkpoint A open; Checkpoint B complete
+**Status:** Plan approved on 2026-09-07 — Tasks 1–12 complete; Checkpoint A open; Checkpoint B complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -67,7 +67,7 @@ criteria, files, risks, and verification are in the plan.
 ## Phase 2: Portable Pilot Environment
 
 - [x] Task 11 — add a pilot-only safe seeder and secure MFA-admin bootstrap.
-- [ ] Task 12 — move message attachments to a configurable private logical
+- [x] Task 12 — move message attachments to a configurable private logical
       disk.
 - [ ] Task 13 — add redacted production preflight and protected readiness.
 
@@ -257,6 +257,18 @@ criteria, files, risks, and verification are in the plan.
   MFA is required. Task 11 focused tests passed (7 tests, 62 assertions), AR /
   MFA / participant regressions passed (26 tests, 1,360 assertions), Pint and
   staged diff checks passed. Task 11 is committed as `9c97c07e`.
+- 2026-09-07 Task 12 attachment storage: replaced every patient/API and
+  Filament staff attachment upload, download, and preview use of the hard-coded
+  `local` disk with the configured logical disk. The default
+  `message_attachments` disk is explicitly private, writes force private
+  visibility, and its local-volume root or S3-compatible driver is selected by
+  environment configuration without domain-code changes. Storage tests cover
+  upload placement, private visibility, non-default disk mapping, authorized
+  patient/staff access, missing objects, and the existing route/resource
+  contract. Focused conversation/UI/storage tests passed (54 tests, 145
+  assertions); adjacent API/notification/migration/route tests passed (34
+  tests, 156 assertions); Pint, config inspection, and optimize/clear passed.
+  Task 12 is committed as `95f1fcc9`.
 - 2026-09-07 Checkpoint B review: the participant-login contract, generic
   failure and dual-limit behavior, pilot route gate, provisioning, reset,
   revocation, token invalidation, and audit redaction all pass their focused
