@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-06 — Tasks 1–3 complete
+**Status:** Plan approved on 2026-09-07 — Tasks 1–4 complete; Checkpoint A open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -31,7 +31,7 @@ criteria, files, risks, and verification are in the plan.
       untouched).
 - [x] Task 2 — remediate exposed PHP dependency advisories in reviewed groups.
 - [x] Task 3 — remediate frontend build-chain advisories without force fixes.
-- [ ] Task 4 — align CI to PHP 8.5/MySQL 8.4 and enforce test/build/audit/cache
+- [x] Task 4 — align CI to PHP 8.5/MySQL 8.4 and enforce test/build/audit/cache
       gates.
 
 ### Checkpoint A
@@ -148,6 +148,22 @@ criteria, files, risks, and verification are in the plan.
   NanoID 3.3.18. `npm ci` completed, `npm audit --audit-level=high` reports
   zero vulnerabilities, and `npm run build` passed. No force audit fix was
   used; the build emits only the optional `fontaine` optimization notice.
+- 2026-09-07 CI alignment: `.github/workflows/ci.yml` now uses PHP 8.5,
+  MySQL 8.4, Node 24, deterministic Composer/npm installs, Composer and npm
+  high-severity audits, Pint, the production frontend build, database
+  migration, the full Pest suite, and the Laravel optimized-cache gate. Read
+  permissions are limited to repository contents, and the MySQL health check
+  is credentialed and retried. The workflow was syntax-checked locally.
+  Running the same clean post-upgrade Pest suite after clearing local caches
+  produced 1,988 tests: 1,968 passed, 13 failed, and 7 errors. The 20
+  non-passing cases overlap the Task 1 baseline categories (conversation
+  authorization, seeded appointment types, commerce guard/schema, three
+  quotation action gaps, duplicate Faker categories, and conditional Filament
+  rendering assertions); no dependency-introduced increase was observed.
+  Pint passed after four pre-existing formatting violations were corrected,
+  the focused touched-test suites passed (14 tests, 40 assertions), and
+  `artisan optimize` passed. Checkpoint A remains open until the known
+  launch-critical tests are fixed or explicitly removed from the demo scope.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
