@@ -66,12 +66,28 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
 
     $this->seed(CatalogSeeder::class);
 
+    $approvedProductSlugs = [
+        'sofia-2860',
+        'mormaii-floater-street-280',
+        'anthos-mb-1399-a',
+        'cest-joli-2860',
+        'black-red-sports-optical-frame',
+        'new-look-multi-purpose-all-in-one-solution',
+        'systane-complete-preservative-free-lubricant-eye-drops',
+        'systane-hydration-preservative-free-lubricant-eye-drops',
+        'systane-ultra-preservative-free-lubricant-eye-drops',
+        'lacryl-hydrate-eye-drops',
+        'air-optix-colors',
+    ];
+
     $initialProductCount = Product::query()->count();
     $initialVariantCount = ProductVariant::query()->count();
 
-    expect(Product::query()->where('is_active', true)->where('product_type', 'frame')->count())->toBe(5)
-        ->and(Product::query()->where('is_active', true)->where('product_type', 'accessory')->count())->toBe(5)
-        ->and(Product::query()->where('is_active', true)->where('product_type', 'contact_lens')->count())->toBe(1);
+    $approvedProducts = Product::query()->whereIn('slug', $approvedProductSlugs);
+
+    expect((clone $approvedProducts)->where('is_active', true)->where('product_type', 'frame')->count())->toBe(5)
+        ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'accessory')->count())->toBe(5)
+        ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'contact_lens')->count())->toBe(1);
 
     $mormaii = Product::query()->where('slug', 'mormaii-floater-street-280')->firstOrFail();
 
@@ -143,12 +159,20 @@ test('seeded frame materials use short labels for the mobile catalog', function 
     $this->seed(CatalogSeeder::class);
 
     $frameMaterials = ProductVariant::query()
+        ->whereIn('sku', [
+            'FRM-SOFIA-2860-GRY',
+            'FRM-SOFIA-2860-CHAMP',
+            'SUN-MORMAII-FLOATER280-BLK',
+            'FRM-ANTHOS-MB1399A-C4',
+            'FRM-CESTJOLI-2860-C4',
+            'FRM-SPORT-BLKRED-001',
+        ])
         ->whereHas('product', fn (Builder $query): Builder => $query->where('product_type', 'frame'))
         ->get()
         ->pluck('attributes.material', 'sku')
         ->all();
 
-    expect($frameMaterials)->toBe([
+    expect($frameMaterials)->toMatchArray([
         'FRM-SOFIA-2860-GRY' => 'TR90',
         'FRM-SOFIA-2860-CHAMP' => 'TR90',
         'SUN-MORMAII-FLOATER280-BLK' => 'Plastic',

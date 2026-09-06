@@ -98,6 +98,9 @@ test('cancelling a contact lens order refuses an untraceable aggregate commitmen
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Queued)
         ->and($variant->fresh()->stock_quantity)->toBe(2)
-        ->and(InventoryMovement::query()->where('inventory_movement_type_id', $commitmentType->id)->count())
+        ->and(InventoryMovement::query()
+            ->where('job_order_id', $jobOrder->id)
+            ->where('inventory_movement_type_id', $commitmentType->id)
+            ->count())
         ->toBe(1);
 });

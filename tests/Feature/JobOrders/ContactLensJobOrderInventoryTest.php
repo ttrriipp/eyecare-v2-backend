@@ -98,7 +98,7 @@ test('contact lens commitments never use expired lots and roll back when usable 
     expect($expired->fresh()->quantity_on_hand)->toBe(2)
         ->and($usable->fresh()->quantity_on_hand)->toBe(1)
         ->and($variant->fresh()->stock_quantity)->toBe(3)
-        ->and(InventoryMovement::query()->count())->toBe(0);
+        ->and(InventoryMovement::query()->where('job_order_id', $jobOrder->id)->count())->toBe(0);
 });
 
 test('contact lens lots expiring today are eligible for commitment', function () {

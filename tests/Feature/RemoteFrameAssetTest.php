@@ -706,12 +706,15 @@ test('the frame list endpoint exposes the same ready ar contract as frame detail
     app(ApproveArAsset::class)->handle($submitted, $this->reviewer);
     app(PublishArAsset::class)->handle($submitted->fresh(), $this->reviewer);
 
-    $this->actingAs($this->patient)
-        ->getJson('/api/v1/frames')
-        ->assertOk()
-        ->assertJsonPath('data.0.variants.0.ar.status', 'ready')
-        ->assertJsonMissingPath('data.0.variants.0.ar.quarantine_path')
-        ->assertJsonMissingPath('data.0.variants.0.ar.validation_error');
+    $response = $this->actingAs($this->patient)
+        ->getJson('/api/v1/frames?search='.urlencode($this->frame->name))
+        ->assertOk();
+    $frame = collect($response->json('data'))->firstWhere('id', $this->frame->id);
+    $ar = data_get($frame, 'variants.0.ar');
+
+    expect($frame)->not->toBeNull()
+        ->and($ar)->toMatchArray(['status' => 'ready'])
+        ->and($ar)->not->toHaveKeys(['quarantine_path', 'validation_error']);
 });
 
 test('publishing a replacement switches versions only after approval and keeps the previous asset for rollback', function () {
