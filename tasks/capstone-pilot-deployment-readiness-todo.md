@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–8 complete; Checkpoint A open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–9 complete; Checkpoint A open
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -51,7 +51,7 @@ criteria, files, risks, and verification are in the plan.
       dual rate limiter.
 - [x] Task 8 — make phone registration/login/OTP/recovery/invitation routes
       unavailable only in pilot mode.
-- [ ] Task 9 — provision exactly 75 minimal accounts and one-time private
+- [x] Task 9 — provision exactly 75 minimal accounts and one-time private
       credentials.
 - [ ] Task 10 — add secure credential reset, single/bulk revocation, and token
       invalidation.
@@ -220,6 +220,17 @@ criteria, files, risks, and verification are in the plan.
   available. Focused gate, participant-login, auth, invitation, route-contract,
   and regression suites passed (57 tests, 280 assertions); Pint and PHP syntax
   checks passed.
+- 2026-09-07 Task 9 participant provisioning: added the
+  `pilot:provision-participants` command and transactional action. The focused
+  suite passed 5 tests with 1,235 assertions, and the related participant/auth
+  regression suite passed 22 tests with 1,343 assertions. The default run
+  creates exactly 75 active patient-role users with null personal/contact
+  fields, no Patient or contact records, unique hashed passwords, no tokens,
+  and a single private manifest on the configured disk. Reruns, public disks,
+  disabled/expired pilot configuration, and manifest-write failures are
+  rejected or rolled back; command output and audit metadata contain no
+  participant codes or passwords. Pint passed for the Task 9 PHP files and
+  tests. Task 9 is committed as `bd8b53ed`.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
