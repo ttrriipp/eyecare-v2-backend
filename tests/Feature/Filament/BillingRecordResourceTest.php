@@ -97,6 +97,26 @@ test('staff can view a billing record', function () {
         ->assertActionDoesNotExist('correctPayment');
 });
 
+test('billing record summary omits the derived status and missing quotation', function () {
+    $staff = User::factory()->staff()->create();
+    $billingRecord = BillingRecord::factory()->create([
+        'payment_due_date' => today()->addDays(7),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditBillingRecord::class, ['record' => $billingRecord->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee('Financial Summary')
+        ->assertSee('Total Amount')
+        ->assertSee('Amount Paid')
+        ->assertSee('Balance Due')
+        ->assertSee('Payment Due Date')
+        ->assertSee('Unpaid')
+        ->assertDontSee('Current')
+        ->assertDontSee('Quotation');
+});
+
 test('billing review links to quotation and optical order', function () {
     $staff = User::factory()->staff()->create();
     $quotation = Quotation::factory()->create();

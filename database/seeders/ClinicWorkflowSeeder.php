@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
+use App\Enums\CommercialItemKind;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
 use App\Enums\QuotationStatus;
@@ -207,6 +208,8 @@ class ClinicWorkflowSeeder extends Seeder
 
     private function seedQuotation(Patient $patient, Encounter $encounter, Prescription $prescription, User $staff): Quotation
     {
+        $frameVariant = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
+
         $quotation = Quotation::query()->firstOrCreate(
             ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
@@ -223,9 +226,15 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
-        QuotationItem::query()->firstOrCreate(
+        QuotationItem::query()->updateOrCreate(
             ['quotation_id' => $quotation->id, 'description' => 'Classic Frame — Matte Black'],
-            ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500],
+            [
+                'quantity' => 1,
+                'unit_price' => 2500,
+                'amount' => 2500,
+                'product_variant_id' => $frameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         QuotationItem::query()->firstOrCreate(
@@ -238,6 +247,8 @@ class ClinicWorkflowSeeder extends Seeder
 
     private function seedJobOrder(Patient $patient, Encounter $encounter, Prescription $prescription, Quotation $quotation, User $staff): JobOrder
     {
+        $frameVariant = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
+
         $jobOrder = JobOrder::query()->firstOrCreate(
             ['quotation_id' => $quotation->id],
             [
@@ -252,9 +263,15 @@ class ClinicWorkflowSeeder extends Seeder
             ],
         );
 
-        JobOrderItem::query()->firstOrCreate(
+        JobOrderItem::query()->updateOrCreate(
             ['job_order_id' => $jobOrder->id, 'description' => 'Classic Frame — Matte Black'],
-            ['quantity' => 1, 'unit_price' => 2500, 'amount' => 2500],
+            [
+                'quantity' => 1,
+                'unit_price' => 2500,
+                'amount' => 2500,
+                'product_variant_id' => $frameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         JobOrderItem::query()->firstOrCreate(

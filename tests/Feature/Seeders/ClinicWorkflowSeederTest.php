@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CommercialItemKind;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
 use App\Models\BillingRecord;
@@ -10,6 +11,7 @@ use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\SavedFrame;
@@ -208,6 +210,39 @@ test('seeded quotations and orders include itemized products', function () {
             ->and($order->items->sum(fn (JobOrderItem $item): float => (float) $item->amount))
             ->toBe((float) $order->total_amount);
     });
+});
+
+test('seeded frame items retain their catalog variant references', function (): void {
+    $this->seed(DatabaseSeeder::class);
+
+    $sofiaGray = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
+    $frameQuotationItems = QuotationItem::query()
+        ->where('item_kind', CommercialItemKind::Frame)
+        ->with('variant.product')
+        ->get();
+    $frameOrderItems = JobOrderItem::query()
+        ->where('item_kind', CommercialItemKind::Frame)
+        ->with('variant.product')
+        ->get();
+
+    expect($frameQuotationItems)->not->toBeEmpty()
+        ->and($frameQuotationItems->every(fn (QuotationItem $item): bool => $item->product_variant_id !== null
+            && $item->variant?->product?->product_type === 'frame'))->toBeTrue()
+        ->and($frameOrderItems)->not->toBeEmpty()
+        ->and($frameOrderItems->every(fn (JobOrderItem $item): bool => $item->product_variant_id !== null
+            && $item->variant?->product?->product_type === 'frame'))->toBeTrue()
+        ->and(
+            QuotationItem::query()
+                ->where('quotation_id', Quotation::query()->where('quotation_number', 'QUO-2026-000001')->value('id'))
+                ->where('description', 'Classic Frame — Matte Black')
+                ->value('product_variant_id'),
+        )->toBe($sofiaGray->id)
+        ->and(
+            JobOrderItem::query()
+                ->where('job_order_id', JobOrder::query()->where('job_order_number', 'ORD-2026-000001')->value('id'))
+                ->where('description', 'Classic Frame — Matte Black')
+                ->value('product_variant_id'),
+        )->toBe($sofiaGray->id);
 });
 
 test('seeded quotations, job orders, and billing records have internally consistent data', function () {

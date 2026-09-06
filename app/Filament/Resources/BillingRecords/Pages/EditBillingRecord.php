@@ -51,7 +51,8 @@ class EditBillingRecord extends EditRecord
                             ->content(fn (BillingRecord $record): string => $record->quotation?->quotation_number ?? '—')
                             ->url(fn (BillingRecord $record): ?string => $record->quotation
                                 ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
-                                : null),
+                                : null)
+                            ->visible(fn (BillingRecord $record): bool => $record->quotation !== null),
                         Placeholder::make('job_order_number')
                             ->label('Optical Order')
                             ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—')
@@ -117,11 +118,6 @@ class EditBillingRecord extends EditRecord
                         Placeholder::make('payment_due_date')
                             ->label('Payment Due Date')
                             ->content(fn (BillingRecord $record): string => $record->payment_due_date?->format('M j, Y') ?? 'Not set'),
-                        Placeholder::make('overdue_status')
-                            ->label('Status')
-                            ->content(fn (BillingRecord $record): string => $record->isOverdue() ? 'Overdue' : 'Current')
-                            ->badge()
-                            ->color(fn (BillingRecord $record): string => $record->isOverdue() ? 'danger' : 'success'),
                     ]),
                 ]),
             ]),

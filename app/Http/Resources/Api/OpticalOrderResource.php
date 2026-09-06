@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api;
 use App\Enums\JobOrderStatus;
 use App\Models\FrameRating;
 use App\Models\JobOrder;
+use App\Models\JobOrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
@@ -34,13 +35,14 @@ class OpticalOrderResource extends JsonResource
                 'id' => $this->quotation->id,
                 'quotation_number' => $this->quotation->quotation_number,
             ] : null,
-            'items' => $this->items->map(fn ($item) => [
+            'items' => $this->items->map(fn (JobOrderItem $item) => [
                 'id' => $item->id,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => number_format((float) $item->unit_price, 2, '.', ''),
                 'amount' => number_format((float) $item->amount, 2, '.', ''),
                 'product_variant_id' => $item->product_variant_id,
+                'image_url' => $this->getItemImageUrl($item),
                 'item_kind' => $item->item_kind?->value,
                 'lens_option_id' => $item->lens_option_id,
                 'is_rateable' => $this->isItemRateable($item),
@@ -59,6 +61,67 @@ class OpticalOrderResource extends JsonResource
                 ];
             }),
         ];
+    }
+
+    private function getItemImageUrl(JobOrderItem $item): ?string
+    {
+        if ($item->product_variant_id === null) {
+            return null;
+        }
+
+        $variant = $item->variant;
+
+        if ($variant?->product?->product_type !== 'frame') {
+            return null;
+        }
+
+        return $this->firstCatalogImage($variant->images)
+            ?? $this->firstCatalogImage($variant->product->images);
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $images
+     */
+    private function firstCatalogImage(?array $images): ?string
+    {
+        $image = collect($images ?? [])
+            ->filter(fn (mixed $image): bool => is_string($image))
+            ->map(fn (string $image): string => trim($image))
+            ->first(fn (string $image): bool => $this->isPublicImageReference($image));
+
+        return is_string($image) ? $image : null;
+    }
+
+    private function isPublicImageReference(string $image): bool
+    {
+        if (
+            $image === ''
+            || str_contains($image, '\\')
+            || str_contains($image, '..')
+            || str_starts_with($image, '/')
+            || filter_var($image, FILTER_VALIDATE_URL) !== false
+        ) {
+            return false;
+        }
+
+        $path = parse_url($image, PHP_URL_PATH);
+
+        if (! is_string($path)) {
+            return false;
+        }
+
+        return in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), [
+            'avif',
+            'bmp',
+            'gif',
+            'jpeg',
+            'jpg',
+            'png',
+            'svg',
+            'tif',
+            'tiff',
+            'webp',
+        ], true);
     }
 
     /**

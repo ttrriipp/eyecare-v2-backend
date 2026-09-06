@@ -492,7 +492,9 @@ server-side rules.
 > **Also shipped (2026-08-07): the frame-rating read-path drift found while
 > building the above.** `?filter=` now works on both quotations and
 > optical-orders; `items[].product_variant_id`/`is_rateable`/`rating` and
-> `payment_summary.is_overdue` are present on optical orders;
+> `payment_summary.is_overdue` are present on optical orders; frame items also
+> expose additive nullable `items[].image_url`, resolved from the primary
+> public catalog image with product-image fallback;
 > `payment_summary.status` returns the machine-readable enum value, not the
 > display label; and `POST /optical-order-items/{id}/rating` returns a
 > sanitized `FrameRatingResource` instead of leaking `is_hidden`/

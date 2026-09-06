@@ -24,6 +24,7 @@ use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
 use App\Models\Prescription;
+use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\Role;
@@ -356,6 +357,8 @@ class ScenarioCoverageSeeder extends Seeder
     private function seedQuotationStatuses(): void
     {
         $patient = $this->walkInPatient();
+        $tortoiseFrameVariant = $this->catalogFrameVariant('FRM-ANTHOS-MB1399A-C4');
+        $classicFrameVariant = $this->catalogFrameVariant('FRM-SOFIA-2860-GRY');
 
         $draft = Quotation::query()->firstOrCreate(
             ['quotation_number' => 'QUO-2026-000002'],
@@ -370,9 +373,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        QuotationItem::query()->firstOrCreate(
+        QuotationItem::query()->updateOrCreate(
             ['quotation_id' => $draft->id, 'description' => 'Everyday Frame — Tortoise'],
-            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 1700,
+                'amount' => 1700,
+                'product_variant_id' => $tortoiseFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         QuotationItem::query()->firstOrCreate(
@@ -393,9 +402,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        QuotationItem::query()->firstOrCreate(
+        QuotationItem::query()->updateOrCreate(
             ['quotation_id' => $declined->id, 'description' => 'Classic Frame — Matte Black'],
-            ['quantity' => 1, 'unit_price' => 3000, 'amount' => 3000, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 3000,
+                'amount' => 3000,
+                'product_variant_id' => $classicFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         QuotationItem::query()->firstOrCreate(
@@ -431,9 +446,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        QuotationItem::query()->firstOrCreate(
+        QuotationItem::query()->updateOrCreate(
             ['quotation_id' => $linkedQuotation->id, 'description' => 'Everyday Frame — Tortoise'],
-            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 1700,
+                'amount' => 1700,
+                'product_variant_id' => $tortoiseFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         QuotationItem::query()->firstOrCreate(
@@ -445,6 +466,9 @@ class ScenarioCoverageSeeder extends Seeder
     private function seedJobOrderStatuses(): void
     {
         $patient = $this->walkInPatient();
+        $tortoiseFrameVariant = $this->catalogFrameVariant('FRM-ANTHOS-MB1399A-C4');
+        $classicFrameVariant = $this->catalogFrameVariant('FRM-SOFIA-2860-GRY');
+        $blackFrameVariant = $this->catalogFrameVariant('FRM-SPORT-BLKRED-001');
 
         $queued = JobOrder::query()->firstOrCreate(
             ['job_order_number' => 'ORD-2026-000002'],
@@ -455,9 +479,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrderItem::query()->firstOrCreate(
+        JobOrderItem::query()->updateOrCreate(
             ['job_order_id' => $queued->id, 'description' => 'Everyday Frame — Tortoise'],
-            ['quantity' => 1, 'unit_price' => 3200, 'amount' => 3200, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 3200,
+                'amount' => 3200,
+                'product_variant_id' => $tortoiseFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         // Linked to the accepted quotation/encounter/prescription seeded in
@@ -478,9 +508,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrderItem::query()->firstOrCreate(
+        JobOrderItem::query()->updateOrCreate(
             ['job_order_id' => $inProgress->id, 'description' => 'Everyday Frame — Tortoise'],
-            ['quantity' => 1, 'unit_price' => 1700, 'amount' => 1700, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 1700,
+                'amount' => 1700,
+                'product_variant_id' => $tortoiseFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         JobOrderItem::query()->firstOrCreate(
@@ -500,9 +536,15 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrderItem::query()->firstOrCreate(
+        JobOrderItem::query()->updateOrCreate(
             ['job_order_id' => $dispensed->id, 'description' => 'Classic Frame — Matte Black'],
-            ['quantity' => 1, 'unit_price' => 2800, 'amount' => 2800, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 2800,
+                'amount' => 2800,
+                'product_variant_id' => $classicFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
 
         $cancelled = JobOrder::query()->firstOrCreate(
@@ -516,10 +558,24 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        JobOrderItem::query()->firstOrCreate(
+        JobOrderItem::query()->updateOrCreate(
             ['job_order_id' => $cancelled->id, 'description' => 'Classic Frame — Black'],
-            ['quantity' => 1, 'unit_price' => 1800, 'amount' => 1800, 'item_kind' => CommercialItemKind::Frame],
+            [
+                'quantity' => 1,
+                'unit_price' => 1800,
+                'amount' => 1800,
+                'product_variant_id' => $blackFrameVariant->id,
+                'item_kind' => CommercialItemKind::Frame,
+            ],
         );
+    }
+
+    private function catalogFrameVariant(string $sku): ProductVariant
+    {
+        return ProductVariant::query()
+            ->where('sku', $sku)
+            ->whereHas('product', fn ($query) => $query->where('product_type', 'frame'))
+            ->firstOrFail();
     }
 
     private function seedBillingRecordStatuses(): void

@@ -36,7 +36,7 @@ class OpticalOrderController extends Controller
                 JobOrderStatus::Dispensed,
                 JobOrderStatus::Cancelled,
             ]))
-            ->with(['items', 'quotation', 'billingRecord'])
+            ->with(['items.variant.product', 'quotation', 'billingRecord'])
             ->latest()
             ->latest('id')
             ->paginate($request->integer('per_page', 15));
@@ -64,7 +64,7 @@ class OpticalOrderController extends Controller
 
         abort_unless($patient !== null && $jobOrder->patient_id === $patient->id, 404);
 
-        $jobOrder->load(['items', 'quotation', 'billingRecord']);
+        $jobOrder->load(['items.variant.product', 'quotation', 'billingRecord']);
 
         return response()->json([
             'data' => OpticalOrderResource::make($jobOrder),
