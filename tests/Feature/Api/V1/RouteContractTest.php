@@ -61,6 +61,7 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/appointments/{appointment}/reschedule',
         'POST api/v1/auth/login',
         'POST api/v1/auth/login/verify',
+        'POST api/v1/auth/participant-login',
         'POST api/v1/auth/password',
         'POST api/v1/auth/password-recovery/otp',
         'POST api/v1/auth/password-recovery/verify',
