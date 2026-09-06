@@ -100,6 +100,16 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Get the pilot participant account linked to this user.
+     *
+     * @return HasOne<PilotParticipantAccount, $this>
+     */
+    public function pilotParticipantAccount(): HasOne
+    {
+        return $this->hasOne(PilotParticipantAccount::class);
+    }
+
+    /**
      * Get the account's saved frame preferences, newest first.
      *
      * @return HasMany<SavedFrame, $this>
