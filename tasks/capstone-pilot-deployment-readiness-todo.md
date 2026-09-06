@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–9 complete; Checkpoint A open
+**Status:** Plan approved on 2026-09-07 — Tasks 1–10 complete; Checkpoint A open; Checkpoint B complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -53,15 +53,15 @@ criteria, files, risks, and verification are in the plan.
       unavailable only in pilot mode.
 - [x] Task 9 — provision exactly 75 minimal accounts and one-time private
       credentials.
-- [ ] Task 10 — add secure credential reset, single/bulk revocation, and token
+- [x] Task 10 — add secure credential reset, single/bulk revocation, and token
       invalidation.
 
 ### Checkpoint B
 
-- [ ] Participant login contract, generic failures, throttling, audit, and
+- [x] Participant login contract, generic failures, throttling, audit, and
       expiry pass focused tests.
-- [ ] Pilot phone/OTP paths are absent while non-pilot paths remain green.
-- [ ] Provision/reset/revoke behavior is unique, private, redacted, and
+- [x] Pilot phone/OTP paths are absent while non-pilot paths remain green.
+- [x] Provision/reset/revoke behavior is unique, private, redacted, and
       idempotent.
 
 ## Phase 2: Portable Pilot Environment
@@ -231,6 +231,27 @@ criteria, files, risks, and verification are in the plan.
   rejected or rolled back; command output and audit metadata contain no
   participant codes or passwords. Pint passed for the Task 9 PHP files and
   tests. Task 9 is committed as `bd8b53ed`.
+- 2026-09-07 Task 10 access lifecycle: added the
+  `pilot:manage-access reset|revoke` command, private credential reset action,
+  and single/bulk revocation action with dedicated audit events. The focused
+  suite passed 7 tests with 73 assertions; the combined participant/auth
+  regression suite passed 34 tests with 1,436 assertions, and the non-pilot
+  authentication suite passed 43 tests with 182 assertions. Reset generates a
+  replacement random password only in a new private file, invalidates all
+  existing tokens, preserves the account expiry, and leaves no reset secrets
+  in command output or audit metadata. Revocation deletes tokens immediately,
+  works after pilot expiry/disablement, and repeated bulk teardown is
+  idempotent. Commands require one explicit participant code or `--all` and
+  require confirmation unless `--yes` is provided. Pint and PHP syntax checks
+  passed. Task 10 is committed as `25811ee9`.
+- 2026-09-07 Checkpoint B review: the participant-login contract, generic
+  failure and dual-limit behavior, pilot route gate, provisioning, reset,
+  revocation, token invalidation, and audit redaction all pass their focused
+  suites. Existing phone registration/login/recovery/invitation and step-up
+  authentication suites remain green outside pilot mode. Checkpoint B is
+  complete; Checkpoint A remains open because the documented full-suite
+  launch-critical baseline failures have not yet been resolved or explicitly
+  excluded from the staff demonstration scope.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,
