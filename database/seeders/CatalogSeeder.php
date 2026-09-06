@@ -210,7 +210,7 @@ class CatalogSeeder extends Seeder
                         'price' => 650.00,
                         'attributes' => [
                             'color' => 'Black frame / smoke lens',
-                            'material' => 'Plastic sports frame; exact polymer not confirmed',
+                            'material' => 'Plastic',
                         ],
                         'stock_quantity' => 2,
                         'low_stock_threshold' => 1,
@@ -232,7 +232,7 @@ class CatalogSeeder extends Seeder
                         'price' => 1800.00,
                         'attributes' => [
                             'color' => 'Dark tortoise / black / amber',
-                            'material' => 'Plastic / acetate-style; exact material not marked',
+                            'material' => 'Plastic',
                             'lens_width' => 54,
                             'bridge' => 18,
                             'temple' => 145,
@@ -257,7 +257,7 @@ class CatalogSeeder extends Seeder
                         'price' => 2200.00,
                         'attributes' => [
                             'color' => 'Gold-tone / black',
-                            'material' => 'Metal with plastic temple tips',
+                            'material' => 'Metal',
                             'lens_width' => 59,
                             'bridge' => 12,
                             'temple' => 145,
@@ -282,7 +282,7 @@ class CatalogSeeder extends Seeder
                         'price' => 1500.00,
                         'attributes' => [
                             'color' => 'Black / red',
-                            'material' => 'Plastic / rubber grips',
+                            'material' => 'Plastic',
                         ],
                         'stock_quantity' => 2,
                         'low_stock_threshold' => 1,

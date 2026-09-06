@@ -13,6 +13,7 @@ use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -81,6 +82,22 @@ test('billing list statistics summarize balances, overdue records, paid records,
         ->and($stats->get('Overdue')?->getValue())->toBe('1')
         ->and($stats->get('Paid')?->getValue())->toBe('1')
         ->and($stats->get('Collected')?->getValue())->toBe('₱13,000.00');
+});
+
+test('billing KPI stats omit helper descriptions', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $widget = Livewire::test(BillingRecordStatsWidget::class)->instance();
+    $stats = (fn (): array => $this->getStats())->call($widget);
+
+    $descriptions = array_map(
+        fn (Stat $stat): string|Htmlable|null => $stat->getDescription(),
+        $stats,
+    );
+
+    expect($descriptions)->toBe([null, null, null, null]);
 });
 
 test('staff can view a billing record', function () {

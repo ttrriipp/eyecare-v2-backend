@@ -37,19 +37,16 @@ class QuotationStatsWidget extends BaseWidget
 
         return [
             Stat::make('Draft', Number::format($draftCount))
-                ->color($draftCount > 0 ? 'warning' : 'gray')
-                ->description('Awaiting a decision'),
+                ->color($draftCount > 0 ? 'warning' : 'gray'),
 
             Stat::make('Accepted', Number::format($acceptedCount))
-                ->color($acceptedCount > 0 ? 'success' : 'gray')
-                ->description('Ready for fulfillment'),
+                ->color($acceptedCount > 0 ? 'success' : 'gray'),
 
             Stat::make('Declined', Number::format($declinedCount))
                 ->color($declinedCount > 0 ? 'danger' : 'gray'),
 
             Stat::make('Draft Value', '₱'.number_format((float) $draftValue, 2))
-                ->color($draftValue > 0 ? 'primary' : 'gray')
-                ->description('Value of open quotations'),
+                ->color($draftValue > 0 ? 'primary' : 'gray'),
         ];
     }
 }

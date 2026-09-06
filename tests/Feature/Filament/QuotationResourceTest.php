@@ -23,6 +23,7 @@ use App\Models\QuotationItem;
 use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -65,6 +66,22 @@ test('quotation list statistics summarize status counts and draft value', functi
         ->and($stats->get('Accepted')?->getValue())->toBe('1')
         ->and($stats->get('Declined')?->getValue())->toBe('1')
         ->and($stats->get('Draft Value')?->getValue())->toBe('₱16,000.00');
+});
+
+test('quotation KPI stats omit helper descriptions', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $widget = Livewire::test(QuotationStatsWidget::class)->instance();
+    $stats = (fn (): array => $this->getStats())->call($widget);
+
+    $descriptions = array_map(
+        fn (Stat $stat): string|Htmlable|null => $stat->getDescription(),
+        $stats,
+    );
+
+    expect($descriptions)->toBe([null, null, null, null]);
 });
 
 test('the quotations list offers a direct new quotation action that opens the create page', function () {

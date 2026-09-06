@@ -139,14 +139,23 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
     expect(ProductCategory::query()->where('name', 'Colored Contact Lens')->exists())->toBeTrue();
 });
 
-test('seeded frame materials stay concise for the mobile catalog', function (): void {
+test('seeded frame materials use short labels for the mobile catalog', function (): void {
     $this->seed(CatalogSeeder::class);
 
-    $sportsVariant = ProductVariant::query()
-        ->where('sku', 'FRM-SPORT-BLKRED-001')
-        ->firstOrFail();
+    $frameMaterials = ProductVariant::query()
+        ->whereHas('product', fn (Builder $query): Builder => $query->where('product_type', 'frame'))
+        ->get()
+        ->pluck('attributes.material', 'sku')
+        ->all();
 
-    expect($sportsVariant->attributes['material'])->toBe('Plastic / rubber grips');
+    expect($frameMaterials)->toBe([
+        'FRM-SOFIA-2860-GRY' => 'TR90',
+        'FRM-SOFIA-2860-CHAMP' => 'TR90',
+        'SUN-MORMAII-FLOATER280-BLK' => 'Plastic',
+        'FRM-ANTHOS-MB1399A-C4' => 'Plastic',
+        'FRM-CESTJOLI-2860-C4' => 'Metal',
+        'FRM-SPORT-BLKRED-001' => 'Plastic',
+    ]);
 });
 
 test('catalog seeder deactivates known demo products without deleting their records', function (): void {

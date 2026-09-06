@@ -44,20 +44,16 @@ class BillingRecordStatsWidget extends BaseWidget
 
         return [
             Stat::make('Balances Due', Number::format($balancesDueCount))
-                ->color($balancesDueCount > 0 ? 'warning' : 'gray')
-                ->description('Unpaid or partially paid'),
+                ->color($balancesDueCount > 0 ? 'warning' : 'gray'),
 
             Stat::make('Overdue', Number::format($overdueCount))
-                ->color($overdueCount > 0 ? 'danger' : 'gray')
-                ->description('Past the payment due date'),
+                ->color($overdueCount > 0 ? 'danger' : 'gray'),
 
             Stat::make('Paid', Number::format($paidCount))
-                ->color($paidCount > 0 ? 'success' : 'gray')
-                ->description('Fully settled bills'),
+                ->color($paidCount > 0 ? 'success' : 'gray'),
 
             Stat::make('Collected', '₱'.number_format((float) $collected, 2))
-                ->color($collected > 0 ? 'primary' : 'gray')
-                ->description('Posted payments on active bills'),
+                ->color($collected > 0 ? 'primary' : 'gray'),
         ];
     }
 }
