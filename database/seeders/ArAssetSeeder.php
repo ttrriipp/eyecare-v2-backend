@@ -48,9 +48,9 @@ class ArAssetSeeder extends Seeder
         ],
     ];
 
-    public function run(): void
+    public function run(?User $actor = null): void
     {
-        $actor = User::query()
+        $actor ??= User::query()
             ->where('email', self::ACTOR_EMAIL)
             ->firstOrFail();
 
