@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–10 complete; Checkpoint A open; Checkpoint B complete
+**Status:** Plan approved on 2026-09-07 — Tasks 1–11 complete; Checkpoint A open; Checkpoint B complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -66,7 +66,7 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 2: Portable Pilot Environment
 
-- [ ] Task 11 — add a pilot-only safe seeder and secure MFA-admin bootstrap.
+- [x] Task 11 — add a pilot-only safe seeder and secure MFA-admin bootstrap.
 - [ ] Task 12 — move message attachments to a configurable private logical
       disk.
 - [ ] Task 13 — add redacted production preflight and protected readiness.
@@ -244,6 +244,19 @@ criteria, files, risks, and verification are in the plan.
   idempotent. Commands require one explicit participant code or `--all` and
   require confirmation unless `--yes` is provided. Pint and PHP syntax checks
   passed. Task 10 is committed as `25811ee9`.
+- 2026-09-07 Task 11 pilot-safe bootstrap: added the isolated
+  `CapstonePilotSeeder`, which calls only approved reference/catalog seeders and
+  the selected synthetic AR fixture; it never calls `DatabaseSeeder`, demo
+  users, provider hours, or broad scenario coverage. The seeder is idempotent,
+  requires a public HTTPS AR base URL, creates no patient/clinical scenario
+  rows, and publishes one patient-ready model through the existing reviewed
+  workflow using a passwordless synthetic staff actor. Added
+  `pilot:provision-administrator`, which accepts a hidden or owner-only file
+  password, creates or updates only an existing admin account, emits no
+  credentials, preserves existing MFA enrollment, and proves production panel
+  MFA is required. Task 11 focused tests passed (7 tests, 62 assertions), AR /
+  MFA / participant regressions passed (26 tests, 1,360 assertions), Pint and
+  staged diff checks passed. Task 11 is committed as `9c97c07e`.
 - 2026-09-07 Checkpoint B review: the participant-login contract, generic
   failure and dual-limit behavior, pilot route gate, provisioning, reset,
   revocation, token invalidation, and audit redaction all pass their focused
