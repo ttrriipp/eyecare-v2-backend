@@ -2,79 +2,16 @@
 
 namespace App\Filament\Resources\BillingRecords\Pages;
 
-use App\Actions\BillingRecords\AddChargesToBilling;
-use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
-use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Filament\Resources\BillingRecords\Widgets\BillingRecordStatsWidget;
-use App\Models\Patient;
-use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\ValidationException;
 
 class ListBillingRecords extends ListRecords
 {
     protected static string $resource = BillingRecordResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            Action::make('newServiceCharge')
-                ->label('New Service Charge')
-                ->icon('heroicon-o-plus-circle')
-                ->color('primary')
-                ->modalHeading('Add Service Charge')
-                ->modalWidth('3xl')
-                ->modalSubmitActionLabel('Add to Billing')
-                ->schema([
-                    Select::make('patient_id')
-                        ->label('Patient')
-                        ->options(fn (): array => Patient::query()
-                            ->get()
-                            ->mapWithKeys(fn (Patient $patient): array => [$patient->id => $patient->full_name])
-                            ->all())
-                        ->required()
-                        ->searchable()
-                        ->preload(),
-
-                    ServiceChargeForm::items(),
-                    ServiceChargeForm::total(),
-                ])
-                ->action(function (array $data): void {
-                    $patient = Patient::query()->findOrFail($data['patient_id']);
-
-                    try {
-                        $items = ServiceChargeForm::normalizeItems($data['items'] ?? []);
-
-                        $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
-                            patient: $patient,
-                            actor: auth()->user(),
-                        );
-
-                        $billingRecord = app(AddChargesToBilling::class)->handle(
-                            billingRecord: $billingRecord,
-                            sourceKind: BillingItemSourceKind::DirectService,
-                            items: $items,
-                            actor: auth()->user(),
-                        );
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
-
-                        return;
-                    }
-
-                    Notification::make()->title('Service charge billed')->success()->send();
-
-                    $this->redirect(BillingRecordResource::getUrl('edit', ['record' => $billingRecord]));
-                }),
-        ];
-    }
 
     protected function getHeaderWidgets(): array
     {

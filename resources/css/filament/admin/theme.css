@@ -28,6 +28,16 @@
     margin: 0;
 }
 
+.billing-records-table .fi-ta-header-toolbar:has(.billing-records-new-service-charge-action) > :first-child,
+.products-table .fi-ta-header-toolbar:has(.products-new-product-action) > :first-child {
+    order: 2;
+}
+
+.billing-records-table .fi-ta-header-toolbar:has(.billing-records-new-service-charge-action) > :nth-child(2),
+.products-table .fi-ta-header-toolbar:has(.products-new-product-action) > :nth-child(2) {
+    order: 1;
+}
+
 /* Keep the conversation workspace within the viewport below the fixed topbar. */
 .fi-page.fi-conversation-chat-page {
     height: calc(100dvh - 4rem);

@@ -6,6 +6,7 @@ use App\Models\BillingRecord;
 use App\Models\Patient;
 use App\Models\Service;
 use App\Models\User;
+use Filament\Actions\Action;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -18,8 +19,12 @@ test('staff can create a direct service charge from the billing list', function 
     $this->actingAs($staff);
 
     Livewire::test(ListBillingRecords::class)
-        ->assertActionVisible('newServiceCharge')
-        ->mountAction('newServiceCharge')
+        ->assertTableActionVisible('newServiceCharge')
+        ->assertTableActionHasIcon('newServiceCharge', 'heroicon-o-plus-circle')
+        ->assertTableActionExists('newServiceCharge', fn (Action $action): bool => $action->isButton()
+            && $action->getLabel() === 'New Service Charge'
+            && $action->getTooltip() === 'New Service Charge')
+        ->mountTableAction('newServiceCharge')
         ->assertMountedActionModalSee([
             'Add Service Charge',
             'Patient',
@@ -30,8 +35,8 @@ test('staff can create a direct service charge from the billing list', function 
             'Total',
             'Add to Billing',
         ])
-        ->unmountAction()
-        ->callAction('newServiceCharge', [
+        ->unmountTableAction()
+        ->callTableAction('newServiceCharge', null, [
             'patient_id' => $patient->id,
             'items' => [[
                 'service_source' => 'custom',
@@ -40,7 +45,7 @@ test('staff can create a direct service charge from the billing list', function 
                 'unit_price' => 800,
             ]],
         ])
-        ->assertHasNoActionErrors()
+        ->assertHasNoTableActionErrors()
         ->assertNotified()
         ->assertRedirect();
 
@@ -65,7 +70,7 @@ test('catalog service charges use the selected service description and price', f
     $this->actingAs($staff);
 
     Livewire::test(ListBillingRecords::class)
-        ->callAction('newServiceCharge', [
+        ->callTableAction('newServiceCharge', null, [
             'patient_id' => $patient->id,
             'items' => [[
                 'service_source' => 'catalog',
@@ -75,7 +80,7 @@ test('catalog service charges use the selected service description and price', f
                 'unit_price' => 1,
             ]],
         ])
-        ->assertHasNoActionErrors()
+        ->assertHasNoTableActionErrors()
         ->assertNotified()
         ->assertRedirect();
 
@@ -98,11 +103,11 @@ test('new service charge action requires at least one item', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListBillingRecords::class)
-        ->callAction('newServiceCharge', [
+        ->callTableAction('newServiceCharge', null, [
             'patient_id' => $patient->id,
             'items' => [],
         ])
-        ->assertHasActionErrors(['items' => 'min']);
+        ->assertHasTableActionErrors(['items' => 'min']);
 
     expect(BillingRecord::query()->where('patient_id', $patient->id)->exists())->toBeFalse();
 });
