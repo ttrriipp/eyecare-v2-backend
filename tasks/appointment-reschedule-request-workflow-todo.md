@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-2 complete
+**Status:** Approved by the user on 2026-09-07; Tasks 1-3 complete
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -84,17 +84,17 @@ focused action test (5)
 
 **Acceptance:**
 
-- [ ] Create returns `201` and never changes the appointment.
-- [ ] List and show are patient-safe, paginated or scoped as applicable, and
+- [x] Create returns `201` and never changes the appointment.
+- [x] List and show are patient-safe, paginated or scoped as applicable, and
       use active-link authorization plus enumeration-safe `404` ownership.
-- [ ] Validation rejects malformed, unknown, duplicate, past, and unavailable
+- [x] Validation rejects malformed, unknown, duplicate, past, and unavailable
       preferences with the documented envelope.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter='create|list|show'`
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter='create|list|show'`
+- [x] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 2
 
