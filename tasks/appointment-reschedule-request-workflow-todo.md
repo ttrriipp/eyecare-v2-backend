@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-13 complete; Checkpoints A-B passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-14 complete; Checkpoints A-B passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -351,18 +351,18 @@ action, shared patient notifier, outcome notification test (6)
 
 **Acceptance:**
 
-- [ ] Remove `POST /api/v1/appointments/{appointment}/reschedule` and retain
+- [x] Remove `POST /api/v1/appointments/{appointment}/reschedule` and retain
       every new reschedule-request route exactly once.
-- [ ] No live controller or form-request path lets a patient invoke direct
+- [x] No live controller or form-request path lets a patient invoke direct
       rescheduling.
-- [ ] Filament direct rescheduling and request approval remain green.
+- [x] Filament direct rescheduling and request approval remain green.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php`
-- [ ] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
-- [ ] `rg -n "RescheduleAppointmentRequest|appointments/.*/reschedule" app routes tests`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php` (7 tests, 14 assertions)
+- [x] `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor` (63 routes; no immediate-reschedule route)
+- [x] `rg -n "RescheduleAppointmentRequest|appointments/.*/reschedule" app routes tests` (only the retained `reschedule-requests` route/tests; no legacy request/controller reference)
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Checkpoint C
 

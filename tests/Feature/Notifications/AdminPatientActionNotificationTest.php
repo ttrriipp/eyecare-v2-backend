@@ -33,6 +33,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 
 uses(RefreshDatabase::class);
 
@@ -330,27 +331,15 @@ test('patient appointment cancellations notify staff with the appointment link',
     );
 });
 
-test('patient appointment reschedules notify staff with the appointment link', function () {
-    $admin = User::factory()->admin()->create();
-    $patient = User::factory()->patient()->create();
-    $optometrist = User::factory()->optometrist()->create();
-    $appointment = Appointment::factory()->create([
-        'patient_id' => $patient->patient->id,
-        'optometrist_id' => $optometrist->id,
-        'scheduled_at' => '2026-07-13 10:00:00',
-    ]);
+test('patient immediate appointment rescheduling is no longer exposed', function () {
+    $routes = collect(Route::getRoutes()->getRoutes())
+        ->filter(fn ($route) => str_starts_with($route->uri, 'api/v1'))
+        ->map(fn ($route) => implode('|', (array) $route->methods).' '.$route->uri)
+        ->all();
 
-    $this->actingAs($patient)
-        ->postJson("/api/v1/appointments/{$appointment->id}/reschedule", [
-            'scheduled_at' => '2026-07-14T11:00:00+08:00',
-        ])
-        ->assertOk();
-
-    assertAdminActionNotification(
-        $admin,
-        'Appointment Rescheduled by Patient',
-        AppointmentResource::getUrl('edit', ['record' => $appointment], panel: 'admin'),
-    );
+    expect($routes)
+        ->not->toContain('POST api/v1/appointments/{appointment}/reschedule')
+        ->toContain('POST api/v1/appointments/{appointment}/reschedule-requests');
 });
 
 test('new and changed low visit ratings notify staff while identical retries stay silent', function () {

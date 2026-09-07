@@ -150,7 +150,6 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('appointments', [AppointmentController::class, 'index']);
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
-    Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{appointment}/reschedule-requests', [AppointmentRescheduleRequestController::class, 'store'])
         ->name('api.v1.appointments.reschedule-requests.store');
     Route::get('appointment-reschedule-requests', [AppointmentRescheduleRequestController::class, 'index'])
