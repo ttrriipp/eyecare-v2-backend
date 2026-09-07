@@ -4,11 +4,13 @@ use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Filament\Resources\AppointmentRescheduleRequests\AppointmentRescheduleRequestResource;
 use App\Filament\Resources\AppointmentRescheduleRequests\Pages\ListAppointmentRescheduleRequests;
+use App\Filament\Resources\AppointmentRescheduleRequests\Pages\ViewAppointmentRescheduleRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentRescheduleRequest;
 use App\Models\AppointmentStatus;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\ClinicHoursSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -20,6 +22,7 @@ beforeEach(function (): void {
     Carbon::setTestNow('2026-09-07 08:00:00');
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(ClinicHoursSeeder::class);
 });
 
 afterEach(function (): void {
@@ -49,6 +52,25 @@ function makeQueueRequest(array $attributes = []): AppointmentRescheduleRequest
         'requested_scheduled_at' => '2026-09-11 10:00:00',
         'expires_at' => '2026-09-09 10:00:00',
     ], $attributes));
+}
+
+/**
+ * @param  array<string, mixed>  $attributes
+ */
+function makeReviewableQueueRequest(array $attributes = []): AppointmentRescheduleRequest
+{
+    $request = makeQueueRequest($attributes);
+    $optometrist = User::factory()->optometrist()->create();
+
+    $request->appointment->update([
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    return $request->fresh([
+        'appointment.optometrist',
+        'appointment.status',
+        'patient',
+    ]);
 }
 
 test('resource is read-only and exposes the review queue model', function (): void {
@@ -176,4 +198,105 @@ test('queue exposes pending and history tabs using effective state', function ()
 
     expect($pendingQuery->pluck('id')->all())->toBe([$pending->id])
         ->and($historyQuery->pluck('id')->all())->toBe([$expired->id]);
+});
+
+test('review page displays staff-safe context and current availability without patient reason text', function (): void {
+    $staff = User::factory()->staff()->create();
+    $request = makeReviewableQueueRequest([
+        'encrypted_reason_details' => 'Private explanation that must not be shown to staff in this workflow.',
+        'alternative_scheduled_times' => ['2026-09-11T11:00:00+08:00'],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSuccessful()
+        ->assertSee($request->request_number)
+        ->assertSee($request->patient->full_name)
+        ->assertSee('Original appointment')
+        ->assertSee('Submitted choices')
+        ->assertSee('Available')
+        ->assertDontSee('Private explanation that must not be shown');
+});
+
+test('staff can approve one currently available submitted choice from the review page', function (): void {
+    $staff = User::factory()->staff()->create();
+    $request = makeReviewableQueueRequest();
+    $appointment = $request->appointment->fresh();
+    $selected = $request->requested_scheduled_at->toIso8601String();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $request->getRouteKey()])
+        ->assertActionVisible('approve')
+        ->assertActionVisible('reject')
+        ->callAction('approve', ['selected_scheduled_at' => $selected])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    expect($request->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Approved)
+        ->and($request->fresh()->selected_scheduled_at?->equalTo($request->requested_scheduled_at))->toBeTrue()
+        ->and($appointment->fresh()->scheduled_at->equalTo($request->requested_scheduled_at))->toBeTrue()
+        ->and($appointment->reschedules()->count())->toBe(1);
+});
+
+test('staff can reject a pending request with a patient-safe reason', function (): void {
+    $staff = User::factory()->staff()->create();
+    $request = makeReviewableQueueRequest();
+    $scheduledAt = $request->appointment->scheduled_at->toDateTimeString();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $request->getRouteKey()])
+        ->assertActionVisible('reject')
+        ->callAction('reject', ['rejection_reason' => 'That time is no longer available.'])
+        ->assertHasNoActionErrors()
+        ->assertNotified();
+
+    expect($request->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Rejected)
+        ->and($request->fresh()->rejection_reason)->toBe('That time is no longer available.')
+        ->and($request->appointment->fresh()->scheduled_at->toDateTimeString())->toBe($scheduledAt)
+        ->and($request->appointment->reschedules()->count())->toBe(0);
+});
+
+test('terminal and expired requests expose no review mutation actions', function (): void {
+    $staff = User::factory()->staff()->create();
+    $expired = makeReviewableQueueRequest(['expires_at' => now()->subMinute()]);
+    $terminal = makeReviewableQueueRequest();
+    $terminal->appointment->update([
+        'appointment_status_id' => AppointmentStatus::query()
+            ->where('name', AppointmentStatusName::Cancelled->value)
+            ->value('id'),
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $expired->getRouteKey()])
+        ->assertSee('Expired')
+        ->assertActionHidden('approve')
+        ->assertActionHidden('reject');
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $terminal->getRouteKey()])
+        ->assertSee('Expired')
+        ->assertActionHidden('approve')
+        ->assertActionHidden('reject');
+});
+
+test('concurrent resolution leaves no review action or appointment movement', function (): void {
+    $staff = User::factory()->staff()->create();
+    $request = makeReviewableQueueRequest();
+    $appointment = $request->appointment->fresh();
+    $appointmentTime = $appointment->scheduled_at->toDateTimeString();
+
+    $this->actingAs($staff);
+
+    $request->update(['status' => AppointmentRescheduleRequestStatus::Rejected]);
+
+    Livewire::test(ViewAppointmentRescheduleRequest::class, ['record' => $request->getRouteKey()])
+        ->assertSee('Rejected')
+        ->assertActionHidden('approve')
+        ->assertActionHidden('reject');
+
+    expect($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($appointmentTime)
+        ->and($appointment->reschedules()->count())->toBe(0);
 });

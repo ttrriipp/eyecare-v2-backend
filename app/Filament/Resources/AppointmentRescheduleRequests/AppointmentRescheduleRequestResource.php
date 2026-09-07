@@ -5,11 +5,14 @@ namespace App\Filament\Resources\AppointmentRescheduleRequests;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Filament\Resources\AppointmentRescheduleRequests\Pages\ListAppointmentRescheduleRequests;
+use App\Filament\Resources\AppointmentRescheduleRequests\Pages\ViewAppointmentRescheduleRequest;
+use App\Filament\Resources\AppointmentRescheduleRequests\Schemas\AppointmentRescheduleRequestInfolist;
 use App\Filament\Resources\AppointmentRescheduleRequests\Tables\AppointmentRescheduleRequestsTable;
 use App\Models\Appointment;
 use App\Models\AppointmentRescheduleRequest;
 use BackedEnum;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -53,6 +56,8 @@ class AppointmentRescheduleRequestResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with([
+            'appointment.appointmentType',
+            'appointment.optometrist',
             'appointment.status',
             'patient',
             'user',
@@ -63,6 +68,11 @@ class AppointmentRescheduleRequestResource extends Resource
     public static function table(Table $table): Table
     {
         return AppointmentRescheduleRequestsTable::configure($table);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return AppointmentRescheduleRequestInfolist::configure($schema);
     }
 
     public static function whereEffectivePending(Builder $query): Builder
@@ -104,6 +114,7 @@ class AppointmentRescheduleRequestResource extends Resource
     {
         return [
             'index' => ListAppointmentRescheduleRequests::route('/'),
+            'view' => ViewAppointmentRescheduleRequest::route('/{record}'),
         ];
     }
 

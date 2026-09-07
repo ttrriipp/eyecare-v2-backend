@@ -16,4 +16,11 @@ class AppointmentRescheduleRequestPolicy
     {
         return $user->is_active && $user->hasPanelRole();
     }
+
+    public function update(User $user, AppointmentRescheduleRequest $request): bool
+    {
+        return $user->is_active
+            && $user->hasPanelRole()
+            && $request->isPending();
+    }
 }

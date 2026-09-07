@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-10 complete; Checkpoints A-B passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-11 complete; Checkpoints A-B passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -274,17 +274,17 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] The page shows original time, submitted choices, current availability,
+- [x] The page shows original time, submitted choices, current availability,
       status, and staff-safe patient context.
-- [ ] Approve permits one available submitted choice; reject requires a safe
+- [x] Approve permits one available submitted choice; reject requires a safe
       reason.
-- [ ] Terminal or expired requests expose no mutation actions, and concurrent
+- [x] Terminal or expired requests expose no mutation actions, and concurrent
       failures render safely without partial writes.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php --filter='view|approve|reject'`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php --filter='view|approve|reject'` (6 tests, 54 assertions)
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 10
 
