@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-9 complete; Checkpoint A passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-9 complete; Checkpoints A-B passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -239,12 +239,12 @@ Filament appointment test (4)
 
 ### Checkpoint B: Resolution integrity
 
-- [ ] Tasks 6-9 focused suites pass.
-- [ ] Only submitted and currently available choices can be approved.
-- [ ] Approval creates one appointment movement and history row.
-- [ ] Rejection, conflict, expiry, and stale state preserve the appointment.
-- [ ] Existing direct clinic rescheduling remains unchanged.
-- [ ] Scheduling and expiry regressions pass and Pint is clean.
+- [x] Tasks 6-9 focused suites pass.
+- [x] Only submitted and currently available choices can be approved.
+- [x] Approval creates one appointment movement and history row.
+- [x] Rejection, conflict, expiry, and stale state preserve the appointment.
+- [x] Existing direct clinic rescheduling remains unchanged.
+- [x] Scheduling and expiry regressions pass and Pint is clean.
 
 ---
 
