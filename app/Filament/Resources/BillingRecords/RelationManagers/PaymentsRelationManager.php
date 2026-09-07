@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\BillingRecords\RelationManagers;
 
-use App\Actions\BillingRecords\CorrectBillingPayment;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
@@ -76,6 +75,22 @@ class PaymentsRelationManager extends RelationManager
                     ->label('Record Payment')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
+                    ->registerModalActions([
+                        Action::make('confirmRecordPayment')
+                            ->requiresConfirmation()
+                            ->modalHeading('Confirm payment')
+                            ->modalDescription(fn (array $mountedActions): string => $this->getPaymentConfirmationDescription($mountedActions))
+                            ->modalSubmitActionLabel('Record payment')
+                            ->modalCancelActionLabel('Go back')
+                            ->color('success')
+                            ->overlayParentActions()
+                            ->cancelParentActions()
+                            ->action(function (array $mountedActions): void {
+                                $data = $this->getPendingPaymentData($mountedActions);
+
+                                $this->finalizePayment($data);
+                            }),
+                    ])
                     ->visible(fn (): bool => Gate::allows('recordPayment', $this->getOwnerRecord())
                         && in_array($this->getOwnerRecord()->status, [
                             BillingRecordStatus::Unpaid,
@@ -119,93 +134,71 @@ class PaymentsRelationManager extends RelationManager
                             ->label('Notes')
                             ->nullable(),
                     ])
-                    ->action(function (array $data): void {
-                        /** @var BillingRecord $billingRecord */
-                        $billingRecord = $this->getOwnerRecord();
-
-                        Gate::authorize('recordPayment', $billingRecord);
-
-                        try {
-                            app(RecordBillingPayment::class)->handle(
-                                billingRecord: $billingRecord,
-                                amount: (float) $data['amount'],
-                                paymentMethod: $data['payment_method'],
-                                recorder: auth()->user(),
-                                referenceNumber: $data['reference_number'] ?? null,
-                                notes: $data['notes'] ?? null,
-                                chargesReviewed: (bool) ($data['charges_reviewed'] ?? false),
-                            );
-
-                            $billingRecord->refresh();
-                            $this->dispatch('billing-payment-updated');
-                            Notification::make()->title('Payment recorded')->success()->send();
-                        } catch (ValidationException $exception) {
-                            Notification::make()
-                                ->title('Cannot record payment')
-                                ->body($exception->getMessage())
-                                ->danger()
-                                ->send();
-                        }
+                    ->modalSubmitActionLabel('Save changes')
+                    ->action(function (): void {
+                        $this->mountAction('confirmRecordPayment');
                     }),
             ])
-            ->recordActions([
-                Action::make('correctPayment')
-                    ->label('Correct Payment')
-                    ->icon('heroicon-o-pencil-square')
-                    ->color('warning')
-                    ->visible(fn (BillingPayment $record): bool => $record->status === 'posted'
-                        && Gate::allows('correctPayment', $this->getOwnerRecord()))
-                    ->schema([
-                        TextInput::make('new_amount')
-                            ->label('Corrected Amount')
-                            ->required()
-                            ->numeric()
-                            ->minValue(0)
-                            ->step(0.01)
-                            ->prefix('₱')
-                            ->extraInputAttributes(['class' => 'price-input']),
-                        TextInput::make('reference_number')
-                            ->label('New Reference #')
-                            ->nullable(),
-                        Textarea::make('reason')
-                            ->label('Reason')
-                            ->required()
-                            ->maxLength(1000),
-                    ])
-                    ->fillForm(fn (BillingPayment $record): array => [
-                        'new_amount' => $record->amount,
-                        'reference_number' => $record->reference_number,
-                    ])
-                    ->action(function (array $data, BillingPayment $record): void {
-                        /** @var BillingRecord $billingRecord */
-                        $billingRecord = $this->getOwnerRecord();
-
-                        Gate::authorize('correctPayment', $billingRecord);
-
-                        try {
-                            app(CorrectBillingPayment::class)->handle(
-                                originalPayment: $record,
-                                newAmount: (float) $data['new_amount'],
-                                reason: $data['reason'],
-                                corrector: auth()->user(),
-                                newReferenceNumber: $data['reference_number'] ?? null,
-                            );
-
-                            $billingRecord->refresh();
-                            $this->dispatch('billing-payment-updated');
-                            Notification::make()->title('Payment corrected')->success()->send();
-                        } catch (ValidationException $exception) {
-                            Notification::make()
-                                ->title('Cannot correct payment')
-                                ->body($exception->getMessage())
-                                ->danger()
-                                ->send();
-                        }
-                    }),
-            ])
+            ->recordActions([])
             ->emptyStateHeading('No payments recorded')
             ->emptyStateDescription('Record the first payment when the patient makes one.')
             ->defaultSort('recorded_at', 'desc');
+    }
+
+    /**
+     * @param  array<int, Action>  $mountedActions
+     */
+    private function getPaymentConfirmationDescription(array $mountedActions): string
+    {
+        $data = $this->getPendingPaymentData($mountedActions);
+        $amount = number_format((float) ($data['amount'] ?? 0), 2);
+
+        return "Amount paid: ₱{$amount}. This will update the billing record's amount paid and balance due. Are you sure you want to record this payment?";
+    }
+
+    /**
+     * Filament resets processed parent action data after opening the confirmation action.
+     * The raw state retains the validated payment form values for the final step.
+     *
+     * @param  array<int, Action>  $mountedActions
+     * @return array<string, mixed>
+     */
+    private function getPendingPaymentData(array $mountedActions): array
+    {
+        return ($mountedActions[0] ?? null)?->getRawData() ?? [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function finalizePayment(array $data): void
+    {
+        /** @var BillingRecord $billingRecord */
+        $billingRecord = $this->getOwnerRecord();
+
+        Gate::authorize('recordPayment', $billingRecord);
+
+        try {
+            app(RecordBillingPayment::class)->handle(
+                billingRecord: $billingRecord,
+                amount: (float) $data['amount'],
+                paymentMethod: $data['payment_method'],
+                recorder: auth()->user(),
+                referenceNumber: $data['reference_number'] ?? null,
+                notes: $data['notes'] ?? null,
+                chargesReviewed: (bool) ($data['charges_reviewed'] ?? false),
+            );
+
+            $billingRecord->refresh();
+            $this->dispatch('billing-payment-updated');
+            Notification::make()->title('Payment recorded')->success()->send();
+        } catch (ValidationException $exception) {
+            Notification::make()
+                ->title('Cannot record payment')
+                ->body($exception->getMessage())
+                ->danger()
+                ->send();
+        }
     }
 
     private function hasPostedPayments(): bool

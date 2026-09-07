@@ -209,18 +209,34 @@ test('staff records a payment through the payments relation manager', function (
 
     $this->actingAs($staff);
 
-    Livewire::test(PaymentsRelationManager::class, [
+    $component = Livewire::test(PaymentsRelationManager::class, [
         'ownerRecord' => $billingRecord,
         'pageClass' => EditBillingRecord::class,
     ])
-        ->callAction(TestAction::make('recordPayment')->table(), [
+        ->mountTableAction('recordPayment')
+        ->assertMountedActionModalSee('Save changes')
+        ->setTableActionData([
             'amount' => 2000,
             'payment_method' => 'cash',
             'reference_number' => 'OR-100',
             'notes' => 'Down payment',
             'charges_reviewed' => true,
         ])
-        ->assertNotified();
+        ->callMountedTableAction()
+        ->assertActionMounted('recordPayment.confirmRecordPayment')
+        ->assertMountedActionModalSee([
+            'Confirm payment',
+            'Amount paid: ₱2,000.00',
+            'Are you sure you want to record this payment?',
+            'Record payment',
+        ]);
+
+    expect($billingRecord->fresh()->payments)->toHaveCount(0);
+
+    $component
+        ->callMountedAction()
+        ->assertActionNotMounted()
+        ->assertNotified('Payment recorded');
 
     $billingRecord->refresh();
 
@@ -230,7 +246,7 @@ test('staff records a payment through the payments relation manager', function (
         ->and($billingRecord->balance_due)->toBe('3000.00');
 });
 
-test('only admins can correct a posted payment through its table row', function () {
+test('posted payments cannot be edited from the payments table', function () {
     $billingRecord = BillingRecord::factory()->create([
         'total_amount' => 5000,
         'amount_paid' => 2000,
@@ -242,32 +258,15 @@ test('only admins can correct a posted payment through its table row', function 
         'amount' => 2000,
     ]);
 
-    $this->actingAs(User::factory()->staff()->create());
+    $admin = User::factory()->admin()->create();
 
-    Livewire::test(PaymentsRelationManager::class, [
-        'ownerRecord' => $billingRecord,
-        'pageClass' => EditBillingRecord::class,
-    ])->assertActionHidden(TestAction::make('correctPayment')->table($payment));
-
-    $this->actingAs(User::factory()->admin()->create());
+    $this->actingAs($admin);
 
     Livewire::test(PaymentsRelationManager::class, [
         'ownerRecord' => $billingRecord,
         'pageClass' => EditBillingRecord::class,
     ])
-        ->callAction(TestAction::make('correctPayment')->table($payment), [
-            'new_amount' => 1500,
-            'reference_number' => 'COR-100',
-            'reason' => 'Incorrect amount entered',
-        ])
-        ->assertNotified();
+        ->assertActionDoesNotExist(TestAction::make('correctPayment')->table($payment));
 
-    $payment->refresh();
-    $billingRecord->refresh();
-
-    expect($payment->status)->toBe('reversed')
-        ->and($payment->reversal_reason)->toBe('Incorrect amount entered')
-        ->and($billingRecord->payments()->where('status', 'posted')->value('amount'))->toBe('1500.00')
-        ->and($billingRecord->amount_paid)->toBe('1500.00')
-        ->and($billingRecord->balance_due)->toBe('3500.00');
+    expect($admin->can('correctPayment', $billingRecord))->toBeFalse();
 });
