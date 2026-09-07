@@ -45,6 +45,7 @@ class QuotationCreationForm
                             ->numeric()
                             ->minValue(0)
                             ->step(0.01)
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->default(0)
                             ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
                             ->dehydrated()

@@ -24,7 +24,10 @@ class LensCategoryForm
                             ->unique(ignoreRecord: true),
                         TextInput::make('price')
                             ->numeric()
-                            ->prefix('₱'),
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input']),
                         Textarea::make('description')
                             ->columnSpanFull(),
                     ]),

@@ -28,7 +28,8 @@ class LensOptionForm
                             ->numeric()
                             ->minValue(0)
                             ->step(0.01)
-                            ->prefix('₱'),
+                            ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input']),
                         Textarea::make('description')
                             ->nullable()
                             ->columnSpanFull(),

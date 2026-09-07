@@ -175,7 +175,10 @@ class EditOpticalOrder extends EditRecord
                         ->label('Amount')
                         ->required()
                         ->numeric()
+                        ->minValue(0)
+                        ->step(0.01)
                         ->prefix('₱')
+                        ->extraInputAttributes(['class' => 'price-input'])
                         ->maxValue(fn (): float => $this->outstandingBalance())
                         ->default(fn (): float => $this->outstandingBalance()),
                     Select::make('payment_method')

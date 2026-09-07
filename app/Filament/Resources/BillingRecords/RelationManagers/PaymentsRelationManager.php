@@ -96,7 +96,10 @@ class PaymentsRelationManager extends RelationManager
                             ->label('Amount')
                             ->required()
                             ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
                             ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->maxValue(fn (): float => (float) $this->getOwnerRecord()->balance_due)
                             ->default(fn (): float => (float) $this->getOwnerRecord()->balance_due),
                         Select::make('payment_method')
@@ -157,7 +160,10 @@ class PaymentsRelationManager extends RelationManager
                             ->label('Corrected Amount')
                             ->required()
                             ->numeric()
-                            ->prefix('₱'),
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input']),
                         TextInput::make('reference_number')
                             ->label('New Reference #')
                             ->nullable(),

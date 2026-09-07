@@ -282,6 +282,8 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->prefix('₱')
                                         ->numeric()
                                         ->minValue(0)
+                                        ->step(0.01)
+                                        ->extraInputAttributes(['class' => 'price-input'])
                                         ->maxValue(fn (Get $get): float => $subtotal($get))
                                         ->default(0)
                                         ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
@@ -295,6 +297,8 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->numeric()
                                         ->prefix('₱')
                                         ->minValue(0)
+                                        ->step(0.01)
+                                        ->extraInputAttributes(['class' => 'price-input'])
                                         ->maxValue(fn (Get $get): float => $discountedTotal($get))
                                         ->live(onBlur: true)
                                         ->nullable(),

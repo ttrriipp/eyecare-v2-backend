@@ -182,7 +182,10 @@ class EditQuotation extends EditRecord
                         TextInput::make('deposit_amount')
                             ->label('Initial Deposit')
                             ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
                             ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->maxValue(fn (): float => (float) $this->record->total)
                             ->nullable(),
 

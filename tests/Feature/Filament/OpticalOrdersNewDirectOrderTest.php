@@ -12,10 +12,32 @@ use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+test('direct order discount input uses spinner-free decimal styling', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateDirectOpticalOrder::class)
+        ->assertSchemaComponentExists(
+            'discount_amount',
+            checkComponentUsing: function (TextInput $field): bool {
+                expect($field->getMinValue())
+                    ->toBe(0)
+                    ->and($field->getStep())
+                    ->toBe(0.01)
+                    ->and($field->getExtraInputAttributes())
+                    ->toMatchArray(['class' => 'price-input']);
+
+                return true;
+            },
+        );
+});
 
 test('staff creates a direct order from the optical orders list', function () {
     $staff = User::factory()->staff()->create();

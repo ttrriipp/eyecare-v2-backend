@@ -87,6 +87,7 @@ final class OpticalOrderCreationForm
                             ->numeric()
                             ->minValue(0)
                             ->step(0.01)
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->required(fn (Get $get): bool => $get('eyewear_frame_source') === 'patient')
                             ->visible(fn (Get $get): bool => $get('eyewear_frame_source') === 'patient'),
                     ])
@@ -332,6 +333,7 @@ final class OpticalOrderCreationForm
                             ->numeric()
                             ->minValue(0)
                             ->step(0.01)
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
                             ->dehydrated()
                             ->live(onBlur: true)

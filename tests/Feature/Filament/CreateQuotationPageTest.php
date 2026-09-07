@@ -18,6 +18,25 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+test('quotation discount input uses spinner-free price styling', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateQuotation::class)
+        ->assertSchemaComponentExists(
+            'discount_amount',
+            checkComponentUsing: function (TextInput $field): bool {
+                expect($field->getExtraInputAttributes())
+                    ->toMatchArray(['class' => 'price-input']);
+
+                return true;
+            },
+        );
+
+    expect($component->html())->toContain('price-input');
+});
+
 test('staff creates a quotation from an encounter query context', function () {
     $staff = User::factory()->staff()->create();
     $encounter = Encounter::factory()->inProgress()->create();

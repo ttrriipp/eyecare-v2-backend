@@ -106,6 +106,8 @@ final class ServiceChargeForm
                             ->numeric()
                             ->prefix('₱')
                             ->minValue(0)
+                            ->step(0.01)
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->required(fn (Get $get): bool => $get('service_source') === 'custom'
                                 || filled($get('service_id')))
                             ->disabled(fn (Get $get): bool => $get('service_source') === 'catalog')
