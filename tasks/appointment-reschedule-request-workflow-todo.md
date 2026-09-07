@@ -294,17 +294,18 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] Submission sends **Appointment Reschedule Requested** once to active
+- [x] Submission sends **Appointment Reschedule Requested** once to active
       staff and administrators after commit.
-- [ ] Withdrawal sends **Appointment Reschedule Request Withdrawn** once and
+- [x] Withdrawal sends **Appointment Reschedule Request Withdrawn** once and
       links to request details; failed and duplicate transitions are silent.
-- [ ] Inactive and optometrist-only accounts receive nothing, and alert payloads
+- [x] Inactive and optometrist-only accounts receive nothing, and alert payloads
       contain no reason text.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Notifications/AdminPatientActionNotificationTest.php --filter=reschedule_request`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Notifications/AdminPatientActionNotificationTest.php --filter='reschedule request'` (2 tests, 36 assertions)
+- [x] Full `AdminPatientActionNotificationTest.php` (14 tests, 147 assertions)
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 4 and 11
 

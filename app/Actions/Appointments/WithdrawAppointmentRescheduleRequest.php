@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AuditEvent;
 use App\Exceptions\AppointmentRescheduleRequestStateException;
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class WithdrawAppointmentRescheduleRequest
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+    ) {}
 
     public function handle(
         AppointmentRescheduleRequest $request,
@@ -22,7 +26,7 @@ class WithdrawAppointmentRescheduleRequest
             abort(404);
         }
 
-        return DB::transaction(function () use ($request, $account): AppointmentRescheduleRequest {
+        $request = DB::transaction(function () use ($request, $account): AppointmentRescheduleRequest {
             $request = AppointmentRescheduleRequest::query()
                 ->lockForUpdate()
                 ->findOrFail($request->id);
@@ -53,5 +57,9 @@ class WithdrawAppointmentRescheduleRequest
 
             return $request->fresh();
         }, attempts: 3);
+
+        $this->notifyAdminUsers->appointmentRescheduleRequestWithdrawn($request);
+
+        return $request;
     }
 }

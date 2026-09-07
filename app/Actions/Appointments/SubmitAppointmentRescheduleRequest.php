@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
@@ -22,6 +23,7 @@ class SubmitAppointmentRescheduleRequest
         private readonly EvaluateAppointmentAvailability $evaluateAppointmentAvailability,
         private readonly LockAppointmentScheduleDate $lockAppointmentScheduleDate,
         private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyAdminUsers $notifyAdminUsers,
     ) {}
 
     /**
@@ -56,7 +58,7 @@ class SubmitAppointmentRescheduleRequest
         $preferences = collect([$requestedScheduledAt, ...$alternativeScheduledTimes]);
         $this->validatePreferenceShape($preferences);
 
-        return DB::transaction(function () use (
+        $request = DB::transaction(function () use (
             $account,
             $appointment,
             $preferences,
@@ -117,6 +119,10 @@ class SubmitAppointmentRescheduleRequest
 
             return $request->fresh();
         }, attempts: 3);
+
+        $this->notifyAdminUsers->appointmentRescheduleRequestSubmitted($request);
+
+        return $request;
     }
 
     private function normalizeTime(CarbonInterface|string $time, string $field): CarbonInterface

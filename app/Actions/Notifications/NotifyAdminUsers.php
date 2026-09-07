@@ -3,6 +3,7 @@
 namespace App\Actions\Notifications;
 
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use App\Filament\Resources\AppointmentRescheduleRequests\AppointmentRescheduleRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Conversations\ConversationResource;
 use App\Filament\Resources\FrameRatings\FrameRatingResource;
@@ -10,6 +11,7 @@ use App\Filament\Resources\PatientLinkRequests\PatientLinkRequestResource;
 use App\Filament\Resources\VisitRatings\VisitRatingResource;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentRescheduleRequest;
 use App\Models\FrameRating;
 use App\Models\Message;
 use App\Models\PatientLinkRequest;
@@ -55,6 +57,37 @@ class NotifyAdminUsers
             icon: 'heroicon-o-x-circle',
             status: 'warning',
             url: AppointmentRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),
+        ));
+    }
+
+    public function appointmentRescheduleRequestSubmitted(AppointmentRescheduleRequest $request): void
+    {
+        $this->handle(new AdminDatabaseNotification(
+            title: 'Appointment Reschedule Requested',
+            body: sprintf(
+                '%s requested a new time for appointment %s (%s).',
+                $this->appointmentRescheduleRequestPatientName($request),
+                $request->appointment?->appointment_number ?? '#'.$request->appointment_id,
+                $request->request_number,
+            ),
+            icon: 'heroicon-o-calendar-days',
+            status: 'info',
+            url: AppointmentRescheduleRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),
+        ));
+    }
+
+    public function appointmentRescheduleRequestWithdrawn(AppointmentRescheduleRequest $request): void
+    {
+        $this->handle(new AdminDatabaseNotification(
+            title: 'Appointment Reschedule Request Withdrawn',
+            body: sprintf(
+                '%s withdrew appointment reschedule request %s.',
+                $this->appointmentRescheduleRequestPatientName($request),
+                $request->request_number,
+            ),
+            icon: 'heroicon-o-calendar-days',
+            status: 'info',
+            url: AppointmentRescheduleRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),
         ));
     }
 
@@ -174,6 +207,13 @@ class NotifyAdminUsers
     {
         return $request->patient?->full_name
             ?? $request->getSnapshotDisplayName()
+            ?? $request->user?->full_name
+            ?? 'A patient';
+    }
+
+    private function appointmentRescheduleRequestPatientName(AppointmentRescheduleRequest $request): string
+    {
+        return $request->patient?->full_name
             ?? $request->user?->full_name
             ?? 'A patient';
     }

@@ -1,9 +1,13 @@
 <?php
 
 use App\Actions\Appointments\CancelAppointment;
+use App\Actions\Appointments\WithdrawAppointmentRescheduleRequest;
 use App\Actions\Notifications\NotifyAdminUsers;
+use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\JobOrderStatus;
+use App\Exceptions\AppointmentRescheduleRequestStateException;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
+use App\Filament\Resources\AppointmentRescheduleRequests\AppointmentRescheduleRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Conversations\ConversationResource;
 use App\Filament\Resources\FrameRatings\FrameRatingResource;
@@ -11,6 +15,7 @@ use App\Filament\Resources\PatientLinkRequests\PatientLinkRequestResource;
 use App\Filament\Resources\VisitRatings\VisitRatingResource;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
+use App\Models\AppointmentRescheduleRequest;
 use App\Models\AppointmentType;
 use App\Models\Brand;
 use App\Models\FrameRating;
@@ -53,6 +58,35 @@ function assertAdminActionNotification(User $recipient, string $title, string $u
         ->and($notification->data['actions'][0]['label'])->toBe('View')
         ->and($notification->data['actions'][0]['url'])->toBe($url)
         ->and($notification->data['actions'][0]['shouldMarkAsRead'])->toBeTrue();
+}
+
+/**
+ * @return array{account: User, appointment: Appointment}
+ */
+function createAdminRescheduleRequestContext(): array
+{
+    $account = User::factory()->patient()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $account->patient->id,
+        'optometrist_id' => $optometrist->id,
+        'duration_minutes' => 30,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    return [
+        'account' => $account,
+        'appointment' => $appointment,
+    ];
+}
+
+function adminRescheduleRequestPayload(array $overrides = []): array
+{
+    return array_merge([
+        'requested_scheduled_at' => '2026-07-14T10:00:00+08:00',
+        'alternative_scheduled_times' => ['2026-07-15T10:00:00+08:00'],
+        'reason_details' => 'I have a work conflict.',
+    ], $overrides);
 }
 
 test('admin notification reaches active operational users with an actionable payload', function () {
@@ -150,6 +184,76 @@ test('cancelled pending appointment requests notify staff', function () {
         'Appointment Request Cancelled',
         AppointmentRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),
     );
+});
+
+test('reschedule request submissions notify active operational users once without patient reason text', function (): void {
+    $admin = User::factory()->admin()->create();
+    $staff = User::factory()->staff()->create();
+    $inactiveStaff = User::factory()->staff()->create(['is_active' => false]);
+    $optometrist = User::factory()->optometrist()->create();
+    ['account' => $account, 'appointment' => $appointment] = createAdminRescheduleRequestContext();
+
+    $this->actingAs($account)
+        ->postJson(
+            "/api/v1/appointments/{$appointment->id}/reschedule-requests",
+            adminRescheduleRequestPayload(),
+        )
+        ->assertCreated();
+
+    $request = AppointmentRescheduleRequest::query()->sole();
+    $url = AppointmentRescheduleRequestResource::getUrl('view', ['record' => $request], panel: 'admin');
+
+    foreach ([$admin, $staff] as $recipient) {
+        assertAdminActionNotification($recipient, 'Appointment Reschedule Requested', $url);
+
+        expect($recipient->fresh()->unreadNotifications->sole()->data['body'])
+            ->toContain($request->request_number)
+            ->not->toContain('work conflict');
+    }
+
+    foreach ([$inactiveStaff, $optometrist] as $nonRecipient) {
+        expect($nonRecipient->fresh()->notifications)->toBeEmpty();
+    }
+
+    $this->actingAs($account)
+        ->postJson(
+            "/api/v1/appointments/{$appointment->id}/reschedule-requests",
+            adminRescheduleRequestPayload([
+                'requested_scheduled_at' => '2026-07-16T10:00:00+08:00',
+            ]),
+        )
+        ->assertUnprocessable();
+
+    expect($admin->fresh()->unreadNotifications)->toHaveCount(1)
+        ->and($staff->fresh()->unreadNotifications)->toHaveCount(1);
+});
+
+test('reschedule request withdrawal notifies staff once and failed replays stay silent', function (): void {
+    $admin = User::factory()->admin()->create();
+    ['account' => $account, 'appointment' => $appointment] = createAdminRescheduleRequestContext();
+    $request = AppointmentRescheduleRequest::factory()->create([
+        'appointment_id' => $appointment->id,
+        'user_id' => $account->id,
+        'patient_id' => $account->patient->id,
+        'current_scheduled_at' => $appointment->scheduled_at,
+        'requested_scheduled_at' => '2026-07-14 10:00:00',
+        'expires_at' => '2026-07-13 12:00:00',
+    ]);
+
+    $withdrawn = app(WithdrawAppointmentRescheduleRequest::class)->handle($request, $account);
+    $url = AppointmentRescheduleRequestResource::getUrl('view', ['record' => $withdrawn], panel: 'admin');
+
+    assertAdminActionNotification($admin, 'Appointment Reschedule Request Withdrawn', $url);
+
+    expect($admin->fresh()->unreadNotifications->sole()->data['body'])
+        ->toContain($request->request_number)
+        ->not->toContain('reason');
+
+    expect(fn () => app(WithdrawAppointmentRescheduleRequest::class)->handle($withdrawn, $account))
+        ->toThrow(AppointmentRescheduleRequestStateException::class);
+
+    expect($withdrawn->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Cancelled)
+        ->and($admin->fresh()->unreadNotifications)->toHaveCount(1);
 });
 
 test('new patient link requests notify staff', function () {
