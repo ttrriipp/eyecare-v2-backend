@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-5 complete
+**Status:** Approved by the user on 2026-09-07; Tasks 1-5 complete; Checkpoint A passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -143,12 +143,12 @@ API test (4)
 
 ### Checkpoint A: Patient request contract
 
-- [ ] Tasks 1-5 focused suites pass.
-- [ ] Submission and withdrawal leave the appointment unchanged.
-- [ ] One effective pending request is enforced.
-- [ ] Ownership and sensitive-reason boundaries pass.
-- [ ] Appointment pending projection is accurate and query-safe.
-- [ ] Migrations rebuild cleanly and Pint is clean.
+- [x] Tasks 1-5 focused suites pass.
+- [x] Submission and withdrawal leave the appointment unchanged.
+- [x] One effective pending request is enforced.
+- [x] Ownership and sensitive-reason boundaries pass.
+- [x] Appointment pending projection is accurate and query-safe.
+- [x] Migrations rebuild cleanly and Pint is clean.
 
 ---
 
