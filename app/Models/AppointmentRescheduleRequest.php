@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'request_number',
@@ -81,6 +82,27 @@ class AppointmentRescheduleRequest extends Model
     public function isPending(): bool
     {
         return $this->effectiveStatus() === AppointmentRescheduleRequestStatus::Pending;
+    }
+
+    /**
+     * Return the submitted preferred time followed by each alternative.
+     *
+     * @return list<CarbonInterface>
+     */
+    public function submittedScheduledTimes(): array
+    {
+        if (! $this->requested_scheduled_at instanceof CarbonInterface) {
+            return [];
+        }
+
+        return [
+            $this->requested_scheduled_at,
+            ...collect($this->alternative_scheduled_times ?? [])
+                ->map(fn (mixed $time): CarbonInterface => $time instanceof CarbonInterface
+                    ? $time->copy()
+                    : Carbon::parse((string) $time, config('app.timezone'))->setTimezone(config('app.timezone')))
+                ->all(),
+        ];
     }
 
     /**

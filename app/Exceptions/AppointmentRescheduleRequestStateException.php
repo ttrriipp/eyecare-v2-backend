@@ -12,6 +12,12 @@ class AppointmentRescheduleRequestStateException extends Exception
 
     public const RESCHEDULE_REQUEST_NOT_CANCELLABLE = 'RESCHEDULE_REQUEST_NOT_CANCELLABLE';
 
+    public const RESCHEDULE_REQUEST_NOT_APPROVABLE = 'RESCHEDULE_REQUEST_NOT_APPROVABLE';
+
+    public const RESCHEDULE_REQUEST_SELECTION_INVALID = 'RESCHEDULE_REQUEST_SELECTION_INVALID';
+
+    public const RESCHEDULE_REQUEST_STALE = 'RESCHEDULE_REQUEST_STALE';
+
     public const SLOT_UNAVAILABLE = 'SLOT_UNAVAILABLE';
 
     public function __construct(public readonly string $errorCode, string $message)
@@ -40,6 +46,30 @@ class AppointmentRescheduleRequestStateException extends Exception
         return new self(
             self::RESCHEDULE_REQUEST_NOT_CANCELLABLE,
             'This reschedule request can no longer be withdrawn.',
+        );
+    }
+
+    public static function notApprovable(): self
+    {
+        return new self(
+            self::RESCHEDULE_REQUEST_NOT_APPROVABLE,
+            'This reschedule request can no longer be approved.',
+        );
+    }
+
+    public static function selectionInvalid(): self
+    {
+        return new self(
+            self::RESCHEDULE_REQUEST_SELECTION_INVALID,
+            'The selected time must be one of the submitted reschedule choices.',
+        );
+    }
+
+    public static function stale(): self
+    {
+        return new self(
+            self::RESCHEDULE_REQUEST_STALE,
+            'The appointment changed before this reschedule request could be approved.',
         );
     }
 
