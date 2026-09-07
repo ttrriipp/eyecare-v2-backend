@@ -63,15 +63,29 @@ final class PilotDeploymentPreflight
             ? null
             : 'CONTACT_LOOKUP_KEY must be a dedicated stable key.');
 
-        $this->addCheck($checks, 'pilot.enabled', fn (): ?string => config('capstone_pilot.enabled') === true
+        $deploymentMode = config('deployment.mode', 'pilot');
+        $this->addCheck($checks, 'deployment.mode', fn (): ?string => in_array($deploymentMode, ['demo', 'pilot'], true)
             ? null
-            : 'CAPSTONE_PILOT_ENABLED must be explicitly enabled.');
-        $this->addCheck($checks, 'pilot.expiry', fn (): ?string => $this->pilotExpiry() !== null
-            ? null
-            : 'CAPSTONE_PILOT_EXPIRES_AT must be a future timestamp.');
-        $this->addCheck($checks, 'pilot.participant_limit', fn (): ?string => (int) config('capstone_pilot.participant_limit', 0) === 75
-            ? null
-            : 'The pilot participant limit must be exactly 75.');
+            : 'DEPLOYMENT_MODE must be either demo or pilot.');
+
+        if ($deploymentMode === 'demo') {
+            $this->addCheck($checks, 'pilot.disabled', fn (): ?string => config('capstone_pilot.enabled') === false
+                ? null
+                : 'CAPSTONE_PILOT_ENABLED must be disabled in demo mode.');
+            $this->addCheck($checks, 'pilot.participant_accounts', fn (): ?string => $this->pilotAccountsAbsent()
+                ? null
+                : 'Pilot participant accounts must not exist in demo mode.');
+        } else {
+            $this->addCheck($checks, 'pilot.enabled', fn (): ?string => config('capstone_pilot.enabled') === true
+                ? null
+                : 'CAPSTONE_PILOT_ENABLED must be explicitly enabled.');
+            $this->addCheck($checks, 'pilot.expiry', fn (): ?string => $this->pilotExpiry() !== null
+                ? null
+                : 'CAPSTONE_PILOT_EXPIRES_AT must be a future timestamp.');
+            $this->addCheck($checks, 'pilot.participant_limit', fn (): ?string => (int) config('capstone_pilot.participant_limit', 0) === 75
+                ? null
+                : 'The pilot participant limit must be exactly 75.');
+        }
 
         $this->addCheck($checks, 'session.cookies', fn (): ?string => $this->secureSessionCookies()
             ? null
@@ -547,6 +561,14 @@ final class PilotDeploymentPreflight
         }
 
         return $expiry->isAfter(now()) ? $expiry : null;
+    }
+
+    private function pilotAccountsAbsent(): bool
+    {
+        $schema = DB::connection()->getSchemaBuilder();
+
+        return $schema->hasTable('pilot_participant_accounts')
+            && ! DB::table('pilot_participant_accounts')->exists();
     }
 
     private function phoneRoutesAreGated(): bool

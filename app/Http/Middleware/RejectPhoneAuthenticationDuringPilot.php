@@ -16,7 +16,8 @@ class RejectPhoneAuthenticationDuringPilot
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (config('capstone_pilot.enabled') === true) {
+        if (config('capstone_pilot.enabled') === true
+            || config('deployment.mode') === 'demo') {
             throw new NotFoundHttpException;
         }
 

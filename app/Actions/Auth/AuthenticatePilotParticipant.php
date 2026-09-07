@@ -29,7 +29,8 @@ class AuthenticatePilotParticipant
      */
     public function isAvailableAt(?CarbonInterface $at = null): bool
     {
-        if (config('capstone_pilot.enabled') !== true) {
+        if (config('capstone_pilot.enabled') !== true
+            || config('deployment.mode') === 'demo') {
             return false;
         }
 

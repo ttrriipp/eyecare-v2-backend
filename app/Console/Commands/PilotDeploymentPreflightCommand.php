@@ -8,7 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('pilot:preflight')]
-#[Description('Validate production configuration and dependencies before exposing the capstone pilot')]
+#[Description('Validate production configuration and dependencies before exposing the capstone deployment')]
 class PilotDeploymentPreflightCommand extends Command
 {
     public function __construct(
@@ -30,12 +30,12 @@ class PilotDeploymentPreflightCommand extends Command
         }
 
         if (! $result['passed']) {
-            $this->error('Pilot deployment preflight failed.');
+            $this->error('Deployment preflight failed.');
 
             return self::FAILURE;
         }
 
-        $this->info('Pilot deployment preflight passed.');
+        $this->info('Deployment preflight passed.');
 
         return self::SUCCESS;
     }

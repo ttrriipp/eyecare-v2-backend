@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\PilotParticipantAccount;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,7 @@ function configureValidPilotDeployment(): void
         'deployment.release_id' => 'release-20260907.1',
         'deployment.readiness_token' => str_repeat('readiness-token', 3),
         'deployment.uptime_alert_url' => 'https://monitor.example.test/hooks/eyecare',
+        'deployment.mode' => 'pilot',
         'deployment.trusted_hosts' => ['pilot.example.test'],
         'deployment.trusted_proxies' => ['*'],
         'deployment.allowed_origins' => ['https://pilot.example.test'],
@@ -60,8 +62,45 @@ function configureValidPilotDeployment(): void
 
 test('valid provider-neutral pilot deployment passes preflight', function (): void {
     $this->artisan('pilot:preflight')
-        ->expectsOutputToContain('Pilot deployment preflight passed.')
+        ->expectsOutputToContain('Deployment preflight passed.')
         ->assertSuccessful();
+});
+
+test('valid staff-only demo deployment passes without pilot accounts or SMS', function (): void {
+    config([
+        'deployment.mode' => 'demo',
+        'capstone_pilot.enabled' => false,
+        'capstone_pilot.expires_at' => null,
+        'capstone_pilot.participant_limit' => 0,
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('Deployment preflight passed.')
+        ->assertSuccessful();
+});
+
+test('demo-only deployment fails closed if pilot mode is enabled', function (): void {
+    config([
+        'deployment.mode' => 'demo',
+        'capstone_pilot.enabled' => true,
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('pilot.disabled')
+        ->assertFailed();
+});
+
+test('demo-only deployment fails closed when pilot accounts exist', function (): void {
+    PilotParticipantAccount::factory()->create();
+
+    config([
+        'deployment.mode' => 'demo',
+        'capstone_pilot.enabled' => false,
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('pilot.participant_accounts')
+        ->assertFailed();
 });
 
 test('preflight fails closed for unsafe application settings', function (string $key, mixed $value, string $check): void {

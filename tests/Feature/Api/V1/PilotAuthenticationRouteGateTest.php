@@ -11,7 +11,34 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
-    config(['capstone_pilot.enabled' => false]);
+    config([
+        'capstone_pilot.enabled' => false,
+        'deployment.mode' => 'pilot',
+    ]);
+});
+
+test('demo-only mode returns 404 for participant and phone authentication without side effects', function (): void {
+    $initialUsers = User::query()->count();
+    $initialChallenges = OtpChallenge::query()->count();
+
+    config([
+        'deployment.mode' => 'demo',
+        'capstone_pilot.enabled' => true,
+        'capstone_pilot.expires_at' => now()->addDay(),
+    ]);
+
+    $this->postJson('/api/v1/auth/participant-login', [
+        'participant_code' => 'DEMO-0001',
+        'password' => 'not-used',
+    ])->assertNotFound();
+
+    $this->postJson('/api/v1/auth/login', [
+        'contact_value' => '09171234567',
+        'password' => 'not-used',
+    ])->assertNotFound();
+
+    expect(User::query()->count())->toBe($initialUsers)
+        ->and(OtpChallenge::query()->count())->toBe($initialChallenges);
 });
 
 test('pilot mode returns 404 for every participant-facing phone and invitation route without side effects', function (): void {
