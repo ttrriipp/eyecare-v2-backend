@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAppointmentRescheduleRequest;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class ExpireAppointmentRescheduleRequests
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyPatientAppointmentRescheduleRequest $notifyPatient,
+    ) {}
 
     public function handle(): int
     {
@@ -24,8 +28,11 @@ class ExpireAppointmentRescheduleRequests
             $expired = 0;
 
             foreach ($requestIds as $requestId) {
-                if ($this->expireRequest((int) $requestId)) {
+                $expiredRequest = $this->expireRequest((int) $requestId);
+
+                if ($expiredRequest !== null) {
                     $expired++;
+                    $this->notifyPatient->expired($expiredRequest);
                 }
             }
 
@@ -33,13 +40,13 @@ class ExpireAppointmentRescheduleRequests
         });
     }
 
-    private function expireRequest(int $requestId): bool
+    private function expireRequest(int $requestId): ?AppointmentRescheduleRequest
     {
-        return DB::transaction(function () use ($requestId): bool {
+        return DB::transaction(function () use ($requestId): ?AppointmentRescheduleRequest {
             $requestSnapshot = AppointmentRescheduleRequest::query()->find($requestId);
 
             if ($requestSnapshot === null) {
-                return false;
+                return null;
             }
 
             $appointment = Appointment::query()
@@ -48,7 +55,7 @@ class ExpireAppointmentRescheduleRequests
                 ->find($requestSnapshot->appointment_id);
 
             if ($appointment === null) {
-                return false;
+                return null;
             }
 
             $request = AppointmentRescheduleRequest::query()
@@ -56,13 +63,13 @@ class ExpireAppointmentRescheduleRequests
                 ->find($requestId);
 
             if ($request === null || $request->status !== AppointmentRescheduleRequestStatus::Pending) {
-                return false;
+                return null;
             }
 
             $request->setRelation('appointment', $appointment);
 
             if ($request->isPending()) {
-                return false;
+                return null;
             }
 
             $request->update([
@@ -80,7 +87,7 @@ class ExpireAppointmentRescheduleRequests
                 ],
             );
 
-            return true;
+            return $request->fresh();
         }, attempts: 3);
     }
 }

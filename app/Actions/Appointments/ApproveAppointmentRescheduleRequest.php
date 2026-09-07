@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAppointmentRescheduleRequest;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
@@ -19,6 +20,7 @@ class ApproveAppointmentRescheduleRequest
     public function __construct(
         private readonly CommitAppointmentReschedule $commitAppointmentReschedule,
         private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyPatientAppointmentRescheduleRequest $notifyPatient,
     ) {}
 
     public function handle(
@@ -29,7 +31,8 @@ class ApproveAppointmentRescheduleRequest
         $this->validateReviewer($reviewer);
         $selectedScheduledAt = $selectedScheduledAt->copy()->setTimezone(config('app.timezone'));
 
-        return DB::transaction(function () use ($request, $selectedScheduledAt, $reviewer): AppointmentRescheduleRequest {
+        $replayed = false;
+        $approvedRequest = DB::transaction(function () use ($request, $selectedScheduledAt, $reviewer, &$replayed): AppointmentRescheduleRequest {
             $requestSnapshot = AppointmentRescheduleRequest::query()->findOrFail($request->getKey());
             $lockedAppointment = Appointment::query()
                 ->with(['status', 'optometrist'])
@@ -48,6 +51,8 @@ class ApproveAppointmentRescheduleRequest
             if ($lockedRequest->status === AppointmentRescheduleRequestStatus::Approved) {
                 if ($lockedRequest->selected_scheduled_at?->equalTo($selectedScheduledAt)
                     && $lockedRequest->appointment_reschedule_id !== null) {
+                    $replayed = true;
+
                     return $this->freshRequest($lockedRequest);
                 }
 
@@ -91,6 +96,12 @@ class ApproveAppointmentRescheduleRequest
 
             return $this->freshRequest($lockedRequest);
         }, attempts: 3);
+
+        if (! $replayed) {
+            $this->notifyPatient->approved($approvedRequest);
+        }
+
+        return $approvedRequest;
     }
 
     private function validateReviewer(User $reviewer): void

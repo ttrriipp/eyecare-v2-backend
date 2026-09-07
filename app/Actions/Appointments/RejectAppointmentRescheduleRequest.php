@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAppointmentRescheduleRequest;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
@@ -16,7 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class RejectAppointmentRescheduleRequest
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyPatientAppointmentRescheduleRequest $notifyPatient,
+    ) {}
 
     public function handle(
         AppointmentRescheduleRequest $request,
@@ -38,7 +42,7 @@ class RejectAppointmentRescheduleRequest
             ]);
         }
 
-        return DB::transaction(function () use ($request, $rejectionReason, $reviewer): AppointmentRescheduleRequest {
+        $rejectedRequest = DB::transaction(function () use ($request, $rejectionReason, $reviewer): AppointmentRescheduleRequest {
             $requestSnapshot = AppointmentRescheduleRequest::query()->findOrFail($request->getKey());
             $lockedAppointment = Appointment::query()
                 ->with('status')
@@ -80,6 +84,10 @@ class RejectAppointmentRescheduleRequest
                 'appointment.status',
             ]);
         }, attempts: 3);
+
+        $this->notifyPatient->rejected($rejectedRequest);
+
+        return $rejectedRequest;
     }
 
     private function validateReviewer(User $reviewer): void

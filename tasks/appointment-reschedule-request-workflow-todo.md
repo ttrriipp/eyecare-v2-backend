@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-11 complete; Checkpoints A-B passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-13 complete; Checkpoints A-B passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -316,23 +316,23 @@ notification test (4)
 
 **Acceptance:**
 
-- [ ] Approval sends the final time through patient database notification and
+- [x] Approval sends the final time through patient database notification and
       SMS only after commit.
-- [ ] Rejection sends database notification and SMS with the safe rejection
+- [x] Rejection sends database notification and SMS with the safe rejection
       reason and original time; expiry sends database notification only.
-- [ ] Failure, replay, withdrawal, and stale transitions produce no duplicate
+- [x] Failure, replay, withdrawal, and stale transitions produce no duplicate
       patient messages or reason-text leakage.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Notifications/AppointmentRescheduleRequestOutcomeNotificationTest.php`
-- [ ] Existing appointment notification and SMS tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Notifications/AppointmentRescheduleRequestOutcomeNotificationTest.php` (4 tests, 50 assertions)
+- [x] Existing appointment notification and SMS tests pass (49 related tests, 336 assertions)
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 7-9
 
 **Files:** outcome notification, approval action, rejection action, expiry
-action, outcome notification test (5)
+action, shared patient notifier, outcome notification test (6)
 
 ### Checkpoint C: Complete staff and patient workflow
 
