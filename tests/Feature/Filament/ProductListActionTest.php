@@ -23,3 +23,15 @@ test('the product list exposes new product in the table toolbar', function () {
                 && in_array($action, $action->getTable()?->getToolbarActions() ?? [], true);
         });
 });
+
+test('the product list sorts newest products first by default', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    $component = Livewire::test(ListProducts::class);
+    $table = $component->instance()->getTable();
+
+    expect($table->getDefaultSortColumn())->toBe('created_at')
+        ->and($table->getDefaultSortDirection())->toBe('desc');
+});

@@ -75,7 +75,7 @@ class ProductsTable
                     ->options(Product::TYPE_OPTIONS),
                 CatalogLifecycleActions::statusFilter(),
             ])
-            ->defaultSort('name')
+            ->defaultSort('created_at', 'desc')
             ->toolbarActions([
                 CreateAction::make()
                     ->label('New product')
