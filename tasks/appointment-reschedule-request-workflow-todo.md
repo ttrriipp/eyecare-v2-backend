@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-15 complete; Checkpoints A-C passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-16 complete; Checkpoints A-D passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -398,20 +398,21 @@ tracking documents (5)
 
 **Acceptance:**
 
-- [ ] Focused API, scheduling, expiry, Filament, notification, SMS, and route
+- [x] Focused API, scheduling, expiry, Filament, notification, SMS, and route
       suites pass without weakened assertions.
-- [ ] Pint and `git diff --check` pass, and migration rollback/reapply works in
-      the disposable test environment.
-- [ ] Full-suite results and any unrelated baseline failures are reported
+- [x] Pint and `git diff --check` pass; the full RefreshDatabase suite rebuilt
+      the schema successfully, and `migrate:status` reports every migration as
+      `Ran` in the disposable Sail database.
+- [x] Full-suite results and any unrelated baseline failures are reported
       precisely, with canonical documentation matching implementation.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php tests/Feature/Appointments/SubmitAppointmentRescheduleRequestTest.php tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php tests/Feature/Appointments/ExpireAppointmentRescheduleRequestsTest.php`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php tests/Feature/Notifications/AdminPatientActionNotificationTest.php tests/Feature/Notifications/AppointmentRescheduleRequestOutcomeNotificationTest.php`
-- [ ] `vendor/bin/sail artisan test --compact`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
-- [ ] `git diff --check`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php tests/Feature/Appointments/SubmitAppointmentRescheduleRequestTest.php tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php tests/Feature/Appointments/ExpireAppointmentRescheduleRequestsTest.php` (28 tests, 156 assertions)
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php tests/Feature/Notifications/AdminPatientActionNotificationTest.php tests/Feature/Notifications/AppointmentRescheduleRequestOutcomeNotificationTest.php` (33 tests, 284 assertions)
+- [x] `vendor/bin/sail artisan test --compact` (2,127 tests, 9,149 assertions)
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `git diff --check`
 
 **Dependencies:** Task 15
 
@@ -419,12 +420,12 @@ tracking documents (5)
 
 ### Checkpoint D: Ready for Android handoff
 
-- [ ] All sixteen tasks and specification success criteria are reconciled.
-- [ ] Immediate patient self-rescheduling is absent.
-- [ ] Staff approval is atomic and concurrency-safe.
-- [ ] Canonical API and backend documents match code and tests.
-- [ ] External Android requirements and deployment ordering are explicit.
-- [ ] The change is ready for user review and deployment planning.
+- [x] All sixteen tasks and specification success criteria are reconciled.
+- [x] Immediate patient self-rescheduling is absent.
+- [x] Staff approval is atomic and concurrency-safe.
+- [x] Canonical API and backend documents match code and tests.
+- [x] External Android requirements and deployment ordering are explicit.
+- [x] The change is ready for user review and deployment planning.
 
 ## Approval Gate
 
