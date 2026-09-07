@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Plan approved on 2026-09-07 — Tasks 1–13 complete; Checkpoints A–C complete
+**Status:** Scope amended on 2026-09-07 — Tasks 1–13 and demo-only scope gate complete; Checkpoints A–C complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -80,20 +80,23 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 3: External Launch Gates
 
+- [ ] Scope amendment — deploy staff-only/demo-only mode with no participant
+      accounts or participant/phone/SMS authentication.
 - [ ] Task 14 — select hosting after budget approval; record ADR/runbook and
       provision the isolated environment.
-- [ ] Task 15 — implement and test participant mode in the external Android
-      repository.
-- [ ] Task 16 — freeze study fields/consent, owners, retention, and AR choice;
-      rehearse every deployed workflow and recovery procedure.
+- [ ] Task 15 — verify participant mode is omitted from the demo release and
+      all participant/phone/SMS authentication paths remain unavailable.
+- [ ] Task 16 — freeze demo records, owner, retention, and AR choice; rehearse
+      every deployed workflow and recovery procedure.
 
 ### Checkpoint D: Go/No-Go
 
-- [ ] Hosting, study data, owners, retention, and one AR model are recorded.
+- [ ] Hosting, synthetic demo data, owner, retention, and one AR model are
+      recorded.
 - [ ] The deployed immutable revision matches green CI/audit evidence.
-- [ ] Android/backend critical path and non-AR fallback pass on devices.
+- [ ] Staff/backend demo critical path and non-AR fallback pass on devices.
 - [ ] Alerts, backups/restores, rollback, export, and teardown are rehearsed.
-- [ ] Technical and research-data owners approve go-live.
+- [ ] The technical owner approves go-live.
 
 ## Phase 4: Operate and Close
 
@@ -102,10 +105,9 @@ criteria, files, risks, and verification are in the plan.
 
 ## Decisions Still Required Before Checkpoint D
 
-- [ ] Approve the exact study-field/event allowlist and consent version.
 - [ ] Select a managed host and approve the one-month spending cap.
-- [ ] Name the technical operator and research-data export approver.
-- [ ] Approve deletion timing and de-identified-results retention.
+- [ ] Name the technical operator.
+- [ ] Approve synthetic demo-data deletion timing and retention.
 - [ ] Select the single validated/published AR model used for the pilot.
 
 ## Evidence Log
@@ -302,9 +304,9 @@ criteria, files, risks, and verification are in the plan.
   tests/388 assertions); commits `5cc99d51`, `f64a568f`, and `aaef910e`.
 - 2026-09-07 full regression verification: a clean Sail Pest run passed 2,067
   tests and 8,784 assertions in 12m 06s. Checkpoints A–C are complete. The
-  remaining work is external launch gating: hosting, Android handoff, study
-  field/consent allowlist, named owners, retention/deletion policy, and the
-  selected AR model before Checkpoint D.
+  remaining work is the demo-only scope gate and external launch gating:
+  hosting, named technical owner, synthetic-data retention/deletion policy,
+  and the selected AR model before Checkpoint D.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,

@@ -1,6 +1,6 @@
 # Implementation Plan: Capstone Pilot Deployment Readiness
 
-**Status:** Approved on 2026-09-06 — implementation in progress
+**Status:** Scope amended on 2026-09-07 — backend checkpoints complete; staff-only demo launch gates remain
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Decision:**
@@ -8,24 +8,27 @@
 (accepted 2026-09-06)
 **Checklist:** `tasks/capstone-pilot-deployment-readiness-todo.md`
 
+**Current scope decision:**
+`docs/decisions/005-use-staff-only-demo-deployment-for-capstone.md`
+(accepted 2026-09-07)
+
 ## Outcome
 
-Prepare an isolated, one-month capstone pilot for 75 invited participants,
-targeting September 7 through October 7, 2026 in `Asia/Manila`. Participants
-authenticate with pre-provisioned pseudonymous codes and unique passwords. The
-existing phone/OTP system remains intact outside pilot mode but is unavailable
-from the pilot participant path. The pilot may launch with one validated AR
-model and uses synthetic clinical/demo records only.
+Prepare an isolated, one-month capstone staff demonstration, targeting
+September 7 through October 7, 2026 in `Asia/Manila`. No participants will use
+the deployed environment and no participant or research data will be
+collected. The deployment uses the Filament panel, synthetic clinical/demo
+records, and one validated AR model.
 
 This plan is provider-neutral through Checkpoint C. Hosting selection changes
-environment configuration and the deployment runbook, not the participant
-authentication domain. It is therefore safe to begin implementation before a
-host is selected. Hosting, the study-data allowlist, named owners, and the
-retention schedule must nevertheless be resolved before public launch.
+environment configuration and the deployment runbook, not the application
+domain. The participant-code implementation remains tested but dormant;
+`DEPLOYMENT_MODE=demo` must keep it and all phone/SMS paths unavailable.
+Hosting, the named technical owner, synthetic-data teardown, and the selected
+AR model must nevertheless be resolved before public launch.
 
-The Android source is not in this repository. Backend completion alone cannot
-make participant-code login usable; the external Android handoff in Task 15 is
-on the launch critical path.
+The Android source is not in this repository. Android participant-mode work is
+out of scope for the staff-only demo and is no longer a launch dependency.
 
 ## Current Readiness Evidence
 
@@ -65,15 +68,19 @@ the date is a target, not permission to bypass a gate.
 
 | Decision | Recommended default | Latest point to decide |
 | --- | --- | --- |
-| Study dataset | Collect participant code, consent version/time, study task completion, usability answers/scores, timestamps, device/OS compatibility, and coarse error categories. Exclude names, phone/email, DOB, free-form clinical details, and message contents unless the approved instrument specifically requires them. | Before implementing or accepting any new data-collection field; always before Checkpoint D. |
 | Hosting | Use a managed PHP/Laravel platform with a managed MySQL database, worker/scheduler support, HTTPS, logs, daily backups, and a nearby region. Compare Laravel Cloud and suitable managed alternatives only when the one-month budget is known; do not choose shared hosting that lacks workers, scheduler reliability, or controlled deployment. | Task 14, before any public environment is created. |
-| Owners | Name one technical operator for deploys, alerts, rollback, and teardown, and one research-data approver for export/deletion. One person may hold both roles, but both responsibilities must be explicit. | Before Checkpoint D. |
-| Retention | Export and verify de-identified results, then revoke participant access at pilot close. Delete credentials, code-to-person mapping (if any), direct identifiers, live database rows, files, and provider backups as soon as the consent/institutional rules allow. If no rule exists, obtain one rather than inventing a retention period in code. | Policy before Checkpoint D; provider-specific deletion timing in Task 14. |
+| Owner | Name one technical operator for deploys, alerts, rollback, synthetic-data teardown, and expiry. | Before Checkpoint D. |
+| Demo retention | Keep only the synthetic records and assets required for demonstrations, then delete them, credentials, and provider backups at teardown according to the provider's deletion behavior. | Policy before Checkpoint D; provider-specific deletion timing in Task 14. |
 | AR model | Select one already validated and published model and treat every other product/device as non-AR with a clear fallback. | Before deployed smoke testing in Task 16. |
 
-If the approved study uses only fields already present, resolving the dataset
-is an operational allowlist. If it requires new persisted fields or analytics
-events, that is a specification change and must be planned before coding them.
+## Scope Amendment: Staff-Only Demo
+
+The participant-code implementation from Tasks 5–10 is complete and remains
+tested, but it is not launch scope for this deployment. The deployed environment
+must set `DEPLOYMENT_MODE=demo`, keep `CAPSTONE_PILOT_ENABLED=false`, provision no
+participant accounts, and make participant/phone/SMS routes unavailable. A
+future participant study must reopen the specification and complete a separate
+Android, consent, data, and retention review.
 
 ## Architecture Decisions
 
@@ -601,8 +608,8 @@ configuration.
 - An ADR and deployment runbook record exact build/release, scheduler, worker,
   HTTPS/domain, secrets, backup, restore, rollback, export, and destruction
   steps.
-- The public environment is isolated, uses no local/dev secrets or data, and
-  passes preflight before DNS or participant distribution.
+- The public environment is isolated, uses no local/dev secrets or data, is
+  explicitly demo-only, and passes preflight before DNS or staff distribution.
 
 **Verification:** Provider console/config review, clean deployment, health and
 worker/scheduler checks, encrypted backup plus restore rehearsal, rollback
@@ -620,55 +627,53 @@ blocked by the currently unresolved provider choice.
 
 **Estimated scope:** M; external state changes require explicit authorization.
 
-#### Task 15: Implement and verify the Android participant mode
+#### Task 15: Omit participant mode from the demo release
 
-**Description:** Apply the approved additive login contract in the separate
-Android repository and remove phone/registration/recovery affordances only in
-pilot builds.
+**Description:** Do not make a participant-facing Android release. Verify that
+the demo deployment needs only the Filament staff panel and that the dormant
+participant-code endpoint and phone/registration/recovery affordances remain
+unavailable.
 
 **Acceptance criteria:**
 
-- The pilot screen labels and validates an alphanumeric participant code,
-  calls the dedicated endpoint, securely stores the returned Sanctum token,
-  and reuses the existing authenticated navigation.
-- Pilot builds hide phone registration, OTP, and recovery; non-pilot builds
-  retain them.
-- The client handles `404`, generic `422`, `429`, expiry/revocation, offline
-  failure, nullable personal fields, and non-AR fallback without exposing
-  account state.
+- No participant Android build or participant credential distribution is
+  required for the demo.
+- The deployed backend returns `404` for participant-code and phone/SMS
+  authentication paths.
+- Staff demonstrations use the Filament panel and any explicitly approved
+  team-controlled device flow with synthetic data.
 
 **Verification:** Android unit/UI tests plus a release-build device smoke test
 against the staging pilot environment.
 
-**Dependencies:** Checkpoint B for the stable API contract and Task 14 for an
-end-to-end environment. May begin against local/staging after Checkpoint B.
+**Dependencies:** Checkpoint C and Task 14 for an end-to-end environment.
 
 **Files likely touched:** External Android repository only; exact files must be
 planned there. No backend file is modified by this task.
 
-**Estimated scope:** M, separately authorized repository work.
+**Estimated scope:** S, backend/configuration verification only.
 
-#### Task 16: Freeze operations/data policy and rehearse the deployed pilot
+#### Task 16: Freeze demo operations and rehearse the deployed environment
 
-**Description:** Resolve the remaining human decisions and prove the complete
-enabled workflow before inviting participants.
+**Description:** Resolve the remaining hosting, owner, synthetic-data, and AR
+decisions and prove every enabled staff/demo workflow before public access.
 
 **Acceptance criteria:**
 
-- The approved study-field allowlist, consent version, technical owner,
-  research-data approver, retention/deletion rule, and selected AR model are
-  recorded and match the deployed behavior.
-- Staff MFA, participant login, approved study flow, one AR model and fallback,
-  file authorization/persistence, queue/scheduler work, uptime/error alerts,
-  backup/restore, rollback, export, and teardown all pass on deployed staging.
-- Pilot notices clearly say capstone prototype/not clinical service; no real
-  patient or unapproved participant data is present.
+- The technical owner, synthetic-data retention/deletion rule, and selected AR
+  model are recorded and match the deployed behavior.
+- Staff MFA, demonstration workflows, one AR model and fallback, file
+  authorization/persistence, queue/scheduler work, uptime/error alerts,
+  backup/restore, rollback, synthetic export, and teardown all pass on
+  deployed staging.
+- Demo notices clearly say capstone prototype/not clinical service; no real
+  patient or participant data is present.
 
 **Verification:** Signed launch checklist with test evidence, controlled device
 smoke test, restored-environment comparison, sample de-identified export, and
 teardown rehearsal.
 
-**Dependencies:** Tasks 14 and 15 plus resolved study/owner/retention decisions.
+**Dependencies:** Tasks 14 and 15 plus resolved owner/retention decisions.
 
 **Files likely touched:** Approved runbook and existing canonical contract/
 context documents; application files only if a newly approved study field
@@ -680,25 +685,25 @@ requires a separately specified change.
 
 - [ ] All four formerly open operational decisions are recorded.
 - [ ] The immutable deployed revision matches green CI and audit evidence.
-- [ ] Android and backend pass the full participant/staff critical path.
+- [ ] Staff/backend demo critical path and non-AR fallback pass on supported devices.
 - [ ] Backup/restore, rollback, alerts, export, and teardown are rehearsed.
-- [ ] The technical and research-data owners explicitly approve go-live.
+- [ ] The technical owner explicitly approves go-live.
 
-### Phase 4: Operate and close the one-month pilot
+### Phase 4: Operate and close the one-month demo
 
 #### Task 17: Launch, monitor, export, and tear down
 
-**Description:** Run the time-limited pilot under the approved operating and
-data-handling procedure.
+**Description:** Run the time-limited demo under the approved operating and
+synthetic-data teardown procedure.
 
 **Acceptance criteria:**
 
-- Access is distributed only to the 75 invited participants; the operator
+- Access is distributed only to authorized staff/evaluators; the operator
   monitors uptime, application errors, worker/scheduler health, backups, and
-  cost during data gathering and demonstrations.
-- The verified de-identified export is produced before closure; revocation is
-  executed and tested at the approved end time unless an extension has already
-  passed a new review.
+  cost during demonstrations.
+- Any synthetic export is verified before closure; staff credentials are
+  revoked at the approved end time unless an extension has already passed a
+  new review.
 - Public access, credentials, scheduled work, databases/files/backups, DNS, and
   billable resources are disabled or deleted according to the approved policy,
   with provider deletion state recorded.

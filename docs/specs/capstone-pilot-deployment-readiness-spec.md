@@ -1,60 +1,59 @@
 # Spec: Capstone Pilot Deployment Readiness
 
-**Status:** Approved on 2026-09-06 — unresolved operational decisions remain pre-launch gates
+**Status:** Scope amended on 2026-09-07 — staff/demo-only deployment; participant access remains dormant
 **Implementation plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
 **Applies to:** EyeCare backend, Filament staff panel, and Android-facing API
 **Runtime baseline:** PHP 8.5, Laravel 13, MySQL, Filament 5, Livewire 4, Sanctum 4, Pest 4, and Tailwind CSS 4
-**Deployment classification:** Time-limited capstone research/demo pilot; not a clinical production service
+**Deployment classification:** Time-limited capstone staff demonstration; no participant use or research-data collection
 **Target availability:** September 7, 2026 through October 7, 2026 (`Asia/Manila`)
 
 ## Objective
 
-Prepare the application for a one-month, internet-accessible capstone pilot used for supervised data gathering, demonstrations, and final defense. The deployment must be safe enough for invited research participants while avoiding the cost and operational scope of a permanent clinical production service.
+Prepare the application for a one-month, internet-accessible capstone demonstration used by the capstone team and evaluators during demonstrations and final defense. The deployment must be safe for staff-only use while avoiding the cost and operational scope of a permanent clinical production service.
 
 The release must support:
 
-- invited research participants using the Android application and its approved study workflows;
-- the capstone team using the Filament panel to administer demonstrations and collect approved study data;
+- the capstone team using the Filament panel to administer demonstrations with synthetic data;
 - evaluators observing the system during demonstrations and final defense;
 - a technical owner deploying, monitoring, exporting, and removing the environment.
 
-Pilot readiness is achieved when the reduced launch gates and success criteria in this specification are satisfied. This approval must not be represented as authorization for real clinical operations.
+Demo readiness is achieved when the reduced launch gates and success criteria in this specification are satisfied. This approval must not be represented as authorization for real clinical operations.
 
 ## Assumptions Requiring Confirmation
 
 1. There is no live clinical database or production file store to migrate.
-2. Participation is invitation-only and governed by the capstone's approved consent and data-gathering procedure.
+2. No participants will use this deployment and no participant or research data will be collected. Any later participant study requires a new scope and privacy review.
 3. Synthetic data is used for clinical records, prescriptions, billing, and demonstrations. No real diagnosis or treatment depends on the application.
-4. The Filament panel and only the Android workflows required by the study/demo are in launch scope.
+4. The Filament panel and team-controlled demonstration workflows are in launch scope; Android participant workflows are out of scope.
 5. One validated AR frame model is sufficient; AR is presented as a limited pilot and unavailable products degrade gracefully.
-6. The pilot uses 75 pseudonymous, pre-provisioned participant-code accounts with unique passwords; participant authentication does not require a phone number, email address, or OTP.
-7. The participant-code path is additive, disabled by default, enabled only for the pilot environment, and removed or permanently disabled at teardown.
+6. The participant-code implementation may remain in the repository as an additive capability, but no participant accounts are provisioned and the capability stays disabled.
+7. Demo-only mode disables participant-code, phone registration/login, OTP, recovery, and invitation paths.
 8. The hosting provider remains undecided and will be selected for a one-month deployment rather than permanent clinical operations.
-9. The primary participants and team are in the Philippines, with business-time interpretation based on `Asia/Manila`.
+9. The capstone team and evaluators are in the Philippines, with business-time interpretation based on `Asia/Manila`.
 10. The environment is taken offline on October 7, 2026 unless the owner explicitly approves an extension and repeats the privacy/security review.
 
-If assumption 1, 2, or 3 is false, implementation must stop before deployment. A separate clinical-production or real-patient-data review will be required.
+If assumption 1, 2, or 3 is false, implementation must stop before deployment. A separate participant-data, clinical-production, or real-patient-data review will be required.
 
 ## Scope
 
 ### Included
 
-- an isolated participant-code authentication path for 75 pre-provisioned pilot accounts;
-- removal of phone registration, phone login, OTP, and password recovery from the public participant path;
+- an explicit demo-only deployment gate that prevents participant and phone/SMS authentication;
 - provider-neutral SMS and hosting boundaries;
 - secure pilot configuration and secret validation;
 - dependency and supply-chain remediation;
-- recovery of launch-critical automated tests and resolution of failures that affect exposed pilot workflows;
+- recovery of launch-critical automated tests and resolution of failures that affect exposed demo workflows;
 - safe reference/demo-data seeding and secure administrator provisioning;
 - a fresh-install migration rehearsal;
 - configurable persistent storage, queues, cache, scheduling, and worker supervision;
 - basic liveness, error logging, uptime monitoring, daily backups, export, rollback, and teardown;
-- a concise pilot deployment and teardown runbook after providers are selected.
+- a concise demonstration deployment and teardown runbook after the provider is selected.
 
 ### Excluded
 
 - new clinic business features or a redesign of existing API contracts;
-- Android UI work unrelated to the participant-login mode or required pilot safety/fallback states;
+- Android participant-mode UI or participant-facing workflow work;
+- participant-code account provisioning, participant data collection, consent handling, or research exports;
 - purchasing or contracting with a hosting or SMS provider;
 - real clinical use, medical decision-making, diagnosis, treatment, or permanent patient recordkeeping;
 - collecting personal or sensitive data not explicitly required by the approved study instrument;
@@ -70,15 +69,16 @@ If assumption 1, 2, or 3 is false, implementation must stop before deployment. A
 2. An SMS operation must never report success when delivery was skipped, disabled, rejected, or not accepted by the provider.
 3. Secrets, access tokens, OTP values, full SMS bodies, and unnecessary participant-identifying data must not be written to logs.
 4. OTP values must not be stored as plaintext in database records or serialized queue payloads. Queued sensitive jobs must be encrypted or use an equivalently reviewed mechanism.
-5. Collected study data and required assets must use persistent storage and survive application rebuilds and restarts during the pilot.
+5. Required demonstration assets and any approved operational records must use persistent storage and survive application rebuilds and restarts during the demonstration.
 6. Rate limits, distributed locks, scheduler locks, and job deduplication must use a shared cache when more than one application instance can run.
-7. The pilot is deployed from an identifiable revision that passed every required pilot quality gate.
+7. The demo is deployed from an identifiable revision that passed every required demo quality gate.
 8. The fresh-install migration is rehearsed before launch; no legacy clinic database is imported.
 9. A provider selection may add configuration and an adapter, but must not require rewriting authentication, invitation, storage, queue, or deployment workflows.
+10. The deployed environment is explicitly marked demo-only, contains no pilot participant accounts, and does not expose participant or phone/SMS authentication.
 
-## SMS Delivery Contract
+## SMS and Participant Authentication Boundary
 
-SMS is not required for participant authentication in this pilot. Existing phone-registration, phone-login-on-new-installation, recovery, and invitation paths must not be presented to participants while real SMS delivery remains unavailable. The capstone team may separately demonstrate SMS using team-owned numbers only after the requirements below are implemented and verified.
+SMS and participant authentication are not enabled in the demo-only deployment. Existing phone-registration, phone-login-on-new-installation, recovery, step-up, and invitation paths must remain unavailable. The adapter and participant-code implementation remain provider-neutral and dormant for any separately approved future pilot.
 
 ### Functional behavior
 
@@ -92,7 +92,7 @@ SMS is not required for participant authentication in this pilot. Existing phone
 - Failed jobs update the application record consistently and surface enough non-sensitive context for diagnosis.
 - Delivery receipts are recorded when supported by the selected provider. Provider acceptance must not be labeled as handset delivery.
 - Development and automated tests use a fake adapter. Pre-launch verification includes a controlled real-provider smoke test to team-owned Philippine numbers.
-- Unless a real SMS provider is separately configured and verified, phone-based registration, recovery, step-up, and invitation paths are disabled for the pilot. A fake OTP or public bypass is never deployed.
+- Phone-based registration, recovery, step-up, and invitation paths are disabled for the demo. A fake OTP or public bypass is never deployed.
 
 ### Provider selection criteria
 
@@ -109,18 +109,23 @@ The SMS decision must compare at least:
 
 The selected provider and fallback policy must be recorded in an ADR before provider-specific implementation begins.
 
-## Participant-Code Authentication Contract
+## Dormant Participant-Code Authentication Contract
+
+The participant-code implementation is retained as an additive, tested
+capability for a possible future study. It is not part of this deployment and
+must remain disabled by configuration; no participant accounts or credentials
+are created.
 
 - The Android pilot login accepts a participant identifier and password instead of applying phone-number validation.
 - The backend exposes a dedicated participant-login operation rather than weakening the existing patient phone/OTP operation.
 - Only accounts explicitly provisioned for the capstone pilot can use the participant-login operation.
-- Exactly 75 participant accounts are created with pseudonymous identifiers and independent cryptographically random initial passwords. No password is shared between participants.
+- No participant accounts are created for the demo-only deployment. If a future study is approved, its participant count and credential procedure must be specified separately.
 - Participant identifiers contain no encoded name, contact detail, birthdate, or clinical fact.
 - Successful login returns the same scoped Sanctum token used by existing Android API authorization. It does not bypass policies or role checks after authentication.
 - The operation is enabled only by an explicit pilot configuration value that defaults to disabled and fails closed when the pilot expiry is reached.
 - Participant login is rate-limited and audited without logging passwords or tokens.
 - Public participant registration, OTP, and automated password recovery are unavailable in pilot mode. The authorized research administrator performs an auditable credential reset when needed.
-- Pilot tokens and accounts are revoked at teardown. The temporary route and Android login mode are then removed or permanently disabled before any later clinical deployment.
+- Any dormant pilot tokens/accounts must remain absent or disabled. The temporary route and Android login mode must remain unavailable before any later clinical deployment.
 
 ## Hosting Contract
 
@@ -138,33 +143,38 @@ The selected platform must provide or integrate with:
 - a region and network path with acceptable latency for Philippine users;
 - identifiable releases, a supported application rollback mechanism, and a confirmed teardown process.
 
-For this one-month pilot, prefer a managed, usage-based platform over a self-managed VPS. The hosting decision must compare runtime support, worker and scheduler support, region and data handling, deployment and rollback behavior, backups, teardown/export behavior, operational burden, and one-month total cost. Record the selection before creating the public environment.
+For this one-month demonstration, prefer a managed, usage-based platform over a self-managed VPS. The hosting decision must compare runtime support, worker and scheduler support, region and data handling, deployment and rollback behavior, backups, teardown/export behavior, operational burden, and one-month total cost. Record the selection before creating the public environment.
 
-## Pilot Configuration Contract
+## Demo Deployment Configuration Contract
 
-Pilot startup or deployment preflight must fail when required settings are missing or unsafe. Validation must cover at least:
+Demo startup or deployment preflight must fail when required settings are missing or unsafe. Validation must cover at least:
 
 - `APP_ENV=production`, `APP_DEBUG=false`, an HTTPS application URL, and a stable production `APP_KEY`;
+- `DEPLOYMENT_MODE=demo` and `CAPSTONE_PILOT_ENABLED=false`;
 - secure cookies, trusted hosts/proxies, allowed frontend origins, and production CORS behavior;
-- database, cache, queue, session, mail, and scheduler settings required by enabled pilot workflows;
+- database, cache, queue, session, mail, and scheduler settings required by enabled demo workflows;
 - SMS adapter selection, endpoint, credentials, sender identity, timeout, retry, and webhook secret where applicable;
 - logical filesystem disks for private attachments, AR quarantine, and published/catalog assets;
-- logging destination, uptime alert destination, release identifier, and pilot expiry date;
+- logging destination, uptime alert destination, release identifier, and demo teardown date;
 - real privacy-policy and terms URLs where exposed to clients;
 - a dedicated, stable `CONTACT_LOOKUP_KEY` that is not the application key;
 - previous encryption keys when an approved key rotation requires them.
+
+The demo preflight must also verify that no pilot participant accounts are
+present and that every participant/phone/SMS route is unavailable.
 
 Secrets must exist only in secret storage or local ignored environment files. They must not appear in source control, build artifacts, health responses, logs, exception messages, or CI output.
 
 ## Data, Migrations, and Bootstrap
 
-- The pilot uses explicit, idempotent seeders for required reference data and clearly marked synthetic demonstration data.
+- The demo uses explicit, idempotent seeders for required reference data and clearly marked synthetic demonstration data.
 - Seeded identities must be fictional and must not reuse real patient information.
-- Demonstration credentials are shared only with the capstone team/evaluators and are changed or disabled before public participant access.
+- Demonstration credentials are shared only with the capstone team/evaluators and are disabled at teardown.
 - The administrator is provisioned through a secure command or platform mechanism and uses MFA.
 - A fresh database must migrate, seed approved data, and provision an administrator without manual database editing.
 - No legacy clinic database or frame-reservation data is imported into the pilot.
 - A database backup is taken before any post-launch migration.
+- No participant identity, consent record, participant-to-code mapping, or research event is created by the demo bootstrap.
 
 ## Filesystem and Asset Storage
 
@@ -210,19 +220,19 @@ Deployments must:
 ## Health, Observability, and Operations
 
 - `/up` remains a minimal liveness endpoint and does not disclose infrastructure or secret details.
-- A protected or internally consumed readiness check covers the database and any queue, cache, storage, worker, or scheduler required by enabled pilot workflows without exposing credentials or participant data.
+- A protected or internally consumed readiness check covers the database and any queue, cache, storage, worker, or scheduler required by enabled demo workflows without exposing credentials or participant data.
 - Logs include a release identifier and redact secrets, OTPs, authorization headers, SMS content, and unnecessary participant identifiers.
 - At minimum, uptime failure and unhandled application errors notify the technical owner. Queue/SMS failure visibility is required when those paths are enabled.
 - The team actively observes logs and critical flows during demonstrations and final defense.
 
 ## Backup, Export, Rollback, and Teardown
 
-- The database and required files are backed up daily with encryption and access controls during the pilot, giving a target RPO of 24 hours.
-- The target RTO is one working day; a restore rehearsal is completed before participant data gathering begins.
+- The database and required files are backed up daily with encryption and access controls during the demonstration, giving a target RPO of 24 hours.
+- The target RTO is one working day; a restore rehearsal is completed before the environment is exposed.
 - Application rollback restores the previous known-good revision and compatible configuration.
-- Before teardown, approved study results are exported in a de-identified format and verified by the research owner.
+- If demonstration results are exported, the technical owner verifies that they contain only synthetic data.
 - On October 7, 2026, public access, workers, schedulers, credentials, and billable resources are disabled unless an extension is explicitly approved.
-- Direct identifiers and cloud backups are deleted according to the participant consent form, institutional retention policy, and provider deletion behavior. De-identified research outputs may be retained only under that approved policy.
+- Synthetic records, credentials, and cloud backups are deleted according to the demo teardown checklist and provider deletion behavior.
 
 ## Testing Strategy
 
@@ -232,14 +242,14 @@ Deployments must:
 - Use Laravel HTTP fakes for provider-adapter tests and prevent unintended external requests.
 - Run provider-independent contract tests against the fake adapter and the selected real adapter.
 - Preserve and repair existing tests; tests are not deleted or weakened to obtain a green build.
-- Run all launch-critical tests and the full suite. Any unrelated pre-existing failure proposed for deferral must be documented and shown not to affect exposed pilot workflows; security tests cannot be deferred.
+- Run all launch-critical tests and the full suite. Any unrelated pre-existing failure proposed for deferral must be documented and shown not to affect exposed demo workflows; security tests cannot be deferred.
 
 ### Deployment rehearsals
 
 - Rehearse a fresh installation; no historical clinic data upgrade is in scope.
 - Build production frontend assets and all required Laravel/Filament caches.
-- Test only enabled pilot flows end to end: participant access, approved data collection, the one AR asset, staff login with MFA, authorized file behavior, and any required queue/scheduler work.
-- If SMS is enabled, send controlled real messages and verify acceptance and failure handling.
+- Test only enabled demo flows end to end: staff login with MFA, the one AR asset, authorized file behavior, synthetic records, and any required queue/scheduler work.
+- Verify that participant and phone/SMS paths remain unavailable.
 - Rehearse backup restore, application rollback, de-identified export, and teardown.
 
 ## Commands
@@ -263,7 +273,7 @@ vendor/bin/sail artisan icons:cache
 vendor/bin/sail artisan optimize:clear
 ```
 
-Provider-specific deployment, backup, restore, export, and teardown commands will be added to the pilot runbook only after provider selection. Commands that target the public pilot require explicit operator confirmation and a resolved environment identifier.
+Provider-specific deployment, backup, restore, export, and teardown commands will be added to the demo runbook only after provider selection. Commands that target the public demo require explicit operator confirmation and a resolved environment identifier.
 
 ## Project Structure
 
@@ -365,12 +375,12 @@ Controllers and jobs remain thin; validation, authorization, transactions, and p
 
 - The owner confirms the assumptions, scope, boundaries, and success criteria in this document.
 
-### Gate 1 — Pilot Scope and Provider Decisions
+### Gate 1 — Demo Scope and Provider Decisions
 
-- The team approves the participant consent/data procedure and confirms that the app will not be used for clinical care.
+- The team confirms that the deployment is staff-only, uses synthetic data, and will not be used for participant care or research-data collection.
 - The hosting provider is selected.
-- Participant-code authentication is enabled only for the 75 provisioned pilot accounts; phone/OTP paths are disabled from participant-facing navigation.
-- Budget, technical owner, research-data owner, and teardown date are recorded.
+- `DEPLOYMENT_MODE=demo` is enabled, `CAPSTONE_PILOT_ENABLED=false`, no participant accounts are provisioned, and participant/phone/OTP paths are unavailable.
+- Budget, technical owner, and teardown date are recorded.
 
 ### Gate 2 — Internet-Exposure Readiness
 
@@ -379,43 +389,43 @@ Controllers and jobs remain thin; validation, authorization, transactions, and p
 - Debug mode is off; HTTPS, secrets, administrator MFA, rate limits, authorized storage, and production-style caches are verified.
 - The fresh migration, approved synthetic seeding, build, backup, restore, and rollback checks pass.
 
-### Gate 3 — Pilot Go-Live
+### Gate 3 — Demo Go-Live
 
-- Participant access and approved study flows pass end-to-end on the deployed environment.
+- Staff demonstration workflows pass end-to-end on the deployed environment.
 - The single AR model loads and fails gracefully on unsupported devices or products.
-- Enabled SMS/email paths are verified using team-owned accounts.
+- Phone/SMS paths remain unavailable; any enabled staff email path is verified using team-owned accounts.
 - Uptime checks, error notification, daily backup, and the one-month expiry reminder are active.
 
-### Gate 4 — Pilot Closure
+### Gate 4 — Demo Closure
 
 - Public access ends on October 7, 2026 unless an extension was approved before that date.
-- The approved de-identified research export is verified.
+- Any synthetic demonstration export is verified.
 - Credentials and billable resources are revoked or removed.
 - Identifiable records and provider backups follow the approved deletion/retention procedure.
 
 ## Success Criteria
 
-The system is pilot-ready when all of the following are evidenced:
+The system is demo-ready when all of the following are evidenced:
 
-1. Security and launch-critical Pest tests pass on the deployed runtime versions, and any unrelated deferred test is documented with evidence that it cannot affect pilot workflows.
+1. Security and launch-critical Pest tests pass on the deployed runtime versions, and any unrelated deferred test is documented with evidence that it cannot affect demo workflows.
 2. Composer and npm audits have no unmitigated critical/high finding affecting an internet-exposed path.
 3. The frontend build and Laravel/Filament deployment caches succeed from a clean checkout.
 4. Deployment preflight rejects unsafe critical configuration and never exposes secret values.
-5. Invited participants can authenticate without a fake OTP or public bypass and can complete only the approved study workflows.
-6. Participant authentication succeeds without collecting a phone number or email address, and disabling the pilot configuration makes the participant-login operation unavailable.
+5. Participant-code, phone registration/login, OTP, recovery, and invitation operations are unavailable in the deployed demo environment.
+6. No pilot participant accounts, credentials, consent records, or research events exist in the demo database.
 7. A fresh environment migrates, receives only reference and synthetic demonstration data, and provisions an MFA-protected administrator.
 8. The one supported AR model works on a supported test device; all other frames/devices show a clear non-AR fallback.
 9. Collected data and private files remain authorized and persistent across a redeploy.
-10. Uptime and unhandled errors notify the technical owner, with queue/SMS failures visible when those systems are enabled.
-11. Daily backup, restore, application rollback, de-identified export, and teardown procedures are verified.
-12. The application and participant-facing materials state that this is a capstone prototype and not a clinical service.
+10. Uptime and unhandled errors notify the technical owner, with queue failures visible when enabled.
+11. Daily backup, restore, application rollback, synthetic export (if used), and teardown procedures are verified.
+12. The application and demonstration materials state that this is a capstone prototype and not a clinical service.
 
 ## Open Questions
 
-1. What exact participant fields and events are needed for the capstone analysis, and what consent/ethics procedure applies?
-2. Which managed hosting provider and one-month spending cap will be used?
-3. Who is the technical owner and who approves the final de-identified research export?
-4. Which identifiable fields must be deleted at teardown, and how long may de-identified results be retained?
+1. Which managed hosting provider and one-month spending cap will be used?
+2. Who is the technical owner for deploys, alerts, rollback, and teardown?
+3. Which synthetic demo records and assets must be retained until teardown?
+4. Which single validated/published AR model will be demonstrated?
 
 ## Deferred Decision Records
 
@@ -426,4 +436,4 @@ After the owner approves this specification and the short provider evaluations a
 
 No provider is selected by this specification.
 
-Participant-code authentication is recorded in [ADR-004](../decisions/004-use-temporary-participant-code-authentication-for-capstone-pilot.md).
+The participant-code authentication history is recorded in [ADR-004](../decisions/004-use-temporary-participant-code-authentication-for-capstone-pilot.md) and is dormant for this demo-only scope. The current scope decision is recorded in [ADR-005](../decisions/005-use-staff-only-demo-deployment-for-capstone.md).

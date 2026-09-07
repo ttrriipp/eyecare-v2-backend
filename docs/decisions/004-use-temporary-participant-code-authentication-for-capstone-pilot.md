@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted as historical future-study guidance; superseded for the current
+staff-only demo by [ADR-005](005-use-staff-only-demo-deployment-for-capstone.md).
 
 ## Date
 
