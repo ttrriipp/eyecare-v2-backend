@@ -23,7 +23,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at', 'last_login_at', 'is_active', 'must_change_password', 'password_changed_at'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'active_session_hash', 'active_session_last_seen_at'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 {
     /** @use HasFactory<UserFactory> */
@@ -183,6 +183,21 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
     }
 
     /**
+     * Check whether this account requires a single active panel session.
+     */
+    public function requiresSingleSession(): bool
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains('name', Role::Admin)
+                && $this->roles->contains('name', Role::Optometrist);
+        }
+
+        return $this->roles()
+            ->whereIn('name', [Role::Admin, Role::Optometrist])
+            ->count() === 2;
+    }
+
+    /**
      * Check if the user has the staff role.
      */
     public function isStaff(): bool
@@ -284,6 +299,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
             'password' => 'hashed',
             'privacy_acknowledged_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'active_session_last_seen_at' => 'datetime',
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'password_changed_at' => 'datetime',

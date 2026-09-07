@@ -11,6 +11,7 @@ use App\Filament\Widgets\OtherIssuesWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Filament\Widgets\TodaysScheduleWidget;
 use App\Http\Middleware\EnsurePasswordIsChanged;
+use App\Http\Middleware\EnsureSingleSession;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -93,7 +94,11 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnsureSingleSession::class,
                 EnsurePasswordIsChanged::class,
+            ])
+            ->persistentMiddleware([
+                EnsureSingleSession::class,
             ]);
     }
 }

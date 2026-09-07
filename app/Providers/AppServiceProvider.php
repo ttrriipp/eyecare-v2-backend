@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\RecordAuthenticationAudit;
+use App\Listeners\ReleaseSingleSession;
 use App\Models\Brand;
 use App\Models\LensCategory;
 use App\Models\LensOption;
@@ -79,6 +80,7 @@ class AppServiceProvider extends ServiceProvider
             : Password::min(8));
 
         Event::listen(Login::class, [RecordAuthenticationAudit::class, 'handleLogin']);
+        Event::listen(Logout::class, [ReleaseSingleSession::class, 'handle']);
         Event::listen(Logout::class, [RecordAuthenticationAudit::class, 'handleLogout']);
         Event::listen(Failed::class, [RecordAuthenticationAudit::class, 'handleFailed']);
     }

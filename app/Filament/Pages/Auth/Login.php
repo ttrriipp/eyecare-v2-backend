@@ -2,16 +2,52 @@
 
 namespace App\Filament\Pages\Auth;
 
+use App\Models\User;
+use App\Services\SingleSessionManager;
+use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login as BaseLogin;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Component;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class Login extends BaseLogin
 {
     protected static string $layout = 'filament.components.layouts.login';
+
+    public function authenticate(): ?LoginResponse
+    {
+        $currentUser = Filament::auth()->user();
+
+        if ($currentUser instanceof User && $currentUser->requiresSingleSession()) {
+            throw ValidationException::withMessages([
+                'data.email' => 'This account is already signed in on another browser or device.',
+            ]);
+        }
+
+        $response = parent::authenticate();
+
+        if ($response === null) {
+            return null;
+        }
+
+        $user = Filament::auth()->user();
+
+        if ($user instanceof User && ! app(SingleSessionManager::class)->claim($user, session()->getId())) {
+            Filament::auth()->logout();
+            session()->invalidate();
+            session()->regenerateToken();
+
+            throw ValidationException::withMessages([
+                'data.email' => 'This account is already signed in on another browser or device.',
+            ]);
+        }
+
+        return $response;
+    }
 
     protected function getEmailFormComponent(): Component
     {
