@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
+use App\Exceptions\AppointmentRescheduleRequestStateException;
 use App\Exceptions\OtpRateLimitReached;
 use App\Http\Middleware\ConfigureTrustedProxies;
 use App\Http\Middleware\RejectPhoneAuthenticationDuringPilot;
@@ -61,6 +62,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     'code' => 'ACTIVE_REQUEST_LIMIT_REACHED',
                     'message' => $exception->getMessage(),
                     'max_active_requests' => $exception->maxActiveRequests,
+                ],
+            ], 422);
+        });
+
+        $exceptions->render(function (AppointmentRescheduleRequestStateException $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => $exception->errorCode,
+                    'message' => $exception->getMessage(),
                 ],
             ], 422);
         });

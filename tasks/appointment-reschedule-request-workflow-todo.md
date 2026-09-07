@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Task 1 complete
+**Status:** Approved by the user on 2026-09-07; Tasks 1-2 complete
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -63,17 +63,17 @@ application code may change under the task and checkpoint rules below.
 
 **Acceptance:**
 
-- [ ] Lock the appointment and validate linked ownership, future scheduled
+- [x] Lock the appointment and validate linked ownership, future scheduled
       state, original snapshot, preferences, availability, and expiry.
-- [ ] Enforce one effective pending request under repeated or concurrent
+- [x] Enforce one effective pending request under repeated or concurrent
       attempts.
-- [ ] Return stable state errors and create no request, audit, or notification
+- [x] Return stable state errors and create no request, audit, or notification
       after a failed submission.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/SubmitAppointmentRescheduleRequestTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/SubmitAppointmentRescheduleRequestTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 1
 
