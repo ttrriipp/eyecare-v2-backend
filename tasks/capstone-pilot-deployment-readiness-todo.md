@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Scope amended on 2026-09-07 — Tasks 1–13 and demo-only scope gate complete; Checkpoints A–C complete
+**Status:** Scope amended on 2026-09-07 — Tasks 1–13, demo-only scope gate, and Task 15 complete; Checkpoints A–C complete
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -80,11 +80,11 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 3: External Launch Gates
 
-- [ ] Scope amendment — deploy staff-only/demo-only mode with no participant
+- [x] Scope amendment — deploy staff-only/demo-only mode with no participant
       accounts or participant/phone/SMS authentication.
 - [ ] Task 14 — select hosting after budget approval; record ADR/runbook and
       provision the isolated environment.
-- [ ] Task 15 — verify participant mode is omitted from the demo release and
+- [x] Task 15 — verify participant mode is omitted from the demo release and
       all participant/phone/SMS authentication paths remain unavailable.
 - [ ] Task 16 — freeze demo records, owner, retention, and AR choice; rehearse
       every deployed workflow and recovery procedure.
@@ -108,7 +108,7 @@ criteria, files, risks, and verification are in the plan.
 - [ ] Select a managed host and approve the one-month spending cap.
 - [ ] Name the technical operator.
 - [ ] Approve synthetic demo-data deletion timing and retention.
-- [ ] Select the single validated/published AR model used for the pilot.
+- [ ] Select the single validated/published AR model used for the demo.
 
 ## Evidence Log
 
@@ -307,6 +307,15 @@ criteria, files, risks, and verification are in the plan.
   remaining work is the demo-only scope gate and external launch gating:
   hosting, named technical owner, synthetic-data retention/deletion policy,
   and the selected AR model before Checkpoint D.
+- 2026-09-07 demo-only scope gate: added `DEPLOYMENT_MODE=demo`, which fails
+  closed unless `CAPSTONE_PILOT_ENABLED=false`, no participant accounts exist,
+  participant login is unavailable, and every phone/SMS route remains gated.
+  The focused preflight run passed 34 tests/72 assertions and the route/auth
+  run passed 17 tests/130 assertions. Pint passed. Commit `dc37fbbc`.
+- 2026-09-07 post-scope full regression: a clean Sail Pest run passed 2,072
+  tests and 8,794 assertions. Composer validation/audit, npm audit, production
+  build, optimize/cache rehearsal, readiness route, and scheduler inventory
+  all passed.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,

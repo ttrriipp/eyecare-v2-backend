@@ -59,10 +59,17 @@ The planning audit on 2026-09-06 established:
   scenario data. It is not an acceptable public-pilot bootstrap path.
 - There is no secure, tested production administrator bootstrap command.
 
-High or critical advisories affecting an exposed pilot path are release
-blockers. A public launch on September 7 is conditional on upgrades, the
-external Android change, provider provisioning, and all launch gates passing;
-the date is a target, not permission to bypass a gate.
+High or critical advisories affecting an exposed demo path are release
+blockers. A public launch on September 7 is conditional on upgrades, provider
+provisioning, and all launch gates passing; the date is a target, not
+permission to bypass a gate.
+
+The backend implementation subsequently closed Checkpoints A–C: the clean
+Sail regression run passed 2,072 tests and 8,794 assertions, dependency/build
+gates passed, and the pilot implementation is now dormant under the accepted
+staff-only demo scope. The demo-only gate was verified by the focused
+preflight run (34 tests/72 assertions) and route/auth run (17 tests/130
+assertions); commit `dc37fbbc` records the code change.
 
 ## Recommended Defaults for Open Decisions
 
@@ -297,10 +304,10 @@ the pilot release gates in deterministic order.
 
 #### Checkpoint A: Supply-chain and regression floor
 
-- [ ] A fresh baseline is recorded and all pilot-critical failures are fixed.
-- [ ] Composer and npm high/critical release gates pass.
-- [ ] Production assets build from a clean install.
-- [ ] Runtime-aligned CI is green.
+- [x] A fresh baseline is recorded and all pilot-critical failures are fixed.
+- [x] Composer and npm high/critical release gates pass.
+- [x] Production assets build from a clean install.
+- [x] Runtime-aligned CI is green.
 
 ### Phase 1: Participant-code access vertical slice
 
@@ -584,13 +591,13 @@ readiness authorization/failure behavior.
 
 #### Checkpoint C: Provider-neutral backend ready
 
-- [ ] Pilot participant auth, lifecycle, bootstrap, storage, and preflight
+- [x] Pilot participant auth, lifecycle, bootstrap, storage, and preflight
       focused suites pass.
-- [ ] Fresh migration and pilot seeding work without default demo/scenario
+- [x] Fresh migration and pilot seeding work without default demo/scenario
       accounts.
-- [ ] One existing validated/published AR model can be selected.
-- [ ] Full Pest, Pint, frontend build, audits, caches, route checks, and CI pass.
-- [ ] No host or SMS provider SDK is embedded in domain/application code.
+- [x] One existing validated/published AR model can be selected.
+- [x] Full Pest, Pint, frontend build, audits, caches, route checks, and CI pass.
+- [x] No host or SMS provider SDK is embedded in domain/application code.
 
 ### Phase 3: Resolve external launch gates
 
@@ -643,8 +650,8 @@ unavailable.
 - Staff demonstrations use the Filament panel and any explicitly approved
   team-controlled device flow with synthetic data.
 
-**Verification:** Android unit/UI tests plus a release-build device smoke test
-against the staging pilot environment.
+**Verification:** Route/preflight Pest tests plus a staff/demo smoke test
+against the staging demo environment; no participant Android build is required.
 
 **Dependencies:** Checkpoint C and Task 14 for an end-to-end environment.
 
@@ -670,7 +677,7 @@ decisions and prove every enabled staff/demo workflow before public access.
   patient or participant data is present.
 
 **Verification:** Signed launch checklist with test evidence, controlled device
-smoke test, restored-environment comparison, sample de-identified export, and
+smoke test, restored-environment comparison, synthetic export (if used), and
 teardown rehearsal.
 
 **Dependencies:** Tasks 14 and 15 plus resolved owner/retention decisions.
@@ -708,7 +715,7 @@ synthetic-data teardown procedure.
   billable resources are disabled or deleted according to the approved policy,
   with provider deletion state recorded.
 
-**Verification:** Daily operational evidence during the pilot and a signed
+**Verification:** Daily operational evidence during the demo and a signed
 closure record showing export verification, revocation, deletion/retention,
 and billing shutdown.
 
@@ -759,24 +766,22 @@ environment and explicit operator authorization.
   them in preflight.
 - No public environment is created before Checkpoint C and the Task 14 hosting
   approval.
-- Android work may begin against the stable local API after Checkpoint B, but
-  deployed end-to-end acceptance waits for Task 14.
+- No participant Android work is required; staff/demo end-to-end acceptance
+  waits for Task 14.
 - Checkpoint D is a hard go/no-go. A calendar deadline does not waive it.
 
 ## Rollback and Data Safety
 
 - Dependency groups and each checkpoint land as separate reviewable changes so
   the last green revision remains identifiable.
-- Before participant data exists, application rollback may revert code and
+- Before any external demo data exists, application rollback may revert code and
   schema together using the rehearsed clean bootstrap.
-- After participant data exists, destructive migration rollback is prohibited;
+- After any external data exists, destructive migration rollback is prohibited;
   restore the prior application artifact only if schema-compatible, otherwise
   restore the last verified encrypted backup in an isolated recovery process.
-- Participant provisioning is transactional and rerun-safe. Credential files
-  are never regenerated over an existing manifest.
-- Revocation is recoverable only by an explicit new credential issuance before
-  teardown. Deletion of production data/backups follows the approved policy and
-  provider procedure, never an unscoped shell command.
+- Participant provisioning remains dormant and is not run for the demo.
+  Deletion of demo data/backups follows the approved policy and provider
+  procedure, never an unscoped shell command.
 
 ## Approval Gate
 
