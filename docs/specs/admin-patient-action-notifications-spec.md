@@ -2,7 +2,8 @@
 
 ## Status
 
-Approved in conversation on 2026-09-06.
+Approved in conversation on 2026-09-06. The admin notification contract shipped
+with the appointment reschedule-request workflow on 2026-09-08.
 
 This specification supersedes only the patient-originated database-notification
 events in `docs/specs/notifications-and-search-spec.md`. Its global-search rules
@@ -28,7 +29,8 @@ emit an alert.
 | Submits a patient-link request | New Patient Link Request | info | Patient-link request review |
 | Sends a conversation message | New Message | info | Conversation inbox |
 | Cancels a confirmed appointment | Appointment Cancelled by Patient | warning | Appointment edit page |
-| Reschedules a confirmed appointment | Appointment Rescheduled by Patient | warning | Appointment edit page |
+| Submits an appointment reschedule request | Appointment Reschedule Requested | info | Reschedule-request review page |
+| Withdraws an appointment reschedule request | Appointment Reschedule Request Withdrawn | info | Reschedule-request details |
 | Creates or materially revises a 1-2 star visit rating | Low Visit Rating | danger | Visit rating details |
 | Creates or materially revises a 1-2 star frame rating | Low Frame Rating | danger | Frame rating edit page |
 
@@ -39,6 +41,22 @@ operational roles.
 Low-rating alerts are emitted for a new 1-2 star rating or when the rating or
 comment of an existing low rating changes. Identical retries do not create
 another alert. Ratings of 3-5 stars do not create bell alerts.
+
+### Patient-facing reschedule outcomes
+
+The reschedule-request workflow has a separate patient notification contract:
+
+- Approval sends the existing `AppointmentRescheduled` database notification
+  and an `appointment_rescheduled` queued SMS record after the appointment and
+  immutable history commit.
+- Rejection sends a database notification and queued SMS containing only the
+  staff-entered patient-safe rejection reason and the original appointment
+  time.
+- Automatic expiry sends the database notification only.
+- Withdrawal sends no patient-facing outcome notification; it may create the
+  informational admin withdrawal alert above.
+
+Encrypted patient `reason_details` is never copied into any of these payloads.
 
 ## Delivery and Failure Rules
 
@@ -52,7 +70,10 @@ another alert. Ratings of 3-5 stars do not create bell alerts.
   and opens the relevant Filament destination.
 - Repeating the idempotent patient-link request submission must not notify staff
   again for the already-pending request.
-- API request and response contracts remain unchanged.
+- Admin alert payloads remain separate from the mobile notification-feed
+  contract. The coordinated mobile cutover removes immediate patient
+  rescheduling and adds the request routes documented in the appointment
+  reschedule workflow specification.
 - Existing patient-facing appointment and message notifications remain intact.
 
 ## Excluded Activity
@@ -139,7 +160,7 @@ Pest feature coverage must prove:
 
 ## Success Criteria
 
-1. The eight approved event types create actionable admin database
+1. The nine approved event types create actionable admin database
    notifications.
 2. Recipient filtering and low-rating noise controls match this specification.
 3. Notifications are queue-safe and transaction-safe.

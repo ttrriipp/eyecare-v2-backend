@@ -2,8 +2,9 @@
 
 ## Status
 
-Approved by the user on 2026-09-07. Implementation remains gated on approval
-of the dependency-ordered plan and task checklist.
+Approved by the user on 2026-09-07. Backend implementation and canonical
+documentation shipped on 2026-09-08; Tasks 1–15 are complete and the remaining
+Android work is external to this repository.
 
 This specification replaces immediate patient self-rescheduling with a
 staff-reviewed request workflow. It supersedes the patient-originated confirmed
@@ -217,6 +218,10 @@ New state failures use the API's machine-readable error envelope:
 | `APPOINTMENT_NOT_RESCHEDULABLE` | 422 | Appointment is not future and scheduled |
 | `RESCHEDULE_REQUEST_ALREADY_PENDING` | 422 | Appointment already has an effective pending request |
 | `RESCHEDULE_REQUEST_NOT_CANCELLABLE` | 422 | Patient attempted to withdraw a terminal request |
+| `RESCHEDULE_REQUEST_NOT_APPROVABLE` | 422 | Staff attempted to approve a terminal or conflicting request |
+| `RESCHEDULE_REQUEST_NOT_REJECTABLE` | 422 | Staff attempted to reject a terminal or stale request |
+| `RESCHEDULE_REQUEST_SELECTION_INVALID` | 422 | Staff selected a time the patient did not submit |
+| `RESCHEDULE_REQUEST_STALE` | 422 | The appointment changed before approval |
 | `SLOT_UNAVAILABLE` | 422 | A submitted time is invalid or unavailable at submission |
 
 Validation errors for malformed fields retain Laravel's validation envelope.
@@ -275,6 +280,23 @@ row.
 - Update `docs/API_CONTRACT.md`, `docs/BACKEND_CONTEXT.md`, route contract tests,
   and the admin patient-action notification specification when implementation
   ships.
+
+### Android handoff (external repository)
+
+The Android client must ship after this backend deployment and:
+
+- replace the immediate **Reschedule** action with **Request reschedule**;
+- call `POST /appointments/{id}/reschedule-requests` and consume the request
+  resource plus `pending_reschedule_request` appointment projection;
+- show the original appointment as still active while a request is pending;
+- expose request history/detail and **Withdraw request** using the three
+  `appointment-reschedule-requests` routes; and
+- handle `pending`, `approved`, `rejected`, `cancelled`, and `expired` states,
+  including the stable error codes above.
+
+No Android source files are changed by this backend task. The removed
+`POST /appointments/{id}/reschedule` route must not be called by a released
+client.
 
 ## Tech Stack and Commands
 

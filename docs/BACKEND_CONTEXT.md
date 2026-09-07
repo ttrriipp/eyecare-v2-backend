@@ -24,12 +24,14 @@
 > aggregate Financial, Appointments, Optical Orders, and Feedback pages with
 > shared clinic-timezone filters and safe CSV exports.
 
-> **Shipped (2026-09-07): patient-action admin database notifications.** Eight
+> **Shipped (2026-09-07): patient-action admin database notifications.** Nine
 > operational patient events now create queued, after-commit Filament bell
-> alerts: appointment-request submission and cancellation, patient-link-request
-> submission, patient conversation messages, confirmed-appointment cancellation
-> and rescheduling, and new or materially revised 1–2 star visit and frame
-> ratings. `NotifyAdminUsers` sends only to active users with `staff` or `admin`
+> alerts: appointment-request submission and cancellation, reschedule-request
+> submission and withdrawal, patient-link-request submission, patient
+> conversation messages, confirmed-appointment cancellation, and new or
+> materially revised 1–2 star visit and frame ratings. The former patient
+> immediate-reschedule alert is retired with that route. `NotifyAdminUsers`
+> sends only to active users with `staff` or `admin`
 > roles; optometrist-only and inactive accounts are excluded. Every alert has a
 > mark-as-read **View** action to the relevant admin screen. Repeated pending
 > link requests and identical low-rating retries are deduplicated, while
@@ -38,6 +40,29 @@
 > patient API response, and notification bodies omit medical reasons, identity
 > snapshots, message content, and rating comments. The approved contract is in
 > `docs/specs/admin-patient-action-notifications-spec.md`.
+
+> **Shipped (2026-09-08): patient appointment reschedule requests.** The
+> `appointment_reschedule_requests` lifecycle is staff-reviewed and
+> non-binding until approval. `SubmitAppointmentRescheduleRequest` locks the
+> appointment, snapshots its current time, validates one preferred time plus up
+> to two alternatives, and persists encrypted patient context without changing
+> the appointment or holding capacity. `WithdrawAppointmentRescheduleRequest`
+> lets the owning patient cancel an effective pending request. Filament's
+> `AppointmentRescheduleRequestResource` queue/detail page exposes active staff
+> and admin review; `ApproveAppointmentRescheduleRequest` revalidates the
+> submitted selection and availability under deterministic schedule locks,
+> commits through `CommitAppointmentReschedule`, and is replay-safe. Reject and
+> expiry transitions leave the appointment unchanged. Expiry runs through the
+> scheduled `ExpireAppointmentRescheduleRequests` action.
+>
+> Approval sends the existing patient `AppointmentRescheduled` database
+> notification and an `appointment_rescheduled` queued SMS record only after
+> commit. Rejection sends `AppointmentRescheduleRequestStatusChanged` plus a
+> safe-reason SMS; expiry sends the database notification only. Patient
+> `reason_details` never appears in notifications, SMS, audit metadata, or
+> admin badges. The old patient `POST /api/v1/appointments/{id}/reschedule`
+> route and form request are removed; the internal `RescheduleAppointment`
+> action remains for Filament clinic rescheduling.
 
 > **Reconciled (2026-09-07): appointment-request cancellation and active
 > limit.** `POST /api/v1/appointment-requests` allows at most two active
@@ -353,6 +378,13 @@ keeping the domain actions as the server-side source of truth:
   preferences requires a contact note. Provider assignment and consultation
   start use the actor/self-claim rules; rescheduling controls use the
   15-minute start grid.
+- **Appointment reschedule requests.** `AppointmentRescheduleRequestResource`
+  provides a staff/admin queue and read-only detail page with original and
+  submitted times, effective status, and current availability. Active staff
+  and admins can approve one submitted choice or reject with a required
+  patient-safe reason; terminal, stale, or expired requests expose no review
+  actions. Approval uses the same locked direct-reschedule commit and creates
+  one immutable history row.
 - **Encounters and prescriptions.** Encounter list and edit actions enforce
   planned/in-progress ownership and role boundaries through the assignment
   and start actions. Optometrists can reach the quotation flow and add
@@ -703,6 +735,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
+| `appointment_reschedule_requests` | Staff-reviewed pending reschedule intent. `request_number`, `appointment_id`, `user_id`, `patient_id`, original `current_scheduled_at`, preferred `requested_scheduled_at`, up to two `alternative_scheduled_times`, encrypted `encrypted_reason_details`, enum `status` (`pending`, `approved`, `rejected`, `cancelled`, `expired`), `selected_scheduled_at`, `resolved_by_user_id`, `resolved_at`, patient-safe `rejection_reason`, `expires_at`, and nullable `appointment_reschedule_id`. Pending rows never reserve capacity; effective pending state also checks expiry, appointment status/time, and the original snapshot. Terminal rows remain historical. |
 | `encounters` | `patient_id`, `appointment_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled/voided), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
 | `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
@@ -978,7 +1011,10 @@ GET    /api/v1/appointment-availability
 GET    /api/v1/appointments
 GET    /api/v1/appointments/{id}
 POST   /api/v1/appointments/{id}/cancel
-POST   /api/v1/appointments/{id}/reschedule
+POST   /api/v1/appointments/{id}/reschedule-requests
+GET    /api/v1/appointment-reschedule-requests
+GET    /api/v1/appointment-reschedule-requests/{id}
+POST   /api/v1/appointment-reschedule-requests/{id}/cancel
 POST   /api/v1/appointments/{id}/rating
 GET    /api/v1/prescriptions
 GET    /api/v1/prescriptions/{id}
@@ -987,7 +1023,9 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**
+**Route count:** `vendor/bin/sail artisan route:list --path=api/v1
+--except-vendor` reports 63 versioned route entries; the exact method/path set
+is locked by `tests/Feature/Api/V1/RouteContractTest.php`.
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1051,7 +1089,14 @@ orders, billings, checkout records, or purchases.
 | `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Creates scheduled appointment with final provider, type, duration, and start under schedule-date lock with deadlock retries; enforces referral and outside-preference contact note rules; idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests |
+| `SubmitAppointmentRescheduleRequest` | `app/Actions/Appointments/` | Locks a confirmed appointment, validates submitted choices, snapshots the original time, persists encrypted patient context, and emits the after-commit admin request alert without reserving capacity |
+| `WithdrawAppointmentRescheduleRequest` | `app/Actions/Appointments/` | Authenticates ownership, changes an effective pending request to `cancelled`, audits it, and emits the after-commit admin withdrawal alert |
+| `CommitAppointmentReschedule` | `app/Actions/Appointments/` | Shared locked schedule mutation that updates the appointment and creates immutable reschedule history for clinic or approved patient changes |
+| `ApproveAppointmentRescheduleRequest` | `app/Actions/Appointments/` | Locks request/appointment, revalidates snapshot, submitted selection, and availability, commits one history row, and suppresses duplicate patient delivery on replay |
+| `RejectAppointmentRescheduleRequest` | `app/Actions/Appointments/` | Requires an active staff/admin reviewer and patient-safe reason, closes a pending request without changing the appointment, and notifies the patient after commit |
+| `ExpireAppointmentRescheduleRequests` | `app/Actions/Appointments/` | Scheduled, lock-protected expiry of stale pending requests with one patient database notification and no SMS |
 | `NotifyAdminUsers` | `app/Actions/Notifications/` | Selects active staff/admin recipients and dispatches queued, after-commit, Filament-compatible database alerts for approved patient-originated events without failing the completed patient mutation |
+| `NotifyPatientAppointmentRescheduleRequest` | `app/Actions/Notifications/` | Defers approval/rejection/expiry patient delivery until commit, creates SMS records only for approval/rejection (never expiry), and catches delivery failures without duplicating state transitions |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
 | `UpdateClinicHours` | `app/Actions/Appointments/` | Updates the weekly `clinic_hours` schedule, audit-logged |
 | `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |

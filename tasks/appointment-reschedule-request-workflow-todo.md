@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-14 complete; Checkpoints A-B passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-15 complete; Checkpoints A-C passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -336,12 +336,13 @@ action, shared patient notifier, outcome notification test (6)
 
 ### Checkpoint C: Complete staff and patient workflow
 
-- [ ] Tasks 10-13 focused suites pass.
-- [ ] Staff can find, review, approve, and reject requests in Filament.
-- [ ] Admin and patient notifications match approved transitions and recipients.
-- [ ] Patient free text is absent from notification and audit payloads.
-- [ ] Failed or replayed transitions produce no duplicate effects.
-- [ ] Pint is clean.
+- [x] Tasks 10-13 focused suites pass (resource, review actions, admin alerts,
+      and patient outcomes are green).
+- [x] Staff can find, review, approve, and reject requests in Filament.
+- [x] Admin and patient notifications match approved transitions and recipients.
+- [x] Patient free text is absent from notification and audit payloads.
+- [x] Failed or replayed transitions produce no duplicate effects.
+- [x] Pint is clean.
 
 ---
 
@@ -373,18 +374,20 @@ contract test (4)
 
 **Acceptance:**
 
-- [ ] API documentation contains the new routes, examples, statuses, errors,
+- [x] API documentation contains the new routes, examples, statuses, errors,
       and removed endpoint.
-- [ ] Backend context records the schema, actions, expiry, Filament resource,
+- [x] Backend context records the schema, actions, expiry, Filament resource,
       notifications, and route count.
-- [ ] Both feature specifications state final shipped behavior and identify
+- [x] Both feature specifications state final shipped behavior and identify
       external Android work clearly.
 
 **Verify:**
 
-- [ ] `git diff --check -- docs tasks`
-- [ ] Documented routes match the Sail route list.
-- [ ] Documented error payloads match focused API assertions.
+- [x] `git diff --check -- docs tasks`
+- [x] Documented routes match the Sail route list (63 versioned entries; the
+      retired immediate route is absent).
+- [x] Documented error payloads match focused API assertions and the stable
+      state exception codes.
 
 **Dependencies:** Task 14
 
