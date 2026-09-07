@@ -46,6 +46,18 @@ test('table shows request number and status', function () {
         ->assertSuccessful();
 });
 
+test('request queue does not show the referral column', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->create([
+        'encrypted_referring_source' => 'Dr. Smith',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertTableColumnDoesNotExist('encrypted_referring_source');
+});
+
 test('request queue does not expose a quick accept action', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->create([
@@ -136,8 +148,7 @@ test('request queue shows scheduling context', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListAppointmentRequests::class)
-        ->assertSee('Vision Review')
-        ->assertSee('Not requested');
+        ->assertSee('Vision Review');
 });
 
 test('pending requests appear before resolved requests in the default queue order', function () {

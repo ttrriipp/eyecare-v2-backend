@@ -20,6 +20,41 @@ pest()->extend(TestCase::class)
 
 /*
 |--------------------------------------------------------------------------
+| Critical regression suite
+|--------------------------------------------------------------------------
+|
+| Keep this bounded set for fast day-to-day verification. The default test
+| command still runs the complete suite, including tests outside this group.
+|
+*/
+pest()->group('critical')->in(
+    'Feature/Auth/IssueOtpChallengeTest.php',
+    'Feature/Auth/VerifyOtpChallengeTest.php',
+    'Feature/Auth/DeliverOtpChallengeTest.php',
+    'Feature/Security/RoleAssignmentTest.php',
+    'Feature/Api/V1/PatientRegistrationTest.php',
+    'Feature/Api/V1/PatientLoginTest.php',
+    'Feature/Api/V1/PatientContactTest.php',
+    'Feature/Api/V1/PatientPasswordRecoveryTest.php',
+    'Feature/Api/V1/SubmitAppointmentRequestTest.php',
+    'Feature/Api/V1/AppointmentRequestOwnershipTest.php',
+    'Feature/Appointments/ReviewAppointmentRequestTest.php',
+    'Feature/Appointments/SchedulingCharacterizationTest.php',
+    'Feature/Encounters/EncounterLifecycleCharacterizationTest.php',
+    'Feature/Encounters/CompleteEncounterTest.php',
+    'Feature/Encounters/EncounterCheckInTest.php',
+    'Feature/Encounters/EncounterClinicalFieldsTest.php',
+    'Feature/BillingRecords/PaymentLifecycleTest.php',
+    'Feature/BillingRecords/PaymentAndDispensingCharacterizationTest.php',
+    'Feature/Quotations/CreateQuotationTest.php',
+    'Feature/Quotations/ValidateOpticalQuotationTest.php',
+    'Feature/OpticalOrders/AcceptAndStartOpticalOrderTest.php',
+    'Feature/ProductCatalogTaxonomyTest.php',
+    'Feature/Filament/AppointmentRequestResourceTest.php',
+);
+
+/*
+|--------------------------------------------------------------------------
 | Expectations
 |--------------------------------------------------------------------------
 |

@@ -56,11 +56,6 @@ class AppointmentRequestsTable
                     ->label('Type')
                     ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
 
-                TextColumn::make('encrypted_referring_source')
-                    ->label('Referral')
-                    ->placeholder('Not requested')
-                    ->color(fn (?string $state): ?string => $state === null ? 'gray' : null),
-
                 ViewColumn::make('scheduled_at')
                     ->label('Preferred Times')
                     ->view('filament.tables.columns.appointment-request-preferred-times')
