@@ -1,6 +1,16 @@
 # Active Checklist
 
-**Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
+**Patient Appointment Reschedule Requests** — checklist approved 2026-09-07
+
+→ `tasks/appointment-reschedule-request-workflow-todo.md`
+
+The specification, dependency-ordered plan, and sixteen-task execution
+checklist are approved. Implementation begins with Task 1 and pauses for
+checkpoint review.
+
+The previous active checklist remains:
+
+**Capstone Pilot Deployment Readiness** — plan approved 2026-09-06
 
 → `tasks/capstone-pilot-deployment-readiness-todo.md`
 

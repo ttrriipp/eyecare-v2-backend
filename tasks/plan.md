@@ -9,6 +9,22 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Patient Appointment Reschedule Requests** — checklist approved 2026-09-07
+
+- Spec: `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
+  2026-09-07)
+- Plan: `tasks/appointment-reschedule-request-workflow-plan.md` (approved
+  2026-09-07)
+- Checklist: `tasks/appointment-reschedule-request-workflow-todo.md` (approved
+  2026-09-07; implementation pending)
+
+The approved design keeps the original appointment confirmed while a patient
+request is pending, does not hold requested capacity, and lets staff approve
+only a submitted time after a locked availability recheck. Implementation is
+starting with Task 1 and will pause for review at each checkpoint.
+
+## Previous active entry (preserved)
+
 **Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
 
 - Spec: `docs/specs/capstone-pilot-deployment-readiness-spec.md` (approved
@@ -25,7 +41,7 @@ remains gated by hosting, the approved study-data allowlist, named technical
 and research-data owners, retention/deletion rules, the external Android
 participant-login change, and all security/rehearsal checks.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Reports Feature** — implemented and verified 2026-08-30
 
