@@ -26,7 +26,11 @@ class ServiceForm
                         TextInput::make('price')
                             ->required()
                             ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->rules(['decimal:0,2'])
                             ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'service-price-input'])
                             ->helperText('Default price when this service is billed or quoted.'),
                         Textarea::make('description')
                             ->columnSpanFull(),

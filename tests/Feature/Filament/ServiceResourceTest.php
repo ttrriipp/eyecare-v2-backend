@@ -50,6 +50,43 @@ test('admin can create a service', function () {
     expect(Service::query()->where('name', 'Comprehensive Eye Exam')->exists())->toBeTrue();
 });
 
+test('service prices reject negative values and accept decimals', function () {
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    Livewire::test(CreateService::class)
+        ->fillForm([
+            'name' => 'Negative Price Service',
+            'price' => -0.01,
+            'is_active' => true,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['price' => 'min']);
+
+    Livewire::test(CreateService::class)
+        ->fillForm([
+            'name' => 'Decimal Price Service',
+            'price' => 500.25,
+            'is_active' => true,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect((float) Service::query()->where('name', 'Decimal Price Service')->value('price'))
+        ->toBe(500.25);
+});
+
+test('service price input renders decimal constraints without spinner controls', function () {
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    expect(Livewire::test(CreateService::class)->html())
+        ->toContain('service-price-input')
+        ->toContain('min="0"')
+        ->toContain('step="0.01"')
+        ->toContain('type="number"');
+});
+
 test('admin can edit a service', function () {
     $admin = User::factory()->admin()->create();
     $service = Service::factory()->create(['price' => 500]);
