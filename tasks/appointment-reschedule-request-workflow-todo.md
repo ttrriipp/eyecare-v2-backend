@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-6 complete; Checkpoint A passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-9 complete; Checkpoint A passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -181,17 +181,17 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] Approval accepts only a submitted choice and revalidates request,
+- [x] Approval accepts only a submitted choice and revalidates request,
       appointment, original snapshot, reviewer, and schedule under locks.
-- [ ] Success updates request and appointment atomically and creates exactly one
+- [x] Success updates request and appointment atomically and creates exactly one
       linked completed-history row.
-- [ ] Conflict, stale state, or replay cannot produce duplicate movement,
+- [x] Conflict, stale state, or replay cannot produce duplicate movement,
       history, audit, or notification effects.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php --filter=approve`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php --filter=approve`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 6
 
@@ -201,16 +201,16 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] Active staff or administrators can reject an effective pending request
+- [x] Active staff or administrators can reject an effective pending request
       with a bounded, patient-safe reason.
-- [ ] Rejection stores reviewer and resolution time without changing the
+- [x] Rejection stores reviewer and resolution time without changing the
       appointment or history.
-- [ ] Unauthorized, stale, or terminal attempts create no writes.
+- [x] Unauthorized, stale, or terminal attempts create no writes.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php --filter=reject`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ReviewAppointmentRescheduleRequestTest.php --filter=reject`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 7
 
@@ -220,17 +220,17 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] Effective stale requests cannot be approved before persisted expiry.
-- [ ] The scheduled command persists expiry once, records a PII-safe audit, and
+- [x] Effective stale requests cannot be approved before persisted expiry.
+- [x] The scheduled command persists expiry once, records a PII-safe audit, and
       never changes an appointment.
-- [ ] Direct reschedule and concurrent approval resolve consistently through
+- [x] Direct reschedule and concurrent approval resolve consistently through
       snapshot checks and locks.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ExpireAppointmentRescheduleRequestsTest.php`
-- [ ] Existing `ExpireAppointmentRequestsTest` passes.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/ExpireAppointmentRescheduleRequestsTest.php`
+- [x] Existing `ExpireAppointmentRequestsTest` passes.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 7 and 8
 
