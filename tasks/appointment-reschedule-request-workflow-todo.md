@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; implementation pending
+**Status:** Approved by the user on 2026-09-07; Task 1 complete
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -41,19 +41,19 @@ application code may change under the task and checkpoint rules below.
 
 **Acceptance:**
 
-- [ ] Add the approved schema, indexes, foreign keys, status enum, model,
+- [x] Add the approved schema, indexes, foreign keys, status enum, model,
       relationships, request-number generation, and factory states.
-- [ ] Effective status consistently recognizes pending, approved, rejected,
+- [x] Effective status consistently recognizes pending, approved, rejected,
       cancelled, and expired requests.
-- [ ] Keep existing `appointment_reschedules` schema and history semantics
+- [x] Keep existing `appointment_reschedules` schema and history semantics
       unchanged.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/AppointmentRescheduleRequestModelTest.php`
-- [ ] The focused test rebuilds the schema in its isolated test database and
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Appointments/AppointmentRescheduleRequestModelTest.php`
+- [x] The focused test rebuilds the schema in its isolated test database and
       proves the migration and foreign keys apply successfully.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** None
 
