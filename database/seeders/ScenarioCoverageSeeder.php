@@ -102,17 +102,24 @@ class ScenarioCoverageSeeder extends Seeder
         );
 
         $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
-        Appointment::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'appointment_status_id' => $cancelled->id],
+        Appointment::query()->updateOrCreate(
+            ['appointment_number' => 'APT-2026-000004'],
             [
-                'appointment_number' => Appointment::generateAppointmentNumber(),
+                'patient_id' => $walkIn->id,
                 'created_by' => $staff->id,
                 'appointment_type_id' => $referralType->id,
                 'duration_minutes' => $referralType->duration_minutes,
+                'referring_source' => 'Dr. Garcia - City Hospital',
+                'source' => 'manual',
+                'appointment_status_id' => $cancelled->id,
                 'scheduled_at' => now()->addDays(5)->setTime(11, 0),
-                'cancelled_by' => 'patient',
+                'reason_for_visit' => 'Referral for persistent blurred vision and eye strain.',
+                'contact_notes' => 'Patient could not attend the original appointment slot.',
+                'cancelled_by' => 'clinic',
+                'cancelled_by_user_id' => $staff->id,
                 'cancelled_at' => now(),
                 'cancellation_reason_category' => 'schedule_conflict',
+                'cancellation_reason_details' => 'The clinic could not keep the original appointment slot.',
             ],
         );
 
@@ -279,6 +286,7 @@ class ScenarioCoverageSeeder extends Seeder
     private function seedEncounterStatuses(): void
     {
         $walkIn = $this->walkInPatient();
+        $staff = $this->staff();
         $optometrist = $this->optometrist();
 
         Encounter::query()->firstOrCreate(
@@ -311,26 +319,73 @@ class ScenarioCoverageSeeder extends Seeder
         // not just the linked-account flagship), with its own prescription,
         // so the prescription-aware retail flow isn't only demonstrated
         // once. Feeds seedQuotationStatuses()/seedJobOrderStatuses() below.
-        $secondCompletedEncounter = Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Completed],
+        $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
+        $fulfilled = AppointmentStatus::query()->where('name', 'fulfilled')->firstOrFail();
+        $scheduledAt = now()->subDays(4)->setTime(15, 0);
+        $checkedInAt = $scheduledAt->copy()->addMinutes(5);
+        $startedAt = $checkedInAt->copy()->addMinutes(10);
+        $completedAt = $startedAt->copy()->addMinutes(45);
+
+        $completedAppointment = Appointment::query()->updateOrCreate(
+            ['appointment_number' => 'APT-2026-000006'],
             [
-                'encounter_number' => 'CON-2026-000006',
+                'patient_id' => $walkIn->id,
+                'appointment_type_id' => $appointmentType->id,
+                'duration_minutes' => $appointmentType->duration_minutes,
+                'created_by' => $staff->id,
                 'optometrist_id' => $optometrist->id,
-                'started_at' => now()->subDays(4),
-                'completed_at' => now()->subDays(4)->addHour(),
+                'source' => 'walk_in',
+                'appointment_status_id' => $fulfilled->id,
+                'scheduled_at' => $scheduledAt,
+                'checked_in_at' => $checkedInAt,
+                'checked_in_by' => $staff->id,
+                'fulfilled_at' => $completedAt,
+                'reason_for_visit' => 'Blurred distance vision during evening driving and prolonged screen use.',
+                'contact_notes' => 'Walk-in patient requested an updated distance prescription.',
+                'staff_notes' => 'Review refraction results and provide updated single-vision prescription.',
             ],
         );
 
-        Prescription::query()->firstOrCreate(
+        $secondCompletedEncounter = Encounter::query()->updateOrCreate(
+            ['encounter_number' => 'CON-2026-000006'],
+            [
+                'patient_id' => $walkIn->id,
+                'appointment_id' => $completedAppointment->id,
+                'optometrist_id' => $optometrist->id,
+                'status' => EncounterStatus::Completed,
+                'started_at' => $startedAt,
+                'completed_at' => $completedAt,
+                'findings' => 'Unaided distance vision is reduced and improves with refraction. Anterior and posterior segment examinations are unremarkable in both eyes. Intraocular pressures are within normal limits.',
+                'remarks' => 'Patient advised to use the updated prescription, take regular visual breaks, and return for sudden vision changes, pain, flashes, or floaters.',
+                'chief_complaint' => 'Blurred distance vision during evening driving and prolonged screen use.',
+                'past_ocular_history' => 'Wears distance glasses; last eye examination was approximately two years ago. No previous ocular trauma reported.',
+                'past_surgical_history' => 'No previous ocular surgery reported.',
+                'past_medical_history' => 'No known systemic medical conditions reported.',
+                'allergies' => 'No known drug allergies.',
+                'medications' => 'None reported.',
+                'plan' => 'Provide an updated single-vision distance prescription. Encourage regular visual breaks and annual comprehensive eye examinations.',
+                'assessment' => 'Myopia with low astigmatism in both eyes; ocular health is unremarkable.',
+                'supporting_test_results' => 'Unaided VA: OD 20/100, OS 20/80. Best-corrected VA: OD 20/20, OS 20/20. IOP: OD 15 mmHg, OS 16 mmHg.',
+                'last_wizard_step' => 4,
+                'draft_saved_at' => $completedAt,
+                'prescription_draft' => null,
+                'completed_by' => $optometrist->id,
+            ],
+        );
+
+        Prescription::query()->updateOrCreate(
             ['patient_id' => $walkIn->id, 'encounter_id' => $secondCompletedEncounter->id],
             [
                 'prescription_number' => 'RX-2026-000002',
-                'main_od_sphere' => -1.25,
-                'main_od_cylinder' => -0.25,
-                'main_os_sphere' => -1.50,
-                'main_os_cylinder' => -0.50,
+                'appointment_id' => $completedAppointment->id,
+                'main_od_value' => '1.00',
+                'main_od_sphere' => '-1.25',
+                'main_od_cylinder' => '-0.25',
+                'main_os_value' => '1.00',
+                'main_os_sphere' => '-1.50',
+                'main_os_cylinder' => '-0.50',
                 'remarks' => 'Mild myopia with slight astigmatism. Single-vision distance lenses recommended.',
-                'prescribed_at' => now()->subDays(4)->addHour(),
+                'prescribed_at' => $completedAt,
                 'created_by' => $optometrist->id,
             ],
         );

@@ -252,14 +252,6 @@ class VariantsRelationManager extends RelationManager
                     ->placeholder('—')
                     ->tooltip(fn (ProductVariant $record): ?string => $record->publishedArAsset?->url)
                     ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
-                TextColumn::make('ar_validation_error')
-                    ->label('3D validation note')
-                    ->state(fn (ProductVariant $record): ?string => $record->latestArAsset?->validation_error)
-                    ->placeholder('—')
-                    ->limit(120)
-                    ->wrap()
-                    ->tooltip(fn (ProductVariant $record): ?string => $record->latestArAsset?->validation_error)
-                    ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
                 TextColumn::make('stock_quantity')
                     ->label('Qty')
                     ->sortable(),

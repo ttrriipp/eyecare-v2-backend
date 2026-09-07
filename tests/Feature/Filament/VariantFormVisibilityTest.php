@@ -31,7 +31,8 @@ test('frame dimensions table column shows for frame products', function () {
             'ownerRecord' => $product,
             'pageClass' => EditProduct::class,
         ])
-        ->assertSee('Dimensions');
+        ->assertSee('Dimensions')
+        ->assertTableColumnDoesNotExist('ar_validation_error');
 });
 
 test('frame variant edit form saves frame dimension fields', function () {

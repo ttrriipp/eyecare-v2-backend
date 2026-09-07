@@ -2,6 +2,7 @@
 
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
+use App\Enums\EncounterStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
@@ -100,6 +101,68 @@ test('canonical seed data creates appointments with duration snapshots', functio
         expect($appointment->duration_minutes)->not->toBeNull()
             ->and($appointment->duration_minutes)->toBe($appointment->appointmentType->duration_minutes);
     });
+});
+
+test('canonical seed data creates a complete cancelled referral appointment', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $appointment = Appointment::query()
+        ->where('appointment_number', 'APT-2026-000004')
+        ->firstOrFail();
+    $staff = User::query()->where('email', 'staff@eyecare.test')->firstOrFail();
+
+    expect($appointment->patient?->full_name)->toBe('Pedro Cruz')
+        ->and($appointment->appointmentType?->name)->toBe('Referral')
+        ->and($appointment->duration_minutes)->toBe(45)
+        ->and($appointment->status?->name)->toBe('cancelled')
+        ->and($appointment->referring_source)->toBe('Dr. Garcia - City Hospital')
+        ->and($appointment->reason_for_visit)->toBe('Referral for persistent blurred vision and eye strain.')
+        ->and($appointment->contact_notes)->toBe('Patient could not attend the original appointment slot.')
+        ->and($appointment->cancelled_by)->toBe('clinic')
+        ->and($appointment->cancelled_by_user_id)->toBe($staff->id)
+        ->and($appointment->cancellation_reason_category)->toBe('schedule_conflict')
+        ->and($appointment->cancellation_reason_details)->toBe('The clinic could not keep the original appointment slot.')
+        ->and($appointment->cancelled_at)->not->toBeNull();
+});
+
+test('canonical seed data creates a complete secondary consultation', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $encounter = Encounter::query()
+        ->with(['patient', 'appointment.appointmentType', 'appointment.status', 'optometrist'])
+        ->where('encounter_number', 'CON-2026-000006')
+        ->firstOrFail();
+    $prescription = $encounter->prescriptions()->firstOrFail();
+
+    expect($encounter->patient?->full_name)->toBe('Pedro Cruz')
+        ->and($encounter->appointment?->appointment_number)->toBe('APT-2026-000006')
+        ->and($encounter->appointment?->appointmentType?->name)->toBe('Routine Check-up')
+        ->and($encounter->appointment?->status?->name)->toBe('fulfilled')
+        ->and($encounter->optometrist?->isOptometrist())->toBeTrue()
+        ->and($encounter->status)->toBe(EncounterStatus::Completed)
+        ->and($encounter->completed_by)->toBe($encounter->optometrist_id)
+        ->and($encounter->last_wizard_step)->toBe(4)
+        ->and($encounter->draft_saved_at)->not->toBeNull()
+        ->and($prescription->prescription_number)->toBe('RX-2026-000002')
+        ->and($prescription->appointment_id)->toBe($encounter->appointment_id)
+        ->and($prescription->main_od_value)->toBe('1.00')
+        ->and($prescription->main_os_value)->toBe('1.00');
+
+    foreach ([
+        'chief_complaint',
+        'past_ocular_history',
+        'past_surgical_history',
+        'past_medical_history',
+        'allergies',
+        'medications',
+        'findings',
+        'supporting_test_results',
+        'assessment',
+        'plan',
+        'remarks',
+    ] as $field) {
+        expect($encounter->{$field})->toBeString()->not->toBeEmpty();
+    }
 });
 
 test('canonical seed data creates deterministic appointment request scenarios with complete decisions', function () {
