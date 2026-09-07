@@ -1,10 +1,12 @@
 <?php
 
+use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
 use App\Models\AppointmentRescheduleRequest;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\AuditLog;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\ClinicHoursSeeder;
@@ -174,4 +176,63 @@ test('submission state conflicts return stable API error codes', function (): vo
         ->assertJsonPath('error.code', 'RESCHEDULE_REQUEST_ALREADY_PENDING');
 
     $this->assertDatabaseCount('appointment_reschedule_requests', 1);
+});
+
+test('an owning patient can withdraw a pending request without changing the appointment', function (): void {
+    ['account' => $account, 'appointment' => $appointment] = createApiRescheduleRequestContext();
+    $endpoint = "/api/v1/appointments/{$appointment->id}/reschedule-requests";
+
+    $this->actingAs($account)
+        ->postJson($endpoint, apiRescheduleRequestPayload())
+        ->assertCreated();
+
+    $rescheduleRequest = AppointmentRescheduleRequest::query()->sole();
+    $scheduledAt = $appointment->fresh()->scheduled_at->toDateTimeString();
+
+    $this->actingAs($account)
+        ->postJson("/api/v1/appointment-reschedule-requests/{$rescheduleRequest->id}/cancel")
+        ->assertOk()
+        ->assertJsonPath('data.status', 'cancelled');
+
+    $withdrawalAudit = AuditLog::query()
+        ->where('action', 'appointment_reschedule_request.withdrawn')
+        ->sole();
+
+    expect($rescheduleRequest->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Cancelled)
+        ->and($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($scheduledAt)
+        ->and($appointment->reschedules()->count())->toBe(0)
+        ->and($withdrawalAudit->metadata)->not->toHaveKey('reason_details');
+});
+
+test('terminal or expired requests cannot be withdrawn and create no withdrawal audit', function (): void {
+    ['account' => $account, 'appointment' => $appointment] = createApiRescheduleRequestContext();
+    $endpoint = "/api/v1/appointments/{$appointment->id}/reschedule-requests";
+
+    $this->actingAs($account)
+        ->postJson($endpoint, apiRescheduleRequestPayload())
+        ->assertCreated();
+
+    $rescheduleRequest = AppointmentRescheduleRequest::query()->sole();
+    $rescheduleRequest->update([
+        'status' => AppointmentRescheduleRequestStatus::Rejected,
+        'resolved_at' => now(),
+    ]);
+
+    $this->actingAs($account)
+        ->postJson("/api/v1/appointment-reschedule-requests/{$rescheduleRequest->id}/cancel")
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'RESCHEDULE_REQUEST_NOT_CANCELLABLE');
+
+    $rescheduleRequest->update([
+        'status' => AppointmentRescheduleRequestStatus::Pending,
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($account)
+        ->postJson("/api/v1/appointment-reschedule-requests/{$rescheduleRequest->id}/cancel")
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'RESCHEDULE_REQUEST_NOT_CANCELLABLE');
+
+    expect($rescheduleRequest->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Pending)
+        ->and(AuditLog::query()->where('action', 'appointment_reschedule_request.withdrawn')->count())->toBe(0);
 });

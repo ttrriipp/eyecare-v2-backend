@@ -19,6 +19,7 @@ enum AuditEvent: string
     case AppointmentRequestExpired = 'appointment_request.expired';
     case AppointmentRequestLinked = 'appointment_request.linked';
     case AppointmentRescheduleRequestSubmitted = 'appointment_reschedule_request.submitted';
+    case AppointmentRescheduleRequestWithdrawn = 'appointment_reschedule_request.withdrawn';
 
     case ClinicHoursUpdated = 'clinic_hours.updated';
     case ProviderHoursUpdated = 'provider_hours.updated';

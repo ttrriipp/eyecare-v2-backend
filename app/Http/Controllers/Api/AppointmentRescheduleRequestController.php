@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\SubmitAppointmentRescheduleRequest;
+use App\Actions\Appointments\WithdrawAppointmentRescheduleRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreAppointmentRescheduleRequest;
 use App\Http\Resources\AppointmentRescheduleRequestResource;
@@ -71,5 +72,19 @@ class AppointmentRescheduleRequestController extends Controller
         $appointmentRescheduleRequest->load('appointment.status');
 
         return AppointmentRescheduleRequestResource::make($appointmentRescheduleRequest);
+    }
+
+    public function cancel(
+        Request $request,
+        AppointmentRescheduleRequest $appointmentRescheduleRequest,
+        WithdrawAppointmentRescheduleRequest $withdraw,
+    ): JsonResponse {
+        $rescheduleRequest = $withdraw->handle(
+            request: $appointmentRescheduleRequest,
+            account: $request->user(),
+        );
+
+        return AppointmentRescheduleRequestResource::make($rescheduleRequest)
+            ->response();
     }
 }

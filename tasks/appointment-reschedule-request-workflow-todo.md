@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-3 complete
+**Status:** Approved by the user on 2026-09-07; Tasks 1-4 complete
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -104,17 +104,17 @@ focused action test (5)
 
 **Acceptance:**
 
-- [ ] An owning patient can withdraw an effective pending request and receive
+- [x] An owning patient can withdraw an effective pending request and receive
       the resource with `status: cancelled`.
-- [ ] Withdrawal records a PII-safe audit and changes neither the appointment
+- [x] Withdrawal records a PII-safe audit and changes neither the appointment
       nor completed reschedule history.
-- [ ] Terminal, expired, or non-owned attempts fail with stable state or `404`
+- [x] Terminal, expired, or non-owned attempts fail with stable state or `404`
       behavior and zero writes.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter=withdraw`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter=withdraw`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Task 3
 
