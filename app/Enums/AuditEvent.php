@@ -21,6 +21,7 @@ enum AuditEvent: string
     case AppointmentRescheduleRequestSubmitted = 'appointment_reschedule_request.submitted';
     case AppointmentRescheduleRequestWithdrawn = 'appointment_reschedule_request.withdrawn';
     case AppointmentRescheduleRequestApproved = 'appointment_reschedule_request.approved';
+    case AppointmentRescheduleRequestRejected = 'appointment_reschedule_request.rejected';
 
     case ClinicHoursUpdated = 'clinic_hours.updated';
     case ProviderHoursUpdated = 'provider_hours.updated';

@@ -14,6 +14,8 @@ class AppointmentRescheduleRequestStateException extends Exception
 
     public const RESCHEDULE_REQUEST_NOT_APPROVABLE = 'RESCHEDULE_REQUEST_NOT_APPROVABLE';
 
+    public const RESCHEDULE_REQUEST_NOT_REJECTABLE = 'RESCHEDULE_REQUEST_NOT_REJECTABLE';
+
     public const RESCHEDULE_REQUEST_SELECTION_INVALID = 'RESCHEDULE_REQUEST_SELECTION_INVALID';
 
     public const RESCHEDULE_REQUEST_STALE = 'RESCHEDULE_REQUEST_STALE';
@@ -54,6 +56,14 @@ class AppointmentRescheduleRequestStateException extends Exception
         return new self(
             self::RESCHEDULE_REQUEST_NOT_APPROVABLE,
             'This reschedule request can no longer be approved.',
+        );
+    }
+
+    public static function notRejectable(): self
+    {
+        return new self(
+            self::RESCHEDULE_REQUEST_NOT_REJECTABLE,
+            'This reschedule request can no longer be rejected.',
         );
     }
 

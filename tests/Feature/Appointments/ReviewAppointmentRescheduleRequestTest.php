@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Appointments\ApproveAppointmentRescheduleRequest;
+use App\Actions\Appointments\RejectAppointmentRescheduleRequest;
 use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
@@ -172,4 +173,82 @@ test('inactive or non-operational reviewers cannot approve', function (): void {
         selectedScheduledAt: Carbon::parse('2026-09-09 10:00:00'),
         reviewer: $patient,
     ))->toThrow(ValidationException::class);
+});
+
+test('reject stores a patient-safe reason without changing the appointment', function (): void {
+    ['request' => $request, 'appointment' => $appointment, 'reviewer' => $reviewer] = createReviewAppointmentRescheduleContext();
+    $scheduledAt = $appointment->fresh()->scheduled_at->toDateTimeString();
+
+    $rejectedRequest = app(RejectAppointmentRescheduleRequest::class)->handle(
+        request: $request,
+        rejectionReason: 'The requested time is no longer available.',
+        reviewer: $reviewer,
+    );
+
+    expect($rejectedRequest->status)->toBe(AppointmentRescheduleRequestStatus::Rejected)
+        ->and($rejectedRequest->rejection_reason)->toBe('The requested time is no longer available.')
+        ->and($rejectedRequest->resolved_by_user_id)->toBe($reviewer->id)
+        ->and($rejectedRequest->resolved_at)->not->toBeNull()
+        ->and($rejectedRequest->appointment_reschedule_id)->toBeNull()
+        ->and($appointment->fresh()->scheduled_at->toDateTimeString())->toBe($scheduledAt)
+        ->and($appointment->reschedules()->count())->toBe(0);
+
+    $audit = AuditLog::query()
+        ->where('action', AuditEvent::AppointmentRescheduleRequestRejected->value)
+        ->sole();
+
+    expect($audit->actor_id)->toBe($reviewer->id)
+        ->and($audit->metadata)->not->toHaveKey('rejection_reason');
+});
+
+test('reject requires a bounded nonblank reason without writing', function (): void {
+    ['request' => $request, 'appointment' => $appointment, 'reviewer' => $reviewer] = createReviewAppointmentRescheduleContext();
+
+    expect(fn () => app(RejectAppointmentRescheduleRequest::class)->handle(
+        request: $request,
+        rejectionReason: '   ',
+        reviewer: $reviewer,
+    ))->toThrow(ValidationException::class);
+
+    expect(fn () => app(RejectAppointmentRescheduleRequest::class)->handle(
+        request: $request,
+        rejectionReason: str_repeat('x', 1001),
+        reviewer: $reviewer,
+    ))->toThrow(ValidationException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Pending)
+        ->and($appointment->reschedules()->count())->toBe(0)
+        ->and(AuditLog::query()->where('action', AuditEvent::AppointmentRescheduleRequestRejected->value)->count())->toBe(0);
+});
+
+test('reject refuses stale or expired requests without writing', function (): void {
+    ['request' => $request, 'appointment' => $appointment, 'reviewer' => $reviewer] = createReviewAppointmentRescheduleContext();
+    $appointment->update([
+        'appointment_status_id' => AppointmentStatus::query()
+            ->where('name', AppointmentStatusName::Cancelled->value)
+            ->value('id'),
+    ]);
+
+    expect(fn () => app(RejectAppointmentRescheduleRequest::class)->handle(
+        request: $request,
+        rejectionReason: 'No longer available.',
+        reviewer: $reviewer,
+    ))->toThrow(AppointmentRescheduleRequestStateException::class);
+
+    $appointment->update([
+        'appointment_status_id' => AppointmentStatus::query()
+            ->where('name', AppointmentStatusName::Scheduled->value)
+            ->value('id'),
+    ]);
+    $request->update(['expires_at' => now()->subMinute()]);
+
+    expect(fn () => app(RejectAppointmentRescheduleRequest::class)->handle(
+        request: $request,
+        rejectionReason: 'No longer available.',
+        reviewer: $reviewer,
+    ))->toThrow(AppointmentRescheduleRequestStateException::class);
+
+    expect($request->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Pending)
+        ->and($appointment->reschedules()->count())->toBe(0)
+        ->and(AuditLog::query()->where('action', AuditEvent::AppointmentRescheduleRequestRejected->value)->count())->toBe(0);
 });
