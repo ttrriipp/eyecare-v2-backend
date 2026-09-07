@@ -1,16 +1,23 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-08-28) — Saved Frames
-> replacement complete: Frame Reservations replaced with account-owned Saved
-> Frames. Patients save frame variants as persistent preferences without
-> withholding inventory. Three new account-only routes (`GET /saved-frames`,
-> `PUT /saved-frames/{productVariant}`, and `DELETE /saved-frames/{productVariant}`).
-> Five reservation routes removed. `is_saved` field added to
-> frame catalog variants. Route count: 59 (8 public + 40 account-only +
-> 11 active-link). Previous: remote frame 3D assets, reservation maximum three,
-> direct messaging hardening, optical commerce and dispensing, resilient patient
-> invitation linking, simplified frame reservations, and commerce model
-> simplification.
+> **Backend version:** Current repository state (2026-09-07) — appointment
+> request cancellation and active-limit behavior is reconciled below, and
+> patient-originated Filament bell notifications are documented separately
+> from the mobile notification feed. The public route count remains 59
+> (8 public + 40 account-only + 11 active-link).
+
+> **Shipped 2026-09-07: appointment-request cancellation and active limit.**
+> The maximum of two counts only requests whose stored status is `pending` and
+> whose `expires_at` is still in the future. Cancelled, accepted, rejected, and
+> expired requests remain in history but do not consume the limit. Therefore,
+> after cancelling two pending requests, the same account can create a third.
+> A limit rejection returns the stable `ACTIVE_REQUEST_LIMIT_REACHED` error
+> documented in §8. No route or successful-response shape changed.
+
+> **Shipped 2026-09-07: actionable admin notifications for patient actions.**
+> Eight approved patient events now create queued, after-commit Filament
+> database notifications for active staff and administrators. These internal
+> admin alerts do not change the patient-facing notification endpoints in §15b.
 
 > **Shipped 2026-08-28: patient account self-service profile boundary.**
 > `PATCH /me` now accepts only account `first_name`, `middle_name`,
@@ -1204,6 +1211,10 @@ Paginated list of the authenticated account's appointment requests.
   association.
 - `appointment` is populated only when `status` is `accepted`.
 - `rejection_reason` is `null` for non-rejected requests; contains the staff-provided reason when `status` is `rejected`.
+- Cancelled requests remain in this history and return `status: "cancelled"`.
+- A stored pending request whose `expires_at` has passed is returned with the
+  effective `status: "expired"` and does not count toward the active-request
+  maximum.
 - Identity snapshots and contact details are excluded from list responses.
 
 ---
@@ -1295,7 +1306,9 @@ Creates a new appointment request.
   snapshots.
 - Unlinking the account clears `patient_id` only for pending requests;
   terminal requests retain their historical patient link.
-- Maximum 2 active pending requests per account.
+- Maximum 2 active pending requests per account. Only records with stored
+  `status: "pending"` and a future `expires_at` count. Cancelled, accepted,
+  rejected, and expired requests do not count.
 - Rate limited per account and per IP.
 - Does **not** create a Patient or an Appointment.
 
@@ -1306,6 +1319,18 @@ Creates a new appointment request.
 - `422 INVALID_IDENTITY`: Missing required identity fields or invalid date of birth.
 - `422 NO_VERIFIED_CONTACT`: No unique verified primary contact found on the account.
 - `422 NO_VERIFIED_PHONE` or phone validation error: The account has no verified phone or the supplied phone does not match it.
+
+When two active pending requests already exist, the response is:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_REQUEST_LIMIT_REACHED",
+    "message": "You have reached the maximum of 2 active appointment requests.",
+    "max_active_requests": 2
+  }
+}
+```
 
 ---
 
@@ -1337,19 +1362,41 @@ Cancels a pending appointment request.
     "id": 1,
     "request_number": "APR-2026-000001",
     "status": "cancelled",
+    "patient_id": null,
+    "appointment_type": {
+      "id": 1,
+      "name": "First eye examination",
+      "duration_minutes": 45
+    },
     "scheduled_at": "2026-07-28T10:00:00+08:00",
+    "alternative_scheduled_times": [],
+    "provisional_duration_minutes": 45,
     "reason_for_visit": "Blurred vision in left eye",
+    "referring_source": null,
     "expires_at": "2026-07-29T10:00:00+08:00",
-    "cancelled_at": "2026-07-27T11:00:00+08:00",
+    "rejection_reason": null,
     "created_at": "2026-07-27T10:00:00+08:00",
+    "time_preferences_are_reserved": false,
     "appointment": null
   }
 }
 ```
 
+Cancellation persists the stored status as `cancelled`. There is no
+`cancelled_at` field in this response.
+
 **Errors:**
 - `404`: Request not found or not owned by this account.
-- `422 REQUEST_NOT_CANCELLABLE`: Only pending requests can be cancelled.
+- `422` Laravel validation response when the request is no longer pending:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "request": ["Only pending appointment requests can be cancelled."]
+  }
+}
+```
 
 ---
 
@@ -2475,6 +2522,37 @@ Marks all unread notifications as read.
 }
 ```
 
+### Internal Admin Database Notifications
+
+These are Filament bell notifications for clinic operations, not mobile API
+resources. They are stored against active users holding the `staff` or `admin`
+role and are not returned to a patient by the endpoints above. An
+optometrist-only account is not a recipient; an optometrist who also holds an
+operational role is.
+
+| Patient-originated event | Admin title | Status | View destination |
+|---|---|---|---|
+| Submit appointment request | New Appointment Request | info | Request review or details |
+| Cancel pending appointment request | Appointment Request Cancelled | warning | Request details |
+| Submit patient-link request | New Patient Link Request | info | Link-request review |
+| Send conversation message | New Message | info | Conversation inbox |
+| Cancel confirmed appointment | Appointment Cancelled by Patient | warning | Appointment edit |
+| Reschedule confirmed appointment | Appointment Rescheduled by Patient | warning | Appointment edit |
+| Create or materially revise a 1–2 star visit rating | Low Visit Rating | danger | Visit-rating details |
+| Create or materially revise a 1–2 star frame rating | Low Frame Rating | danger | Frame-rating edit |
+
+The notifications are queued after the patient mutation commits. Delivery
+failure is reported internally but does not roll back the successful mutation
+or change its API response. Each notification has a **View** action that marks
+it read and opens the relevant Filament screen.
+
+Repeated submission of an already-pending patient-link request does not create
+another alert. An identical retry of a low rating is also silent; the low-rating
+alert repeats only when the resulting rating is still 1–2 stars and its rating
+or comment materially changed. Ratings of 3–5 stars and clinic-initiated
+appointment changes are not included. Notification bodies exclude visit
+reasons, identity snapshots, message bodies, and rating comments.
+
 ---
 
 ## 16. Error Responses
@@ -2493,7 +2571,9 @@ validation envelope:
 ```
 
 Endpoints that return an explicit machine-readable error code (for example,
-step-up middleware and rate limiting) use this envelope:
+step-up middleware and rate limiting) use this envelope. Endpoint-specific
+metadata may appear beside `code` and `message`, as with
+`max_active_requests` in the appointment-request limit response:
 
 ```json
 {
@@ -2527,10 +2607,9 @@ step-up middleware and rate limiting) use this envelope:
 | `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
-| `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | Maximum active pending requests reached |
+| `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
 | `CONTACT_NOT_VERIFIED` | 422 | Cannot set an unverified contact as primary |
-| `REQUEST_NOT_CANCELLABLE` | 422 | Only pending requests can be cancelled |
 
 ### Standard HTTP Status Codes
 
