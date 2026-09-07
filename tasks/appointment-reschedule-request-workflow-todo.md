@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-5 complete; Checkpoint A passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-6 complete; Checkpoint A passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -158,19 +158,19 @@ API test (4)
 
 **Acceptance:**
 
-- [ ] One collaborator moves the appointment, creates one immutable history
+- [x] One collaborator moves the appointment, creates one immutable history
       row, and audits the explicit initiator and actor.
-- [ ] Existing clinic rescheduling retains validation, SMS, patient
+- [x] Existing clinic rescheduling retains validation, SMS, patient
       notification, history, and audit behavior.
-- [ ] Existing direct patient rescheduling remains temporarily green until the
+- [x] Existing direct patient rescheduling remains temporarily green until the
       coordinated retirement task.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/AppointmentSchedulingTest.php`
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php --filter=reschedul`
-- [ ] Existing patient reschedule API tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/AppointmentSchedulingTest.php`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentResourceTest.php --filter=reschedul`
+- [x] Existing patient reschedule API tests pass.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Checkpoint A
 

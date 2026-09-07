@@ -1,8 +1,12 @@
 <?php
 
+use App\Actions\Appointments\CommitAppointmentReschedule;
 use App\Actions\Appointments\ScheduleAppointment;
+use App\Enums\AuditEvent;
 use App\Models\Appointment;
+use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
+use App\Models\AuditLog;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -150,4 +154,38 @@ test('an appointment can ignore its own slot while rescheduling', function () {
     );
 
     expect(true)->toBeTrue();
+});
+
+test('committing a reschedule records the explicit initiator, actor, and history', function () {
+    $actor = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create([
+        'optometrist_id' => $this->optometrist->id,
+        'duration_minutes' => 30,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+
+    $history = app(CommitAppointmentReschedule::class)->handle(
+        appointment: $appointment,
+        scheduledAt: Carbon::parse('2026-07-14 10:00:00'),
+        initiator: 'clinic',
+        actor: $actor,
+        reasonCategory: 'schedule_conflict',
+        reasonDetails: 'Provider schedule changed.',
+    );
+
+    expect($history)->toBeInstanceOf(AppointmentReschedule::class)
+        ->and($history->appointment_id)->toBe($appointment->id)
+        ->and($history->initiated_by)->toBe('clinic')
+        ->and($history->actor_id)->toBe($actor->id)
+        ->and($history->previous_scheduled_at->toDateTimeString())->toBe('2026-07-13 10:00:00')
+        ->and($history->new_scheduled_at->toDateTimeString())->toBe('2026-07-14 10:00:00')
+        ->and($appointment->scheduled_at->toDateTimeString())->toBe('2026-07-14 10:00:00')
+        ->and($appointment->fresh()->scheduled_at->toDateTimeString())->toBe('2026-07-14 10:00:00');
+
+    $audit = AuditLog::query()
+        ->where('action', AuditEvent::AppointmentRescheduled->value)
+        ->sole();
+
+    expect($audit->actor_id)->toBe($actor->id)
+        ->and($audit->metadata)->not->toHaveKey('reason_details');
 });
