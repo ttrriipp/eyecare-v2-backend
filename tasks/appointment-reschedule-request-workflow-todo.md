@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-9 complete; Checkpoints A-B passed
+**Status:** Approved by the user on 2026-09-07; Tasks 1-10 complete; Checkpoints A-B passed
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -254,17 +254,17 @@ Filament appointment test (4)
 
 **Acceptance:**
 
-- [ ] Active panel users can view the queue; inactive and patient-only accounts
+- [x] Active panel users can view the queue; inactive and patient-only accounts
       cannot.
-- [ ] Effective pending requests sort first and drive the navigation badge;
+- [x] Effective pending requests sort first and drive the navigation badge;
       terminal and expired rows remain visible as history.
-- [ ] Search, filtering, and table content remain operational and exclude
+- [x] Search, filtering, and table content remain operational and exclude
       patient free-text reasons.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php --filter='list|authorization|badge'`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRescheduleRequestResourceTest.php --filter='list|authorization|badge'`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Checkpoint B
 
