@@ -81,7 +81,7 @@ test('service price input renders decimal constraints without spinner controls',
     $this->actingAs($admin);
 
     expect(Livewire::test(CreateService::class)->html())
-        ->toContain('service-price-input')
+        ->toContain('price-input')
         ->toContain('min="0"')
         ->toContain('step="0.01"')
         ->toContain('type="number"');

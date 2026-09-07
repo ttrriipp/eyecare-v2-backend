@@ -17,13 +17,13 @@
     @apply px-3 py-1.5 text-sm;
 }
 
-.service-price-input {
+.price-input {
     appearance: textfield;
     -moz-appearance: textfield;
 }
 
-.service-price-input::-webkit-inner-spin-button,
-.service-price-input::-webkit-outer-spin-button {
+.price-input::-webkit-inner-spin-button,
+.price-input::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }

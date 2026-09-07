@@ -64,15 +64,29 @@ class VariantsRelationManager extends RelationManager
             TextInput::make('price')
                 ->required()
                 ->numeric()
-                ->prefix('₱'),
+                ->minValue(0)
+                ->step(0.01)
+                ->rules(['decimal:0,2'])
+                ->prefix('₱')
+                ->extraInputAttributes(['class' => 'price-input']),
             TextInput::make('compare_at_price')
                 ->label('Compare at Price')
+                ->nullable()
                 ->numeric()
-                ->prefix('₱'),
+                ->minValue(0)
+                ->step(0.01)
+                ->rules(['decimal:0,2'])
+                ->prefix('₱')
+                ->extraInputAttributes(['class' => 'price-input']),
             TextInput::make('cost_price')
                 ->label('Cost Price')
+                ->nullable()
                 ->numeric()
-                ->prefix('₱'),
+                ->minValue(0)
+                ->step(0.01)
+                ->rules(['decimal:0,2'])
+                ->prefix('₱')
+                ->extraInputAttributes(['class' => 'price-input']),
             TextInput::make('stock_quantity')
                 ->required()
                 ->numeric()
@@ -306,16 +320,30 @@ class VariantsRelationManager extends RelationManager
                                 ->label('Selling Price')
                                 ->required()
                                 ->numeric()
-                                ->prefix('₱'),
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
+                                ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input']),
                             TextInput::make('compare_at_price')
                                 ->label('Compare at Price')
+                                ->nullable()
                                 ->numeric()
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
                                 ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input'])
                                 ->helperText('Original price shown crossed out (sale indicator).'),
                             TextInput::make('cost_price')
                                 ->label('Cost Price')
+                                ->nullable()
                                 ->numeric()
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
                                 ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input'])
                                 ->helperText('Internal only — not shown to customers.'),
                         ])
                         ->fillForm(fn ($record): array => [

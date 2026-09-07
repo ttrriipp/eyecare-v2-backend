@@ -120,15 +120,29 @@ class ProductForm
                             TextInput::make('price')
                                 ->required()
                                 ->numeric()
-                                ->prefix('₱'),
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
+                                ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input']),
                             TextInput::make('compare_at_price')
                                 ->label('Compare at Price')
+                                ->nullable()
                                 ->numeric()
-                                ->prefix('₱'),
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
+                                ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input']),
                             TextInput::make('cost_price')
                                 ->label('Cost Price')
+                                ->nullable()
                                 ->numeric()
-                                ->prefix('₱'),
+                                ->minValue(0)
+                                ->step(0.01)
+                                ->rules(['decimal:0,2'])
+                                ->prefix('₱')
+                                ->extraInputAttributes(['class' => 'price-input']),
                             TextInput::make('stock_quantity')
                                 ->required()
                                 ->numeric()

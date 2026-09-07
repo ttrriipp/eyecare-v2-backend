@@ -30,7 +30,7 @@ class ServiceForm
                             ->step(0.01)
                             ->rules(['decimal:0,2'])
                             ->prefix('₱')
-                            ->extraInputAttributes(['class' => 'service-price-input'])
+                            ->extraInputAttributes(['class' => 'price-input'])
                             ->helperText('Default price when this service is billed or quoted.'),
                         Textarea::make('description')
                             ->columnSpanFull(),

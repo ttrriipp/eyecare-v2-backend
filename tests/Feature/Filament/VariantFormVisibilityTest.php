@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Models\Product;
@@ -7,6 +8,8 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -91,4 +94,78 @@ test('contact lens variant edit form saves contact lens parameter fields', funct
     expect($variant->attributes['base_curve'])->toBe(8.6);
     expect($variant->attributes['diameter'])->toBe(14.5);
     expect($variant->attributes['pack_size'])->toBe(12);
+});
+
+test('variant price inputs reject negative values and render decimal constraints without spinner controls', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $component = Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('edit', $variant);
+
+    expect($component->html())
+        ->toContain('price-input')
+        ->toContain('min="0"')
+        ->toContain('step="0.01"')
+        ->toContain('type="number"');
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->callTableAction('adjustPrice', $variant, [
+            'price' => -0.01,
+            'compare_at_price' => null,
+            'cost_price' => null,
+        ])
+        ->assertHasTableActionErrors(['price' => 'min']);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->callTableAction('adjustPrice', $variant, [
+            'price' => 500.25,
+            'compare_at_price' => null,
+            'cost_price' => null,
+        ])
+        ->assertHasNoTableActionErrors();
+
+    expect((float) $variant->fresh()->price)->toBe(500.25);
+});
+
+test('inline product variant price inputs use non-negative decimal constraints', function () {
+    $component = Livewire::actingAs($this->user)
+        ->test(CreateProduct::class);
+
+    $variantsSection = $component->instance()->form->getComponents()[1];
+    $repeater = $variantsSection->getDefaultChildComponents()[0];
+    $priceInputs = collect($repeater->getDefaultChildComponents())
+        ->filter(fn ($field): bool => in_array($field->getName(), [
+            'price',
+            'compare_at_price',
+            'cost_price',
+        ], true));
+
+    expect($repeater)
+        ->toBeInstanceOf(Repeater::class)
+        ->and($priceInputs)
+        ->toHaveCount(3);
+
+    foreach ($priceInputs as $priceInput) {
+        expect($priceInput)
+            ->toBeInstanceOf(TextInput::class)
+            ->and($priceInput->getMinValue())
+            ->toBe(0)
+            ->and($priceInput->getStep())
+            ->toBe(0.01)
+            ->and($priceInput->getExtraInputAttributes())
+            ->toMatchArray(['class' => 'price-input']);
+    }
 });
