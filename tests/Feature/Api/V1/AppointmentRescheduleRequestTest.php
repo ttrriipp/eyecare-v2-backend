@@ -236,3 +236,37 @@ test('terminal or expired requests cannot be withdrawn and create no withdrawal 
     expect($rescheduleRequest->fresh()->status)->toBe(AppointmentRescheduleRequestStatus::Pending)
         ->and(AuditLog::query()->where('action', 'appointment_reschedule_request.withdrawn')->count())->toBe(0);
 });
+
+test('pending_projection includes only an effective pending request in appointment list and detail', function (): void {
+    ['account' => $account, 'appointment' => $appointment] = createApiRescheduleRequestContext();
+    $endpoint = "/api/v1/appointments/{$appointment->id}/reschedule-requests";
+
+    $this->actingAs($account)
+        ->postJson($endpoint, apiRescheduleRequestPayload())
+        ->assertCreated();
+
+    $rescheduleRequest = AppointmentRescheduleRequest::query()->sole();
+
+    $this->actingAs($account)
+        ->getJson('/api/v1/appointments')
+        ->assertOk()
+        ->assertJsonPath('data.0.pending_reschedule_request.id', $rescheduleRequest->id)
+        ->assertJsonPath('data.0.pending_reschedule_request.status', 'pending')
+        ->assertJsonPath('data.0.pending_reschedule_request.request_number', $rescheduleRequest->request_number);
+
+    $this->actingAs($account)
+        ->getJson("/api/v1/appointments/{$appointment->id}")
+        ->assertOk()
+        ->assertJsonPath('data.pending_reschedule_request.id', $rescheduleRequest->id)
+        ->assertJsonPath('data.pending_reschedule_request.status', 'pending')
+        ->assertJsonPath('data.pending_reschedule_request.request_number', $rescheduleRequest->request_number);
+
+    $rescheduleRequest->update([
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->actingAs($account)
+        ->getJson('/api/v1/appointments')
+        ->assertOk()
+        ->assertJsonPath('data.0.pending_reschedule_request', null);
+});

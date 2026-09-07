@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AppointmentRescheduleRequestStatus;
 use App\Enums\AppointmentStatusName;
 use Carbon\CarbonInterface;
 use Database\Factories\AppointmentFactory;
@@ -186,6 +187,18 @@ class Appointment extends Model implements Eventable
     public function latestReschedule(): HasOne
     {
         return $this->hasOne(AppointmentReschedule::class)->latestOfMany('rescheduled_at');
+    }
+
+    /**
+     * Get the newest pending patient reschedule request, if one exists.
+     *
+     * @return HasOne<AppointmentRescheduleRequest, $this>
+     */
+    public function pendingRescheduleRequest(): HasOne
+    {
+        return $this->hasOne(AppointmentRescheduleRequest::class)
+            ->where('status', AppointmentRescheduleRequestStatus::Pending->value)
+            ->latestOfMany('created_at');
     }
 
     /**

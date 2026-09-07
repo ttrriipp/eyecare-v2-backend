@@ -32,7 +32,14 @@ class AppointmentController extends Controller
 
         $appointments = Appointment::query()
             ->where('patient_id', $patient->id)
-            ->with(['appointmentType', 'status', 'optometrist', 'latestReschedule', 'visitRating'])
+            ->with([
+                'appointmentType',
+                'status',
+                'optometrist',
+                'latestReschedule',
+                'visitRating',
+                'pendingRescheduleRequest.appointment.status',
+            ])
             ->latest('scheduled_at')
             ->paginate($request->integer('per_page', 15));
 
@@ -84,7 +91,14 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 404);
 
-        $appointment->load(['appointmentType', 'status', 'optometrist', 'latestReschedule', 'visitRating']);
+        $appointment->load([
+            'appointmentType',
+            'status',
+            'optometrist',
+            'latestReschedule',
+            'visitRating',
+            'pendingRescheduleRequest.appointment.status',
+        ]);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),

@@ -1,6 +1,6 @@
 # Task Checklist: Patient Appointment Reschedule Requests
 
-**Status:** Approved by the user on 2026-09-07; Tasks 1-4 complete
+**Status:** Approved by the user on 2026-09-07; Tasks 1-5 complete
 **Specification:**
 `docs/specs/appointment-reschedule-request-workflow-spec.md` (approved
 2026-09-07)
@@ -124,17 +124,17 @@ focused action test (5)
 
 **Acceptance:**
 
-- [ ] Appointment list and detail include the authenticated patient's effective
+- [x] Appointment list and detail include the authenticated patient's effective
       pending request or `null`.
-- [ ] Terminal and effectively expired requests are excluded without querying
+- [x] Terminal and effectively expired requests are excluded without querying
       from inside `AppointmentResource`.
-- [ ] Existing appointment fields, ratings, and query behavior do not regress.
+- [x] Existing appointment fields, ratings, and query behavior do not regress.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter=pending_projection`
-- [ ] Existing focused appointment API tests pass.
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRescheduleRequestTest.php --filter=pending_projection`
+- [x] Existing focused appointment API tests pass.
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
 
 **Dependencies:** Tasks 3 and 4
 
