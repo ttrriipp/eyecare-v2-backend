@@ -8,6 +8,10 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    config(['auth.single_session_enabled' => true]);
+});
+
 test('the combined admin optometrist role can claim only one active session', function () {
     $user = User::factory()->adminOptometrist()->create();
     $manager = app(SingleSessionManager::class);
@@ -15,6 +19,17 @@ test('the combined admin optometrist role can claim only one active session', fu
     expect($user->requiresSingleSession())->toBeTrue()
         ->and($manager->claim($user, 'first-session'))->toBeTrue()
         ->and($manager->claim($user, 'second-session'))->toBeFalse();
+});
+
+test('single-session enforcement can be temporarily disabled', function () {
+    config(['auth.single_session_enabled' => false]);
+
+    $user = User::factory()->adminOptometrist()->create();
+    $manager = app(SingleSessionManager::class);
+
+    expect($user->requiresSingleSession())->toBeFalse()
+        ->and($manager->claim($user, 'first-session'))->toBeTrue()
+        ->and($manager->claim($user, 'second-session'))->toBeTrue();
 });
 
 test('admin-only and optometrist-only roles can use multiple sessions', function () {

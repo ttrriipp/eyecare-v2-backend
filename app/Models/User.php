@@ -195,6 +195,10 @@ class User extends Authenticatable implements FilamentUser
      */
     public function requiresSingleSession(): bool
     {
+        if (! config('auth.single_session_enabled', true)) {
+            return false;
+        }
+
         if ($this->relationLoaded('roles')) {
             return $this->roles->contains('name', Role::Admin)
                 && $this->roles->contains('name', Role::Optometrist);

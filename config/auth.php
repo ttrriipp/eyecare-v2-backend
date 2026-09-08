@@ -22,6 +22,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Single Panel Session Enforcement
+    |--------------------------------------------------------------------------
+    |
+    | Combined admin and optometrist accounts are restricted to one active
+    | panel session unless this temporary override is disabled.
+    |
+    */
+
+    'single_session_enabled' => (bool) env('SINGLE_SESSION_ENABLED', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Guards
     |--------------------------------------------------------------------------
     |
