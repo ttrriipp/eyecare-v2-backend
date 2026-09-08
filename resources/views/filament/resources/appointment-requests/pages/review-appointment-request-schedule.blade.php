@@ -28,6 +28,15 @@
                             <dt class="text-gray-500 dark:text-gray-400">Patient</dt>
                             <dd class="mt-1 font-medium text-gray-900 dark:text-white">{{ $record->patient?->full_name ?? 'Unlinked' }}</dd>
                         </div>
+                        @if ($this->isRebooking() && $record->appointment !== null)
+                            <div class="sm:col-span-2">
+                                <dt class="text-gray-500 dark:text-gray-400">Current appointment</dt>
+                                <dd class="mt-1 font-medium text-gray-900 dark:text-white">
+                                    {{ $record->appointment->appointment_number }}
+                                    · {{ $record->appointment->scheduled_at->format('M j, Y \a\t g:i A') }}
+                                </dd>
+                            </div>
+                        @endif
                         <div class="sm:col-span-2">
                             <dt class="text-gray-500 dark:text-gray-400">Reason for visit</dt>
                             <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $record->encrypted_reason_for_visit ?: 'Not provided' }}</dd>
@@ -41,21 +50,27 @@
                     <div class="space-y-4">
                         <div class="fi-fo-field">
                             <label for="appointment-type" class="fi-fo-field-label">
-                                <span class="fi-fo-field-label-content">Appointment type</span>
+                                <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Appointment type (current)' : 'Appointment type' }}</span>
                             </label>
-                            <x-filament::input.wrapper :valid="! $errors->has('appointmentTypeId')">
-                                <x-filament::input.select
-                                    id="appointment-type"
-                                    wire:model.live="appointmentTypeId"
-                                    :aria-describedby="$errors->has('appointmentTypeId') ? 'appointment-type-error' : null"
-                                    :aria-invalid="$errors->has('appointmentTypeId') ? 'true' : 'false'"
-                                >
-                                    <option value="">Select a type</option>
-                                    @foreach ($this->appointmentTypes() as $id => $label)
-                                        <option value="{{ $id }}">{{ $label }}</option>
-                                    @endforeach
-                                </x-filament::input.select>
-                            </x-filament::input.wrapper>
+                            @if ($this->isRebooking())
+                                <p id="appointment-type" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ $this->selectedAppointmentType()?->name ?? '—' }}
+                                </p>
+                            @else
+                                <x-filament::input.wrapper :valid="! $errors->has('appointmentTypeId')">
+                                    <x-filament::input.select
+                                        id="appointment-type"
+                                        wire:model.live="appointmentTypeId"
+                                        :aria-describedby="$errors->has('appointmentTypeId') ? 'appointment-type-error' : null"
+                                        :aria-invalid="$errors->has('appointmentTypeId') ? 'true' : 'false'"
+                                    >
+                                        <option value="">Select a type</option>
+                                        @foreach ($this->appointmentTypes() as $id => $label)
+                                            <option value="{{ $id }}">{{ $label }}</option>
+                                        @endforeach
+                                    </x-filament::input.select>
+                                </x-filament::input.wrapper>
+                            @endif
                             @error('appointmentTypeId')
                                 <p id="appointment-type-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
                             @enderror
@@ -64,41 +79,53 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="fi-fo-field">
                                 <label for="duration" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">Duration (minutes)</span>
+                                    <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Duration (current)' : 'Duration (minutes)' }}</span>
                                 </label>
-                                <x-filament::input.wrapper :valid="! $errors->has('durationMinutes')">
-                                    <x-filament::input
-                                        id="duration"
-                                        type="number"
-                                        min="5"
-                                        max="240"
-                                        step="5"
-                                        wire:model.live="durationMinutes"
-                                        :aria-describedby="$errors->has('durationMinutes') ? 'duration-error' : null"
-                                        :aria-invalid="$errors->has('durationMinutes') ? 'true' : 'false'"
-                                    />
-                                </x-filament::input.wrapper>
+                                @if ($this->isRebooking())
+                                    <p id="duration" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $durationMinutes }} minutes
+                                    </p>
+                                @else
+                                    <x-filament::input.wrapper :valid="! $errors->has('durationMinutes')">
+                                        <x-filament::input
+                                            id="duration"
+                                            type="number"
+                                            min="5"
+                                            max="240"
+                                            step="5"
+                                            wire:model.live="durationMinutes"
+                                            :aria-describedby="$errors->has('durationMinutes') ? 'duration-error' : null"
+                                            :aria-invalid="$errors->has('durationMinutes') ? 'true' : 'false'"
+                                        />
+                                    </x-filament::input.wrapper>
+                                @endif
                                 @error('durationMinutes')
                                     <p id="duration-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
                                 @enderror
                             </div>
                             <div class="fi-fo-field">
                                 <label for="optometrist" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">Optometrist (optional)</span>
+                                    <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Optometrist (current)' : 'Optometrist (optional)' }}</span>
                                 </label>
-                                <x-filament::input.wrapper :valid="! $errors->has('optometristId')">
-                                    <x-filament::input.select
-                                        id="optometrist"
-                                        wire:model.live="optometristId"
-                                        :aria-describedby="$errors->has('optometristId') ? 'optometrist-error' : null"
-                                        :aria-invalid="$errors->has('optometristId') ? 'true' : 'false'"
-                                    >
-                                        <option value="">Select a provider (optional)</option>
-                                        @foreach ($this->optometrists() as $id => $label)
-                                            <option value="{{ $id }}">{{ $label }}</option>
-                                        @endforeach
-                                    </x-filament::input.select>
-                                </x-filament::input.wrapper>
+                                @if ($this->isRebooking())
+                                    <p id="optometrist" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
+                                        {{ $this->selectedOptometrist()?->full_name ?? 'Unassigned' }}
+                                    </p>
+                                @else
+                                    <x-filament::input.wrapper :valid="! $errors->has('optometristId')">
+                                        <x-filament::input.select
+                                            id="optometrist"
+                                            wire:model.live="optometristId"
+                                            :aria-describedby="$errors->has('optometristId') ? 'optometrist-error' : null"
+                                            :aria-invalid="$errors->has('optometristId') ? 'true' : 'false'"
+                                        >
+                                            <option value="">Select a provider (optional)</option>
+                                            @foreach ($this->optometrists() as $id => $label)
+                                                <option value="{{ $id }}">{{ $label }}</option>
+                                            @endforeach
+                                        </x-filament::input.select>
+                                    </x-filament::input.wrapper>
+                                @endif
                                 @error('optometristId')
                                     <p id="optometrist-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
                                 @enderror
@@ -196,23 +223,25 @@
 
                 <x-filament::section heading="Additional details">
                     <div class="space-y-4">
-                        <div class="fi-fo-field">
-                            <label for="referring-source" class="fi-fo-field-label">
-                                <span class="fi-fo-field-label-content">Referring source</span>
-                            </label>
-                            <x-filament::input.wrapper :valid="! $errors->has('referringSource')">
-                                <x-filament::input
-                                    id="referring-source"
-                                    type="text"
-                                    wire:model.live="referringSource"
-                                    :aria-describedby="$errors->has('referringSource') ? 'referring-source-error' : null"
-                                    :aria-invalid="$errors->has('referringSource') ? 'true' : 'false'"
-                                />
-                            </x-filament::input.wrapper>
-                            @error('referringSource')
-                                <p id="referring-source-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
-                            @enderror
-                        </div>
+                        @if (! $this->isRebooking())
+                            <div class="fi-fo-field">
+                                <label for="referring-source" class="fi-fo-field-label">
+                                    <span class="fi-fo-field-label-content">Referring source</span>
+                                </label>
+                                <x-filament::input.wrapper :valid="! $errors->has('referringSource')">
+                                    <x-filament::input
+                                        id="referring-source"
+                                        type="text"
+                                        wire:model.live="referringSource"
+                                        :aria-describedby="$errors->has('referringSource') ? 'referring-source-error' : null"
+                                        :aria-invalid="$errors->has('referringSource') ? 'true' : 'false'"
+                                    />
+                                </x-filament::input.wrapper>
+                                @error('referringSource')
+                                    <p id="referring-source-error" class="fi-fo-field-wrp-error-message" role="alert">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        @endif
 
                         <div class="fi-fo-field">
                             <label for="contact-note" class="fi-fo-field-label">

@@ -324,12 +324,8 @@ class SubmitAppointmentRequest
     private function countActiveRequests(int $accountId): int
     {
         return AppointmentRequest::query()
-            ->with('appointment.status')
             ->where('user_id', $accountId)
-            ->where('status', AppointmentRequestStatus::Pending)
-            ->where('expires_at', '>', now())
-            ->get()
-            ->filter(fn (AppointmentRequest $request): bool => $request->isPending())
+            ->actionablePending()
             ->count();
     }
 
@@ -342,13 +338,10 @@ class SubmitAppointmentRequest
         int $durationMinutes,
     ): void {
         $currentStart = $appointment->scheduled_at;
-        $currentEnd = $currentStart->copy()->addMinutes($appointment->duration_minutes ?? 30);
-
         foreach ($allTimes as $index => $timeString) {
             $time = Carbon::parse($timeString, config('app.timezone'));
-            $endsAt = $time->copy()->addMinutes($durationMinutes);
 
-            if ($time->equalTo($currentStart) || ($time->lt($currentEnd) && $endsAt->gt($currentStart))) {
+            if ($time->equalTo($currentStart)) {
                 throw ValidationException::withMessages([
                     'scheduled_at' => ['The requested time must differ from the current appointment time.'],
                 ]);

@@ -6,6 +6,7 @@ use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
 use Database\Factories\AppointmentRequestFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -111,6 +112,34 @@ class AppointmentRequest extends Model
         return $this->status === AppointmentRequestStatus::Pending
             && ! $this->isExpired()
             && ! $this->isStaleRebooking();
+    }
+
+    /**
+     * Scope requests that are still actionable by staff or count toward the
+     * account's active-request limit.
+     *
+     * @param  Builder<AppointmentRequest>  $query
+     * @return Builder<AppointmentRequest>
+     */
+    public function scopeActionablePending(Builder $query): Builder
+    {
+        return $query
+            ->where('status', AppointmentRequestStatus::Pending->value)
+            ->where('expires_at', '>', now())
+            ->where(function (Builder $query): void {
+                $query
+                    ->where('request_type', '!=', AppointmentRequestKind::Reschedule->value)
+                    ->orWhereNull('request_type')
+                    ->orWhereHas('appointment', function (Builder $appointmentQuery): void {
+                        $appointmentQuery->whereHas(
+                            'status',
+                            fn (Builder $statusQuery): Builder => $statusQuery->where(
+                                'name',
+                                AppointmentStatusName::Scheduled->value,
+                            ),
+                        );
+                    });
+            });
     }
 
     public function isRebooking(): bool

@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Appointments\AcceptAppointmentRequest;
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\JobOrderStatus;
@@ -226,21 +227,34 @@ test('patient appointment cancellations notify staff with the appointment link',
     );
 });
 
-test('patient appointment reschedules notify staff with the appointment link', function () {
+test('approved patient rebooking requests notify staff with the appointment link', function () {
     $admin = User::factory()->admin()->create();
     $patient = User::factory()->patient()->create();
     $optometrist = User::factory()->optometrist()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
     $appointment = Appointment::factory()->create([
         'patient_id' => $patient->patient->id,
+        'appointment_type_id' => $type->id,
+        'duration_minutes' => $type->duration_minutes,
         'optometrist_id' => $optometrist->id,
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
+    $request = AppointmentRequest::factory()
+        ->rebookingFor($appointment)
+        ->create([
+            'user_id' => $patient->id,
+            'scheduled_at' => '2026-07-14 11:00:00',
+            'expires_at' => now()->addDay(),
+        ]);
 
-    $this->actingAs($patient)
-        ->postJson("/api/v1/appointments/{$appointment->id}/reschedule", [
-            'scheduled_at' => '2026-07-14T11:00:00+08:00',
-        ])
-        ->assertOk();
+    app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $admin,
+        appointmentType: $type,
+        durationMinutes: $type->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-14 11:00:00'),
+        optometrist: $optometrist,
+    );
 
     assertAdminActionNotification(
         $admin,

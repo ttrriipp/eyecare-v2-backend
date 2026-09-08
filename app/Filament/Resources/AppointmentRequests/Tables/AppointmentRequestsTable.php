@@ -5,7 +5,9 @@ namespace App\Filament\Resources\AppointmentRequests\Tables;
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
 use App\Actions\PatientAccounts\RankPatientCandidates;
+use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AppointmentStatusName;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Support\AppointmentRequestTimeAvailability;
 use App\Models\AppointmentRequest;
@@ -36,6 +38,14 @@ class AppointmentRequestsTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('request_type')
+                    ->label('Request')
+                    ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
+                        ? 'Rebooking'
+                        : 'New appointment')
+                    ->badge()
+                    ->color(fn (AppointmentRequest $record): string => $record->isRebooking() ? 'info' : 'gray'),
+
                 IconColumn::make('patient_id')
                     ->label('')
                     ->icon(fn (AppointmentRequest $record): string => $record->patient_id === null
@@ -55,6 +65,12 @@ class AppointmentRequestsTable
                 TextColumn::make('appointment_type')
                     ->label('Type')
                     ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
+
+                TextColumn::make('appointment.scheduled_at')
+                    ->label('Current appointment')
+                    ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
+                        ? ($record->appointment?->scheduled_at?->format('M j, g:i A') ?? '—')
+                        : '—'),
 
                 ViewColumn::make('scheduled_at')
                     ->label('Preferred Times')
@@ -103,9 +119,7 @@ class AppointmentRequestsTable
                         }
 
                         if ($status === AppointmentRequestStatus::Pending->value) {
-                            $query
-                                ->where('status', AppointmentRequestStatus::Pending)
-                                ->where('expires_at', '>', now());
+                            $query->actionablePending();
 
                             return;
                         }
@@ -118,6 +132,21 @@ class AppointmentRequestsTable
                                         $query
                                             ->where('status', AppointmentRequestStatus::Pending)
                                             ->where('expires_at', '<=', now());
+                                    })
+                                    ->orWhere(function (Builder $query): void {
+                                        $query
+                                            ->where('status', AppointmentRequestStatus::Pending)
+                                            ->where('expires_at', '>', now())
+                                            ->where('request_type', AppointmentRequestKind::Reschedule->value)
+                                            ->whereDoesntHave('appointment', function (Builder $appointmentQuery): void {
+                                                $appointmentQuery->whereHas(
+                                                    'status',
+                                                    fn (Builder $statusQuery): Builder => $statusQuery->where(
+                                                        'name',
+                                                        AppointmentStatusName::Scheduled->value,
+                                                    ),
+                                                );
+                                            });
                                     });
                             });
 

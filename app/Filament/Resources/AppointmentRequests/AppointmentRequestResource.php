@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\AppointmentRequests;
 
-use App\Enums\AppointmentRequestStatus;
 use App\Filament\Resources\AppointmentRequests\Pages\ListAppointmentRequests;
 use App\Filament\Resources\AppointmentRequests\Pages\ReviewAppointmentRequestSchedule;
 use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
@@ -37,8 +36,7 @@ class AppointmentRequestResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $count = AppointmentRequest::query()
-            ->where('status', AppointmentRequestStatus::Pending)
-            ->where('expires_at', '>', now())
+            ->actionablePending()
             ->count();
 
         return $count > 0 ? (string) $count : null;
@@ -53,6 +51,7 @@ class AppointmentRequestResource extends Resource
     {
         return parent::getEloquentQuery()->with([
             'appointmentType',
+            'appointment.status',
             'patient',
             'user',
         ]);

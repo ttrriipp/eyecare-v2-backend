@@ -250,8 +250,7 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
 
         return [
             'appointment_requests' => AppointmentRequest::query()
-                ->where('status', AppointmentRequestStatus::Pending)
-                ->where('expires_at', '>', now())
+                ->actionablePending()
                 ->count(),
             'today_appointments' => $todayAppointments->count(),
             'yesterday_appointments' => $yesterdayAppointments->count(),

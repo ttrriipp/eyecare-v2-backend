@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -26,14 +27,20 @@ class EvaluateAppointmentRequestPreferences
         AppointmentRequest $request,
         int $durationMinutes,
         ?User $optometrist = null,
+        ?Appointment $ignoreAppointment = null,
     ): array {
         return collect($request->getAllTimePreferences())
             ->values()
-            ->map(function (string $preference, int $index) use ($durationMinutes, $optometrist): array {
+            ->map(function (string $preference, int $index) use (
+                $durationMinutes,
+                $optometrist,
+                $ignoreAppointment,
+            ): array {
                 $decision = $this->evaluateAvailability->handle(
                     startsAt: Carbon::parse($preference),
                     durationMinutes: $durationMinutes,
                     optometrist: $optometrist,
+                    ignoreAppointment: $ignoreAppointment,
                     enforceFuture: true,
                     enforceGrid: true,
                 );

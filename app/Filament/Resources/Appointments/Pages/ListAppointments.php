@@ -27,8 +27,8 @@ class ListAppointments extends ListRecords
                 ->url(AppointmentResource::getUrl('calendar')),
             Action::make('requests')
                 ->label(function () {
-                    $count = AppointmentRequest::where('status', 'pending')
-                        ->where('expires_at', '>', now())
+                    $count = AppointmentRequest::query()
+                        ->actionablePending()
                         ->count();
 
                     return $count > 0 ? "Requests ({$count})" : 'Requests';

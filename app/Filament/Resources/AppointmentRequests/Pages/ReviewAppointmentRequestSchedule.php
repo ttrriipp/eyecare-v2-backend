@@ -8,6 +8,7 @@ use App\Actions\Appointments\EvaluateAppointmentRequestPreferences;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\AppointmentRequests\Widgets\AppointmentRequestScheduleCalendar;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -50,6 +51,21 @@ class ReviewAppointmentRequestSchedule extends Page
 
         abort_unless(auth()->user()?->can('accept', $this->record), 403);
 
+        $this->record->loadMissing([
+            'appointment',
+            'appointment.appointmentType',
+            'appointment.optometrist',
+            'appointmentType',
+        ]);
+
+        if ($this->record->isRebooking() && $this->record->appointment !== null) {
+            $this->syncRebookingFields();
+            $this->setScheduledSlot($this->record->scheduled_at ?? today()->setTime(9, 0));
+            $this->referringSource = null;
+
+            return;
+        }
+
         $defaultType = $this->record->appointmentType;
 
         if ($defaultType === null || ! $defaultType->is_active) {
@@ -59,13 +75,19 @@ class ReviewAppointmentRequestSchedule extends Page
 
         $this->appointmentTypeId = $defaultType?->id;
         $this->durationMinutes = $defaultType?->duration_minutes ?? $this->record->provisional_duration_minutes ?? 30;
+        $this->optometristId = null;
         $this->setScheduledSlot($this->record->scheduled_at ?? today()->setTime(9, 0));
         $this->referringSource = $this->record->encrypted_referring_source;
     }
 
     public function getTitle(): string
     {
-        return 'Review & Schedule';
+        return $this->isRebooking() ? 'Review & Reschedule' : 'Review & Schedule';
+    }
+
+    public function isRebooking(): bool
+    {
+        return $this->getRecord()->isRebooking();
     }
 
     /**
@@ -124,6 +146,7 @@ class ReviewAppointmentRequestSchedule extends Page
             request: $this->getRecord(),
             durationMinutes: $this->durationMinutes,
             optometrist: $this->selectedOptometrist(),
+            ignoreAppointment: $this->reviewedAppointment(),
         );
     }
 
@@ -201,10 +224,20 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         $evaluator = app(EvaluateAppointmentAvailability::class);
+        $reviewedAppointment = $this->reviewedAppointment();
+
+        if ($reviewedAppointment?->scheduled_at?->equalTo($startsAt)) {
+            return [
+                'state' => 'unavailable',
+                'label' => 'Choose a time different from the current appointment',
+            ];
+        }
+
         $decision = $evaluator->handle(
             startsAt: $startsAt,
             durationMinutes: $this->durationMinutes,
             optometrist: $optometrist,
+            ignoreAppointment: $reviewedAppointment,
             enforceFuture: true,
             enforceGrid: true,
         );
@@ -226,6 +259,7 @@ class ReviewAppointmentRequestSchedule extends Page
         $capacity = $evaluator->clinicCapacityForInterval(
             startsAt: $decision->startsAt,
             endsAt: $decision->endsAt,
+            ignoreAppointment: $reviewedAppointment,
         );
 
         if ($capacity['total'] === 0) {
@@ -274,6 +308,12 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function updatedAppointmentTypeId(?int $typeId): void
     {
+        if ($this->isRebooking()) {
+            $this->syncRebookingFields();
+
+            return;
+        }
+
         $type = $typeId === null ? null : AppointmentType::find($typeId);
 
         if ($type !== null) {
@@ -286,12 +326,24 @@ class ReviewAppointmentRequestSchedule extends Page
 
     public function updatedDurationMinutes(): void
     {
+        if ($this->isRebooking()) {
+            $this->syncRebookingFields();
+
+            return;
+        }
+
         $this->resetValidation();
         $this->focusCalendar();
     }
 
     public function updatedOptometristId(): void
     {
+        if ($this->isRebooking()) {
+            $this->syncRebookingFields();
+
+            return;
+        }
+
         $this->resetValidation();
         $this->focusCalendar();
     }
@@ -381,8 +433,10 @@ class ReviewAppointmentRequestSchedule extends Page
         }
 
         Notification::make()
-            ->title('Appointment scheduled')
-            ->body("Appointment {$appointment->appointment_number} was created.")
+            ->title($this->isRebooking() ? 'Appointment rescheduled' : 'Appointment scheduled')
+            ->body($this->isRebooking()
+                ? "Appointment {$appointment->appointment_number} was moved."
+                : "Appointment {$appointment->appointment_number} was created.")
             ->success()
             ->send();
 
@@ -419,18 +473,47 @@ class ReviewAppointmentRequestSchedule extends Page
             ->contains(fn (string $preference): bool => $this->matchesScheduledMinute(Carbon::parse($preference), $selected));
     }
 
-    private function selectedAppointmentType(): ?AppointmentType
+    public function selectedAppointmentType(): ?AppointmentType
     {
+        if ($this->isRebooking()) {
+            return $this->getRecord()->appointment?->appointmentType
+                ?? $this->getRecord()->appointmentType;
+        }
+
         return $this->appointmentTypeId === null
             ? null
             : AppointmentType::active()->find($this->appointmentTypeId);
     }
 
-    private function selectedOptometrist(): ?User
+    public function selectedOptometrist(): ?User
     {
+        if ($this->isRebooking()) {
+            return $this->getRecord()->appointment?->optometrist;
+        }
+
         return $this->optometristId === null
             ? null
             : User::query()->optometrists()->find($this->optometristId);
+    }
+
+    private function reviewedAppointment(): ?Appointment
+    {
+        return $this->isRebooking() ? $this->getRecord()->appointment : null;
+    }
+
+    private function syncRebookingFields(): void
+    {
+        $appointment = $this->reviewedAppointment();
+
+        if ($appointment === null) {
+            return;
+        }
+
+        $this->appointmentTypeId = $appointment->appointment_type_id;
+        $this->durationMinutes = (int) ($appointment->duration_minutes
+            ?? $appointment->appointmentType?->duration_minutes
+            ?? 30);
+        $this->optometristId = $appointment->optometrist_id;
     }
 
     private function selectedScheduledAt(): Carbon

@@ -121,6 +121,12 @@ class AppointmentRequestForm
                             ->badge()
                             ->color(fn ($record): string => $record?->patient_id !== null ? 'success' : 'warning'),
 
+                        Placeholder::make('request_kind')
+                            ->label('Request')
+                            ->content(fn ($record): string => $record?->isRebooking() ? 'Rebooking' : 'New appointment')
+                            ->badge()
+                            ->color(fn ($record): string => $record?->isRebooking() ? 'info' : 'gray'),
+
                         Placeholder::make('status')
                             ->label('Request Status')
                             ->content(fn ($record): string => Str::headline($record?->effectiveStatus()->value ?? '—'))
@@ -134,12 +140,32 @@ class AppointmentRequestForm
                                 default => 'gray',
                             }),
 
+                        Placeholder::make('current_appointment')
+                            ->label('Current Appointment')
+                            ->content(function ($record): HtmlString {
+                                $appointment = $record?->appointment;
+
+                                if ($appointment === null) {
+                                    return new HtmlString('—');
+                                }
+
+                                $url = AppointmentResource::getUrl('edit', ['record' => $appointment]);
+
+                                return new HtmlString(
+                                    '<a href="'.e($url).'" class="text-primary-600 hover:underline dark:text-primary-400">'
+                                    .e($appointment->appointment_number)
+                                    .' · '.e($appointment->scheduled_at->format('M j, Y g:i A'))
+                                    .'</a>'
+                                );
+                            })
+                            ->visible(fn ($record): bool => $record?->isRebooking() && $record?->appointment !== null),
+
                         Placeholder::make('reason_for_visit')
                             ->label('Reason for Visit')
                             ->content(fn ($record): string => $record?->encrypted_reason_for_visit ?? '—'),
 
                         Placeholder::make('submitted_times')
-                            ->label('Preferred Time')
+                            ->label(fn ($record): string => $record?->isRebooking() ? 'Requested Times' : 'Preferred Time')
                             ->content(function ($record): HtmlString {
                                 if ($record === null) {
                                     return new HtmlString('—');
@@ -167,11 +193,15 @@ class AppointmentRequestForm
                             }),
 
                         Placeholder::make('appointment_type')
-                            ->label('Appointment Type')
+                            ->label(fn ($record): string => $record?->isRebooking()
+                                ? 'Current Appointment Type'
+                                : 'Appointment Type')
                             ->content(fn ($record): string => $record?->appointmentType?->name ?? '—'),
 
                         Placeholder::make('provisional_duration')
-                            ->label('Provisional Duration')
+                            ->label(fn ($record): string => $record?->isRebooking()
+                                ? 'Current Duration'
+                                : 'Provisional Duration')
                             ->content(fn ($record): string => $record?->provisional_duration_minutes !== null
                                 ? "{$record->provisional_duration_minutes} minutes"
                                 : '—'),

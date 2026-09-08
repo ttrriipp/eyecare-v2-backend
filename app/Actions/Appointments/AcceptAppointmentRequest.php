@@ -159,7 +159,7 @@ class AcceptAppointmentRequest
             ]);
         }
 
-        $appointment = DB::transaction(function () use ($request, $reviewer, $scheduledAt): Appointment {
+        $appointment = DB::transaction(function () use ($request, $reviewer, $scheduledAt, $contactNote): Appointment {
             $lockedRequest = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if (! $lockedRequest->isPending()) {
@@ -262,7 +262,13 @@ class AcceptAppointmentRequest
             }
 
             $previousScheduledAt = $appointment->scheduled_at->copy();
-            $appointment->update(['scheduled_at' => $scheduledAt]);
+            $appointmentAttributes = ['scheduled_at' => $scheduledAt];
+
+            if (filled($contactNote)) {
+                $appointmentAttributes['contact_notes'] = trim($contactNote);
+            }
+
+            $appointment->update($appointmentAttributes);
 
             AppointmentReschedule::query()->create([
                 'appointment_id' => $appointment->id,

@@ -31,6 +31,7 @@ final class AppointmentRequestTimeAvailability
                 durationMinutes: (int) ($request->provisional_duration_minutes
                     ?? $request->appointmentType?->duration_minutes
                     ?? 30),
+                ignoreAppointment: $request->isRebooking() ? $request->appointment : null,
             )
             : [];
 

@@ -129,6 +129,29 @@ test('accepting a rebooking notifies the patient without copying the request not
         ->and($sms->message)->not->toContain('Private clinical note');
 });
 
+test('rebooking acceptance preserves the staff contact note on the appointment', function (): void {
+    $user = User::factory()->patient()->create();
+    $reviewer = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $type = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
+    $appointment = reviewRebookingAppointment($user, $optometrist);
+    $request = reviewRebookingRequest($user, $appointment, [
+        'scheduled_at' => '2026-07-14 10:00:00',
+    ]);
+
+    app(AcceptAppointmentRequest::class)->handle(
+        request: $request,
+        reviewer: $reviewer,
+        appointmentType: $type,
+        durationMinutes: $type->duration_minutes,
+        scheduledAt: Carbon::parse('2026-07-14 11:00:00'),
+        optometrist: $optometrist,
+        contactNote: 'Patient confirmed the alternate time by phone.',
+    );
+
+    expect($appointment->fresh()->contact_notes)->toBe('Patient confirmed the alternate time by phone.');
+});
+
 test('rebooking acceptance is idempotent and creates no duplicate effects', function (): void {
     $user = User::factory()->patient()->create();
     $reviewer = User::factory()->staff()->create();

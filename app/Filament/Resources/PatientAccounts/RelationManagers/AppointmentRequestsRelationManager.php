@@ -31,6 +31,14 @@ class AppointmentRequestsRelationManager extends RelationManager
                     ->label('Request #')
                     ->searchable(),
 
+                TextColumn::make('request_type')
+                    ->label('Request')
+                    ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
+                        ? 'Rebooking'
+                        : 'New appointment')
+                    ->badge()
+                    ->color(fn (AppointmentRequest $record): string => $record->isRebooking() ? 'info' : 'gray'),
+
                 TextColumn::make('status')
                     ->state(fn (AppointmentRequest $record): AppointmentRequestStatus => $record->effectiveStatus())
                     ->badge()
@@ -47,6 +55,12 @@ class AppointmentRequestsRelationManager extends RelationManager
                     ->label('Preferred Time')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
+
+                TextColumn::make('appointment.scheduled_at')
+                    ->label('Current Appointment')
+                    ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
+                        ? ($record->appointment?->scheduled_at?->format('M j, Y g:i A') ?? '—')
+                        : '—'),
 
                 TextColumn::make('created_at')
                     ->label('Submitted')
