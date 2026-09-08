@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
+use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\User;
@@ -19,10 +21,13 @@ class AppointmentRequestFactory extends Factory
     {
         return [
             'request_number' => null,
+            'request_type' => AppointmentRequestKind::New,
             'user_id' => User::factory()->patient(),
             'patient_id' => null,
             'appointment_type_id' => AppointmentType::factory(),
             'appointment_id' => null,
+            'original_scheduled_at' => null,
+            'selected_scheduled_at' => null,
             'scheduled_at' => now()->addDay(),
             'alternative_scheduled_times' => null,
             'provisional_duration_minutes' => 30,
@@ -43,6 +48,18 @@ class AppointmentRequestFactory extends Factory
                 'patient_id' => User::factory()->patient()->create()->patient->id,
             ];
         });
+    }
+
+    public function rebookingFor(Appointment $appointment): static
+    {
+        return $this->state([
+            'request_type' => AppointmentRequestKind::Reschedule,
+            'patient_id' => $appointment->patient_id,
+            'appointment_type_id' => $appointment->appointment_type_id,
+            'appointment_id' => $appointment->id,
+            'original_scheduled_at' => $appointment->scheduled_at,
+            'provisional_duration_minutes' => $appointment->duration_minutes,
+        ]);
     }
 
     public function accepted(): static

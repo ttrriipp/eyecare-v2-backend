@@ -18,6 +18,7 @@ class ListAppointmentRequestAvailabilitySlots
     public function handle(
         CarbonInterface $date,
         int $durationMinutes,
+        ?int $excludeAppointmentId = null,
     ): array {
         $schedule = ClinicSchedule::forDate($date);
 
@@ -37,7 +38,7 @@ class ListAppointmentRequestAvailabilitySlots
         );
 
         // Get only confirmed appointment blocks (not request holds)
-        $blocks = $this->buildScheduleBlocks->forDate($date);
+        $blocks = $this->buildScheduleBlocks->forDate($date, excludeAppointmentId: $excludeAppointmentId);
 
         // Filter to only appointment blocks (exclude request holds)
         $appointmentBlocks = $blocks->filter(

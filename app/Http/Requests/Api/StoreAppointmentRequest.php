@@ -6,6 +6,7 @@ use App\Models\AppointmentType;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAppointmentRequest extends FormRequest
 {
@@ -20,8 +21,11 @@ class StoreAppointmentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'appointment_id' => ['nullable', 'integer', 'exists:appointments,id'],
             'appointment_type_id' => [
-                'required',
+                'required_without:appointment_id',
+                Rule::prohibitedIf(fn (): bool => $this->filled('appointment_id')),
+                'nullable',
                 'integer',
                 'exists:appointment_types,id',
                 function (string $attribute, mixed $value, Closure $fail): void {
@@ -34,8 +38,9 @@ class StoreAppointmentRequest extends FormRequest
             'scheduled_at' => ['required', 'date_format:Y-m-d\TH:i:sP', 'after:now'],
             'alternative_scheduled_times' => ['nullable', 'array', 'max:2'],
             'alternative_scheduled_times.*' => ['date_format:Y-m-d\TH:i:sP', 'after:now', 'distinct'],
-            'reason_for_visit' => ['required', 'string', 'max:1000'],
+            'reason_for_visit' => ['required_without:appointment_id', 'nullable', 'string', 'max:1000'],
             'referring_source' => [
+                Rule::prohibitedIf(fn (): bool => $this->filled('appointment_id')),
                 'nullable',
                 'string',
                 'max:255',
@@ -49,7 +54,11 @@ class StoreAppointmentRequest extends FormRequest
                     }
                 },
             ],
-            'identity' => ['nullable', 'array:phone,email,first_name,middle_name,last_name,date_of_birth,gender,occupation,address'],
+            'identity' => [
+                Rule::prohibitedIf(fn (): bool => $this->filled('appointment_id')),
+                'nullable',
+                'array:phone,email,first_name,middle_name,last_name,date_of_birth,gender,occupation,address',
+            ],
             'identity.phone' => ['required_with:identity', 'string', 'max:20'],
             'identity.email' => ['nullable', 'string', 'email', 'max:255'],
             'identity.first_name' => ['required_with:identity', 'string', 'max:255'],

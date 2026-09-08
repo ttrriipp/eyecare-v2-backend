@@ -6,6 +6,7 @@ use App\Actions\Appointments\CancelAppointmentRequest;
 use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreAppointmentRequest;
+use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,9 @@ class AppointmentRequestController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $requests = AppointmentRequest::where('user_id', $request->user()->id)
+        $requests = AppointmentRequest::query()
+            ->with(['appointmentType', 'appointment.status'])
+            ->where('user_id', $request->user()->id)
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
 
@@ -42,18 +45,39 @@ class AppointmentRequestController extends Controller
 
     public function store(StoreAppointmentRequest $request, SubmitAppointmentRequest $submit): JsonResponse
     {
-        $appointmentType = AppointmentType::query()
-            ->findOrFail($request->validated('appointment_type_id'));
+        $scheduledAt = Carbon::parse($request->validated('scheduled_at'), config('app.timezone'));
+        $appointmentId = $request->validated('appointment_id');
 
-        $appointmentRequest = $submit->handle(
-            account: $request->user(),
-            appointmentType: $appointmentType,
-            scheduledAt: Carbon::parse($request->validated('scheduled_at'), config('app.timezone')),
-            reasonForVisit: $request->validated('reason_for_visit'),
-            alternativeScheduledTimes: $request->validated('alternative_scheduled_times'),
-            referringSource: $request->validated('referring_source'),
-            identity: $request->validated('identity'),
-        );
+        if ($appointmentId !== null) {
+            $patient = $request->user()->patient;
+            abort_unless($patient !== null, 404);
+
+            $appointment = Appointment::query()
+                ->where('patient_id', $patient->id)
+                ->with(['appointmentType', 'status'])
+                ->findOrFail($appointmentId);
+
+            $appointmentRequest = $submit->handleRebooking(
+                account: $request->user(),
+                appointment: $appointment,
+                scheduledAt: $scheduledAt,
+                alternativeScheduledTimes: $request->validated('alternative_scheduled_times'),
+                reasonForVisit: $request->validated('reason_for_visit'),
+            );
+        } else {
+            $appointmentType = AppointmentType::query()
+                ->findOrFail($request->validated('appointment_type_id'));
+
+            $appointmentRequest = $submit->handle(
+                account: $request->user(),
+                appointmentType: $appointmentType,
+                scheduledAt: $scheduledAt,
+                reasonForVisit: $request->validated('reason_for_visit'),
+                alternativeScheduledTimes: $request->validated('alternative_scheduled_times'),
+                referringSource: $request->validated('referring_source'),
+                identity: $request->validated('identity'),
+            );
+        }
 
         return response()->json([
             'data' => $this->formatRequest($appointmentRequest),
@@ -65,6 +89,8 @@ class AppointmentRequestController extends Controller
         if ($appointmentRequest->user_id !== $request->user()->id) {
             return response()->json(['message' => 'No query results for model.'], 404);
         }
+
+        $appointmentRequest->load(['appointmentType', 'appointment.status']);
 
         return response()->json([
             'data' => $this->formatRequest($appointmentRequest),
@@ -85,6 +111,7 @@ class AppointmentRequestController extends Controller
         return [
             'id' => $request->id,
             'request_number' => $request->request_number,
+            'request_type' => $request->request_type?->value,
             'status' => $request->effectiveStatus()->value,
             'patient_id' => $request->patient_id,
             'appointment_type' => $request->appointmentType ? [
@@ -93,6 +120,8 @@ class AppointmentRequestController extends Controller
                 'duration_minutes' => $request->appointmentType->duration_minutes,
             ] : null,
             'scheduled_at' => $request->scheduled_at->toISOString(),
+            'original_scheduled_at' => $request->original_scheduled_at?->toISOString(),
+            'selected_scheduled_at' => $request->selected_scheduled_at?->toISOString(),
             'alternative_scheduled_times' => $request->alternative_scheduled_times,
             'provisional_duration_minutes' => $request->provisional_duration_minutes,
             'reason_for_visit' => $request->encrypted_reason_for_visit,

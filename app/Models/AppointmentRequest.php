@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use Database\Factories\AppointmentRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,10 +16,13 @@ class AppointmentRequest extends Model
 
     protected $fillable = [
         'request_number',
+        'request_type',
         'user_id',
         'patient_id',
         'appointment_type_id',
         'appointment_id',
+        'original_scheduled_at',
+        'selected_scheduled_at',
         'scheduled_at',
         'alternative_scheduled_times',
         'provisional_duration_minutes',
@@ -35,8 +39,11 @@ class AppointmentRequest extends Model
     protected function casts(): array
     {
         return [
+            'request_type' => AppointmentRequestKind::class,
             'status' => AppointmentRequestStatus::class,
             'scheduled_at' => 'datetime',
+            'original_scheduled_at' => 'datetime',
+            'selected_scheduled_at' => 'datetime',
             'alternative_scheduled_times' => 'array',
             'encrypted_reason_for_visit' => 'encrypted',
             'encrypted_referring_source' => 'encrypted',
@@ -102,6 +109,11 @@ class AppointmentRequest extends Model
     {
         return $this->status === AppointmentRequestStatus::Pending
             && ! $this->isExpired();
+    }
+
+    public function isRebooking(): bool
+    {
+        return $this->request_type === AppointmentRequestKind::Reschedule;
     }
 
     public function effectiveStatus(): AppointmentRequestStatus
