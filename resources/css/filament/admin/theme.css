@@ -38,6 +38,15 @@
     order: 1;
 }
 
+/* Keep standalone table actions beside the search, filters, and column manager. */
+.fi-ta-header-toolbar:has(> .fi-ta-actions > .fi-btn) > :first-child {
+    order: 2;
+}
+
+.fi-ta-header-toolbar:has(> .fi-ta-actions > .fi-btn) > :nth-child(2) {
+    order: 1;
+}
+
 /* Keep the conversation workspace within the viewport below the fixed topbar. */
 .fi-page.fi-conversation-chat-page {
     height: calc(100dvh - 4rem);

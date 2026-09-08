@@ -103,80 +103,83 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                         : $this->canManageClinicWideOverrides())
                     ->action(fn (ScheduleOverride $record) => $this->deleteOverride($record->id)),
             ])
+            ->toolbarActions([
+                $this->addOverrideAction(),
+            ])
             ->emptyStateHeading('No upcoming overrides')
             ->emptyStateDescription('Add a closure, early-close day, or optometrist absence above.');
     }
 
-    protected function getHeaderActions(): array
+    private function addOverrideAction(): Action
     {
-        return [
-            Action::make('addOverride')
-                ->label('Add Override')
-                ->icon(Heroicon::OutlinedPlus)
-                ->modalDescription('Add a one-off exception to the weekly hours — a holiday closure, an early-closing day, or a single day an optometrist is away.')
-                ->schema([
-                    Select::make('type')
-                        ->label('Type')
-                        ->options(fn () => $this->getAvailableOverrideTypeOptions())
-                        ->required()
-                        ->native(false)
-                        ->live(),
+        return Action::make('addOverride')
+            ->label('Add Override')
+            ->icon(Heroicon::OutlinedPlus)
+            ->button()
+            ->tooltip('Add Override')
+            ->modalDescription('Add a one-off exception to the weekly hours — a holiday closure, an early-closing day, or a single day an optometrist is away.')
+            ->schema([
+                Select::make('type')
+                    ->label('Type')
+                    ->options(fn () => $this->getAvailableOverrideTypeOptions())
+                    ->required()
+                    ->native(false)
+                    ->live(),
 
-                    DatePicker::make('override_date')
-                        ->label('Date')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('M d, Y')
-                        ->placeholder('Choose a date')
-                        ->suffixIcon('heroicon-o-calendar-days')
-                        ->minDate(today())
-                        ->afterOrEqual('today'),
+                DatePicker::make('override_date')
+                    ->label('Date')
+                    ->required()
+                    ->native(false)
+                    ->displayFormat('M d, Y')
+                    ->placeholder('Choose a date')
+                    ->suffixIcon('heroicon-o-calendar-days')
+                    ->minDate(today())
+                    ->afterOrEqual('today'),
 
-                    Select::make('user_id')
-                        ->label('Optometrist')
-                        ->options(fn () => $this->getOptometrists())
-                        ->searchable()
-                        ->preload()
-                        ->required(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value)
-                        ->default(fn () => $this->canManageClinicWideOverrides() ? null : auth()->id())
-                        ->disabled(fn () => ! $this->canManageClinicWideOverrides())
-                        ->dehydrated()
-                        ->visible(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value),
+                Select::make('user_id')
+                    ->label('Optometrist')
+                    ->options(fn () => $this->getOptometrists())
+                    ->searchable()
+                    ->preload()
+                    ->required(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value)
+                    ->default(fn () => $this->canManageClinicWideOverrides() ? null : auth()->id())
+                    ->disabled(fn () => ! $this->canManageClinicWideOverrides())
+                    ->dehydrated()
+                    ->visible(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value),
 
-                    TimePicker::make('start_time')
-                        ->label(fn (Get $get): string => $get('type') === ScheduleOverrideType::EarlyClose->value
-                            ? 'Closes At'
-                            : 'Absence Start (optional)')
-                        ->helperText(fn (Get $get): ?string => $get('type') === ScheduleOverrideType::ProviderAbsence->value
-                            ? 'Leave both times blank if they\'re away the whole day.'
-                            : null)
-                        ->seconds(false)
-                        ->minutesStep(15)
-                        ->format('H:i')
-                        ->suffixIcon('heroicon-o-clock')
-                        ->required(fn (Get $get): bool => $get('type') === ScheduleOverrideType::EarlyClose->value)
-                        ->visible(fn (Get $get): bool => in_array($get('type'), [
-                            ScheduleOverrideType::EarlyClose->value,
-                            ScheduleOverrideType::ProviderAbsence->value,
-                        ], true)),
+                TimePicker::make('start_time')
+                    ->label(fn (Get $get): string => $get('type') === ScheduleOverrideType::EarlyClose->value
+                        ? 'Closes At'
+                        : 'Absence Start (optional)')
+                    ->helperText(fn (Get $get): ?string => $get('type') === ScheduleOverrideType::ProviderAbsence->value
+                        ? 'Leave both times blank if they\'re away the whole day.'
+                        : null)
+                    ->seconds(false)
+                    ->minutesStep(15)
+                    ->format('H:i')
+                    ->suffixIcon('heroicon-o-clock')
+                    ->required(fn (Get $get): bool => $get('type') === ScheduleOverrideType::EarlyClose->value)
+                    ->visible(fn (Get $get): bool => in_array($get('type'), [
+                        ScheduleOverrideType::EarlyClose->value,
+                        ScheduleOverrideType::ProviderAbsence->value,
+                    ], true)),
 
-                    TimePicker::make('end_time')
-                        ->label('Absence End (optional)')
-                        ->seconds(false)
-                        ->minutesStep(15)
-                        ->format('H:i')
-                        ->suffixIcon('heroicon-o-clock')
-                        ->visible(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value),
+                TimePicker::make('end_time')
+                    ->label('Absence End (optional)')
+                    ->seconds(false)
+                    ->minutesStep(15)
+                    ->format('H:i')
+                    ->suffixIcon('heroicon-o-clock')
+                    ->visible(fn (Get $get): bool => $get('type') === ScheduleOverrideType::ProviderAbsence->value),
 
-                    Textarea::make('reason')
-                        ->label('Reason')
-                        ->maxLength(255)
-                        ->columnSpanFull(),
-                ])
-                ->action(function (array $data): void {
-                    $this->createOverride($data);
-                }),
-        ];
+                Textarea::make('reason')
+                    ->label('Reason')
+                    ->maxLength(255)
+                    ->columnSpanFull(),
+            ])
+            ->action(function (array $data): void {
+                $this->createOverride($data);
+            });
     }
 
     /**

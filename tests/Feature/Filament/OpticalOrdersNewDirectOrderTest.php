@@ -47,8 +47,9 @@ test('staff creates a direct order from the optical orders list', function () {
     $this->actingAs($staff);
 
     Livewire::test(ListOpticalOrders::class)
-        ->assertActionVisible('newDirectOrder')
-        ->assertActionHasUrl('newDirectOrder', OpticalOrderResource::getUrl('create'));
+        ->assertTableActionVisible('newDirectOrder')
+        ->assertTableActionHasIcon('newDirectOrder', 'heroicon-o-plus-circle')
+        ->assertTableActionHasUrl('newDirectOrder', OpticalOrderResource::getUrl('create'));
 
     Livewire::test(CreateDirectOpticalOrder::class)
         ->fillForm([
