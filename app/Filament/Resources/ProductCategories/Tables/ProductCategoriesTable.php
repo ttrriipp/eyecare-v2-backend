@@ -29,6 +29,16 @@ class ProductCategoriesTable
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('danger'),
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->label('Updated')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 CatalogLifecycleActions::statusFilter(),
@@ -37,7 +47,7 @@ class ProductCategoriesTable
                 EditAction::make(),
                 ...CatalogLifecycleActions::recordActions('product category'),
             ])
-            ->defaultSort('name')
+            ->defaultSort('created_at', 'desc')
             ->toolbarActions([
                 CatalogLifecycleActions::bulkActions(),
             ]);

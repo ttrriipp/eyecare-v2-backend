@@ -31,12 +31,10 @@ class ProductsTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('brand.name')
-                    ->weight('bold')
                     ->label('Brand')
                     ->searchable()
                     ->toggleable(),
                 TextColumn::make('category.name')
-                    ->weight('bold')
                     ->label('Category')
                     ->searchable()
                     ->toggleable(),
@@ -62,6 +60,16 @@ class ProductsTable
                     ->state(fn (Product $record): int => $record->variants->sum('stock_quantity'))
                     ->sortable(false)
                     ->toggleable(),
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->label('Updated')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
                 ActionGroup::make([

@@ -31,6 +31,16 @@ class LensOptionsTable
                 TextColumn::make('description')
                     ->limit(60)
                     ->toggleable(),
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->label('Updated')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 CatalogLifecycleActions::statusFilter(),
@@ -39,7 +49,7 @@ class LensOptionsTable
                 EditAction::make(),
                 ...CatalogLifecycleActions::recordActions('lens option'),
             ])
-            ->defaultSort('name')
+            ->defaultSort('created_at', 'desc')
             ->toolbarActions([
                 CatalogLifecycleActions::bulkActions(),
             ]);

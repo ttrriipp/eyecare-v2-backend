@@ -76,7 +76,7 @@ test('admin tables emphasize record names except optometrists', function (string
     'App\\Filament\\Resources\\Patients\\RelationManagers\\AppointmentsRelationManager' => [AppointmentsRelationManager::class, ['appointmentType.name']],
     'App\\Filament\\Resources\\Prescriptions\\Tables\\PrescriptionsTable' => [PrescriptionsTable::class, ['patient.full_name', 'author.first_name']],
     'App\\Filament\\Resources\\PatientLinkRequests\\Tables\\PatientLinkRequestsTable' => [PatientLinkRequestsTable::class, ['user.first_name', 'reviewer.first_name']],
-    'App\\Filament\\Resources\\Products\\Tables\\ProductsTable' => [ProductsTable::class, ['name', 'brand.name', 'category.name']],
+    'App\\Filament\\Resources\\Products\\Tables\\ProductsTable' => [ProductsTable::class, ['name']],
     'App\\Filament\\Resources\\Products\\RelationManagers\\VariantsRelationManager' => [VariantsRelationManager::class, ['name']],
     'App\\Filament\\Resources\\OpticalOrders\\Tables\\OpticalOrdersTable' => [OpticalOrdersTable::class, ['patient.full_name']],
     'App\\Filament\\Resources\\LensOptions\\Tables\\LensOptionsTable' => [LensOptionsTable::class, ['name']],
@@ -97,4 +97,22 @@ test('admin tables emphasize record names except optometrists', function (string
     'App\\Filament\\Resources\\Services\\Tables\\ServicesTable' => [ServicesTable::class, ['name']],
     'App\\Filament\\Clusters\\Availability\\Resources\\AppointmentTypes\\Tables\\AppointmentTypesTable' => [AppointmentTypesTable::class, ['name']],
     'App\\Filament\\Widgets\\TodaysScheduleWidget' => [TodaysScheduleWidget::class, ['patient.full_name', 'appointmentType.name', 'optometrist.full_name']],
+]);
+
+test('catalog tables default to newest records and keep timestamps optional', function (string $class) {
+    $this->actingAs(User::factory()->create());
+    $table = $class::configure(Table::make(Mockery::mock(HasTable::class)));
+
+    expect($table->getDefaultSortColumn())->toBe('created_at')
+        ->and($table->getDefaultSortDirection())->toBe('desc')
+        ->and($table->getColumn('created_at')->isToggleable())->toBeTrue()
+        ->and($table->getColumn('created_at')->isToggledHiddenByDefault())->toBeTrue()
+        ->and($table->getColumn('updated_at')->isToggleable())->toBeTrue()
+        ->and($table->getColumn('updated_at')->isToggledHiddenByDefault())->toBeTrue();
+})->with([
+    'brands' => [BrandsTable::class],
+    'lens categories' => [LensCategoriesTable::class],
+    'lens options' => [LensOptionsTable::class],
+    'product categories' => [ProductCategoriesTable::class],
+    'services' => [ServicesTable::class],
 ]);

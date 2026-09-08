@@ -3,6 +3,7 @@
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Support\Enums\FontWeight;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -34,4 +35,29 @@ test('the product list sorts newest products first by default', function () {
 
     expect($table->getDefaultSortColumn())->toBe('created_at')
         ->and($table->getDefaultSortDirection())->toBe('desc');
+});
+
+test('the product list keeps created and updated timestamps optional', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    $table = Livewire::test(ListProducts::class)->instance()->getTable();
+
+    expect($table->getColumn('created_at')->isToggleable())->toBeTrue()
+        ->and($table->getColumn('created_at')->isToggledHiddenByDefault())->toBeTrue()
+        ->and($table->getColumn('updated_at')->isToggleable())->toBeTrue()
+        ->and($table->getColumn('updated_at')->isToggledHiddenByDefault())->toBeTrue();
+});
+
+test('the product list only emphasizes the product name', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    $table = Livewire::test(ListProducts::class)->instance()->getTable();
+
+    expect($table->getColumn('name')->getWeight())->toBe(FontWeight::Bold)
+        ->and($table->getColumn('brand.name')->getWeight())->toBeNull()
+        ->and($table->getColumn('category.name')->getWeight())->toBeNull();
 });

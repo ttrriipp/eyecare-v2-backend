@@ -27,6 +27,16 @@ class ServicesTable
                 TextColumn::make('description')
                     ->limit(50)
                     ->toggleable(),
+                TextColumn::make('created_at')
+                    ->label('Created')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
+                    ->label('Updated')
+                    ->dateTime('M j, Y g:i A')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 CatalogLifecycleActions::statusFilter(),
@@ -35,7 +45,7 @@ class ServicesTable
                 EditAction::make(),
                 ...CatalogLifecycleActions::recordActions('service'),
             ])
-            ->defaultSort('name')
+            ->defaultSort('created_at', 'desc')
             ->toolbarActions([
                 CatalogLifecycleActions::bulkActions(),
             ]);
