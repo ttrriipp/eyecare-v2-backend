@@ -134,7 +134,9 @@ final class PilotDeploymentPreflight
         $this->addCheck($checks, 'storage.ar_published', fn (): ?string => $this->publicDisk(
             config('ar.assets.published_disk'),
         ) ? null : 'Published AR assets must use a configured public disk.');
-        $this->addCheck($checks, 'storage.catalog', fn (): ?string => $this->publicDisk('public')
+        $catalogDisk = config('filesystems.catalog_disk');
+        $this->addCheck($checks, 'storage.catalog', fn (): ?string => is_string($catalogDisk)
+            && $this->publicDisk($catalogDisk)
             ? null
             : 'Published catalog assets must use a configured public disk.');
         $this->addCheck($checks, 'storage.ar_base_url', fn (): ?string => $this->secureUrl(
@@ -500,8 +502,12 @@ final class PilotDeploymentPreflight
             && ($disk['visibility'] ?? 'private') === 'private';
     }
 
-    private function publicDisk(string $diskName): bool
+    private function publicDisk(mixed $diskName): bool
     {
+        if (! is_string($diskName) || $diskName === '') {
+            return false;
+        }
+
         $disk = config('filesystems.disks.'.$diskName);
 
         return is_array($disk)

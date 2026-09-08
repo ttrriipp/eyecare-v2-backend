@@ -22,7 +22,7 @@
                 $imageUrl = match (true) {
                     ! is_string($imagePath) || trim($imagePath) === '' => null,
                     filter_var($imagePath, FILTER_VALIDATE_URL) !== false => $imagePath,
-                    default => \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath),
+                    default => \Illuminate\Support\Facades\Storage::disk((string) config('filesystems.catalog_disk'))->url($imagePath),
                 };
                 $availabilityClasses = match ($availability) {
                     'Available' => 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',

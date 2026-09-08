@@ -1,5 +1,43 @@
 <?php
 
+$catalogDriver = (string) env('CATALOG_DRIVER', 'local');
+$catalogRoot = env('CATALOG_ROOT');
+$messageAttachmentsDriver = (string) env('MESSAGE_ATTACHMENTS_DRIVER', 'local');
+$messageAttachmentsRoot = env('MESSAGE_ATTACHMENTS_ROOT');
+$arQuarantineDriver = (string) env('AR_QUARANTINE_DRIVER', 'local');
+$arQuarantineRoot = env('AR_QUARANTINE_ROOT');
+$arPublishedDriver = (string) env('AR_PUBLISHED_DRIVER', 'local');
+$arPublishedRoot = env('AR_PUBLISHED_ROOT');
+$catalogUrl = env('CATALOG_URL');
+
+if (! is_string($catalogRoot) || trim($catalogRoot) === '') {
+    $catalogRoot = $catalogDriver === 'local' ? storage_path('app/public') : 'catalog';
+}
+
+if (! is_string($messageAttachmentsRoot) || trim($messageAttachmentsRoot) === '') {
+    $messageAttachmentsRoot = $messageAttachmentsDriver === 'local'
+        ? storage_path('app/private/message-attachments')
+        : 'message-attachments';
+}
+
+if (! is_string($arQuarantineRoot) || trim($arQuarantineRoot) === '') {
+    $arQuarantineRoot = $arQuarantineDriver === 'local'
+        ? storage_path('app/private/ar/quarantine')
+        : 'ar/quarantine';
+}
+
+if (! is_string($arPublishedRoot) || trim($arPublishedRoot) === '') {
+    $arPublishedRoot = $arPublishedDriver === 'local'
+        ? storage_path('app/public/ar')
+        : 'ar';
+}
+
+if (! is_string($catalogUrl) || trim($catalogUrl) === '') {
+    $catalogUrl = $catalogDriver === 'local'
+        ? rtrim((string) env('APP_URL', 'http://localhost'), '/').'/storage'
+        : env('AWS_URL');
+}
+
 return [
 
     /*
@@ -26,6 +64,7 @@ return [
     */
 
     'message_attachments_disk' => env('MESSAGE_ATTACHMENTS_DISK', 'message_attachments'),
+    'catalog_disk' => env('CATALOG_DISK', 'public'),
 
     /*
     |--------------------------------------------------------------------------
@@ -51,34 +90,65 @@ return [
         ],
 
         'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            'driver' => $catalogDriver,
+            'root' => $catalogRoot,
+            'key' => env('CATALOG_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('CATALOG_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('CATALOG_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('CATALOG_BUCKET', env('AWS_BUCKET')),
+            'url' => $catalogUrl,
+            'endpoint' => env('CATALOG_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env(
+                'CATALOG_USE_PATH_STYLE_ENDPOINT',
+                env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            ),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],
 
         'ar_quarantine' => [
-            'driver' => 'local',
-            'root' => storage_path('app/private/ar/quarantine'),
+            'driver' => $arQuarantineDriver,
+            'root' => $arQuarantineRoot,
+            'key' => env('AR_QUARANTINE_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('AR_QUARANTINE_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('AR_QUARANTINE_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('AR_QUARANTINE_BUCKET', env('AWS_BUCKET')),
+            'url' => env('AR_QUARANTINE_URL', env('AWS_URL')),
+            'endpoint' => env('AR_QUARANTINE_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env(
+                'AR_QUARANTINE_USE_PATH_STYLE_ENDPOINT',
+                env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            ),
             'visibility' => 'private',
             'throw' => true,
             'report' => false,
         ],
 
         'ar_published' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public/ar'),
-            'url' => rtrim(env('AR_ASSET_BASE_URL', env('APP_URL', 'https://localhost')), '/'),
+            'driver' => $arPublishedDriver,
+            'root' => $arPublishedRoot,
+            'key' => env('AR_PUBLISHED_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('AR_PUBLISHED_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('AR_PUBLISHED_REGION', env('AWS_DEFAULT_REGION')),
+            'bucket' => env('AR_PUBLISHED_BUCKET', env('AWS_BUCKET')),
+            'url' => env(
+                'AR_PUBLISHED_URL',
+                rtrim(env('AR_ASSET_BASE_URL', env('APP_URL', 'https://localhost')), '/'),
+            ),
+            'endpoint' => env('AR_PUBLISHED_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env(
+                'AR_PUBLISHED_USE_PATH_STYLE_ENDPOINT',
+                env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            ),
             'visibility' => 'public',
             'throw' => true,
             'report' => false,
         ],
 
         'message_attachments' => [
-            'driver' => env('MESSAGE_ATTACHMENTS_DRIVER', 'local'),
-            'root' => env('MESSAGE_ATTACHMENTS_ROOT', storage_path('app/private/message-attachments')),
+            'driver' => $messageAttachmentsDriver,
+            'root' => $messageAttachmentsRoot,
             'key' => env('MESSAGE_ATTACHMENTS_KEY', env('AWS_ACCESS_KEY_ID')),
             'secret' => env('MESSAGE_ATTACHMENTS_SECRET', env('AWS_SECRET_ACCESS_KEY')),
             'region' => env('MESSAGE_ATTACHMENTS_REGION', env('AWS_DEFAULT_REGION')),

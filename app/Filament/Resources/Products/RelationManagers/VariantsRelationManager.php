@@ -188,7 +188,7 @@ class VariantsRelationManager extends RelationManager
         }
 
         $components[] = FileUpload::make('images')
-            ->disk('public')
+            ->disk((string) config('filesystems.catalog_disk'))
             ->directory('variants')
             ->visibility('public')
             ->image()
@@ -213,7 +213,7 @@ class VariantsRelationManager extends RelationManager
                 ImageColumn::make('images')
                     ->label('Image')
                     ->state(fn ($record): ?string => collect($record->images)->first())
-                    ->disk('public')
+                    ->disk((string) config('filesystems.catalog_disk'))
                     ->square()
                     ->size(40),
                 TextColumn::make('name')

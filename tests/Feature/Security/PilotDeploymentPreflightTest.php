@@ -79,6 +79,32 @@ test('valid staff-only demo deployment passes without pilot accounts or SMS', fu
         ->assertSuccessful();
 });
 
+test('preflight accepts an explicitly configured catalog disk alias', function (): void {
+    config([
+        'filesystems.catalog_disk' => 'catalog_cloud',
+        'filesystems.disks.catalog_cloud' => [
+            'driver' => 's3',
+            'visibility' => 'public',
+        ],
+    ]);
+
+    $this->artisan('pilot:preflight')->assertSuccessful();
+});
+
+test('preflight fails closed when the catalog disk alias is missing or private', function (string $diskName, ?array $disk): void {
+    config([
+        'filesystems.catalog_disk' => $diskName,
+        "filesystems.disks.{$diskName}" => $disk,
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('storage.catalog')
+        ->assertFailed();
+})->with([
+    ['missing_catalog_disk', null],
+    ['private_catalog_disk', ['driver' => 's3', 'visibility' => 'private']],
+]);
+
 test('demo-only deployment fails closed if pilot mode is enabled', function (): void {
     config([
         'deployment.mode' => 'demo',

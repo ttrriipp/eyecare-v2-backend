@@ -23,7 +23,7 @@ class ProductsTable
                 ImageColumn::make('images')
                     ->label('Image')
                     ->state(fn (Product $record): ?string => collect($record->images)->first())
-                    ->disk('public')
+                    ->disk((string) config('filesystems.catalog_disk'))
                     ->square()
                     ->size(48),
                 TextColumn::make('name')

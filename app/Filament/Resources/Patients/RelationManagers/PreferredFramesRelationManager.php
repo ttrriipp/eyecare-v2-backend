@@ -29,7 +29,7 @@ class PreferredFramesRelationManager extends RelationManager
                 ImageColumn::make('variant.product.images')
                     ->label('')
                     ->state(fn (SavedFrame $record): ?string => collect($record->variant?->images ?? [])->first())
-                    ->disk('public')
+                    ->disk((string) config('filesystems.catalog_disk'))
                     ->square()
                     ->size(40)
                     ->extraImgAttributes(fn (SavedFrame $record): array => [

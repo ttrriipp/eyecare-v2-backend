@@ -62,7 +62,7 @@ class ProductForm
 
                     Section::make('Images')->schema([
                         FileUpload::make('images')
-                            ->disk('public')
+                            ->disk((string) config('filesystems.catalog_disk'))
                             ->directory('products')
                             ->visibility('public')
                             ->image()
@@ -249,7 +249,7 @@ class ProductForm
                                 ->columnSpanFull()
                                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
                             FileUpload::make('images')
-                                ->disk('public')
+                                ->disk((string) config('filesystems.catalog_disk'))
                                 ->directory('variants')
                                 ->visibility('public')
                                 ->image()

@@ -515,7 +515,7 @@ class CatalogSeeder extends Seeder
             return [];
         }
 
-        $disk = Storage::disk('public');
+        $disk = Storage::disk((string) config('filesystems.catalog_disk'));
 
         return collect(File::files($sourceDirectory))
             ->filter(fn (\SplFileInfo $file): bool => in_array(
