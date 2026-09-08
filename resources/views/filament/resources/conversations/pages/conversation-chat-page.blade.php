@@ -1,8 +1,12 @@
 <x-filament-panels::page full-height class="fi-conversation-chat-page">
-    <div class="flex h-full min-h-0 gap-4 overflow-hidden" data-chat-layout>
+    <div class="flex h-full min-h-0 w-full min-w-0 gap-4 overflow-hidden" data-chat-layout>
 
         {{-- Conversation list --}}
-        <aside class="flex min-h-0 w-72 shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        <aside @class([
+            'min-h-0 w-full shrink-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900 md:w-72',
+            'flex' => $selectedConversationId === null,
+            'hidden md:flex' => $selectedConversationId !== null,
+        ])>
             <div class="border-b border-gray-200 px-4 py-3 dark:border-white/10">
                 <div class="flex items-center justify-between">
                     <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -13,7 +17,7 @@
                     </p>
                     <button
                         wire:click="$toggle('showArchived')"
-                        class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        class="inline-flex min-h-11 items-center text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     >
                         {{ $showArchived ? 'Show inbox' : 'Show archived' }}
                     </button>
@@ -25,7 +29,7 @@
                         wire:model.live.debounce.300ms="conversationFilter"
                         placeholder="Search patients or accounts…"
                         aria-label="Search conversations"
-                        class="block w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-xs text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-gray-500"
+                        class="block min-h-11 w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-xs text-gray-900 placeholder-gray-400 shadow-sm transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder-gray-500"
                     >
                 </div>
             </div>
@@ -84,7 +88,11 @@
         </aside>
 
         {{-- Chat panel --}}
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900">
+        <div @class([
+            'min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-white/10 dark:bg-gray-900',
+            'flex' => $selectedConversationId !== null,
+            'hidden md:flex' => $selectedConversationId === null,
+        ])>
 
             @if ($this->selectedConversation === null)
                 {{-- Empty state --}}
@@ -94,7 +102,16 @@
                 </div>
             @else
                 {{-- Header --}}
-                <div class="flex items-center gap-2 border-b border-gray-200 px-5 py-3 dark:border-white/10">
+                <div class="flex items-start gap-2 border-b border-gray-200 px-3 py-3 dark:border-white/10 sm:px-5">
+                    <button
+                        type="button"
+                        wire:click="$set('selectedConversationId', null)"
+                        class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10 md:hidden"
+                        aria-label="Back to conversations"
+                        data-chat-mobile-back
+                    >
+                        <x-heroicon-o-arrow-left class="h-4 w-4" />
+                    </button>
                     <div class="min-w-0 flex-1">
                         <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
                             {{ $this->selectedConversation->patient?->full_name ?? $this->selectedConversation->account?->full_name ?? 'Unknown' }}
@@ -110,48 +127,50 @@
                                 View patient record
                             </a>
                         @endif
+                        @if ($this->selectedConversation->patient_id === null)
+                            <div class="mt-1 inline-flex max-w-full rounded-lg bg-warning-50 px-3 py-1.5 text-left text-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
+                                Unlinked account — general inquiry only
+                            </div>
+                        @endif
                     </div>
-                    @if ($this->selectedConversation->patient_id === null)
-                        <div class="rounded-lg bg-warning-50 px-3 py-1.5 text-xs font-medium text-warning-700 dark:bg-warning-500/15 dark:text-warning-400">
-                            Unlinked account — general inquiry only
-                        </div>
-                    @endif
-                    <button
-                        wire:click="toggleSearch"
-                        class="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm transition
-                            {{ $showSearch
-                                ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-400'
-                                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10'
-                            }}"
-                        title="Search messages"
-                        aria-label="Search messages"
-                    >
-                        <x-heroicon-o-magnifying-glass class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                        wire:click="markAsUnread"
-                        class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
-                        title="Mark as unread"
-                        aria-label="Mark as unread"
-                    >
-                        <x-heroicon-o-envelope class="h-3.5 w-3.5" />
-                    </button>
-                    @if ($this->selectedConversation->isInboxArchived())
+                    <div class="flex shrink-0 items-center gap-1">
                         <button
-                            wire:click="restoreConversation({{ $this->selectedConversation->id }})"
-                            class="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            wire:click="toggleSearch"
+                            class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm transition
+                                {{ $showSearch
+                                    ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-400'
+                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10'
+                                }}"
+                            title="Search messages"
+                            aria-label="Search messages"
                         >
-                            <x-heroicon-o-arrow-uturn-left class="h-3.5 w-3.5" />
-                            Restore
+                            <x-heroicon-o-magnifying-glass class="h-3.5 w-3.5" />
                         </button>
-                    @else
-                        {{ $this->archiveAction }}
-                    @endif
+                        <button
+                            wire:click="markAsUnread"
+                            class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            title="Mark as unread"
+                            aria-label="Mark as unread"
+                        >
+                            <x-heroicon-o-envelope class="h-3.5 w-3.5" />
+                        </button>
+                        @if ($this->selectedConversation->isInboxArchived())
+                            <button
+                                wire:click="restoreConversation({{ $this->selectedConversation->id }})"
+                                class="inline-flex min-h-11 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                            >
+                                <x-heroicon-o-arrow-uturn-left class="h-3.5 w-3.5" />
+                                Restore
+                            </button>
+                        @else
+                            {{ $this->archiveAction }}
+                        @endif
+                    </div>
                 </div>
 
                 {{-- Search panel --}}
                 @if ($showSearch)
-                    <div class="border-b border-gray-200 bg-gray-50 px-5 py-3 dark:border-white/10 dark:bg-white/[0.02]" wire:key="search-panel">
+                    <div class="border-b border-gray-200 bg-gray-50 px-3 py-3 dark:border-white/10 dark:bg-white/[0.02] sm:px-5" wire:key="search-panel">
                         <div class="flex gap-2">
                             <div class="relative flex-1">
                                 <x-heroicon-o-magnifying-glass class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -209,7 +228,7 @@
                             }
                         });
                     }))"
-                    class="relative flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto px-5 py-4"
+                    class="relative flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto px-3 py-4 sm:px-5"
                     id="chat-messages"
                     data-chat-scroll-region="messages"
                     data-last-message-id="{{ optional($this->messages)->last()?->id }}"
@@ -262,7 +281,7 @@
                             id="message-{{ $message->id }}"
                             class="flex {{ $isStaff ? 'justify-end' : 'justify-start' }} {{ $loop->first ? 'mt-auto' : '' }}"
                         >
-                            <div class="max-w-[70%]">
+                            <div class="max-w-[88%] sm:max-w-[70%]">
                                 <div class="flex items-baseline gap-2 {{ $isStaff ? 'flex-row-reverse' : '' }}">
                                     <span class="text-xs font-medium {{ $isStaff ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400' }}">
                                         {{ $message->sender?->name ?? 'Unknown' }}
@@ -399,9 +418,9 @@
                 </div>
 
                 {{-- Reply box --}}
-                <div class="border-t border-gray-200 px-5 py-3 dark:border-white/10">
+                <div class="border-t border-gray-200 px-3 py-3 dark:border-white/10 sm:px-5">
                     <form wire:submit="sendReply" class="space-y-1" x-data="{ length: {{ strlen($replyBody) }} }">
-                        <div class="flex items-end gap-3">
+                        <div class="flex items-end gap-2 sm:gap-3">
                             <div class="flex-1">
                                 <label for="reply-body" class="sr-only">Reply</label>
                                 <textarea
@@ -418,9 +437,9 @@
                                         @error('replyBody') border-danger-400 focus:border-danger-500 focus:ring-danger-500 dark:border-danger-500/50 @else border-gray-300 focus:border-primary-500 focus:ring-primary-500 dark:border-white/10 @enderror"
                                 ></textarea>
                             </div>
-                            <div class="flex shrink-0 items-center gap-2">
+                            <div class="flex shrink-0 items-center gap-1 sm:gap-2">
                                 <label
-                                    class="inline-flex cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
+                                    class="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-gray-500 shadow-sm transition hover:bg-gray-50 hover:text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
                                     title="Attach file"
                                 >
                                     <x-heroicon-o-paper-clip class="h-4 w-4" />
@@ -434,7 +453,7 @@
                                 </label>
                                 <button
                                     type="submit"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 dark:bg-primary-500 dark:hover:bg-primary-400"
+                                    class="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 sm:px-4 dark:bg-primary-500 dark:hover:bg-primary-400"
                                     wire:loading.attr="disabled"
                                 >
                                     <x-heroicon-o-paper-airplane class="h-4 w-4" wire:loading.remove wire:target="sendReply" />

@@ -57,6 +57,7 @@
 .fi-page.fi-conversation-chat-page .fi-page-main,
 .fi-page.fi-conversation-chat-page .fi-page-content {
     min-height: 0;
+    min-width: 0;
 }
 
 .fi-page.fi-conversation-chat-page .fi-page-main {

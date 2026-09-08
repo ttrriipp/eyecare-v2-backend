@@ -18,6 +18,15 @@ test('login page contains EyeCare branding', function () {
         ->assertSee('Staff sign-in for Padilla Optical Clinic');
 });
 
+test('login layout adapts the brand artwork and form for narrow screens', function () {
+    $html = $this->get('/admin/login')->getContent();
+
+    expect($html)
+        ->toContain('lg:flex-row')
+        ->toContain('w-full max-w-[22rem]')
+        ->toContain('max-w-[32rem]');
+});
+
 test('login page offers a password reset link', function () {
     $this->get('/admin/login')
         ->assertSee('Forgot password?');

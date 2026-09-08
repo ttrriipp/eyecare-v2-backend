@@ -27,6 +27,27 @@ test('staff messaging page uses messages as its user-facing title', function () 
         ->and((new ConversationChatPage)->getTitle())->toBe('Messages');
 });
 
+test('conversation workspace adapts to a mobile master-detail layout', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    $html = Livewire::test(ConversationChatPage::class)
+        ->set('selectedConversationId', $conversation->id)
+        ->html();
+
+    expect($html)
+        ->toContain('md:w-72')
+        ->toContain('hidden md:flex')
+        ->toContain('data-chat-mobile-back')
+        ->toContain('w-full');
+});
+
 test('conversation chat refreshes link status after the account becomes linked', function () {
     $admin = User::factory()->admin()->create();
     $account = User::factory()->create([
