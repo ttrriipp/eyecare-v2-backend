@@ -47,7 +47,6 @@ class ProvisionPilotAdministratorCommand extends Command
         }
 
         $this->info('Pilot administrator provisioned.');
-        $this->info('Filament MFA enrollment remains required before panel access in production.');
 
         return self::SUCCESS;
     }

@@ -1,9 +1,10 @@
 <?php
 
 use App\Models\User;
+use App\Providers\Filament\AdminPanelProvider;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\RoleSeeder;
-use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
+use Filament\Panel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -12,10 +13,18 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('production MFA is configured in panel', function () {
-    // Verify the User model implements HasAppAuthentication
-    $user = User::factory()->admin()->create();
-    expect($user)->toBeInstanceOf(HasAppAuthentication::class);
+test('production panel does not configure MFA', function () {
+    $environment = app()->environment();
+    app()->instance('env', 'production');
+
+    try {
+        $panel = (new AdminPanelProvider(app()))->panel(Panel::make());
+
+        expect($panel->getMultiFactorAuthenticationProviders())->toBeEmpty()
+            ->and($panel->isMultiFactorAuthenticationRequired())->toBeFalse();
+    } finally {
+        app()->instance('env', $environment);
+    }
 });
 
 test('patient role cannot access admin panel', function () {

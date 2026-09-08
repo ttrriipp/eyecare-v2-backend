@@ -15,7 +15,7 @@ beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
 });
 
-test('administrator bootstrap accepts a hidden password and leaves MFA enrollment pending', function (): void {
+test('administrator bootstrap accepts a hidden password without MFA setup', function (): void {
     $this->artisan('pilot:provision-administrator admin@example.test Study Operator --yes')
         ->expectsQuestion('Administrator password', 'SecureAdmin123!')
         ->expectsQuestion('Confirm administrator password', 'SecureAdmin123!')
@@ -34,7 +34,6 @@ test('administrator bootstrap accepts a hidden password and leaves MFA enrollmen
         ->and($admin->is_optometrist)->toBeFalse()
         ->and($admin->must_change_password)->toBeFalse()
         ->and($admin->password_changed_at)->toBeNull()
-        ->and($admin->app_authentication_secret)->toBeNull()
         ->and(AuditLog::query()->where('subject_id', $admin->id)->get()->flatMap(
             fn (AuditLog $entry): array => array_keys($entry->metadata ?? []),
         )->intersect(['password', 'password_confirmation'])->isEmpty())->toBeTrue();
@@ -45,20 +44,19 @@ test('administrator bootstrap accepts a hidden password and leaves MFA enrollmen
     try {
         $panel = (new AdminPanelProvider(app()))->panel(Panel::make());
 
-        expect($panel->getMultiFactorAuthenticationProviders())->toHaveKey('app')
-            ->and($panel->isMultiFactorAuthenticationRequired())->toBeTrue();
+        expect($panel->getMultiFactorAuthenticationProviders())->toBeEmpty()
+            ->and($panel->isMultiFactorAuthenticationRequired())->toBeFalse();
     } finally {
         app()->instance('env', $environment);
     }
 });
 
-test('administrator bootstrap updates an existing admin without changing MFA enrollment state', function (): void {
+test('administrator bootstrap updates an existing admin without MFA state', function (): void {
     $admin = User::factory()->admin()->create([
         'email' => 'admin@example.test',
         'password' => Hash::make('OldAdmin123!'),
         'first_name' => 'Old',
         'last_name' => 'Name',
-        'app_authentication_secret' => 'existing-mfa-secret',
     ]);
 
     $passwordFile = tempnam(sys_get_temp_dir(), 'pilot-admin-password-');
@@ -78,7 +76,6 @@ test('administrator bootstrap updates an existing admin without changing MFA enr
         ->and($updated->first_name)->toBe('Updated')
         ->and($updated->last_name)->toBe('Operator')
         ->and(Hash::check('NewAdmin123!', $updated->password))->toBeTrue()
-        ->and($updated->app_authentication_secret)->toBe('existing-mfa-secret')
         ->and($updated->must_change_password)->toBeFalse()
         ->and($updated->password_changed_at)->not->toBeNull()
         ->and($updated->roles->pluck('name')->all())->toBe([Role::Admin]);

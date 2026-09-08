@@ -11,10 +11,10 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('user model implements HasAppAuthentication', function () {
+test('user model does not implement Filament app authentication', function () {
     $user = User::factory()->admin()->create();
 
-    expect($user)->toBeInstanceOf(HasAppAuthentication::class);
+    expect($user)->not->toBeInstanceOf(HasAppAuthentication::class);
 });
 
 test('user model has app_authentication_secret column', function () {

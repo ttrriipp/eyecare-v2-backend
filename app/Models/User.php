@@ -5,8 +5,6 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Actions\PatientAccounts\NormalizeContact;
 use Database\Factories\UserFactory;
-use Filament\Auth\MultiFactor\App\Concerns\InteractsWithAppAuthentication;
-use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -24,10 +22,10 @@ use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['first_name', 'middle_name', 'last_name', 'email', 'phone', 'address', 'date_of_birth', 'password', 'role_id', 'is_optometrist', 'privacy_notice_version', 'privacy_acknowledged_at', 'last_login_at', 'is_active', 'must_change_password', 'password_changed_at'])]
 #[Hidden(['password', 'remember_token', 'active_session_hash', 'active_session_last_seen_at'])]
-class User extends Authenticatable implements FilamentUser, HasAppAuthentication
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, InteractsWithAppAuthentication, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Normalize phone number to +63XXXXXXXXXX format.

@@ -11,7 +11,6 @@ use App\Filament\Widgets\OtherIssuesWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureSingleSession;
-use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -45,9 +44,6 @@ class AdminPanelProvider extends PanelProvider
             ->defaultAvatarProvider(BrandAvatarProvider::class)
             ->databaseNotifications()
             ->globalSearchResourceOptIn()
-            ->multiFactorAuthentication([
-                AppAuthentication::make(),
-            ], isRequired: app()->isProduction())
             ->colors([
                 'primary' => Color::hex('#4F8DD7'),
                 'gray' => Color::Slate,

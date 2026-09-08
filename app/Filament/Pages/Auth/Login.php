@@ -77,10 +77,6 @@ class Login extends BaseLogin
 
     public function getHeading(): string|Htmlable|null
     {
-        if (filled($this->userUndertakingMultiFactorAuthentication)) {
-            return parent::getHeading();
-        }
-
         // The custom login layout renders the EyeCare brand mark itself,
         // so Filament's default "Sign in" header would otherwise be
         // duplicated inside the card.
