@@ -9,7 +9,6 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\OtherIssuesWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
-use App\Filament\Widgets\TodaysScheduleWidget;
 use App\Http\Middleware\EnsurePasswordIsChanged;
 use App\Http\Middleware\EnsureSingleSession;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
@@ -78,7 +77,6 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 StatsOverviewWidget::class,
                 OtherIssuesWidget::class,
-                TodaysScheduleWidget::class,
                 AppointmentsChartWidget::class,
             ])
             ->middleware([

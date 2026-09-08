@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 
 class TodaysScheduleWidget extends TableWidget
 {
+    protected static bool $isDiscovered = false;
+
     protected static ?int $sort = 3;
 
     protected int|string|array $columnSpan = 'full';

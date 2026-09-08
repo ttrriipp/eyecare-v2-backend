@@ -15,6 +15,8 @@ use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Encounter;
 use App\Models\User;
+use App\Providers\Filament\AdminPanelProvider;
+use Filament\Panel;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -31,6 +33,12 @@ test('dashboard widgets are accessible to staff and admin', function (string $ro
     Livewire::test(StatsOverviewWidget::class)->assertSuccessful();
     Livewire::test(TodaysScheduleWidget::class)->assertSuccessful();
 })->with(['staff', 'admin']);
+
+test('today schedule is not registered on the dashboard', function () {
+    $panel = (new AdminPanelProvider(app()))->panel(Panel::make());
+
+    expect($panel->getWidgets())->not->toContain(TodaysScheduleWidget::class);
+});
 
 test('dashboard prioritizes clinical workflow stats', function () {
     $admin = User::factory()->admin()->create();
