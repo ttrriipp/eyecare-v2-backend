@@ -18,6 +18,12 @@ Route::get('/', function () {
     return redirect('/admin/login');
 });
 
+Route::view('/privacy', 'legal.privacy')
+    ->name('legal.privacy');
+
+Route::view('/terms', 'legal.terms')
+    ->name('legal.terms');
+
 Route::get('/health', function () {
     try {
         DB::connection()->getPdo();
