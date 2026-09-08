@@ -1,5 +1,15 @@
 # Active Checklist
 
+**Appointment-Request Rebooking** — implementation approved 2026-09-08
+
+→ `tasks/appointment-request-rebooking-todo.md`
+
+The short specification and three-task plan are approved. The implementation
+keeps the current appointment active while a new linked appointment request is
+reviewed and preserves the original booking request.
+
+The previous active checklist remains:
+
 **Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
 
 → `tasks/capstone-pilot-deployment-readiness-todo.md`

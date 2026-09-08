@@ -9,6 +9,22 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Appointment-Request Rebooking** — implementation approved 2026-09-08
+
+- Spec: `docs/specs/appointment-request-rebooking-spec.md` (approved
+  2026-09-08)
+- Plan: `tasks/appointment-request-rebooking-plan.md` (approved 2026-09-08)
+- Checklist: `tasks/appointment-request-rebooking-todo.md` (approved
+  2026-09-08; implementation pending)
+
+The unified request design keeps the current appointment scheduled while a new
+linked request is pending, preserves the original booking request, and lets
+staff approve the replacement time through the existing Appointment Requests
+resource. Implementation is sequenced across three tasks with a review after
+each checkpoint.
+
+## Previous active entry (preserved)
+
 **Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
 
 - Spec: `docs/specs/capstone-pilot-deployment-readiness-spec.md` (approved
@@ -25,7 +41,7 @@ remains gated by hosting, the approved study-data allowlist, named technical
 and research-data owners, retention/deletion rules, the external Android
 participant-login change, and all security/rehearsal checks.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Reports Feature** — implemented and verified 2026-08-30
 
