@@ -44,6 +44,16 @@ test('appointment table shows the populated appointment type', function () {
         ->assertDontSee('Visit reason');
 });
 
+test('appointment table stacks records on mobile', function () {
+    $staff = User::factory()->staff()->create();
+    Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointments::class)
+        ->assertSeeHtml('fi-ta-table-stacked-on-mobile');
+});
+
 test('appointment table prioritizes active appointments and sorts them by earliest time', function () {
     $staff = User::factory()->staff()->create();
     $checkedInEarlier = Appointment::factory()->checkedIn()->create([

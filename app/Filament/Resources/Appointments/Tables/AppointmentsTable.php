@@ -99,6 +99,7 @@ class AppointmentsTable
                     ->limit(40)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->stackedOnMobile()
             ->filters([
                 Filter::make('walk_in_queue')
                     ->label("Today's walk-ins")
