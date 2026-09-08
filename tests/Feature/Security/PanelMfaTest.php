@@ -4,6 +4,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
@@ -17,11 +18,8 @@ test('user model does not implement Filament app authentication', function () {
     expect($user)->not->toBeInstanceOf(HasAppAuthentication::class);
 });
 
-test('user model has app_authentication_secret column', function () {
-    $user = User::factory()->admin()->create();
-
-    // The column exists and is nullable
-    expect($user->app_authentication_secret)->toBeNull();
+test('users table no longer stores Filament app authentication secrets', function () {
+    expect(Schema::hasColumn('users', 'app_authentication_secret'))->toBeFalse();
 });
 
 test('staff and admin can access panel without MFA in testing', function () {
