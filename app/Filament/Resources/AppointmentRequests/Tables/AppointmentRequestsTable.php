@@ -66,12 +66,6 @@ class AppointmentRequestsTable
                     ->label('Type')
                     ->state(fn (AppointmentRequest $record): string => $record->appointmentType?->patient_label ?? '—'),
 
-                TextColumn::make('appointment.scheduled_at')
-                    ->label('Current appointment')
-                    ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
-                        ? ($record->appointment?->scheduled_at?->format('M j, g:i A') ?? '—')
-                        : '—'),
-
                 ViewColumn::make('scheduled_at')
                     ->label('Preferred Times')
                     ->view('filament.tables.columns.appointment-request-preferred-times')

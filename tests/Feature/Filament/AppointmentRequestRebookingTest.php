@@ -50,15 +50,14 @@ function filamentRebookingFixture(): array
     return compact('staff', 'patientAccount', 'optometrist', 'type', 'appointment', 'request');
 }
 
-test('request queue identifies rebooking requests and shows the current appointment', function (): void {
+test('request queue identifies rebooking requests without a current appointment column', function (): void {
     $fixture = filamentRebookingFixture();
 
     $this->actingAs($fixture['staff']);
 
     Livewire::test(ListAppointmentRequests::class)
         ->assertSee('Rebooking')
-        ->assertSee('Current appointment')
-        ->assertSee($fixture['appointment']->scheduled_at->format('M j, g:i A'));
+        ->assertTableColumnDoesNotExist('appointment.scheduled_at');
 });
 
 test('rebooking review derives and locks appointment details', function (): void {
