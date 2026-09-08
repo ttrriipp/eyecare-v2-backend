@@ -4,13 +4,13 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Notifications\NotifyAdminUsers;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Models\Appointment;
 use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
-use App\Notifications\AppointmentRescheduled;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +23,7 @@ class RescheduleAppointment
         private readonly LockAppointmentScheduleDate $lockAppointmentScheduleDate,
         private readonly CreateAuditLog $createAuditLog,
         private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
     ) {}
 
     public function handle(
@@ -99,7 +100,7 @@ class RescheduleAppointment
             $appointment->load(['patient', 'appointmentType', 'status', 'optometrist']);
 
             $this->createSmsNotification($appointment, $rescheduleReason);
-            $appointment->patient->account?->notify(new AppointmentRescheduled($appointment));
+            $this->notifyPatientAccount->appointmentRescheduled($appointment);
             $this->createAuditLog->handle(
                 subject: $appointment,
                 action: AuditEvent::AppointmentRescheduled,

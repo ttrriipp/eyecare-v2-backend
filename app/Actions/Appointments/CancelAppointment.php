@@ -4,6 +4,7 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Notifications\NotifyAdminUsers;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
@@ -14,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class CancelAppointment
 {
-    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+    public function __construct(
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
+    ) {}
 
     public function handle(
         Appointment $appointment,
@@ -89,6 +93,8 @@ class CancelAppointment
 
         if ($initiator === 'patient') {
             $this->notifyAdminUsers->appointmentCancelled($cancelledAppointment);
+        } else {
+            $this->notifyPatientAccount->appointmentCancelled($cancelledAppointment);
         }
 
         return $cancelledAppointment;

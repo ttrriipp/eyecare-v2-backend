@@ -4,6 +4,7 @@ namespace App\Actions\OpticalOrders;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\JobOrders\CommitJobOrderInventory;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Models\DispensingEvent;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class BuildOpticalOrder
 {
+    public function __construct(private readonly NotifyPatientAccount $notifyPatientAccount) {}
+
     /**
      * Create a JobOrder, snapshot items, and commit inventory.
      *
@@ -96,6 +99,12 @@ class BuildOpticalOrder
                     ],
                     actorId: $actorId ?? $dispensedBy ?? auth()->id(),
                 );
+            }
+
+            if ($fulfillmentMode === 'immediate') {
+                $this->notifyPatientAccount->opticalOrderReleased($order);
+            } else {
+                $this->notifyPatientAccount->opticalOrderConfirmed($order);
             }
 
             return $order->fresh();

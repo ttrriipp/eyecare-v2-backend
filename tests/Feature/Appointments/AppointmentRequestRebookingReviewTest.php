@@ -120,7 +120,15 @@ test('accepting a rebooking notifies the patient without copying the request not
     $notification = $user->fresh()->unreadNotifications->sole();
 
     expect($notification->data['title'])->toBe('Appointment Rescheduled')
-        ->and($notification->data['body'])->not->toContain('Private clinical note');
+        ->and($notification->data['body'])->not->toContain('Private clinical note')
+        ->and($notification->data['kind'])->toBe('appointment_rescheduled')
+        ->and($notification->data['mobile_action'])->toBe([
+            'type' => 'appointment',
+            'id' => $appointment->id,
+        ])
+        ->and($notification->data['action_url'])->toBe("/appointments/{$appointment->id}")
+        ->and($notification->data['related_type'])->toBe('appointment')
+        ->and($notification->data['related_id'])->toBe($appointment->id);
 
     $sms = SmsNotification::query()->where('event', 'appointment_rescheduled')->firstOrFail();
 

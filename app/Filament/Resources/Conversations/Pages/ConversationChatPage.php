@@ -2,10 +2,10 @@
 
 namespace App\Filament\Resources\Conversations\Pages;
 
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Filament\Resources\Conversations\ConversationResource;
 use App\Models\Conversation;
 use App\Models\Message;
-use App\Notifications\NewMessageReceived;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
@@ -184,10 +184,7 @@ class ConversationChatPage extends Page
 
         $this->replyBody = '';
 
-        // Notify the patient account if one is linked
-        if ($conversation->account) {
-            $conversation->account->notify(new NewMessageReceived($message, $conversation));
-        }
+        app(NotifyPatientAccount::class)->messageReceived($message, $conversation);
 
         Notification::make()
             ->title('Reply sent')

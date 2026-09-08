@@ -3,6 +3,7 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
@@ -12,7 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class RejectAppointmentRequest
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
+    ) {}
 
     public function handle(
         AppointmentRequest $request,
@@ -50,6 +54,8 @@ class RejectAppointmentRequest
                 ],
                 actorId: $reviewer->id,
             );
+
+            $this->notifyPatientAccount->appointmentRequestDeclined($request);
 
             return $request->fresh();
         });

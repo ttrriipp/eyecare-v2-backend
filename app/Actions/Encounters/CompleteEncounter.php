@@ -3,6 +3,7 @@
 namespace App\Actions\Encounters;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
@@ -14,6 +15,8 @@ use Illuminate\Validation\ValidationException;
 
 class CompleteEncounter
 {
+    public function __construct(private readonly NotifyPatientAccount $notifyPatientAccount) {}
+
     /**
      * @var array<int, string>
      */
@@ -124,6 +127,8 @@ class CompleteEncounter
                 ],
                 actorId: $actor->id,
             );
+
+            $this->notifyPatientAccount->consultationCompleted($lockedEncounter);
 
             return $lockedEncounter->fresh(['appointment', 'optometrist']);
         });

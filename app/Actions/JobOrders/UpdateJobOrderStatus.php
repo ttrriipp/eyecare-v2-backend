@@ -3,6 +3,7 @@
 namespace App\Actions\JobOrders;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Models\InventoryLot;
@@ -17,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateJobOrderStatus
 {
+    public function __construct(private readonly NotifyPatientAccount $notifyPatientAccount) {}
+
     /**
      * Allowed status transitions: current → permitted next statuses.
      *
@@ -86,6 +89,12 @@ class UpdateJobOrderStatus
                 ],
                 actorId: $actor?->id ?? auth()->id(),
             );
+
+            match ($newStatus) {
+                JobOrderStatus::ReadyForDispensing => $this->notifyPatientAccount->opticalOrderReady($lockedJobOrder),
+                JobOrderStatus::Cancelled => $this->notifyPatientAccount->opticalOrderCancelled($lockedJobOrder),
+                default => null,
+            };
 
             return $lockedJobOrder->fresh();
         });

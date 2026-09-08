@@ -22,7 +22,9 @@ test('patient can list notifications', function () {
     $this->actingAs($patient)
         ->getJson('/api/v1/notifications')
         ->assertSuccessful()
-        ->assertJsonCount(1, 'data');
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.kind', 'unknown')
+        ->assertJsonPath('data.0.mobile_action', null);
 });
 
 test('patient can get unread count', function () {

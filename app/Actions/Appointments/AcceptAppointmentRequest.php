@@ -4,6 +4,7 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Notifications\NotifyAdminUsers;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
@@ -16,7 +17,6 @@ use App\Models\AppointmentType;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
-use App\Notifications\AppointmentRescheduled;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -30,6 +30,7 @@ class AcceptAppointmentRequest
         private readonly LockAppointmentScheduleDate $lockScheduleDate,
         private readonly CreateAuditLog $createAuditLog,
         private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
     ) {}
 
     /**
@@ -315,7 +316,7 @@ class AcceptAppointmentRequest
 
             $appointment->load(['patient', 'appointmentType', 'status', 'optometrist']);
             $this->createRescheduledSmsNotification($appointment);
-            $appointment->patient?->account?->notify(new AppointmentRescheduled($appointment));
+            $this->notifyPatientAccount->appointmentRescheduled($appointment);
 
             return $appointment->fresh(['patient', 'appointmentType', 'status', 'optometrist']);
         }, attempts: 3);
@@ -442,6 +443,7 @@ class AcceptAppointmentRequest
             );
 
             $this->createSmsNotification($appointment);
+            $this->notifyPatientAccount->appointmentConfirmed($request, $appointment);
 
             return $appointment->load(['appointmentType', 'status', 'patient', 'optometrist']);
         });

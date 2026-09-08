@@ -1,6 +1,6 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-09-08) — appointment
+> **Backend version:** Current repository state (2026-09-09) — appointment
 > request cancellation and active-limit behavior is reconciled below, and
 > patient-originated Filament bell notifications are documented separately
 > from the mobile notification feed. The public route count is 58
@@ -2513,8 +2513,30 @@ Returns 404 for missing files or attachments from other conversations
 **Authenticated account-only (no active patient link required).**
 
 The notification feed provides an in-app inbox for database-backed
-notifications. Notifications are created by the backend when events occur
-(e.g. new message from staff).
+notifications. The backend creates privacy-safe patient notifications for
+material clinic-driven outcomes while routine internal stages remain silent.
+
+| Clinic event | Stable `kind` | Patient title | Typed `mobile_action` | Legacy action path |
+|---|---|---|---|---|
+| Accept appointment request | `appointment_confirmed` | Appointment Confirmed | `appointment` + ID | `/appointments/{id}` |
+| Reject appointment request | `appointment_request_declined` | Appointment Request Declined | `appointment_request` + ID | `/appointment-requests/{id}` |
+| Approve rebooking or reschedule appointment | `appointment_rescheduled` | Appointment Rescheduled | `appointment` + ID | `/appointments/{id}` |
+| Clinic cancels appointment | `appointment_cancelled` | Appointment Cancelled | `appointment` + ID | `/appointments/{id}` |
+| Complete consultation with prescription | `prescription_available` | Prescription Available | `prescription` + ID | `/prescriptions/{id}` |
+| Complete consultation without prescription | `visit_completed` | Visit Completed | `appointment` + ID when available | `/appointments/{id}` when available |
+| Confirm prepared optical order | `optical_order_confirmed` | Optical Order Confirmed | `optical_order` + ID | `/optical-orders/{id}` |
+| Mark order ready | `optical_order_ready` | Order Ready for Pickup | `optical_order` + ID | `/optical-orders/{id}` |
+| Cancel optical order | `optical_order_cancelled` | Optical Order Cancelled | `optical_order` + ID | `/optical-orders/{id}` |
+| Record standalone payment | `payment_recorded` | Payment Recorded | `optical_order` + ID, or `null` | Order path or `null` |
+| Correct payment | `payment_updated` | Payment Updated | `optical_order` + ID, or `null` | Order path or `null` |
+| Dispense or immediately fulfill order | `optical_order_released` | Order Released | `optical_order` + ID | `/optical-orders/{id}` |
+| Staff sends message | `new_message` | New Message | `conversation` without an ID | `/conversation` |
+
+Order creation/dispensing payments are coalesced into the corresponding order
+notification. Check-in, encounter drafts, order `in_progress`, quotation
+changes, billing recalculation, reminders, and patient-initiated actions do not
+create patient inbox noise. Bodies exclude clinical details, reasons, private
+notes, message contents, and payment method/reference data.
 
 ### GET `/notifications`
 
@@ -2530,12 +2552,17 @@ Returns paginated notifications for the authenticated account.
   "data": [
     {
       "id": "uuid",
-      "type": "App\\Notifications\\NewMessageReceived",
-      "title": "New Message",
-      "body": "Dr. Santos sent a message.",
-      "action_url": "/admin/conversations/1",
-      "related_type": null,
-      "related_id": null,
+      "kind": "appointment_confirmed",
+      "type": "App\\Notifications\\PatientDatabaseNotification",
+      "title": "Appointment Confirmed",
+      "body": "Your appointment APT-2026-000123 is confirmed for Sep 10, 2026 9:00 AM.",
+      "mobile_action": {
+        "type": "appointment",
+        "id": 123
+      },
+      "action_url": "/appointments/123",
+      "related_type": "appointment",
+      "related_id": 123,
       "read_at": null,
       "created_at": "2026-08-15T10:00:00+08:00"
     }
@@ -2544,6 +2571,21 @@ Returns paginated notifications for the authenticated account.
   "meta": { "current_page": 1, "last_page": 1, "per_page": 20, "total": 1 }
 }
 ```
+
+`kind` is the stable snake-case product event enum. `mobile_action` is the
+canonical Android navigation instruction and is either `null` or an object with
+a closed `type` of `appointment`, `appointment_request`, `prescription`,
+`optical_order`, or `conversation`; record-detail actions include an integer
+`id`, while `conversation` does not. Android must map these values to known app
+destinations, treat unknown values as non-actionable, and never open a
+server-provided URL.
+
+`type` is the stored Laravel notification class and must not drive client
+behavior. `action_url`, `related_type`, and `related_id` remain additive legacy
+metadata for compatibility: `action_url` is nullable and patient-app-relative,
+and is never a Filament/admin URL. Older or generic notifications return
+`kind: "unknown"`, `mobile_action: null`, and may retain null legacy navigation
+fields.
 
 ### GET `/notifications/unread-count`
 

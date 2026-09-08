@@ -186,6 +186,7 @@ class CreateDirectOpticalOrder
                     referenceNumber: $depositReference,
                     notes: 'Initial deposit at order creation',
                     chargesReviewed: true,
+                    notifyPatient: false,
                 );
             }
 

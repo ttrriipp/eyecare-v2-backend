@@ -291,6 +291,7 @@ class CreateOpticalOrderFromQuotation
                     referenceNumber: $depositReference,
                     notes: 'Initial deposit at confirmation',
                     chargesReviewed: true,
+                    notifyPatient: false,
                 );
             }
 

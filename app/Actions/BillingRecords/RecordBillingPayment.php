@@ -3,6 +3,7 @@
 namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class RecordBillingPayment
 {
+    public function __construct(private readonly NotifyPatientAccount $notifyPatientAccount) {}
+
     public function handle(
         BillingRecord $billingRecord,
         float $amount,
@@ -21,6 +24,7 @@ class RecordBillingPayment
         ?string $referenceNumber = null,
         ?string $notes = null,
         bool $chargesReviewed = false,
+        bool $notifyPatient = true,
     ): BillingPayment {
         if ($amount <= 0) {
             throw ValidationException::withMessages([
@@ -34,7 +38,7 @@ class RecordBillingPayment
             ]);
         }
 
-        return DB::transaction(function () use ($billingRecord, $amount, $paymentMethod, $recorder, $referenceNumber, $notes, $chargesReviewed): BillingPayment {
+        return DB::transaction(function () use ($billingRecord, $amount, $paymentMethod, $recorder, $referenceNumber, $notes, $chargesReviewed, $notifyPatient): BillingPayment {
             $locked = BillingRecord::query()
                 ->whereKey($billingRecord->id)
                 ->lockForUpdate()
@@ -97,6 +101,10 @@ class RecordBillingPayment
                 ],
                 actorId: $recorder->id,
             );
+
+            if ($notifyPatient) {
+                $this->notifyPatientAccount->paymentRecorded($payment);
+            }
 
             return $payment;
         });

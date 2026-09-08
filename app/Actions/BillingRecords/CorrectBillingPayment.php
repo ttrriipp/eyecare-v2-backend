@@ -3,6 +3,7 @@
 namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class CorrectBillingPayment
 {
+    public function __construct(private readonly NotifyPatientAccount $notifyPatientAccount) {}
+
     public function handle(
         BillingPayment $originalPayment,
         float $newAmount,
@@ -84,6 +87,8 @@ class CorrectBillingPayment
                 ],
                 actorId: $corrector->id,
             );
+
+            $this->notifyPatientAccount->paymentUpdated($replacement, $originalPayment->id);
 
             return $replacement;
         });

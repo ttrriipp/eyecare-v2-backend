@@ -39,6 +39,22 @@
 > snapshots, message content, and rating comments. The approved contract is in
 > `docs/specs/admin-patient-action-notifications-spec.md`.
 
+> **Shipped (2026-09-08): patient in-app notifications for clinic actions.**
+> The existing mobile notification feed now receives queued, after-commit,
+> deduplicated alerts for appointment request decisions, clinic appointment
+> changes, completed visits and available prescriptions, optical-order
+> confirmation/readiness/cancellation/release, standalone payment recording or
+> correction, and staff replies. Each new payload carries a stable snake-case
+> `kind` and closed, typed `mobile_action` for Android navigation. The earlier
+> patient-app-relative `action_url`, `related_type`, and `related_id` fields are
+> retained additively for compatibility but do not drive Android navigation.
+> Immediate fulfillment and payments collected during order confirmation or dispensing
+> are coalesced to avoid duplicate alerts. Internal workflow stages,
+> patient-invisible quotation changes, and patient-initiated actions remain
+> silent. Bodies omit clinical details, reasons, notes, message contents, and
+> payment method/reference data. The approved contract is in
+> `docs/specs/patient-in-app-notifications-spec.md`.
+
 > **Reconciled (2026-09-07): appointment-request cancellation and active
 > limit.** `POST /api/v1/appointment-requests` allows at most two active
 > requests, defined as stored `pending` rows with `expires_at` in the future.
@@ -251,8 +267,9 @@
 > `message_context_links` table are removed. The send throttle is
 > 10 requests/minute. Notification feed routes (`GET /notifications`,
 > `GET /notifications/unread-count`, `PATCH /notifications/{notification}/read`,
-> `PATCH /notifications/read-all`) are wired. Staff-to-patient messages retain
-> the patient-facing `NewMessageReceived` notification. Patient-to-staff
+> `PATCH /notifications/read-all`) are wired. Staff-to-patient messages use the
+> shared patient notification contract with `kind: new_message` and a typed
+> `conversation` mobile action. Patient-to-staff
 > messages create the operational `AdminDatabaseNotification` described above;
 > inactive staff and administrators are excluded.
 > `GET /conversation/messages/search?q=` provides conversation-scoped MySQL

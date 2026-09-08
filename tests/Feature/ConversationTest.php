@@ -491,7 +491,16 @@ test('staff reply produces a patient notification', function () {
         ->set('replyBody', 'Staff reply')
         ->call('sendReply');
 
-    expect($patient->fresh()->unreadNotifications)->toHaveCount(1);
+    $notification = $patient->fresh()->unreadNotifications->sole();
+
+    expect($notification->data)
+        ->toHaveKey('title', 'New Message')
+        ->toHaveKey('kind', 'new_message')
+        ->toHaveKey('mobile_action', ['type' => 'conversation'])
+        ->toHaveKey('action_url', '/conversation')
+        ->toHaveKey('related_type', 'conversation')
+        ->toHaveKey('related_id', $conversation->id)
+        ->and($notification->data['body'])->not->toContain('Staff reply');
 });
 
 test('conversation send is throttled at 10 per minute', function () {

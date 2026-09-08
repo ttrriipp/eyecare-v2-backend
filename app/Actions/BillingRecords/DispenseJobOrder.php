@@ -4,6 +4,7 @@ namespace App\Actions\BillingRecords;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\JobOrders\UpdateJobOrderStatus;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Enums\AuditEvent;
 use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
@@ -18,6 +19,7 @@ class DispenseJobOrder
 {
     public function __construct(
         private readonly UpdateJobOrderStatus $updateJobOrderStatus,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
     ) {}
 
     /**
@@ -77,6 +79,7 @@ class DispenseJobOrder
                     referenceNumber: $pickupPaymentReference,
                     notes: 'Payment at dispensing',
                     chargesReviewed: true,
+                    notifyPatient: false,
                 );
 
                 $billingRecord->refresh();
@@ -135,6 +138,8 @@ class DispenseJobOrder
                 ],
                 actorId: $dispenser->id,
             );
+
+            $this->notifyPatientAccount->opticalOrderReleased($jobOrder);
 
             return $event;
         });
