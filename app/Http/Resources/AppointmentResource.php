@@ -47,19 +47,6 @@ class AppointmentResource extends JsonResource
                     'rescheduled_at' => $this->latestReschedule->rescheduled_at->toISOString(),
                 ]
                 : null,
-            'pending_reschedule_request' => $this->whenLoaded(
-                'pendingRescheduleRequest',
-                fn (): ?array => $this->pendingRescheduleRequest?->isPending()
-                    ? [
-                        'id' => $this->pendingRescheduleRequest->id,
-                        'request_number' => $this->pendingRescheduleRequest->request_number,
-                        'status' => $this->pendingRescheduleRequest->effectiveStatus()->value,
-                        'requested_scheduled_at' => $this->pendingRescheduleRequest->requested_scheduled_at?->toIso8601String(),
-                        'alternative_scheduled_times' => $this->pendingRescheduleRequest->alternative_scheduled_times ?? [],
-                        'created_at' => $this->pendingRescheduleRequest->created_at?->toIso8601String(),
-                    ]
-                    : null,
-            ),
             'cancellation' => $this->cancelled_at
                 ? [
                     'initiated_by' => $this->cancelled_by,

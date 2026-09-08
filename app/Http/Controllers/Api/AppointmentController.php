@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\CreateScheduledAppointment;
+use App\Actions\Appointments\RescheduleAppointment;
 use App\Actions\Appointments\UpdateAppointmentContactNote;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\RescheduleAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Requests\Api\UpdateAppointmentContactNoteRequest;
 use App\Http\Resources\AppointmentResource;
@@ -30,14 +32,7 @@ class AppointmentController extends Controller
 
         $appointments = Appointment::query()
             ->where('patient_id', $patient->id)
-            ->with([
-                'appointmentType',
-                'status',
-                'optometrist',
-                'latestReschedule',
-                'visitRating',
-                'pendingRescheduleRequest.appointment.status',
-            ])
+            ->with(['appointmentType', 'status', 'optometrist', 'latestReschedule', 'visitRating'])
             ->latest('scheduled_at')
             ->paginate($request->integer('per_page', 15));
 
@@ -89,14 +84,7 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null && $appointment->patient_id === $patient->id, 404);
 
-        $appointment->load([
-            'appointmentType',
-            'status',
-            'optometrist',
-            'latestReschedule',
-            'visitRating',
-            'pendingRescheduleRequest.appointment.status',
-        ]);
+        $appointment->load(['appointmentType', 'status', 'optometrist', 'latestReschedule', 'visitRating']);
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),
@@ -137,6 +125,26 @@ class AppointmentController extends Controller
             appointment: $appointment,
             contactNotes: $request->validated('contact_notes'),
         );
+
+        return response()->json([
+            'data' => AppointmentResource::make($appointment),
+        ]);
+    }
+
+    public function reschedule(
+        RescheduleAppointmentRequest $request,
+        Appointment $appointment,
+        RescheduleAppointment $rescheduleAppointment,
+    ): JsonResponse {
+        $appointment = $rescheduleAppointment->handle(
+            appointment: $appointment,
+            scheduledAt: Carbon::parse($request->validated('scheduled_at'))->setTimezone(config('app.timezone')),
+            customerInitiated: true,
+            rescheduleReason: $request->input('reason_details'),
+            reasonCategory: $request->input('reason_category'),
+        );
+
+        $appointment->load('latestReschedule');
 
         return response()->json([
             'data' => AppointmentResource::make($appointment),

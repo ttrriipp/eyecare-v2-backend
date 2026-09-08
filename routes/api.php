@@ -5,7 +5,6 @@ use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AppointmentOptometristController;
 use App\Http\Controllers\Api\AppointmentRequestAvailabilityController;
 use App\Http\Controllers\Api\AppointmentRequestController;
-use App\Http\Controllers\Api\AppointmentRescheduleRequestController;
 use App\Http\Controllers\Api\AppointmentTypeController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClinicHourController;
@@ -150,14 +149,7 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('appointments', [AppointmentController::class, 'index']);
     Route::get('appointments/{appointment}', [AppointmentController::class, 'show']);
     Route::post('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel']);
-    Route::post('appointments/{appointment}/reschedule-requests', [AppointmentRescheduleRequestController::class, 'store'])
-        ->name('api.v1.appointments.reschedule-requests.store');
-    Route::get('appointment-reschedule-requests', [AppointmentRescheduleRequestController::class, 'index'])
-        ->name('api.v1.appointment-reschedule-requests.index');
-    Route::get('appointment-reschedule-requests/{appointmentRescheduleRequest}', [AppointmentRescheduleRequestController::class, 'show'])
-        ->name('api.v1.appointment-reschedule-requests.show');
-    Route::post('appointment-reschedule-requests/{appointmentRescheduleRequest}/cancel', [AppointmentRescheduleRequestController::class, 'cancel'])
-        ->name('api.v1.appointment-reschedule-requests.cancel');
+    Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
 
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);

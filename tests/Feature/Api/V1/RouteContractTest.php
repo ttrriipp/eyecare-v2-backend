@@ -28,8 +28,6 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/appointment-request-availability',
         'GET|HEAD api/v1/appointment-requests',
         'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
-        'GET|HEAD api/v1/appointment-reschedule-requests',
-        'GET|HEAD api/v1/appointment-reschedule-requests/{appointmentRescheduleRequest}',
         'GET|HEAD api/v1/appointment-types',
         'GET|HEAD api/v1/appointments',
         'GET|HEAD api/v1/appointments/{appointment}',
@@ -58,10 +56,9 @@ test('every approved v1 route is present exactly once', function () {
         'POST api/v1/account/contacts/verify',
         'POST api/v1/appointment-requests',
         'POST api/v1/appointment-requests/{appointmentRequest}/cancel',
-        'POST api/v1/appointment-reschedule-requests/{appointmentRescheduleRequest}/cancel',
         'POST api/v1/appointments/{appointment}/cancel',
         'POST api/v1/appointments/{appointment}/rating',
-        'POST api/v1/appointments/{appointment}/reschedule-requests',
+        'POST api/v1/appointments/{appointment}/reschedule',
         'POST api/v1/auth/login',
         'POST api/v1/auth/login/verify',
         'POST api/v1/auth/participant-login',
@@ -85,17 +82,6 @@ test('every approved v1 route is present exactly once', function () {
     ];
 
     expect($v1Routes)->toBe($expected);
-});
-
-test('immediate patient appointment rescheduling is retired', function () {
-    $routes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn ($route) => str_starts_with($route->uri, 'api/v1'))
-        ->map(fn ($route) => implode('|', (array) $route->methods).' '.$route->uri)
-        ->all();
-
-    expect($routes)
-        ->not->toContain('POST api/v1/appointments/{appointment}/reschedule')
-        ->toContain('POST api/v1/appointments/{appointment}/reschedule-requests');
 });
 
 test('unversioned patient routes are absent', function () {

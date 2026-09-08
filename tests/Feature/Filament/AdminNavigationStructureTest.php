@@ -103,7 +103,7 @@ test('items are ordered within each group', function () {
     $navigation = adminNavigation(User::factory()->admin()->create());
 
     expect($navigation)->toMatchArray([
-        'Today' => ['Appointments', 'Appointment Requests', 'Reschedule Requests', 'Scheduling'],
+        'Today' => ['Appointments', 'Appointment Requests', 'Scheduling'],
         'Patients' => ['Patient Records', 'Patient Accounts', 'Link Requests', 'Messages', 'Visit Feedback'],
         'Clinical' => ['Consultations', 'Prescriptions'],
         'Optical' => ['Quotations', 'Optical Orders'],

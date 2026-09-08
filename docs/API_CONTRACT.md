@@ -1,24 +1,10 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-09-08) — the
-> staff-reviewed appointment reschedule-request workflow and its coordinated
-> patient route cutover are shipped below. Patient-originated Filament bell
-> notifications remain separate from the mobile notification feed. The route
-> contract currently contains 63 versioned API route entries; verify exact
-> methods and paths with `RouteContractTest` and `artisan route:list`.
-
-> **Shipped 2026-09-08: staff-reviewed appointment rescheduling.** Patients
-> submit one preferred time and up to two alternatives through
-> `POST /appointments/{id}/reschedule-requests`; submission never changes the
-> confirmed appointment or reserves capacity. Patients can list, view, and
-> withdraw their own requests. Staff/admins review requests in Filament,
-> approve one submitted time under schedule locks, or reject with a
-> patient-safe reason. Approval creates the existing immutable reschedule
-> history and sends the final time through the patient notification feed and
-> queued SMS after commit; rejection sends the safe reason and original time;
-> expiry sends the patient database notification only. The former immediate
-> `POST /appointments/{id}/reschedule` route is removed from the patient API;
-> the internal `RescheduleAppointment` action remains for clinic workflows.
+> **Backend version:** Current repository state (2026-09-07) — appointment
+> request cancellation and active-limit behavior is reconciled below, and
+> patient-originated Filament bell notifications are documented separately
+> from the mobile notification feed. The public route count remains 59
+> (8 public + 40 account-only + 11 active-link).
 
 > **Shipped 2026-09-07: appointment-request cancellation and active limit.**
 > The maximum of two counts only requests whose stored status is `pending` and
@@ -1512,8 +1498,7 @@ Paginated list of the patient's confirmed appointments.
       "reason_for_visit": "Blurred vision in left eye",
       "contact_notes": "Please call before arrival",
       "source": "mobile",
-      "assigned_optometrist": { "name": "Dr. Maria Santos" },
-      "pending_reschedule_request": null
+      "assigned_optometrist": { "name": "Dr. Maria Santos" }
     }
   ],
   "links": { "first": "...", "last": "...", "prev": null, "next": "..." },
@@ -1528,10 +1513,6 @@ Paginated list of the patient's confirmed appointments.
 - `source` values: `mobile`, `walk_in`, `manual`.
 - `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
-- `pending_reschedule_request` is either `null` or the effective pending
-  request projection: `{id, request_number, status, requested_scheduled_at,
-  alternative_scheduled_times, created_at}`. Terminal, withdrawn, expired, or
-  stale requests are not projected here.
 - `is_rateable` is `true` only when `status = fulfilled` and the appointment belongs to the authenticated patient.
 - `rating` is `null` until submitted, then contains `{rating, comment, created_at}`. Hidden comments return `comment: null` to non-authors.
 
@@ -1577,95 +1558,27 @@ Cancels an appointment. Only `scheduled` or `checked_in` appointments can be can
 
 ---
 
-### POST `/appointments/{appointment}/reschedule-requests`
+### POST `/appointments/{appointment}/reschedule`
 
-Creates a staff-reviewed reschedule request without changing the confirmed
-appointment or reserving capacity.
+Reschedules an appointment to a new time.
 
-**Auth:** Required (Sanctum token). **Active patient link required.** The
-appointment must belong to the authenticated patient.
+**Auth:** Required (Sanctum token). **Active patient link required.**
 
 **Request:**
 ```json
 {
-  "requested_scheduled_at": "2026-09-12T10:00:00+08:00",
-  "alternative_scheduled_times": [
-    "2026-09-12T11:00:00+08:00"
-  ],
-  "reason_details": "Work schedule changed."
+  "scheduled_at": "datetime (required, after:now, must be an available slot)"
 }
 ```
 
-`requested_scheduled_at` is required and must be a future ISO-8601 timestamp.
-`alternative_scheduled_times` is optional, ordered, and contains at most two
-distinct future timestamps. `reason_details` is optional and capped at 1000
-characters; it is encrypted at rest and never returned by list responses or
-included in staff/admin notifications, audits, or SMS.
-
-**Response (201):**
+**Response (200):**
 ```json
 {
-  "data": {
-    "id": 7,
-    "request_number": "ARR-2026-000007",
-    "appointment_id": 3,
-    "status": "pending",
-    "current_scheduled_at": "2026-09-10T10:00:00+08:00",
-    "requested_scheduled_at": "2026-09-12T10:00:00+08:00",
-    "alternative_scheduled_times": ["2026-09-12T11:00:00+08:00"],
-    "selected_scheduled_at": null,
-    "rejection_reason": null,
-    "expires_at": "2026-09-10T10:00:00+08:00",
-    "resolved_at": null,
-    "created_at": "2026-09-07T14:00:00+08:00"
-  }
+  "data": { /* AppointmentResource with new scheduled_at */ }
 }
 ```
 
-The response intentionally omits `reason_details`; the owning detail route
-below is the only mobile response that may return the patient's submitted
-context.
-
-**Stable errors (422):**
-
-| Code | Meaning |
-|---|---|
-| `APPOINTMENT_NOT_RESCHEDULABLE` | Appointment is not future and `scheduled`. |
-| `RESCHEDULE_REQUEST_ALREADY_PENDING` | This appointment already has an effective pending request. |
-| `SLOT_UNAVAILABLE` | One or more submitted times are unavailable. |
-
-Malformed fields use Laravel's validation envelope. Unknown fields are rejected.
-
-### GET `/appointment-reschedule-requests`
-
-Returns the authenticated patient's request history, newest first, using the
-standard paginated response envelope. List rows contain status, submitted
-times, final selection/rejection fields, expiry/resolution timestamps, and no
-`reason_details`.
-
-Statuses are `pending`, `approved`, `rejected`, `cancelled`, and `expired`.
-Pending requests remain non-binding until staff approval.
-
-### GET `/appointment-reschedule-requests/{appointmentRescheduleRequest}`
-
-Returns one request owned by the authenticated patient. An ownership mismatch
-returns `404`. The detail response includes `reason_details` for that patient
-only; it never exposes another patient's request.
-
-### POST `/appointment-reschedule-requests/{appointmentRescheduleRequest}/cancel`
-
-Withdraws an owned effective pending request. The response is the request
-resource with `status: "cancelled"`; the appointment and reschedule history are
-unchanged.
-
-**Stable error (422):**
-
-`RESCHEDULE_REQUEST_NOT_CANCELLABLE` means the request is terminal, expired, or
-the appointment no longer matches the submitted snapshot.
-
-The former `POST /appointments/{appointment}/reschedule` endpoint is removed;
-clients must use this request workflow. Clinic staff retain direct rescheduling
-inside Filament, and approval uses the same internal commit action.
+**Validation:** Appointment must belong to the patient and be in `scheduled` status. Duration and type are derived from the existing appointment.
 
 ---
 
@@ -2624,8 +2537,7 @@ operational role is.
 | Submit patient-link request | New Patient Link Request | info | Link-request review |
 | Send conversation message | New Message | info | Conversation inbox |
 | Cancel confirmed appointment | Appointment Cancelled by Patient | warning | Appointment edit |
-| Submit appointment reschedule request | Appointment Reschedule Requested | info | Reschedule-request review |
-| Withdraw appointment reschedule request | Appointment Reschedule Request Withdrawn | info | Reschedule-request details |
+| Reschedule confirmed appointment | Appointment Rescheduled by Patient | warning | Appointment edit |
 | Create or materially revise a 1–2 star visit rating | Low Visit Rating | danger | Visit-rating details |
 | Create or materially revise a 1–2 star frame rating | Low Frame Rating | danger | Frame-rating edit |
 
@@ -2696,13 +2608,6 @@ metadata may appear beside `code` and `message`, as with
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
 | `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
-| `APPOINTMENT_NOT_RESCHEDULABLE` | 422 | Confirmed appointment is not future and `scheduled` for a new request |
-| `RESCHEDULE_REQUEST_ALREADY_PENDING` | 422 | Appointment already has an effective pending reschedule request |
-| `RESCHEDULE_REQUEST_NOT_CANCELLABLE` | 422 | Patient attempted to withdraw a terminal, expired, or stale request |
-| `RESCHEDULE_REQUEST_NOT_APPROVABLE` | 422 | Staff attempted to approve a terminal or conflicting request |
-| `RESCHEDULE_REQUEST_NOT_REJECTABLE` | 422 | Staff attempted to reject a terminal or stale request |
-| `RESCHEDULE_REQUEST_SELECTION_INVALID` | 422 | Staff selected a time that was not submitted by the patient |
-| `RESCHEDULE_REQUEST_STALE` | 422 | Appointment changed before staff approval |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
 | `CONTACT_NOT_VERIFIED` | 422 | Cannot set an unverified contact as primary |
 
@@ -2786,10 +2691,6 @@ authoritative in §§15 and 15b.
 | `POST /appointment-requests` | Create request |
 | `GET /appointment-requests/{id}` | Get request detail |
 | `POST /appointment-requests/{id}/cancel` | Cancel request |
-| `POST /appointments/{id}/reschedule-requests` | Submit a staff-reviewed reschedule request |
-| `GET /appointment-reschedule-requests` | List own reschedule requests |
-| `GET /appointment-reschedule-requests/{id}` | View own reschedule request detail |
-| `POST /appointment-reschedule-requests/{id}/cancel` | Withdraw own pending reschedule request |
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
@@ -2814,11 +2715,7 @@ authoritative in §§15 and 15b.
 | `GET /appointments` | Requires active patient link |
 | `GET /appointments/{id}` | Requires active patient link |
 | `POST /appointments/{id}/cancel` | Requires active patient link |
-| `POST /appointments/{id}/reschedule` | Removed; use the reschedule-request workflow |
-| `POST /appointments/{id}/reschedule-requests` | Creates a pending request without changing the appointment |
-| `GET /appointment-reschedule-requests` | Lists the authenticated patient's request history |
-| `GET /appointment-reschedule-requests/{id}` | Returns an owned request detail |
-| `POST /appointment-reschedule-requests/{id}/cancel` | Withdraws an effective pending request |
+| `POST /appointments/{id}/reschedule` | Duration derived from appointment |
 | `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
 | `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
 
@@ -2836,7 +2733,6 @@ The following old mobile features/routes are **intentionally retired**:
 | Accessories and orders (`/orders`, `/accessories`) | Retired. |
 | Billing PDF | Retired. |
 | Clinic feedback (`/feedback`) | Retired. |
-| Direct patient appointment rescheduling (`POST /appointments/{id}/reschedule`) | Retired. Patients now submit staff-reviewed reschedule requests. |
 | Appointment contact-note editing | Retired. |
 | `/api/user` (unversioned) | Absent. |
 | `/api/v1/patient/profile` | Absent. Profile is `/api/v1/me`. |
@@ -3017,10 +2913,7 @@ GET    /api/v1/appointment-availability        Reschedule availability
 GET    /api/v1/appointments                   List confirmed appointments
 GET    /api/v1/appointments/{id}              Get appointment detail
 POST   /api/v1/appointments/{id}/cancel       Cancel appointment
-POST   /api/v1/appointments/{id}/reschedule-requests  Submit reschedule request
-GET    /api/v1/appointment-reschedule-requests       List reschedule requests
-GET    /api/v1/appointment-reschedule-requests/{id}  View reschedule request
-POST   /api/v1/appointment-reschedule-requests/{id}/cancel  Withdraw request
+POST   /api/v1/appointments/{id}/reschedule   Reschedule appointment
 POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/prescriptions                  List prescriptions
@@ -3031,6 +2924,4 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** `vendor/bin/sail artisan route:list --path=api/v1
---except-vendor` reports **63 versioned route entries**. The exact method/path
-set is locked by `tests/Feature/Api/V1/RouteContractTest.php`.
+**Route count:** 8 public + 40 account-only + 11 active-link = **59 routes total.**
