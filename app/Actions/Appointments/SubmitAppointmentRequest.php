@@ -54,10 +54,7 @@ class SubmitAppointmentRequest
         }
 
         // Check active request limit
-        $activeRequests = AppointmentRequest::where('user_id', $account->id)
-            ->where('status', AppointmentRequestStatus::Pending)
-            ->where('expires_at', '>', now())
-            ->count();
+        $activeRequests = $this->countActiveRequests($account->id);
 
         $maxActive = config('patient_accounts.appointment_requests.max_active_per_account', 2);
 
@@ -213,11 +210,7 @@ class SubmitAppointmentRequest
             }
 
             $maxActive = config('patient_accounts.appointment_requests.max_active_per_account', 2);
-            $activeRequests = AppointmentRequest::query()
-                ->where('user_id', $account->id)
-                ->where('status', AppointmentRequestStatus::Pending)
-                ->where('expires_at', '>', now())
-                ->count();
+            $activeRequests = $this->countActiveRequests($account->id);
 
             if ($activeRequests >= $maxActive) {
                 throw new ActiveAppointmentRequestLimitReached($maxActive);
@@ -326,6 +319,18 @@ class SubmitAppointmentRequest
                 'scheduled_at' => ['The requested time slot is no longer available.'],
             ]);
         }
+    }
+
+    private function countActiveRequests(int $accountId): int
+    {
+        return AppointmentRequest::query()
+            ->with('appointment.status')
+            ->where('user_id', $accountId)
+            ->where('status', AppointmentRequestStatus::Pending)
+            ->where('expires_at', '>', now())
+            ->get()
+            ->filter(fn (AppointmentRequest $request): bool => $request->isPending())
+            ->count();
     }
 
     /**

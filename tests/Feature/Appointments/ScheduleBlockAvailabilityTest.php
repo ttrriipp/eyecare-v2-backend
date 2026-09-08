@@ -89,6 +89,22 @@ test('blocks include unexpired pending request holds', function () {
         ->and($blocks->first()->source)->toBe('request');
 });
 
+test('pending rebooking proposals do not hold the proposed slot', function () {
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => '2026-07-13 10:00:00',
+        'duration_minutes' => 30,
+    ]);
+
+    AppointmentRequest::factory()->rebookingFor($appointment)->create([
+        'scheduled_at' => '2026-07-14 10:00:00',
+        'expires_at' => now()->addDays(5),
+    ]);
+
+    $blocks = app(BuildScheduleBlocks::class)->forDate(Carbon::parse('2026-07-14'));
+
+    expect($blocks)->toHaveCount(0);
+});
+
 test('blocks exclude expired request holds', function () {
     $user = User::factory()->patient()->create();
 

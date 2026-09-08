@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Enums\AppointmentRequestKind;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use Carbon\CarbonInterface;
@@ -46,6 +47,10 @@ class BuildScheduleBlocks
         // Blocks from unexpired pending request holds
         $requests = AppointmentRequest::query()
             ->where('status', 'pending')
+            ->where(function ($query): void {
+                $query->where('request_type', AppointmentRequestKind::New->value)
+                    ->orWhereNull('request_type');
+            })
             ->where('expires_at', '>', now())
             ->where('scheduled_at', '>=', $dayStart)
             ->where('scheduled_at', '<=', $dayEnd)

@@ -3,9 +3,11 @@
 namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +24,18 @@ class ExpireAppointmentRequests
             return DB::transaction(function (): int {
                 $requests = AppointmentRequest::query()
                     ->where('status', AppointmentRequestStatus::Pending)
-                    ->where('expires_at', '<=', now())
+                    ->where(function (Builder $query): void {
+                        $query->where('expires_at', '<=', now())
+                            ->orWhere(function (Builder $query): void {
+                                $query->where('request_type', AppointmentRequestKind::Reschedule->value)
+                                    ->whereDoesntHave('appointment', function (Builder $appointmentQuery): void {
+                                        $appointmentQuery->whereHas(
+                                            'status',
+                                            fn (Builder $statusQuery): Builder => $statusQuery->where('name', 'scheduled'),
+                                        );
+                                    });
+                            });
+                    })
                     ->lockForUpdate()
                     ->get();
 

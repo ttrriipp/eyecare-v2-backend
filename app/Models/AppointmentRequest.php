@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
+use App\Enums\AppointmentStatusName;
 use Database\Factories\AppointmentRequestFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -108,7 +109,8 @@ class AppointmentRequest extends Model
     public function isPending(): bool
     {
         return $this->status === AppointmentRequestStatus::Pending
-            && ! $this->isExpired();
+            && ! $this->isExpired()
+            && ! $this->isStaleRebooking();
     }
 
     public function isRebooking(): bool
@@ -116,9 +118,28 @@ class AppointmentRequest extends Model
         return $this->request_type === AppointmentRequestKind::Reschedule;
     }
 
+    public function isStaleRebooking(): bool
+    {
+        if (! $this->isRebooking()) {
+            return false;
+        }
+
+        if ($this->appointment_id === null) {
+            return true;
+        }
+
+        $appointment = $this->relationLoaded('appointment')
+            ? $this->appointment
+            : $this->appointment()->with('status')->first();
+
+        return $appointment === null
+            || $appointment->status?->name !== AppointmentStatusName::Scheduled->value;
+    }
+
     public function effectiveStatus(): AppointmentRequestStatus
     {
-        if ($this->status === AppointmentRequestStatus::Pending && $this->isExpired()) {
+        if ($this->status === AppointmentRequestStatus::Pending
+            && ($this->isExpired() || $this->isStaleRebooking())) {
             return AppointmentRequestStatus::Expired;
         }
 
