@@ -56,8 +56,8 @@ clinic-authoritative clinical identity. The nullable unique
 All user accounts use nullable structured `first_name`, `middle_name`, and
 `last_name` columns. The legacy `users.name` column is removed; any API
 compatibility `name` value is derived from the structured fields and is not
-used for patient matching. Staff/admin accounts continue using email,
-password, and Filament MFA behavior.
+used for patient matching. Staff/admin accounts continue using email and
+password authentication in Filament.
 
 Patient accounts do not use `users.email` or `users.phone` as authoritative
 login identifiers. Dedicated verified contact records own patient email/phone

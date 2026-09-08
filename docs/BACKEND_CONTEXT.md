@@ -66,6 +66,13 @@
 > `docs/specs/appointment-request-rebooking-spec.md` and
 > `tasks/appointment-request-rebooking-plan.md`.
 
+> **Shipped (2026-09-08): staff-panel authenticator removal.** The Filament
+> staff/admin panel now uses password-only authentication. The app/TOTP MFA
+> provider, enrollment UI, and `users.app_authentication_secret` storage were
+> removed. Role authorization, password policy, single-session protection, and
+> authentication audit events remain active. Patient SMS OTP, invitation OTP,
+> recovery OTP, and sensitive-change step-up OTP are unchanged.
+
 > **Android handoff and deployment ordering:** The Android rebooking screen
 > should read `GET /api/v1/appointment-availability` with the owned
 > `appointment_id`, then submit the chosen time through
@@ -634,7 +641,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 
 | Area | Staff | Optometrist | Admin |
 |---|---|---|---|
-| Panel login and own profile/MFA | Yes | Yes | Yes |
+| Panel login and own profile | Yes | Yes | Yes |
 | Appointments: view, create, check-in, reschedule, cancel, no-show | Yes | Yes | Yes |
 | Appointments: bulk cancellation | No | No | Yes |
 | Encounters: view | Yes | Yes | Yes |
@@ -682,7 +689,7 @@ Every panel account can manage its own credentials via the panel's Profile page 
 
 Staff/admin accounts used to be entirely admin-managed: an admin typed each user's initial password directly into the Staff Accounts form, and there was no way to disable an account short of deleting it (which is unsafe — see the `users` table note above). Both gaps are closed:
 
-- **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password, and enrol TOTP MFA, without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
+- **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
 - **Password policy.** `Password::defaults()` is configured once in `AppServiceProvider::boot()` (`min(12)->mixedCase()->numbers()` in production, `min(8)` elsewhere) and used by both the Staff Accounts form and the profile page, replacing a bare `minLength(8)`.
 - **Forced first-login password change.** When an admin creates a user or resets an existing user's password on their behalf, `must_change_password` is set (`CreateUser::mutateFormDataBeforeCreate()`, and `UserObserver::saving()` for admin-initiated password changes on someone else's account — distinguished from self-service by comparing `auth()->id()` to the record being saved). The `EnsurePasswordIsChanged` middleware (registered in the panel's `authMiddleware`) redirects any such user to the profile page until they change it themselves, while still allowing the profile page and logout so they're never locked out. `password_changed_at` is stamped whenever the password changes.
 - **Deactivation, not deletion.** Admins can activate/deactivate any staff/admin account from the Staff Accounts table (`toggleActive` action), guarded so the last active admin cannot be deactivated (mirrors the existing last-admin-demotion guard on role changes). A deactivated account fails `canAccessPanel()` immediately and is excluded from `scopeOptometrists()`, but every record they authored (encounters, prescriptions, provider hours, audit entries) is untouched.
@@ -849,7 +856,7 @@ unlinked choices, and deletes the legacy rows atomically.
 
 URL: `/admin` — accessible to users with at least one of `admin`, `optometrist`, or `staff` roles. `canAccessPanel()` also requires `is_active`, so a deactivated account is blocked regardless of role.
 
-Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, `->passwordReset()`, and `->multiFactorAuthentication([AppAuthentication::make()], isRequired: app()->isProduction())` (TOTP, required in production, optional and enrollable via the profile page otherwise). `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
+Auth-related panel configuration (`AdminPanelProvider`): custom `->login(Login::class)`, `->profile(EditProfile::class, isSimple: false)`, and `->passwordReset()`. The panel uses password-only authentication; `EnsurePasswordIsChanged` runs as panel `authMiddleware` alongside Filament's `Authenticate`.
 
 **Navigation groups (in order), workflow-shaped rather than by data domain:**
 - Today — Appointments, Appointment Requests, Availability (cluster)

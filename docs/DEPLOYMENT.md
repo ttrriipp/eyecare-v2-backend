@@ -107,8 +107,9 @@ billing alert**, and remember that the alert is not a hard spending cap.
    run the broad `DatabaseSeeder` and never run
    `pilot:provision-participants`.
 6. Provision the named administrator through the Cloud command console using
-   an owner-only password input, then enroll and verify Filament MFA. Do not
-   pass the password as a command-line argument or place it in a build log.
+   an owner-only password input. The staff panel uses password-only
+   authentication; do not pass the password as a command-line argument or
+   place it in a build log.
 7. Verify the generated HTTPS hostname before any DNS or staff distribution:
    `/up` returns only liveness, the protected `/internal/readiness` check
    returns `ready` with the dedicated header token, and `pilot:preflight`
@@ -117,7 +118,7 @@ billing alert**, and remember that the alert is not a hard spending cap.
 
 ### Demo smoke and recovery checklist
 
-- Sign in to the Filament panel with MFA and exercise the approved synthetic
+- Sign in to the Filament panel and exercise the approved synthetic
   catalog, patient-record, appointment, prescription, billing, and messaging
   demonstration paths.
 - Confirm SKU `FRM-ANTHOS-MB1399A-C4` serves the published

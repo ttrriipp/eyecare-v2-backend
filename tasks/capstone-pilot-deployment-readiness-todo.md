@@ -5,6 +5,10 @@
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
 
+**Security amendment (2026-09-08):** The staff/admin Filament TOTP layer was
+removed. The earlier Task 11 evidence mentioning MFA is historical; current
+panel access is password-only with role, password-policy, and session controls.
+
 Seventeen dependency-ordered tasks across five phases. Detailed acceptance
 criteria, files, risks, and verification are in the plan.
 
@@ -264,9 +268,10 @@ criteria, files, risks, and verification are in the plan.
   workflow using a passwordless synthetic staff actor. Added
   `pilot:provision-administrator`, which accepts a hidden or owner-only file
   password, creates or updates only an existing admin account, emits no
-  credentials, preserves existing MFA enrollment, and proves production panel
-  MFA is required. Task 11 focused tests passed (7 tests, 62 assertions), AR /
-  MFA / participant regressions passed (26 tests, 1,360 assertions), Pint and
+  credentials, preserves the then-current MFA enrollment, and proved that
+  production panel MFA was required. Task 11 focused tests passed (7 tests, 62
+  assertions), AR / MFA / participant regressions passed (26 tests, 1,360
+  assertions), Pint and
   staged diff checks passed. Task 11 is committed as `9c97c07e`.
 - 2026-09-07 Task 12 attachment storage: replaced every patient/API and
   Filament staff attachment upload, download, and preview use of the hard-coded

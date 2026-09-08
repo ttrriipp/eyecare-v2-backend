@@ -127,7 +127,7 @@ column.
 
 | Area | Staff | Optometrist | Admin |
 |---|---|---|---|
-| Panel login and own profile/MFA | Yes | Yes | Yes |
+| Panel login and own profile | Yes | Yes | Yes |
 | Appointments: view, create, check in, reschedule, cancel, no-show | Yes | Yes | Yes |
 | Appointments: bulk cancellation | No | No | Yes |
 | Encounters: view | Yes | Yes | Yes |
@@ -228,8 +228,9 @@ provider hours—remain unchanged because user IDs do not change.
   assignments or historical records.
 - Removing `optometrist` prevents new clinical/provider actions but does not
   rewrite historical clinical attribution.
-- Password ownership, forced password change, profile editing, MFA, and login
-  audit behavior remain unchanged for all panel roles.
+- Password ownership, forced password change, profile editing, and login audit
+  behavior remain unchanged for all panel roles. The panel uses password-only
+  authentication; patient OTP flows are separate.
 
 ## Demo and Factory Contract
 

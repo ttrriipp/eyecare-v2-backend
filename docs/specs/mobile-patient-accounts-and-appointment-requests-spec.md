@@ -530,8 +530,8 @@ launch. Password recovery requires proof of a verified contact through OTP and
 revokes the account's other patient device tokens when completed.
 
 Registration, login, and recovery responses remain enumeration-safe and use a
-coordinated API and Android cutover. Staff and admin Filament password/MFA
-authentication are not changed.
+coordinated API and Android cutover. Staff and admin Filament password
+authentication is not changed.
 
 Sensitive account recovery and primary-contact replacement revoke other
 patient device tokens. Adding a secondary contact does not revoke otherwise
@@ -1097,7 +1097,7 @@ Use Pest feature tests with factories and faked delivery providers.
 - Password recovery revokes other patient device tokens.
 - Adding and verifying the second contact.
 - Replacing/removing contacts cannot remove the last verified login method.
-- Staff/admin Filament authentication remains password/MFA based.
+- Staff/admin Filament authentication remains password based.
 
 ### Linking and invitations
 

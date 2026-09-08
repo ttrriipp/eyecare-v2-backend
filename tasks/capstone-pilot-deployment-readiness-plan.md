@@ -16,6 +16,11 @@
 `docs/decisions/006-select-laravel-cloud-for-capstone-demo.md`
 (accepted 2026-09-08)
 
+**Security amendment (2026-09-08):** Staff/admin Filament TOTP MFA was removed
+from the panel. The deployment uses password policy, role authorization, and
+session controls instead; the prior MFA-specific Task 11 wording is
+superseded.
+
 ## Outcome
 
 Prepare an isolated, one-month capstone staff demonstration, targeting
@@ -513,8 +518,9 @@ seeding and known credentials.
   explicitly synthetic demo data; it never invokes `DatabaseSeeder`, known
   demo users, or broad scenario coverage.
 - A secure administrator command creates or updates the named administrator
-  without a source-controlled/default password and leaves Filament MFA
-  enrollment required before participant access.
+  without a source-controlled/default password. The staff panel uses the
+  production password policy, role authorization, and session controls without
+  a second-factor enrollment step.
 - A clean database contains no prohibited known identity or credential and can
   identify one selected validated/published AR asset for smoke testing.
 

@@ -1,6 +1,9 @@
 # Spec: Capstone Pilot Deployment Readiness
 
 **Status:** Scope amended on 2026-09-07 — staff/demo-only deployment; participant access remains dormant
+**Security amendment (2026-09-08):** Staff/admin Filament TOTP MFA was removed
+from the panel. Password policy, role authorization, and session controls
+remain required; MFA-specific launch wording below is superseded.
 **Implementation plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
 **Applies to:** EyeCare backend, Filament staff panel, and Android-facing API
 **Runtime baseline:** PHP 8.5, Laravel 13, MySQL, Filament 5, Livewire 4, Sanctum 4, Pest 4, and Tailwind CSS 4
@@ -184,7 +187,7 @@ Secrets must exist only in secret storage or local ignored environment files. Th
 - The demo uses explicit, idempotent seeders for required reference data and clearly marked synthetic demonstration data.
 - Seeded identities must be fictional and must not reuse real patient information.
 - Demonstration credentials are shared only with the capstone team/evaluators and are disabled at teardown.
-- The administrator is provisioned through a secure command or platform mechanism and uses MFA.
+- The administrator is provisioned through a secure command or platform mechanism and uses the production password policy, role authorization, and session controls.
 - A fresh database must migrate, seed approved data, and provision an administrator without manual database editing.
 - No legacy clinic database or frame-reservation data is imported into the pilot.
 - A database backup is taken before any post-launch migration.
@@ -266,7 +269,7 @@ Deployments must:
 
 - Rehearse a fresh installation; no historical clinic data upgrade is in scope.
 - Build production frontend assets and all required Laravel/Filament caches.
-- Test only enabled demo flows end to end: staff login with MFA, the one AR asset, authorized file behavior, synthetic records, and any required queue/scheduler work.
+- Test only enabled demo flows end to end: staff login with the production password policy, the one AR asset, authorized file behavior, synthetic records, and any required queue/scheduler work.
 - Verify that participant and phone/SMS paths remain unavailable.
 - Rehearse backup restore, application rollback, de-identified export, and teardown.
 
@@ -404,7 +407,7 @@ Controllers and jobs remain thin; validation, authorization, transactions, and p
 
 - Security and launch-critical tests pass.
 - No critical/high dependency advisory affects an exposed path.
-- Debug mode is off; HTTPS, secrets, administrator MFA, rate limits, authorized storage, and production-style caches are verified.
+- Debug mode is off; HTTPS, secrets, administrator password policy, role/session controls, rate limits, authorized storage, and production-style caches are verified.
 - The fresh migration, approved synthetic seeding, build, backup, restore, and rollback checks pass.
 
 ### Gate 3 — Demo Go-Live
@@ -431,7 +434,7 @@ The system is demo-ready when all of the following are evidenced:
 4. Deployment preflight rejects unsafe critical configuration and never exposes secret values.
 5. Participant-code, phone registration/login, OTP, recovery, and invitation operations are unavailable in the deployed demo environment.
 6. No pilot participant accounts, credentials, consent records, or research events exist in the demo database.
-7. A fresh environment migrates, receives only reference and synthetic demonstration data, and provisions an MFA-protected administrator.
+7. A fresh environment migrates, receives only reference and synthetic demonstration data, and provisions a password-authenticated administrator with the required role and session controls.
 8. The one supported AR model works on a supported test device; all other frames/devices show a clear non-AR fallback.
 9. Collected data and private files remain authorized and persistent across a redeploy.
 10. Uptime and unhandled errors notify the technical owner, with queue failures visible when enabled.
