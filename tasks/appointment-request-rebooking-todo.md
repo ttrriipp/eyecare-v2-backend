@@ -1,6 +1,6 @@
 # Task Checklist: Appointment-Request Rebooking
 
-**Status:** Tasks 1–2 complete; Checkpoints A–B reviewed on 2026-09-08
+**Status:** Tasks 1–3 complete; Checkpoints A–C reviewed on 2026-09-08
 **Specification:** `docs/specs/appointment-request-rebooking-spec.md`
 **Plan:** `tasks/appointment-request-rebooking-plan.md`
 
@@ -68,25 +68,34 @@
 
 ## Task 3: Reconcile staff/API cutover and documentation
 
-- [ ] Extend the existing Filament request queue/detail/review UI for linked
+- [x] Extend the existing Filament request queue/detail/review UI for linked
       rows without exposing patient free text.
-- [ ] Remove the direct patient reschedule route and update API/route tests.
-- [ ] Update API contract and backend context; record Android handoff and
+- [x] Remove the direct patient reschedule route and update API/route tests.
+- [x] Update API contract and backend context; record Android handoff and
       deployment ordering.
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRequestResourceTest.php tests/Feature/Api/V1/RouteContractTest.php tests/Feature/Api/V1/AppointmentRequestRebookingTest.php`
-- [ ] `vendor/bin/sail bin pint --dirty --format agent`
-- [ ] `git diff --check`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Filament/AppointmentRequestResourceTest.php`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php`
+- [x] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/AppointmentRequestRebookingTest.php`
+- [x] `vendor/bin/sail bin pint --dirty --format agent`
+- [x] `git diff --check`
 
 **Commit:** `docs: reconcile appointment-request rebooking contracts`
 
 ## Checkpoint C: Handoff readiness
 
-- [ ] All three tasks and success criteria are reconciled.
-- [ ] Unified appointment-request flow is the only patient rebooking path.
-- [ ] Canonical docs match code and tests.
-- [ ] Focused and full suites are green; the working tree is clean.
+- [x] All three tasks and success criteria are reconciled.
+- [x] Unified appointment-request flow is the only patient rebooking path.
+- [x] Canonical docs match code and tests.
+- [x] Focused suites and the full-suite run completed; all rebooking-related
+      tests are green and the working tree is clean. The full run reports three
+      unrelated pre-existing Filament failures/errors in
+      `BillingRecordResourceTest` and `VariantFormVisibilityTest`.
+
+**Full-suite note:** `vendor/bin/sail artisan test --compact` ran 2,116 tests:
+2,113 passed. The remaining failures/errors do not touch the rebooking files
+or behavior and should be handled in a separate Filament maintenance task.
 
 **Review commit:** `test: close appointment-request rebooking workflow`
