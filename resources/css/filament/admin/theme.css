@@ -47,6 +47,30 @@
     order: 1;
 }
 
+/* Let the appointments toolbar use the full mobile width without changing the
+   desktop table toolbar or other resources. */
+@media (max-width: 639px) {
+    .appointments-table .fi-ta-header-toolbar {
+        @apply flex-col items-stretch gap-3;
+    }
+
+    .appointments-table .fi-ta-header-toolbar > * {
+        @apply ms-0 w-full;
+    }
+
+    .appointments-table .fi-ta-header-toolbar:has(> .fi-ta-actions > .fi-btn) > :nth-child(2) {
+        @apply ms-0 justify-between;
+    }
+
+    .appointments-table .fi-ta-header-toolbar > :nth-child(2) .fi-ta-search-field {
+        @apply min-w-0 grow;
+    }
+
+    .appointments-table .fi-ta-header-toolbar > .fi-ta-actions {
+        @apply justify-start;
+    }
+}
+
 /* Keep the conversation workspace within the viewport below the fixed topbar. */
 .fi-page.fi-conversation-chat-page {
     height: calc(100dvh - 4rem);

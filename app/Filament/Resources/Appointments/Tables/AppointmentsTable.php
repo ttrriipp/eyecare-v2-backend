@@ -44,6 +44,7 @@ class AppointmentsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->extraAttributes(['class' => 'appointments-table'])
             ->columns([
                 TextColumn::make('appointment_number')
                     ->label('Number')
@@ -99,7 +100,6 @@ class AppointmentsTable
                     ->limit(40)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->stackedOnMobile()
             ->filters([
                 Filter::make('walk_in_queue')
                     ->label("Today's walk-ins")

@@ -44,14 +44,15 @@ test('appointment table shows the populated appointment type', function () {
         ->assertDontSee('Visit reason');
 });
 
-test('appointment table stacks records on mobile', function () {
+test('appointment table keeps desktop rows and scopes its responsive toolbar styles', function () {
     $staff = User::factory()->staff()->create();
-    Appointment::factory()->create();
 
     $this->actingAs($staff);
 
-    Livewire::test(ListAppointments::class)
-        ->assertSeeHtml('fi-ta-table-stacked-on-mobile');
+    $table = Livewire::test(ListAppointments::class)->instance()->getTable();
+
+    expect($table->isStackedOnMobile())->toBeFalse()
+        ->and($table->getExtraAttributes()['class'])->toBe('appointments-table');
 });
 
 test('appointment table prioritizes active appointments and sorts them by earliest time', function () {
