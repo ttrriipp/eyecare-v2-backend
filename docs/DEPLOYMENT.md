@@ -13,6 +13,160 @@ The fastest path to production. [Laravel Cloud](https://cloud.laravel.com/) hand
 3. Set environment variables (see below)
 4. Deploy — Cloud handles nginx, PHP, queue workers, scheduler, and SSL
 
+## Capstone Demo Profile: Laravel Cloud Starter
+
+This profile is the approved deployment path for the one-month capstone
+demonstration. It supersedes the generic production values below for this
+environment. The deployment is staff-only, uses synthetic data, collects no
+participant or clinical data, and must be taken offline no later than **October
+7, 2026**.
+
+The accepted provider decision is recorded in
+[`ADR-006`](decisions/006-select-laravel-cloud-for-capstone-demo.md). Use the
+Starter plan in Asia Pacific (Singapore when available), configure a **US$30
+billing alert**, and remember that the alert is not a hard spending cap.
+
+### Resource map
+
+| Application need | Cloud resource or setting | Required boundary |
+|---|---|---|
+| Web application | One Cloud application/environment from the immutable release revision | Keep the generated HTTPS hostname private until preflight passes |
+| Database | Managed MySQL | Run migrations with `--force`; never import a legacy clinic database |
+| Cache, queue, sessions | Existing database-backed drivers for the single-replica demo | Keep these persistent and shared; do not use array, cookie, or sync drivers |
+| Queue worker | One Cloud worker process | Confirm it is supervised and can process a test job |
+| Scheduler | Cloud scheduled task invoking Laravel’s scheduler once per minute | Confirm the required expiry/cleanup events are visible |
+| Catalog files | S3-compatible object storage, logical disk `public` | Public visibility; use a catalog-specific root and URL |
+| Published AR model | S3-compatible object storage, logical disk `ar_published` | Public visibility; publish only the selected synthetic model |
+| AR quarantine | S3-compatible object storage, logical disk `ar_quarantine` | Private visibility; never expose a direct URL |
+| Message attachments | S3-compatible object storage, logical disk `message_attachments` | Private visibility; authorization remains application-controlled |
+| HTTPS and monitoring | Cloud HTTPS hostname, uptime check, application logs, billing alert | Record exact URLs/resource IDs and the owner before launch |
+
+### Provisioning and release sequence
+
+1. Create the Cloud application from the reviewed commit and select the
+   Singapore region when available. Add managed MySQL and object storage. Do
+   not add a custom domain or distribute the hostname yet.
+2. Configure Cloud secrets and environment values from `.env.example`. At
+   minimum, set `APP_ENV=production`, `APP_DEBUG=false`, a new `APP_KEY`, the
+   Cloud `APP_URL`, `DEPLOYMENT_MODE=demo`, `CAPSTONE_PILOT_ENABLED=false`, and
+   the exact trusted-host/proxy/CORS values. Keep `SEMAPHORE_ENABLED` and
+   `TEXTBEE_ENABLED` false and do not run participant provisioning.
+3. Map object storage without changing application code. A single bucket may
+   use distinct roots, or separate buckets may be used when the provider
+   supports them:
+
+   ```env
+   CATALOG_DISK=public
+   CATALOG_DRIVER=s3
+   CATALOG_ROOT=catalog
+   CATALOG_URL=https://<public-catalog-base>
+
+   MESSAGE_ATTACHMENTS_DISK=message_attachments
+   MESSAGE_ATTACHMENTS_DRIVER=s3
+   MESSAGE_ATTACHMENTS_ROOT=message-attachments
+
+   AR_QUARANTINE_DISK=ar_quarantine
+   AR_QUARANTINE_DRIVER=s3
+   AR_QUARANTINE_ROOT=ar/quarantine
+
+   AR_PUBLISHED_DISK=ar_published
+   AR_PUBLISHED_DRIVER=s3
+   AR_PUBLISHED_ROOT=ar
+   AR_PUBLISHED_URL=https://<public-object-base>
+   AR_ASSET_BASE_URL=https://<public-object-base>
+   ```
+
+   The public base values must point at the object-storage/CDN origin root;
+   the configured roots and `ar/variants` prefix supply the remaining path.
+
+   Use the provider-injected `AWS_*` credentials only through Cloud secret
+   storage. If separate buckets or credentials are required, use the matching
+   `CATALOG_*`, `MESSAGE_ATTACHMENTS_*`, `AR_QUARANTINE_*`, and
+   `AR_PUBLISHED_*` overrides. Do not run `storage:link` for object-storage
+   disks.
+4. Use the Cloud build/deploy settings to run the locked installation and
+   frontend build:
+
+   ```bash
+   composer install --no-dev --optimize-autoloader
+   npm ci
+   npm run build
+   ```
+
+5. Run release commands in this order, stopping on the first failure:
+
+   ```bash
+   php artisan migrate --force
+   php artisan optimize
+   php artisan pilot:preflight
+   php artisan db:seed --class=CapstonePilotSeeder --force
+   php artisan pilot:preflight
+   ```
+
+   `CapstonePilotSeeder` is the only approved bootstrap for this demo. Never
+   run the broad `DatabaseSeeder` and never run
+   `pilot:provision-participants`.
+6. Provision the named administrator through the Cloud command console using
+   an owner-only password input, then enroll and verify Filament MFA. Do not
+   pass the password as a command-line argument or place it in a build log.
+7. Verify the generated HTTPS hostname before any DNS or staff distribution:
+   `/up` returns only liveness, the protected `/internal/readiness` check
+   returns `ready` with the dedicated header token, and `pilot:preflight`
+   reports no failures. Capture the immutable release ID and Cloud resource
+   identifiers in the launch record.
+
+### Demo smoke and recovery checklist
+
+- Sign in to the Filament panel with MFA and exercise the approved synthetic
+  catalog, patient-record, appointment, prescription, billing, and messaging
+  demonstration paths.
+- Confirm SKU `FRM-ANTHOS-MB1399A-C4` serves the published
+  `frame-002-tortoise-rectangle-v2.glb` asset over HTTPS. Confirm another
+  product uses the non-AR fallback and that missing/disabled AR never blocks
+  the catalog.
+- Verify catalog and published AR objects are public, while AR quarantine and
+  message attachments remain private and authorization-protected.
+- Confirm the participant-login, registration, phone-login, OTP, recovery, and
+  invitation endpoints return `404`; confirm no participant accounts exist and
+  no SMS adapter is enabled.
+- Enqueue a harmless test job, observe worker completion, and confirm the
+  once-per-minute scheduler is running. Check uptime and application-error
+  notifications without exposing secrets or record contents.
+- Enable/verify encrypted database backups and the selected object-storage
+  backup/versioning policy. Restore one backup into an isolated environment,
+  compare the migration/release and synthetic records, and record the result.
+- Record the last known-good Cloud revision. For a release failure, stop
+  promotion and roll back to that revision only when the schema is compatible;
+  otherwise restore the verified backup in an isolated recovery environment.
+
+### Required launch record
+
+Complete these fields before go-live; placeholders are intentionally not
+launch evidence:
+
+```text
+Cloud application/environment:
+Region:
+Generated HTTPS hostname:
+Managed MySQL resource ID:
+Object-storage resource/bucket IDs:
+Immutable release ID:
+Technical owner name and contact:
+US$30 billing-alert destination:
+Backup/restore evidence:
+Rollback evidence:
+Teardown operator and scheduled date (hard stop: 2026-10-07):
+```
+
+### Teardown
+
+After the final defense plus seven days, and never later than October 7, 2026,
+export only approved synthetic records if needed, revoke staff sessions and
+tokens, stop the worker and scheduler, delete the database/object-storage
+objects and backups, remove the Cloud application/domain, and confirm billing
+has stopped. Record provider deletion confirmations and do not retain local
+copies of credentials or generated manifests.
+
 ---
 
 ## Alternative: VPS (Ubuntu 24.04 + Forge-style)
@@ -160,6 +314,10 @@ sudo certbot --nginx -d eyecare.example.com
 ---
 
 ## Environment Variables (Production)
+
+The following is the generic non-demo template. For the capstone environment,
+use the Cloud profile above, keep SMS disabled, and run `pilot:preflight` after
+every environment change.
 
 ```env
 APP_NAME=EyeCare

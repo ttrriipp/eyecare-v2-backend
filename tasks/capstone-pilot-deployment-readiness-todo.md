@@ -83,7 +83,9 @@ criteria, files, risks, and verification are in the plan.
 - [x] Scope amendment — deploy staff-only/demo-only mode with no participant
       accounts or participant/phone/SMS authentication.
 - [ ] Task 14 — provision the approved Laravel Cloud environment; record exact
-      resource identifiers and complete the provider-specific runbook.
+      resource identifiers and complete the provider-specific runbook. The
+      application-side Cloud object-storage mapping is implemented; external
+      provisioning and rehearsal remain.
 - [x] Task 15 — verify participant mode is omitted from the demo release and
       all participant/phone/SMS authentication paths remain unavailable.
 - [ ] Task 16 — record the technical operator's name/contact and rehearse every
@@ -111,6 +113,9 @@ criteria, files, risks, and verification are in the plan.
       never beyond October 7, 2026.
 - [x] Select the published tortoise rectangle AR model, SKU
       `FRM-ANTHOS-MB1399A-C4`.
+- [x] Map catalog, AR, and message-attachment disks to provider-neutral
+      configuration and add the S3 filesystem adapter; retain local defaults
+      for development and tests.
 - [ ] Record the exact Cloud hostname/resource identifiers and complete the
       deployed backup, restore, alert, smoke, rollback, and teardown evidence.
 
@@ -327,6 +332,16 @@ criteria, files, risks, and verification are in the plan.
   rectangle AR asset `FRM-ANTHOS-MB1399A-C4`. ADR-006 and the provider-specific
   runbook profile record the decisions; the owner's name/contact and deployed
   evidence remain required before Checkpoint D.
+- 2026-09-08 storage portability checkpoint: catalog image consumers now use a
+  configurable public logical disk, AR quarantine/published disks use
+  provider-configurable roots and visibility, and the S3 Flysystem adapter is
+  committed for Cloud object storage. The catalog preflight resolves its
+  configured alias and fails closed for missing/private disks. Focused storage,
+  preflight, AR, catalog, and seeder tests passed (149 tests, 638 assertions);
+  `composer validate --strict`, `composer audit --locked`, and Pint passed.
+  A clean full Sail Pest run passed 2,133 tests and 9,172 assertions. The
+  Cloud account, exact resources, owner identity, and deployed rehearsal are
+  still external Checkpoint D inputs.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,

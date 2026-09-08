@@ -25,12 +25,14 @@ collected. The deployment uses the Filament panel, synthetic clinical/demo
 records, and one validated AR model.
 
 This plan was provider-neutral through Checkpoint C. Laravel Cloud Starter is
-now selected; the remaining Task 14 work is account provisioning and a clean
-deployment rehearsal, not a change to the application domain. The
+now selected; the remaining Task 14 work is account provisioning, exact
+resource recording, and a clean deployment rehearsal, not a change to the
+application domain. The application now maps catalog and AR storage through
+logical disks and includes the S3 adapter needed by Cloud object storage. The
 participant-code implementation remains tested but dormant;
 `DEPLOYMENT_MODE=demo` must keep it and all phone/SMS paths unavailable.
-Hosting, the named technical owner, synthetic-data teardown, and the selected
-AR model must nevertheless be resolved before public launch.
+The named technical owner, exact Cloud identifiers, deployed smoke evidence,
+and teardown rehearsal must nevertheless be completed before public launch.
 
 The Android source is not in this repository. Android participant-mode work is
 out of scope for the staff-only demo and is no longer a launch dependency.
@@ -635,6 +637,9 @@ account access and resource provisioning remain operator-authorized actions.
 
 - `docs/decisions/006-select-laravel-cloud-for-capstone-demo.md`
 - `docs/DEPLOYMENT.md`
+- `config/filesystems.php`
+- `composer.json`, `composer.lock`
+- catalog/AR disk consumers and storage/preflight tests
 - provider deployment configuration files only if the selected platform needs
   them and after approval
 
