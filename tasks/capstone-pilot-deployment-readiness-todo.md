@@ -1,6 +1,6 @@
 # Task Checklist: Capstone Pilot Deployment Readiness
 
-**Status:** Scope amended on 2026-09-07 — Tasks 1–13, demo-only scope gate, and Task 15 complete; Checkpoints A–C complete
+**Status:** Scope amended on 2026-09-07 — Tasks 1–13, demo-only scope gate, and Task 15 complete; hosting and demo operating decisions recorded on 2026-09-08; external provisioning/rehearsal remains
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Plan:** `tasks/capstone-pilot-deployment-readiness-plan.md` (approved 2026-09-06)
@@ -82,12 +82,12 @@ criteria, files, risks, and verification are in the plan.
 
 - [x] Scope amendment — deploy staff-only/demo-only mode with no participant
       accounts or participant/phone/SMS authentication.
-- [ ] Task 14 — select hosting after budget approval; record ADR/runbook and
-      provision the isolated environment.
+- [ ] Task 14 — provision the approved Laravel Cloud environment; record exact
+      resource identifiers and complete the provider-specific runbook.
 - [x] Task 15 — verify participant mode is omitted from the demo release and
       all participant/phone/SMS authentication paths remain unavailable.
-- [ ] Task 16 — freeze demo records, owner, retention, and AR choice; rehearse
-      every deployed workflow and recovery procedure.
+- [ ] Task 16 — record the technical operator's name/contact and rehearse every
+      deployed workflow and recovery procedure.
 
 ### Checkpoint D: Go/No-Go
 
@@ -100,15 +100,19 @@ criteria, files, risks, and verification are in the plan.
 
 ## Phase 4: Operate and Close
 
-- [ ] Task 17 — launch to the 75 invitees, monitor for one month, export
-      approved de-identified results, revoke access, and complete teardown.
+- [ ] Task 17 — launch to authorized staff/evaluators, monitor for one month,
+      export synthetic results if needed, revoke access, and complete teardown.
 
-## Decisions Still Required Before Checkpoint D
+## Remaining Checkpoint D Inputs
 
-- [ ] Select a managed host and approve the one-month spending cap.
-- [ ] Name the technical operator.
-- [ ] Approve synthetic demo-data deletion timing and retention.
-- [ ] Select the single validated/published AR model used for the demo.
+- [x] Select Laravel Cloud Starter and approve a US$30 billing alert.
+- [ ] Record the technical operator's name and contact channel.
+- [x] Approve synthetic demo-data deletion after final defense plus seven days,
+      never beyond October 7, 2026.
+- [x] Select the published tortoise rectangle AR model, SKU
+      `FRM-ANTHOS-MB1399A-C4`.
+- [ ] Record the exact Cloud hostname/resource identifiers and complete the
+      deployed backup, restore, alert, smoke, rollback, and teardown evidence.
 
 ## Evidence Log
 
@@ -316,6 +320,13 @@ criteria, files, risks, and verification are in the plan.
   tests and 8,794 assertions. Composer validation/audit, npm audit, production
   build, optimize/cache rehearsal, readiness route, and scheduler inventory
   all passed.
+- 2026-09-08 operational decisions: the team approved Laravel Cloud Starter in
+  Asia Pacific (Singapore when available), a US$30 billing alert, the capstone
+  technical lead as owner role, synthetic-data retention through final defense
+  plus seven days (hard stop October 7, 2026), and the published tortoise
+  rectangle AR asset `FRM-ANTHOS-MB1399A-C4`. ADR-006 and the provider-specific
+  runbook profile record the decisions; the owner's name/contact and deployed
+  evidence remain required before Checkpoint D.
 - 2026-09-06 migration status: every listed migration ran successfully;
   fresh-install rehearsal remains a later checkpoint task.
 - 2026-09-06 scheduler inventory: five scheduled commands are registered,

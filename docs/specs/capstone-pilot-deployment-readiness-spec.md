@@ -28,9 +28,17 @@ Demo readiness is achieved when the reduced launch gates and success criteria in
 5. One validated AR frame model is sufficient; AR is presented as a limited pilot and unavailable products degrade gracefully.
 6. The participant-code implementation may remain in the repository as an additive capability, but no participant accounts are provisioned and the capability stays disabled.
 7. Demo-only mode disables participant-code, phone registration/login, OTP, recovery, and invitation paths.
-8. The hosting provider remains undecided and will be selected for a one-month deployment rather than permanent clinical operations.
+8. Laravel Cloud Starter is selected for the one-month deployment, with a
+   US$30 billing alert and no permanent clinical operations.
 9. The capstone team and evaluators are in the Philippines, with business-time interpretation based on `Asia/Manila`.
 10. The environment is taken offline on October 7, 2026 unless the owner explicitly approves an extension and repeats the privacy/security review.
+11. The technical owner is the capstone technical lead; the person's name and
+    contact channel must be recorded before go-live.
+12. Synthetic demo records and assets are retained only until the final defense
+    plus seven days, and never beyond October 7, 2026.
+13. The demonstrated AR asset is the published tortoise rectangle model with
+    SKU `FRM-ANTHOS-MB1399A-C4` and source file
+    `frame-002-tortoise-rectangle-v2.glb`.
 
 If assumption 1, 2, or 3 is false, implementation must stop before deployment. A separate participant-data, clinical-production, or real-patient-data review will be required.
 
@@ -143,7 +151,13 @@ The selected platform must provide or integrate with:
 - a region and network path with acceptable latency for Philippine users;
 - identifiable releases, a supported application rollback mechanism, and a confirmed teardown process.
 
-For this one-month demonstration, prefer a managed, usage-based platform over a self-managed VPS. The hosting decision must compare runtime support, worker and scheduler support, region and data handling, deployment and rollback behavior, backups, teardown/export behavior, operational burden, and one-month total cost. Record the selection before creating the public environment.
+For this one-month demonstration, use the managed, usage-based platform
+selected in [ADR-006](../decisions/006-select-laravel-cloud-for-capstone-demo.md).
+The Cloud environment must use the nearest approved Asia-Pacific region
+(Singapore when available), managed MySQL, persistent object storage, the
+Cloud scheduler and worker controls, HTTPS, logs, billing alerts, and a tested
+backup/restore and teardown procedure. Record exact resource identifiers and
+the generated hostname before creating public access.
 
 ## Demo Deployment Configuration Contract
 
@@ -233,6 +247,10 @@ Deployments must:
 - If demonstration results are exported, the technical owner verifies that they contain only synthetic data.
 - On October 7, 2026, public access, workers, schedulers, credentials, and billable resources are disabled unless an extension is explicitly approved.
 - Synthetic records, credentials, and cloud backups are deleted according to the demo teardown checklist and provider deletion behavior.
+- The retained demo set is limited to the synthetic records needed by the
+  defense script, catalog/reference data, and the single selected AR asset.
+  No participant accounts, contact mappings, consent records, or research
+  events are retained.
 
 ## Testing Strategy
 
@@ -420,20 +438,34 @@ The system is demo-ready when all of the following are evidenced:
 11. Daily backup, restore, application rollback, synthetic export (if used), and teardown procedures are verified.
 12. The application and demonstration materials state that this is a capstone prototype and not a clinical service.
 
-## Open Questions
+## Resolved Launch Decisions
 
-1. Which managed hosting provider and one-month spending cap will be used?
-2. Who is the technical owner for deploys, alerts, rollback, and teardown?
-3. Which synthetic demo records and assets must be retained until teardown?
-4. Which single validated/published AR model will be demonstrated?
+1. **Hosting and budget:** Laravel Cloud Starter in Asia Pacific (Singapore
+   when available), with a US$30 billing alert; see [ADR-006](../decisions/006-select-laravel-cloud-for-capstone-demo.md).
+2. **Technical owner:** the capstone technical lead, with the individual's
+   name and contact channel recorded in the runbook before go-live.
+3. **Synthetic retention:** retain only the defense-script records,
+   catalog/reference data, and selected AR asset until final defense plus
+   seven days, never beyond October 7, 2026; then delete cloud data, backups,
+   credentials, and billable resources.
+4. **AR model:** the published tortoise rectangle asset, SKU
+   `FRM-ANTHOS-MB1399A-C4`, source file
+   `frame-002-tortoise-rectangle-v2.glb`; all other devices/products use the
+   non-AR fallback.
+
+The remaining launch inputs are the exact Cloud hostname/resource IDs, the
+technical owner's personal contact details, and evidence from the deployed
+backup/restore, alert, smoke, rollback, and teardown rehearsals.
 
 ## Deferred Decision Records
 
-After the owner approves this specification and the short provider evaluations are complete, record:
+The one-month hosting choice and teardown consequences are recorded in
+[ADR-006](../decisions/006-select-laravel-cloud-for-capstone-demo.md).
+Before creating public access, record:
 
-- the one-month hosting choice and teardown consequences;
+- the exact Cloud region, hostname, resource identifiers, and billing alert;
+- the technical owner's name and contact channel;
+- the backup, restore, alert, export, rollback, and teardown evidence;
 - any live SMS provider choice, only if SMS is later added to the pilot.
-
-No provider is selected by this specification.
 
 The participant-code authentication history is recorded in [ADR-004](../decisions/004-use-temporary-participant-code-authentication-for-capstone-pilot.md) and is dormant for this demo-only scope. The current scope decision is recorded in [ADR-005](../decisions/005-use-staff-only-demo-deployment-for-capstone.md).

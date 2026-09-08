@@ -1,6 +1,6 @@
 # Implementation Plan: Capstone Pilot Deployment Readiness
 
-**Status:** Scope amended on 2026-09-07 — backend checkpoints complete; staff-only demo launch gates remain
+**Status:** Scope amended on 2026-09-07 — backend checkpoints complete; Cloud hosting and demo operating decisions recorded on 2026-09-08; external launch gates remain
 **Specification:** `docs/specs/capstone-pilot-deployment-readiness-spec.md`
 (approved 2026-09-06)
 **Decision:**
@@ -12,6 +12,10 @@
 `docs/decisions/005-use-staff-only-demo-deployment-for-capstone.md`
 (accepted 2026-09-07)
 
+**Hosting decision:**
+`docs/decisions/006-select-laravel-cloud-for-capstone-demo.md`
+(accepted 2026-09-08)
+
 ## Outcome
 
 Prepare an isolated, one-month capstone staff demonstration, targeting
@@ -20,9 +24,10 @@ the deployed environment and no participant or research data will be
 collected. The deployment uses the Filament panel, synthetic clinical/demo
 records, and one validated AR model.
 
-This plan is provider-neutral through Checkpoint C. Hosting selection changes
-environment configuration and the deployment runbook, not the application
-domain. The participant-code implementation remains tested but dormant;
+This plan was provider-neutral through Checkpoint C. Laravel Cloud Starter is
+now selected; the remaining Task 14 work is account provisioning and a clean
+deployment rehearsal, not a change to the application domain. The
+participant-code implementation remains tested but dormant;
 `DEPLOYMENT_MODE=demo` must keep it and all phone/SMS paths unavailable.
 Hosting, the named technical owner, synthetic-data teardown, and the selected
 AR model must nevertheless be resolved before public launch.
@@ -75,10 +80,10 @@ assertions); commit `dc37fbbc` records the code change.
 
 | Decision | Recommended default | Latest point to decide |
 | --- | --- | --- |
-| Hosting | Use a managed PHP/Laravel platform with a managed MySQL database, worker/scheduler support, HTTPS, logs, daily backups, and a nearby region. Compare Laravel Cloud and suitable managed alternatives only when the one-month budget is known; do not choose shared hosting that lacks workers, scheduler reliability, or controlled deployment. | Task 14, before any public environment is created. |
-| Owner | Name one technical operator for deploys, alerts, rollback, synthetic-data teardown, and expiry. | Before Checkpoint D. |
-| Demo retention | Keep only the synthetic records and assets required for demonstrations, then delete them, credentials, and provider backups at teardown according to the provider's deletion behavior. | Policy before Checkpoint D; provider-specific deletion timing in Task 14. |
-| AR model | Select one already validated and published model and treat every other product/device as non-AR with a clear fallback. | Before deployed smoke testing in Task 16. |
+| Hosting | Laravel Cloud Starter, Asia Pacific (Singapore when available), managed MySQL, Cloud object storage, database-backed cache/queue/session for the single-replica demo, and a US$30 billing alert. | Record exact environment/resource identifiers during Task 14; no public access before preflight. |
+| Owner | Capstone technical lead owns deploys, alerts, rollback, synthetic-data teardown, and expiry; name/contact must be recorded before go-live. | Before Checkpoint D. |
+| Demo retention | Defense-script records, catalog/reference data, and the selected AR asset only; delete cloud data, credentials, and backups after final defense plus seven days, never beyond October 7, 2026. | Verify in Task 16 and Task 17. |
+| AR model | Published tortoise rectangle model, SKU `FRM-ANTHOS-MB1399A-C4`; all other products/devices use the non-AR fallback. | Verify on the reference device in Task 16. |
 
 ## Scope Amendment: Staff-Only Demo
 
@@ -514,8 +519,9 @@ seeding and known credentials.
 **Verification:** Fresh-database seeder and command tests, prohibited-data
 assertions, idempotency, and one-model AR eligibility assertion.
 
-**Dependencies:** Checkpoint B. Selection of the exact existing AR asset may
-remain an environment input until Task 16.
+**Dependencies:** Checkpoint B. The selected AR asset is recorded in the
+approved demo operating profile; Task 16 verifies it on the deployed reference
+device.
 
 **Files likely touched:**
 
@@ -603,18 +609,18 @@ readiness authorization/failure behavior.
 
 #### Task 14: Select hosting and provision the isolated environment
 
-**Description:** Compare suitable managed providers using the approved one-month
-budget, record the decision, and map platform services to the provider-neutral
-configuration.
+**Description:** Provision the approved Laravel Cloud Starter environment,
+record exact resource identifiers, and map Cloud services to the
+provider-neutral configuration.
 
 **Acceptance criteria:**
 
-- The owner approves provider, region, one-month cap, database/cache/queue/
-  storage choices, backup/restore behavior, logs/alerts, rollback, and teardown
-  costs before resources are created.
-- An ADR and deployment runbook record exact build/release, scheduler, worker,
-  HTTPS/domain, secrets, backup, restore, rollback, export, and destruction
-  steps.
+- [ADR-006](../docs/decisions/006-select-laravel-cloud-for-capstone-demo.md)
+  records the approved provider, region preference, resource mapping, and
+  billing alert.
+- The deployment runbook records exact Cloud resource identifiers, build/
+  release, scheduler, worker, HTTPS/domain, secrets, backup, restore,
+  rollback, export, and destruction steps.
 - The public environment is isolated, uses no local/dev secrets or data, is
   explicitly demo-only, and passes preflight before DNS or staff distribution.
 
@@ -622,12 +628,12 @@ configuration.
 worker/scheduler checks, encrypted backup plus restore rehearsal, rollback
 rehearsal, and cost/expiry alerts.
 
-**Dependencies:** Checkpoint C and a hosting decision. This is the first task
-blocked by the currently unresolved provider choice.
+**Dependencies:** Checkpoint C and the approved hosting decision. External
+account access and resource provisioning remain operator-authorized actions.
 
 **Files likely touched:**
 
-- `docs/decisions/005-select-capstone-pilot-hosting.md` (new)
+- `docs/decisions/006-select-laravel-cloud-for-capstone-demo.md`
 - `docs/DEPLOYMENT.md`
 - provider deployment configuration files only if the selected platform needs
   them and after approval
@@ -662,13 +668,13 @@ planned there. No backend file is modified by this task.
 
 #### Task 16: Freeze demo operations and rehearse the deployed environment
 
-**Description:** Resolve the remaining hosting, owner, synthetic-data, and AR
-decisions and prove every enabled staff/demo workflow before public access.
+**Description:** Record the technical owner's identity and prove every enabled
+staff/demo workflow before public access.
 
 **Acceptance criteria:**
 
-- The technical owner, synthetic-data retention/deletion rule, and selected AR
-  model are recorded and match the deployed behavior.
+- The technical owner's name/contact, synthetic-data retention/deletion rule,
+  and selected AR model are recorded and match the deployed behavior.
 - Staff MFA, demonstration workflows, one AR model and fallback, file
   authorization/persistence, queue/scheduler work, uptime/error alerts,
   backup/restore, rollback, synthetic export, and teardown all pass on
@@ -680,7 +686,7 @@ decisions and prove every enabled staff/demo workflow before public access.
 smoke test, restored-environment comparison, synthetic export (if used), and
 teardown rehearsal.
 
-**Dependencies:** Tasks 14 and 15 plus resolved owner/retention decisions.
+**Dependencies:** Tasks 14 and 15 plus the technical owner's name/contact.
 
 **Files likely touched:** Approved runbook and existing canonical contract/
 context documents; application files only if a newly approved study field
@@ -700,8 +706,8 @@ requires a separately specified change.
 
 #### Task 17: Launch, monitor, export, and tear down
 
-**Description:** Run the time-limited demo under the approved operating and
-synthetic-data teardown procedure.
+**Description:** Run the time-limited staff/evaluator demo under the approved
+operating and synthetic-data teardown procedure.
 
 **Acceptance criteria:**
 
