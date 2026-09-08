@@ -46,6 +46,16 @@ test('table shows request number and status', function () {
         ->assertSuccessful();
 });
 
+test('request queue abbreviates new appointment request type', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertTableColumnFormattedStateSet('request_type', 'New', record: $request);
+});
+
 test('request queue does not show the referral column', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->create([

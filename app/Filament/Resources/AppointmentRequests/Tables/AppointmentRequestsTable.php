@@ -42,7 +42,7 @@ class AppointmentRequestsTable
                     ->label('Request')
                     ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
                         ? 'Rebooking'
-                        : 'New appointment')
+                        : 'New')
                     ->badge()
                     ->color(fn (AppointmentRequest $record): string => $record->isRebooking() ? 'info' : 'gray'),
 
