@@ -62,9 +62,11 @@
 > Patient outcome SMS/database delivery and the internal admin alert reuse the
 > existing appointment-change notification boundary. The former direct patient
 > `POST /api/v1/appointments/{appointment}/reschedule` route is retired.
-> The canonical contract and implementation plan are
-> `docs/specs/appointment-request-rebooking-spec.md` and
-> `tasks/appointment-request-rebooking-plan.md`.
+> The canonical backend specification and implementation plan are maintained
+> in this repository at `docs/specs/appointment-request-rebooking-spec.md` and
+> `tasks/appointment-request-rebooking-plan.md`. The Android repository should
+> consume the API contract below and does not need to mirror these backend-only
+> planning files.
 
 > **Shipped (2026-09-08): staff-panel authenticator removal.** The Filament
 > staff/admin panel now uses password-only authentication. The app/TOTP MFA
