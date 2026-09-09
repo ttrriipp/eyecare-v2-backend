@@ -18,7 +18,7 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
-test('list actions render as labeled icon buttons in the table toolbar', function (
+test('list actions render as labeled icon buttons in the page header', function (
     string $page,
     string $actionName,
     string $icon,
@@ -29,13 +29,13 @@ test('list actions render as labeled icon buttons in the table toolbar', functio
     $this->actingAs($admin);
 
     Livewire::test($page)
-        ->assertTableActionVisible($actionName)
-        ->assertTableActionHasIcon($actionName, $icon)
-        ->assertTableActionExists($actionName, function (Action $action) use ($label): bool {
+        ->assertActionVisible($actionName)
+        ->assertActionHasIcon($actionName, $icon)
+        ->assertActionExists($actionName, function (Action $action) use ($label): bool {
             return $action->isButton()
-                && ($label === null || $action->getLabel() === $label)
-                && in_array($action, $action->getTable()?->getToolbarActions() ?? [], true);
-        });
+                && ($label === null || $action->getLabel() === $label);
+        })
+        ->assertTableActionDoesNotExist($actionName);
 })->with([
     'appointment types' => [
         ListAppointmentTypes::class,

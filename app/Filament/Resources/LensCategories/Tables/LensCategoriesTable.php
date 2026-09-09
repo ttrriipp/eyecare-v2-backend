@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\LensCategories\Tables;
 
 use App\Filament\Support\CatalogLifecycleActions;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -52,9 +51,6 @@ class LensCategoriesTable
             ])
             ->defaultSort('created_at', 'desc')
             ->toolbarActions([
-                CreateAction::make()
-                    ->icon('heroicon-o-plus-circle')
-                    ->button(),
                 CatalogLifecycleActions::bulkActions(),
             ]);
     }

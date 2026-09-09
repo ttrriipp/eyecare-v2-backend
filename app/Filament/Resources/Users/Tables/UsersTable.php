@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Users\Tables;
 
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
@@ -97,11 +96,6 @@ class UsersTable
                             ->success()
                             ->send();
                     }),
-            ])
-            ->toolbarActions([
-                CreateAction::make()
-                    ->icon('heroicon-o-plus-circle')
-                    ->button(),
             ]);
     }
 }

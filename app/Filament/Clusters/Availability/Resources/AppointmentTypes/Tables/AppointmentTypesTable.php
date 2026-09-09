@@ -3,7 +3,6 @@
 namespace App\Filament\Clusters\Availability\Resources\AppointmentTypes\Tables;
 
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -63,9 +62,6 @@ class AppointmentTypesTable
                 EditAction::make(),
             ])
             ->toolbarActions([
-                CreateAction::make()
-                    ->icon('heroicon-o-plus-circle')
-                    ->button(),
                 BulkActionGroup::make([]),
             ]);
     }

@@ -151,13 +151,6 @@ class OpticalOrdersTable
                 ]),
             ])
             ->toolbarActions([
-                Action::make('newDirectOrder')
-                    ->label('New Direct Order')
-                    ->icon('heroicon-o-plus-circle')
-                    ->color('primary')
-                    ->button()
-                    ->tooltip('New Direct Order')
-                    ->url(OpticalOrderResource::getUrl('create')),
                 BulkActionGroup::make([]),
             ]);
     }

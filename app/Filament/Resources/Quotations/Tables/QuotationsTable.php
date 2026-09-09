@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Quotations\Tables;
 
 use App\Enums\QuotationStatus;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -57,13 +56,6 @@ class QuotationsTable
             ->recordActions([
                 EditAction::make()->label('View'),
             ])
-            ->defaultSort('created_at', 'desc')
-            ->toolbarActions([
-                CreateAction::make()
-                    ->label('New Quotation')
-                    ->icon('heroicon-o-plus-circle')
-                    ->button()
-                    ->tooltip('New Quotation'),
-            ]);
+            ->defaultSort('created_at', 'desc');
     }
 }

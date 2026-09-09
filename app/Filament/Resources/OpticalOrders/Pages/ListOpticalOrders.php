@@ -5,6 +5,7 @@ namespace App\Filament\Resources\OpticalOrders\Pages;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Widgets\OpticalOrderStatsWidget;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
@@ -12,6 +13,19 @@ use Illuminate\Database\Eloquent\Builder;
 class ListOpticalOrders extends ListRecords
 {
     protected static string $resource = OpticalOrderResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('newDirectOrder')
+                ->label('New Direct Order')
+                ->icon('heroicon-o-plus-circle')
+                ->color('primary')
+                ->button()
+                ->tooltip('New Direct Order')
+                ->url(OpticalOrderResource::getUrl('create')),
+        ];
+    }
 
     /**
      * @return array<string, Tab>

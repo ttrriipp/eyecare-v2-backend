@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Patients\Tables;
 
 use App\Models\Appointment;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -64,13 +63,6 @@ class PatientsTable
             ->recordActions([
                 EditAction::make()->label('Edit'),
             ])
-            ->defaultSort('first_name')
-            ->toolbarActions([
-                CreateAction::make()
-                    ->label('New Patient')
-                    ->icon('heroicon-o-plus-circle')
-                    ->button()
-                    ->tooltip('New Patient'),
-            ]);
+            ->defaultSort('first_name');
     }
 }

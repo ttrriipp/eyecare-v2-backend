@@ -28,25 +28,6 @@
     margin: 0;
 }
 
-.billing-records-table .fi-ta-header-toolbar:has(.billing-records-new-service-charge-action) > :first-child,
-.products-table .fi-ta-header-toolbar:has(.products-new-product-action) > :first-child {
-    order: 2;
-}
-
-.billing-records-table .fi-ta-header-toolbar:has(.billing-records-new-service-charge-action) > :nth-child(2),
-.products-table .fi-ta-header-toolbar:has(.products-new-product-action) > :nth-child(2) {
-    order: 1;
-}
-
-/* Keep standalone table actions beside the search, filters, and column manager. */
-.fi-ta-header-toolbar:has(> .fi-ta-actions > .fi-btn) > :first-child {
-    order: 2;
-}
-
-.fi-ta-header-toolbar:has(> .fi-ta-actions > .fi-btn) > :nth-child(2) {
-    order: 1;
-}
-
 /* Let the appointments toolbar use the full mobile width without changing the
    desktop table toolbar or other resources. */
 @media (max-width: 639px) {

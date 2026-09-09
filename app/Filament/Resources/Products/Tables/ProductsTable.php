@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Products\Tables;
 use App\Filament\Support\CatalogLifecycleActions;
 use App\Models\Product;
 use Filament\Actions\ActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
@@ -18,7 +17,6 @@ class ProductsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->extraAttributes(['class' => 'products-table'])
             ->columns([
                 ImageColumn::make('images')
                     ->label('Image')
@@ -85,12 +83,6 @@ class ProductsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->toolbarActions([
-                CreateAction::make()
-                    ->label('New product')
-                    ->icon('heroicon-o-plus-circle')
-                    ->button()
-                    ->tooltip('New product')
-                    ->extraAttributes(['class' => 'products-new-product-action']),
                 CatalogLifecycleActions::bulkActions(),
             ]);
     }

@@ -20,9 +20,9 @@ test('an admin can add a clinic closure override', function () {
     $this->actingAs($admin);
 
     Livewire::test(ScheduleOverrides::class)
-        ->assertTableActionVisible('addOverride')
-        ->assertTableActionHasIcon('addOverride', 'heroicon-o-plus')
-        ->callTableAction('addOverride', null, [
+        ->assertActionVisible('addOverride')
+        ->assertActionHasIcon('addOverride', 'heroicon-o-plus')
+        ->callAction('addOverride', [
             'type' => 'closed',
             'override_date' => today()->addDays(3)->toDateString(),
             'reason' => 'Holiday',
@@ -40,7 +40,7 @@ test('a non-admin optometrist cannot add a clinic-wide closure', function () {
     // "closed" is a tampered value. Filament's own Select validation rejects
     // any value outside its options() list before our action code ever runs.
     Livewire::test(ScheduleOverrides::class)
-        ->callTableAction('addOverride', null, [
+        ->callAction('addOverride', [
             'type' => 'closed',
             'override_date' => today()->addDays(3)->toDateString(),
         ])
@@ -54,7 +54,7 @@ test('a non-admin optometrist can add their own absence', function () {
     $this->actingAs($optometrist);
 
     Livewire::test(ScheduleOverrides::class)
-        ->callTableAction('addOverride', null, [
+        ->callAction('addOverride', [
             'type' => 'provider_absence',
             'override_date' => today()->addDays(2)->toDateString(),
             'user_id' => $optometrist->id,
@@ -73,7 +73,7 @@ test('a non-admin optometrist cannot add another optometrist\'s absence', functi
     $this->actingAs($optometrist);
 
     Livewire::test(ScheduleOverrides::class)
-        ->callTableAction('addOverride', null, [
+        ->callAction('addOverride', [
             'type' => 'provider_absence',
             'override_date' => today()->addDays(2)->toDateString(),
             'user_id' => $otherOptometrist->id,

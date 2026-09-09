@@ -34,6 +34,13 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
 
     protected static ?int $navigationSort = 4;
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            $this->addOverrideAction(),
+        ];
+    }
+
     /**
      * @return array<string, string>
      */
@@ -102,9 +109,6 @@ class ScheduleOverrides extends AvailabilityClusterPage implements HasTable
                         ? $this->canManageProviderAbsence($record->user_id)
                         : $this->canManageClinicWideOverrides())
                     ->action(fn (ScheduleOverride $record) => $this->deleteOverride($record->id)),
-            ])
-            ->toolbarActions([
-                $this->addOverrideAction(),
             ])
             ->emptyStateHeading('No upcoming overrides')
             ->emptyStateDescription('Add a closure, early-close day, or optometrist absence above.');

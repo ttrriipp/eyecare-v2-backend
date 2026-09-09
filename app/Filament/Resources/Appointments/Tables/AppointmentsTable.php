@@ -10,19 +10,15 @@ use App\Actions\Encounters\CheckInAppointment;
 use App\Actions\Encounters\StartEncounter;
 use App\Enums\AppointmentStatusName;
 use App\Enums\EncounterStatus;
-use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
-use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\Appointments\Support\AppointmentTime;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Models\Appointment;
-use App\Models\AppointmentRequest;
 use App\Models\AppointmentStatus;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -336,30 +332,6 @@ class AppointmentsTable
                 ]),
             ])
             ->toolbarActions([
-                Action::make('calendar')
-                    ->label('Calendar')
-                    ->icon('heroicon-o-calendar-days')
-                    ->color('gray')
-                    ->outlined()
-                    ->button()
-                    ->tooltip('Calendar')
-                    ->url(AppointmentResource::getUrl('calendar')),
-                Action::make('requests')
-                    ->label(function (): string {
-                        $count = AppointmentRequest::query()
-                            ->actionablePending()
-                            ->count();
-
-                        return $count > 0 ? "Requests ({$count})" : 'Requests';
-                    })
-                    ->icon('heroicon-o-clock')
-                    ->color('warning')
-                    ->button()
-                    ->tooltip('Requests')
-                    ->url(AppointmentRequestResource::getUrl('index')),
-                CreateAction::make()
-                    ->icon('heroicon-o-plus-circle')
-                    ->button(),
                 BulkActionGroup::make([
                     BulkAction::make('bulk_cancel')
                         ->label('Cancel Selected')

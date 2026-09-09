@@ -2,29 +2,20 @@
 
 namespace App\Filament\Resources\BillingRecords\Tables;
 
-use App\Actions\BillingRecords\AddChargesToBilling;
-use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
-use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Models\BillingRecord;
-use App\Models\Patient;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Validation\ValidationException;
-use Livewire\Component;
 
 class BillingRecordsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
-            ->extraAttributes(['class' => 'billing-records-table'])
             ->columns([
                 TextColumn::make('billing_record_number')
                     ->label('Billing #')
@@ -144,69 +135,11 @@ class BillingRecordsTable
                     }),
             ])
             ->defaultSort('created_at', 'desc')
-            ->toolbarActions([
-                self::newServiceChargeAction(),
-            ])
             ->recordActions([
                 Action::make('view')
                     ->label('View')
                     ->icon('heroicon-o-eye')
                     ->url(fn (BillingRecord $record) => BillingRecordResource::getUrl('edit', ['record' => $record])),
             ]);
-    }
-
-    private static function newServiceChargeAction(): Action
-    {
-        return Action::make('newServiceCharge')
-            ->label('New Service Charge')
-            ->icon('heroicon-o-plus-circle')
-            ->button()
-            ->tooltip('New Service Charge')
-            ->extraAttributes(['class' => 'billing-records-new-service-charge-action'])
-            ->color('primary')
-            ->modalHeading('Add Service Charge')
-            ->modalWidth('3xl')
-            ->modalSubmitActionLabel('Add to Billing')
-            ->schema([
-                Select::make('patient_id')
-                    ->label('Patient')
-                    ->options(fn (): array => Patient::query()
-                        ->get()
-                        ->mapWithKeys(fn (Patient $patient): array => [$patient->id => $patient->full_name])
-                        ->all())
-                    ->required()
-                    ->searchable()
-                    ->preload(),
-
-                ServiceChargeForm::items(),
-                ServiceChargeForm::total(),
-            ])
-            ->action(function (array $data, Component $livewire): void {
-                $patient = Patient::query()->findOrFail($data['patient_id']);
-
-                try {
-                    $items = ServiceChargeForm::normalizeItems($data['items'] ?? []);
-
-                    $billingRecord = app(ResolveOpenCheckoutBillingRecord::class)->handle(
-                        patient: $patient,
-                        actor: auth()->user(),
-                    );
-
-                    $billingRecord = app(AddChargesToBilling::class)->handle(
-                        billingRecord: $billingRecord,
-                        sourceKind: BillingItemSourceKind::DirectService,
-                        items: $items,
-                        actor: auth()->user(),
-                    );
-                } catch (ValidationException $e) {
-                    Notification::make()->title('Cannot add charge')->body($e->getMessage())->danger()->send();
-
-                    return;
-                }
-
-                Notification::make()->title('Service charge billed')->success()->send();
-
-                $livewire->redirect(BillingRecordResource::getUrl('edit', ['record' => $billingRecord]));
-            });
     }
 }
