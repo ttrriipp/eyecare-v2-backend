@@ -110,6 +110,7 @@ test('creating a scheduled appointment queues a confirmation sms', function () {
     expect($sms)->not->toBeNull()
         ->and($sms->event)->toBe('appointment_scheduled')
         ->and($sms->recipient)->toBe($this->patient->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->status->name)->toBe('queued');
 });
 

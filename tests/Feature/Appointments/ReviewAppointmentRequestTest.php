@@ -87,6 +87,7 @@ test('accepting an appointment request queues a confirmation sms', function () {
     expect($sms)->not->toBeNull()
         ->and($sms->event)->toBe('appointment_scheduled')
         ->and($sms->recipient)->toBe($user->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->status->name)->toBe('queued');
 });
 

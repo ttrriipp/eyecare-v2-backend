@@ -17,6 +17,7 @@ use App\Models\AppointmentType;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
+use App\Services\SmsMessageFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
@@ -482,7 +483,7 @@ class AcceptAppointmentRequest
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_scheduled',
             'recipient' => $recipient,
-            'message' => "Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}.",
+            'message' => SmsMessageFormatter::brand("Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}."),
         ]);
     }
 
@@ -499,7 +500,7 @@ class AcceptAppointmentRequest
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
             'recipient' => $recipient,
-            'message' => "Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.",
+            'message' => SmsMessageFormatter::brand("Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}."),
         ]);
     }
 }

@@ -15,6 +15,7 @@ use App\Models\AppointmentType;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Models\User;
+use App\Services\SmsMessageFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -296,7 +297,7 @@ class SubmitAppointmentRequest
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_request_submitted',
             'recipient' => $account->phone,
-            'message' => $message,
+            'message' => SmsMessageFormatter::brand($message),
         ]);
     }
 

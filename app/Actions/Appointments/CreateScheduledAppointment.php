@@ -9,6 +9,7 @@ use App\Models\NotificationStatus;
 use App\Models\Patient;
 use App\Models\SmsNotification;
 use App\Models\User;
+use App\Services\SmsMessageFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -132,7 +133,7 @@ class CreateScheduledAppointment
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_scheduled',
             'recipient' => $recipient,
-            'message' => "Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}.",
+            'message' => SmsMessageFormatter::brand("Your appointment {$appointment->appointment_number} is scheduled for {$appointment->scheduled_at->toDateTimeString()}."),
         ]);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Appointment;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Services\SmsMessageFormatter;
 use Illuminate\Console\Command;
 
 class SendAppointmentRemindersCommand extends Command
@@ -56,7 +57,7 @@ class SendAppointmentRemindersCommand extends Command
                 'notification_status_id' => $queuedStatusId,
                 'event' => 'appointment_reminder',
                 'recipient' => $phone,
-                'message' => "Reminder: You have an appointment tomorrow at {$appointment->scheduled_at->format('g:i A')}. See you at Padilla Optical Clinic!",
+                'message' => SmsMessageFormatter::brand("Reminder: You have an appointment tomorrow at {$appointment->scheduled_at->format('g:i A')}. See you at Padilla Optical Clinic!"),
             ]);
 
             $created++;

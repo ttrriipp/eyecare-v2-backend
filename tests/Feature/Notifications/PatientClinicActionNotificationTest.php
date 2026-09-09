@@ -220,6 +220,7 @@ test('clinic appointment cancellation notifies the patient without private reaso
         ->sole();
 
     expect($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->message)->toContain($appointment->appointment_number)
         ->and($sms->message)->not->toContain('Private operational detail');
 });
@@ -301,6 +302,7 @@ test('prepared and immediate optical orders produce only their final creation ou
 
     expect($sms->event)->toBe($mode === 'immediate' ? 'optical_order_released' : 'optical_order_confirmed')
         ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->message)->toContain($order->job_order_number);
 })->with([
     'prepared' => ['prepared', 'Optical Order Confirmed', PatientNotificationKind::OpticalOrderConfirmed],
@@ -335,6 +337,7 @@ test('ready and cancelled optical order transitions notify the affected patient'
         ? 'optical_order_ready'
         : 'optical_order_cancelled')
         ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->message)->toContain($order->job_order_number);
 })->with([
     'ready' => [JobOrderStatus::ReadyForDispensing->value, 'Order Ready for Pickup', PatientNotificationKind::OpticalOrderReady],
@@ -455,5 +458,6 @@ test('dispensing with a pickup payment coalesces into one order released notific
 
     expect($sms->event)->toBe('optical_order_released')
         ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->message)->toContain($order->job_order_number);
 });

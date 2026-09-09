@@ -130,7 +130,8 @@ test('ProcessSmsNotification uses TextBee when the sms driver is textbee', funct
     Http::assertSent(function ($request) {
         return $request->url() === 'https://api.textbee.dev/api/v1/gateway/send-sms'
             && $request->hasHeader('x-api-key', 'test-key')
-            && $request['recipients'] === ['+639171234567'];
+            && $request['recipients'] === ['+639171234567']
+            && str_starts_with($request['message'], 'EyeCare: ');
     });
 });
 

@@ -262,6 +262,7 @@ test('submitting an appointment request queues a confirmation sms', function () 
         ->and($sms->event)->toBe('appointment_request_submitted')
         ->and($sms->recipient)->toBe('+639171234567')
         ->and($sms->appointment_id)->toBeNull()
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->status->name)->toBe('queued');
 });
 

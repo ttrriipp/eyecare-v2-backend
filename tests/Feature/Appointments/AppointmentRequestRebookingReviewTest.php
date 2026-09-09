@@ -134,6 +134,7 @@ test('accepting a rebooking notifies the patient without copying the request not
 
     expect($sms->appointment_id)->toBe($appointment->id)
         ->and($sms->recipient)->toBe('+639171234567')
+        ->and($sms->message)->toStartWith('EyeCare: ')
         ->and($sms->message)->not->toContain('Private clinical note');
 });
 

@@ -33,6 +33,7 @@ test('queues an appointment SMS for a patient phone number', function (): void {
         ->and($sms->fresh()->appointment_id)->toBe($appointment->id)
         ->and($sms->fresh()->job_order_id)->toBeNull()
         ->and($sms->fresh()->recipient)->toBe('+639171234567')
+        ->and($sms->fresh()->message)->toStartWith('EyeCare: ')
         ->and($sms->fresh()->status->name)->toBe('queued');
 });
 
@@ -51,6 +52,7 @@ test('queues an optical order SMS with its canonical job order link', function (
         ->and($sms->fresh()->appointment_id)->toBeNull()
         ->and($sms->fresh()->job_order_id)->toBe($order->id)
         ->and($sms->fresh()->recipient)->toBe('+639171234567')
+        ->and($sms->fresh()->message)->toStartWith('EyeCare: ')
         ->and($sms->fresh()->status->name)->toBe('queued');
 });
 

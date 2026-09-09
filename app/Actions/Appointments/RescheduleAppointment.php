@@ -11,6 +11,7 @@ use App\Models\AppointmentReschedule;
 use App\Models\AppointmentStatus;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
+use App\Services\SmsMessageFormatter;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\DB;
@@ -185,7 +186,7 @@ class RescheduleAppointment
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
             'recipient' => $appointment->patient->phone,
-            'message' => $message,
+            'message' => SmsMessageFormatter::brand($message),
         ]);
     }
 }

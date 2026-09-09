@@ -7,6 +7,7 @@ use App\Models\JobOrder;
 use App\Models\NotificationStatus;
 use App\Models\Patient;
 use App\Models\SmsNotification;
+use App\Services\SmsMessageFormatter;
 use InvalidArgumentException;
 
 class QueuePatientSms
@@ -40,7 +41,7 @@ class QueuePatientSms
 
         return SmsNotification::query()->firstOrCreate($attributes, [
             'notification_status_id' => $queuedStatusId,
-            'message' => $message,
+            'message' => SmsMessageFormatter::brand($message),
         ]);
     }
 }

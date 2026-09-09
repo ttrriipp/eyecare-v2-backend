@@ -5,6 +5,7 @@ namespace App\Actions\Sms;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Services\SmsGateway;
+use App\Services\SmsMessageFormatter;
 
 class ProcessSmsNotification
 {
@@ -13,7 +14,13 @@ class ProcessSmsNotification
     public function handle(SmsNotification $sms): void
     {
         $providerEnabled = $this->smsGateway->isEnabled();
-        $success = $this->smsGateway->send($sms->recipient, $sms->message);
+        $message = SmsMessageFormatter::brand($sms->message);
+
+        if ($message !== $sms->message) {
+            $sms->update(['message' => $message]);
+        }
+
+        $success = $this->smsGateway->send($sms->recipient, $message);
 
         $statusName = $success ? 'sent' : 'failed';
         $status = NotificationStatus::query()->where('name', $statusName)->firstOrFail();
