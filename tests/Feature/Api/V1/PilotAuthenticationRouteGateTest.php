@@ -41,6 +41,20 @@ test('demo-only mode returns 404 for participant and phone authentication withou
         ->and(OtpChallenge::query()->count())->toBe($initialChallenges);
 });
 
+test('policy metadata remains publicly available when phone authentication is disabled', function (): void {
+    config([
+        'deployment.mode' => 'demo',
+        'capstone_pilot.enabled' => true,
+    ]);
+
+    $this->getJson('/api/v1/auth/policies')
+        ->assertOk()
+        ->assertJsonPath('data.privacy_policy.version', config('app.privacy_policy_version'))
+        ->assertJsonPath('data.privacy_policy.url', config('app.privacy_policy_url'))
+        ->assertJsonPath('data.terms_of_service.version', config('app.terms_version'))
+        ->assertJsonPath('data.terms_of_service.url', config('app.terms_url'));
+});
+
 test('pilot mode returns 404 for every participant-facing phone and invitation route without side effects', function (): void {
     $user = User::factory()->create();
     $initialUsers = User::query()->count();

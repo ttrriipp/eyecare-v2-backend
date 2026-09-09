@@ -29,6 +29,13 @@ Route::prefix('v1')->middleware('throttle:participant-login')->group(function ()
         ->name('api.v1.auth.participant-login');
 });
 
+// Policy metadata is safe to expose even while phone authentication is
+// disabled; the patient app needs it before it can present registration
+// consent controls.
+Route::prefix('v1')->group(function (): void {
+    Route::get('auth/policies', [AuthController::class, 'policies']);
+});
+
 // Public auth routes (versioned)
 Route::prefix('v1')->middleware(['throttle:login', 'reject.phone.auth'])->group(function (): void {
     // Registration flow
@@ -43,9 +50,6 @@ Route::prefix('v1')->middleware(['throttle:login', 'reject.phone.auth'])->group(
     // Password recovery
     Route::post('auth/password-recovery/otp', [AuthController::class, 'recoveryOtp']);
     Route::post('auth/password-recovery/verify', [AuthController::class, 'recoveryVerify']);
-
-    // Policy metadata
-    Route::get('auth/policies', [AuthController::class, 'policies']);
 });
 
 // Invitation acceptance uses OTP and remains account-authenticated outside
