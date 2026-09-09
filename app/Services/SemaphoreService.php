@@ -7,9 +7,14 @@ use Illuminate\Support\Facades\Log;
 
 class SemaphoreService implements SmsGateway
 {
+    public function isEnabled(): bool
+    {
+        return config('services.semaphore.enabled') === true;
+    }
+
     public function send(string $recipient, string $message): bool
     {
-        if (! config('services.semaphore.enabled')) {
+        if (! $this->isEnabled()) {
             Log::info('SMS delivery skipped (Semaphore disabled)', [
                 'driver' => 'semaphore',
             ]);

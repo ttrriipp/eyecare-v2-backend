@@ -7,9 +7,14 @@ use Illuminate\Support\Facades\Log;
 
 class TextBeeService implements SmsGateway
 {
+    public function isEnabled(): bool
+    {
+        return config('services.textbee.enabled') === true;
+    }
+
     public function send(string $recipient, string $message): bool
     {
-        if (! config('services.textbee.enabled')) {
+        if (! $this->isEnabled()) {
             Log::info('SMS delivery skipped (TextBee disabled)', [
                 'driver' => 'textbee',
             ]);
