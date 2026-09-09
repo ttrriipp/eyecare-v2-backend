@@ -1,10 +1,11 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
 > **Backend version:** Current repository state (2026-09-09) — appointment
-> request cancellation and active-limit behavior is reconciled below, and
+> request cancellation, pending-request schedule updates, and active-limit
+> behavior is reconciled below, and
 > patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The public route count is 58
-> (8 public + 40 account-only + 10 active-link).
+> from the mobile notification feed. The public route count is 59
+> (8 public + 41 account-only + 10 active-link).
 
 > **Shipped 2026-09-07: appointment-request cancellation and active limit.**
 > The maximum of two counts only requests whose stored status is `pending` and
@@ -27,6 +28,16 @@
 > immutable reschedule-history row. Pending rebooking proposals do not reserve
 > candidate slots, and the former direct patient
 > `POST /appointments/{appointment}/reschedule` route is retired.
+
+> **Shipped 2026-09-09: pending appointment-request schedule updates.** An
+> authenticated patient can update the preferences on the same pending
+> appointment-request row through `PATCH /appointment-requests/{id}`. The
+> request ID and number, patient, appointment type, duration, reason, and
+> identity remain unchanged. Every replacement preference is revalidated
+> under request and schedule locks; linked rebooking requests derive duration
+> from the current appointment while excluding that appointment from conflict
+> checks. No appointment is moved and no capacity is reserved until staff
+> accepts the request.
 
 > **Shipped 2026-08-28: patient account self-service profile boundary.**
 > `PATCH /me` now accepts only account `first_name`, `middle_name`,
@@ -1397,6 +1408,11 @@ When two active pending requests already exist, the response is:
   the same `appointment_id`. The client must not send a replacement
   `appointment_type_id`, `referring_source`, `identity`, or duration for a
   linked request.
+- To change the preferences on an existing pending request, call
+  `PATCH /appointment-requests/{id}` with the same request ID and only the
+  replacement `scheduled_at` plus optional alternatives. This updates the
+  request in place; it does not create a second active request or move the
+  linked appointment.
 - Apply the rebooking migration before serving code that writes the new
   columns. Release the Android client that uses the unified request flow before
   removing the legacy direct-reschedule route, or make the backend and Android
@@ -1405,6 +1421,72 @@ When two active pending requests already exist, the response is:
 - Once linked rows exist, treat the migration as forward-only in production;
   rolling back the dropped unique index would conflict with historical rows
   that legitimately reference the same appointment.
+
+---
+
+### PATCH `/appointment-requests/{appointmentRequest}`
+
+Updates the schedule preferences on an existing appointment request owned by
+the authenticated patient. The `{appointmentRequest}` URL value is the
+request ID. This keeps the same request row and request number; it does not
+create a replacement request.
+
+**Auth:** Required (Sanctum token).
+
+**Request:**
+```json
+{
+  "scheduled_at": "2026-09-20T10:30:00+08:00",
+  "alternative_scheduled_times": [
+    "2026-09-20T11:30:00+08:00"
+  ]
+}
+```
+
+**Rules:**
+- Only an unexpired request whose stored status is `pending` may be updated.
+  Expired, cancelled, accepted, rejected, stale, or missing requests cannot
+  be rescheduled.
+- Every submitted time must be future, ISO 8601, aligned to the configured
+  15-minute clinic grid, and currently available. All alternatives are
+  checked; at most two may be supplied.
+- New requests use their stored appointment-type duration snapshot. Linked
+  `request_type: "reschedule"` rows derive type and duration from the linked
+  scheduled appointment and exclude that appointment from availability checks.
+- `expires_at` is recalculated from the latest submitted preference.
+- The patient, appointment type, duration, reason, identity snapshot, request
+  type, request ID, and request number are preserved. The linked appointment
+  is not moved, no `AppointmentReschedule` history is created, and pending
+  requests do not reserve capacity.
+- The request lock, availability checks, update, and audit record are one
+  transaction. This serializes patient edits with staff acceptance.
+
+**Response (200):**
+```json
+{
+  "data": { /* same structure as a list/detail appointment request */ }
+}
+```
+
+**Errors:**
+- `404`: Request is missing or is not owned by the authenticated account.
+- `422 REQUEST_NOT_RESCHEDULABLE`: Request is expired, stale, cancelled,
+  accepted, rejected, or otherwise no longer pending.
+- `422 SLOT_UNAVAILABLE`: The primary or an alternative preference is not a
+  currently available, grid-aligned slot.
+- `422`: Standard validation response for malformed timestamps or more than
+  two alternatives.
+
+The coded errors use the existing appointment-slot response shape:
+```json
+{
+  "message": "This time slot is no longer available. Please choose another time.",
+  "code": "SLOT_UNAVAILABLE",
+  "errors": {
+    "scheduled_at": ["This time slot is no longer available. Please choose another time."]
+  }
+}
+```
 
 ---
 
@@ -2713,6 +2795,7 @@ metadata may appear beside `code` and `message`, as with
 | `REQUEST_TERMINAL` | 422 | Request is already accepted/rejected/cancelled/expired |
 | `PATIENT_RESOLUTION_REQUIRED` | 422 | Unlinked request must be resolved to a patient first |
 | `SLOT_UNAVAILABLE` | 422 | Requested appointment slot is no longer available |
+| `REQUEST_NOT_RESCHEDULABLE` | 422 | Appointment request is expired, terminal, stale, or otherwise no longer pending |
 | `ACTIVE_PATIENT_LINK_REQUIRED` | 403 | Route requires an active patient link |
 | `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
@@ -2797,6 +2880,7 @@ authoritative in §§15 and 15b.
 | `GET /appointment-requests` | List own requests |
 | `POST /appointment-requests` | Create request |
 | `GET /appointment-requests/{id}` | Get request detail |
+| `PATCH /appointment-requests/{id}` | Update schedule preferences on a pending request |
 | `POST /appointment-requests/{id}/cancel` | Cancel request |
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
@@ -2988,6 +3072,7 @@ GET    /api/v1/appointment-request-availability Get request availability
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
 GET    /api/v1/appointment-requests/{id}       Get request detail
+PATCH  /api/v1/appointment-requests/{id}       Update pending request schedule
 POST   /api/v1/appointment-requests/{id}/cancel  Cancel request
 GET    /api/v1/frames                         List frames
 GET    /api/v1/frames/{id}                    Get frame detail

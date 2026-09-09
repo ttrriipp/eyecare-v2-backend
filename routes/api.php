@@ -133,6 +133,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
         Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
         Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);
+        Route::patch('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'update']);
         Route::post('appointment-requests/{appointmentRequest}/cancel', [AppointmentRequestController::class, 'cancel']);
 
         // Frame catalog browsing does not require a linked patient record.

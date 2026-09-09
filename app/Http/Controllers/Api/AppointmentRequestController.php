@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\CancelAppointmentRequest;
 use App\Actions\Appointments\SubmitAppointmentRequest;
+use App\Actions\Appointments\UpdateAppointmentRequestSchedule as UpdateAppointmentRequestScheduleAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreAppointmentRequest;
+use App\Http\Requests\Api\UpdateAppointmentRequestSchedule;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
@@ -100,6 +102,23 @@ class AppointmentRequestController extends Controller
     public function cancel(Request $request, AppointmentRequest $appointmentRequest, CancelAppointmentRequest $cancel): JsonResponse
     {
         $result = $cancel->handle($appointmentRequest, $request->user());
+
+        return response()->json([
+            'data' => $this->formatRequest($result),
+        ]);
+    }
+
+    public function update(
+        UpdateAppointmentRequestSchedule $request,
+        AppointmentRequest $appointmentRequest,
+        UpdateAppointmentRequestScheduleAction $updateSchedule,
+    ): JsonResponse {
+        $result = $updateSchedule->handle(
+            appointmentRequest: $appointmentRequest,
+            account: $request->user(),
+            scheduledAt: Carbon::parse($request->validated('scheduled_at'), config('app.timezone')),
+            alternativeScheduledTimes: $request->validated('alternative_scheduled_times'),
+        );
 
         return response()->json([
             'data' => $this->formatRequest($result),

@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-09-08.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-09.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -84,6 +84,18 @@
 > consume the API contract below and does not need to mirror these backend-only
 > planning files.
 
+> **Shipped (2026-09-09): patient edits to pending appointment requests.** An
+> authenticated request owner can call `PATCH /api/v1/appointment-requests/{id}`
+> to replace the primary and up to two alternative schedule preferences in
+> place. The endpoint preserves the request ID/number, type, duration, reason,
+> identity, and patient; recalculates `expires_at` from the latest preference;
+> and never moves an appointment or reserves capacity. It locks the request
+> before linked-appointment and deterministic schedule-date locks, revalidates
+> every candidate against current availability, and writes the update plus a
+> PII-safe `appointment_request.schedule_updated` audit entry in one
+> transaction. Terminal, expired, stale, or missing/non-owned requests fail
+> with the documented `REQUEST_NOT_RESCHEDULABLE`/404 responses.
+
 > **Shipped (2026-09-08): staff-panel authenticator removal.** The Filament
 > staff/admin panel now uses password-only authentication. The app/TOTP MFA
 > provider, enrollment UI, and `users.app_authentication_secret` storage were
@@ -102,6 +114,10 @@
 > remain compatible because `appointment_id` is optional. Once linked rows
 > exist, production recovery is forward-only: restoring the old unique index
 > would conflict with valid historical rows that reference the same appointment.
+> To change an existing pending request, Android sends only the replacement
+> `scheduled_at` and optional `alternative_scheduled_times` to
+> `PATCH /api/v1/appointment-requests/{id}`; the request ID is retained and the
+> linked appointment remains unchanged until staff approval.
 
 > **Consultation presentation terminology (2026-08-21).** The Filament panel
 > presents the backend `Encounter` record as a **Consultation** across clinical,
@@ -759,7 +775,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected/expired), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. New snapshots include normalized nullable `middle_name`; historical snapshots without it compare as null. Actual account identity or relevant verified-contact changes expire pending requests while preserving snapshot and candidate evidence; expiry audits store only safe reason categories. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The per-account maximum of two counts only actionable pending rows: stored `pending` rows with a future `expires_at`, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The per-account maximum of two counts only actionable pending rows: stored `pending` rows with a future `expires_at`, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `appointment_type_visit_reason_presets` | Backend-managed patient-facing suggestions belonging to an appointment type. Stores `appointment_type_id`, `label` (trimmed, nonblank, max 255 characters), `sort_order`, and `is_active`; inactive presets remain editable by clinic administrators but are excluded from the mobile appointment-type catalog. `Other` is client-provided and is never stored here. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
@@ -998,6 +1014,7 @@ GET    /api/v1/appointment-request-availability
 GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
 GET    /api/v1/appointment-requests/{id}
+PATCH  /api/v1/appointment-requests/{id}       Update pending request schedule
 POST   /api/v1/appointment-requests/{id}/cancel
 GET    /api/v1/saved-frames                    List this account's preferences
 PUT    /api/v1/saved-frames/{productVariant}   Save a frame variant (idempotent)
@@ -1108,6 +1125,7 @@ orders, billings, checkout records, or purchases.
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates a new appointment request or an optional linked rebooking request with a server-derived type/duration snapshot, validates all time preferences, persists alternatives and latest-preference expiry, and enforces the actionable active limit; never moves an appointment or creates a capacity hold |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Verifies ownership and pending state, persists `cancelled`, audits the mutation, and emits the after-commit admin alert |
+| `UpdateAppointmentRequestSchedule` | `app/Actions/Appointments/` | Updates only schedule preferences on an owned pending request under request, linked-appointment, and schedule-date locks; revalidates all slots, recalculates expiry, and audits the change atomically |
 | `AcceptAppointmentRequest` | `app/Actions/Appointments/` | Accepts new requests by creating a scheduled appointment, or accepts linked rebooking requests by moving the existing appointment and appending one immutable history row; all paths lock schedule dates, enforce availability/contact-note rules, deliver outcomes, and remain idempotent |
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests, including rebooking rows whose target appointment is no longer scheduled |

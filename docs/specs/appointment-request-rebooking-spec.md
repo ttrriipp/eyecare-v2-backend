@@ -1,14 +1,15 @@
 # Spec: Appointment-Request Rebooking
 
-**Status:** Approved for implementation by the user on 2026-09-08
-**Planning date:** 2026-09-08
+**Status:** Implemented; extended for pending-request schedule edits on 2026-09-09
+**Planning date:** 2026-09-08; schedule-edit extension 2026-09-09
 
 ## Objective
 
-Let a patient ask the clinic for a different time by submitting another
-ordinary appointment request, without introducing a separate reschedule
-resource. The existing confirmed appointment remains scheduled and continues
-to block its current slot until staff accepts the linked request.
+Let a patient ask the clinic for a different time by submitting an ordinary
+appointment request, or revise the preferences on an existing pending request,
+without introducing a separate reschedule resource. The existing confirmed
+appointment remains scheduled and continues to block its current slot until
+staff accepts the linked request.
 
 The original booking request remains immutable. A linked request is a new
 historical `AppointmentRequest` row with the same staff queue, review page,
@@ -17,9 +18,11 @@ conventions as a new booking request.
 
 ## Assumptions and decisions
 
-1. `POST /api/v1/appointment-requests` remains the only patient submission
-   endpoint. Supplying `appointment_id` makes the new row a rebooking request;
-   omitting it keeps the existing new-booking behavior.
+1. `POST /api/v1/appointment-requests` creates patient requests. Supplying
+   `appointment_id` makes the new row a rebooking request; omitting it keeps
+   the existing new-booking behavior. `PATCH /api/v1/appointment-requests/{id}`
+   updates the schedule preferences on the same owned pending row and does
+   not create another request.
 2. `AppointmentRequest` gains `request_type` (`new` or `reschedule`),
    `original_scheduled_at`, and `selected_scheduled_at`. Its existing
    `appointment_id` becomes the associated appointment for both request types,
@@ -45,6 +48,11 @@ conventions as a new booking request.
    `POST /api/v1/appointments/{appointment}/reschedule` is removed after the
    unified request path is green. The internal clinic reschedule action stays
    available.
+9. A pending-request schedule edit accepts only `scheduled_at` and up to two
+   alternatives. It preserves request identity and booking fields, derives
+   linked rebooking duration from the locked appointment, excludes that
+   appointment from availability, recalculates expiry from the latest
+   preference, and updates the row plus audit entry in one transaction.
 
 ## API contract
 
@@ -73,6 +81,27 @@ associated appointment while pending. New-booking responses continue to use
 The existing `GET /api/v1/appointment-availability?appointment_id=...`
 contract is the availability source for the rebooking screen; it already
 ignores the patient's own appointment when evaluating candidate slots.
+
+An existing pending request can be revised with:
+
+```http
+PATCH /api/v1/appointment-requests/{id}
+```
+
+```json
+{
+  "scheduled_at": "2026-09-20T10:30:00+08:00",
+  "alternative_scheduled_times": [
+    "2026-09-20T11:30:00+08:00"
+  ]
+}
+```
+
+The endpoint returns the existing appointment-request response shape. Missing
+or non-owned rows return `404`; expired, stale, terminal, or otherwise
+non-pending rows return `422 REQUEST_NOT_RESCHEDULABLE`; and any unavailable
+or non-grid candidate returns `422 SLOT_UNAVAILABLE`. No appointment is moved
+and no candidate capacity is reserved by this update.
 
 ## Staff workflow
 
@@ -104,6 +133,10 @@ ignores the patient's own appointment when evaluating candidate slots.
 - Add Pest feature coverage for schema/model state, rebooking submission,
   ownership and validation failures, one-pending enforcement, cancellation,
   stale/expired targets, and API response shape.
+- Add API coverage for in-place pending-request schedule edits, preservation of
+  request identity and booking fields, expiry recalculation, all-candidate
+  availability, linked-appointment exclusion, machine-readable errors, and
+  lock/transaction audit behavior.
 - Extend acceptance tests for atomic movement, immutable history, replay and
   conflict safety, rejection, and patient notification/SMS outcomes.
 - Extend Filament and route-contract tests for the unified request queue and
@@ -156,4 +189,6 @@ ignores the patient's own appointment when evaluating candidate slots.
    active-limit behavior.
 5. The direct patient reschedule endpoint and separate reschedule resource are
    absent, with canonical API/backend documentation matching the implementation.
-
+6. An owned, unexpired pending request can be updated in place; the same
+   request ID/number is returned, and the linked appointment remains unchanged
+   until staff acceptance.

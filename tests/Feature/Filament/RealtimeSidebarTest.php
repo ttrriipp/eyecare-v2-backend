@@ -19,7 +19,7 @@ test('admin sidebar polls for fresh navigation badges', function () {
         ->getContent();
 
     expect($html)->toMatch(
-        '/<div(?=[^>]*data-realtime-sidebar)(?=[^>]*wire:poll\.5s\.keep-alive="refresh")[^>]*>/',
+        '/<div(?=[^>]*data-realtime-sidebar)(?=[^>]*wire:poll\.5s\.keep-alive="refresh")(?=[^>]*class="contents")[^>]*>/',
     );
 });
 
