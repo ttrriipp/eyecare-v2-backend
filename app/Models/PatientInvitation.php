@@ -116,6 +116,14 @@ class PatientInvitation extends Model
             ]) === 1;
     }
 
+    public function recordDeliveryAttemptFailure(): bool
+    {
+        return self::query()
+            ->whereKey($this->getKey())
+            ->where('status', PatientInvitationStatus::Pending->value)
+            ->update(['failed_at' => now()]) === 1;
+    }
+
     public function accept(User $user): void
     {
         $this->update([

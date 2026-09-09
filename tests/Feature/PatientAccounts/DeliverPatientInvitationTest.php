@@ -172,5 +172,6 @@ test('failed invitation transitions do not overwrite an accepted invitation', fu
 
     expect($invitation->markFailed())->toBeFalse()
         ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted)
+        ->and($invitation->recordDeliveryAttemptFailure())->toBeFalse()
         ->and($invitation->fresh()->failed_at)->toBeNull();
 });

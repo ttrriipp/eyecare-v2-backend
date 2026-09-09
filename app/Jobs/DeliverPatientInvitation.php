@@ -76,7 +76,7 @@ class DeliverPatientInvitation implements ShouldQueue
                 'masked' => $this->mask($destination, $invitation->channel),
             ]);
         } catch (Throwable $e) {
-            $invitation->update(['failed_at' => now()]);
+            $invitation->recordDeliveryAttemptFailure();
             Log::error('Invitation delivery failed', [
                 'invitation_id' => $invitation->id,
                 'channel' => $invitation->channel,
