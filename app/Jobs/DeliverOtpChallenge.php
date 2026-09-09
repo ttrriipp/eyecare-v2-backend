@@ -32,7 +32,7 @@ class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
     {
         $challenge = OtpChallenge::where('public_id', $this->challengeId)->first();
 
-        if ($challenge === null || $challenge->isConsumed() || $challenge->isInvalidated()) {
+        if ($challenge === null || ! $challenge->isPending()) {
             return;
         }
 

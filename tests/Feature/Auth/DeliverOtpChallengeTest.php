@@ -100,6 +100,33 @@ test('delivery job handles missing challenge gracefully', function () {
     expect(true)->toBeTrue();
 });
 
+test('delivery job does not send an expired challenge', function () {
+    Http::fake();
+    config([
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => true,
+    ]);
+
+    $result = app(IssueOtpChallenge::class)->handle(
+        contactType: 'phone',
+        contactValue: '09171234567',
+        purpose: OtpPurpose::Registration,
+    );
+    $challenge = $result['challenge'];
+    $challenge->update(['expires_at' => now()->subMinute()]);
+
+    app()->instance('env', 'production');
+
+    try {
+        (new DeliverOtpChallenge($challenge->public_id, $result['code']))->handle(app(SmsGateway::class));
+    } finally {
+        app()->instance('env', 'testing');
+    }
+
+    expect($challenge->fresh()->delivery_status)->toBe('pending');
+    Http::assertNothingSent();
+});
+
 test('local SMS delivery logs the OTP code for development testing', function () {
     $challenge = app(IssueOtpChallenge::class)->handle(
         contactType: 'phone',
