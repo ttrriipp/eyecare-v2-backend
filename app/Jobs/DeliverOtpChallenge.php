@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Throwable;
 
 class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
@@ -65,13 +66,7 @@ class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
                 }
 
                 if (! $smsGateway->send($destination, $this->smsMessage())) {
-                    $challenge->markFailed();
-                    Log::warning('SMS OTP delivery failed', [
-                        'challenge_id' => $challenge->public_id,
-                        'masked' => $this->maskPhone($destination),
-                    ]);
-
-                    return;
+                    throw new RuntimeException('SMS provider returned a failure response.');
                 }
             } else {
                 $challenge->markFailed();
@@ -91,7 +86,7 @@ class DeliverOtpChallenge implements ShouldBeEncrypted, ShouldQueue
                 'masked' => $this->maskPhone($destination),
                 'exception' => $e::class,
             ]);
-            // Don't re-throw — allow registration to complete even if delivery fails
+            throw $e;
         }
     }
 

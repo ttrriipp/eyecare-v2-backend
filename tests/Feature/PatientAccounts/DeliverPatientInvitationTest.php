@@ -1,8 +1,10 @@
 <?php
 
 use App\Actions\PatientAccounts\IssuePatientInvitation;
+use App\Enums\PatientInvitationStatus;
 use App\Jobs\DeliverPatientInvitation;
 use App\Models\Patient;
+use App\Models\PatientInvitation;
 use App\Models\User;
 use App\Services\SmsGateway;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -93,7 +95,8 @@ test('production phone invitations send through the configured SMS gateway', fun
         app()->instance('env', 'testing');
     }
 
-    expect($invitation->fresh()->failed_at)->toBeNull();
+    expect($invitation->fresh()->failed_at)->toBeNull()
+        ->and($invitation->fresh()->sent_at)->not->toBeNull();
 
     Http::assertSent(function ($request) use ($invitation): bool {
         return $request->url() === 'https://api.textbee.dev/api/v1/gateway/send-sms'
@@ -120,13 +123,19 @@ test('production phone invitations record a failure when the SMS gateway rejects
 
     app()->instance('env', 'production');
 
+    $job = new DeliverPatientInvitation($invitation->id);
+
     try {
-        (new DeliverPatientInvitation($invitation->id))->handle(app(SmsGateway::class));
+        expect(fn () => $job->handle(app(SmsGateway::class)))
+            ->toThrow(RuntimeException::class);
+        $job->failed(new RuntimeException('SMS provider returned a failure response.'));
     } finally {
         app()->instance('env', 'testing');
     }
 
-    expect($invitation->fresh()->failed_at)->not->toBeNull();
+    expect($invitation->fresh()->failed_at)->not->toBeNull()
+        ->and($invitation->fresh()->status->value)->toBe('failed')
+        ->and($invitation->fresh()->sent_at)->toBeNull();
 });
 
 test('production phone invitations record a failure when the SMS gateway is disabled', function () {
@@ -152,6 +161,16 @@ test('production phone invitations record a failure when the SMS gateway is disa
         app()->instance('env', 'testing');
     }
 
-    expect($invitation->fresh()->failed_at)->not->toBeNull();
+    expect($invitation->fresh()->failed_at)->not->toBeNull()
+        ->and($invitation->fresh()->status->value)->toBe('failed')
+        ->and($invitation->fresh()->sent_at)->toBeNull();
     Http::assertNothingSent();
+});
+
+test('failed invitation transitions do not overwrite an accepted invitation', function (): void {
+    $invitation = PatientInvitation::factory()->accepted()->create();
+
+    expect($invitation->markFailed())->toBeFalse()
+        ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted)
+        ->and($invitation->fresh()->failed_at)->toBeNull();
 });

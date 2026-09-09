@@ -19,7 +19,7 @@ class SemaphoreService implements SmsGateway
                 'driver' => 'semaphore',
             ]);
 
-            return true;
+            return false;
         }
 
         $response = Http::timeout((int) config('services.semaphore.timeout', 10))

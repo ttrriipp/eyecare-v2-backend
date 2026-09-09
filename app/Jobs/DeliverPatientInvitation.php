@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\PatientInvitationStatus;
 use App\Mail\PatientInvitationMail;
 use App\Models\PatientInvitation;
 use App\Services\SmsGateway;
@@ -12,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Throwable;
 
 class DeliverPatientInvitation implements ShouldQueue
@@ -37,6 +39,12 @@ class DeliverPatientInvitation implements ShouldQueue
         $destination = $invitation->encrypted_destination;
 
         if (empty($destination)) {
+            $invitation->markFailed();
+            Log::warning('Invitation delivery skipped (missing destination)', [
+                'invitation_id' => $invitation->id,
+                'channel' => $invitation->channel,
+            ]);
+
             return;
         }
 
@@ -48,7 +56,7 @@ class DeliverPatientInvitation implements ShouldQueue
                     return;
                 }
             } else {
-                $this->markFailed($invitation);
+                $invitation->markFailed();
                 Log::warning('Invitation delivery skipped (unsupported channel)', [
                     'invitation_id' => $invitation->id,
                     'channel' => $invitation->channel,
@@ -57,7 +65,10 @@ class DeliverPatientInvitation implements ShouldQueue
                 return;
             }
 
-            $invitation->update(['failed_at' => null]);
+            $invitation->update([
+                'sent_at' => now(),
+                'failed_at' => null,
+            ]);
 
             Log::info('Invitation delivery dispatched', [
                 'invitation_id' => $invitation->id,
@@ -65,7 +76,7 @@ class DeliverPatientInvitation implements ShouldQueue
                 'masked' => $this->mask($destination, $invitation->channel),
             ]);
         } catch (Throwable $e) {
-            $this->markFailed($invitation);
+            $invitation->update(['failed_at' => now()]);
             Log::error('Invitation delivery failed', [
                 'invitation_id' => $invitation->id,
                 'channel' => $invitation->channel,
@@ -94,7 +105,7 @@ class DeliverPatientInvitation implements ShouldQueue
         }
 
         if (! $smsGateway->isEnabled()) {
-            $this->markFailed($invitation);
+            $invitation->markFailed();
             Log::warning('SMS invitation delivery skipped (provider disabled)', [
                 'invitation_id' => $invitation->id,
                 'masked_phone' => $this->mask($phone, 'phone'),
@@ -104,16 +115,21 @@ class DeliverPatientInvitation implements ShouldQueue
         }
 
         if (! $smsGateway->send($phone, $this->smsMessage($invitation))) {
-            $this->markFailed($invitation);
-            Log::warning('SMS invitation delivery failed', [
-                'invitation_id' => $invitation->id,
-                'masked_phone' => $this->mask($phone, 'phone'),
-            ]);
-
-            return false;
+            throw new RuntimeException('SMS provider returned a failure response.');
         }
 
         return true;
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $invitation = PatientInvitation::find($this->invitationId);
+
+        if ($invitation === null || $invitation->status !== PatientInvitationStatus::Pending) {
+            return;
+        }
+
+        $invitation->markFailed();
     }
 
     protected function smsMessage(PatientInvitation $invitation): string
@@ -123,11 +139,6 @@ class DeliverPatientInvitation implements ShouldQueue
             $invitation->invitation_code,
             (int) config('patient_accounts.invitations.lifetime_days', 7),
         );
-    }
-
-    protected function markFailed(PatientInvitation $invitation): void
-    {
-        $invitation->update(['failed_at' => now()]);
     }
 
     protected function mask(string $value, string $channel): string

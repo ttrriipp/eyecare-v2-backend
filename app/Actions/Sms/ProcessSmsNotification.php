@@ -12,6 +12,7 @@ class ProcessSmsNotification
 
     public function handle(SmsNotification $sms): void
     {
+        $providerEnabled = $this->smsGateway->isEnabled();
         $success = $this->smsGateway->send($sms->recipient, $sms->message);
 
         $statusName = $success ? 'sent' : 'failed';
@@ -19,7 +20,11 @@ class ProcessSmsNotification
 
         $sms->update([
             'notification_status_id' => $status->id,
-            'failure_reason' => $success ? null : 'SMS provider returned a failure response.',
+            'failure_reason' => $success
+                ? null
+                : ($providerEnabled
+                    ? 'SMS provider returned a failure response.'
+                    : 'SMS provider is disabled.'),
         ]);
     }
 }

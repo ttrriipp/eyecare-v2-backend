@@ -19,7 +19,7 @@ class TextBeeService implements SmsGateway
                 'driver' => 'textbee',
             ]);
 
-            return true;
+            return false;
         }
 
         $payload = [

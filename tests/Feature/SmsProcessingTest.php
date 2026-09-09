@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Sms\ProcessSmsNotification;
+use App\Jobs\SendSmsJob;
 use App\Models\NotificationStatus;
 use App\Models\SmsNotification;
 use App\Services\SemaphoreService;
@@ -66,7 +67,16 @@ test('Semaphore uses the configured endpoint and retry policy', function (): voi
     Http::assertSent(fn ($request): bool => $request->url() === 'https://sms.example.test/messages');
 });
 
-test('ProcessSmsNotification marks sms as sent without HTTP call when disabled', function () {
+test('disabled Semaphore reports unsuccessful delivery', function (): void {
+    Http::fake();
+    config(['services.semaphore.enabled' => false]);
+
+    expect(app(SemaphoreService::class)->send('+639171234567', 'Test message'))->toBeFalse();
+
+    Http::assertNothingSent();
+});
+
+test('ProcessSmsNotification marks sms as failed without HTTP call when disabled', function () {
     Http::fake();
     Log::spy();
     config(['services.semaphore.enabled' => false]);
@@ -75,7 +85,8 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when disabled',
 
     app(ProcessSmsNotification::class)->handle($sms);
 
-    expect($sms->fresh()->status->name)->toBe('sent');
+    expect($sms->fresh()->status->name)->toBe('failed')
+        ->and($sms->fresh()->failure_reason)->toBe('SMS provider is disabled.');
     Http::assertNothingSent();
     Log::shouldHaveReceived('info')
         ->once()
@@ -90,8 +101,8 @@ test('sms:process command processes queued notifications', function () {
 
     $this->artisan('sms:process')->assertSuccessful();
 
-    $sentStatus = NotificationStatus::query()->where('name', 'sent')->firstOrFail();
-    expect(SmsNotification::query()->where('notification_status_id', $sentStatus->id)->count())->toBe(3);
+    $failedStatus = NotificationStatus::query()->where('name', 'failed')->firstOrFail();
+    expect(SmsNotification::query()->where('notification_status_id', $failedStatus->id)->count())->toBe(3);
 });
 
 test('sms:process command reports no pending when queue is empty', function () {
@@ -136,6 +147,15 @@ test('TextBee uses the configured endpoint and timeout', function (): void {
     Http::assertSent(fn ($request): bool => $request->url() === 'https://sms.example.test/send');
 });
 
+test('disabled TextBee reports unsuccessful delivery', function (): void {
+    Http::fake();
+    config(['services.textbee.enabled' => false]);
+
+    expect(app(TextBeeService::class)->send('+639171234567', 'Test message'))->toBeFalse();
+
+    Http::assertNothingSent();
+});
+
 test('ProcessSmsNotification marks sms as failed when TextBee returns an error', function () {
     Http::fake(['https://api.textbee.dev/*' => Http::response([], 500)]);
     config([
@@ -151,7 +171,7 @@ test('ProcessSmsNotification marks sms as failed when TextBee returns an error',
         ->and($sms->fresh()->failure_reason)->not->toBeNull();
 });
 
-test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is disabled', function () {
+test('ProcessSmsNotification marks sms as failed without HTTP call when TextBee is disabled', function () {
     Http::fake();
     Log::spy();
     config([
@@ -163,7 +183,8 @@ test('ProcessSmsNotification marks sms as sent without HTTP call when TextBee is
 
     app(ProcessSmsNotification::class)->handle($sms);
 
-    expect($sms->fresh()->status->name)->toBe('sent');
+    expect($sms->fresh()->status->name)->toBe('failed')
+        ->and($sms->fresh()->failure_reason)->toBe('SMS provider is disabled.');
     Http::assertNothingSent();
     Log::shouldHaveReceived('info')
         ->once()
@@ -193,4 +214,33 @@ test('sms notification only references appointment', function () {
 
     expect($sms->appointment)->not->toBeNull()
         ->and($sms->getAttributes())->not->toHaveKey('order_id');
+});
+
+test('SendSmsJob marks a queued notification failed after final job failure', function (): void {
+    $sms = SmsNotification::factory()->create();
+    $exception = new RuntimeException('provider timeout');
+
+    $this->mock(ProcessSmsNotification::class, function ($mock) use ($exception): void {
+        $mock->shouldReceive('handle')->once()->andThrow($exception);
+    });
+
+    $job = new SendSmsJob($sms);
+
+    expect(fn () => $job->handle(app(ProcessSmsNotification::class)))
+        ->toThrow(RuntimeException::class);
+
+    $job->failed($exception);
+
+    expect($sms->fresh()->status->name)->toBe('failed')
+        ->and($sms->fresh()->failure_reason)->toBe('SMS delivery job failed.');
+});
+
+test('SendSmsJob failure callback does not overwrite a completed notification', function (): void {
+    $sentStatus = NotificationStatus::query()->where('name', 'sent')->firstOrFail();
+    $sms = SmsNotification::factory()->create(['notification_status_id' => $sentStatus->id]);
+
+    (new SendSmsJob($sms))->failed(new RuntimeException('late failure'));
+
+    expect($sms->fresh()->status->name)->toBe('sent')
+        ->and($sms->fresh()->failure_reason)->toBeNull();
 });

@@ -105,6 +105,17 @@ class PatientInvitation extends Model
         ]);
     }
 
+    public function markFailed(): bool
+    {
+        return self::query()
+            ->whereKey($this->getKey())
+            ->where('status', PatientInvitationStatus::Pending->value)
+            ->update([
+                'status' => PatientInvitationStatus::Failed,
+                'failed_at' => now(),
+            ]) === 1;
+    }
+
     public function accept(User $user): void
     {
         $this->update([

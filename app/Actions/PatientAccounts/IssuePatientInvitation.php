@@ -59,7 +59,6 @@ class IssuePatientInvitation
                 'secret_digest' => Hash::make($secret),
                 'status' => PatientInvitationStatus::Pending,
                 'expires_at' => now()->addDays(config('patient_accounts.invitations.lifetime_days', 7)),
-                'sent_at' => now(),
             ]);
 
             // Dispatch delivery job after commit

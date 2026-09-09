@@ -239,8 +239,11 @@ test('production phone OTP marks delivery failed when the SMS gateway rejects it
 
     app()->instance('env', 'production');
 
+    $job = new DeliverOtpChallenge($challenge->public_id, $result['code']);
+
     try {
-        (new DeliverOtpChallenge($challenge->public_id, $result['code']))->handle(app(SmsGateway::class));
+        expect(fn () => $job->handle(app(SmsGateway::class)))
+            ->toThrow(RuntimeException::class);
     } finally {
         app()->instance('env', 'testing');
     }
