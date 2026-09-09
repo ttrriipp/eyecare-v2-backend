@@ -38,6 +38,7 @@ function configureValidPilotDeployment(): void
         'deployment.readiness_token' => str_repeat('readiness-token', 3),
         'deployment.uptime_alert_url' => 'https://monitor.example.test/hooks/eyecare',
         'deployment.mode' => 'pilot',
+        'deployment.phone_auth_enabled' => false,
         'deployment.trusted_hosts' => ['pilot.example.test'],
         'deployment.trusted_proxies' => ['*'],
         'deployment.allowed_origins' => ['https://pilot.example.test'],
@@ -77,6 +78,59 @@ test('valid staff-only demo deployment passes without pilot accounts or SMS', fu
     $this->artisan('pilot:preflight')
         ->expectsOutputToContain('Deployment preflight passed.')
         ->assertSuccessful();
+});
+
+test('valid patient-demo deployment requires explicit phone authentication and SMS', function (): void {
+    config([
+        'deployment.mode' => 'patient-demo',
+        'deployment.phone_auth_enabled' => true,
+        'capstone_pilot.enabled' => false,
+        'capstone_pilot.expires_at' => null,
+        'capstone_pilot.participant_limit' => 0,
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => true,
+        'services.textbee.api_key' => 'textbee-provider-key',
+        'services.textbee.device_id' => 'textbee-device-id',
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('Deployment preflight passed.')
+        ->assertSuccessful();
+});
+
+test('patient-demo deployment fails closed when phone authentication is not explicitly enabled', function (): void {
+    config([
+        'deployment.mode' => 'patient-demo',
+        'deployment.phone_auth_enabled' => false,
+        'capstone_pilot.enabled' => false,
+        'capstone_pilot.expires_at' => null,
+        'capstone_pilot.participant_limit' => 0,
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => true,
+        'services.textbee.api_key' => 'textbee-provider-key',
+        'services.textbee.device_id' => 'textbee-device-id',
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('phone_auth.enabled')
+        ->assertFailed();
+});
+
+test('patient-demo deployment fails closed without an enabled SMS provider', function (): void {
+    config([
+        'deployment.mode' => 'patient-demo',
+        'deployment.phone_auth_enabled' => true,
+        'capstone_pilot.enabled' => false,
+        'capstone_pilot.expires_at' => null,
+        'capstone_pilot.participant_limit' => 0,
+        'services.sms.driver' => 'textbee',
+        'services.textbee.enabled' => false,
+        'services.semaphore.enabled' => false,
+    ]);
+
+    $this->artisan('pilot:preflight')
+        ->expectsOutputToContain('sms.provider')
+        ->assertFailed();
 });
 
 test('preflight accepts an explicitly configured catalog disk alias', function (): void {

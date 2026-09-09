@@ -157,6 +157,36 @@ test('non-pilot mode leaves the existing phone and invitation routes available',
         ->assertUnprocessable();
 });
 
+test('patient-demo mode exposes phone and invitation routes only when explicitly enabled', function (): void {
+    config([
+        'deployment.mode' => 'patient-demo',
+        'deployment.phone_auth_enabled' => true,
+        'capstone_pilot.enabled' => false,
+    ]);
+
+    $this->postJson('/api/v1/auth/registration/otp', [])
+        ->assertUnprocessable();
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->postJson('/api/v1/patient-invitations/acceptance/otp', [])
+        ->assertUnprocessable();
+});
+
+test('patient-demo mode keeps phone and invitation routes hidden without the explicit flag', function (): void {
+    config([
+        'deployment.mode' => 'patient-demo',
+        'deployment.phone_auth_enabled' => false,
+        'capstone_pilot.enabled' => false,
+    ]);
+
+    $this->postJson('/api/v1/auth/registration/otp', [
+        'contact_type' => 'phone',
+        'contact_value' => '09171234567',
+    ])->assertNotFound();
+});
+
 test('pilot mode does not hide unrelated authenticated account routes', function (): void {
     config(['capstone_pilot.enabled' => true]);
     $user = User::factory()->create();

@@ -19,9 +19,10 @@ return [
     'release_id' => env('RELEASE_ID'),
     'readiness_token' => env('PILOT_READINESS_TOKEN'),
     'uptime_alert_url' => env('UPTIME_ALERT_URL'),
-    // `demo` disables participant and phone/SMS authentication; `pilot` is the
-    // dormant participant-code mode retained for a separately approved study.
+    // `demo` is staff-only, `pilot` is participant-code authentication, and
+    // `patient-demo` is an explicit temporary phone-authentication profile.
     'mode' => env('DEPLOYMENT_MODE', 'pilot'),
+    'phone_auth_enabled' => filter_var(env('PHONE_AUTH_ENABLED', false), FILTER_VALIDATE_BOOL),
 
     /*
     |--------------------------------------------------------------------------

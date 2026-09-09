@@ -64,9 +64,9 @@ final class PilotDeploymentPreflight
             : 'CONTACT_LOOKUP_KEY must be a dedicated stable key.');
 
         $deploymentMode = config('deployment.mode', 'pilot');
-        $this->addCheck($checks, 'deployment.mode', fn (): ?string => in_array($deploymentMode, ['demo', 'pilot'], true)
+        $this->addCheck($checks, 'deployment.mode', fn (): ?string => in_array($deploymentMode, ['demo', 'pilot', 'patient-demo'], true)
             ? null
-            : 'DEPLOYMENT_MODE must be either demo or pilot.');
+            : 'DEPLOYMENT_MODE must be demo, pilot, or patient-demo.');
 
         if ($deploymentMode === 'demo') {
             $this->addCheck($checks, 'pilot.disabled', fn (): ?string => config('capstone_pilot.enabled') === false
@@ -75,6 +75,19 @@ final class PilotDeploymentPreflight
             $this->addCheck($checks, 'pilot.participant_accounts', fn (): ?string => $this->pilotAccountsAbsent()
                 ? null
                 : 'Pilot participant accounts must not exist in demo mode.');
+            $this->addCheck($checks, 'phone_auth.disabled', fn (): ?string => config('deployment.phone_auth_enabled') === false
+                ? null
+                : 'PHONE_AUTH_ENABLED must be disabled in demo mode.');
+        } elseif ($deploymentMode === 'patient-demo') {
+            $this->addCheck($checks, 'pilot.disabled', fn (): ?string => config('capstone_pilot.enabled') === false
+                ? null
+                : 'CAPSTONE_PILOT_ENABLED must be disabled in patient-demo mode.');
+            $this->addCheck($checks, 'pilot.participant_accounts', fn (): ?string => $this->pilotAccountsAbsent()
+                ? null
+                : 'Pilot participant accounts must not exist in patient-demo mode.');
+            $this->addCheck($checks, 'phone_auth.enabled', fn (): ?string => config('deployment.phone_auth_enabled') === true
+                ? null
+                : 'PHONE_AUTH_ENABLED must be enabled in patient-demo mode.');
         } else {
             $this->addCheck($checks, 'pilot.enabled', fn (): ?string => config('capstone_pilot.enabled') === true
                 ? null
@@ -85,6 +98,9 @@ final class PilotDeploymentPreflight
             $this->addCheck($checks, 'pilot.participant_limit', fn (): ?string => (int) config('capstone_pilot.participant_limit', 0) === 75
                 ? null
                 : 'The pilot participant limit must be exactly 75.');
+            $this->addCheck($checks, 'phone_auth.disabled', fn (): ?string => config('deployment.phone_auth_enabled') === false
+                ? null
+                : 'PHONE_AUTH_ENABLED must be disabled in pilot mode.');
         }
 
         $this->addCheck($checks, 'session.cookies', fn (): ?string => $this->secureSessionCookies()
@@ -605,6 +621,7 @@ final class PilotDeploymentPreflight
     private function smsProviderConfiguration(): bool
     {
         $enabledDrivers = [];
+        $phoneAuthEnabled = config('deployment.phone_auth_enabled') === true;
 
         if (config('services.semaphore.enabled') === true) {
             $enabledDrivers[] = 'semaphore';
@@ -620,7 +637,7 @@ final class PilotDeploymentPreflight
         }
 
         if ($enabledDrivers === []) {
-            return true;
+            return ! $phoneAuthEnabled;
         }
 
         if ($enabledDrivers[0] !== $driver) {

@@ -52,9 +52,10 @@ Route::prefix('v1')->middleware(['throttle:login', 'reject.phone.auth'])->group(
     Route::post('auth/password-recovery/verify', [AuthController::class, 'recoveryVerify']);
 });
 
-// Invitation acceptance uses OTP and remains account-authenticated outside
-// pilot mode. Keep the pilot gate outside the auth group so it returns 404
-// before an unauthenticated request can observe the route's auth behavior.
+// Invitation acceptance uses OTP and remains account-authenticated when phone
+// authentication is enabled. Keep the deployment gate outside the auth group
+// so disabled profiles return 404 before an unauthenticated request can
+// observe the route's auth behavior.
 Route::prefix('v1')->middleware('reject.phone.auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('patient-invitations/acceptance/otp', [PatientInvitationController::class, 'requestOtp'])
