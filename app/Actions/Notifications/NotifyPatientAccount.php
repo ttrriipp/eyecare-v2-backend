@@ -2,6 +2,7 @@
 
 namespace App\Actions\Notifications;
 
+use App\Actions\Sms\QueuePatientSms;
 use App\Enums\PatientNotificationActionType;
 use App\Enums\PatientNotificationKind;
 use App\Models\Appointment;
@@ -20,6 +21,8 @@ use Throwable;
 
 class NotifyPatientAccount
 {
+    public function __construct(private readonly QueuePatientSms $queuePatientSms) {}
+
     public function appointmentConfirmed(AppointmentRequest $request, Appointment $appointment): void
     {
         $this->handleAccount($request->user, new PatientDatabaseNotification(
@@ -77,10 +80,12 @@ class NotifyPatientAccount
 
     public function appointmentCancelled(Appointment $appointment): void
     {
+        $message = "Your appointment {$appointment->appointment_number} scheduled for {$appointment->scheduled_at->format('M d, Y g:i A')} was cancelled by the clinic.";
+
         $this->handlePatient($appointment->patient, new PatientDatabaseNotification(
             kind: PatientNotificationKind::AppointmentCancelled,
             title: 'Appointment Cancelled',
-            body: "Your appointment {$appointment->appointment_number} scheduled for {$appointment->scheduled_at->format('M d, Y g:i A')} was cancelled by the clinic.",
+            body: $message,
             icon: 'heroicon-o-calendar-days',
             status: 'danger',
             mobileActionType: PatientNotificationActionType::Appointment,
@@ -91,6 +96,13 @@ class NotifyPatientAccount
             eventKey: "appointment.cancelled:{$appointment->id}",
             patientId: $appointment->patient_id,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $appointment->patient,
+            event: 'appointment_cancelled',
+            message: $message,
+            appointment: $appointment,
+        );
     }
 
     public function consultationCompleted(Encounter $encounter): void
@@ -135,50 +147,86 @@ class NotifyPatientAccount
 
     public function opticalOrderConfirmed(JobOrder $order): void
     {
+        $message = "Your optical order {$order->job_order_number} has been confirmed.";
+
         $this->handlePatient($order->patient, $this->orderNotification(
             order: $order,
             title: 'Optical Order Confirmed',
-            body: "Your optical order {$order->job_order_number} has been confirmed.",
+            body: $message,
             status: 'success',
             event: 'confirmed',
             kind: PatientNotificationKind::OpticalOrderConfirmed,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $order->patient,
+            event: 'optical_order_confirmed',
+            message: $message,
+            jobOrder: $order,
+        );
     }
 
     public function opticalOrderReady(JobOrder $order): void
     {
+        $message = "Your optical order {$order->job_order_number} is ready for pickup.";
+
         $this->handlePatient($order->patient, $this->orderNotification(
             order: $order,
             title: 'Order Ready for Pickup',
-            body: "Your optical order {$order->job_order_number} is ready for pickup.",
+            body: $message,
             status: 'success',
             event: 'ready',
             kind: PatientNotificationKind::OpticalOrderReady,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $order->patient,
+            event: 'optical_order_ready',
+            message: $message,
+            jobOrder: $order,
+        );
     }
 
     public function opticalOrderCancelled(JobOrder $order): void
     {
+        $message = "Your optical order {$order->job_order_number} was cancelled.";
+
         $this->handlePatient($order->patient, $this->orderNotification(
             order: $order,
             title: 'Optical Order Cancelled',
-            body: "Your optical order {$order->job_order_number} was cancelled.",
+            body: $message,
             status: 'danger',
             event: 'cancelled',
             kind: PatientNotificationKind::OpticalOrderCancelled,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $order->patient,
+            event: 'optical_order_cancelled',
+            message: $message,
+            jobOrder: $order,
+        );
     }
 
     public function opticalOrderReleased(JobOrder $order): void
     {
+        $message = "Your optical order {$order->job_order_number} has been released.";
+
         $this->handlePatient($order->patient, $this->orderNotification(
             order: $order,
             title: 'Order Released',
-            body: "Your optical order {$order->job_order_number} has been released.",
+            body: $message,
             status: 'success',
             event: 'released',
             kind: PatientNotificationKind::OpticalOrderReleased,
         ));
+
+        $this->queuePatientSms->handle(
+            patient: $order->patient,
+            event: 'optical_order_released',
+            message: $message,
+            jobOrder: $order,
+        );
     }
 
     public function paymentRecorded(BillingPayment $payment): void

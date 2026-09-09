@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'appointment_id',
+    'job_order_id',
     'notification_status_id',
     'event',
     'recipient',
@@ -27,6 +28,14 @@ class SmsNotification extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    /**
+     * @return BelongsTo<JobOrder, $this>
+     */
+    public function jobOrder(): BelongsTo
+    {
+        return $this->belongsTo(JobOrder::class);
     }
 
     /**

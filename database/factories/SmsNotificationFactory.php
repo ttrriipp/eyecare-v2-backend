@@ -21,6 +21,7 @@ class SmsNotificationFactory extends Factory
     {
         return [
             'appointment_id' => Appointment::factory(),
+            'job_order_id' => null,
             'notification_status_id' => NotificationStatus::query()->firstOrCreate([
                 'name' => 'queued',
             ])->id,

@@ -25,6 +25,7 @@ use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\Patient;
+use App\Models\SmsNotification;
 use App\Models\User;
 use App\Notifications\PatientDatabaseNotification;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -212,6 +213,15 @@ test('clinic appointment cancellation notifies the patient without private reaso
     );
     expect($account->fresh()->notifications->sole()->data['body'])
         ->not->toContain('Private operational detail');
+
+    $sms = SmsNotification::query()
+        ->where('appointment_id', $appointment->id)
+        ->where('event', 'appointment_cancelled')
+        ->sole();
+
+    expect($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toContain($appointment->appointment_number)
+        ->and($sms->message)->not->toContain('Private operational detail');
 });
 
 test('completed consultation produces one visit or prescription notification', function (bool $withPrescription, string $expectedTitle, PatientNotificationKind $expectedKind, string $expectedType, PatientNotificationActionType $expectedActionType) {
@@ -286,6 +296,12 @@ test('prepared and immediate optical orders produce only their final creation ou
         PatientNotificationActionType::OpticalOrder,
     );
     expect($account->fresh()->notifications)->toHaveCount(1);
+
+    $sms = SmsNotification::query()->where('job_order_id', $order->id)->sole();
+
+    expect($sms->event)->toBe($mode === 'immediate' ? 'optical_order_released' : 'optical_order_confirmed')
+        ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toContain($order->job_order_number);
 })->with([
     'prepared' => ['prepared', 'Optical Order Confirmed', PatientNotificationKind::OpticalOrderConfirmed],
     'immediate' => ['immediate', 'Order Released', PatientNotificationKind::OpticalOrderReleased],
@@ -312,6 +328,14 @@ test('ready and cancelled optical order transitions notify the affected patient'
         "/optical-orders/{$order->id}",
         PatientNotificationActionType::OpticalOrder,
     );
+
+    $sms = SmsNotification::query()->where('job_order_id', $order->id)->sole();
+
+    expect($sms->event)->toBe($targetStatus === JobOrderStatus::ReadyForDispensing->value
+        ? 'optical_order_ready'
+        : 'optical_order_cancelled')
+        ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toContain($order->job_order_number);
 })->with([
     'ready' => [JobOrderStatus::ReadyForDispensing->value, 'Order Ready for Pickup', PatientNotificationKind::OpticalOrderReady],
     'cancelled' => [JobOrderStatus::Cancelled->value, 'Optical Order Cancelled', PatientNotificationKind::OpticalOrderCancelled],
@@ -426,4 +450,10 @@ test('dispensing with a pickup payment coalesces into one order released notific
         PatientNotificationActionType::OpticalOrder,
     );
     expect($account->fresh()->notifications)->toHaveCount(1);
+
+    $sms = SmsNotification::query()->where('job_order_id', $order->id)->sole();
+
+    expect($sms->event)->toBe('optical_order_released')
+        ->and($sms->recipient)->toBe($account->patient->phone)
+        ->and($sms->message)->toContain($order->job_order_number);
 });
