@@ -1,7 +1,9 @@
 <?php
 
 use App\Filament\Resources\SmsNotifications\Pages\ListSmsNotifications;
+use App\Models\JobOrder;
 use App\Models\NotificationStatus;
+use App\Models\Patient;
 use App\Models\SmsNotification;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
@@ -24,6 +26,22 @@ test('admin can view SMS log', function () {
 
     Livewire::test(ListSmsNotifications::class)
         ->assertSuccessful();
+});
+
+test('admin SMS log shows a canonical order reference', function (): void {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create();
+    $order = JobOrder::factory()->create(['patient_id' => $patient->id]);
+    $sms = SmsNotification::factory()->create([
+        'appointment_id' => null,
+        'job_order_id' => $order->id,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(ListSmsNotifications::class)
+        ->assertTableColumnExists('reference')
+        ->assertTableColumnStateSet('reference', $order->job_order_number, record: $sms);
 });
 
 test('staff cannot access SMS log', function () {

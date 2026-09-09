@@ -2,7 +2,9 @@
 
 use App\Actions\Sms\ProcessSmsNotification;
 use App\Jobs\SendSmsJob;
+use App\Models\JobOrder;
 use App\Models\NotificationStatus;
+use App\Models\Patient;
 use App\Models\SmsNotification;
 use App\Services\SemaphoreService;
 use App\Services\TextBeeService;
@@ -203,17 +205,26 @@ test('TextBee gateway includes deviceId only when configured', function () {
     Http::assertSent(fn ($request) => $request['deviceId'] === 'device-123');
 });
 
-test('sms notification does not have an order relationship', function () {
+test('sms notification does not have a legacy order relationship', function () {
     $sms = new SmsNotification;
 
     expect(method_exists($sms, 'order'))->toBeFalse();
 });
 
-test('sms notification only references appointment', function () {
-    $sms = SmsNotification::factory()->create();
+test('sms notification can reference an appointment or canonical job order', function () {
+    $appointmentSms = SmsNotification::factory()->create();
+    $patient = Patient::factory()->create();
+    $jobOrder = JobOrder::factory()->create(['patient_id' => $patient->id]);
+    $jobOrderSms = SmsNotification::factory()->create([
+        'appointment_id' => null,
+        'job_order_id' => $jobOrder->id,
+    ]);
 
-    expect($sms->appointment)->not->toBeNull()
-        ->and($sms->getAttributes())->not->toHaveKey('order_id');
+    expect($appointmentSms->appointment)->not->toBeNull()
+        ->and($appointmentSms->jobOrder)->toBeNull()
+        ->and($jobOrderSms->appointment)->toBeNull()
+        ->and($jobOrderSms->jobOrder->is($jobOrder))->toBeTrue()
+        ->and($jobOrderSms->getAttributes())->not->toHaveKey('order_id');
 });
 
 test('SendSmsJob marks a queued notification failed after final job failure', function (): void {

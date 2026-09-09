@@ -11,6 +11,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class SmsNotificationsTable
@@ -18,9 +19,15 @@ class SmsNotificationsTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with(['appointment', 'jobOrder', 'status']))
             ->columns([
                 TextColumn::make('recipient')
                     ->searchable(),
+                TextColumn::make('reference')
+                    ->label('Reference')
+                    ->state(fn (SmsNotification $record): ?string => $record->appointment?->appointment_number
+                        ?? $record->jobOrder?->job_order_number)
+                    ->placeholder('—'),
                 TextColumn::make('event')
                     ->label('Event')
                     ->badge()
@@ -44,7 +51,7 @@ class SmsNotificationsTable
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
-                    ->label('Sent At')
+                    ->label('Queued At')
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
             ])
@@ -56,9 +63,16 @@ class SmsNotificationsTable
                     ),
                 SelectFilter::make('event')
                     ->options([
+                        'appointment_request_submitted' => 'Appointment Request Submitted',
+                        'appointment_scheduled' => 'Appointment Scheduled',
                         'appointment_confirmed' => 'Appointment Confirmed',
                         'appointment_rescheduled' => 'Appointment Rescheduled',
                         'appointment_cancelled' => 'Appointment Cancelled',
+                        'appointment_reminder' => 'Appointment Reminder',
+                        'optical_order_confirmed' => 'Optical Order Confirmed',
+                        'optical_order_ready' => 'Optical Order Ready',
+                        'optical_order_cancelled' => 'Optical Order Cancelled',
+                        'optical_order_released' => 'Optical Order Released',
                     ]),
             ])
             ->recordActions([

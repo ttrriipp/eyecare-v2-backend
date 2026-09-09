@@ -254,11 +254,15 @@ test('inventory movement database columns match canonical constraints', function
 test('sms notifications never create a legacy order link', function () {
     $createMigration = file_get_contents(database_path('migrations/2026_06_06_021117_create_sms_notifications_table.php'));
     $updateMigration = file_get_contents(database_path('migrations/2026_06_28_061836_add_failure_reason_and_order_id_to_sms_notifications.php'));
+    $jobOrderMigration = file_get_contents(database_path('migrations/2026_09_09_212853_add_job_order_id_to_sms_notifications_table.php'));
 
     expect($createMigration)->not->toContain('order_id')
         ->and($updateMigration)->toContain("text('failure_reason')->nullable()")
         ->and($updateMigration)->toContain("foreignId('appointment_id')->nullable(false)->change()")
-        ->and($updateMigration)->not->toContain('order_id');
+        ->and($updateMigration)->not->toContain('order_id')
+        ->and($jobOrderMigration)->toContain("foreignId('job_order_id')")
+        ->and($jobOrderMigration)->toContain("constrained('job_orders')")
+        ->and($jobOrderMigration)->not->toContain("foreignId('order_id')");
 });
 
 test('sms notification database columns match canonical constraints', function () {
@@ -267,10 +271,11 @@ test('sms notification database columns match canonical constraints', function (
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
             AND TABLE_NAME = 'sms_notifications'
-            AND COLUMN_NAME IN ('appointment_id', 'order_id', 'failure_reason')
+            AND COLUMN_NAME IN ('appointment_id', 'order_id', 'job_order_id', 'failure_reason')
     "))->keyBy('COLUMN_NAME');
 
     expect($columns)->not->toHaveKey('order_id')
         ->and($columns['appointment_id']->IS_NULLABLE)->toBe('YES')
+        ->and($columns['job_order_id']->IS_NULLABLE)->toBe('YES')
         ->and($columns['failure_reason']->IS_NULLABLE)->toBe('YES');
 });
