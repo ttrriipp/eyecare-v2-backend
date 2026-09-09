@@ -471,7 +471,7 @@ class AcceptAppointmentRequest
 
     private function createSmsNotification(Appointment $appointment): void
     {
-        $recipient = $appointment->patient->phone ?? $appointment->patient->contact_email;
+        $recipient = $appointment->patient->phone;
 
         if (blank($recipient)) {
             return;
@@ -488,7 +488,7 @@ class AcceptAppointmentRequest
 
     private function createRescheduledSmsNotification(Appointment $appointment): void
     {
-        $recipient = $appointment->patient->phone ?? $appointment->patient->contact_email;
+        $recipient = $appointment->patient->phone;
 
         if (blank($recipient)) {
             return;

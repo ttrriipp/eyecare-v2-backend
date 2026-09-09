@@ -121,7 +121,7 @@ class CreateScheduledAppointment
 
     private function createSmsNotification(Appointment $appointment, Patient $patient): void
     {
-        $recipient = $patient->phone ?? $patient->contact_email;
+        $recipient = $patient->phone;
 
         if (blank($recipient)) {
             return;

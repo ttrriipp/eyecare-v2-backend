@@ -113,6 +113,21 @@ test('creating a scheduled appointment queues a confirmation sms', function () {
         ->and($sms->status->name)->toBe('queued');
 });
 
+test('creating a scheduled appointment does not send SMS to a patient email address', function (): void {
+    $this->patient->patient->update([
+        'phone' => null,
+        'contact_email' => 'patient@example.com',
+    ]);
+
+    app(CreateScheduledAppointment::class)->handle(
+        patient: $this->patient->patient->fresh(),
+        appointmentType: $this->appointmentType,
+        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+    );
+
+    expect(SmsNotification::query()->count())->toBe(0);
+});
+
 test('reason for visit is saved on scheduled appointments', function () {
     $appointment = app(CreateScheduledAppointment::class)->handle(
         patient: $this->patient->patient,

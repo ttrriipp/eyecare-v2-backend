@@ -170,6 +170,10 @@ class RescheduleAppointment
 
     private function createSmsNotification(Appointment $appointment, ?string $rescheduleReason): void
     {
+        if (blank($appointment->patient?->phone)) {
+            return;
+        }
+
         $message = "Your appointment {$appointment->appointment_number} has been rescheduled to {$appointment->scheduled_at->toDateTimeString()}.";
 
         if ($rescheduleReason !== null) {
@@ -180,7 +184,7 @@ class RescheduleAppointment
             'appointment_id' => $appointment->id,
             'notification_status_id' => NotificationStatus::query()->where('name', 'queued')->value('id'),
             'event' => 'appointment_rescheduled',
-            'recipient' => $appointment->patient->phone ?? $appointment->patient->contact_email,
+            'recipient' => $appointment->patient->phone,
             'message' => $message,
         ]);
     }
