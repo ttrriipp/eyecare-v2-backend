@@ -159,6 +159,50 @@ Rollback evidence:
 Teardown operator and scheduled date (hard stop: 2026-10-07):
 ```
 
+### Optional patient-demo profile
+
+Use this profile only when the defense or data-gathering plan requires testing
+the patient Android app. It keeps the staff panel available and enables the
+patient phone registration, login, recovery, contact verification, and
+invitation flows. It does not enable participant-code accounts or the approved
+staff-only demo profile above; it is a separate, explicitly opt-in mode.
+
+Treat this as a separate, temporary deployment profile. Prefer a separate
+Cloud environment and database so patient test records cannot mix with the
+staff-only synthetic demo. Confirm the consent process, privacy/terms pages,
+SMS budget, technical owner, and teardown date before enabling it.
+
+Set these values in Cloud (keep the remaining production values from the
+section above):
+
+```env
+DEPLOYMENT_MODE=patient-demo
+PHONE_AUTH_ENABLED=true
+CAPSTONE_PILOT_ENABLED=false
+
+SMS_DRIVER=textbee
+TEXTBEE_ENABLED=true
+TEXTBEE_API_KEY=<textbee-api-key>
+TEXTBEE_DEVICE_ID=<textbee-device-id>
+TEXTBEE_ENDPOINT=https://api.textbee.dev/api/v1/gateway/send-sms
+SEMAPHORE_ENABLED=false
+```
+
+The database-backed queue must have a running Cloud worker; otherwise OTP and
+invitation messages remain queued. Use real HTTPS privacy and terms URLs for
+the patient app, and never place provider credentials in the repository or a
+command-line argument. Run the release checks after changing the profile:
+
+```bash
+php artisan migrate --force
+php artisan optimize
+php artisan pilot:preflight
+```
+
+To return to the staff-only demo, set `DEPLOYMENT_MODE=demo` and
+`PHONE_AUTH_ENABLED=false`, disable the SMS provider, redeploy, and rerun
+`pilot:preflight`. Do not run `pilot:provision-participants` in either profile.
+
 ### Teardown
 
 After the final defense plus seven days, and never later than October 7, 2026,
