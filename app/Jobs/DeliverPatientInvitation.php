@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Mail\PatientInvitationMail;
 use App\Models\PatientInvitation;
+use App\Services\SmsGateway;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -11,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class DeliverPatientInvitation implements ShouldQueue
 {
@@ -24,7 +26,7 @@ class DeliverPatientInvitation implements ShouldQueue
         public int $invitationId,
     ) {}
 
-    public function handle(): void
+    public function handle(SmsGateway $smsGateway): void
     {
         $invitation = PatientInvitation::find($this->invitationId);
 
@@ -41,19 +43,33 @@ class DeliverPatientInvitation implements ShouldQueue
         try {
             if ($invitation->channel === 'email') {
                 $this->sendEmail($invitation, $destination);
+            } elseif ($invitation->channel === 'phone') {
+                if (! $this->sendSms($invitation, $destination, $smsGateway)) {
+                    return;
+                }
             } else {
-                $this->sendSms($invitation, $destination);
+                $this->markFailed($invitation);
+                Log::warning('Invitation delivery skipped (unsupported channel)', [
+                    'invitation_id' => $invitation->id,
+                    'channel' => $invitation->channel,
+                ]);
+
+                return;
             }
+
+            $invitation->update(['failed_at' => null]);
 
             Log::info('Invitation delivery dispatched', [
                 'invitation_id' => $invitation->id,
                 'channel' => $invitation->channel,
                 'masked' => $this->mask($destination, $invitation->channel),
             ]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
+            $this->markFailed($invitation);
             Log::error('Invitation delivery failed', [
                 'invitation_id' => $invitation->id,
-                'error' => $e->getMessage(),
+                'channel' => $invitation->channel,
+                'exception' => $e::class,
             ]);
             throw $e;
         }
@@ -65,9 +81,8 @@ class DeliverPatientInvitation implements ShouldQueue
         Mail::to($email)->queue(new PatientInvitationMail($invitation));
     }
 
-    protected function sendSms(PatientInvitation $invitation, string $phone): void
+    protected function sendSms(PatientInvitation $invitation, string $phone, SmsGateway $smsGateway): bool
     {
-        // SMS delivery would go through the existing SMS provider boundary
         if (app()->environment(['local', 'testing'])) {
             Log::info('SMS invitation delivery (development only)', [
                 'invitation_id' => $invitation->id,
@@ -75,13 +90,44 @@ class DeliverPatientInvitation implements ShouldQueue
                 'invitation_code' => $invitation->invitation_code,
             ]);
 
-            return;
+            return true;
         }
 
-        Log::info('SMS invitation delivery not yet implemented', [
-            'invitation_id' => $invitation->id,
-            'masked_phone' => $this->mask($phone, 'phone'),
-        ]);
+        if (! $smsGateway->isEnabled()) {
+            $this->markFailed($invitation);
+            Log::warning('SMS invitation delivery skipped (provider disabled)', [
+                'invitation_id' => $invitation->id,
+                'masked_phone' => $this->mask($phone, 'phone'),
+            ]);
+
+            return false;
+        }
+
+        if (! $smsGateway->send($phone, $this->smsMessage($invitation))) {
+            $this->markFailed($invitation);
+            Log::warning('SMS invitation delivery failed', [
+                'invitation_id' => $invitation->id,
+                'masked_phone' => $this->mask($phone, 'phone'),
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    protected function smsMessage(PatientInvitation $invitation): string
+    {
+        return sprintf(
+            'EyeCare invitation code: %s. Enter it in the EyeCare app to connect your account. This code expires in %d days.',
+            $invitation->invitation_code,
+            (int) config('patient_accounts.invitations.lifetime_days', 7),
+        );
+    }
+
+    protected function markFailed(PatientInvitation $invitation): void
+    {
+        $invitation->update(['failed_at' => now()]);
     }
 
     protected function mask(string $value, string $channel): string
