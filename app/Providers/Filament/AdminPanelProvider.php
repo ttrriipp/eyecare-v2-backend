@@ -6,6 +6,7 @@ use App\Filament\AvatarProviders\BrandAvatarProvider;
 use App\Filament\Pages\Auth\EditProfile;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Support\RealtimeSidebar;
 use App\Filament\Widgets\AppointmentsChartWidget;
 use App\Filament\Widgets\OtherIssuesWidget;
 use App\Filament\Widgets\StatsOverviewWidget;
@@ -43,6 +44,8 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('images/favicon.svg'))
             ->defaultAvatarProvider(BrandAvatarProvider::class)
             ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
+            ->sidebarLivewireComponent(RealtimeSidebar::class)
             ->globalSearchResourceOptIn()
             ->colors([
                 'primary' => Color::hex('#4F8DD7'),
