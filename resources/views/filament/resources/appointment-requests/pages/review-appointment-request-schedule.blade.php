@@ -50,7 +50,12 @@
                     <div class="space-y-4">
                         <div class="fi-fo-field">
                             <label for="appointment-type" class="fi-fo-field-label">
-                                <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Appointment type (current)' : 'Appointment type' }}</span>
+                                <span class="fi-fo-field-label-content">
+                                    {{ $this->isRebooking() ? 'Appointment type (current)' : 'Appointment type' }}
+                                    @if (! $this->isRebooking())
+                                        <sup class="fi-fo-field-label-required-mark">*</sup>
+                                    @endif
+                                </span>
                             </label>
                             @if ($this->isRebooking())
                                 <p id="appointment-type" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
@@ -61,6 +66,7 @@
                                     <x-filament::input.select
                                         id="appointment-type"
                                         wire:model.live="appointmentTypeId"
+                                        required
                                         :aria-describedby="$errors->has('appointmentTypeId') ? 'appointment-type-error' : null"
                                         :aria-invalid="$errors->has('appointmentTypeId') ? 'true' : 'false'"
                                     >
@@ -79,7 +85,12 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="fi-fo-field">
                                 <label for="duration" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Duration (current)' : 'Duration (minutes)' }}</span>
+                                    <span class="fi-fo-field-label-content">
+                                        {{ $this->isRebooking() ? 'Duration (current)' : 'Duration (minutes)' }}
+                                        @if (! $this->isRebooking())
+                                            <sup class="fi-fo-field-label-required-mark">*</sup>
+                                        @endif
+                                    </span>
                                 </label>
                                 @if ($this->isRebooking())
                                     <p id="duration" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
@@ -94,6 +105,7 @@
                                             max="240"
                                             step="5"
                                             wire:model.live="durationMinutes"
+                                            required
                                             :aria-describedby="$errors->has('durationMinutes') ? 'duration-error' : null"
                                             :aria-invalid="$errors->has('durationMinutes') ? 'true' : 'false'"
                                         />
@@ -105,7 +117,7 @@
                             </div>
                             <div class="fi-fo-field">
                                 <label for="optometrist" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Optometrist (current)' : 'Optometrist (optional)' }}</span>
+                                    <span class="fi-fo-field-label-content">{{ $this->isRebooking() ? 'Optometrist (current)' : 'Optometrist' }}</span>
                                 </label>
                                 @if ($this->isRebooking())
                                     <p id="optometrist" class="mt-1 text-sm font-medium text-gray-900 dark:text-white">
@@ -119,7 +131,7 @@
                                             :aria-describedby="$errors->has('optometristId') ? 'optometrist-error' : null"
                                             :aria-invalid="$errors->has('optometristId') ? 'true' : 'false'"
                                         >
-                                            <option value="">Select a provider (optional)</option>
+                                            <option value="">Select a provider</option>
                                             @foreach ($this->optometrists() as $id => $label)
                                                 <option value="{{ $id }}">{{ $label }}</option>
                                             @endforeach
@@ -135,13 +147,17 @@
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div class="fi-fo-field">
                                 <label for="scheduled-date" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">Date</span>
+                                    <span class="fi-fo-field-label-content">
+                                        Date
+                                        <sup class="fi-fo-field-label-required-mark">*</sup>
+                                    </span>
                                 </label>
                                 <x-filament::input.wrapper :valid="! $errors->has('scheduledDate')">
                                     <x-filament::input
                                         id="scheduled-date"
                                         type="date"
                                         wire:model.live="scheduledDate"
+                                        required
                                         :aria-describedby="$errors->has('scheduledDate') ? 'scheduled-date-error' : null"
                                         :aria-invalid="$errors->has('scheduledDate') ? 'true' : 'false'"
                                     />
@@ -152,7 +168,10 @@
                             </div>
                             <div class="fi-fo-field">
                                 <label for="scheduled-time" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">Time</span>
+                                    <span class="fi-fo-field-label-content">
+                                        Time
+                                        <sup class="fi-fo-field-label-required-mark">*</sup>
+                                    </span>
                                 </label>
                                 <x-filament::input.wrapper :valid="! $errors->has('scheduledTime')">
                                     <x-filament::input
@@ -160,6 +179,7 @@
                                         type="time"
                                         step="900"
                                         wire:model.live="scheduledTime"
+                                        required
                                         :aria-describedby="$errors->has('scheduledTime') ? 'scheduled-time-error' : null"
                                         :aria-invalid="$errors->has('scheduledTime') ? 'true' : 'false'"
                                     />
@@ -223,16 +243,20 @@
 
                 <x-filament::section heading="Additional details">
                     <div class="space-y-4">
-                        @if (! $this->isRebooking())
+                        @if (! $this->isRebooking() && ($this->selectedAppointmentType()?->requires_referral ?? false))
                             <div class="fi-fo-field">
                                 <label for="referring-source" class="fi-fo-field-label">
-                                    <span class="fi-fo-field-label-content">Referring source</span>
+                                    <span class="fi-fo-field-label-content">
+                                        Referring source
+                                        <sup class="fi-fo-field-label-required-mark">*</sup>
+                                    </span>
                                 </label>
                                 <x-filament::input.wrapper :valid="! $errors->has('referringSource')">
                                     <x-filament::input
                                         id="referring-source"
                                         type="text"
                                         wire:model.live="referringSource"
+                                        required
                                         :aria-describedby="$errors->has('referringSource') ? 'referring-source-error' : null"
                                         :aria-invalid="$errors->has('referringSource') ? 'true' : 'false'"
                                     />

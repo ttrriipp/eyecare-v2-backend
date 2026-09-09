@@ -85,6 +85,24 @@ test('review page initializes the submitted primary preference', function () {
         ->assertSee('Primary preference');
 });
 
+test('referring source input only appears for appointment types that require referral', function (): void {
+    $staff = User::factory()->staff()->create();
+    $nonReferralType = AppointmentType::factory()->create([
+        'requires_referral' => false,
+    ]);
+    $referralType = AppointmentType::factory()->referral()->create();
+    $request = AppointmentRequest::factory()->linked()->create([
+        'appointment_type_id' => $nonReferralType->id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+        ->assertDontSee('Referring source')
+        ->set('appointmentTypeId', $referralType->id)
+        ->assertSee('Referring source');
+});
+
 test('submitted preferences show a readable label, submitted time, and concise availability', function () {
     $staff = User::factory()->staff()->create();
     User::factory()->optometrist()->create();
@@ -115,7 +133,7 @@ test('scheduling fields use standard Filament input wrappers', function () {
 
     $html = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])->html();
 
-    expect(substr_count($html, 'class="fi-input-wrp"'))->toBe(7)
+    expect(substr_count($html, 'class="fi-input-wrp"'))->toBe(6)
         ->and($html)->toContain('fi-input')
         ->and($html)->toContain('fi-select-input');
 });
@@ -135,13 +153,15 @@ test('review page keeps scheduling section headers focused', function () {
     $html = $component->html();
 
     expect($component->instance()->optometristId)->toBeNull()
-        ->and($html)->toContain('Optometrist (optional)')
+        ->and($html)->toContain('Optometrist</span>')
+        ->and($html)->not->toContain('(optional)')
+        ->and(substr_count($html, 'class="fi-fo-field-label-required-mark"'))->toBe(4)
         ->and($html)->toContain('data-test="slot-availability"')
         ->and($html)->toContain('data-test="preference-status"')
         ->and($html)->toContain('>Available</span>')
         ->and($html)->not->toContain('Click to use this time')
         ->and($html)->not->toContain('Availability is based on clinic capacity until a provider is selected.')
-        ->and(strpos($html, 'Optometrist (optional)'))->toBeLessThan(strpos($html, 'Submitted preferences'));
+        ->and(strpos($html, 'Optometrist</span>'))->toBeLessThan(strpos($html, 'Submitted preferences'));
 });
 
 test('review page keeps the acceptance action in the header without a duplicate decision section', function () {
