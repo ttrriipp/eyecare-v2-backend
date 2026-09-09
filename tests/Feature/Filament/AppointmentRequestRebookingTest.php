@@ -56,7 +56,8 @@ test('request queue identifies rebooking requests without a current appointment 
     $this->actingAs($fixture['staff']);
 
     Livewire::test(ListAppointmentRequests::class)
-        ->assertSee('Rebooking')
+        ->assertSee('Reschedule')
+        ->assertDontSee('Rebooking')
         ->assertTableColumnDoesNotExist('appointment.scheduled_at');
 });
 

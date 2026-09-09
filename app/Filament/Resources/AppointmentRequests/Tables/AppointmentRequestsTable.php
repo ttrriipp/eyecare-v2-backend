@@ -41,7 +41,7 @@ class AppointmentRequestsTable
                 TextColumn::make('request_type')
                     ->label('Request')
                     ->state(fn (AppointmentRequest $record): string => $record->isRebooking()
-                        ? 'Rebooking'
+                        ? 'Reschedule'
                         : 'New')
                     ->badge()
                     ->color(fn (AppointmentRequest $record): string => $record->isRebooking() ? 'info' : 'gray'),
