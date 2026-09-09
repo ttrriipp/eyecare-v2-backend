@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="EyeCare capstone demonstration policies">
+        <meta name="description" content="EyeCare patient mobile app policies">
 
         <title>@yield('title') · EyeCare</title>
 
@@ -23,7 +23,7 @@
 
         <header class="border-b border-slate-200/80 bg-white/90 dark:border-slate-800 dark:bg-slate-900/90">
             <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5 lg:px-8">
-                <a href="{{ url('/admin/login') }}" class="flex items-center gap-3" aria-label="EyeCare staff sign-in">
+                <a href="{{ route('legal.privacy') }}" class="flex items-center gap-3" aria-label="EyeCare patient policies">
                     <img
                         src="{{ asset('images/eyecare.svg') }}"
                         alt=""
@@ -48,12 +48,6 @@
                     >
                         Terms of use
                     </a>
-                    <a
-                        href="{{ url('/admin/login') }}"
-                        class="rounded-full bg-slate-900 px-4 py-2 font-medium text-white transition hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 dark:focus:ring-offset-slate-900"
-                    >
-                        Staff sign-in
-                    </a>
                 </nav>
             </div>
         </header>
@@ -66,8 +60,8 @@
 
         <footer class="border-t border-slate-200/80 bg-white/70 dark:border-slate-800 dark:bg-slate-900/70">
             <div class="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-6 text-sm text-slate-500 dark:text-slate-400 lg:px-8">
-                <p>EyeCare · temporary academic demonstration</p>
-                <p>For authorized evaluators and staff only</p>
+                <p>EyeCare · patient mobile app policies</p>
+                <p>Temporary capstone deployment · synthetic data only</p>
             </div>
         </footer>
     </body>

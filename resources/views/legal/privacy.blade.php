@@ -5,7 +5,7 @@
 @section('content')
     <div class="flex flex-col gap-10">
         <header class="flex flex-col gap-3">
-            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Policy · capstone deployment</p>
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700 dark:text-sky-300">Patient mobile app · capstone deployment</p>
             <h1 class="text-4xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-5xl">Privacy notice</h1>
             <p class="text-sm text-slate-500 dark:text-slate-400">
                 Effective {{ config('app.privacy_policy_effective_date', '2026-08-01') }} · Version {{ config('app.privacy_policy_version', '2026-08') }}
@@ -18,65 +18,66 @@
                 <path stroke-linecap="round" d="M12 10.5v5.25M12 7.5h.01" />
             </svg>
             <p>
-                EyeCare is a temporary staff-only academic demonstration. It uses synthetic clinic records and is not intended to collect real patient, participant, or clinical data.
+                This is a temporary capstone deployment for data gathering and demonstration. Use synthetic test data only. Do not enter real patient, health, payment, government, or other sensitive personal information. Patient registration and phone authentication may be unavailable while the demo configuration is active.
             </p>
         </aside>
 
         <section class="flex flex-col gap-4">
             <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Purpose and scope</h2>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                This notice describes the limited information handled by the EyeCare capstone environment while it is available to authorized evaluators and staff. It applies to the web admin panel, connected Android demonstration client, and the services that support them.
+                This notice explains how EyeCare handles information when you create or use an account in the patient mobile app. It covers the app, its API, and the hosting services that support the temporary capstone environment.
             </p>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                This is a deployment notice for a short-lived academic project, not a production privacy program or legal advice. Do not use the environment for live clinic operations.
+                This is a short-lived academic project, not a production healthcare privacy program or legal advice. The app is not for live clinic operations or urgent medical care.
             </p>
         </section>
 
         <section class="flex flex-col gap-4">
             <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Information processed</h2>
             <ul class="flex list-disc flex-col gap-3 pl-5 leading-7 text-slate-600 dark:text-slate-300">
-                <li><strong class="font-semibold text-slate-900 dark:text-white">Staff account details:</strong> name, email address, role, account status, and authentication or audit events needed to protect the panel.</li>
-                <li><strong class="font-semibold text-slate-900 dark:text-white">Synthetic clinic records:</strong> fictional patients, appointments, prescriptions, catalog items, inventory, messages, and related workflow records created for demonstration and testing.</li>
-                <li><strong class="font-semibold text-slate-900 dark:text-white">Operational data:</strong> request, error, job, and security logs used to keep the deployment available and investigate failures. Logs should not contain clinical record contents.</li>
+                <li><strong class="font-semibold text-slate-900 dark:text-white">Registration and account data:</strong> your name, date of birth, verified phone number, optional email address, password, device or installation identifiers, authentication tokens, and the policy versions you accept. Passwords are stored as protected credentials, not readable text.</li>
+                <li><strong class="font-semibold text-slate-900 dark:text-white">Patient-app activity:</strong> information you or an authorized clinic provides for account linking, appointment requests, prescriptions, optical orders, messages, attachments, notifications, and other features enabled for the demonstration.</li>
+                <li><strong class="font-semibold text-slate-900 dark:text-white">Operational data:</strong> request, error, job, security, and audit records used to operate the service, prevent misuse, support users, and investigate failures. We aim to keep logs free of unnecessary clinical details.</li>
             </ul>
-        </section>
-
-        <section class="flex flex-col gap-4">
-            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">What this deployment does not collect</h2>
-            <p class="leading-7 text-slate-600 dark:text-slate-300">
-                The demo is configured without participant accounts, participant research data, phone-based authentication, or SMS workflows. Please do not enter real patient information, health information, payment details, government identifiers, or other sensitive personal data.
-            </p>
         </section>
 
         <section class="flex flex-col gap-4">
             <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">How information is used</h2>
             <ul class="flex list-disc flex-col gap-3 pl-5 leading-7 text-slate-600 dark:text-slate-300">
-                <li>Authenticate authorized staff and enforce role-based access to demonstration workflows.</li>
-                <li>Show the capstone’s appointment, clinical workflow, inventory, messaging, catalog, and augmented-reality proof-of-concept features.</li>
-                <li>Monitor reliability, prevent misuse, and diagnose deployment or application errors.</li>
+                <li>Create and secure your account, verify contact ownership, and protect patient access.</li>
+                <li>Link an account to the correct clinic record when an invitation or staff-reviewed request is used.</li>
+                <li>Provide the patient-app workflows included in the capstone and measure reliability during evaluation.</li>
+                <li>Respond to support requests, prevent abuse, and diagnose application or deployment errors.</li>
             </ul>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                We do not sell the information in this environment or use it for advertising. Hosting, database, object-storage, email, and monitoring providers may process limited technical data only as needed to operate the demonstration.
+                We do not sell information or use it for advertising. Hosting, database, object-storage, email, SMS, and monitoring providers may process limited information only as needed to operate the service. SMS and phone authentication are disabled in the current demo unless the deployment is deliberately reconfigured.
             </p>
         </section>
 
         <section class="flex flex-col gap-4">
-            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Security and retention</h2>
+            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Use synthetic data for this capstone</h2>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                The deployment uses HTTPS, role-based authorization, protected object storage, password controls, and audit logging appropriate to a temporary demonstration. No online service can guarantee absolute security, so never upload information that would create a real-world risk if exposed.
-            </p>
-            <p class="leading-7 text-slate-600 dark:text-slate-300">
-                This environment is scheduled to be taken offline no later than <strong class="font-semibold text-slate-900 dark:text-white">October 7, 2026</strong>. The capstone team will revoke access and remove the demonstration database, stored objects, and backups as part of teardown, subject to any approved academic recordkeeping requirement.
+                The capstone team supplies fictional accounts and records for demonstration. Do not use another person’s identity, upload real health information, or treat a generated record as a real clinical record. If you accidentally submit sensitive information, notify the capstone team immediately so it can be removed.
             </p>
         </section>
 
         <section class="flex flex-col gap-4">
-            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Questions</h2>
+            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Security, choices, and retention</h2>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                Questions about this notice or a data-handling concern should be directed to the capstone team that provided your staff access. Before teardown, you may ask that team whether an approved synthetic record export is available.
+                The deployment uses HTTPS, access controls, protected storage, password controls, and audit logging appropriate to a temporary demonstration. No online service can guarantee absolute security, so never submit information that would create a real-world risk if exposed.
             </p>
             <p class="leading-7 text-slate-600 dark:text-slate-300">
-                See the <a href="{{ route('legal.terms') }}" class="font-semibold text-sky-700 underline decoration-sky-300 underline-offset-4 hover:text-sky-900 dark:text-sky-300 dark:decoration-sky-700 dark:hover:text-sky-200">terms of use</a> for the conditions that apply to this demonstration.
+                You may ask the capstone team that gave you access to review, correct, or remove your demo account information, or to report an accidental disclosure. This environment is scheduled to be taken offline no later than <strong class="font-semibold text-slate-900 dark:text-white">October 7, 2026</strong>; access will be revoked and demonstration data, stored objects, and backups will be removed as part of teardown, subject to approved academic recordkeeping.
+            </p>
+        </section>
+
+        <section class="flex flex-col gap-4">
+            <h2 class="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Policy versions and questions</h2>
+            <p class="leading-7 text-slate-600 dark:text-slate-300">
+                When registration is enabled, the app can retrieve the current policy versions and links from the public <code class="rounded bg-slate-100 px-1.5 py-0.5 text-sm text-slate-800 dark:bg-slate-800 dark:text-slate-200">/api/v1/auth/policies</code> endpoint, and the server records the versions and acceptance time you submit. Questions or data-handling concerns should be directed to the capstone team or clinic contact that provided your app access.
+            </p>
+            <p class="leading-7 text-slate-600 dark:text-slate-300">
+                See the <a href="{{ route('legal.terms') }}" class="font-semibold text-sky-700 underline decoration-sky-300 underline-offset-4 hover:text-sky-900 dark:text-sky-300 dark:decoration-sky-700 dark:hover:text-sky-200">terms of use</a> for the conditions that apply to the patient mobile app.
             </p>
         </section>
     </div>

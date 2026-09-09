@@ -5,8 +5,10 @@ test('privacy notice is publicly available', function (): void {
         ->assertSuccessful()
         ->assertViewIs('legal.privacy')
         ->assertSee('Privacy notice')
-        ->assertSee('temporary staff-only academic demonstration')
-        ->assertSee('/terms');
+        ->assertSee('patient mobile app')
+        ->assertSee('synthetic test data only')
+        ->assertSee('/terms')
+        ->assertDontSee('staff-only');
 });
 
 test('terms of use are publicly available', function (): void {
@@ -14,6 +16,8 @@ test('terms of use are publicly available', function (): void {
         ->assertSuccessful()
         ->assertViewIs('legal.terms')
         ->assertSee('Terms of use')
-        ->assertSee('synthetic clinic records')
-        ->assertSee('/privacy');
+        ->assertSee('patient mobile app')
+        ->assertSee('real patient or health information')
+        ->assertSee('/privacy')
+        ->assertDontSee('staff-only');
 });
