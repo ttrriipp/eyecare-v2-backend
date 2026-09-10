@@ -42,6 +42,19 @@ beforeEach(function (): void {
         ],
     ]);
 
+    $mormaiiProduct = Product::factory()->create([
+        'category_id' => $category->id,
+        'product_type' => 'frame',
+    ]);
+    $this->mormaiiVariant = ProductVariant::factory()->for($mormaiiProduct)->create([
+        'sku' => 'SUN-MORMAII-FLOATER280-BLK',
+        'name' => 'Black / Smoke',
+        'attributes' => [
+            'color' => 'Black frame / smoke lens',
+            'material' => 'Plastic',
+        ],
+    ]);
+
     $this->actor = User::factory()->staff()->create([
         'email' => 'staff@eyecare.test',
     ]);
@@ -64,7 +77,7 @@ test('the tortoise fixture is published with its physical calibration', function
             'bridge_width_mm' => 18.0,
             'temple_length_mm' => 145.0,
             'scale' => ['x' => 0.185, 'y' => 0.185, 'z' => 0.185],
-            'anchor' => ['x' => -0.0075, 'y' => 0.026, 'z' => 0.0],
+            'anchor' => ['x' => -0.0075, 'y' => 0.031, 'z' => 0.0],
             'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
         ])
         ->and($asset->isPatientReady())->toBeTrue();
@@ -85,6 +98,43 @@ test('running the tortoise seeder again does not create another version', functi
 
     expect(ArAsset::query()->where('product_variant_id', $this->variant->id)->count())->toBe(1)
         ->and($this->variant->fresh()->published_ar_asset_id)->toBe($firstAsset->id);
+});
+
+test('the Mormaii fixture is published with its own preset calibration', function (): void {
+    (new ArAssetSeeder)->run();
+
+    $asset = ArAsset::query()
+        ->where('product_variant_id', $this->mormaiiVariant->id)
+        ->sole();
+
+    expect($asset->status)->toBe(ArAssetStatus::Published)
+        ->and($asset->version)->toBe(1)
+        ->and($asset->sha256)->toBe(hash_file(
+            'sha256',
+            database_path('seeders/data/clinic-ar-assets/frame-004-black-wraparound.glb'),
+        ))
+        ->and($asset->calibration)->toMatchArray([
+            'frame_width_mm' => 138.0,
+            'outer_frame_height_mm' => 45.0,
+            'lens_width_mm' => 54.0,
+            'lens_height_mm' => 40.0,
+            'bridge_width_mm' => 18.0,
+            'temple_length_mm' => 145.0,
+            'scale' => ['x' => 0.205, 'y' => 0.205, 'z' => 0.205],
+            'anchor' => ['x' => -0.001, 'y' => -0.031, 'z' => 0.0],
+            'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
+        ]);
+
+    Storage::disk('ar_published')->assertExists($asset->published_path);
+    expect($this->mormaiiVariant->fresh()->published_ar_asset_id)->toBe($asset->id);
+
+    $this->actingAs($this->actor)
+        ->getJson("/api/v1/frames/{$this->mormaiiVariant->product_id}")
+        ->assertOk()
+        ->assertJsonPath('data.variants.0.sku', 'SUN-MORMAII-FLOATER280-BLK')
+        ->assertJsonPath('data.variants.0.ar.status', 'ready')
+        ->assertJsonPath('data.variants.0.ar.asset.version', 1)
+        ->assertJsonPath('data.variants.0.ar.asset.url', $asset->url);
 });
 
 test('an unreferenced publication path is preserved while the fixture gets a free version', function (): void {

@@ -23,6 +23,8 @@ class ArAssetSeeder extends Seeder
 
     private const TORTOISE_RENDERER_SCALE = 0.185;
 
+    private const MORMAII_RENDERER_SCALE = 0.205;
+
     /**
      * @var list<array{sku: string, file: string, calibration: array<string, mixed>}>
      */
@@ -42,7 +44,26 @@ class ArAssetSeeder extends Seeder
                     'y' => self::TORTOISE_RENDERER_SCALE,
                     'z' => self::TORTOISE_RENDERER_SCALE,
                 ],
-                'anchor' => ['x' => -0.0075, 'y' => 0.026, 'z' => 0.0],
+                'anchor' => ['x' => -0.0075, 'y' => 0.031, 'z' => 0.0],
+                'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
+            ],
+        ],
+        [
+            'sku' => 'SUN-MORMAII-FLOATER280-BLK',
+            'file' => 'frame-004-black-wraparound.glb',
+            'calibration' => [
+                'frame_width_mm' => 138.0,
+                'outer_frame_height_mm' => 45.0,
+                'lens_width_mm' => 54.0,
+                'lens_height_mm' => 40.0,
+                'bridge_width_mm' => 18.0,
+                'temple_length_mm' => 145.0,
+                'scale' => [
+                    'x' => self::MORMAII_RENDERER_SCALE,
+                    'y' => self::MORMAII_RENDERER_SCALE,
+                    'z' => self::MORMAII_RENDERER_SCALE,
+                ],
+                'anchor' => ['x' => -0.001, 'y' => -0.031, 'z' => 0.0],
                 'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
             ],
         ],

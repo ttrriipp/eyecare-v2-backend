@@ -695,7 +695,16 @@ class VariantsRelationManager extends RelationManager
 
     private function calibrationSection(bool $readOnly = false): Section
     {
-        $preset = (array) config('ar.presets.round_frame.calibration', []);
+        $presets = (array) config('ar.presets', []);
+        $presetOptions = [];
+
+        foreach ($presets as $key => $definition) {
+            if (! is_array($definition) || ! is_string($definition['label'] ?? null)) {
+                continue;
+            }
+
+            $presetOptions[(string) $key] = $definition['label'];
+        }
 
         return Section::make('Physical dimensions and placement')
             ->description($readOnly
@@ -704,13 +713,14 @@ class VariantsRelationManager extends RelationManager
             ->schema([
                 Select::make('calibration_preset')
                     ->label('Reviewed preset')
-                    ->options([
-                        'round_frame' => (string) config('ar.presets.round_frame.label', 'Current round-frame preset'),
-                    ])
+                    ->options($presetOptions)
                     ->placeholder('Choose only when this model matches the preset')
                     ->live()
-                    ->afterStateUpdated(function (Set $set, ?string $state) use ($preset): void {
-                        if ($state !== 'round_frame') {
+                    ->afterStateUpdated(function (Set $set, ?string $state) use ($presets): void {
+                        $definition = $state === null ? null : ($presets[$state] ?? null);
+                        $preset = is_array($definition) ? ($definition['calibration'] ?? null) : null;
+
+                        if (! is_array($preset)) {
                             return;
                         }
 

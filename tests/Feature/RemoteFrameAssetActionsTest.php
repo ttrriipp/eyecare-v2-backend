@@ -137,6 +137,39 @@ test('the first modal pre-fills available variant measurements', function () {
         ]);
 });
 
+test('the calibration form can apply the Mormaii preset independently', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(VariantsRelationManager::class, [
+        'ownerRecord' => $this->product,
+        'pageClass' => EditProduct::class,
+    ])
+        ->mountTableAction('manageArAsset', $this->variant)
+        ->fillForm([
+            'calibration_preset' => 'mormaii_floater_280',
+        ])
+        ->assertActionDataSet([
+            'calibration_preset' => 'mormaii_floater_280',
+            'frame_width_mm' => 138,
+            'outer_frame_height_mm' => 45,
+            'lens_width_mm' => 54,
+            'lens_height_mm' => 40,
+            'bridge_width_mm' => 18,
+            'temple_length_mm' => 145,
+            'scale_x' => 0.205,
+            'scale_y' => 0.205,
+            'scale_z' => 0.205,
+            'anchor_x' => -0.001,
+            'anchor_y' => -0.031,
+            'anchor_z' => 0,
+            'rotation_x' => 0,
+            'rotation_y' => 0,
+            'rotation_z' => 0,
+        ]);
+});
+
 test('one operator can upload, calibrate, attest, approve, and publish from the management modal', function () {
     $staff = User::factory()->staff()->create();
 
