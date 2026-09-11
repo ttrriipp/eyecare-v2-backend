@@ -21,7 +21,7 @@ class ArAssetSeeder extends Seeder
 
     private const SOURCE_DIRECTORY = 'seeders/data/clinic-ar-assets';
 
-    private const TORTOISE_RENDERER_SCALE = 0.185;
+    private const TORTOISE_RENDERER_SCALE = 0.20;
 
     private const MORMAII_RENDERER_SCALE = 0.205;
 

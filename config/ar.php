@@ -20,7 +20,7 @@ return [
                 'lens_height_mm' => 40.0,
                 'bridge_width_mm' => 18.0,
                 'temple_length_mm' => 145.0,
-                'scale' => ['x' => 0.185, 'y' => 0.185, 'z' => 0.185],
+                'scale' => ['x' => 0.20, 'y' => 0.20, 'z' => 0.20],
                 'anchor' => ['x' => -0.0075, 'y' => 0.031, 'z' => 0.0],
                 'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
             ],
