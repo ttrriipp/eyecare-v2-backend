@@ -35,6 +35,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -348,19 +349,25 @@ class AuthController extends Controller
         $request->validate(['contact_value' => ['required', 'string']]);
 
         $user = $recover->findUserByContact($request->input('contact_value'));
+        $challengeId = (string) Str::uuid();
+        $expiresAt = now()->addMinutes(config('patient_accounts.otp.lifetime_minutes', 10));
 
         if ($user !== null) {
-            $result = $issueOtp->handle(
+            $challenge = $issueOtp->handle(
                 contactType: 'phone',
                 contactValue: $request->input('contact_value'),
                 purpose: OtpPurpose::PasswordRecovery,
                 userId: $user->id,
-            );
+            )['challenge'];
 
+            $challengeId = $challenge->public_id;
+            $expiresAt = $challenge->expires_at;
         }
 
         return response()->json([
             'data' => [
+                'challenge_id' => $challengeId,
+                'expires_at' => $expiresAt->toISOString(),
                 'message' => 'If the contact is associated with an account, a recovery code has been sent.',
             ],
         ]);

@@ -25,7 +25,31 @@ test('recovery OTP endpoint returns generic response', function () {
     ]);
 
     $response->assertOk()
+        ->assertJsonStructure(['data' => ['challenge_id', 'expires_at', 'message']])
         ->assertJsonPath('data.message', 'If the contact is associated with an account, a recovery code has been sent.');
+
+    expect($response->json('data.challenge_id'))->toBeString()->not->toBeEmpty()
+        ->and($response->json('data.expires_at'))->toBeString()->not->toBeEmpty();
+});
+
+test('recovery OTP endpoint returns the issued challenge details for a known phone', function () {
+    $user = User::factory()->patient()->create();
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
+        'user_id' => $user->id,
+    ]);
+
+    $response = $this->postJson('/api/v1/auth/password-recovery/otp', [
+        'contact_value' => '09171234567',
+    ]);
+
+    $challenge = OtpChallenge::query()
+        ->where('user_id', $user->id)
+        ->where('purpose', OtpPurpose::PasswordRecovery)
+        ->firstOrFail();
+
+    $response->assertOk()
+        ->assertJsonPath('data.challenge_id', $challenge->public_id)
+        ->assertJsonPath('data.expires_at', $challenge->expires_at->toISOString());
 });
 
 test('recovery OTP does not accept an email login identifier', function () {
