@@ -247,12 +247,12 @@ class EditOpticalOrder extends EditRecord
                         ->live()
                         ->visible(fn (): bool => auth()->user()?->isAdmin() === true && $this->outstandingBalance() > 0),
                     Textarea::make('override_reason')
-                        ->label('Balance Release Reason')
+                        ->label('Reason for releasing before full payment')
                         ->required(fn (Get $get): bool => (bool) $get('admin_override'))
                         ->visible(fn (Get $get): bool => (bool) $get('admin_override'))
                         ->maxLength(1000),
                     DatePicker::make('override_due_date')
-                        ->label('Balance Payment Due Date')
+                        ->label('Payment Due Date')
                         ->required(fn (Get $get): bool => (bool) $get('admin_override'))
                         ->visible(fn (Get $get): bool => (bool) $get('admin_override'))
                         ->native(false)

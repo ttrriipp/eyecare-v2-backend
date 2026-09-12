@@ -305,6 +305,21 @@ final class OpticalOrderCreationForm
                             ->label('Description')
                             ->required(fn (Get $get): bool => in_array($get('item_kind'), $customItemKinds, true))
                             ->maxLength(255)
+                            ->helperText(function (Get $get) use ($prescriptionEyewearResolver, $dedicatedPrescriptionEyewear): ?string {
+                                $itemKind = $get('item_kind');
+
+                                if (! in_array($itemKind, ['custom', 'custom_product'], true)) {
+                                    return null;
+                                }
+
+                                if ($itemKind === 'custom_product'
+                                    && $prescriptionEyewearResolver($get)
+                                    && ! $dedicatedPrescriptionEyewear) {
+                                    return 'Describe the frame supplied by the patient, such as their own frame brought in for new prescription lenses.';
+                                }
+
+                                return 'Use for a product not listed in the catalog, such as a special-order frame, a frame case, or replacement nose pads.';
+                            })
                             ->visible(fn (Get $get): bool => in_array($get('item_kind'), $customItemKinds, true))
                             ->disabled(fn (Get $get): bool => self::usesCatalogValues($get))
                             ->dehydrated()

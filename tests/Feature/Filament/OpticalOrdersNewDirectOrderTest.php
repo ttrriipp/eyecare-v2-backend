@@ -12,6 +12,7 @@ use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -37,6 +38,62 @@ test('direct order discount input uses spinner-free decimal styling', function (
                 return true;
             },
         );
+});
+
+test('custom items explain which products can be entered manually', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(CreateDirectOpticalOrder::class)
+        ->fillForm([
+            'items' => [[
+                'item_kind' => 'custom',
+            ]],
+        ])
+        ->assertSee('product not listed in the catalog')
+        ->assertSee('special-order frame')
+        ->assertSee('replacement nose pads');
+});
+
+test('selecting a patient preserves a selected catalog frame and its price', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $frame = Product::factory()->create([
+        'product_type' => 'frame',
+        'name' => 'Aster Frame',
+    ]);
+    $variant = ProductVariant::factory()->create([
+        'product_id' => $frame->id,
+        'name' => 'Matte Black',
+        'price' => 2450,
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(CreateDirectOpticalOrder::class);
+    $itemKey = array_key_first($component->get('data.items'));
+
+    $component
+        ->set("data.items.{$itemKey}.product_variant_id", $variant->id)
+        ->assertFormSet([
+            "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
+            "items.{$itemKey}.unit_price" => '2450.00',
+            "items.{$itemKey}.line_total" => '2,450.00',
+        ])
+        ->set('data.patient_id', $patient->id)
+        ->assertFormSet([
+            "items.{$itemKey}.product_variant_id" => $variant->id,
+            "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
+            "items.{$itemKey}.unit_price" => '2450.00',
+            "items.{$itemKey}.line_total" => '2,450.00',
+            "items.{$itemKey}.quantity" => 1,
+        ]);
+
+    $quantityField = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.quantity'));
+
+    expect($quantityField?->isDisabled())->toBeTrue();
 });
 
 test('staff creates a direct order from the optical orders list', function () {

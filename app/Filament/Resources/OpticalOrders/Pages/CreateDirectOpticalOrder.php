@@ -140,7 +140,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                                         ->searchable()
                                         ->preload()
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, LivewireComponent $livewire): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, LivewireComponent $livewire): void {
                                             $set('prescription_id', null);
                                             $set('include_prescription_eyewear', false);
                                             $set('eyewear_frame_source', null);
@@ -149,10 +149,14 @@ class CreateDirectOpticalOrder extends CreateRecord
                                             $set('eyewear_patient_frame_price', null);
                                             $set('eyewear_lens_category_id', null);
                                             $set('eyewear_lens_options', []);
-                                            $set('items', [[
-                                                'item_kind' => 'catalog',
-                                                'quantity' => 1,
-                                            ]]);
+
+                                            if (blank($get('items'))) {
+                                                $set('items', [[
+                                                    'item_kind' => 'catalog',
+                                                    'quantity' => 1,
+                                                ]]);
+                                            }
+
                                             $livewire->resetValidation('data.prescription_id');
                                         }),
                                     Select::make('prescription_id')
