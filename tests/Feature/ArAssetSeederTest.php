@@ -73,6 +73,23 @@ beforeEach(function (): void {
         ],
     ]);
 
+    $nikeProduct = Product::factory()->create([
+        'category_id' => $category->id,
+        'product_type' => 'frame',
+    ]);
+    $this->nikeVariant = ProductVariant::factory()->for($nikeProduct)->create([
+        'sku' => 'NIKE-5753-BLK',
+        'name' => 'Black',
+        'attributes' => [
+            'color' => 'Black',
+            'material' => 'Plastic',
+            'lens_width' => 49,
+            'bridge' => 21,
+            'temple' => 145,
+            'model_code' => '5753',
+        ],
+    ]);
+
     $this->actor = User::factory()->staff()->create([
         'email' => 'staff@eyecare.test',
     ]);
@@ -121,6 +138,25 @@ test('model 8763 is seeded with the tortoise calibration preset', function (): v
 
     Storage::disk('ar_published')->assertExists($asset->published_path);
     expect($this->model8763Variant->fresh()->published_ar_asset_id)->toBe($asset->id);
+});
+
+test('the Nike black round fixture is published with the tortoise calibration preset', function (): void {
+    (new ArAssetSeeder)->run();
+
+    $asset = ArAsset::query()
+        ->where('product_variant_id', $this->nikeVariant->id)
+        ->sole();
+
+    expect($asset->status)->toBe(ArAssetStatus::Published)
+        ->and($asset->version)->toBe(1)
+        ->and($asset->sha256)->toBe(hash_file(
+            'sha256',
+            database_path('seeders/data/clinic-ar-assets/frame-009-black-round.glb'),
+        ))
+        ->and($asset->calibration)->toMatchArray(config('ar.presets.round_frame.calibration'));
+
+    Storage::disk('ar_published')->assertExists($asset->published_path);
+    expect($this->nikeVariant->fresh()->published_ar_asset_id)->toBe($asset->id);
 });
 
 test('running the tortoise seeder again does not create another version', function (): void {

@@ -81,7 +81,6 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
         'air-optix-colors',
         'model-8763-optical-frame',
         'nike-5753-optical-frame',
-        'ginos-collection-13978-optical-frame',
         'sofia-eyewear-52103-optical-frame',
         'polo-fashion-p002-optical-frame',
     ];
@@ -91,9 +90,11 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
 
     $approvedProducts = Product::query()->whereIn('slug', $approvedProductSlugs);
 
-    expect((clone $approvedProducts)->where('is_active', true)->where('product_type', 'frame')->count())->toBe(10)
+    expect((clone $approvedProducts)->where('is_active', true)->where('product_type', 'frame')->count())->toBe(9)
         ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'accessory')->count())->toBe(5)
         ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'contact_lens')->count())->toBe(1);
+
+    expect(Product::query()->where('slug', 'ginos-collection-13978-optical-frame')->exists())->toBeFalse();
 
     $mormaii = Product::query()->where('slug', 'mormaii-floater-street-280')->firstOrFail();
 
@@ -189,18 +190,6 @@ test('catalog seeder adds the new frames with their organized variant images', f
                 'bridge' => 21,
                 'temple' => 145,
                 'model_code' => '5753',
-            ],
-        ],
-        'ginos-collection-13978-optical-frame' => [
-            'brand' => "Gino's Collection",
-            'sku' => 'GINOS-13978-BRG',
-            'images' => ['01-front.png', '02-side.png'],
-            'attributes' => [
-                'color' => 'Burgundy / Red',
-                'lens_width' => 53,
-                'bridge' => 18,
-                'temple' => 143,
-                'model_code' => '13978',
             ],
         ],
         'sofia-eyewear-52103-optical-frame' => [

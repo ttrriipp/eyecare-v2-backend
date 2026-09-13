@@ -348,32 +348,6 @@ class CatalogSeeder extends Seeder
                 ],
             ],
             [
-                'brand' => "Gino's Collection",
-                'category' => 'Optical Frame',
-                'name' => "Gino's Collection 13978 Optical Frame",
-                'slug' => 'ginos-collection-13978-optical-frame',
-                'description' => 'Full-rim rectangular optical frame in a translucent deep red/burgundy finish.',
-                'product_type' => 'frame',
-                'variants' => [
-                    [
-                        'name' => 'Burgundy / Red',
-                        'sku' => 'GINOS-13978-BRG',
-                        'price' => 2500.00,
-                        'attributes' => [
-                            'color' => 'Burgundy / Red',
-                            'material' => 'Plastic',
-                            'lens_width' => 53,
-                            'bridge' => 18,
-                            'temple' => 143,
-                            'model_code' => '13978',
-                        ],
-                        'stock_quantity' => 2,
-                        'low_stock_threshold' => 1,
-                        'target_stock_level' => 4,
-                    ],
-                ],
-            ],
-            [
                 'brand' => 'SOFIA EYEWEAR',
                 'category' => 'Optical Frame',
                 'name' => 'Sofia Eyewear 52103 Optical Frame',

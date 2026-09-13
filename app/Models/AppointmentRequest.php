@@ -36,6 +36,7 @@ class AppointmentRequest extends Model
         'resolved_by_user_id',
         'resolved_at',
         'rejection_reason',
+        'encrypted_cancellation_reason',
     ];
 
     protected function casts(): array
@@ -50,6 +51,7 @@ class AppointmentRequest extends Model
             'encrypted_reason_for_visit' => 'encrypted',
             'encrypted_referring_source' => 'encrypted',
             'encrypted_identity_snapshot' => 'encrypted:array',
+            'encrypted_cancellation_reason' => 'encrypted',
             'expires_at' => 'datetime',
             'resolved_at' => 'datetime',
             'provisional_duration_minutes' => 'integer',

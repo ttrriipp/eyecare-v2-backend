@@ -18,7 +18,7 @@ class CancelAppointmentRequest
         private readonly NotifyAdminUsers $notifyAdminUsers,
     ) {}
 
-    public function handle(AppointmentRequest $request, User $account): AppointmentRequest
+    public function handle(AppointmentRequest $request, User $account, ?string $reasonDetails = null): AppointmentRequest
     {
         if ($request->user_id !== $account->id) {
             abort(404);
@@ -30,7 +30,13 @@ class CancelAppointmentRequest
             ]);
         }
 
-        $request = DB::transaction(function () use ($request, $account): AppointmentRequest {
+        if (blank($reasonDetails)) {
+            throw ValidationException::withMessages([
+                'reason_details' => ['Please provide a reason for cancelling the appointment request.'],
+            ]);
+        }
+
+        $request = DB::transaction(function () use ($request, $account, $reasonDetails): AppointmentRequest {
             $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
 
             if (! $request->isPending()) {
@@ -39,7 +45,16 @@ class CancelAppointmentRequest
                 ]);
             }
 
-            $request->update(['status' => AppointmentRequestStatus::Cancelled]);
+            if ($request->scheduled_at->copy()->setTimezone(config('app.timezone'))->isToday()) {
+                throw ValidationException::withMessages([
+                    'request' => ['Same-day cancellations are not allowed. Please contact the clinic for assistance.'],
+                ]);
+            }
+
+            $request->update([
+                'status' => AppointmentRequestStatus::Cancelled,
+                'encrypted_cancellation_reason' => $reasonDetails,
+            ]);
 
             $this->createAuditLog->handle(
                 subject: $request,

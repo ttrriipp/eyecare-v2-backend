@@ -143,7 +143,9 @@ test('cancelled pending appointment requests notify staff', function () {
     ]);
 
     $this->actingAs($patient)
-        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel")
+        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel", [
+            'reason_details' => 'I no longer need this appointment.',
+        ])
         ->assertOk();
 
     assertAdminActionNotification(
@@ -216,7 +218,7 @@ test('patient appointment cancellations notify staff with the appointment link',
 
     $this->actingAs($patient)
         ->postJson("/api/v1/appointments/{$appointment->id}/cancel", [
-            'reason_category' => 'patient_request',
+            'reason_details' => 'I no longer need this appointment.',
         ])
         ->assertOk();
 

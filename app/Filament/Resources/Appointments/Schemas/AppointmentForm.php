@@ -336,6 +336,17 @@ class AppointmentForm
                             ->placeholder('Assign later'),
                     ]),
 
+                    Section::make('Cancellation Details')
+                        ->visible(fn (?Appointment $record): bool => $record?->status?->name === 'cancelled')
+                        ->schema([
+                            Placeholder::make('cancellation_reason_category')
+                                ->label('Category')
+                                ->content(fn (?Appointment $record): string => Str::headline($record?->cancellation_reason_category ?? '—')),
+                            Placeholder::make('cancellation_reason_details')
+                                ->label('Reason')
+                                ->content(fn (?Appointment $record): string => $record?->cancellation_reason_details ?? 'Not provided'),
+                        ]),
+
                     Section::make('Timeline')
                         ->hiddenOn('create')
                         ->schema([

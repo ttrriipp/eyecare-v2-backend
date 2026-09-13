@@ -36,6 +36,11 @@ class ArAssetSeeder extends Seeder
             'calibration_preset' => 'round_frame',
         ],
         [
+            'sku' => 'NIKE-5753-BLK',
+            'file' => 'frame-009-black-round.glb',
+            'calibration_preset' => 'round_frame',
+        ],
+        [
             'sku' => 'SUN-MORMAII-FLOATER280-BLK',
             'file' => 'frame-004-black-wraparound.glb',
             'calibration_preset' => 'mormaii_floater_280',

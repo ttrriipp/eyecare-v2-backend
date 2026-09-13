@@ -227,7 +227,9 @@ test('rejection reason appears only for rejected requests', function () {
 });
 
 test('cancelled and expired requests show outcome details', function () {
-    $cancelled = AppointmentRequest::factory()->linked()->cancelled()->create();
+    $cancelled = AppointmentRequest::factory()->linked()->cancelled()->create([
+        'encrypted_cancellation_reason' => 'I need to choose a different date.',
+    ]);
     $expired = AppointmentRequest::factory()->linked()->expired()->create();
 
     $this->actingAs($this->staff);
@@ -235,7 +237,9 @@ test('cancelled and expired requests show outcome details', function () {
     Livewire::test(ViewAppointmentRequest::class, ['record' => $cancelled->getRouteKey()])
         ->assertSee('Decision Details')
         ->assertSee('Outcome')
-        ->assertSee('Cancelled by patient.');
+        ->assertSee('Cancelled by patient.')
+        ->assertSee('Patient Cancellation Reason')
+        ->assertSee('I need to choose a different date.');
 
     Livewire::test(ViewAppointmentRequest::class, ['record' => $expired->getRouteKey()])
         ->assertSee('Decision Details')

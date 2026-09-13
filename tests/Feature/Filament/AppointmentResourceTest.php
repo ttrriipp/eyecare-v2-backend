@@ -324,6 +324,20 @@ test('cancelling from the edit page immediately shows the cancelled state', func
     expect($appointment->fresh()->status->name)->toBe('cancelled');
 });
 
+test('appointment cancellation reason is visible to staff on the edit page', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->cancelled()->create([
+        'cancellation_reason_category' => 'patient_request',
+        'cancellation_reason_details' => 'I need to choose a different date.',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertSee('Cancellation Details')
+        ->assertSee('I need to choose a different date.');
+});
+
 test('terminal appointments cannot be edited', function (string $factoryState) {
     $staff = User::factory()->staff()->create();
     $appointment = Appointment::factory()->{$factoryState}()->create([

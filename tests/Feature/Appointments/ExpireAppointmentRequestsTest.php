@@ -80,7 +80,11 @@ test('expired pending requests cannot be cancelled by the patient', function () 
         'expires_at' => now()->subMinute(),
     ]);
 
-    expect(fn () => app(CancelAppointmentRequest::class)->handle($request, $user))
+    expect(fn () => app(CancelAppointmentRequest::class)->handle(
+        $request,
+        $user,
+        'I can no longer attend this appointment.',
+    ))
         ->toThrow(ValidationException::class);
 
     expect($request->fresh()->status)->toBe(AppointmentRequestStatus::Pending);

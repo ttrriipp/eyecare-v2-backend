@@ -1,11 +1,19 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-09-09) — appointment
-> request cancellation, pending-request schedule updates, and active-limit
-> behavior is reconciled below, and
-> patient-originated Filament bell notifications are documented separately
+> **Backend version:** Current repository state (2026-09-13) — patient
+> same-day cancellation, appointment-request cancellation, pending-request
+> schedule updates, and active-limit behavior are documented below.
+> Patient-originated Filament bell notifications are documented separately
 > from the mobile notification feed. The public route count is 59
 > (8 public + 41 account-only + 10 active-link).
+
+> **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
+> cancellation of a confirmed appointment or pending appointment request is
+> rejected with HTTP 422 when its scheduled calendar date is today in the
+> configured application timezone (`Asia/Manila` here). This is a calendar-day
+> cutoff, not a rolling 24-hour window. For a linked rebooking request, the
+> checked date is the request's proposed primary `scheduled_at` slot; clinic-
+> initiated appointment cancellations are unaffected. See §§8 and 10.
 
 > **Shipped 2026-09-07: appointment-request cancellation and active limit.**
 > The maximum of two counts only requests whose stored status is `pending` and
@@ -1509,6 +1517,23 @@ Returns a single appointment request (must belong to authenticated account).
 
 Cancels a pending appointment request.
 
+**Request body:** `reason_details` is required as a nonblank string, maximum
+1,000 characters. This is a simple free-text field; no category is required.
+For example:
+
+```json
+{
+  "reason_details": "I need to choose a different appointment date."
+}
+```
+
+Patient cancellation is rejected when the request's primary `scheduled_at`
+falls on the current calendar date in the configured application timezone
+(`Asia/Manila` here). This is date-based, not a rolling 24-hour cutoff. For a
+linked rebooking request, the rule uses the proposed `scheduled_at` slot, not
+the associated appointment's current schedule. A rejected cancellation leaves
+the request and associated appointment unchanged.
+
 **Auth:** Required (Sanctum token).
 
 **Response (200):**
@@ -1534,6 +1559,7 @@ Cancels a pending appointment request.
     "referring_source": null,
     "expires_at": "2026-07-29T10:00:00+08:00",
     "rejection_reason": null,
+    "cancellation_reason": "I need to choose a different appointment date.",
     "created_at": "2026-07-27T10:00:00+08:00",
     "time_preferences_are_reserved": false,
     "appointment": null
@@ -1542,23 +1568,31 @@ Cancels a pending appointment request.
 ```
 
 Cancellation persists the stored status as `cancelled`. There is no
-`cancelled_at` field in this response.
+`cancelled_at` field in this response. The supplied reason is encrypted at
+rest and returned to the owning account as `cancellation_reason`; staff can
+read it on the request detail screen.
 
 For a rebooking request, cancellation leaves the associated appointment and its
 current schedule unchanged; `selected_scheduled_at` remains `null`.
 
 **Errors:**
+
 - `404`: Request not found or not owned by this account.
-- `422` Laravel validation response when the request is no longer pending:
+- `422` Laravel validation response when the request is no longer pending,
+  its scheduled date is today, or `reason_details` is missing, blank, or
+  longer than 1,000 characters. For example, the same-day case returns:
 
 ```json
 {
   "message": "The given data was invalid.",
   "errors": {
-    "request": ["Only pending appointment requests can be cancelled."]
+    "request": ["Same-day cancellations are not allowed. Please contact the clinic for assistance."]
   }
 }
 ```
+
+When the request is no longer pending, the `request` error is
+`Only pending appointment requests can be cancelled.`
 
 ---
 
@@ -1701,6 +1735,21 @@ Returns a single confirmed appointment (must belong to authenticated patient).
 ### POST `/appointments/{appointment}/cancel`
 
 Cancels an appointment. Only `scheduled` or `checked_in` appointments can be cancelled.
+`reason_details` is required as a nonblank string of at most 1,000 characters;
+it is saved with the cancellation and returned as
+`data.cancellation.reason_details`. For example:
+
+```json
+{
+  "reason_details": "I can no longer attend this appointment."
+}
+```
+
+Patient cancellation is rejected when the appointment's `scheduled_at` falls
+on the current calendar date in the configured application timezone
+(`Asia/Manila` here); the cutoff is not a rolling 24-hour window. This
+restriction applies to patient cancellations only—clinic-initiated
+cancellations are not blocked on the appointment date.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
@@ -1711,15 +1760,22 @@ Cancels an appointment. Only `scheduled` or `checked_in` appointments can be can
 }
 ```
 
-**Error (422):**
+**Same-day error (422):**
 ```json
 {
   "message": "The given data was invalid.",
   "errors": {
-    "appointment": ["This appointment cannot be cancelled."]
+    "appointment": ["Same-day cancellations are not allowed. Please contact the clinic for assistance."]
   }
 }
 ```
+
+A missing, blank, or overlong reason returns HTTP 422 with a
+`reason_details` validation error. The backend assigns the category
+`patient_request`; a supplied legacy `reason_category` value is ignored. A
+non-cancellable appointment status also returns HTTP 422 with an `appointment`
+validation error. The clinic detail screen displays the saved cancellation
+category and reason.
 
 ---
 

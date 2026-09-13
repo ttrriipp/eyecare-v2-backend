@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\Appointments\CancelAppointmentRequest;
+use App\Actions\Appointments\CancelAppointmentRequest as CancelAppointmentRequestAction;
 use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Actions\Appointments\UpdateAppointmentRequestSchedule as UpdateAppointmentRequestScheduleAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CancelAppointmentRequestRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Requests\Api\UpdateAppointmentRequestSchedule;
 use App\Models\Appointment;
@@ -99,9 +100,16 @@ class AppointmentRequestController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, AppointmentRequest $appointmentRequest, CancelAppointmentRequest $cancel): JsonResponse
-    {
-        $result = $cancel->handle($appointmentRequest, $request->user());
+    public function cancel(
+        CancelAppointmentRequestRequest $request,
+        AppointmentRequest $appointmentRequest,
+        CancelAppointmentRequestAction $cancel,
+    ): JsonResponse {
+        $result = $cancel->handle(
+            $appointmentRequest,
+            $request->user(),
+            $request->validated('reason_details'),
+        );
 
         return response()->json([
             'data' => $this->formatRequest($result),
@@ -147,6 +155,7 @@ class AppointmentRequestController extends Controller
             'referring_source' => $request->encrypted_referring_source,
             'expires_at' => $request->expires_at->toISOString(),
             'rejection_reason' => $request->rejection_reason,
+            'cancellation_reason' => $request->encrypted_cancellation_reason,
             'created_at' => $request->created_at->toISOString(),
             'time_preferences_are_reserved' => false,
             'appointment' => $request->appointment_id ? [

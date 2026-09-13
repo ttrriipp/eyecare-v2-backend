@@ -128,7 +128,9 @@ test('cancel response has no snapshot fields', function () {
     ]);
 
     $response = $this->actingAs($user)
-        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel")
+        ->postJson("/api/v1/appointment-requests/{$request->id}/cancel", [
+            'reason_details' => 'I no longer need this appointment.',
+        ])
         ->assertOk();
 
     $jsonString = json_encode($response->json());

@@ -260,6 +260,13 @@ class AppointmentRequestForm
                                 AppointmentRequestStatus::Expired,
                             ], true)),
 
+                        Placeholder::make('cancellation_reason')
+                            ->label('Patient Cancellation Reason')
+                            ->content(fn ($record): string => $record?->encrypted_cancellation_reason ?? '—')
+                            ->visible(fn ($record): bool => $record?->status === AppointmentRequestStatus::Cancelled
+                                && filled($record?->encrypted_cancellation_reason))
+                            ->columnSpanFull(),
+
                         Placeholder::make('resulting_appointment')
                             ->label('Appointment')
                             ->content(function ($record): HtmlString {

@@ -6,6 +6,7 @@ use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\CreateScheduledAppointment;
 use App\Actions\Appointments\UpdateAppointmentContactNote;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\CancelPatientAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Requests\Api\UpdateAppointmentContactNoteRequest;
 use App\Http\Resources\AppointmentResource;
@@ -89,7 +90,7 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Appointment $appointment): JsonResponse
+    public function cancel(CancelPatientAppointmentRequest $request, Appointment $appointment): JsonResponse
     {
         $patient = $request->user()->patient;
 
@@ -100,8 +101,8 @@ class AppointmentController extends Controller
                 appointment: $appointment,
                 initiator: 'patient',
                 actor: $request->user(),
-                reasonCategory: $request->input('reason_category'),
-                reasonDetails: $request->input('reason_details'),
+                reasonCategory: 'patient_request',
+                reasonDetails: $request->validated('reason_details'),
             );
         } catch (ValidationException $e) {
             throw $e;

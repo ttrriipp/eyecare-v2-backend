@@ -35,6 +35,21 @@ class CancelAppointment
             ]);
         }
 
+        if ($initiator === 'patient' && blank($reasonDetails)) {
+            throw ValidationException::withMessages([
+                'reason_details' => ['Please provide a reason for cancelling the appointment.'],
+            ]);
+        }
+
+        if (
+            $initiator === 'patient'
+            && $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'))->isToday()
+        ) {
+            throw ValidationException::withMessages([
+                'appointment' => ['Same-day cancellations are not allowed. Please contact the clinic for assistance.'],
+            ]);
+        }
+
         // Clinic cancellation requires a reason
         if ($initiator === 'clinic' && blank($reasonCategory)) {
             throw ValidationException::withMessages([

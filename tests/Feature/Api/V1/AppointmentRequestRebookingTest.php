@@ -151,7 +151,9 @@ test('cancelling a rebooking request leaves the appointment unchanged and allows
         ->assertCreated()
         ->json('data');
 
-    $this->postJson("/api/v1/appointment-requests/{$first['id']}/cancel")
+    $this->postJson("/api/v1/appointment-requests/{$first['id']}/cancel", [
+        'reason_details' => 'I need a different appointment time.',
+    ])
         ->assertOk()
         ->assertJsonPath('data.status', AppointmentRequestStatus::Cancelled->value);
 

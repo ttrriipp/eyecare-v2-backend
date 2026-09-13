@@ -211,7 +211,9 @@ test('two cancelled appointment requests no longer block a third request', funct
         ->json('data');
 
     foreach ([$first, $second] as $request) {
-        $this->postJson("/api/v1/appointment-requests/{$request['id']}/cancel")
+        $this->postJson("/api/v1/appointment-requests/{$request['id']}/cancel", [
+            'reason_details' => 'I no longer need this appointment.',
+        ])
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled');
     }
