@@ -11,6 +11,7 @@ use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Prescription;
+use App\Models\Quotation;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -38,6 +39,26 @@ test('staff can view an optical order', function () {
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->assertSuccessful()
         ->assertSee('Maria Santos');
+});
+
+test('source quotation is only shown for quotation-based optical orders', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create();
+    $directOrder = JobOrder::factory()->create();
+    $quotationOrder = JobOrder::factory()->create([
+        'quotation_id' => $quotation->id,
+        'patient_id' => $quotation->patient_id,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $directOrder->getRouteKey()])
+        ->assertDontSee('Source Quotation')
+        ->assertDontSee('Direct order');
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $quotationOrder->getRouteKey()])
+        ->assertSee('Source Quotation')
+        ->assertSee($quotation->quotation_number);
 });
 
 test('ready unpaid order prioritizes payment and does not offer dispensing to staff', function () {

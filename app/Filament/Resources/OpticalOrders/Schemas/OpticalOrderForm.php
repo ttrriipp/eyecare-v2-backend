@@ -40,6 +40,7 @@ class OpticalOrderForm
                             Placeholder::make('source_quotation')
                                 ->label('Source Quotation')
                                 ->content(fn (JobOrder $record): string => $record->quotation?->quotation_number ?? 'Direct order')
+                                ->visible(fn (JobOrder $record): bool => $record->quotation !== null)
                                 ->url(fn (JobOrder $record): ?string => $record->quotation
                                     ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
                                     : null),
