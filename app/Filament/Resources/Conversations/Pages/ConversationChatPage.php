@@ -11,7 +11,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
@@ -165,10 +164,12 @@ class ConversationChatPage extends Page
             $originalName = $file->getClientOriginalName();
             $mimeType = $file->getMimeType();
             $fileSize = $file->getSize();
-            $disk = Storage::disk((string) config('filesystems.message_attachments_disk', 'message_attachments'));
-            $path = $disk->putFile('attachments', $file, ['visibility' => 'private']);
+            $path = $file->store('attachments', [
+                'disk' => (string) config('filesystems.message_attachments_disk', 'message_attachments'),
+                'visibility' => 'private',
+            ]);
 
-            if ($path === false) {
+            if (! is_string($path) || $path === '') {
                 throw new RuntimeException('Attachment storage is unavailable.');
             }
 

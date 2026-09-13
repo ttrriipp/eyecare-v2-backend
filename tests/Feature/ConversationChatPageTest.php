@@ -9,9 +9,11 @@ use App\Models\MessageAttachment;
 use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -311,6 +313,64 @@ test('staff replies store attachments on the configured private disk', function 
     Storage::disk('message_attachments')->assertExists($attachment->file_path);
     expect(Storage::disk('message_attachments')->getVisibility($attachment->file_path))->toBe('private')
         ->and(Storage::disk('local')->allFiles())->toBeEmpty();
+});
+
+test('staff replies store remote livewire attachments through the upload storage API', function (): void {
+    Storage::fake('message_attachments');
+
+    $remoteDisk = Mockery::mock(FilesystemAdapter::class);
+    $remoteDisk->allows('path')->andReturn('remote/livewire-tmp/staff-note.pdf');
+    $remoteDisk->allows('readStream')->andReturnUsing(function () {
+        $stream = fopen('php://temp', 'w+b');
+        fwrite($stream, 'remote attachment');
+        rewind($stream);
+
+        return $stream;
+    });
+
+    Storage::extend('remote-test', fn () => $remoteDisk);
+    config()->set('filesystems.disks.remote-test', ['driver' => 'remote-test']);
+
+    $admin = User::factory()->admin()->create();
+    $patient = User::factory()->patient()->create();
+    $conversation = Conversation::query()->create([
+        'account_user_id' => $patient->id,
+        'patient_id' => $patient->patient->id,
+    ]);
+    $attachment = new class('staff-note.pdf', 'remote-test') extends TemporaryUploadedFile
+    {
+        public function getClientOriginalName(): string
+        {
+            return 'staff-note.pdf';
+        }
+
+        public function getMimeType(): string
+        {
+            return 'application/pdf';
+        }
+
+        public function getSize(): int
+        {
+            return 17;
+        }
+
+        public function hashName($path = null): string
+        {
+            return 'staff-note-hash.pdf';
+        }
+    };
+
+    $this->actingAs($admin);
+
+    $page = new ConversationChatPage;
+    $page->selectedConversationId = $conversation->id;
+    $page->pendingAttachment = $attachment;
+    $page->sendReply();
+
+    $storedAttachment = MessageAttachment::query()->sole();
+
+    Storage::disk('message_attachments')->assertExists($storedAttachment->file_path, 'remote attachment');
+    expect(Storage::disk('message_attachments')->getVisibility($storedAttachment->file_path))->toBe('private');
 });
 
 test('staff chat shows a seen indicator on the last read staff message', function () {
