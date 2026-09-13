@@ -21,6 +21,7 @@ use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Filament\Forms\Components\Placeholder;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Contracts\Support\Htmlable;
@@ -106,6 +107,23 @@ test('staff can view a quotation', function () {
         ->assertFormFieldDoesNotExist('internal_notes')
         ->assertDontSee('Internal Notes')
         ->assertDontSee('Customer Notes');
+});
+
+test('declining a quotation updates its edit page immediately', function () {
+    $staff = User::factory()->staff()->create();
+    $quotation = Quotation::factory()->create(['status' => QuotationStatus::Draft]);
+    $reason = 'The patient decided not to proceed.';
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
+        ->callAction('decline', ['reason' => $reason])
+        ->assertHasNoActionErrors()
+        ->assertActionHidden('decline')
+        ->assertSee('Declined')
+        ->assertSee($reason);
+
+    expect($quotation->fresh()->status)->toBe(QuotationStatus::Declined);
 });
 
 test('accepted quotation review is read-only and hides workflow stage details', function () {
@@ -318,6 +336,7 @@ test('confirm sale saves the selected fulfillment and supplier settings', functi
     ]);
 
     $this->actingAs($staff);
+    $this->seed(NotificationStatusSeeder::class);
 
     Livewire::test(EditQuotation::class, ['record' => $quotation->getRouteKey()])
         ->callAction('confirmSale', [
@@ -515,6 +534,8 @@ test('the revise items action is hidden once a quotation has an optical order', 
         'unit_price' => 5000,
         'amount' => 5000,
     ]);
+
+    $this->seed(NotificationStatusSeeder::class);
 
     app(CreateOpticalOrderFromQuotation::class)->handle(
         quotation: $quotation,

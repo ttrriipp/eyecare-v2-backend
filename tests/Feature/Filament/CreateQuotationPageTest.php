@@ -102,7 +102,7 @@ test('quotation creation is draft-only and does not offer accept and continue', 
         ->assertActionDoesNotExist('acceptAndContinue');
 });
 
-test('catalog item details are locked while only frame quantity is fixed', function () {
+test('selecting a catalog frame populates its price and allows quotation quantity changes', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $product = Product::factory()->create([
@@ -126,7 +126,7 @@ test('catalog item details are locked while only frame quantity is fixed', funct
 
     $this->actingAs($staff);
 
-    $component = Livewire::test(CreateQuotation::class, ['patient' => (string) $patient->id]);
+    $component = Livewire::test(CreateQuotation::class);
     $itemKey = array_key_first($component->get('data.items'));
 
     $component
@@ -135,6 +135,7 @@ test('catalog item details are locked while only frame quantity is fixed', funct
         ->assertFormSet([
             "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
             "items.{$itemKey}.unit_price" => '2450.00',
+            "items.{$itemKey}.line_total" => '2,450.00',
             "items.{$itemKey}.quantity" => 1,
         ]);
 
@@ -150,7 +151,28 @@ test('catalog item details are locked while only frame quantity is fixed', funct
         ->and($catalogFields[$descriptionKey]->isVisible())->toBeFalse()
         ->and($catalogFields[$descriptionKey]->isDisabled())->toBeTrue()
         ->and($catalogFields[$unitPriceKey]->isDisabled())->toBeTrue()
-        ->and($catalogFields[$quantityKey]->isDisabled())->toBeTrue();
+        ->and($catalogFields[$quantityKey]->isDisabled())->toBeFalse();
+
+    $component
+        ->set("data.items.{$itemKey}.quantity", 2)
+        ->assertFormSet([
+            "items.{$itemKey}.quantity" => 2,
+            "items.{$itemKey}.line_total" => '4,900.00',
+        ])
+        ->set('data.patient_id', $patient->id)
+        ->assertFormSet([
+            "items.{$itemKey}.product_variant_id" => $variant->id,
+            "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
+            "items.{$itemKey}.unit_price" => '2450.00',
+            "items.{$itemKey}.line_total" => '4,900.00',
+            "items.{$itemKey}.quantity" => 2,
+        ]);
+
+    $catalogFields = $component->instance()->form->getFlatFields(withHidden: true);
+    $quantityKey = collect(array_keys($catalogFields))
+        ->first(fn (string $key): bool => str_ends_with($key, '.quantity'));
+
+    expect($catalogFields[$quantityKey]->isDisabled())->toBeFalse();
 
     $component->set("data.items.{$itemKey}.product_variant_id", $accessoryVariant->id);
 

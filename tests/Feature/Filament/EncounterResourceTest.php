@@ -347,7 +347,7 @@ test('planned consultation uses consultation action labels', function () {
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
         ->assertActionHasLabel('startEncounter', 'Start Consultation')
-        ->assertActionHasLabel('voidEncounter', 'Void Consultation');
+        ->assertActionDoesNotExist('voidEncounter');
 });
 
 test('encounter table shows status badges', function () {

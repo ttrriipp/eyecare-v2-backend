@@ -12,6 +12,7 @@ use App\Models\JobOrderItem;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -95,6 +96,22 @@ test('optical order shows prescription number and version status', function () {
         ->assertSee('Current');
 });
 
+test('starting an optical order updates its edit page immediately', function () {
+    $staff = User::factory()->staff()->create();
+    $jobOrder = JobOrder::factory()->create([
+        'status' => JobOrderStatus::Queued,
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
+        ->callAction('start')
+        ->assertHasNoActionErrors()
+        ->assertActionHidden('start')
+        ->assertActionVisible('markReady')
+        ->assertSee('Processing');
+});
+
 test('marking an optical order ready records the required supplier invoice number', function () {
     $staff = User::factory()->staff()->create();
     $jobOrder = JobOrder::factory()->create([
@@ -103,12 +120,15 @@ test('marking an optical order ready records the required supplier invoice numbe
     ]);
 
     $this->actingAs($staff);
+    $this->seed(NotificationStatusSeeder::class);
 
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->callAction('markReady', [
             'supplier_invoice_number' => 'SUP-INV-3002',
         ])
-        ->assertHasNoActionErrors();
+        ->assertHasNoActionErrors()
+        ->assertActionHidden('markReady')
+        ->assertSee('Ready for Pickup');
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::ReadyForDispensing)
         ->and($jobOrder->fresh()->supplier_invoice_number)->toBe('SUP-INV-3002');
@@ -134,6 +154,7 @@ test('staff dispenses a ready fully paid order and records the patient as recipi
     ]);
 
     $this->actingAs($staff);
+    $this->seed(NotificationStatusSeeder::class);
 
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->mountAction('dispense')
@@ -147,7 +168,11 @@ test('staff dispenses a ready fully paid order and records the patient as recipi
             'notes' => 'Picked up by patient\'s son.',
         ])
         ->callMountedAction()
-        ->assertHasNoActionErrors();
+        ->assertHasNoActionErrors()
+        ->assertActionHidden('dispense')
+        ->assertSee('Completed')
+        ->assertSee('Recipient')
+        ->assertSee('Juan dela Cruz');
 
     expect($jobOrder->fresh()->status)->toBe(JobOrderStatus::Dispensed)
         ->and(DispensingEvent::query()
@@ -169,6 +194,7 @@ test('admin can release a ready order with an outstanding balance using the disp
     ]);
 
     $this->actingAs($admin);
+    $this->seed(NotificationStatusSeeder::class);
 
     Livewire::test(EditOpticalOrder::class, ['record' => $jobOrder->getRouteKey()])
         ->mountAction('dispense')

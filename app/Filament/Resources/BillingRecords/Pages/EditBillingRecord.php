@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\BillingRecords\Pages;
 
-use App\Actions\BillingRecords\VoidBillingRecord;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -12,7 +11,6 @@ use App\Models\BillingRecordItem;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -22,7 +20,6 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 
 class EditBillingRecord extends EditRecord
@@ -178,33 +175,6 @@ class EditBillingRecord extends EditRecord
                     $this->refreshFormData(['payment_due_date']);
                 }),
 
-            Action::make('voidRecord')
-                ->label('Void Billing Record')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn (): bool => auth()->user()?->isAdmin() === true
-                    && $this->record->status !== BillingRecordStatus::Voided)
-                ->requiresConfirmation()
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason')
-                        ->required()
-                        ->maxLength(1000),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(VoidBillingRecord::class)->handle(
-                            billingRecord: $this->record,
-                            reason: $data['reason'],
-                            voider: auth()->user(),
-                        );
-
-                        Notification::make()->title('Billing record voided')->success()->send();
-                        $this->refreshFormData(['status', 'voided_by', 'voided_at', 'void_reason']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot void')->body($e->getMessage())->danger()->send();
-                    }
-                }),
         ];
     }
 }

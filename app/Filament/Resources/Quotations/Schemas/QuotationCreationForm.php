@@ -62,6 +62,7 @@ class QuotationCreationForm
                 dedicatedPrescriptionEyewear: $dedicatedPrescriptionEyewear,
                 includeServices: true,
                 excludeFramesFromOtherItems: $dedicatedPrescriptionEyewear,
+                allowCatalogFrameQuantity: true,
             ),
 
             Section::make('Summary and Notes')

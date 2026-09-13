@@ -89,7 +89,7 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         Password::defaults(fn () => app()->isProduction()
-            ? Password::min(12)->mixedCase()->numbers()
+            ? Password::min(8)->mixedCase()->numbers()
             : Password::min(8));
 
         Event::listen(Login::class, [RecordAuthenticationAudit::class, 'handleLogin']);

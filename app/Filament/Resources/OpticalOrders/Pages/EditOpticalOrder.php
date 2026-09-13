@@ -61,6 +61,7 @@ class EditOpticalOrder extends EditRecord
                 ->action(function (): void {
                     try {
                         app(UpdateJobOrderStatus::class)->handle($this->record, 'in_progress', auth()->user());
+                        $this->record->refresh();
                         Notification::make()->title('Order started')->success()->send();
                         $this->refreshFormData(['status', 'started_at']);
                     } catch (ValidationException $e) {
@@ -92,6 +93,7 @@ class EditOpticalOrder extends EditRecord
                             ]);
                             app(UpdateJobOrderStatus::class)->handle($this->record, 'ready_for_dispensing', auth()->user());
                         });
+                        $this->record->refresh();
                         Notification::make()->title('Order marked ready')->success()->send();
                         $this->refreshFormData(['status', 'supplier_invoice_number', 'ready_at']);
                     } catch (ValidationException $e) {
@@ -269,6 +271,7 @@ class EditOpticalOrder extends EditRecord
                             overrideDueDate: $data['override_due_date'] ?? null,
                         );
 
+                        $this->record->refresh();
                         Notification::make()->title('Order dispensed')->success()->send();
                         $this->refreshFormData(['status', 'dispensed_at']);
                     } catch (ValidationException $e) {

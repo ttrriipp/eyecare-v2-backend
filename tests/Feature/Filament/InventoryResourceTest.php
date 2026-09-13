@@ -358,6 +358,19 @@ test('receiving contact lenses captures their lot and expiry month', function ()
         ->and($lot->quantity_on_hand)->toBe(10);
 });
 
+test('contact lens receiving explains the expiry month requirement before submission', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $product = Product::factory()->contactLens()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('adjustStock', $variant)
+        ->assertMountedActionModalSee('Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.')
+        ->assertMountedActionModalSeeHtml('min="2026-08"');
+});
+
 test('aggregate movements use the locked stock value for ledger boundaries', function () {
     $variant = ProductVariant::factory()->create(['stock_quantity' => 4]);
     $staleVariant = $variant->fresh();

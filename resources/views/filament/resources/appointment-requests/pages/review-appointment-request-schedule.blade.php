@@ -294,11 +294,12 @@
             <div class="space-y-4">
                 @livewire(\App\Filament\Resources\AppointmentRequests\Widgets\AppointmentRequestScheduleCalendar::class, [
                     'requestId' => $record->id,
+                    'appointmentTypeId' => $appointmentTypeId,
                     'durationMinutes' => $durationMinutes,
                     'optometristId' => $optometristId,
                     'proposedStart' => $this->selectedDateTime(),
                     'proposedSlotAvailable' => $slotStatusIsAvailable ? true : ($slotStatusIsUnavailable ? false : null),
-                ], key('request-schedule-calendar-'.$record->id.'-'.$scheduledDate.'-'.$scheduledTime.'-'.$durationMinutes.'-'.($optometristId ?? 'any').'-'.$selectedSlotStatus['state']))
+                ], key('request-schedule-calendar-'.$record->id.'-'.($appointmentTypeId ?? 'none').'-'.$scheduledDate.'-'.$scheduledTime.'-'.$durationMinutes.'-'.($optometristId ?? 'any').'-'.$selectedSlotStatus['state']))
                 <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300" aria-label="Calendar legend">
                     @if ($optometristId !== null)
                         <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-primary-500"></span>Selected provider appointments</span>
@@ -312,6 +313,7 @@
                         <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span>Proposed slot</span>
                     @endif
                 </div>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Drag the proposed slot to move it. Unavailable times snap back.</p>
             </div>
         </div>
     </div>

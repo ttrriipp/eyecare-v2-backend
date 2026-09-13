@@ -114,6 +114,17 @@ test('staff can view a billing record', function () {
         ->assertActionDoesNotExist('correctPayment');
 });
 
+test('billing record page does not expose a void action to administrators', function () {
+    $admin = User::factory()->admin()->create();
+    $billingRecord = BillingRecord::factory()->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test(EditBillingRecord::class, ['record' => $billingRecord->getRouteKey()])
+        ->assertSuccessful()
+        ->assertActionDoesNotExist('voidRecord');
+});
+
 test('billing record summary omits the derived status and missing quotation', function () {
     $staff = User::factory()->staff()->create();
     $billingRecord = BillingRecord::factory()->create([

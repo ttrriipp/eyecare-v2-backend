@@ -10,7 +10,6 @@ use App\Actions\Encounters\CreateEncounterAddendum;
 use App\Actions\Encounters\SaveEncounterDraft;
 use App\Actions\Encounters\StartEncounter;
 use App\Actions\Encounters\TransferEncounter;
-use App\Actions\Encounters\VoidEncounter;
 use App\Actions\Prescriptions\FinalizePrescription;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
@@ -550,38 +549,6 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            // ── Void encounter ──
-            Action::make('voidEncounter')
-                ->label('Void Consultation')
-                ->icon('heroicon-o-x-circle')
-                ->color('danger')
-                ->visible(fn (): bool => in_array($this->record->status, [EncounterStatus::Planned, EncounterStatus::Completed], true)
-                    && auth()->user()?->can('void', $this->record) === true)
-                ->requiresConfirmation()
-                ->modalHeading('Void Consultation')
-                ->modalDescription('This will mark the consultation as voided. This action cannot be undone.')
-                ->modalSubmitActionLabel('Void Consultation')
-                ->schema([
-                    Textarea::make('reason')
-                        ->label('Reason for Voiding')
-                        ->required()
-                        ->maxLength(1000)
-                        ->rows(3),
-                ])
-                ->action(function (array $data): void {
-                    try {
-                        app(VoidEncounter::class)->handle(
-                            encounter: $this->record,
-                            actor: auth()->user(),
-                            reason: $data['reason'],
-                        );
-
-                        Notification::make()->title('Consultation voided')->success()->send();
-                        $this->refreshFormData(['status']);
-                    } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot void consultation')->body($e->getMessage())->danger()->send();
-                    }
-                }),
         ];
     }
 }

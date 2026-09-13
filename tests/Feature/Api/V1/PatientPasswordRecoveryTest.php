@@ -86,7 +86,7 @@ test('recovery OTP is enumeration-safe', function () {
 
 // --- Recovery Verification ---
 
-test('recovery verification resets password and revokes tokens', function () {
+test('recovery verification accepts an eight-character password and revokes existing tokens', function () {
     $user = User::factory()->patient()->create(['password' => bcrypt('oldpassword123')]);
     PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
         'user_id' => $user->id,
@@ -104,11 +104,12 @@ test('recovery verification resets password and revokes tokens', function () {
         'purpose' => OtpPurpose::PasswordRecovery,
     ]);
 
+    $newPassword = 'Reset8ok';
     $response = $this->postJson('/api/v1/auth/password-recovery/verify', [
         'challenge_id' => $challenge->public_id,
         'code' => $code,
-        'password' => 'newsecurepassword123',
-        'password_confirmation' => 'newsecurepassword123',
+        'password' => $newPassword,
+        'password_confirmation' => $newPassword,
     ]);
 
     $response->assertOk()
@@ -118,7 +119,7 @@ test('recovery verification resets password and revokes tokens', function () {
     expect($user->fresh()->tokens()->count())->toBe(1); // Only the new token
 
     // New password should work
-    expect(Hash::check('newsecurepassword123', $user->fresh()->password))->toBeTrue();
+    expect(Hash::check($newPassword, $user->fresh()->password))->toBeTrue();
 });
 
 test('recovery verification with wrong code fails', function () {

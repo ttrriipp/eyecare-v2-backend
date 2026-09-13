@@ -22,7 +22,7 @@ class RegisterPatientAccountRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'email' => ['nullable', 'string', 'email', 'max:255'],
-            'password' => ['required', 'string', 'min:12', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
             'privacy_policy_version' => ['required', 'string'],
             'terms_version' => ['required', 'string'],

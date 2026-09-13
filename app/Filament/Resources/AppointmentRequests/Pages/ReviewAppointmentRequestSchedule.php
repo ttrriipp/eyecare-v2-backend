@@ -198,10 +198,14 @@ class ReviewAppointmentRequestSchedule extends Page
             ];
         }
 
-        if ($this->durationMinutes < 5 || $this->durationMinutes > 240) {
+        if ($this->durationMinutes < 5
+            || $this->durationMinutes > 240
+            || (! $this->isRebooking() && $this->durationMinutes % 5 !== 0)) {
             return [
                 'state' => 'incomplete',
-                'label' => 'Enter a valid duration',
+                'label' => $this->durationMinutes >= 5 && $this->durationMinutes <= 240
+                    ? 'Use 5-minute increments for duration'
+                    : 'Enter a valid duration',
             ];
         }
 
@@ -364,9 +368,15 @@ class ReviewAppointmentRequestSchedule extends Page
             return;
         }
 
+        $durationRules = ['required', 'integer', 'min:5', 'max:240'];
+
+        if (! $this->isRebooking()) {
+            $durationRules[] = 'multiple_of:5';
+        }
+
         $this->validate([
             'appointmentTypeId' => ['required', 'integer'],
-            'durationMinutes' => ['required', 'integer', 'min:5', 'max:240'],
+            'durationMinutes' => $durationRules,
             'optometristId' => ['nullable', 'integer'],
             'scheduledDate' => ['required', 'date'],
             'scheduledTime' => ['required', 'date_format:H:i'],

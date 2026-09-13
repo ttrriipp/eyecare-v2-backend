@@ -310,7 +310,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'string', 'min:12', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
         ]);
 
@@ -384,7 +384,7 @@ class AuthController extends Controller
         $request->validate([
             'challenge_id' => ['required', 'string'],
             'code' => ['required', 'string', 'size:6'],
-            'password' => ['required', 'string', 'min:12', 'confirmed'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:255'],
             'installation_id' => ['nullable', 'string', 'max:255'],

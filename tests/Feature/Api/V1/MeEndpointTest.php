@@ -124,6 +124,37 @@ test('password changes remain unconditionally protected by step-up verification'
         ->assertJsonPath('error.code', 'STEP_UP_REQUIRED');
 });
 
+test('password changes accept an eight-character password after step-up verification', function () {
+    $user = User::factory()->patient()->create([
+        'password' => Hash::make('current-password'),
+    ]);
+    $newPassword = 'Newpass8';
+    $stepUpToken = 'valid-step-up-token';
+
+    OtpChallenge::factory()
+        ->forUser($user)
+        ->purpose(OtpPurpose::SensitiveChange)
+        ->state([
+            'consumed_at' => now(),
+            'delivery_status' => 'step_up_token_issued:'.Hash::make($stepUpToken),
+        ])
+        ->create();
+
+    $accessToken = $user->createToken('password-change-test')->plainTextToken;
+
+    $this->withToken($accessToken)
+        ->withHeader('X-Step-Up-Token', $stepUpToken)
+        ->postJson('/api/v1/auth/password', [
+            'current_password' => 'current-password',
+            'password' => $newPassword,
+            'password_confirmation' => $newPassword,
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.message', 'Password changed successfully.');
+
+    expect(Hash::check($newPassword, $user->fresh()->password))->toBeTrue();
+});
+
 test('valid step-up verification allows a date of birth profile request through the middleware', function () {
     $user = User::factory()->patient()->create();
     $token = 'valid-step-up-token';

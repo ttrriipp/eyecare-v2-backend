@@ -8,6 +8,8 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -90,6 +92,22 @@ test('admin can create a user', function () {
     $user = User::query()->where('email', 'newstaff@example.com')->firstOrFail();
     expect($user->first_name)->toBe('New')
         ->and($user->roles->pluck('name')->all())->toBe([Role::Staff]);
+});
+
+test('production account password rules accept an eight-character mixed-case password with a number', function () {
+    $environment = app()->environment();
+    app()->instance('env', 'production');
+
+    try {
+        $validator = Validator::make(
+            ['password' => 'Staff8ab'],
+            ['password' => Password::defaults()],
+        );
+
+        expect($validator->passes())->toBeTrue();
+    } finally {
+        app()->instance('env', $environment);
+    }
 });
 
 test('admin can create an optometrist', function () {

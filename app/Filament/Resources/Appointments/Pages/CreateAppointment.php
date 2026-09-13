@@ -161,10 +161,14 @@ class CreateAppointment extends CreateRecord
                         enforceGrid: true,
                     );
                 } catch (ValidationException $e) {
-                    // Remap error keys for Filament form (scheduled_at → data.scheduled_at)
                     $remapped = [];
                     foreach ($e->errors() as $key => $messages) {
-                        $remapped["data.{$key}"] = $messages;
+                        $field = $key === 'scheduled_at'
+                            && ! in_array('The clinic is closed on the selected day.', $messages, true)
+                                ? 'appointment_time'
+                                : $key;
+
+                        $remapped["data.{$field}"] = $messages;
                     }
                     throw ValidationException::withMessages($remapped);
                 }

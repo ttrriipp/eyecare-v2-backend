@@ -2,14 +2,18 @@
 
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
+use App\Filament\Resources\Appointments\Pages\CreateAppointment;
 use App\Filament\Resources\Appointments\Pages\EditAppointment;
 use App\Filament\Resources\Appointments\Pages\ListAppointments;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
+use App\Models\ClinicHour;
 use App\Models\Encounter;
+use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
+use Database\Seeders\ClinicHoursSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Textarea;
@@ -95,6 +99,54 @@ test('appointment table prioritizes active appointments and sorts them by earlie
 
 test('appointment resource has no billing relation manager', function () {
     expect(AppointmentResource::getRelations())->toBeEmpty();
+});
+
+test('clinic hours validation highlights the appointment time field', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointmentType = AppointmentType::factory()->create();
+
+    $this->seed(ClinicHoursSeeder::class);
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'existing',
+            'patient_id' => $patient->id,
+            'is_walk_in' => 'scheduled',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => $appointmentType->duration_minutes,
+            'scheduled_at' => today()->addDay()->toDateString(),
+            'appointment_time' => '20:00',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['appointment_time']);
+});
+
+test('closed clinic day validation remains attached to the appointment date', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointmentType = AppointmentType::factory()->create();
+    $closedDate = today()->addDay();
+
+    $this->seed(ClinicHoursSeeder::class);
+    ClinicHour::query()
+        ->where('weekday', $closedDate->dayOfWeek)
+        ->update(['enabled' => false]);
+    $this->actingAs($staff);
+
+    Livewire::test(CreateAppointment::class)
+        ->fillForm([
+            'patient_mode' => 'existing',
+            'patient_id' => $patient->id,
+            'is_walk_in' => 'scheduled',
+            'appointment_type_id' => $appointmentType->id,
+            'duration_minutes' => $appointmentType->duration_minutes,
+            'scheduled_at' => $closedDate->toDateString(),
+            'appointment_time' => '10:00',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['scheduled_at']);
 });
 
 test('appointment status is read only on the edit form', function () {

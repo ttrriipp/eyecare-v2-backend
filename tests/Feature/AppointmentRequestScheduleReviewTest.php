@@ -10,6 +10,7 @@ use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Guava\Calendar\ValueObjects\FetchInfo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -344,6 +345,176 @@ test('schedule context mutes appointments outside the selected provider', functi
         ->and($event->getClassNames())->toContain('ec-context-appointment');
 });
 
+test('only the proposed slot is draggable and its drop updates the selected schedule', function () {
+    $requestType = AppointmentType::factory()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $request = AppointmentRequest::factory()->linked()->create([
+        'appointment_type_id' => $requestType->id,
+    ]);
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $appointment = Appointment::factory()->create([
+        'scheduled_at' => $scheduledAt->copy()->addHour(),
+    ]);
+
+    $widget = Livewire::test(AppointmentRequestScheduleCalendar::class, [
+        'requestId' => $request->id,
+        'appointmentTypeId' => $requestType->id,
+        'durationMinutes' => 30,
+        'optometristId' => $optometrist->id,
+        'proposedStart' => $scheduledAt->toIso8601String(),
+        'proposedSlotAvailable' => true,
+    ])->instance();
+    $method = new ReflectionMethod($widget, 'getEvents');
+    $method->setAccessible(true);
+    $events = $method->invoke($widget, new FetchInfo([
+        'startStr' => $scheduledAt->copy()->startOfDay()->toIso8601String(),
+        'endStr' => $scheduledAt->copy()->endOfDay()->toIso8601String(),
+    ]));
+    $preview = collect($events)->first(fn ($event): bool => $event->getTitle() === 'Proposed slot');
+    $appointmentEvent = collect($events)->first(fn ($event): bool => $event->getExtendedProps()['key'] === (string) $appointment->id);
+
+    expect($widget->isEventDragEnabled())->toBeTrue()
+        ->and($preview->getExtendedProps())->toMatchArray([
+            'model' => AppointmentRequest::class,
+            'key' => (string) $request->id,
+            'kind' => 'proposed_slot',
+        ])
+        ->and($preview->getEditable())->toBeTrue()
+        ->and($preview->getDurationEditable())->toBeFalse()
+        ->and($appointmentEvent->getEditable())->toBeFalse();
+
+    $droppedAt = $scheduledAt->copy()->addDay()->setTime(11, 15);
+    $event = [
+        'title' => 'Proposed slot',
+        'start' => $droppedAt->toIso8601String(),
+        'end' => $droppedAt->copy()->addMinutes(30)->toIso8601String(),
+        'allDay' => false,
+        'styles' => ['cursor: grab'],
+        'classNames' => ['ec-preview'],
+        'extendedProps' => [
+            'model' => AppointmentRequest::class,
+            'key' => (string) $request->id,
+            'kind' => 'proposed_slot',
+        ],
+        'display' => 'auto',
+        'resourceIds' => [],
+    ];
+    $view = [
+        'type' => 'timeGridDay',
+        'title' => 'Monday',
+        'currentStart' => $scheduledAt->copy()->startOfDay()->toIso8601String(),
+        'currentEnd' => $scheduledAt->copy()->addDay()->startOfDay()->toIso8601String(),
+        'activeStart' => $scheduledAt->copy()->startOfDay()->toIso8601String(),
+        'activeEnd' => $scheduledAt->copy()->addDay()->startOfDay()->toIso8601String(),
+    ];
+
+    Livewire::test(AppointmentRequestScheduleCalendar::class, [
+        'requestId' => $request->id,
+        'appointmentTypeId' => $requestType->id,
+        'durationMinutes' => 30,
+        'optometristId' => $optometrist->id,
+        'proposedStart' => $scheduledAt->toIso8601String(),
+        'proposedSlotAvailable' => true,
+    ])
+        ->call('onEventDropJs', [
+            'event' => $event,
+            'oldEvent' => array_merge($event, [
+                'start' => $scheduledAt->toIso8601String(),
+                'end' => $scheduledAt->copy()->addMinutes(30)->toIso8601String(),
+            ]),
+            'oldResource' => null,
+            'newResource' => null,
+            'delta' => [],
+            'view' => $view,
+            'tzOffset' => 480,
+        ])
+        ->assertReturned(true)
+        ->assertDispatchedTo(
+            ReviewAppointmentRequestSchedule::class,
+            'appointment-request-schedule-slot-selected',
+            fn (string $name, array $parameters): bool => Carbon::parse($parameters['start'])->equalTo($droppedAt),
+        );
+
+    Livewire::test(AppointmentRequestScheduleCalendar::class, [
+        'requestId' => $request->id,
+        'appointmentTypeId' => $requestType->id,
+        'durationMinutes' => 7,
+        'optometristId' => $optometrist->id,
+        'proposedStart' => $scheduledAt->toIso8601String(),
+        'proposedSlotAvailable' => true,
+    ])
+        ->call('onEventDropJs', [
+            'event' => $event,
+            'oldEvent' => array_merge($event, [
+                'start' => $scheduledAt->toIso8601String(),
+                'end' => $scheduledAt->copy()->addMinutes(30)->toIso8601String(),
+            ]),
+            'oldResource' => null,
+            'newResource' => null,
+            'delta' => [],
+            'view' => $view,
+            'tzOffset' => 480,
+        ])
+        ->assertReturned(false)
+        ->assertNotDispatched('appointment-request-schedule-slot-selected');
+});
+
+test('dragging the proposed slot to an unavailable time reverts without changing the schedule', function () {
+    $requestType = AppointmentType::factory()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $request = AppointmentRequest::factory()->linked()->create([
+        'appointment_type_id' => $requestType->id,
+    ]);
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $droppedAt = $scheduledAt->copy()->setTime(18, 0);
+    $event = [
+        'title' => 'Proposed slot',
+        'start' => $droppedAt->toIso8601String(),
+        'end' => $droppedAt->copy()->addMinutes(30)->toIso8601String(),
+        'allDay' => false,
+        'styles' => ['cursor: grab'],
+        'classNames' => ['ec-preview'],
+        'extendedProps' => [
+            'model' => AppointmentRequest::class,
+            'key' => (string) $request->id,
+            'kind' => 'proposed_slot',
+        ],
+        'display' => 'auto',
+        'resourceIds' => [],
+    ];
+    $view = [
+        'type' => 'timeGridDay',
+        'title' => 'Monday',
+        'currentStart' => $scheduledAt->copy()->startOfDay()->toIso8601String(),
+        'currentEnd' => $scheduledAt->copy()->addDay()->startOfDay()->toIso8601String(),
+        'activeStart' => $scheduledAt->copy()->startOfDay()->toIso8601String(),
+        'activeEnd' => $scheduledAt->copy()->addDay()->startOfDay()->toIso8601String(),
+    ];
+
+    Livewire::test(AppointmentRequestScheduleCalendar::class, [
+        'requestId' => $request->id,
+        'appointmentTypeId' => $requestType->id,
+        'durationMinutes' => 30,
+        'optometristId' => $optometrist->id,
+        'proposedStart' => $scheduledAt->toIso8601String(),
+        'proposedSlotAvailable' => true,
+    ])
+        ->call('onEventDropJs', [
+            'event' => $event,
+            'oldEvent' => array_merge($event, [
+                'start' => $scheduledAt->toIso8601String(),
+                'end' => $scheduledAt->copy()->addMinutes(30)->toIso8601String(),
+            ]),
+            'oldResource' => null,
+            'newResource' => null,
+            'delta' => [],
+            'view' => $view,
+            'tzOffset' => 480,
+        ])
+        ->assertReturned(false)
+        ->assertNotDispatched('appointment-request-schedule-slot-selected');
+});
+
 test('review page omits section helper descriptions', function () {
     $staff = User::factory()->staff()->create();
     $request = AppointmentRequest::factory()->linked()->create();
@@ -390,4 +561,56 @@ test('selecting a preference or open calendar slot updates one scheduling state'
         ->assertSet('scheduledTime', $manual->format('H:i'));
 
     expect($component->instance()->selectedDateTime())->toBeNull();
+});
+
+test('ordinary requests reject durations that are not in five-minute increments', function () {
+    $staff = User::factory()->staff()->create();
+    $request = AppointmentRequest::factory()->linked()->create();
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+        ->set('durationMinutes', 7);
+
+    expect($component->instance()->selectedSlotStatus())->toMatchArray([
+        'state' => 'incomplete',
+        'label' => 'Use 5-minute increments for duration',
+    ]);
+
+    $component
+        ->call('accept')
+        ->assertHasErrors(['durationMinutes' => 'multiple_of']);
+});
+
+test('rebooking keeps the appointment duration even when it is not a five-minute increment', function () {
+    $this->seed(NotificationStatusSeeder::class);
+
+    $staff = User::factory()->staff()->create();
+    $optometrist = User::factory()->optometrist()->create();
+    $appointmentType = AppointmentType::factory()->create();
+    $originalScheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $newScheduledAt = $originalScheduledAt->copy()->addDay();
+    $appointment = Appointment::factory()->create([
+        'appointment_type_id' => $appointmentType->id,
+        'duration_minutes' => 7,
+        'optometrist_id' => $optometrist->id,
+        'scheduled_at' => $originalScheduledAt,
+    ]);
+    $request = AppointmentRequest::factory()->rebookingFor($appointment)->create([
+        'scheduled_at' => $newScheduledAt,
+        'expires_at' => $newScheduledAt->copy()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()])
+        ->assertSet('durationMinutes', 7);
+
+    expect($component->instance()->selectedSlotStatus()['state'])->toBe('available');
+
+    $component
+        ->call('accept')
+        ->assertHasNoErrors();
+
+    expect($appointment->fresh()->scheduled_at->equalTo($newScheduledAt))->toBeTrue();
 });

@@ -355,6 +355,7 @@ class EditQuotation extends EditRecord
                 ])
                 ->action(function (array $data): void {
                     app(RecordQuotationDecision::class)->handle($this->record, 'declined', auth()->user(), $data['reason']);
+                    $this->record->refresh();
                     $this->refreshFormData(['status']);
                 }),
 

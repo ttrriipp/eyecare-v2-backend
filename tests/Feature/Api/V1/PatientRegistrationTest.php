@@ -20,7 +20,7 @@ beforeEach(function () {
 
 // --- Two-Stage Registration ---
 
-test('registration creates a patient-role user with verified contact', function () {
+test('registration accepts an eight-character password for a patient-role user with verified contact', function () {
     // Stage 1: Verify OTP and get registration token
     $code = '123456';
     $phone = '+639171234567';
@@ -41,13 +41,14 @@ test('registration creates a patient-role user with verified contact', function 
     $registrationToken = $verifyResponse->json('data.registration_token');
 
     // Stage 2: Complete registration
+    $password = 'secure8!';
     $response = $this->postJson('/api/v1/auth/register', [
         'registration_token' => $registrationToken,
         'first_name' => 'Ana',
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
-        'password' => 'securepassword123',
-        'password_confirmation' => 'securepassword123',
+        'password' => $password,
+        'password_confirmation' => $password,
         'privacy_policy_version' => config('app.privacy_policy_version'),
         'terms_version' => config('app.terms_version'),
     ]);
@@ -66,6 +67,8 @@ test('registration creates a patient-role user with verified contact', function 
     ]);
 
     $user = User::where('first_name', 'Ana')->first();
+    expect(Hash::check($password, $user->password))->toBeTrue();
+
     $this->assertDatabaseHas('patient_account_contacts', [
         'user_id' => $user->id,
         'type' => 'phone',

@@ -128,7 +128,9 @@ class StockActions
                 ->label('Expiry month')
                 ->required()
                 ->type('month')
-                ->placeholder('YYYY-MM');
+                ->extraInputAttributes(['min' => now()->format('Y-m')])
+                ->placeholder('YYYY-MM')
+                ->helperText('Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.');
         }
 
         $fields[] = TextInput::make('source_reference')
