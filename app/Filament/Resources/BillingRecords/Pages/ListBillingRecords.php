@@ -103,9 +103,6 @@ class ListBillingRecords extends ListRecords
 
             'paid' => Tab::make('Paid')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', BillingRecordStatus::Paid)),
-
-            'voided' => Tab::make('Voided')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', BillingRecordStatus::Voided)),
         ];
     }
 }

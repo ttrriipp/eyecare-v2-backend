@@ -32,10 +32,8 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Supplementary records that round out status coverage beyond the single
- * flagship path in ClinicWorkflowSeeder — one representative record for
- * every remaining status, so each has something to look at in the admin
- * panel demo.
+ * Supplementary demo records that round out appointment and workflow status
+ * coverage beyond the flagship path in ClinicWorkflowSeeder.
  *
  * Several models (Quotation, JobOrder, BillingRecord, Prescription,
  * AppointmentRequest, PatientLinkRequest) assign their reference number in a
@@ -81,25 +79,10 @@ class ScenarioCoverageSeeder extends Seeder
     {
         $staff = $this->staff();
         $walkIn = $this->walkInPatient();
-        // Spread across appointment types not already exercised by the
-        // flagship path (which only uses Routine Check-up), so the demo
-        // shows New Patient, Referral, and Follow-up too.
-        $newPatientType = AppointmentType::query()->where('name', 'New Patient')->firstOrFail();
+        // Use appointment types beyond the flagship Routine Check-up for the
+        // cancelled and no-show examples.
         $referralType = AppointmentType::query()->where('name', 'Referral')->firstOrFail();
         $followUpType = AppointmentType::query()->where('name', 'Follow-up')->firstOrFail();
-
-        $checkedIn = AppointmentStatus::query()->where('name', 'checked_in')->firstOrFail();
-        Appointment::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'appointment_status_id' => $checkedIn->id],
-            [
-                'appointment_number' => Appointment::generateAppointmentNumber(),
-                'created_by' => $staff->id,
-                'appointment_type_id' => $newPatientType->id,
-                'duration_minutes' => $newPatientType->duration_minutes,
-                'scheduled_at' => now()->setTime(9, 0),
-                'checked_in_at' => now(),
-            ],
-        );
 
         $cancelled = AppointmentStatus::query()->where('name', 'cancelled')->firstOrFail();
         Appointment::query()->updateOrCreate(
@@ -127,7 +110,7 @@ class ScenarioCoverageSeeder extends Seeder
         Appointment::query()->firstOrCreate(
             ['patient_id' => $walkIn->id, 'appointment_status_id' => $noShow->id],
             [
-                'appointment_number' => Appointment::generateAppointmentNumber(),
+                'appointment_number' => 'APT-2026-000005',
                 'created_by' => $staff->id,
                 'appointment_type_id' => $followUpType->id,
                 'duration_minutes' => $followUpType->duration_minutes,
@@ -685,26 +668,6 @@ class ScenarioCoverageSeeder extends Seeder
             ],
         );
 
-        $cancelled = JobOrder::query()->where('job_order_number', 'ORD-2026-000005')->firstOrFail();
-        $cancelledBilling = BillingRecord::query()->firstOrCreate(
-            ['billing_record_number' => 'BR-2026-000004'],
-            [
-                'patient_id' => $patient->id,
-                'job_order_id' => $cancelled->id,
-                'status' => BillingRecordStatus::Voided,
-                'subtotal_amount' => 1800,
-                'discount_amount' => 0,
-                'total_amount' => 1800,
-                'amount_paid' => 0,
-                'balance_due' => 0,
-                'recorded_by' => $staff->id,
-                'recorded_at' => now()->subDays(1),
-                'voided_by' => $staff->id,
-                'voided_at' => now(),
-                'void_reason' => 'Order cancelled before dispensing.',
-            ],
-        );
-        $this->seedBillingRecordItems($cancelledBilling, $cancelled);
     }
 
     private function seedBillingRecordItems(BillingRecord $billingRecord, JobOrder $jobOrder): void

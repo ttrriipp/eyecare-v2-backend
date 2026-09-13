@@ -8,6 +8,7 @@ use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Models\InventoryLot;
 use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -44,6 +45,32 @@ test('staff can access inventory', function () {
     $this->actingAs($this->staff);
 
     $this->get(InventoryResource::getUrl('index'))->assertSuccessful();
+});
+
+test('inventory defaults to most recently restocked variants first', function (): void {
+    $product = Product::factory()->create();
+    $earlierRestock = ProductVariant::factory()->for($product)->create(['stock_quantity' => 30]);
+    $laterRestock = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
+    $neverRestocked = ProductVariant::factory()->for($product)->create(['stock_quantity' => 0]);
+
+    $restockType = InventoryMovementType::query()->firstOrCreate(['name' => 'restock']);
+
+    InventoryMovement::factory()->for($earlierRestock, 'variant')->create([
+        'inventory_movement_type_id' => $restockType->id,
+        'quantity_change' => 5,
+        'created_at' => Carbon::parse('2026-08-10 09:00:00'),
+    ]);
+
+    InventoryMovement::factory()->for($laterRestock, 'variant')->create([
+        'inventory_movement_type_id' => $restockType->id,
+        'quantity_change' => 5,
+        'created_at' => Carbon::parse('2026-08-20 09:00:00'),
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->assertCanSeeTableRecords([$laterRestock, $earlierRestock, $neverRestocked], inOrder: true);
 });
 
 // --- Navigation badge ---

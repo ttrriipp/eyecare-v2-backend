@@ -66,6 +66,13 @@ class Appointment extends Model implements Eventable
             ->withTrashed()
             ->count() + 1;
 
+        while (self::query()
+            ->withTrashed()
+            ->where('appointment_number', sprintf('APT-%s-%06d', $year, $sequence))
+            ->exists()) {
+            $sequence++;
+        }
+
         return sprintf('APT-%s-%06d', $year, $sequence);
     }
 

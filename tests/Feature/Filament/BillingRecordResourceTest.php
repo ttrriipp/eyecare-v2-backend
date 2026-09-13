@@ -29,6 +29,16 @@ test('billing list displays its operational statistics', function () {
         ->assertSee('Collected');
 });
 
+test('billing list omits the voided status tab', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff);
+
+    $tabs = Livewire::test(ListBillingRecords::class)->instance()->getTabs();
+
+    expect(array_keys($tabs))->toBe(['all', 'outstanding', 'overdue', 'paid']);
+});
+
 test('billing list statistics summarize balances, overdue records, paid records, and collections', function () {
     $staff = User::factory()->staff()->create();
 

@@ -2,6 +2,7 @@
 
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
+use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
@@ -101,6 +102,26 @@ test('canonical seed data creates appointments with duration snapshots', functio
         expect($appointment->duration_minutes)->not->toBeNull()
             ->and($appointment->duration_minutes)->toBe($appointment->appointmentType->duration_minutes);
     });
+});
+
+test('canonical seed data omits the checked-in scenario appointment', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $noShowAppointment = Appointment::query()
+        ->where('appointment_number', 'APT-2026-000005')
+        ->firstOrFail();
+
+    expect(Appointment::query()->where('appointment_number', 'APT-2026-000003')->exists())->toBeFalse()
+        ->and($noShowAppointment->status?->name)->toBe('no_show')
+        ->and(Appointment::generateAppointmentNumber())->toBe('APT-2026-000007');
+});
+
+test('canonical seed data omits the voided billing scenario record', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    expect(BillingRecord::query()
+        ->where('status', BillingRecordStatus::Voided)
+        ->exists())->toBeFalse();
 });
 
 test('canonical seed data creates a complete cancelled referral appointment', function () {

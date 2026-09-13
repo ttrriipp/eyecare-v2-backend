@@ -3,11 +3,13 @@
 namespace App\Filament\Resources\Inventory\Tables;
 
 use App\Filament\Support\StockActions;
+use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
 use Filament\Actions\ActionGroup;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class InventoryTable
 {
@@ -90,8 +92,23 @@ class InventoryTable
                     ->placeholder('—')
                     ->color(fn (?int $state): ?string => $state > 0 ? 'warning' : null),
             ])
-            // Emptiest first: this queue exists to surface what is about to run out.
-            ->defaultSort('stock_quantity', 'asc')
+            // Sort by the latest recorded receipt, leaving variants with no restock history last.
+            ->defaultSort(fn (Builder $query): Builder => $query->orderByDesc(
+                InventoryMovement::query()
+                    ->select('created_at')
+                    ->whereColumn(
+                        'product_variant_id',
+                        $query->getModel()->qualifyColumn($query->getModel()->getKeyName()),
+                    )
+                    ->where('quantity_change', '>', 0)
+                    ->whereHas(
+                        'movementType',
+                        fn (Builder $movementTypeQuery): Builder => $movementTypeQuery->where('name', 'restock'),
+                    )
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->limit(1),
+            ))
             ->filters([
                 SelectFilter::make('product')
                     ->relationship('product', 'name')

@@ -299,6 +299,8 @@ class EditAppointment extends EditRecord
                             reasonCategory: $data['reason_category'],
                             reasonDetails: $data['cancellation_details'] ?? null,
                         );
+                        $this->getRecord()->refresh();
+
                         Notification::make()->title('Appointment cancelled')->success()->send();
                         $this->refreshFormData(['current_status']);
                     } catch (ValidationException $e) {

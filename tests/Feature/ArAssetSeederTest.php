@@ -55,6 +55,24 @@ beforeEach(function (): void {
         ],
     ]);
 
+    $model8763Product = Product::factory()->create([
+        'category_id' => $category->id,
+        'product_type' => 'frame',
+    ]);
+    $this->model8763Variant = ProductVariant::factory()->for($model8763Product)->create([
+        'sku' => 'FRAME-8763-C2',
+        'name' => 'Black / Gold - C2',
+        'attributes' => [
+            'color' => 'Black / Gold',
+            'material' => 'Plastic',
+            'lens_width' => 54,
+            'bridge' => 18,
+            'temple' => 150,
+            'model_code' => '8763',
+            'color_code' => 'C2',
+        ],
+    ]);
+
     $this->actor = User::factory()->staff()->create([
         'email' => 'staff@eyecare.test',
     ]);
@@ -84,6 +102,25 @@ test('the tortoise fixture is published with its physical calibration', function
 
     Storage::disk('ar_published')->assertExists($asset->published_path);
     expect($this->variant->fresh()->published_ar_asset_id)->toBe($asset->id);
+});
+
+test('model 8763 is seeded with the tortoise calibration preset', function (): void {
+    (new ArAssetSeeder)->run();
+
+    $asset = ArAsset::query()
+        ->where('product_variant_id', $this->model8763Variant->id)
+        ->sole();
+
+    expect($asset->status)->toBe(ArAssetStatus::Published)
+        ->and($asset->version)->toBe(1)
+        ->and($asset->sha256)->toBe(hash_file(
+            'sha256',
+            database_path('seeders/data/clinic-ar-assets/frame-007-black-square.glb'),
+        ))
+        ->and($asset->calibration)->toMatchArray(config('ar.presets.round_frame.calibration'));
+
+    Storage::disk('ar_published')->assertExists($asset->published_path);
+    expect($this->model8763Variant->fresh()->published_ar_asset_id)->toBe($asset->id);
 });
 
 test('running the tortoise seeder again does not create another version', function (): void {

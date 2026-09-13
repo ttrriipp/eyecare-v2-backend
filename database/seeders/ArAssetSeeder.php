@@ -21,51 +21,24 @@ class ArAssetSeeder extends Seeder
 
     private const SOURCE_DIRECTORY = 'seeders/data/clinic-ar-assets';
 
-    private const TORTOISE_RENDERER_SCALE = 0.20;
-
-    private const MORMAII_RENDERER_SCALE = 0.205;
-
     /**
-     * @var list<array{sku: string, file: string, calibration: array<string, mixed>}>
+     * @var list<array{sku: string, file: string, calibration_preset: string}>
      */
     private const ASSETS = [
         [
             'sku' => 'FRM-ANTHOS-MB1399A-C4',
             'file' => 'frame-002-tortoise-rectangle-v2.glb',
-            'calibration' => [
-                'frame_width_mm' => 138.0,
-                'outer_frame_height_mm' => 45.0,
-                'lens_width_mm' => 54.0,
-                'lens_height_mm' => 40.0,
-                'bridge_width_mm' => 18.0,
-                'temple_length_mm' => 145.0,
-                'scale' => [
-                    'x' => self::TORTOISE_RENDERER_SCALE,
-                    'y' => self::TORTOISE_RENDERER_SCALE,
-                    'z' => self::TORTOISE_RENDERER_SCALE,
-                ],
-                'anchor' => ['x' => -0.0075, 'y' => 0.031, 'z' => 0.0],
-                'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
-            ],
+            'calibration_preset' => 'round_frame',
+        ],
+        [
+            'sku' => 'FRAME-8763-C2',
+            'file' => 'frame-007-black-square.glb',
+            'calibration_preset' => 'round_frame',
         ],
         [
             'sku' => 'SUN-MORMAII-FLOATER280-BLK',
             'file' => 'frame-004-black-wraparound.glb',
-            'calibration' => [
-                'frame_width_mm' => 138.0,
-                'outer_frame_height_mm' => 45.0,
-                'lens_width_mm' => 54.0,
-                'lens_height_mm' => 40.0,
-                'bridge_width_mm' => 18.0,
-                'temple_length_mm' => 145.0,
-                'scale' => [
-                    'x' => self::MORMAII_RENDERER_SCALE,
-                    'y' => self::MORMAII_RENDERER_SCALE,
-                    'z' => self::MORMAII_RENDERER_SCALE,
-                ],
-                'anchor' => ['x' => -0.001, 'y' => -0.031, 'z' => 0.0],
-                'rotation_degrees' => ['x' => 0.0, 'y' => 0.0, 'z' => 0.0],
-            ],
+            'calibration_preset' => 'mormaii_floater_280',
         ],
     ];
 
@@ -81,7 +54,7 @@ class ArAssetSeeder extends Seeder
     }
 
     /**
-     * @param  array{sku: string, file: string, calibration: array<string, mixed>}  $definition
+     * @param  array{sku: string, file: string, calibration_preset: string}  $definition
      */
     private function seedAsset(array $definition, User $actor): void
     {
@@ -97,7 +70,16 @@ class ArAssetSeeder extends Seeder
             throw new RuntimeException(sprintf('The seeded AR model could not be hashed: %s', $sourcePath));
         }
 
-        $calibration = app(ArCalibration::class)->normalize($definition['calibration']);
+        $presetCalibration = config('ar.presets.'.$definition['calibration_preset'].'.calibration');
+
+        if (! is_array($presetCalibration)) {
+            throw new RuntimeException(sprintf(
+                'The configured AR calibration preset is missing or invalid: %s.',
+                $definition['calibration_preset'],
+            ));
+        }
+
+        $calibration = app(ArCalibration::class)->normalize($presetCalibration);
         $variant = ProductVariant::query()
             ->with('publishedArAsset')
             ->where('sku', $definition['sku'])

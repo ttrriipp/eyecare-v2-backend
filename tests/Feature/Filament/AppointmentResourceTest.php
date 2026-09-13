@@ -14,6 +14,7 @@ use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\AppointmentStatusSeeder;
 use Database\Seeders\ClinicHoursSeeder;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Textarea;
@@ -28,6 +29,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(AppointmentStatusSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
 });
 
 test('appointment table shows the populated appointment type', function () {
@@ -299,6 +301,27 @@ test('cancellation records actor reason and time', function () {
         ->and($appointment->cancelled_by_user_id)->toBe($staff->id)
         ->and($appointment->cancellation_reason_category)->toBe('patient_request')
         ->and($appointment->cancelled_at)->not->toBeNull();
+});
+
+test('cancelling from the edit page immediately shows the cancelled state', function () {
+    $staff = User::factory()->staff()->create();
+    $appointment = Appointment::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
+        ->assertActionVisible('cancel')
+        ->assertSee('Scheduled')
+        ->callAction('cancel', [
+            'reason_category' => 'patient_request',
+            'cancellation_details' => null,
+        ])
+        ->assertNotified('Appointment cancelled')
+        ->assertSee('Cancelled')
+        ->assertActionHidden('cancel')
+        ->assertActionDoesNotExist('save');
+
+    expect($appointment->fresh()->status->name)->toBe('cancelled');
 });
 
 test('terminal appointments cannot be edited', function (string $factoryState) {
