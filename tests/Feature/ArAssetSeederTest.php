@@ -90,6 +90,33 @@ beforeEach(function (): void {
         ],
     ]);
 
+    $sofiaProduct = Product::factory()->create([
+        'category_id' => $category->id,
+        'product_type' => 'frame',
+    ]);
+    $this->sofiaGrayVariant = ProductVariant::factory()->for($sofiaProduct)->create([
+        'sku' => 'FRM-SOFIA-2860-GRY',
+        'name' => 'Transparent Smoke Gray',
+        'attributes' => [
+            'color' => 'Transparent smoke gray',
+            'material' => 'TR90',
+            'lens_width' => 59,
+            'bridge' => 12,
+            'temple' => 145,
+        ],
+    ]);
+    $this->sofiaChampagneVariant = ProductVariant::factory()->for($sofiaProduct)->create([
+        'sku' => 'FRM-SOFIA-2860-CHAMP',
+        'name' => 'Transparent Champagne / Blush',
+        'attributes' => [
+            'color' => 'Transparent champagne / blush',
+            'material' => 'TR90',
+            'lens_width' => 59,
+            'bridge' => 12,
+            'temple' => 145,
+        ],
+    ]);
+
     $this->actor = User::factory()->staff()->create([
         'email' => 'staff@eyecare.test',
     ]);
@@ -157,6 +184,39 @@ test('the Nike black round fixture is published with the tortoise calibration pr
 
     Storage::disk('ar_published')->assertExists($asset->published_path);
     expect($this->nikeVariant->fresh()->published_ar_asset_id)->toBe($asset->id);
+});
+
+test('the Sofia 2860 fixtures are published with the tortoise calibration preset', function (): void {
+    (new ArAssetSeeder)->run();
+
+    $fixtures = [
+        'FRM-SOFIA-2860-GRY' => [
+            'variant' => $this->sofiaGrayVariant,
+            'file' => 'frame-005-translucent-gray.glb',
+        ],
+        'FRM-SOFIA-2860-CHAMP' => [
+            'variant' => $this->sofiaChampagneVariant,
+            'file' => 'frame-005-translucent-pink.glb',
+        ],
+    ];
+
+    foreach ($fixtures as $fixture) {
+        $asset = ArAsset::query()
+            ->where('product_variant_id', $fixture['variant']->id)
+            ->sole();
+
+        expect($asset->status)->toBe(ArAssetStatus::Published)
+            ->and($asset->version)->toBe(1)
+            ->and($asset->sha256)->toBe(hash_file(
+                'sha256',
+                database_path('seeders/data/clinic-ar-assets/'.$fixture['file']),
+            ))
+            ->and($asset->calibration)->toMatchArray(config('ar.presets.round_frame.calibration'))
+            ->and($fixture['variant']->fresh()->published_ar_asset_id)->toBe($asset->id)
+            ->and($asset->published_path)->toContain('/'.$fixture['variant']->id.'/v1/model.glb');
+
+        Storage::disk('ar_published')->assertExists($asset->published_path);
+    }
 });
 
 test('running the tortoise seeder again does not create another version', function (): void {

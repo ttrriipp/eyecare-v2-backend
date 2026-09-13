@@ -41,6 +41,16 @@ class ArAssetSeeder extends Seeder
             'calibration_preset' => 'round_frame',
         ],
         [
+            'sku' => 'FRM-SOFIA-2860-GRY',
+            'file' => 'frame-005-translucent-gray.glb',
+            'calibration_preset' => 'round_frame',
+        ],
+        [
+            'sku' => 'FRM-SOFIA-2860-CHAMP',
+            'file' => 'frame-005-translucent-pink.glb',
+            'calibration_preset' => 'round_frame',
+        ],
+        [
             'sku' => 'SUN-MORMAII-FLOATER280-BLK',
             'file' => 'frame-004-black-wraparound.glb',
             'calibration_preset' => 'mormaii_floater_280',
