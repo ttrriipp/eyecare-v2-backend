@@ -27,11 +27,8 @@ class BillingRecordPolicy
         return $user->isAdmin();
     }
 
-    /**
-     * Posted payments are immutable from the panel.
-     */
     public function correctPayment(User $user): bool
     {
-        return false;
+        return $user->isAdmin();
     }
 }

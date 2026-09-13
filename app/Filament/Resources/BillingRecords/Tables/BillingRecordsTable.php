@@ -7,6 +7,7 @@ use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Models\BillingRecord;
 use Filament\Actions\Action;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -138,7 +139,8 @@ class BillingRecordsTable
             ->recordActions([
                 Action::make('view')
                     ->label('View')
-                    ->icon('heroicon-o-eye')
+                    ->icon(Heroicon::EllipsisVertical)
+                    ->iconButton()
                     ->url(fn (BillingRecord $record) => BillingRecordResource::getUrl('edit', ['record' => $record])),
             ]);
     }

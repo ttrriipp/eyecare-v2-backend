@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\BillingRecords\RelationManagers;
 
+use App\Actions\BillingRecords\CorrectBillingPayment;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
@@ -12,8 +13,13 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Gate;
@@ -40,7 +46,7 @@ class PaymentsRelationManager extends RelationManager
                     ->placeholder('—'),
                 TextColumn::make('status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => Str::headline($state))
+                    ->formatStateUsing(fn (string $state): string => $this->getPaymentStatusLabel($state))
                     ->color(fn (string $state): string => match ($state) {
                         'posted' => 'success',
                         'reversed' => 'danger',
@@ -56,11 +62,6 @@ class PaymentsRelationManager extends RelationManager
                     ->dateTime('M j, Y g:i A')
                     ->sortable(),
                 TextColumn::make('notes')
-                    ->wrap()
-                    ->placeholder('—')
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('reversal_reason')
-                    ->label('Correction Reason')
                     ->wrap()
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -139,10 +140,163 @@ class PaymentsRelationManager extends RelationManager
                         $this->mountAction('confirmRecordPayment');
                     }),
             ])
-            ->recordActions([])
+            ->recordActions([
+                $this->viewPaymentDetailsAction(),
+                Action::make('correctPayment')
+                    ->label('Correct Payment')
+                    ->icon(Heroicon::PencilSquare)
+                    ->link()
+                    ->color('warning')
+                    ->visible(fn (BillingPayment $record): bool => $record->status === 'posted'
+                        && Gate::allows('correctPayment', $this->getOwnerRecord()))
+                    ->schema([
+                        TextInput::make('new_amount')
+                            ->label('Corrected Amount')
+                            ->required()
+                            ->numeric()
+                            ->minValue(0)
+                            ->step(0.01)
+                            ->prefix('₱')
+                            ->extraInputAttributes(['class' => 'price-input']),
+                        TextInput::make('reference_number')
+                            ->label('New Reference #')
+                            ->nullable(),
+                        Select::make('reason')
+                            ->label('Reason')
+                            ->required()
+                            ->options($this->getCorrectionReasonOptions())
+                            ->live(),
+                        Textarea::make('other_reason')
+                            ->label('Other Reason')
+                            ->required(fn (Get $get): bool => $get('reason') === 'other')
+                            ->maxLength(1000)
+                            ->rows(3)
+                            ->visible(fn (Get $get): bool => $get('reason') === 'other'),
+                    ])
+                    ->fillForm(fn (BillingPayment $record): array => [
+                        'new_amount' => $record->amount,
+                        'reference_number' => $record->reference_number,
+                    ])
+                    ->action(function (array $data, BillingPayment $record): void {
+                        /** @var BillingRecord $billingRecord */
+                        $billingRecord = $this->getOwnerRecord();
+
+                        Gate::authorize('correctPayment', $billingRecord);
+
+                        try {
+                            $reason = $data['reason'] === 'other'
+                                ? trim((string) ($data['other_reason'] ?? ''))
+                                : $this->getCorrectionReasonOptions()[$data['reason']];
+
+                            app(CorrectBillingPayment::class)->handle(
+                                originalPayment: $record,
+                                newAmount: (float) $data['new_amount'],
+                                reason: $reason,
+                                corrector: auth()->user(),
+                                newReferenceNumber: $data['reference_number'] ?? null,
+                            );
+
+                            $billingRecord->refresh();
+                            $this->dispatch('billing-payment-updated');
+                            Notification::make()->title('Payment corrected')->success()->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()
+                                ->title('Cannot correct payment')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+            ])
             ->emptyStateHeading('No payments recorded')
             ->emptyStateDescription('Record the first payment when the patient makes one.')
             ->defaultSort('recorded_at', 'desc');
+    }
+
+    private function viewPaymentDetailsAction(): Action
+    {
+        return Action::make('viewCorrectionReason')
+            ->label('View')
+            ->icon(Heroicon::PencilSquare)
+            ->link()
+            ->modalHeading('Payment Details')
+            ->modalDescription('Review the payment and correction details.')
+            ->modalWidth('3xl')
+            ->schema([
+                Section::make('Payment Details')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            TextEntry::make('payment_id')
+                                ->label('Payment #')
+                                ->state(fn (BillingPayment $record): string => '#'.$record->getKey()),
+                            TextEntry::make('amount')
+                                ->label('Amount')
+                                ->state(fn (BillingPayment $record): string => '₱'.number_format((float) $record->amount, 2)),
+                            TextEntry::make('payment_method')
+                                ->label('Method')
+                                ->state(fn (BillingPayment $record): string => Str::headline($record->payment_method)),
+                            TextEntry::make('reference_number')
+                                ->label('Reference #')
+                                ->state(fn (BillingPayment $record): string => $record->reference_number ?? '—'),
+                            TextEntry::make('status')
+                                ->badge()
+                                ->state(fn (BillingPayment $record): string => $this->getPaymentStatusLabel($record->status))
+                                ->color(fn (BillingPayment $record): string => match ($record->status) {
+                                    'posted' => 'success',
+                                    'reversed' => 'danger',
+                                    default => 'gray',
+                                }),
+                            TextEntry::make('recorded_by')
+                                ->label('Recorded By')
+                                ->state(fn (BillingPayment $record): string => $record->recordedBy?->full_name ?? '—'),
+                            TextEntry::make('recorded_at')
+                                ->label('Recorded At')
+                                ->state(fn (BillingPayment $record): string => $record->recorded_at?->format('M j, Y g:i A') ?? '—'),
+                        ]),
+                        TextEntry::make('notes')
+                            ->label('Notes')
+                            ->state(fn (BillingPayment $record): string => $record->notes ?? '—')
+                            ->columnSpanFull(),
+                    ]),
+                Section::make('Correction Details')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            TextEntry::make('corrected_by')
+                                ->label('Corrected By')
+                                ->state(fn (BillingPayment $record): string => $record->reversedBy?->full_name ?? '—'),
+                            TextEntry::make('corrected_at')
+                                ->label('Corrected At')
+                                ->state(fn (BillingPayment $record): string => $record->reversed_at?->format('M j, Y g:i A') ?? '—'),
+                        ]),
+                        TextEntry::make('correction_reason')
+                            ->label('Correction Reason')
+                            ->state(fn (BillingPayment $record): string => $record->reversal_reason ?? '—')
+                            ->columnSpanFull(),
+                    ]),
+            ])
+            ->modalSubmitAction(false)
+            ->modalCancelActionLabel('Close')
+            ->visible(fn (BillingPayment $record): bool => filled($record->reversal_reason));
+    }
+
+    private function getPaymentStatusLabel(string $status): string
+    {
+        return $status === 'reversed' ? 'Corrected' : Str::headline($status);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getCorrectionReasonOptions(): array
+    {
+        return [
+            'incorrect_amount' => 'Incorrect amount entered',
+            'duplicate_payment' => 'Duplicate payment',
+            'wrong_billing_record' => 'Payment recorded on the wrong billing record',
+            'incorrect_payment_method' => 'Incorrect payment method',
+            'incorrect_reference_number' => 'Incorrect reference number',
+            'other' => 'Other',
+        ];
     }
 
     /**

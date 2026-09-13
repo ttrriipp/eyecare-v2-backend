@@ -12,6 +12,7 @@ use App\Models\JobOrder;
 use App\Models\Quotation;
 use App\Models\User;
 use Filament\Actions\Testing\TestAction;
+use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,6 +38,19 @@ test('billing list omits the voided status tab', function () {
     $tabs = Livewire::test(ListBillingRecords::class)->instance()->getTabs();
 
     expect(array_keys($tabs))->toBe(['all', 'outstanding', 'overdue', 'paid']);
+});
+
+test('billing list view actions use a vertical ellipsis icon', function () {
+    $staff = User::factory()->staff()->create();
+    $billingRecord = BillingRecord::factory()->create();
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListBillingRecords::class)
+        ->assertTableActionHasLabel('view', 'View', $billingRecord)
+        ->assertTableActionHasIcon('view', Heroicon::EllipsisVertical, $billingRecord)
+        ->assertSeeHtml('fi-ac-icon-btn-action')
+        ->assertSeeHtml('aria-label="View"');
 });
 
 test('billing list statistics summarize balances, overdue records, paid records, and collections', function () {
@@ -267,7 +281,7 @@ test('staff records a payment through the payments relation manager', function (
         ->and($billingRecord->balance_due)->toBe('3000.00');
 });
 
-test('posted payments cannot be edited from the payments table', function () {
+test('only admins can correct a posted payment through its table row', function () {
     $billingRecord = BillingRecord::factory()->create([
         'total_amount' => 5000,
         'amount_paid' => 2000,
@@ -279,15 +293,106 @@ test('posted payments cannot be edited from the payments table', function () {
         'amount' => 2000,
     ]);
 
-    $admin = User::factory()->admin()->create();
-
-    $this->actingAs($admin);
+    $this->actingAs(User::factory()->staff()->create());
 
     Livewire::test(PaymentsRelationManager::class, [
         'ownerRecord' => $billingRecord,
         'pageClass' => EditBillingRecord::class,
     ])
-        ->assertActionDoesNotExist(TestAction::make('correctPayment')->table($payment));
+        ->assertActionHidden(TestAction::make('correctPayment')->table($payment));
 
-    expect($admin->can('correctPayment', $billingRecord))->toBeFalse();
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(PaymentsRelationManager::class, [
+        'ownerRecord' => $billingRecord,
+        'pageClass' => EditBillingRecord::class,
+    ])
+        ->assertTableActionHasLabel('correctPayment', 'Correct Payment', $payment)
+        ->assertTableActionHasIcon('correctPayment', Heroicon::PencilSquare, $payment)
+        ->callAction(TestAction::make('correctPayment')->table($payment), [
+            'new_amount' => 1500,
+            'reference_number' => 'COR-100',
+            'reason' => 'incorrect_amount',
+        ])
+        ->assertNotified();
+
+    $payment->refresh();
+    $billingRecord->refresh();
+
+    expect($payment->status)->toBe('reversed')
+        ->and($payment->reversal_reason)->toBe('Incorrect amount entered')
+        ->and($billingRecord->payments()->where('status', 'posted')->value('amount'))->toBe('1500.00')
+        ->and($billingRecord->amount_paid)->toBe('1500.00')
+        ->and($billingRecord->balance_due)->toBe('3500.00');
+});
+
+test('other payment correction reasons accept custom details', function () {
+    $billingRecord = BillingRecord::factory()->create([
+        'total_amount' => 5000,
+        'amount_paid' => 2000,
+        'balance_due' => 3000,
+        'status' => BillingRecordStatus::PartiallyPaid,
+    ]);
+    $payment = BillingPayment::factory()->create([
+        'billing_record_id' => $billingRecord->id,
+        'amount' => 2000,
+    ]);
+
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(PaymentsRelationManager::class, [
+        'ownerRecord' => $billingRecord,
+        'pageClass' => EditBillingRecord::class,
+    ])
+        ->callAction(TestAction::make('correctPayment')->table($payment), [
+            'new_amount' => 1500,
+            'reason' => 'other',
+            'other_reason' => 'Payment was recorded against the wrong patient account.',
+        ])
+        ->assertNotified();
+
+    expect($payment->fresh()->reversal_reason)->toBe('Payment was recorded against the wrong patient account.');
+});
+
+test('payment correction reasons can be opened from the payments table', function () {
+    $billingRecord = BillingRecord::factory()->create();
+    $recordedBy = User::factory()->staff()->create();
+    $correctedBy = User::factory()->admin()->create();
+    $payment = BillingPayment::factory()->create([
+        'billing_record_id' => $billingRecord->id,
+        'amount' => 2000,
+        'payment_method' => 'bank_transfer',
+        'reference_number' => 'OR-123',
+        'status' => 'reversed',
+        'recorded_by' => $recordedBy->id,
+        'reversed_by' => $correctedBy->id,
+        'notes' => 'Original payment note',
+        'reversal_reason' => 'Incorrect amount entered during the original payment recording.',
+    ]);
+
+    $this->actingAs(User::factory()->admin()->create());
+
+    Livewire::test(PaymentsRelationManager::class, [
+        'ownerRecord' => $billingRecord,
+        'pageClass' => EditBillingRecord::class,
+    ])
+        ->assertTableColumnDoesNotExist('reversal_reason')
+        ->assertTableColumnFormattedStateSet('status', 'Corrected', record: $payment)
+        ->assertTableActionVisible('viewCorrectionReason', $payment)
+        ->assertTableActionHasLabel('viewCorrectionReason', 'View', $payment)
+        ->assertTableActionHasIcon('viewCorrectionReason', Heroicon::PencilSquare, $payment)
+        ->mountTableAction('viewCorrectionReason', $payment)
+        ->assertMountedActionModalSee([
+            'Payment Details',
+            'Payment #'.$payment->id,
+            '₱2,000.00',
+            'Bank Transfer',
+            'OR-123',
+            'Corrected',
+            $recordedBy->full_name,
+            'Original payment note',
+            $correctedBy->full_name,
+            'Incorrect amount entered during the original payment recording.',
+            'Close',
+        ]);
 });
