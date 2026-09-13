@@ -12,6 +12,7 @@ use App\Models\Service;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * Seeds the clinic's current physical catalog.
@@ -128,6 +129,9 @@ class CatalogSeeder extends Seeder
             'ANTHOS',
             "C'est Joli",
             'Unknown',
+            'Nike',
+            "Gino's Collection",
+            'Polo Fashion',
             'New Look',
             'Systane / Alcon',
             'EnSight / Cipla Health',
@@ -283,6 +287,138 @@ class CatalogSeeder extends Seeder
                         'attributes' => [
                             'color' => 'Black / red',
                             'material' => 'Plastic',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Unknown',
+                'category' => 'Optical Frame',
+                'name' => 'Model 8763 Optical Frame',
+                'slug' => 'model-8763-optical-frame',
+                'description' => 'Full-rim rectangular/square optical frame with gold chevron-style temple accents.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Black / Gold - C2',
+                        'sku' => 'FRAME-8763-C2',
+                        'price' => 2500.00,
+                        'attributes' => [
+                            'color' => 'Black / Gold',
+                            'material' => 'Plastic',
+                            'lens_width' => 54,
+                            'bridge' => 18,
+                            'temple' => 150,
+                            'model_code' => '8763',
+                            'color_code' => 'C2',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Nike',
+                'category' => 'Optical Frame',
+                'name' => 'Nike 5753 Optical Frame',
+                'slug' => 'nike-5753-optical-frame',
+                'description' => 'Full-rim rounded optical frame with Nike swoosh branding.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Black',
+                        'sku' => 'NIKE-5753-BLK',
+                        'price' => 4500.00,
+                        'attributes' => [
+                            'color' => 'Black',
+                            'material' => 'Plastic',
+                            'lens_width' => 49,
+                            'bridge' => 21,
+                            'temple' => 145,
+                            'model_code' => '5753',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => "Gino's Collection",
+                'category' => 'Optical Frame',
+                'name' => "Gino's Collection 13978 Optical Frame",
+                'slug' => 'ginos-collection-13978-optical-frame',
+                'description' => 'Full-rim rectangular optical frame in a translucent deep red/burgundy finish.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Burgundy / Red',
+                        'sku' => 'GINOS-13978-BRG',
+                        'price' => 2500.00,
+                        'attributes' => [
+                            'color' => 'Burgundy / Red',
+                            'material' => 'Plastic',
+                            'lens_width' => 53,
+                            'bridge' => 18,
+                            'temple' => 143,
+                            'model_code' => '13978',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'SOFIA EYEWEAR',
+                'category' => 'Optical Frame',
+                'name' => 'Sofia Eyewear 52103 Optical Frame',
+                'slug' => 'sofia-eyewear-52103-optical-frame',
+                'description' => 'Full-rim transparent/clear rectangular optical frame.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Clear - C7',
+                        'sku' => 'SOFIA-52103-C7',
+                        'price' => 2500.00,
+                        'attributes' => [
+                            'color' => 'Clear / Transparent',
+                            'material' => 'Plastic',
+                            'lens_width' => 56,
+                            'bridge' => 17,
+                            'temple' => 148,
+                            'model_code' => '52103',
+                            'color_code' => 'C7',
+                        ],
+                        'stock_quantity' => 2,
+                        'low_stock_threshold' => 1,
+                        'target_stock_level' => 4,
+                    ],
+                ],
+            ],
+            [
+                'brand' => 'Polo Fashion',
+                'category' => 'Optical Frame',
+                'name' => 'Polo Fashion P002 Optical Frame',
+                'slug' => 'polo-fashion-p002-optical-frame',
+                'description' => 'Full-rim rounded/polygonal metal optical frame with adjustable nose pads.',
+                'product_type' => 'frame',
+                'variants' => [
+                    [
+                        'name' => 'Dark Gunmetal / Black',
+                        'sku' => 'POLO-P002-DGM',
+                        'price' => 1999.00,
+                        'attributes' => [
+                            'color' => 'Dark Gunmetal / Black',
+                            'material' => 'Metal',
+                            'lens_width' => 53,
+                            'bridge' => 18,
+                            'temple' => 142,
+                            'model_code' => 'P002',
                         ],
                         'stock_quantity' => 2,
                         'low_stock_threshold' => 1,
@@ -527,7 +663,9 @@ class CatalogSeeder extends Seeder
             ->map(function (\SplFileInfo $file) use ($collection, $identifier, $disk): string {
                 $relativePath = "{$collection}/{$identifier}/{$file->getFilename()}";
 
-                $disk->put($relativePath, File::get($file->getPathname()));
+                if (! $disk->put($relativePath, File::get($file->getPathname()))) {
+                    throw new RuntimeException("Unable to write seeded catalog image [{$relativePath}].");
+                }
 
                 return $relativePath;
             })

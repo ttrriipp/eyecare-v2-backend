@@ -7,6 +7,7 @@ use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +79,11 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
         'systane-ultra-preservative-free-lubricant-eye-drops',
         'lacryl-hydrate-eye-drops',
         'air-optix-colors',
+        'model-8763-optical-frame',
+        'nike-5753-optical-frame',
+        'ginos-collection-13978-optical-frame',
+        'sofia-eyewear-52103-optical-frame',
+        'polo-fashion-p002-optical-frame',
     ];
 
     $initialProductCount = Product::query()->count();
@@ -85,7 +91,7 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
 
     $approvedProducts = Product::query()->whereIn('slug', $approvedProductSlugs);
 
-    expect((clone $approvedProducts)->where('is_active', true)->where('product_type', 'frame')->count())->toBe(5)
+    expect((clone $approvedProducts)->where('is_active', true)->where('product_type', 'frame')->count())->toBe(10)
         ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'accessory')->count())->toBe(5)
         ->and((clone $approvedProducts)->where('is_active', true)->where('product_type', 'contact_lens')->count())->toBe(1);
 
@@ -153,6 +159,107 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
         ->and(LensOption::query()->where('name', 'Anti-Reflective')->exists())->toBeTrue();
 
     expect(ProductCategory::query()->where('name', 'Colored Contact Lens')->exists())->toBeTrue();
+});
+
+test('catalog seeder adds the new frames with their organized variant images', function (): void {
+    Storage::fake('public');
+
+    $this->seed(CatalogSeeder::class);
+
+    $newFrames = [
+        'model-8763-optical-frame' => [
+            'brand' => 'Unknown',
+            'sku' => 'FRAME-8763-C2',
+            'images' => ['01-front.png', '02-side.png'],
+            'attributes' => [
+                'color' => 'Black / Gold',
+                'lens_width' => 54,
+                'bridge' => 18,
+                'temple' => 150,
+                'model_code' => '8763',
+            ],
+        ],
+        'nike-5753-optical-frame' => [
+            'brand' => 'Nike',
+            'sku' => 'NIKE-5753-BLK',
+            'images' => ['01-front.jpg', '02-side.jpg'],
+            'attributes' => [
+                'color' => 'Black',
+                'lens_width' => 49,
+                'bridge' => 21,
+                'temple' => 145,
+                'model_code' => '5753',
+            ],
+        ],
+        'ginos-collection-13978-optical-frame' => [
+            'brand' => "Gino's Collection",
+            'sku' => 'GINOS-13978-BRG',
+            'images' => ['01-front.png', '02-side.png'],
+            'attributes' => [
+                'color' => 'Burgundy / Red',
+                'lens_width' => 53,
+                'bridge' => 18,
+                'temple' => 143,
+                'model_code' => '13978',
+            ],
+        ],
+        'sofia-eyewear-52103-optical-frame' => [
+            'brand' => 'SOFIA EYEWEAR',
+            'sku' => 'SOFIA-52103-C7',
+            'images' => ['01-front.png', '02-side.png'],
+            'attributes' => [
+                'color' => 'Clear / Transparent',
+                'lens_width' => 56,
+                'bridge' => 17,
+                'temple' => 148,
+                'model_code' => '52103',
+                'color_code' => 'C7',
+            ],
+        ],
+        'polo-fashion-p002-optical-frame' => [
+            'brand' => 'Polo Fashion',
+            'sku' => 'POLO-P002-DGM',
+            'images' => ['01-front.png', '02-side.png'],
+            'attributes' => [
+                'color' => 'Dark Gunmetal / Black',
+                'material' => 'Metal',
+                'lens_width' => 53,
+                'bridge' => 18,
+                'temple' => 142,
+                'model_code' => 'P002',
+            ],
+        ],
+    ];
+
+    foreach ($newFrames as $slug => $expected) {
+        $product = Product::query()
+            ->with(['brand', 'category', 'variants'])
+            ->where('slug', $slug)
+            ->firstOrFail();
+        $variant = $product->variants->sole();
+        $expectedImages = collect($expected['images'])
+            ->map(fn (string $filename): string => "variants/{$expected['sku']}/{$filename}")
+            ->all();
+
+        expect($product->product_type)->toBe('frame')
+            ->and($product->brand?->name)->toBe($expected['brand'])
+            ->and($product->category?->name)->toBe('Optical Frame')
+            ->and($variant->attributes)->toMatchArray($expected['attributes'])
+            ->and($variant->price)->toBeGreaterThan(0)
+            ->and($variant->images)->toBe($expectedImages)
+            ->and($product->images)->toBe($expectedImages)
+            ->and(Storage::disk('public')->allFiles("variants/{$expected['sku']}"))->toHaveCount(2);
+    }
+});
+
+test('catalog seeder fails when a seeded image cannot be written to catalog storage', function (): void {
+    $catalogDisk = config('filesystems.catalog_disk');
+    $disk = Mockery::mock(FilesystemAdapter::class);
+    $disk->shouldReceive('put')->atLeast()->once()->andReturn(false);
+    Storage::shouldReceive('disk')->with($catalogDisk)->andReturn($disk);
+
+    expect(fn () => $this->seed(CatalogSeeder::class))
+        ->toThrow(RuntimeException::class, 'Unable to write seeded catalog image');
 });
 
 test('seeded frame materials use short labels for the mobile catalog', function (): void {
