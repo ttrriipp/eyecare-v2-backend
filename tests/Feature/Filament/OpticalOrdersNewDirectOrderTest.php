@@ -12,6 +12,7 @@ use App\Models\Prescription;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,20 +81,32 @@ test('selecting a patient preserves a selected catalog frame and its price', fun
             "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
             "items.{$itemKey}.unit_price" => '2450.00',
             "items.{$itemKey}.line_total" => '2,450.00',
+        ]);
+
+    $quantityField = collect($component->instance()->form->getFlatFields(withHidden: true))
+        ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.quantity'));
+
+    expect($quantityField?->isDisabled())->toBeFalse();
+
+    $component
+        ->set("data.items.{$itemKey}.quantity", 2)
+        ->assertFormSet([
+            "items.{$itemKey}.quantity" => 2,
+            "items.{$itemKey}.line_total" => '4,900.00',
         ])
         ->set('data.patient_id', $patient->id)
         ->assertFormSet([
             "items.{$itemKey}.product_variant_id" => $variant->id,
             "items.{$itemKey}.description" => 'Aster Frame — Matte Black',
             "items.{$itemKey}.unit_price" => '2450.00',
-            "items.{$itemKey}.line_total" => '2,450.00',
-            "items.{$itemKey}.quantity" => 1,
+            "items.{$itemKey}.line_total" => '4,900.00',
+            "items.{$itemKey}.quantity" => 2,
         ]);
 
     $quantityField = collect($component->instance()->form->getFlatFields(withHidden: true))
         ->first(fn (Field $field, string $key): bool => str_ends_with($key, '.quantity'));
 
-    expect($quantityField?->isDisabled())->toBeTrue();
+    expect($quantityField?->isDisabled())->toBeFalse();
 });
 
 test('staff creates a direct order from the optical orders list', function () {
@@ -101,6 +114,7 @@ test('staff creates a direct order from the optical orders list', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 1500]);
 
+    $this->seed(NotificationStatusSeeder::class);
     $this->actingAs($staff);
 
     Livewire::test(ListOpticalOrders::class)
@@ -116,7 +130,7 @@ test('staff creates a direct order from the optical orders list', function () {
             'items' => [[
                 'item_kind' => 'catalog',
                 'product_variant_id' => $variant->id,
-                'quantity' => 1,
+                'quantity' => 2,
             ]],
         ])
         ->call('create')
@@ -127,7 +141,8 @@ test('staff creates a direct order from the optical orders list', function () {
     $jobOrder = JobOrder::query()->where('patient_id', $patient->id)->firstOrFail();
 
     expect($jobOrder->quotation_id)->toBeNull()
-        ->and((float) $jobOrder->total_amount)->toBe(1500.0);
+        ->and((float) $jobOrder->total_amount)->toBe(3000.0)
+        ->and((int) $jobOrder->items()->firstOrFail()->quantity)->toBe(2);
 
     expect(OpticalOrderResource::getUrl('edit', ['record' => $jobOrder]))
         ->toContain("/optical-orders/{$jobOrder->id}/edit");

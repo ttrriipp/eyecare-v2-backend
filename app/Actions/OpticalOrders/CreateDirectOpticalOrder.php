@@ -105,6 +105,7 @@ class CreateDirectOpticalOrder
             })->values(),
             patient: $patient,
             prescription: $prescription,
+            allowMultipleFrameQuantity: true,
         );
 
         return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $creator) {

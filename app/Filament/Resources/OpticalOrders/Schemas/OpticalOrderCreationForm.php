@@ -165,6 +165,7 @@ final class OpticalOrderCreationForm
         bool $dedicatedPrescriptionEyewear = false,
         bool $includeServices = true,
         bool $excludeFramesFromOtherItems = false,
+        bool $allowCatalogFrameQuantity = false,
     ): Section {
         $customItemKinds = $includeServices
             ? ['custom_product', 'custom_service']
@@ -330,9 +331,19 @@ final class OpticalOrderCreationForm
                             ->required()
                             ->integer()
                             ->minValue(1)
-                            ->maxValue(fn (Get $get): int => self::hasFixedQuantity($get, $prescriptionEyewearResolver, $dedicatedPrescriptionEyewear) ? 1 : 999)
+                            ->maxValue(fn (Get $get): int => self::hasFixedQuantity(
+                                $get,
+                                $prescriptionEyewearResolver,
+                                $dedicatedPrescriptionEyewear,
+                                $allowCatalogFrameQuantity,
+                            ) ? 1 : 999)
                             ->default(1)
-                            ->disabled(fn (Get $get): bool => self::hasFixedQuantity($get, $prescriptionEyewearResolver, $dedicatedPrescriptionEyewear))
+                            ->disabled(fn (Get $get): bool => self::hasFixedQuantity(
+                                $get,
+                                $prescriptionEyewearResolver,
+                                $dedicatedPrescriptionEyewear,
+                                $allowCatalogFrameQuantity,
+                            ))
                             ->dehydrated()
                             ->live(onBlur: true)
                             ->afterStateUpdated(function (Set $set, Get $get): void {
@@ -526,9 +537,12 @@ final class OpticalOrderCreationForm
         Get $get,
         Closure $prescriptionEyewearResolver,
         bool $dedicatedPrescriptionEyewear,
+        bool $allowCatalogFrameQuantity,
     ): bool {
         return in_array($get('item_kind'), ['lens', 'lens_option'], true)
-            || ($get('item_kind') === 'catalog' && $get('catalog_product_type') === 'frame')
+            || ($get('item_kind') === 'catalog'
+                && $get('catalog_product_type') === 'frame'
+                && ! $allowCatalogFrameQuantity)
             || ($prescriptionEyewearResolver($get)
                 && ! $dedicatedPrescriptionEyewear
                 && $get('item_kind') === 'custom_product');

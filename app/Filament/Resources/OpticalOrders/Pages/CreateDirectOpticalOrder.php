@@ -247,6 +247,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                                 dedicatedPrescriptionEyewear: true,
                                 includeServices: false,
                                 excludeFramesFromOtherItems: true,
+                                allowCatalogFrameQuantity: true,
                             ),
                         ]),
                     Grid::make(1)
@@ -565,7 +566,7 @@ class CreateDirectOpticalOrder extends CreateRecord
         return [
             'item_kind' => 'catalog',
             'description' => "{$variant->product->name} — {$variant->name}",
-            'quantity' => $variant->product->product_type === 'frame' ? 1 : $quantity,
+            'quantity' => $quantity,
             'unit_price' => $variant->price,
             'product_variant_id' => $variant->id,
         ];

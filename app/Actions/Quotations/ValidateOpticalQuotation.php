@@ -28,6 +28,7 @@ final class ValidateOpticalQuotation
         ?Patient $patient = null,
         ?Prescription $prescription = null,
         bool $requirePrescription = true,
+        bool $allowMultipleFrameQuantity = false,
     ): array {
         $lensPackages = $items->where('item_kind', CommercialItemKind::LensPackage);
         $lensOptions = $items->where('item_kind', CommercialItemKind::LensOption);
@@ -45,7 +46,8 @@ final class ValidateOpticalQuotation
         });
 
         foreach ($frames as $frame) {
-            if ((int) ($frame['quantity'] ?? 1) !== 1) {
+            if ((! $allowMultipleFrameQuantity || $isCorrective)
+                && (int) ($frame['quantity'] ?? 1) !== 1) {
                 throw ValidationException::withMessages([
                     'items' => ['Frame quantity must be 1.'],
                 ]);
