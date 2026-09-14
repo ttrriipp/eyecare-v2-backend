@@ -50,6 +50,7 @@ beforeEach(function () {
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+    $this->optometrist = User::factory()->optometrist()->create();
 });
 
 afterEach(fn () => Carbon::setTestNow());
@@ -473,11 +474,23 @@ test('request requires reason for visit', function () {
 
 test('request rejects unavailable slot', function () {
     $user = unlinkedPatientUser();
-    $optometrist = User::factory()->optometrist()->create();
 
-    // Create an existing appointment at 10:00
+    // Create three appointments at 10:00 (exhausts capacity: 1 from beforeEach + 2 here = 3 optometrists)
+    $opt1 = User::factory()->optometrist()->create();
+    $opt2 = User::factory()->optometrist()->create();
+
     Appointment::factory()->create([
-        'optometrist_id' => $optometrist->id,
+        'optometrist_id' => $this->optometrist->id,
+        'duration_minutes' => 30,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+    Appointment::factory()->create([
+        'optometrist_id' => $opt1->id,
+        'duration_minutes' => 30,
+        'scheduled_at' => '2026-07-13 10:00:00',
+    ]);
+    Appointment::factory()->create([
+        'optometrist_id' => $opt2->id,
         'duration_minutes' => 30,
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);

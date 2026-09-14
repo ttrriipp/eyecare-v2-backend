@@ -3,9 +3,11 @@
 namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
+use App\Models\ScheduleOverride;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class ListAvailableAppointmentSlots
 {
@@ -37,14 +39,29 @@ class ListAvailableAppointmentSlots
         $intervalMinutes = $schedule->slotIntervalMinutes;
         $slots = [];
 
+        // Load day-scoped data once to avoid per-slot queries
         $blockingAppointments = $this->evaluateAppointmentAvailability->blockingAppointmentsBetween(
             startsAt: $slot,
             endsAt: $closingTime,
             ignoreAppointment: $ignoreAppointment,
         );
-        $capacity = $this->evaluateAppointmentAvailability->eligibleOptometristCapacity($slot, $closingTime);
+
+        $optometrists = User::query()->optometrists()->get();
+
+        $dateString = $slot->toDateString();
+        $absences = ScheduleOverride::query()
+            ->where('override_date', $dateString)
+            ->where('type', ScheduleOverride::TYPE_PROVIDER_ABSENCE)
+            ->whereNotNull('user_id')
+            ->get()
+            ->keyBy('user_id');
 
         while ($slot->copy()->addMinutes($durationMinutes)->lte($closingTime)) {
+            $slotEnd = $slot->copy()->addMinutes($durationMinutes);
+
+            // Compute capacity for this exact interval using pre-loaded data
+            $capacity = $this->capacityForInterval($optometrists, $absences, $slot, $slotEnd);
+
             $slots[] = $this->evaluateAppointmentAvailability->handle(
                 startsAt: $slot,
                 durationMinutes: $durationMinutes,
@@ -60,5 +77,53 @@ class ListAvailableAppointmentSlots
         }
 
         return $slots;
+    }
+
+    /**
+     * Count eligible optometrists for an exact interval using pre-loaded data.
+     *
+     * @param  Collection<int, User>  $optometrists
+     * @param  Collection<int, ScheduleOverride>  $absences
+     */
+    private function capacityForInterval(
+        Collection $optometrists,
+        Collection $absences,
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
+    ): int {
+        $eligibleCount = 0;
+
+        foreach ($optometrists as $optometrist) {
+            $absence = $absences->get($optometrist->id);
+
+            if ($absence !== null) {
+                // Full-day absence
+                if ($absence->start_time === null && $absence->end_time === null) {
+                    continue;
+                }
+
+                // Partial absence overlap
+                if ($absence->start_time !== null && $absence->end_time !== null) {
+                    $absenceStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
+                        $absence->start_time instanceof \DateTimeInterface
+                            ? $absence->start_time->format('H:i')
+                            : (string) $absence->start_time,
+                    );
+                    $absenceEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
+                        $absence->end_time instanceof \DateTimeInterface
+                            ? $absence->end_time->format('H:i')
+                            : (string) $absence->end_time,
+                    );
+
+                    if ($startsAt->lt($absenceEnd) && $endsAt->gt($absenceStart)) {
+                        continue;
+                    }
+                }
+            }
+
+            $eligibleCount++;
+        }
+
+        return $eligibleCount;
     }
 }

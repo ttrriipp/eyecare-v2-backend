@@ -2,14 +2,13 @@
 
 namespace App\Actions\Appointments;
 
+use App\Models\Appointment;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 class ListAppointmentRequestAvailabilitySlots
 {
     public function __construct(
-        private readonly BuildScheduleBlocks $buildScheduleBlocks,
+        private readonly ListAvailableAppointmentSlots $listAvailableSlots,
     ) {}
 
     /**
@@ -26,59 +25,16 @@ class ListAppointmentRequestAvailabilitySlots
             return [];
         }
 
-        $slotInterval = $schedule->slotIntervalMinutes;
+        $ignoreAppointment = null;
 
-        $slot = Carbon::parse(
-            $date->format('Y-m-d').' '.$schedule->openTime,
-            config('app.timezone'),
-        );
-        $closingTime = Carbon::parse(
-            $date->format('Y-m-d').' '.$schedule->closeTime,
-            config('app.timezone'),
-        );
-
-        // Get only confirmed appointment blocks (not request holds)
-        $blocks = $this->buildScheduleBlocks->forDate($date, excludeAppointmentId: $excludeAppointmentId);
-
-        // Filter to only appointment blocks (exclude request holds)
-        $appointmentBlocks = $blocks->filter(
-            fn (ScheduleBlock $block): bool => $block->source === 'appointment',
-        );
-
-        $slots = [];
-
-        while ($slot->copy()->addMinutes($durationMinutes)->lte($closingTime)) {
-            $endsAt = $slot->copy()->addMinutes($durationMinutes);
-
-            $slots[] = $this->evaluateSlot(
-                startsAt: $slot,
-                endsAt: $endsAt,
-                blocks: $appointmentBlocks,
-            );
-
-            $slot->addMinutes($slotInterval);
+        if ($excludeAppointmentId !== null) {
+            $ignoreAppointment = Appointment::query()->find($excludeAppointmentId);
         }
 
-        return $slots;
-    }
-
-    /**
-     * @param  Collection<int, ScheduleBlock>  $blocks
-     */
-    private function evaluateSlot(
-        CarbonInterface $startsAt,
-        CarbonInterface $endsAt,
-        Collection $blocks,
-    ): AppointmentAvailabilityDecision {
-        if (! $startsAt->isFuture()) {
-            return AppointmentAvailabilityDecision::unavailable($startsAt, $endsAt, 'elapsed');
-        }
-
-        // Check if the interval overlaps any confirmed appointment
-        if ($blocks->contains(fn (ScheduleBlock $block): bool => $block->overlaps($startsAt, $endsAt))) {
-            return AppointmentAvailabilityDecision::unavailable($startsAt, $endsAt, 'capacity_reached');
-        }
-
-        return AppointmentAvailabilityDecision::available($startsAt, $endsAt);
+        return $this->listAvailableSlots->handle(
+            date: $date,
+            durationMinutes: $durationMinutes,
+            ignoreAppointment: $ignoreAppointment,
+        );
     }
 }
