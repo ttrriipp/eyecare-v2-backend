@@ -125,7 +125,7 @@ class CreateOpticalOrderFromQuotation
 
                 $this->createAuditLog->handle(
                     subject: $quotation,
-                    action: AuditEvent::QuotationAccepted,
+                    action: AuditEvent::JobOrderCreated,
                     metadata: [
                         'previous_status' => QuotationStatus::Draft->value,
                         'status' => QuotationStatus::Accepted->value,

@@ -37,13 +37,6 @@ enum AuditEvent: string
     case PrescriptionPrinted = 'prescription.printed';
     case PrescriptionVoided = 'prescription.voided';
 
-    case QuotationCreated = 'quotation.created';
-    case QuotationPresented = 'quotation.presented';
-    case QuotationAccepted = 'quotation.accepted';
-    case QuotationDeclined = 'quotation.declined';
-    case QuotationExpired = 'quotation.expired';
-    case QuotationRevised = 'quotation.revised';
-
     case JobOrderCreated = 'job_order.created';
     case JobOrderStatusChanged = 'job_order.status_changed';
     case JobOrderCancelled = 'job_order.cancelled';
