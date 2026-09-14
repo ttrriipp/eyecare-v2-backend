@@ -6,8 +6,8 @@ use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Patients\PatientResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Patient;
 use App\Models\PatientInvitation;
 use App\Models\User;
@@ -34,12 +34,12 @@ class EditPatient extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
+            Action::make('createOpticalOrder')
+                ->label('Create Optical Order')
+                ->icon('heroicon-o-rectangle-stack')
                 ->color('success')
                 ->visible(fn (): bool => auth()->user()?->hasPanelRole() === true)
-                ->url(fn (): string => QuotationResource::getUrl('create', [
+                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
                     'patient' => $this->getRecord()->id,
                 ])),
 

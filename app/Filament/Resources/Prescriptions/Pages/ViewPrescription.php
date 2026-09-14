@@ -5,8 +5,8 @@ namespace App\Filament\Resources\Prescriptions\Pages;
 use App\Actions\Prescriptions\VoidPrescription;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Prescription;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -169,9 +169,9 @@ class ViewPrescription extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
+            Action::make('createOpticalOrder')
+                ->label('Create Optical Order')
+                ->icon('heroicon-o-rectangle-stack')
                 ->color('success')
                 ->visible(fn (): bool => $this->getRecord()->isCurrentVersion()
                     && (
@@ -179,7 +179,7 @@ class ViewPrescription extends ViewRecord
                         || auth()->user()?->isStaff() === true
                         || auth()->user()?->isOptometrist() === true
                     ))
-                ->url(fn (): string => QuotationResource::getUrl('create', [
+                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
                     'prescription' => $this->getRecord()->id,
                 ])),
 
