@@ -7,7 +7,6 @@ use App\Enums\AppointmentStatusName;
 use App\Enums\BillingRecordStatus;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
-use App\Enums\QuotationStatus;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
@@ -19,7 +18,6 @@ use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\ProductVariant;
-use App\Models\Quotation;
 use App\Models\Role;
 use App\Models\User;
 use Filament\Support\Icons\Heroicon;
@@ -218,7 +216,6 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
      *     yesterday_appointments: int,
      *     waiting_today: int,
      *     active_encounters: int,
-     *     quotations_pending: int,
      *     ready_for_pickup: int,
      *     balances_due: int,
      *     low_stock: int
@@ -263,9 +260,6 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
             'active_encounters' => Encounter::query()
                 ->where('status', EncounterStatus::InProgress)
                 ->when($isOptometristOnly, fn (Builder $query): Builder => $query->where('optometrist_id', $user->id))
-                ->count(),
-            'quotations_pending' => Quotation::query()
-                ->where('status', QuotationStatus::Draft)
                 ->count(),
             'ready_for_pickup' => JobOrder::query()
                 ->where('status', JobOrderStatus::ReadyForDispensing)

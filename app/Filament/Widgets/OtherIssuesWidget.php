@@ -3,13 +3,10 @@
 namespace App\Filament\Widgets;
 
 use App\Enums\BillingRecordStatus;
-use App\Enums\QuotationStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\Inventory\InventoryResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\ProductVariant;
-use App\Models\Quotation;
 use App\Models\Role;
 use Filament\Schemas\Components\Component;
 use Filament\Support\Icons\Heroicon;
@@ -55,18 +52,6 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
     protected function getStats(): array
     {
         return [
-            Stat::make(
-                'Draft Quotations',
-                Number::format(Quotation::query()->where('status', QuotationStatus::Draft)->count()),
-            )
-                ->description('Pending decision')
-                ->descriptionIcon(Heroicon::OutlinedDocumentCurrencyDollar)
-                ->color('gray')
-                ->url(QuotationResource::getUrl('index', [
-                    'tableFilters' => [
-                        'status' => ['value' => QuotationStatus::Draft->value],
-                    ],
-                ])),
             Stat::make(
                 'Balances Due',
                 Number::format(BillingRecord::query()
