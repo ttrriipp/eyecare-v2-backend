@@ -54,7 +54,7 @@ test('optical order source kind appends items and recalculates totals', function
     expect(number_format((float) $billingRecord->subtotal_amount, 2))->toBe(number_format((float) $item->amount, 2));
 });
 
-test('quotation source kind appends service items', function (): void {
+test('direct service source kind appends service items', function (): void {
     $patient = Patient::factory()->create();
     $quotation = Quotation::factory()->create(['patient_id' => $patient->id]);
     $item = QuotationItem::factory()->create([
@@ -67,7 +67,7 @@ test('quotation source kind appends service items', function (): void {
 
     $this->action->handle(
         billingRecord: $billingRecord,
-        sourceKind: BillingItemSourceKind::Quotation,
+        sourceKind: BillingItemSourceKind::DirectService,
         items: collect([[
             'description' => $item->description,
             'quantity' => $item->quantity,
@@ -79,7 +79,7 @@ test('quotation source kind appends service items', function (): void {
 
     $billingRecord->refresh();
     expect($billingRecord->items)->toHaveCount(1);
-    expect($billingRecord->items->first()->source_kind)->toBe(BillingItemSourceKind::Quotation);
+    expect($billingRecord->items->first()->source_kind)->toBe(BillingItemSourceKind::DirectService);
 });
 
 test('encounter source kind appends items with encounter_id', function (): void {

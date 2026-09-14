@@ -240,7 +240,7 @@ class CreateOpticalOrderFromQuotation
                     if ($serviceItems->isNotEmpty()) {
                         app(AddChargesToBilling::class)->handle(
                             billingRecord: $billingRecord,
-                            sourceKind: BillingItemSourceKind::Quotation,
+                            sourceKind: BillingItemSourceKind::DirectService,
                             items: $serviceItems,
                             actor: $confirmer,
                         );

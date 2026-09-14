@@ -106,7 +106,6 @@ class FinancialReport extends ReportsClusterPage
 
         $sourceLabels = [
             BillingItemSourceKind::OpticalOrder->value => 'Optical Order',
-            BillingItemSourceKind::Quotation->value => 'Quotation Service',
             BillingItemSourceKind::Encounter->value => 'Consultation',
             BillingItemSourceKind::DirectService->value => 'Direct Charge',
         ];
