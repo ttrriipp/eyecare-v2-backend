@@ -30,7 +30,6 @@ class BillingRecordItemFactory extends Factory
             'unit_price' => $unitPrice,
             'amount' => $quantity * $unitPrice,
             'job_order_item_id' => null,
-            'quotation_item_id' => null,
             'encounter_id' => null,
         ];
     }

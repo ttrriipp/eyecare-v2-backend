@@ -26,7 +26,6 @@ class BillingRecordFactory extends Factory
             'patient_id' => Patient::factory(),
             'job_order_id' => JobOrder::factory(),
             'encounter_id' => null,
-            'quotation_id' => null,
             'status' => BillingRecordStatus::Unpaid,
             'subtotal_amount' => $totalAmount,
             'discount_amount' => 0,

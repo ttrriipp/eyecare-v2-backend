@@ -24,7 +24,6 @@ class JobOrderFactory extends Factory
             'patient_id' => Patient::factory(),
             'encounter_id' => null,
             'prescription_id' => null,
-            'quotation_id' => null,
             'status' => JobOrderStatus::Queued,
             'fulfillment_mode' => 'prepared',
             'uses_external_supplier' => false,

@@ -57,7 +57,6 @@ class AddChargesToBilling
                     'unit_price' => $item['unit_price'],
                     'amount' => $item['amount'],
                     'job_order_item_id' => $item['job_order_item_id'] ?? null,
-                    'quotation_item_id' => $item['quotation_item_id'] ?? null,
                     'encounter_id' => $item['encounter_id'] ?? null,
                     'service_id' => $item['service_id'] ?? null,
                 ]);
