@@ -6,6 +6,7 @@ use App\Models\DispensingEvent;
 use App\Models\ProductVariant;
 use App\Models\Quotation;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -13,6 +14,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();
     $this->actingAs($this->staff);
 });

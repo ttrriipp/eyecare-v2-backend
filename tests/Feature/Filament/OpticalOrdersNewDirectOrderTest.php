@@ -20,6 +20,10 @@ use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    $this->seed(NotificationStatusSeeder::class);
+});
+
 test('direct order discount input uses spinner-free decimal styling', function () {
     $staff = User::factory()->staff()->create();
 
@@ -114,7 +118,6 @@ test('staff creates a direct order from the optical orders list', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 1500]);
 
-    $this->seed(NotificationStatusSeeder::class);
     $this->actingAs($staff);
 
     Livewire::test(ListOpticalOrders::class)

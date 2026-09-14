@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -16,6 +17,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RoleSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();
     $this->action = app(CreateDirectOpticalOrder::class);
 });
@@ -151,6 +153,59 @@ test('no discount leaves the billing record total unchanged', function () {
 
     expect((float) $result['billing_record']->discount_amount)->toBe(0.0)
         ->and((float) $result['billing_record']->total_amount)->toBe(2500.0);
+});
+
+test('prepared fulfillment keeps the order queued', function () {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 2500, 'product_variant_id' => $variant->id]],
+        fulfillmentMode: 'prepared',
+    );
+
+    expect($result['job_order']->status)->toBe(JobOrderStatus::Queued)
+        ->and($result['job_order']->dispensed_at)->toBeNull()
+        ->and($result['dispensing_event'])->toBeNull();
+});
+
+test('prepared fulfillment commits inventory', function () {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'Frame', 'quantity' => 2, 'unit_price' => 2500, 'product_variant_id' => $variant->id]],
+        fulfillmentMode: 'prepared',
+    );
+
+    expect($variant->fresh()->stock_quantity)->toBe(8)
+        ->and($result['job_order']->items)->toHaveCount(1);
+});
+
+test('deposit records a payment on the billing record', function () {
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 5000]);
+
+    $result = $this->action->handle(
+        patient: $patient,
+        creator: $this->staff,
+        items: [['description' => 'Frame', 'quantity' => 1, 'unit_price' => 5000, 'product_variant_id' => $variant->id]],
+        depositAmount: 2000,
+        depositPaymentMethod: 'gcash',
+        depositReference: 'GCASH-99',
+    );
+
+    $billing = $result['billing_record']->fresh();
+
+    expect((float) $billing->amount_paid)->toBe(2000.0)
+        ->and((float) $billing->balance_due)->toBe(3000.0)
+        ->and($billing->payments)->toHaveCount(1)
+        ->and($billing->payments->first()->payment_method)->toBe('gcash')
+        ->and($billing->payments->first()->reference_number)->toBe('GCASH-99');
 });
 
 test('patient cannot create a direct optical order', function () {
