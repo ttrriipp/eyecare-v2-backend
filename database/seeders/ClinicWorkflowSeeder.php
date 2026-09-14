@@ -7,7 +7,6 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\EncounterStatus;
 use App\Enums\JobOrderStatus;
-use App\Enums\QuotationStatus;
 use App\Models\Appointment;
 use App\Models\AppointmentStatus;
 use App\Models\AppointmentType;
@@ -22,8 +21,6 @@ use App\Models\Message;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
-use App\Models\Quotation;
-use App\Models\QuotationItem;
 use App\Models\SavedFrame;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -33,7 +30,7 @@ use Illuminate\Database\Seeder;
  *
  * Demonstrates:
  *  - Appointment → check-in → encounter → prescription
- *  - Quotation → accepted → job order → dispensing → billing record
+ *  - Optical Order → dispensing → billing record
  *  - Saved Frame preferences surfaced in clinical context
  *  - Conversation with staff reply
  */
@@ -49,8 +46,7 @@ class ClinicWorkflowSeeder extends Seeder
         $appointment = $this->seedAppointment($patient, $staff, $optometrist);
         $encounter = $this->seedEncounter($patient, $appointment, $optometrist);
         $prescription = $this->seedPrescription($patient, $encounter, $optometrist);
-        $quotation = $this->seedQuotation($patient, $encounter, $prescription, $staff);
-        $jobOrder = $this->seedJobOrder($patient, $encounter, $prescription, $quotation, $staff);
+        $jobOrder = $this->seedJobOrder($patient, $encounter, $prescription, $staff);
         $billingRecord = $this->seedBillingRecord($patient, $jobOrder, $staff);
         $this->seedConversation($patient, $staff, $appointment);
     }
@@ -185,14 +181,12 @@ class ClinicWorkflowSeeder extends Seeder
             [
                 'prescription_number' => 'RX-2026-000001',
                 'appointment_id' => $encounter->appointment_id,
-                // Main group
                 'main_od_value' => '1.00',
                 'main_od_sphere' => '-1.75',
                 'main_od_cylinder' => '-0.50',
                 'main_os_value' => '1.00',
                 'main_os_sphere' => '-2.00',
                 'main_os_cylinder' => '-0.75',
-                // ADD group (populated for this example)
                 'add_od_value' => '0.80',
                 'add_od_sphere' => '1.50',
                 'add_od_cylinder' => '-0.25',
@@ -206,55 +200,14 @@ class ClinicWorkflowSeeder extends Seeder
         );
     }
 
-    private function seedQuotation(Patient $patient, Encounter $encounter, Prescription $prescription, User $staff): Quotation
-    {
-        $frameVariant = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
-
-        $quotation = Quotation::query()->firstOrCreate(
-            ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
-            [
-                'quotation_number' => 'QUO-2026-000001',
-                'prescription_id' => $prescription->id,
-                'status' => QuotationStatus::Accepted,
-                'valid_until' => now()->addDays(14),
-                'subtotal' => 7500,
-                'discount_amount' => 0,
-                'total' => 7500,
-                'confirmed_by' => $staff->id,
-                'confirmed_at' => now()->subDays(1)->addMinutes(30),
-                'notes' => 'Includes anti-reflective coating and scratch-resistant treatment.',
-            ],
-        );
-
-        QuotationItem::query()->updateOrCreate(
-            ['quotation_id' => $quotation->id, 'description' => 'Classic Frame — Matte Black'],
-            [
-                'quantity' => 1,
-                'unit_price' => 2500,
-                'amount' => 2500,
-                'product_variant_id' => $frameVariant->id,
-                'item_kind' => CommercialItemKind::Frame,
-            ],
-        );
-
-        QuotationItem::query()->firstOrCreate(
-            ['quotation_id' => $quotation->id, 'description' => 'Progressive Lens with AR Coating'],
-            ['quantity' => 1, 'unit_price' => 5000, 'amount' => 5000],
-        );
-
-        return $quotation;
-    }
-
-    private function seedJobOrder(Patient $patient, Encounter $encounter, Prescription $prescription, Quotation $quotation, User $staff): JobOrder
+    private function seedJobOrder(Patient $patient, Encounter $encounter, Prescription $prescription, User $staff): JobOrder
     {
         $frameVariant = ProductVariant::query()->where('sku', 'FRM-SOFIA-2860-GRY')->firstOrFail();
 
         $jobOrder = JobOrder::query()->firstOrCreate(
-            ['quotation_id' => $quotation->id],
+            ['patient_id' => $patient->id, 'encounter_id' => $encounter->id],
             [
                 'job_order_number' => 'ORD-2026-000001',
-                'patient_id' => $patient->id,
-                'encounter_id' => $encounter->id,
                 'prescription_id' => $prescription->id,
                 'status' => JobOrderStatus::ReadyForDispensing,
                 'total_amount' => 7500,
