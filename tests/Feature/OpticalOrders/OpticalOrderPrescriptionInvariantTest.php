@@ -1,12 +1,10 @@
 <?php
 
 /**
- * Tests for prescription invariants on optical quotations.
- *
- * @see tasks/todo.md Task 12
+ * Tests for prescription invariants on optical orders.
  */
 
-use App\Actions\Quotations\ValidateOpticalQuotation;
+use App\Actions\OpticalOrders\ValidateOpticalOrderItems;
 use App\Enums\CommercialItemKind;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -20,7 +18,7 @@ test('corrective lens package requires a prescription', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items, patient: Patient::factory()->create());
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: Patient::factory()->create());
 })->throws(ValidationException::class, 'A current prescription is required');
 
 test('corrective lens package requires patient-owned prescription', function () {
@@ -32,7 +30,7 @@ test('corrective lens package requires patient-owned prescription', function () 
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items, patient: $patient, prescription: $prescription);
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: $patient, prescription: $prescription);
 })->throws(ValidationException::class, 'must belong to this patient');
 
 test('corrective lens package requires current prescription version', function () {
@@ -47,8 +45,7 @@ test('corrective lens package requires current prescription version', function (
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    // Pass the superseded (original) prescription
-    app(ValidateOpticalQuotation::class)->handle($items, patient: $patient, prescription: $original);
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: $patient, prescription: $original);
 })->throws(ValidationException::class, 'has been superseded');
 
 test('corrective lens package rejects a voided prescription', function () {
@@ -63,7 +60,7 @@ test('corrective lens package rejects a voided prescription', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items, patient: $patient, prescription: $prescription);
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: $patient, prescription: $prescription);
 })->throws(ValidationException::class, 'has been voided');
 
 test('corrective eyewear with valid patient prescription passes', function () {
@@ -75,7 +72,7 @@ test('corrective eyewear with valid patient prescription passes', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $patient,
         prescription: $prescription,
@@ -84,22 +81,22 @@ test('corrective eyewear with valid patient prescription passes', function () {
     expect($result['is_corrective'])->toBeTrue();
 });
 
-test('non-corrective quotation does not require prescription', function () {
+test('non-corrective order does not require prescription', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::Frame, 'product_variant_id' => 1],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalOrderItems::class)->handle($items);
 
     expect($result['is_corrective'])->toBeFalse();
 });
 
-test('contact-lens-only quotation does not require spectacle prescription', function () {
+test('contact-lens-only order does not require spectacle prescription', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::ContactLens, 'product_variant_id' => 1],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalOrderItems::class)->handle($items);
 
     expect($result['is_corrective'])->toBeFalse();
 });
@@ -108,15 +105,14 @@ test('spectacle prescription is not used as contact-lens authorization', functio
     $patient = Patient::factory()->create();
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
 
-    // Contact lenses without corrective lenses - prescription not required
     $items = collect([
         ['item_kind' => CommercialItemKind::ContactLens, 'product_variant_id' => 1],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $patient,
-        prescription: null, // No prescription passed
+        prescription: null,
     );
 
     expect($result['is_corrective'])->toBeFalse();

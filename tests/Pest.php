@@ -47,7 +47,6 @@ pest()->group('critical')->in(
     'Feature/BillingRecords/PaymentLifecycleTest.php',
     'Feature/BillingRecords/PaymentAndDispensingCharacterizationTest.php',
     'Feature/Quotations/CreateQuotationTest.php',
-    'Feature/Quotations/ValidateOpticalQuotationTest.php',
     'Feature/OpticalOrders/AcceptAndStartOpticalOrderTest.php',
     'Feature/ProductCatalogTaxonomyTest.php',
     'Feature/Filament/AppointmentRequestResourceTest.php',

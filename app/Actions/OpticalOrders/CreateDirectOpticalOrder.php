@@ -5,7 +5,6 @@ namespace App\Actions\OpticalOrders;
 use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
@@ -87,7 +86,7 @@ class CreateDirectOpticalOrder
             }
         }
 
-        app(ValidateOpticalQuotation::class)->handle(
+        app(ValidateOpticalOrderItems::class)->handle(
             items: collect($validatedItems)->map(function (array $item): array {
                 $snapshot = app(BuildOpticalItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,

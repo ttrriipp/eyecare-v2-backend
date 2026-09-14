@@ -1,12 +1,10 @@
 <?php
 
 /**
- * Tests for ValidateOpticalQuotation action.
- *
- * @see tasks/todo.md Task 11
+ * Tests for ValidateOpticalOrderItems action.
  */
 
-use App\Actions\Quotations\ValidateOpticalQuotation;
+use App\Actions\OpticalOrders\ValidateOpticalOrderItems;
 use App\Enums\CommercialItemKind;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -26,7 +24,7 @@ test('corrective eyewear requires exactly one lens package', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
 })->throws(ValidationException::class, 'exactly one lens package');
 
 test('frame and corrective lens quantities follow the build rules', function () {
@@ -35,7 +33,7 @@ test('frame and corrective lens quantities follow the build rules', function () 
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null, 'quantity' => 2],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle(
+    app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -48,7 +46,7 @@ test('lens options must each be one pair', function () {
         ['item_kind' => CommercialItemKind::LensOption, 'product_variant_id' => null, 'quantity' => 2],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle(
+    app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -62,7 +60,7 @@ test('a lens option cannot be selected twice', function () {
         ['item_kind' => CommercialItemKind::LensOption, 'lens_option_id' => 7, 'quantity' => 1],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle(
+    app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -75,7 +73,7 @@ test('corrective eyewear with one lens package is valid', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -93,7 +91,7 @@ test('at most one frame is allowed', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
+    app(ValidateOpticalOrderItems::class)->handle($items, patient: $this->patient, prescription: $this->prescription);
 })->throws(ValidationException::class, 'at most one frame');
 
 test('patient-supplied frame is accepted without a fake product', function () {
@@ -101,7 +99,7 @@ test('patient-supplied frame is accepted without a fake product', function () {
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -117,7 +115,7 @@ test('lens options require a lens package', function () {
         ['item_kind' => CommercialItemKind::LensOption, 'product_variant_id' => null],
     ]);
 
-    app(ValidateOpticalQuotation::class)->handle($items);
+    app(ValidateOpticalOrderItems::class)->handle($items);
 })->throws(ValidationException::class, 'Lens options require a lens package');
 
 test('lens options with lens package are valid', function () {
@@ -127,7 +125,7 @@ test('lens options with lens package are valid', function () {
         ['item_kind' => CommercialItemKind::LensOption, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -136,36 +134,36 @@ test('lens options with lens package are valid', function () {
     expect($result['is_corrective'])->toBeTrue();
 });
 
-test('service-only quotation is valid and not corrective', function () {
+test('service-only order is valid and not corrective', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::Service, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalOrderItems::class)->handle($items);
 
     expect($result['is_corrective'])->toBeFalse()
         ->and($result['has_frame'])->toBeFalse()
         ->and($result['has_lens_package'])->toBeFalse();
 });
 
-test('non-corrective product-only quotation is valid', function () {
+test('non-corrective product-only order is valid', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::Frame, 'product_variant_id' => 1],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle($items);
+    $result = app(ValidateOpticalOrderItems::class)->handle($items);
 
     expect($result['is_corrective'])->toBeFalse();
 });
 
-test('mixed quotation with products and services is valid', function () {
+test('mixed order with products and services is valid', function () {
     $items = collect([
         ['item_kind' => CommercialItemKind::Frame, 'product_variant_id' => 1],
         ['item_kind' => CommercialItemKind::LensPackage, 'product_variant_id' => null],
         ['item_kind' => CommercialItemKind::Service, 'product_variant_id' => null],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,
@@ -182,7 +180,7 @@ test('contact lenses and accessories alongside corrective build are valid', func
         ['item_kind' => CommercialItemKind::Accessory, 'product_variant_id' => 3],
     ]);
 
-    $result = app(ValidateOpticalQuotation::class)->handle(
+    $result = app(ValidateOpticalOrderItems::class)->handle(
         $items,
         patient: $this->patient,
         prescription: $this->prescription,

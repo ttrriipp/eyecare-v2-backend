@@ -4,6 +4,7 @@ namespace App\Actions\Quotations;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
+use App\Actions\OpticalOrders\ValidateOpticalOrderItems;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
@@ -140,7 +141,7 @@ class CreateQuotation
                 ];
             });
 
-            app(ValidateOpticalQuotation::class)->handle(
+            app(ValidateOpticalOrderItems::class)->handle(
                 items: $itemSnapshots->map(fn (array $item): array => [
                     'item_kind' => $item['item_kind'],
                     'product_variant_id' => $item['product_variant_id'],

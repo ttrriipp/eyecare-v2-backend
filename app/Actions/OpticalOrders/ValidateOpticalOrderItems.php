@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Actions\Quotations;
+namespace App\Actions\OpticalOrders;
 
 use App\Enums\CommercialItemKind;
 use App\Models\Patient;
@@ -8,10 +8,10 @@ use App\Models\Prescription;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
-final class ValidateOpticalQuotation
+final class ValidateOpticalOrderItems
 {
     /**
-     * Validate the optical item matrix for a quotation.
+     * Validate the optical item matrix for an order.
      *
      * Enforces the approved single-build structure:
      * - Corrective eyewear requires exactly one lens_package
@@ -84,21 +84,21 @@ final class ValidateOpticalQuotation
         // Exactly one lens package for corrective eyewear
         if ($lensPackages->count() > 1) {
             throw ValidationException::withMessages([
-                'items' => ['A corrective-eyewear quotation must have exactly one lens package.'],
+                'items' => ['A corrective-eyewear order must have exactly one lens package.'],
             ]);
         }
 
         // At most one frame
         if ($frames->count() > 1) {
             throw ValidationException::withMessages([
-                'items' => ['A corrective-eyewear quotation must have at most one frame.'],
+                'items' => ['A corrective-eyewear order must have at most one frame.'],
             ]);
         }
 
         // Lens options require a lens package
         if ($lensOptions->isNotEmpty() && $lensPackages->isEmpty()) {
             throw ValidationException::withMessages([
-                'items' => ['Lens options require a lens package in the same quotation.'],
+                'items' => ['Lens options require a lens package in the same order.'],
             ]);
         }
 

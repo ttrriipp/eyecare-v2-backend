@@ -7,7 +7,6 @@ use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\AuditEvent;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\CommercialItemKind;
@@ -89,7 +88,7 @@ class CreateOpticalOrderFromQuotation
                 : null;
 
             if ($productItems->isNotEmpty()) {
-                $validation = app(ValidateOpticalQuotation::class)->handle(
+                $validation = app(ValidateOpticalOrderItems::class)->handle(
                     items: $productItems->map(fn ($item) => [
                         'item_kind' => $item->item_kind,
                         'product_variant_id' => $item->product_variant_id,
