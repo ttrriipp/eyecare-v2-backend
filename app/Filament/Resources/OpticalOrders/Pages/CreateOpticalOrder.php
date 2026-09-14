@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
-use App\Actions\OpticalOrders\CreateDirectOpticalOrder as CreateDirectOpticalOrderAction;
+use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderCreationForm;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
@@ -32,7 +32,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component as LivewireComponent;
 
-class CreateDirectOpticalOrder extends CreateRecord
+class CreateOpticalOrder extends CreateRecord
 {
     protected static string $resource = OpticalOrderResource::class;
 
@@ -82,7 +82,7 @@ class CreateDirectOpticalOrder extends CreateRecord
 
     public function getTitle(): string
     {
-        return 'New Direct Optical Order';
+        return 'New Optical Order';
     }
 
     public function form(Schema $schema): Schema
@@ -381,7 +381,7 @@ class CreateDirectOpticalOrder extends CreateRecord
         $data['items'] = $this->normalizeItems($data, $includePrescriptionEyewear);
 
         try {
-            $result = app(CreateDirectOpticalOrderAction::class)->handle(
+            $result = app(CreateOpticalOrderAction::class)->handle(
                 patient: $patient,
                 creator: $creator,
                 items: $data['items'],
@@ -389,6 +389,7 @@ class CreateDirectOpticalOrder extends CreateRecord
                 usesExternalSupplier: ($data['fulfillment_mode'] ?? 'prepared') === 'prepared'
                     && (bool) ($data['uses_external_supplier'] ?? false),
                 prescription: $prescription,
+                encounter: $this->resolveEncounter(),
                 paymentDueDate: filled($data['payment_due_date'] ?? null)
                     ? Carbon::parse($data['payment_due_date'])
                     : null,

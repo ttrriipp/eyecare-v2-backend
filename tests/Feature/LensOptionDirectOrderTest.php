@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\OpticalOrders\CreateDirectOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrder;
 use App\Enums\CommercialItemKind;
 use App\Models\BillingRecordItem;
 use App\Models\InventoryMovement;
@@ -26,7 +26,7 @@ test('direct optical orders include lens options in billing without inventory mo
     $lensCategory = LensCategory::factory()->withPrice(3000)->create();
     $option = LensOption::factory()->create(['price' => 850]);
 
-    $result = app(CreateDirectOpticalOrder::class)->handle(
+    $result = app(CreateOpticalOrder::class)->handle(
         patient: $patient,
         creator: $this->staff,
         prescription: $prescription,
@@ -48,7 +48,7 @@ test('direct optical orders include lens options in billing without inventory mo
 test('direct optical orders reject a lens option without a package', function (): void {
     $option = LensOption::factory()->create();
 
-    app(CreateDirectOpticalOrder::class)->handle(
+    app(CreateOpticalOrder::class)->handle(
         patient: Patient::factory()->create(),
         creator: $this->staff,
         items: [[
@@ -63,7 +63,7 @@ test('direct optical orders reject a lens option without a package', function ()
 test('direct optical orders reject inactive lens options', function (): void {
     $option = LensOption::factory()->inactive()->create();
 
-    app(CreateDirectOpticalOrder::class)->handle(
+    app(CreateOpticalOrder::class)->handle(
         patient: Patient::factory()->create(),
         creator: $this->staff,
         items: [[
@@ -76,7 +76,7 @@ test('direct optical orders reject inactive lens options', function (): void {
 })->throws(ValidationException::class);
 
 test('direct optical orders reject a lens option item without an option id', function (): void {
-    app(CreateDirectOpticalOrder::class)->handle(
+    app(CreateOpticalOrder::class)->handle(
         patient: Patient::factory()->create(),
         creator: $this->staff,
         items: [[

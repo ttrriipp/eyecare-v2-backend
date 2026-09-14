@@ -29,21 +29,19 @@ class BuildOpticalOrder
         int $patientId,
         ?int $encounterId,
         ?int $prescriptionId,
-        ?int $quotationId,
         string $fulfillmentMode,
         bool $usesExternalSupplier,
         Collection $items,
         ?int $dispensedBy = null,
         ?int $actorId = null,
     ): JobOrder {
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $quotationId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId): JobOrder {
             $patient = Patient::query()->findOrFail($patientId);
 
             $order = JobOrder::create([
                 'patient_id' => $patientId,
                 'encounter_id' => $encounterId,
                 'prescription_id' => $prescriptionId,
-                'quotation_id' => $quotationId,
                 'status' => JobOrderStatus::Queued,
                 'fulfillment_mode' => $fulfillmentMode,
                 'uses_external_supplier' => $usesExternalSupplier,
@@ -64,7 +62,6 @@ class BuildOpticalOrder
                 action: AuditEvent::JobOrderCreated,
                 metadata: [
                     'patient_id' => $patientId,
-                    'quotation_id' => $quotationId,
                     'encounter_id' => $encounterId,
                     'prescription_id' => $prescriptionId,
                     'item_count' => $items->count(),

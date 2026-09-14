@@ -1,6 +1,6 @@
 <?php
 
-use App\Actions\OpticalOrders\CreateDirectOpticalOrder;
+use App\Actions\OpticalOrders\CreateOpticalOrder;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
@@ -19,7 +19,7 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();
-    $this->action = app(CreateDirectOpticalOrder::class);
+    $this->action = app(CreateOpticalOrder::class);
 });
 
 test('staff creates a direct product order with no quotation', function () {

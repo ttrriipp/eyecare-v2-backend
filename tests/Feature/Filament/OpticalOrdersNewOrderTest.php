@@ -2,7 +2,7 @@
 
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Filament\Resources\OpticalOrders\Pages\CreateDirectOpticalOrder;
+use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
@@ -29,7 +29,7 @@ test('direct order discount input uses spinner-free decimal styling', function (
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class)
+    Livewire::test(CreateOpticalOrder::class)
         ->assertSchemaComponentExists(
             'discount_amount',
             checkComponentUsing: function (TextInput $field): bool {
@@ -50,7 +50,7 @@ test('custom items explain which products can be entered manually', function () 
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class)
+    Livewire::test(CreateOpticalOrder::class)
         ->fillForm([
             'items' => [[
                 'item_kind' => 'custom',
@@ -76,7 +76,7 @@ test('selecting a patient preserves a selected catalog frame and its price', fun
 
     $this->actingAs($staff);
 
-    $component = Livewire::test(CreateDirectOpticalOrder::class);
+    $component = Livewire::test(CreateOpticalOrder::class);
     $itemKey = array_key_first($component->get('data.items'));
 
     $component
@@ -126,7 +126,7 @@ test('staff creates a direct order from the optical orders list', function () {
         ->assertActionHasUrl('newDirectOrder', OpticalOrderResource::getUrl('create'))
         ->assertTableActionDoesNotExist('newDirectOrder');
 
-    Livewire::test(CreateDirectOpticalOrder::class)
+    Livewire::test(CreateOpticalOrder::class)
         ->fillForm([
             'patient_id' => $patient->id,
             'fulfillment_mode' => 'prepared',
@@ -158,7 +158,7 @@ test('immediate checkout paid in full is dispensed with a zero balance', functio
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class)
+    Livewire::test(CreateOpticalOrder::class)
         ->fillForm([
             'fulfillment_mode' => 'immediate',
         ])
@@ -192,7 +192,7 @@ test('new direct order action requires at least one item', function () {
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class)
+    Livewire::test(CreateOpticalOrder::class)
         ->fillForm([
             'patient_id' => $patient->id,
             'items' => [],
@@ -210,13 +210,13 @@ test('direct order page reveals the dedicated eyewear builder for a selected pre
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class, [
+    Livewire::test(CreateOpticalOrder::class, [
         'patient' => (string) $patient->id,
         'prescription' => (string) $prescription->id,
     ])
         ->assertSuccessful()
         ->assertSee([
-            'New Direct Optical Order',
+            'New Optical Order',
             'Include prescription eyewear',
             'Prescription Eyewear',
             'Other Items',
@@ -252,7 +252,7 @@ test('staff creates a direct prescription eyewear order with other items and pay
 
     $this->actingAs($staff);
 
-    Livewire::test(CreateDirectOpticalOrder::class, [
+    Livewire::test(CreateOpticalOrder::class, [
         'patient' => (string) $patient->id,
         'prescription' => (string) $prescription->id,
     ])

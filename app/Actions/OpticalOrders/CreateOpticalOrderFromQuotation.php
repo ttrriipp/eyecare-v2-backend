@@ -152,12 +152,13 @@ class CreateOpticalOrderFromQuotation
                     patientId: $quotation->patient_id,
                     encounterId: $quotation->encounter_id,
                     prescriptionId: $quotation->prescription_id,
-                    quotationId: $quotation->id,
                     fulfillmentMode: $fulfillmentMode,
                     usesExternalSupplier: $usesExternalSupplier,
                     items: $itemSnapshots,
                     actorId: $confirmer->id,
                 );
+
+                $opticalOrder->update(['quotation_id' => $quotation->id]);
 
                 if ($fulfillmentMode === 'immediate' && $recipientName !== null) {
                     $opticalOrder->dispensingEvents()->latest()->first()?->update([

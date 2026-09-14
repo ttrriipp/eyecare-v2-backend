@@ -8,6 +8,7 @@ use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
+use App\Models\Encounter;
 use App\Models\JobOrder;
 use App\Models\Patient;
 use App\Models\Prescription;
@@ -20,14 +21,14 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class CreateDirectOpticalOrder
+class CreateOpticalOrder
 {
     public function __construct(
         private readonly BuildOpticalOrder $buildOrder,
     ) {}
 
     /**
-     * Create a product-only Optical Order with no source Quotation.
+     * Create an Optical Order with billing.
      *
      * @param  array<int, array{description: string, quantity: int, unit_price: float, product_variant_id?: int|null, lens_category_id?: int|null}>  $items
      * @return array{job_order: JobOrder, billing_record: BillingRecord, dispensing_event: ?DispensingEvent}
@@ -39,6 +40,7 @@ class CreateDirectOpticalOrder
         string $fulfillmentMode = 'prepared',
         bool $usesExternalSupplier = false,
         ?Prescription $prescription = null,
+        ?Encounter $encounter = null,
         ?Carbon $paymentDueDate = null,
         ?float $depositAmount = null,
         ?string $depositPaymentMethod = null,
@@ -106,7 +108,7 @@ class CreateDirectOpticalOrder
             allowMultipleFrameQuantity: true,
         );
 
-        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $creator) {
+        return DB::transaction(function () use ($patient, $validatedItems, $fulfillmentMode, $usesExternalSupplier, $prescription, $encounter, $paymentDueDate, $depositAmount, $depositPaymentMethod, $depositReference, $recipientName, $discountAmount, $creator) {
             $itemSnapshots = collect($validatedItems)->map(function (array $item): array {
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
@@ -132,9 +134,8 @@ class CreateDirectOpticalOrder
 
             $jobOrder = $this->buildOrder->handle(
                 patientId: $patient->id,
-                encounterId: null,
+                encounterId: $encounter?->id,
                 prescriptionId: $prescription?->id,
-                quotationId: null,
                 fulfillmentMode: $fulfillmentMode,
                 usesExternalSupplier: $usesExternalSupplier,
                 items: $itemSnapshots,

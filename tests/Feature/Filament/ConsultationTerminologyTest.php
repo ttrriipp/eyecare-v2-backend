@@ -46,7 +46,7 @@ test('presentation strings use consultation terminology without renaming contrac
         app_path('Filament/Resources/Prescriptions/Pages/AmendPrescription.php'),
         app_path('Filament/Resources/Prescriptions/Tables/PrescriptionsTable.php'),
         app_path('Filament/Resources/Quotations/Pages/CreateQuotation.php'),
-        app_path('Filament/Resources/OpticalOrders/Pages/CreateDirectOpticalOrder.php'),
+        app_path('Filament/Resources/OpticalOrders/Pages/CreateOpticalOrder.php'),
         app_path('Filament/Pages/Dashboard.php'),
         app_path('Filament/Widgets/StatsOverviewWidget.php'),
         app_path('Filament/Widgets/EncounterStatsWidget.php'),
