@@ -10,7 +10,6 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
@@ -132,15 +131,6 @@ class EditOpticalOrder extends EditRecord
                             ->send();
                     }
                 }),
-
-            Action::make('viewQuotation')
-                ->label('View Quotation')
-                ->icon('heroicon-o-document-text')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->quotation !== null)
-                ->url(fn (): string => QuotationResource::getUrl('edit', [
-                    'record' => $this->record->quotation,
-                ])),
 
             Action::make('viewBillingRecord')
                 ->label('View Billing Record')

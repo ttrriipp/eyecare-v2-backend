@@ -6,7 +6,6 @@ use App\Enums\BillingRecordStatus;
 use App\Enums\CommercialItemKind;
 use App\Enums\JobOrderStatus;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\JobOrder;
 use Filament\Forms\Components\Placeholder;
@@ -37,13 +36,6 @@ class OpticalOrderForm
                                 ->label('Patient')
                                 ->content(fn (JobOrder $record): string => $record->patient?->full_name ?? '—')
                                 ->weight('bold'),
-                            Placeholder::make('source_quotation')
-                                ->label('Source Quotation')
-                                ->content(fn (JobOrder $record): string => $record->quotation?->quotation_number ?? 'Direct order')
-                                ->visible(fn (JobOrder $record): bool => $record->quotation !== null)
-                                ->url(fn (JobOrder $record): ?string => $record->quotation
-                                    ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
-                                    : null),
                             Placeholder::make('status_badge')
                                 ->label('Status')
                                 ->content(fn (JobOrder $record): string => match ($record->status) {

@@ -5,7 +5,6 @@ namespace App\Filament\Resources\BillingRecords\Pages;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\BillingRecords\BillingRecordResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\BillingRecord;
 use App\Models\BillingRecordItem;
 use Filament\Actions\Action;
@@ -47,13 +46,6 @@ class EditBillingRecord extends EditRecord
                             ->label('Patient')
                             ->content(fn (BillingRecord $record): string => $record->patient?->full_name ?? '—')
                             ->weight('bold'),
-                        Placeholder::make('quotation_number')
-                            ->label('Quotation')
-                            ->content(fn (BillingRecord $record): string => $record->quotation?->quotation_number ?? '—')
-                            ->url(fn (BillingRecord $record): ?string => $record->quotation
-                                ? QuotationResource::getUrl('edit', ['record' => $record->quotation])
-                                : null)
-                            ->visible(fn (BillingRecord $record): bool => $record->quotation !== null),
                         Placeholder::make('job_order_number')
                             ->label('Optical Order')
                             ->content(fn (BillingRecord $record): string => $record->jobOrder?->job_order_number ?? '—')
@@ -135,15 +127,6 @@ class EditBillingRecord extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('viewQuotation')
-                ->label('View Quotation')
-                ->icon('heroicon-o-document-text')
-                ->color('gray')
-                ->visible(fn (): bool => $this->record->quotation !== null)
-                ->url(fn (): string => QuotationResource::getUrl('edit', [
-                    'record' => $this->record->quotation,
-                ])),
-
             Action::make('viewOpticalOrder')
                 ->label('View Optical Order')
                 ->icon('heroicon-o-shopping-bag')
