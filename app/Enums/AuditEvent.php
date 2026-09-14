@@ -21,7 +21,6 @@ enum AuditEvent: string
     case AppointmentRequestScheduleUpdated = 'appointment_request.schedule_updated';
 
     case ClinicHoursUpdated = 'clinic_hours.updated';
-    case ProviderHoursUpdated = 'provider_hours.updated';
     case ScheduleOverrideCreated = 'schedule_override.created';
     case ScheduleOverrideRemoved = 'schedule_override.removed';
 

@@ -62,45 +62,6 @@ class EvaluateAvailabilityChangeImpact
     }
 
     /**
-     * Evaluate the impact of a proposed provider hour change.
-     *
-     * @return Collection<int, Appointment>
-     */
-    public function providerHourChange(
-        int $userId,
-        int $weekday,
-        ?string $newStartTime,
-        ?string $newEndTime,
-        ?bool $newEnabled,
-    ): Collection {
-        // Get future appointments assigned to this provider on this weekday
-        $appointments = $this->futureAppointmentsOnWeekday($weekday)
-            ->where('optometrist_id', $userId);
-
-        if ($appointments->isEmpty()) {
-            return collect();
-        }
-
-        return $appointments->filter(function (Appointment $appointment) use ($newStartTime, $newEndTime, $newEnabled) {
-            if ($newEnabled === false) {
-                return true; // Provider disabled = all their appointments affected
-            }
-
-            $startsAt = $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'));
-            $endsAt = $startsAt->copy()->addMinutes($appointment->duration_minutes ?? 30);
-
-            if ($newStartTime === null || $newEndTime === null) {
-                return false;
-            }
-
-            $providerStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString($newStartTime);
-            $providerEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString($newEndTime);
-
-            return $startsAt->lt($providerStart) || $endsAt->gt($providerEnd);
-        });
-    }
-
-    /**
      * Evaluate the impact of a clinic closure on a specific date.
      *
      * @return Collection<int, Appointment>
