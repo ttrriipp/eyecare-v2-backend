@@ -2,11 +2,9 @@
 
 /**
  * Tests for contact-lens parameter snapshots.
- *
- * @see tasks/todo.md Task 32
  */
 
-use App\Actions\Quotations\BuildQuotationItemSnapshot;
+use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
 use App\Enums\CommercialItemKind;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -14,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('quotation contact-lens snapshots contain only canonical applicable parameters', function () {
+test('contact-lens snapshots contain only canonical applicable parameters', function () {
     $product = Product::factory()->create(['product_type' => 'contact_lens']);
     $variant = ProductVariant::factory()->create([
         'product_id' => $product->id,
@@ -28,7 +26,7 @@ test('quotation contact-lens snapshots contain only canonical applicable paramet
         ],
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
@@ -49,7 +47,7 @@ test('contact-lens snapshot includes product and variant identity', function () 
         'attributes' => ['power' => '-3.00', 'base_curve' => 8.6],
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
@@ -60,8 +58,6 @@ test('contact-lens snapshot includes product and variant identity', function () 
 });
 
 test('confirmation copies same parameters to job order item', function () {
-    // This is tested through CreateOpticalOrderFromQuotation which copies item_snapshot
-    // from QuotationItem to JobOrderItem
     $product = Product::factory()->create(['product_type' => 'contact_lens']);
     $variant = ProductVariant::factory()->create([
         'product_id' => $product->id,
@@ -72,11 +68,10 @@ test('confirmation copies same parameters to job order item', function () {
         ],
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
-    // The snapshot is what gets copied to the JobOrderItem
     expect($result['item_snapshot']['attributes']['power'])->toBe('-2.50')
         ->and($result['item_snapshot']['attributes']['base_curve'])->toBe(8.5)
         ->and($result['item_snapshot']['attributes']['diameter'])->toBe(14.2);
@@ -89,15 +84,12 @@ test('later product variant edits do not change snapshot', function () {
         'attributes' => ['power' => '-3.00', 'base_curve' => 8.6],
     ]);
 
-    // Take snapshot
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
-    // Edit variant
     $variant->update(['attributes' => ['power' => '-4.00', 'base_curve' => 9.0]]);
 
-    // Snapshot is unchanged (it's a plain array, not a reference)
     expect($result['item_snapshot']['attributes']['power'])->toBe('-3.00')
         ->and($result['item_snapshot']['attributes']['base_curve'])->toBe(8.6);
 });
@@ -109,7 +101,7 @@ test('frame snapshot includes all attributes', function () {
         'attributes' => ['temple' => 140, 'color' => 'Black'],
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 

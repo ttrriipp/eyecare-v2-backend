@@ -3,6 +3,7 @@
 namespace App\Actions\Quotations;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
 use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Enums\QuotationStatus;
@@ -115,7 +116,7 @@ class CreateQuotation
                     || filled($item['lens_option_id'] ?? null);
 
                 // Build immutable catalog snapshot
-                $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
+                $snapshotResult = app(BuildOpticalItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
                     explicitKind: ($item['item_kind'] ?? null) === 'custom_product' ? 'custom_product' : (($item['item_kind'] ?? null) === 'custom_service' ? 'service' : null),

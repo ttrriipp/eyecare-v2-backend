@@ -1,7 +1,7 @@
 <?php
 
+use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
 use App\Actions\OpticalOrders\CreateOpticalOrderFromQuotation;
-use App\Actions\Quotations\BuildQuotationItemSnapshot;
 use App\Actions\Quotations\CreateQuotation;
 use App\Actions\Quotations\UpdateQuotationDraft;
 use App\Enums\CommercialItemKind;
@@ -15,6 +15,7 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\Quotation;
 use App\Models\User;
+use Database\Seeders\NotificationStatusSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->seed(RoleSeeder::class);
+    $this->seed(NotificationStatusSeeder::class);
     $this->staff = User::factory()->staff()->create();
 });
 
@@ -79,7 +81,7 @@ test('lens option snapshots retain catalog identity and name', function (): void
         'price' => 850,
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(lensOptionId: $option->id);
+    $result = app(BuildOpticalItemSnapshot::class)->handle(lensOptionId: $option->id);
 
     expect($result['item_kind'])->toBe(CommercialItemKind::LensOption)
         ->and($result['item_snapshot'])->toBe([

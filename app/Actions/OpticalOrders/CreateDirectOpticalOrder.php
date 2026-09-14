@@ -5,7 +5,6 @@ namespace App\Actions\OpticalOrders;
 use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
-use App\Actions\Quotations\BuildQuotationItemSnapshot;
 use App\Actions\Quotations\ValidateOpticalQuotation;
 use App\Enums\BillingItemSourceKind;
 use App\Models\BillingRecord;
@@ -90,7 +89,7 @@ class CreateDirectOpticalOrder
 
         app(ValidateOpticalQuotation::class)->handle(
             items: collect($validatedItems)->map(function (array $item): array {
-                $snapshot = app(BuildQuotationItemSnapshot::class)->handle(
+                $snapshot = app(BuildOpticalItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
                     lensOptionId: $item['lens_option_id'] ?? null,
@@ -113,7 +112,7 @@ class CreateDirectOpticalOrder
                 $unitPriceInCents = (int) round(((float) $item['unit_price']) * 100);
                 $amountInCents = $unitPriceInCents * (int) $item['quantity'];
 
-                $snapshotResult = app(BuildQuotationItemSnapshot::class)->handle(
+                $snapshotResult = app(BuildOpticalItemSnapshot::class)->handle(
                     productVariantId: $item['product_variant_id'] ?? null,
                     lensCategoryId: $item['lens_category_id'] ?? null,
                     lensOptionId: $item['lens_option_id'] ?? null,

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Actions\Quotations;
+namespace App\Actions\OpticalOrders;
 
 use App\Enums\CommercialItemKind;
 use App\Models\LensCategory;
@@ -9,7 +9,7 @@ use App\Models\ProductVariant;
 use App\Services\ContactLensAttributeValidator;
 use Illuminate\Validation\ValidationException;
 
-final class BuildQuotationItemSnapshot
+final class BuildOpticalItemSnapshot
 {
     /**
      * Build an immutable catalog snapshot for a transaction item.

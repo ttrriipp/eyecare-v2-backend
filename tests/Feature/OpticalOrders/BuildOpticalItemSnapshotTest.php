@@ -1,12 +1,10 @@
 <?php
 
 /**
- * Tests for BuildQuotationItemSnapshot action.
- *
- * @see tasks/todo.md Task 6
+ * Tests for BuildOpticalItemSnapshot action.
  */
 
-use App\Actions\Quotations\BuildQuotationItemSnapshot;
+use App\Actions\OpticalOrders\BuildOpticalItemSnapshot;
 use App\Enums\CommercialItemKind;
 use App\Models\LensCategory;
 use App\Models\ProductVariant;
@@ -22,7 +20,7 @@ test('frame variant snapshots SKU, names, product type, and attributes', functio
         'attributes' => ['temple' => 140],
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
@@ -38,7 +36,7 @@ test('accessory variant snapshots as accessory kind', function () {
     $variant = ProductVariant::factory()->create();
     $variant->product->update(['product_type' => 'accessory']);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
@@ -50,7 +48,7 @@ test('contact lens variant snapshots as contact_lens kind', function () {
     $variant = ProductVariant::factory()->create();
     $variant->product->update(['product_type' => 'contact_lens']);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
     );
 
@@ -63,7 +61,7 @@ test('lens category snapshots package identity and name', function () {
         'name' => 'Single Vision',
     ]);
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         lensCategoryId: $lensCategory->id,
     );
 
@@ -73,7 +71,7 @@ test('lens category snapshots package identity and name', function () {
 });
 
 test('service reference returns service kind with null snapshot', function () {
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         serviceId: 1,
     );
 
@@ -82,7 +80,7 @@ test('service reference returns service kind with null snapshot', function () {
 });
 
 test('custom product line with explicit kind returns custom_product', function () {
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         explicitKind: 'custom_product',
     );
 
@@ -91,7 +89,7 @@ test('custom product line with explicit kind returns custom_product', function (
 });
 
 test('custom lens option line with explicit kind returns lens_option', function () {
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         explicitKind: 'lens_option',
     );
 
@@ -99,20 +97,20 @@ test('custom lens option line with explicit kind returns lens_option', function 
 });
 
 test('custom line without explicit kind defaults to custom_product', function () {
-    $result = app(BuildQuotationItemSnapshot::class)->handle();
+    $result = app(BuildOpticalItemSnapshot::class)->handle();
 
     expect($result['item_kind'])->toBe(CommercialItemKind::CustomProduct)
         ->and($result['item_snapshot'])->toBeNull();
 });
 
 test('invalid explicit kind is rejected', function () {
-    app(BuildQuotationItemSnapshot::class)->handle(
+    app(BuildOpticalItemSnapshot::class)->handle(
         explicitKind: 'invalid_kind',
     );
 })->throws(ValidationException::class, 'Invalid item kind');
 
 test('catalog-requiring kind without reference is rejected', function () {
-    app(BuildQuotationItemSnapshot::class)->handle(
+    app(BuildOpticalItemSnapshot::class)->handle(
         explicitKind: 'frame',
     );
 })->throws(ValidationException::class, 'requires a catalog reference');
@@ -120,19 +118,18 @@ test('catalog-requiring kind without reference is rejected', function () {
 test('product variant overrides explicit kind', function () {
     $variant = ProductVariant::factory()->create();
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         productVariantId: $variant->id,
-        explicitKind: 'custom_product', // should be overridden by variant
+        explicitKind: 'custom_product',
     );
 
-    // Product variant takes precedence over explicit kind
     expect($result['item_kind'])->not->toBe(CommercialItemKind::CustomProduct);
 });
 
 test('lens category overrides explicit kind', function () {
     $lensCategory = LensCategory::factory()->withPrice()->create();
 
-    $result = app(BuildQuotationItemSnapshot::class)->handle(
+    $result = app(BuildOpticalItemSnapshot::class)->handle(
         lensCategoryId: $lensCategory->id,
         explicitKind: 'custom_product',
     );
