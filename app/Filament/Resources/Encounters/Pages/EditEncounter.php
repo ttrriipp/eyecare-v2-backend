@@ -18,9 +18,9 @@ use App\Enums\EncounterStatus;
 use App\Enums\EncounterTransferReason;
 use App\Filament\Resources\BillingRecords\Schemas\ServiceChargeForm;
 use App\Filament\Resources\Encounters\EncounterResource;
-use App\Filament\Resources\Quotations\QuotationResource;
+use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Models\BillingRecord;
-use App\Models\Quotation;
+use App\Models\JobOrder;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -330,11 +330,10 @@ class EditEncounter extends EditRecord
                     }
                 }),
 
-            // ── Completed encounter, with or without a prescription,
-            // and no quotation yet: primary action ──
-            Action::make('createQuotation')
-                ->label('Create Quotation')
-                ->icon('heroicon-o-document-currency-dollar')
+            // ── Completed encounter: create Optical Order ──
+            Action::make('createOpticalOrder')
+                ->label('Create Optical Order')
+                ->icon('heroicon-o-rectangle-stack')
                 ->color('success')
                 ->visible(fn (): bool => $this->record->status === EncounterStatus::Completed
                     && (
@@ -342,11 +341,10 @@ class EditEncounter extends EditRecord
                         || auth()->user()?->isStaff() === true
                         || auth()->user()?->isOptometrist() === true
                     )
-                    && ! Quotation::query()
-                        ->withTrashed()
+                    && ! JobOrder::query()
                         ->where('encounter_id', $this->record->id)
                         ->exists())
-                ->url(fn (): string => QuotationResource::getUrl('create', [
+                ->url(fn (): string => OpticalOrderResource::getUrl('create', [
                     'encounter' => $this->record->id,
                 ])),
 

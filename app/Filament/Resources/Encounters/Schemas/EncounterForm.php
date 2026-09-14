@@ -10,12 +10,11 @@ use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Filament\Support\PreferredFramesSummary;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
+use App\Models\JobOrder;
 use App\Models\Prescription;
-use App\Models\Quotation;
 use Carbon\CarbonInterface;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
@@ -565,32 +564,24 @@ class EncounterForm
                                         : null;
                                 })
                                 ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),
-                            Placeholder::make('link_quotation')
-                                ->label('Quotation / Order')
+                            Placeholder::make('link_optical_order')
+                                ->label('Optical Order')
                                 ->content(function (Encounter $record): string {
-                                    $quotation = Quotation::query()
+                                    $order = JobOrder::query()
                                         ->where('encounter_id', $record->id)
                                         ->latest('id')
                                         ->first();
 
-                                    if ($quotation?->jobOrder !== null) {
-                                        return $quotation->jobOrder->job_order_number;
-                                    }
-
-                                    return $quotation?->quotation_number ?? '—';
+                                    return $order?->job_order_number ?? '—';
                                 })
                                 ->url(function (Encounter $record): ?string {
-                                    $quotation = Quotation::query()
+                                    $order = JobOrder::query()
                                         ->where('encounter_id', $record->id)
                                         ->latest('id')
                                         ->first();
 
-                                    if ($quotation?->jobOrder !== null) {
-                                        return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
-                                    }
-
-                                    return $quotation
-                                        ? QuotationResource::getUrl('edit', ['record' => $quotation])
+                                    return $order
+                                        ? OpticalOrderResource::getUrl('edit', ['record' => $order])
                                         : null;
                                 })
                                 ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::Planned),

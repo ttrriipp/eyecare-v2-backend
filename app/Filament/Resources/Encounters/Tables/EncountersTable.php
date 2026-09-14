@@ -8,10 +8,9 @@ use App\Enums\EncounterStatus;
 use App\Filament\Resources\Appointments\AppointmentResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
-use App\Filament\Resources\Quotations\QuotationResource;
 use App\Models\Appointment;
 use App\Models\Encounter;
-use App\Models\Quotation;
+use App\Models\JobOrder;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -164,20 +163,16 @@ class EncountersTable
                         ->label('View Optical Order')
                         ->icon('heroicon-o-shopping-bag')
                         ->color('gray')
-                        ->visible(fn (Encounter $record): bool => Quotation::query()
+                        ->visible(fn (Encounter $record): bool => JobOrder::query()
                             ->where('encounter_id', $record->id)
                             ->exists())
                         ->url(function (Encounter $record): string {
-                            $quotation = Quotation::query()
+                            $order = JobOrder::query()
                                 ->where('encounter_id', $record->id)
                                 ->latest('id')
-                                ->first();
+                                ->firstOrFail();
 
-                            if ($quotation?->jobOrder !== null) {
-                                return OpticalOrderResource::getUrl('edit', ['record' => $quotation->jobOrder]);
-                            }
-
-                            return QuotationResource::getUrl('edit', ['record' => $quotation]);
+                            return OpticalOrderResource::getUrl('edit', ['record' => $order]);
                         }),
                 ]),
             ])
