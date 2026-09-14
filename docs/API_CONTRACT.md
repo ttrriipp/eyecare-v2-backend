@@ -55,9 +55,9 @@
 > patient-link requests, while stale staff approvals fail closed and retain a
 > PII-safe expiry audit outcome.
 >
-> **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Quotation items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
+> **Previous version (2026-08-07):** Two-stage OTP-based patient registration, phone-primary patient authentication, contact management, patient linking, appointment requests, authenticated step-up for sensitive changes, and active-link route boundary. Items now also expose `product_variant_id`, `lens_category_id`, and `service_id` catalog references. Frame reservation `expires_at` semantics (§12) were corrected to match actual behavior. Appointment-type catalog selection and the required `appointment_type_id` request fields shipped on 2026-08-09 and are documented in §8.
 >
-> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have since been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. No ⚠️ drift markers remain below this line; any newly added marker must be verified before it is kept.
+> **Drift audit closed 2026-08-07.** The 2026-08-07 audit found §14–§15 describing unbuilt behavior; every flagged item has since shipped (quotations have been removed from the patient API). `?filter=` works on optical-orders, optical-order items expose `product_variant_id`/`is_rateable`/`rating`, `payment_summary.is_overdue` is present, `payment_summary.status` returns the machine-readable enum value, and `POST /optical-order-items/{id}/rating` returns a sanitized `FrameRatingResource` with `product_variant_id` optional (derived from the route item when omitted) instead of leaking moderation fields. No ⚠️ drift markers remain below this line; any newly added marker must be verified before it is kept.
 >
 > **Shipped 2026-08-07:** patient-submitted visit feedback — `POST /appointments/{id}/rating` plus `is_rateable`/`rating` on `AppointmentResource`. See §10. Design rationale is in `docs/specs/mobile-visit-feedback-spec.md`, but that spec's own tasks checklist is stale (unchecked despite the work landing).
 >
@@ -2190,9 +2190,6 @@ Single prescription, including historical superseded versions. Returns `404` if 
 
 Optical Orders represent committed physical products that the clinic must
 prepare, hand over, or otherwise fulfill. Each order is backed by a `JobOrder`
-record. Service-only accepted quotations do not create Optical Orders. When a
-staff member confirms a quotation, the resulting order contains the
-quotation's selected Frame and every other quoted inventory-backed product
 exactly once.
 
 
@@ -2229,10 +2226,6 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
       "dispensed_at": null,
       "cancelled_at": null,
       "created_at": "2026-08-01T11:00:00+08:00",
-      "source_quotation": {
-        "id": 1,
-        "quotation_number": "QUO-01K1ABC123"
-      },
       "items": [
         {
           "id": 1,
@@ -2296,9 +2289,6 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `dispensed_at` | string | yes | ISO 8601 when dispensed |
 | `cancelled_at` | string | yes | ISO 8601 when cancelled |
 | `created_at` | string | no | ISO 8601 creation timestamp |
-| `source_quotation` | object | yes | Source quotation reference; null for direct orders |
-| `source_quotation.id` | integer | no | Quotation ID |
-| `source_quotation.quotation_number` | string | no | Quotation number |
 | `items` | array | no | Product items snapshot |
 | `items[].id` | integer | no | Job Order Item ID |
 | `items[].description` | string | no | Item description |
@@ -2367,10 +2357,6 @@ paths, and admin-only URLs are never used as `image_url` values.
     "dispensed_at": null,
     "cancelled_at": null,
     "created_at": "2026-08-01T11:00:00+08:00",
-    "source_quotation": {
-      "id": 1,
-      "quotation_number": "QUO-01K1ABC123"
-    },
     "items": [ /* same as list */ ],
     "payment_summary": {
       "status": "unpaid",
@@ -2671,7 +2657,7 @@ material clinic-driven outcomes while routine internal stages remain silent.
 | Staff sends message | `new_message` | New Message | `conversation` without an ID | `/conversation` |
 
 Order creation/dispensing payments are coalesced into the corresponding order
-notification. Check-in, encounter drafts, order `in_progress`, quotation
+notification. Check-in, encounter drafts, order `in_progress`
 changes, billing recalculation, reminders, and patient-initiated actions do not
 create patient inbox noise. Bodies exclude clinical details, reasons, private
 notes, message contents, and payment method/reference data.
@@ -2893,7 +2879,7 @@ The following routes are **removed** in the coordinated Android cutover:
 
 | Area | Breaking change |
 |---|---|
-| Eyewear navigation | The unified `/eyewear` aggregate is replaced by `GET /optical-orders` for product fulfillment. Quotation endpoints have been removed from the patient API. |
+| Eyewear navigation | The unified `/eyewear` aggregate is replaced by `GET /optical-orders` for product fulfillment. Quotation endpoints and source_quotation field have been removed from the patient API. |
 | Optical Order items | Product items expose nullable `product_variant_id`, explicit `is_rateable`, and a nullable current `rating` summary. |
 | Rating revisions | `POST /optical-order-items/{id}/rating` is an upsert. A later POST revises the rating; no PATCH route or duplicate-rating conflict response exists. |
 | Payment summary | `payment_summary.status` is machine-readable (`unpaid`, `partially_paid`, `paid`, `voided`); `is_overdue` is a separate boolean. |

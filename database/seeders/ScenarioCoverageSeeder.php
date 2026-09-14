@@ -297,7 +297,7 @@ class ScenarioCoverageSeeder extends Seeder
         // A second completed encounter (this time for the walk-in patient,
         // not just the linked-account flagship), with its own prescription,
         // so the prescription-aware retail flow isn't only demonstrated
-        // once. Feeds removed quotation seeder/seedJobOrderStatuses() below.
+        // once. Feeds seedJobOrderStatuses() below.
         $appointmentType = AppointmentType::query()->where('name', 'Routine Check-up')->firstOrFail();
         $fulfilled = AppointmentStatus::query()->where('name', 'fulfilled')->firstOrFail();
         $scheduledAt = now()->subDays(4)->setTime(15, 0);

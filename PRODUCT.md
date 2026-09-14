@@ -11,19 +11,19 @@ web
 Primary users of this repository's surface (the Filament admin panel at `/admin`) are Padilla Optical Clinic's staff:
 
 - **Admin** — full access, including user management, audit/privacy records, and destructive archive/restore actions.
-- **Staff** (receptionists, and staff who are also optometrists via the `is_optometrist` flag) — day-to-day clinic operations: appointments, encounters, quotations, orders, billing, inventory. Optometrist-only actions (starting/completing encounters, finalizing/amending prescriptions) require the flag.
+- **Staff** (receptionists, and staff who are also optometrists via the `is_optometrist` flag) — day-to-day clinic operations: appointments, encounters, orders, billing, inventory. Optometrist-only actions (starting/completing encounters, finalizing/amending prescriptions) require the flag.
 
 Patients are a second audience but are served by a separate Android app (own codebase) that consumes this backend's `/api/v1` REST API — patients are not users of the Filament panel and are not a UI audience for work done in this repo.
 
 ## Product Purpose
 
-POCMS ("EyeCare") is a management system for Padilla Optical Clinic covering the full operational loop: patient records, appointment scheduling, clinical encounters and prescriptions, optical retail (quotations → optical orders → dispensing), unified billing/payments, and inventory. It is the academic capstone/thesis project "Online Optical Management System with Augmented Reality for Padilla Optical Clinic," but is built and evaluated to real production standards rather than as a throwaway demo — the codebase includes a genuine deployment guide (Laravel Cloud / VPS), production-shaped data model (encryption, audit logging, soft deletes, idempotent financial actions), and a full Pest test suite.
+POCMS ("EyeCare") is a management system for Padilla Optical Clinic covering the full operational loop: patient records, appointment scheduling, clinical encounters and prescriptions, optical retail (optical orders → dispensing), unified billing/payments, and inventory. It is the academic capstone/thesis project "Online Optical Management System with Augmented Reality for Padilla Optical Clinic," but is built and evaluated to real production standards rather than as a throwaway demo — the codebase includes a genuine deployment guide (Laravel Cloud / VPS), production-shaped data model (encryption, audit logging, soft deletes, idempotent financial actions), and a full Pest test suite.
 
 Success for this repository specifically means: clinic staff can run a full day's operations (book/check in patients, run encounters, quote and fulfill optical orders, take payments, track inventory) through the admin panel without needing to leave it or work around missing functionality.
 
 ## Positioning
 
-The differentiator (product-wide, not just this repo) is a prescription-aware optical retail flow tied to real clinical and inventory data, paired with AR frame try-on on the patient-facing Android app (CameraX + MediaPipe) — as opposed to generic clinic scheduling software or a spreadsheet-based shop, patients can virtually try on frames that are backed by the clinic's actual stock and their actual prescription, and staff manage that same order end-to-end (quotation → fulfillment → billing) in one system instead of stitching together separate booking, POS, and inventory tools.
+The differentiator (product-wide, not just this repo) is a prescription-aware optical retail flow tied to real clinical and inventory data, paired with AR frame try-on on the patient-facing Android app (CameraX + MediaPipe) — as opposed to generic clinic scheduling software or a spreadsheet-based shop, patients can virtually try on frames that are backed by the clinic's actual stock and their actual prescription, and staff manage that same order end-to-end (order → fulfillment → billing) in one system instead of stitching together separate booking, POS, and inventory tools.
 
 ## Operating Context
 
@@ -34,7 +34,7 @@ The backend/admin repo and the Android app are separate codebases; this repo own
 ## Capabilities and Constraints
 
 - Three fixed roles (`admin`, `staff`, `patient`); no dynamic permission management.
-- Full patient lifecycle: intake, clinical encounters, prescriptions (versioned, amendable, never destructively edited), quotations, optical orders (product-only fulfillment), unified billing with itemized charge provenance (optical order / quotation service / encounter / direct service).
+- Full patient lifecycle: intake, clinical encounters, prescriptions (versioned, amendable, never destructively edited), optical orders (product-only fulfillment), unified billing with itemized charge provenance (optical order / encounter / direct service).
 - Encrypted clinical and contact fields; audit logging on sensitive actions; soft-delete + archive/restore instead of hard deletes on key models.
 - Built to real Laravel/Filament conventions (Laravel 13, Filament 5, Livewire 4, Pest 4) rather than academic shortcuts — every feature is expected to be genuinely correct (domain-validated, tested), not merely demoable.
 - Known, explicitly tracked gaps and mismatches between the original workflow spec and the current implementation live in `docs/gap-analysis.md` — treat that file as current ground truth for "known incomplete," not something to silently declare fixed without checking.
