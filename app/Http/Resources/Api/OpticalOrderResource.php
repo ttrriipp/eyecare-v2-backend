@@ -31,10 +31,6 @@ class OpticalOrderResource extends JsonResource
             'dispensed_at' => $this->dispensed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
-            'source_quotation' => $this->quotation ? [
-                'id' => $this->quotation->id,
-                'quotation_number' => $this->quotation->quotation_number,
-            ] : null,
             'items' => $this->items->map(fn (JobOrderItem $item) => [
                 'id' => $item->id,
                 'description' => $item->description,
