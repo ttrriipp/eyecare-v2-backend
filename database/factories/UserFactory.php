@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Models\Patient;
-use App\Models\ProviderHour;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -110,18 +109,6 @@ class UserFactory extends Factory
             $user->roles()->syncWithoutDetaching(
                 Role::query()->where('name', Role::Optometrist)->pluck('id'),
             );
-            // Create provider hours for all weekdays if none exist
-            if ($user->providerHours()->count() === 0) {
-                foreach (range(0, 6) as $weekday) {
-                    ProviderHour::factory()->create([
-                        'user_id' => $user->id,
-                        'weekday' => $weekday,
-                        'start_time' => '09:00',
-                        'end_time' => '17:00',
-                        'enabled' => true,
-                    ]);
-                }
-            }
         });
     }
 
@@ -137,17 +124,6 @@ class UserFactory extends Factory
             $user->roles()->syncWithoutDetaching(
                 Role::query()->whereIn('name', [Role::Admin, Role::Optometrist])->pluck('id'),
             );
-            if ($user->providerHours()->count() === 0) {
-                foreach (range(0, 6) as $weekday) {
-                    ProviderHour::factory()->create([
-                        'user_id' => $user->id,
-                        'weekday' => $weekday,
-                        'start_time' => '09:00',
-                        'end_time' => '17:00',
-                        'enabled' => true,
-                    ]);
-                }
-            }
         });
     }
 

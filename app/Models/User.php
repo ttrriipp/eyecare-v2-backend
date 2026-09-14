@@ -118,14 +118,6 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * @return HasMany<ProviderHour, $this>
-     */
-    public function providerHours(): HasMany
-    {
-        return $this->hasMany(ProviderHour::class);
-    }
-
-    /**
      * @return HasMany<PatientAccountContact, $this>
      */
     public function contacts(): HasMany

@@ -25,8 +25,6 @@ test('active optometrists cover all clinic hours without provider hour rows', fu
     $opt2 = User::factory()->optometrist()->create();
 
     // Remove all provider hour rows to verify the new rule
-    $opt1->providerHours()->delete();
-    $opt2->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
@@ -42,10 +40,6 @@ test('deactivated optometrist contributes no capacity', function () {
     $active = User::factory()->optometrist()->create();
     $inactive = User::factory()->optometrist()->create(['is_active' => false]);
 
-    // Remove provider hour rows to test the new rule
-    $active->providerHours()->delete();
-    $inactive->providerHours()->delete();
-
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
     $endsAt = $date->copy()->setTime(10, 30);
@@ -57,9 +51,6 @@ test('deactivated optometrist contributes no capacity', function () {
 test('non-optometrist user contributes no capacity', function () {
     $opt = User::factory()->optometrist()->create();
     User::factory()->staff()->create();
-
-    // Remove provider hour rows to test the new rule
-    $opt->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
@@ -82,10 +73,6 @@ test('full-day absence removes that optometrist for the date', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
 
-    // Remove provider hour rows to test the new rule
-    $opt1->providerHours()->delete();
-    $opt2->providerHours()->delete();
-
     $date = Carbon::now()->next('monday');
 
     ScheduleOverride::factory()->create([
@@ -104,10 +91,6 @@ test('full-day absence removes that optometrist for the date', function () {
 test('partial absence removes that optometrist only from overlapping slots', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
-
-    // Remove provider hour rows to test the new rule
-    $opt1->providerHours()->delete();
-    $opt2->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
 
@@ -141,10 +124,6 @@ test('one assigned appointment consumes one unit of clinic capacity', function (
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
 
-    // Remove provider hour rows to test the new rule
-    $opt1->providerHours()->delete();
-    $opt2->providerHours()->delete();
-
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
 
@@ -167,9 +146,6 @@ test('one assigned appointment consumes one unit of clinic capacity', function (
 
 test('same assigned optometrist cannot overlap another appointment', function () {
     $opt1 = User::factory()->optometrist()->create();
-
-    // Remove provider hour rows to test the new rule
-    $opt1->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
@@ -194,10 +170,6 @@ test('same assigned optometrist cannot overlap another appointment', function ()
 test('capacity is interval-aware with partial absences', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
-
-    // Remove provider hour rows to test the new rule
-    $opt1->providerHours()->delete();
-    $opt2->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
 

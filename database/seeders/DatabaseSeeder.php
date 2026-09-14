@@ -24,7 +24,6 @@ class DatabaseSeeder extends Seeder
             DemoUserSeeder::class,
             CatalogSeeder::class,
             ArAssetSeeder::class,
-            ProviderHoursSeeder::class,
             ClinicWorkflowSeeder::class,
             ScenarioCoverageSeeder::class,
         ]);
