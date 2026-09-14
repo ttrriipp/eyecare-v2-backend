@@ -20,23 +20,71 @@ beforeEach(function () {
     $this->seed(AppointmentTypeSeeder::class);
 });
 
-test('slot exists only when at least one optometrist covers its duration', function () {
+test('active optometrists cover all clinic hours without provider hour rows', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
-    // Provider hours are automatically created by the optometrist factory state
+
+    // Remove all provider hour rows to verify the new rule
+    $opt1->providerHours()->delete();
+    $opt2->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+    $endsAt = $date->copy()->setTime(10, 30);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    $capacity = $evaluator->eligibleOptometristCapacity($date);
+    $capacity = $evaluator->eligibleOptometristCapacity($startsAt, $endsAt);
 
     expect($capacity)->toBe(2);
 });
 
-test('absence removes only the affected capacity', function () {
+test('deactivated optometrist contributes no capacity', function () {
+    $active = User::factory()->optometrist()->create();
+    $inactive = User::factory()->optometrist()->create(['is_active' => false]);
+
+    // Remove provider hour rows to test the new rule
+    $active->providerHours()->delete();
+    $inactive->providerHours()->delete();
+
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+    $endsAt = $date->copy()->setTime(10, 30);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
+});
+
+test('non-optometrist user contributes no capacity', function () {
+    $opt = User::factory()->optometrist()->create();
+    User::factory()->staff()->create();
+
+    // Remove provider hour rows to test the new rule
+    $opt->providerHours()->delete();
+
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+    $endsAt = $date->copy()->setTime(10, 30);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
+});
+
+test('zero active optometrists yields zero capacity', function () {
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+    $endsAt = $date->copy()->setTime(10, 30);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(0);
+});
+
+test('full-day absence removes that optometrist for the date', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
-    // Provider hours are automatically created by the optometrist factory state
+
+    // Remove provider hour rows to test the new rule
+    $opt1->providerHours()->delete();
+    $opt2->providerHours()->delete();
 
     $date = Carbon::now()->next('monday');
 
@@ -47,79 +95,22 @@ test('absence removes only the affected capacity', function () {
     ]);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    $capacity = $evaluator->eligibleOptometristCapacity($date);
-
-    expect($capacity)->toBe(1);
-});
-
-test('shortened provider availability removes only affected capacity', function () {
-    $opt1 = User::factory()->optometrist()->create();
-    $opt2 = User::factory()->optometrist()->create();
-    // Provider hours are automatically created by the optometrist factory state
-
-    $date = Carbon::now()->next('monday');
-
-    // Override opt2's provider hours to end at 12:00
-    $opt2->providerHours()->where('weekday', 1)->update(['end_time' => '12:00']);
-
-    $evaluator = app(EvaluateAppointmentAvailability::class);
-    $capacity = $evaluator->eligibleOptometristCapacity($date);
-
-    expect($capacity)->toBe(2);
-});
-
-test('per-interval capacity excludes optometrists whose hours do not cover the interval', function () {
-    $opt1 = User::factory()->optometrist()->create();
-    $opt2 = User::factory()->optometrist()->create();
-
-    $date = Carbon::now()->next('monday');
-
-    // opt2 works only until 12:00
-    $opt2->providerHours()->where('weekday', 1)->update(['end_time' => '12:00']);
-
-    $evaluator = app(EvaluateAppointmentAvailability::class);
-
-    // Morning interval: both optometrists available
-    $morningStart = $date->copy()->setTime(10, 0);
-    $morningEnd = $date->copy()->setTime(10, 30);
-    expect($evaluator->eligibleOptometristCapacity($morningStart, $morningEnd))->toBe(2);
-
-    // Afternoon interval: only opt1 available
-    $afternoonStart = $date->copy()->setTime(13, 0);
-    $afternoonEnd = $date->copy()->setTime(13, 30);
-    expect($evaluator->eligibleOptometristCapacity($afternoonStart, $afternoonEnd))->toBe(1);
-});
-
-test('clinic capacity reports remaining slots for a candidate interval', function () {
-    $firstOptometrist = User::factory()->optometrist()->create();
-    User::factory()->optometrist()->create();
-    $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
+    $endsAt = $date->copy()->setTime(10, 30);
 
-    Appointment::factory()->create([
-        'optometrist_id' => $firstOptometrist->id,
-        'scheduled_at' => $startsAt,
-        'duration_minutes' => 30,
-    ]);
-
-    $capacity = app(EvaluateAppointmentAvailability::class)->clinicCapacityForInterval(
-        startsAt: $startsAt,
-        endsAt: $startsAt->copy()->addMinutes(30),
-    );
-
-    expect($capacity)->toBe([
-        'available' => 1,
-        'total' => 2,
-    ]);
+    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
 });
 
-test('partial absence affects only overlapping intervals', function () {
+test('partial absence removes that optometrist only from overlapping slots', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
 
+    // Remove provider hour rows to test the new rule
+    $opt1->providerHours()->delete();
+    $opt2->providerHours()->delete();
+
     $date = Carbon::now()->next('monday');
 
-    // opt2 has a partial absence from 10:00 to 12:00
     ScheduleOverride::factory()->create([
         'user_id' => $opt2->id,
         'override_date' => $date->toDateString(),
@@ -144,6 +135,94 @@ test('partial absence affects only overlapping intervals', function () {
     $afterStart = $date->copy()->setTime(12, 0);
     $afterEnd = $date->copy()->setTime(12, 30);
     expect($evaluator->eligibleOptometristCapacity($afterStart, $afterEnd))->toBe(2);
+});
+
+test('one assigned appointment consumes one unit of clinic capacity', function () {
+    $opt1 = User::factory()->optometrist()->create();
+    $opt2 = User::factory()->optometrist()->create();
+
+    // Remove provider hour rows to test the new rule
+    $opt1->providerHours()->delete();
+    $opt2->providerHours()->delete();
+
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+
+    Appointment::factory()->create([
+        'optometrist_id' => $opt1->id,
+        'scheduled_at' => $startsAt,
+        'duration_minutes' => 30,
+    ]);
+
+    $capacity = app(EvaluateAppointmentAvailability::class)->clinicCapacityForInterval(
+        startsAt: $startsAt,
+        endsAt: $startsAt->copy()->addMinutes(30),
+    );
+
+    expect($capacity)->toBe([
+        'available' => 1,
+        'total' => 2,
+    ]);
+});
+
+test('same assigned optometrist cannot overlap another appointment', function () {
+    $opt1 = User::factory()->optometrist()->create();
+
+    // Remove provider hour rows to test the new rule
+    $opt1->providerHours()->delete();
+
+    $date = Carbon::now()->next('monday');
+    $startsAt = $date->copy()->setTime(10, 0);
+
+    Appointment::factory()->create([
+        'optometrist_id' => $opt1->id,
+        'scheduled_at' => $startsAt,
+        'duration_minutes' => 30,
+    ]);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+    $result = $evaluator->handle(
+        startsAt: $startsAt->copy()->addMinutes(15),
+        durationMinutes: 30,
+        optometrist: $opt1,
+    );
+
+    expect($result->available)->toBeFalse()
+        ->and($result->reason)->toBe('capacity_reached');
+});
+
+test('capacity is interval-aware with partial absences', function () {
+    $opt1 = User::factory()->optometrist()->create();
+    $opt2 = User::factory()->optometrist()->create();
+
+    // Remove provider hour rows to test the new rule
+    $opt1->providerHours()->delete();
+    $opt2->providerHours()->delete();
+
+    $date = Carbon::now()->next('monday');
+
+    // opt2 absent 10:00-12:00
+    ScheduleOverride::factory()->create([
+        'user_id' => $opt2->id,
+        'override_date' => $date->toDateString(),
+        'type' => 'provider_absence',
+        'start_time' => '10:00',
+        'end_time' => '12:00',
+    ]);
+
+    $evaluator = app(EvaluateAppointmentAvailability::class);
+
+    // Morning: both available
+    $morning = $date->copy()->setTime(9, 0);
+    expect($evaluator->eligibleOptometristCapacity($morning, $morning->copy()->addMinutes(30)))->toBe(2);
+
+    // During absence: one available
+    $during = $date->copy()->setTime(10, 30);
+    expect($evaluator->eligibleOptometristCapacity($during, $during->copy()->addMinutes(30)))->toBe(1);
+
+    // Afternoon: both available
+    $afternoon = $date->copy()->setTime(13, 0);
+    expect($evaluator->eligibleOptometristCapacity($afternoon, $afternoon->copy()->addMinutes(30)))->toBe(2);
 });
 
 test('patient API has no preferred-provider selection', function () {

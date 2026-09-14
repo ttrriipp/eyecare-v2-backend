@@ -3,7 +3,6 @@
 namespace App\Actions\Appointments;
 
 use App\Models\Appointment;
-use App\Models\ProviderHour;
 use App\Models\ScheduleOverride;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -91,13 +90,14 @@ class EvaluateAppointmentAvailability
     }
 
     /**
-     * Count optometrists available for the exact interval, considering provider hours and absences.
+     * Count optometrists available for the exact interval.
      *
-     * An optometrist is eligible only when:
-     * - the account has optometrist capability;
-     * - an enabled provider-hour row exists for the weekday;
-     * - the full candidate interval fits within the provider's start/end time; and
+     * An optometrist is eligible when:
+     * - the account is active and has optometrist capability; and
      * - no full-day or overlapping partial absence exists.
+     *
+     * Active optometrists cover all clinic hours — no recurring provider-hour
+     * rows are required.
      */
     public function eligibleOptometristCapacity(
         ?CarbonInterface $startsAt = null,
@@ -113,53 +113,7 @@ class EvaluateAppointmentAvailability
             return $optometrists->count();
         }
 
-        // If only date provided (no end time), count optometrists with hours for this weekday
-        // (backward compatibility with tests and callers that pass just a date)
-        if ($endsAt === null) {
-            $weekday = $startsAt->dayOfWeek;
-
-            $providerHours = ProviderHour::query()
-                ->where('weekday', $weekday)
-                ->where('enabled', true)
-                ->get()
-                ->keyBy('user_id');
-
-            $absences = ScheduleOverride::query()
-                ->where('override_date', $startsAt->toDateString())
-                ->where('type', ScheduleOverride::TYPE_PROVIDER_ABSENCE)
-                ->whereNotNull('user_id')
-                ->get()
-                ->keyBy('user_id');
-
-            $eligibleCount = 0;
-
-            foreach ($optometrists as $optometrist) {
-                if (! $providerHours->has($optometrist->id)) {
-                    continue;
-                }
-
-                if ($absences->has($optometrist->id)) {
-                    $absence = $absences->get($optometrist->id);
-                    if ($absence->start_time === null && $absence->end_time === null) {
-                        continue; // Full-day absence
-                    }
-                }
-
-                $eligibleCount++;
-            }
-
-            return $eligibleCount;
-        }
-
-        $weekday = $startsAt->dayOfWeek;
         $dateString = $startsAt->toDateString();
-
-        // Get optometrists with provider hours for this weekday
-        $providerHours = ProviderHour::query()
-            ->where('weekday', $weekday)
-            ->where('enabled', true)
-            ->get()
-            ->keyBy('user_id');
 
         // Get optometrists with provider absences for this date
         $absences = ScheduleOverride::query()
@@ -172,20 +126,6 @@ class EvaluateAppointmentAvailability
         $eligibleCount = 0;
 
         foreach ($optometrists as $optometrist) {
-            $hours = $providerHours->get($optometrist->id);
-
-            if ($hours === null) {
-                continue; // No provider hours for this weekday
-            }
-
-            // Check if the full interval fits within provider hours
-            $providerStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($hours->start_time));
-            $providerEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($hours->end_time));
-
-            if ($startsAt->lt($providerStart) || $endsAt->gt($providerEnd)) {
-                continue; // Interval doesn't fit within provider hours
-            }
-
             // Check for absences
             $absence = $absences->get($optometrist->id);
 
@@ -195,8 +135,8 @@ class EvaluateAppointmentAvailability
                     continue;
                 }
 
-                // Partial absence overlap
-                if ($absence->start_time !== null && $absence->end_time !== null) {
+                // Partial absence overlap — only exclude when endsAt is provided
+                if ($endsAt !== null && $absence->start_time !== null && $absence->end_time !== null) {
                     $absenceStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->start_time));
                     $absenceEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->end_time));
 
@@ -250,26 +190,7 @@ class EvaluateAppointmentAvailability
             return false;
         }
 
-        $weekday = $startsAt->dayOfWeek;
         $dateString = $startsAt->toDateString();
-
-        $hours = ProviderHour::query()
-            ->where('user_id', $optometrist->id)
-            ->where('weekday', $weekday)
-            ->where('enabled', true)
-            ->first();
-
-        if ($hours === null) {
-            return false;
-        }
-
-        // Check if interval fits within provider hours
-        $providerStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($hours->start_time));
-        $providerEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($hours->end_time));
-
-        if ($startsAt->lt($providerStart) || $endsAt->gt($providerEnd)) {
-            return false;
-        }
 
         // Check for absences
         $absence = ScheduleOverride::query()
