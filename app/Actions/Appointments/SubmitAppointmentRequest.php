@@ -26,7 +26,6 @@ use Illuminate\Validation\ValidationException;
 class SubmitAppointmentRequest
 {
     public function __construct(
-        protected BuildScheduleBlocks $buildBlocks,
         protected BuildAppointmentRequestIdentitySnapshot $buildSnapshot,
         protected ListAppointmentRequestAvailabilitySlots $listSlots,
         protected CreateAuditLog $createAuditLog,

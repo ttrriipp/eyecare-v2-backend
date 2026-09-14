@@ -69,7 +69,7 @@ test('accepting a linked request from the detail page does not error and creates
     ]);
     $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
     // AcceptAppointmentRequest re-checks availability against the chosen
-    // type's real duration, which needs an optometrist with provider hours
+    // type's real duration, which needs an active optometrist
     // covering the slot (auto-created for every weekday).
     $optometrist = User::factory()->optometrist()->create();
 

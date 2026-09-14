@@ -8,7 +8,7 @@ use Illuminate\Support\Collection;
 
 /**
  * Read-only evaluator that reports future appointments affected by
- * proposed clinic hours, provider hours, closures, early closing,
+ * proposed clinic hours, closures, early closing,
  * or provider absence changes.
  *
  * Never mutates availability or appointments.

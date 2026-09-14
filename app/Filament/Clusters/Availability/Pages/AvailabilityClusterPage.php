@@ -60,7 +60,7 @@ abstract class AvailabilityClusterPage extends Page
 
     /**
      * Admins can manage any provider's absence; a non-admin optometrist can only
-     * manage their own, matching the rule already applied to provider hours.
+     * manage their own, matching the clinic-hours rule.
      */
     protected function canManageProviderAbsence(?int $userId): bool
     {

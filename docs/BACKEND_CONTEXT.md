@@ -10,7 +10,7 @@
 > Reservations) have been implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
-> Filament cluster (Clinic Hours, Optometrist Hours, Schedule Overrides,
+> Filament cluster (Clinic Hours, Schedule Overrides,
 > Appointment Types — the "Today" resolved-availability sub-page was built
 > and then removed), and a Service catalog was added so clinical/service
 > charges no longer need a product/lens-category workaround.
@@ -728,7 +728,6 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Privacy administration | Backend only — no panel UI | Backend only — no panel UI | Backend only — no panel UI |
 | Clinic-wide availability configuration | No | No | Yes |
 | Appointment type configuration | No | No | Yes |
-| Own provider hours and own provider absences | No | Yes | No |
 | Any provider's hours/absence overrides | No | No | Yes |
 
 Every panel account can manage its own credentials via the panel's Profile page (avatar menu, top-right), independent of role — see "Account ownership and lifecycle" below.
@@ -742,7 +741,7 @@ Staff/admin accounts used to be entirely admin-managed: an admin typed each user
 - **Self-service.** The panel exposes `->profile()` (`App\Filament\Pages\Auth\EditProfile`, extending Filament's base to swap the single `name` field for structured `first_name`/`middle_name`/`last_name`) and `->passwordReset()`. Every staff/admin account can change its own name, email, and password without admin involvement. Changing the password requires the current password (Filament's built-in `currentPassword` field).
 - **Password policy.** `Password::defaults()` is configured once in `AppServiceProvider::boot()` (`min(12)->mixedCase()->numbers()` in production, `min(8)` elsewhere) and used by both the Staff Accounts form and the profile page, replacing a bare `minLength(8)`.
 - **Forced first-login password change.** When an admin creates a user or resets an existing user's password on their behalf, `must_change_password` is set (`CreateUser::mutateFormDataBeforeCreate()`, and `UserObserver::saving()` for admin-initiated password changes on someone else's account — distinguished from self-service by comparing `auth()->id()` to the record being saved). The `EnsurePasswordIsChanged` middleware (registered in the panel's `authMiddleware`) redirects any such user to the profile page until they change it themselves, while still allowing the profile page and logout so they're never locked out. `password_changed_at` is stamped whenever the password changes.
-- **Deactivation, not deletion.** Admins can activate/deactivate any staff/admin account from the Staff Accounts table (`toggleActive` action), guarded so the last active admin cannot be deactivated (mirrors the existing last-admin-demotion guard on role changes). A deactivated account fails `canAccessPanel()` immediately and is excluded from `scopeOptometrists()`, but every record they authored (encounters, prescriptions, provider hours, audit entries) is untouched.
+- **Deactivation, not deletion.** Admins can activate/deactivate any staff/admin account from the Staff Accounts table (`toggleActive` action), guarded so the last active admin cannot be deactivated (mirrors the existing last-admin-demotion guard on role changes). A deactivated account fails `canAccessPanel()` immediately and is excluded from `scopeOptometrists()`, but every record they authored (encounters, prescriptions, schedule overrides, audit entries) is untouched.
 - **Authentication audit trail.** `RecordAuthenticationAudit` (registered in `AppServiceProvider::boot()` via `Event::listen()`) listens to Laravel's `Illuminate\Auth\Events\{Login,Logout,Failed}` and writes `user.logged_in` / `user.logged_out` / `user.login_failed` audit entries, scoped to accounts that can access the admin panel so patient-mobile activity never pollutes this trail. A failed attempt against an *unknown* email writes nothing (only known accounts are audited, to prevent flooding). `last_login_at` is updated on every successful login and shown as a "Last Login" column on Staff Accounts.
 - **Password/lifecycle audit events.** `UserObserver` additionally writes `user.password_changed` (on any password change) and `user.deactivated`/`user.reactivated` (on `is_active` transitions), alongside its existing `user.created`/`user.role_changed`.
 
@@ -782,7 +781,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 
 | Table | Notes |
 |---|---|
-| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. Mobile self-service may edit only these three names and `date_of_birth` (DOB requires step-up); address and all clinic-owned demographics remain outside the account API. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `provider_hours`/`schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
+| `users` | Login accounts. Patient mobile login uses a verified phone plus password; email is optional account contact data and is never a mobile login identifier. email + password are nullable for walk-in patients, but the Staff Accounts Filament form requires email (needed for `->passwordReset()`). `first_name`, `middle_name`, `last_name` are the stored account name fields; `full_name` (and the API compatibility `name` value) is derived in the model. The legacy `name` database column has been removed. Mobile self-service may edit only these three names and `date_of_birth` (DOB requires step-up); address and all clinic-owned demographics remain outside the account API. `privacy_notice_version`, `privacy_acknowledged_at`. `is_active` (default true) gates `canAccessPanel()` and `scopeOptometrists()` — deactivation, not deletion, since hard-deleting a user would cascade-destroy `schedule_overrides` and null `encounters.optometrist_id`/`prescriptions.created_by` history. `must_change_password` (default false) and `password_changed_at` support forced password rotation after an admin sets an account's initial or reset password. `last_login_at` is updated on every successful Filament login. |
 | `role_user` | Many-to-many pivot between `users` and `roles`. Unique `(role_id, user_id)`. Supports multi-role assignments: `admin + optometrist` for dual-duty accounts. |
 | `patient_account_contacts` | Contact methods for patient accounts. `user_id`, `type` (email/phone), encrypted `value`, unique `lookup_hash`, `verified_at`, `is_primary`. Phone is the patient login contact; an optional registration email starts unverified and must be verified through the authenticated contact flow. Unique `(user_id, type)`. |
 | `otp_challenges` | Purpose-bound OTP challenges. `public_id`, `user_id`, `purpose` (registration/login_step_up/password_recovery/add_contact/replace_primary_contact/invitation_acceptance/sensitive_change/step_up), `channel`, encrypted `destination`, `destination_hash`, `code_digest`, `attempts`, `max_attempts`, `expires_at`, `consumed_at`, `step_up_token_consumed_at`, `invalidated_at`, `delivery_status`. Step-up challenges always use `sensitive_change`; the resulting proof is user-bound, expires after 15 minutes, and is consumed on first successful protected-request validation. |
@@ -822,7 +821,6 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
 | `clinic_hours` | `weekday` (0-6, Carbon convention: Sunday through Saturday), `open_time`, `close_time`, `enabled`. Staff-editable via the Availability cluster; exposed to authenticated mobile accounts as all seven rows through `GET /api/v1/clinic-hours`. |
-| `provider_hours` | `user_id`, `weekday`, `start_time`, `end_time`, `enabled`. |
 | `schedule_overrides` | `user_id` (nullable), `override_date`, `type` (closed/early_close/provider_absence), `start_time`, `end_time`, `reason`. |
 
 ### Soft Deletes
@@ -932,7 +930,6 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 
 **Availability cluster** (`app/Filament/Clusters/Availability/`) replaces the old single Availability page. Sub-pages:
 - **Clinic Hours** — weekly `clinic_hours` schedule.
-- **Optometrist Hours** — per-optometrist `provider_hours` schedule.
 - **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete; the upcoming-overrides list is a real Filament table (`HasTable`/`InteractsWithTable` on the page), not hand-rolled HTML.
 - **Appointment Types** (admin-only resource) — manages appointment type labels, description, duration (5-minute step, 5–240 range), referral requirement, patient visibility, active state, and optional visit-reason presets. Presets can be added, edited, reordered, or deactivated from the appointment type form. The resource has no delete action; deactivate a type to remove it from new patient selections while preserving existing appointment snapshots. Presets are convenience suggestions only; appointment requests still require free-text `reason_for_visit` (max 1000 characters), and the mobile app owns the `Other` option.
 
@@ -1146,7 +1143,6 @@ orders, billings, checkout records, or purchases.
 | `NotifyAdminUsers` | `app/Actions/Notifications/` | Selects active staff/admin recipients and dispatches queued, after-commit, Filament-compatible database alerts for approved patient-originated events without failing the completed patient mutation |
 | `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
 | `UpdateClinicHours` | `app/Actions/Appointments/` | Updates the weekly `clinic_hours` schedule, audit-logged |
-| `UpdateProviderHours` | `app/Actions/Appointments/` | Updates a single optometrist's weekly `provider_hours` schedule, audit-logged |
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
 | `SaveFrame` | `app/Actions/SavedFrames/` | Validates an active frame variant and idempotently saves an account-owned preference without changing inventory |
