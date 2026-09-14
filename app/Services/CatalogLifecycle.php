@@ -71,12 +71,12 @@ final class CatalogLifecycle
             $record instanceof LensCategory => self::existsInAnyTable(
                 'lens_category_id',
                 $record->getKey(),
-                ['quotation_items', 'job_order_items'],
+                ['job_order_items'],
             ),
             $record instanceof LensOption => self::existsInAnyTable(
                 'lens_option_id',
                 $record->getKey(),
-                ['quotation_items', 'job_order_items'],
+                ['job_order_items'],
             ),
             $record instanceof Service => self::serviceIsReferenced($record),
             default => throw new InvalidArgumentException('Unsupported catalog record: '.get_class($record)),
@@ -103,7 +103,6 @@ final class CatalogLifecycle
             'product_variant_id',
             $variant->getKey(),
             [
-                'quotation_items',
                 'job_order_items',
                 'inventory_movements',
                 'frame_ratings',
@@ -116,7 +115,7 @@ final class CatalogLifecycle
         return self::existsInAnyTable(
             'service_id',
             $service->getKey(),
-            ['quotation_items', 'billing_record_items'],
+            ['billing_record_items'],
         ) || DB::table('visit_ratings')
             ->where(function (QueryBuilder $query) use ($service): void {
                 $query

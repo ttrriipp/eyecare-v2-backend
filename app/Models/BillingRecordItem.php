@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'unit_price',
     'amount',
     'job_order_item_id',
-    'quotation_item_id',
     'service_id',
     'encounter_id',
     'source_kind',
@@ -45,14 +44,6 @@ class BillingRecordItem extends Model
     public function jobOrderItem(): BelongsTo
     {
         return $this->belongsTo(JobOrderItem::class);
-    }
-
-    /**
-     * @return BelongsTo<QuotationItem, $this>
-     */
-    public function quotationItem(): BelongsTo
-    {
-        return $this->belongsTo(QuotationItem::class);
     }
 
     /**

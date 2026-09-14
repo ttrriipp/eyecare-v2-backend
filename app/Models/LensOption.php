@@ -24,14 +24,6 @@ class LensOption extends Model
     }
 
     /**
-     * @return HasMany<QuotationItem, $this>
-     */
-    public function quotationItems(): HasMany
-    {
-        return $this->hasMany(QuotationItem::class);
-    }
-
-    /**
      * @return HasMany<JobOrderItem, $this>
      */
     public function jobOrderItems(): HasMany

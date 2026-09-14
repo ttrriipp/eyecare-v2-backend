@@ -83,7 +83,6 @@ class OpticalOrderResource extends Resource
                 'items',
                 'encounter',
                 'prescription.author',
-                'quotation',
                 'billingRecord',
                 'activeBillingRecord',
             ]);
