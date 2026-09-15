@@ -4,9 +4,11 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 
 final class VariantForm
 {
@@ -64,7 +66,7 @@ final class VariantForm
                 ->extraInputAttributes(['class' => 'price-input']),
             TextInput::make('compare_at_price')
                 ->label('Compare at Price')
-                ->helperText('Original or reference price shown crossed out to indicate a discount. Must exceed selling price.')
+                ->helperText('Previous price shown crossed out to indicate a discount. Must be higher than selling price.')
                 ->nullable()
                 ->numeric()
                 ->minValue(0)
@@ -100,6 +102,7 @@ final class VariantForm
                     : 'Physical quantity on hand at creation. Recorded through Inventory History.')
                 ->required(! $isContactLens)
                 ->numeric()
+                ->integer()
                 ->minValue(0)
                 ->default(0)
                 ->disabled($isContactLens)
@@ -162,33 +165,45 @@ final class VariantForm
 
     private static function frameDimensionsSection(): Section
     {
-        return Section::make('Frame Dimensions')
+        return Section::make('Frame Size & Appearance')
             ->schema([
+                TextInput::make('attributes.lens_width')
+                    ->label('Lens Width (mm)')
+                    ->helperText('Horizontal width of one lens.')
+                    ->placeholder('e.g. 52')
+                    ->numeric()
+                    ->minValue(30)
+                    ->maxValue(70),
                 TextInput::make('attributes.bridge')
                     ->label('Bridge (mm)')
+                    ->helperText('Distance between the lenses above the nose.')
+                    ->placeholder('e.g. 18')
                     ->numeric()
                     ->minValue(10)
                     ->maxValue(30),
                 TextInput::make('attributes.temple')
-                    ->label('Temple (mm)')
+                    ->label('Temple Length (mm)')
+                    ->helperText('Length of the frame arm.')
+                    ->placeholder('e.g. 140')
                     ->numeric()
                     ->minValue(100)
                     ->maxValue(160),
-                TextInput::make('attributes.lens_width')
-                    ->label('Lens Width (mm)')
-                    ->numeric()
-                    ->minValue(30)
-                    ->maxValue(70),
                 TextInput::make('attributes.lens_height')
                     ->label('Lens Height (mm)')
+                    ->helperText('Vertical lens measurement.')
+                    ->placeholder('e.g. 38')
                     ->numeric()
                     ->minValue(20)
                     ->maxValue(60),
                 TextInput::make('attributes.color')
                     ->label('Color')
+                    ->helperText('Descriptive catalog value (e.g. Tortoise, Black / red).')
+                    ->placeholder('e.g. Matte Black')
                     ->maxLength(50),
                 TextInput::make('attributes.material')
                     ->label('Material')
+                    ->helperText('Frame material (e.g. Acetate, Metal, Titanium).')
+                    ->placeholder('e.g. Acetate')
                     ->maxLength(50),
             ])
             ->columns(3)
@@ -199,36 +214,77 @@ final class VariantForm
     {
         return Section::make('Contact Lens Parameters')
             ->schema([
+                Select::make('attributes.lens_design')
+                    ->label('Lens Design')
+                    ->options([
+                        'spherical' => 'Spherical',
+                        'toric' => 'Toric',
+                        'multifocal' => 'Multifocal',
+                        'toric_multifocal' => 'Toric Multifocal',
+                        'cosmetic' => 'Cosmetic / Plano',
+                    ])
+                    ->placeholder('Select design')
+                    ->live()
+                    ->columnSpanFull(),
                 TextInput::make('attributes.power')
-                    ->label('Power')
+                    ->label('Power / SPH')
+                    ->helperText('Corrective strength in diopters.')
+                    ->placeholder('e.g. -3.00')
                     ->maxLength(20),
                 TextInput::make('attributes.base_curve')
-                    ->label('Base Curve')
+                    ->label('Base Curve / BC')
+                    ->helperText('Lens curvature used for fit.')
+                    ->placeholder('e.g. 8.6')
                     ->numeric()
                     ->minValue(7)
                     ->maxValue(12),
                 TextInput::make('attributes.diameter')
-                    ->label('Diameter (mm)')
+                    ->label('Diameter / DIA')
+                    ->helperText('Overall lens width in mm.')
+                    ->placeholder('e.g. 14.0')
                     ->numeric()
                     ->minValue(10)
                     ->maxValue(20),
                 TextInput::make('attributes.cylinder')
-                    ->label('Cylinder')
-                    ->maxLength(20),
+                    ->label('Cylinder / CYL')
+                    ->helperText('Astigmatism correction. Required for toric designs.')
+                    ->placeholder('e.g. -1.25')
+                    ->maxLength(20)
+                    ->visible(fn (Get $get): bool => in_array(
+                        $get('attributes.lens_design'),
+                        ['toric', 'toric_multifocal'],
+                    )),
                 TextInput::make('attributes.axis')
                     ->label('Axis')
+                    ->helperText('Orientation of cylinder correction (0–180).')
+                    ->placeholder('e.g. 180')
                     ->numeric()
+                    ->integer()
                     ->minValue(0)
-                    ->maxValue(180),
+                    ->maxValue(180)
+                    ->visible(fn (Get $get): bool => in_array(
+                        $get('attributes.lens_design'),
+                        ['toric', 'toric_multifocal'],
+                    )),
                 TextInput::make('attributes.add')
                     ->label('Add')
-                    ->maxLength(20),
+                    ->helperText('Additional near-vision power. Required for multifocal designs.')
+                    ->placeholder('e.g. +2.00')
+                    ->maxLength(20)
+                    ->visible(fn (Get $get): bool => in_array(
+                        $get('attributes.lens_design'),
+                        ['multifocal', 'toric_multifocal'],
+                    )),
                 TextInput::make('attributes.color')
                     ->label('Color')
+                    ->helperText('Visible cosmetic tint.')
                     ->maxLength(50),
                 TextInput::make('attributes.pack_size')
                     ->label('Pack Size')
+                    ->helperText('Number of lenses in one sellable box.')
+                    ->placeholder('e.g. 6')
                     ->numeric()
+                    ->integer()
                     ->minValue(1)
                     ->maxValue(999),
             ])
