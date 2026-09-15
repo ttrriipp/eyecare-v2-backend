@@ -20,6 +20,7 @@ use InvalidArgumentException;
     'received_quantity',
     'quantity_on_hand',
     'received_at',
+    'purchased_at',
     'received_by',
     'source_reference',
 ])]
@@ -122,6 +123,7 @@ class InventoryLot extends Model
         return [
             'expires_on' => 'date',
             'received_at' => 'datetime',
+            'purchased_at' => 'date',
             'received_quantity' => 'integer',
             'quantity_on_hand' => 'integer',
         ];

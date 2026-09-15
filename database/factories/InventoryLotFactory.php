@@ -28,6 +28,7 @@ class InventoryLotFactory extends Factory
             'received_quantity' => 10,
             'quantity_on_hand' => 10,
             'received_at' => now(),
+            'purchased_at' => now()->toDateString(),
             'received_by' => User::factory(),
             'source_reference' => fake()->optional()->bothify('PO-####'),
         ];

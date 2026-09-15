@@ -30,7 +30,7 @@
                             </td>
                             <td class="px-4 py-3">{{ $lot->quantity_on_hand }}</td>
                             <td class="px-4 py-3">
-                                <span>{{ $lot->received_at->format('M d, Y') }}</span>
+                                <span>{{ ($lot->purchased_at ?? $lot->received_at)->format('M d, Y') }}</span>
                                 <span class="block text-xs text-gray-500">{{ $lot->receivedBy?->full_name ?? '—' }}</span>
                             </td>
                             <td class="px-4 py-3">{{ $lot->source_reference ?? '—' }}</td>

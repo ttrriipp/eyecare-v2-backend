@@ -16,12 +16,14 @@ test('inventory lots have the contact-lens expiry schema', function () {
             'received_quantity',
             'quantity_on_hand',
             'received_at',
+            'purchased_at',
             'received_by',
             'source_reference',
             'created_at',
             'updated_at',
         ]))->toBeTrue()
-        ->and(Schema::hasColumn('inventory_movements', 'inventory_lot_id'))->toBeTrue();
+        ->and(Schema::hasColumn('inventory_movements', 'inventory_lot_id'))->toBeTrue()
+        ->and(Schema::hasColumn('inventory_movements', 'purchased_at'))->toBeTrue();
 });
 
 test('inventory lots enforce a unique lot number per variant', function () {

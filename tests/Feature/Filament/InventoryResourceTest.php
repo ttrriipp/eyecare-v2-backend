@@ -3,6 +3,7 @@
 use App\Actions\Inventory\RecordInventoryMovement;
 use App\Filament\Resources\Inventory\InventoryResource;
 use App\Filament\Resources\Inventory\Pages\ListInventory;
+use App\Filament\Resources\Inventory\Tables\InventoryTable;
 use App\Filament\Resources\Inventory\Widgets\InventoryStatsWidget;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
@@ -15,6 +16,8 @@ use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Table;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,6 +42,14 @@ test('inventory is backed by product variants', function () {
 test('variants cannot be created from the inventory page', function () {
     // Variants belong to a product; Products remains the only editor.
     expect(InventoryResource::canCreate())->toBeFalse();
+});
+
+test('inventory table uses the received-at label and compact responsive defaults', function () {
+    $table = InventoryTable::configure(Table::make(Mockery::mock(HasTable::class)));
+
+    expect($table->getColumn('latest_purchase_date')->getLabel())->toBe('Received At')
+        ->and($table->getColumn('sku')->isToggledHiddenByDefault())->toBeTrue()
+        ->and($table->isStackedOnMobile())->toBeTrue();
 });
 
 test('staff can access inventory', function () {
@@ -291,6 +302,43 @@ test('receiving stock raises the quantity and writes a ledger entry', function (
     ]);
 });
 
+test('receiving stock records and displays the purchase date', function (): void {
+    Carbon::setTestNow('2026-09-16 10:00:00');
+    $variant = ProductVariant::factory()->create([
+        'stock_quantity' => 4,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    $component = Livewire::test(ListInventory::class)
+        ->assertTableColumnExists('latest_purchase_date')
+        ->assertTableColumnExists('early_purchase_quantity')
+        ->mountTableAction('adjustStock', $variant)
+        ->assertMountedActionModalSee('Date of Purchase');
+
+    $component
+        ->unmountAction()
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 10,
+            'purchased_at' => '2026-09-01',
+        ])
+        ->assertHasNoActionErrors();
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 10,
+            'purchased_at' => '2026-08-01',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(InventoryMovement::query()->orderBy('purchased_at')->firstOrFail()->purchased_at->toDateString())
+        ->toBe('2026-08-01');
+
+    Livewire::test(ListInventory::class)
+        ->assertTableColumnFormattedStateSet('latest_purchase_date', 'Aug 1, 2026', record: $variant)
+        ->assertTableColumnStateSet('early_purchase_quantity', 10, record: $variant);
+});
+
 test('receiving contact lenses captures their lot and expiry month', function () {
     $product = Product::factory()->contactLens()->create();
     $variant = ProductVariant::factory()->for($product)->create([
@@ -305,6 +353,7 @@ test('receiving contact lenses captures their lot and expiry month', function ()
             'quantity' => 10,
             'lot_number' => 'ACME-001',
             'expiry_month' => '2027-06',
+            'purchased_at' => '2026-08-20',
             'source_reference' => 'PO-42',
         ])
         ->assertHasNoActionErrors()
@@ -318,6 +367,12 @@ test('receiving contact lenses captures their lot and expiry month', function ()
         ->and($lot->lot_number)->toBe('ACME-001')
         ->and($lot->expires_on->toDateString())->toBe('2027-06-30')
         ->and($lot->quantity_on_hand)->toBe(10);
+
+    expect(InventoryMovement::query()->sole()->purchased_at->toDateString())->toBe('2026-08-20');
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('viewBatches', $variant)
+        ->assertMountedActionModalSee('Aug 20, 2026');
 });
 
 test('contact lens receiving explains the expiry month requirement before submission', function () {

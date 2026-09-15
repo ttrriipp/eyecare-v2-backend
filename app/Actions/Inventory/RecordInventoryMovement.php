@@ -29,8 +29,9 @@ class RecordInventoryMovement
         ?int $orderId = null,
         ?string $notes = null,
         ?User $actingUser = null,
+        ?string $purchasedAt = null,
     ): InventoryMovement {
-        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes, $actingUser): InventoryMovement {
+        return DB::transaction(function () use ($variant, $quantityChange, $type, $orderId, $notes, $actingUser, $purchasedAt): InventoryMovement {
             $lockedVariant = ProductVariant::query()
                 ->lockForUpdate()
                 ->findOrFail($variant->id);
@@ -55,6 +56,9 @@ class RecordInventoryMovement
                 'inventory_movement_type_id' => InventoryMovementType::query()
                     ->firstOrCreate(['name' => $type])->id,
                 'quantity_change' => $quantityChange,
+                'purchased_at' => $type === 'restock'
+                    ? ($purchasedAt ?? now()->toDateString())
+                    : null,
                 'previous_stock' => $previousStock,
                 'new_stock' => $newStock,
                 'created_by' => $actingUser?->id ?? auth()->id(),

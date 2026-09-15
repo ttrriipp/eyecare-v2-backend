@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'inventory_lot_id',
     'inventory_movement_type_id',
     'quantity_change',
+    'purchased_at',
     'previous_stock',
     'new_stock',
     'created_by',
@@ -72,6 +73,7 @@ class InventoryMovement extends Model
     {
         return [
             'quantity_change' => 'integer',
+            'purchased_at' => 'date',
         ];
     }
 }

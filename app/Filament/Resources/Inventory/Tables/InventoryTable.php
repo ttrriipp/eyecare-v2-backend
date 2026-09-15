@@ -16,23 +16,87 @@ class InventoryTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->stackedOnMobile()
+            ->modifyQueryUsing(function (Builder $query): Builder {
+                $variantKey = $query->getModel()->qualifyColumn($query->getModel()->getKeyName());
+
+                return $query
+                    ->addSelect([
+                        'latest_purchase_date' => InventoryMovement::query()
+                            ->select('purchased_at')
+                            ->whereColumn('product_variant_id', $variantKey)
+                            ->where('quantity_change', '>', 0)
+                            ->whereHas(
+                                'movementType',
+                                fn (Builder $movementTypeQuery): Builder => $movementTypeQuery->where('name', 'restock'),
+                            )
+                            ->whereNotNull('purchased_at')
+                            ->orderBy('purchased_at')
+                            ->orderBy('id')
+                            ->limit(1),
+                        'early_purchase_quantity' => InventoryMovement::query()
+                            ->selectRaw('SUM(quantity_change)')
+                            ->whereColumn('product_variant_id', $variantKey)
+                            ->where('quantity_change', '>', 0)
+                            ->whereHas(
+                                'movementType',
+                                fn (Builder $movementTypeQuery): Builder => $movementTypeQuery->where('name', 'restock'),
+                            )
+                            ->whereNotNull('purchased_at')
+                            ->where(
+                                'purchased_at',
+                                '=',
+                                InventoryMovement::query()
+                                    ->select('purchased_at')
+                                    ->whereColumn('product_variant_id', $variantKey)
+                                    ->where('quantity_change', '>', 0)
+                                    ->whereHas(
+                                        'movementType',
+                                        fn (Builder $movementTypeQuery): Builder => $movementTypeQuery->where('name', 'restock'),
+                                    )
+                                    ->whereNotNull('purchased_at')
+                                    ->orderBy('purchased_at')
+                                    ->orderBy('id')
+                                    ->limit(1),
+                            ),
+                    ])
+                    ->withCasts([
+                        'latest_purchase_date' => 'date',
+                        'early_purchase_quantity' => 'integer',
+                    ]);
+            })
             ->columns([
                 TextColumn::make('product.name')
                     ->weight('bold')
                     ->label('Product')
                     ->searchable()
                     ->sortable()
+                    ->wrap()
                     ->description(fn (ProductVariant $record): ?string => $record->product?->brand?->name),
 
                 TextColumn::make('name')
                     ->weight('bold')
                     ->label('Variant')
-                    ->searchable(),
+                    ->searchable()
+                    ->wrap(),
 
                 TextColumn::make('sku')
                     ->label('SKU')
                     ->searchable()
-                    ->toggleable(),
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('latest_purchase_date')
+                    ->label('Received At')
+                    ->date('M j, Y')
+                    ->placeholder('—')
+                    ->sortable(),
+
+                TextColumn::make('early_purchase_quantity')
+                    ->label('EarlyQty')
+                    ->numeric()
+                    ->placeholder('—')
+                    ->sortable(),
 
                 TextColumn::make('stock_quantity')
                     ->label('On Hand')

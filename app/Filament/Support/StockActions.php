@@ -9,6 +9,7 @@ use App\Models\InventoryLot;
 use App\Models\ProductVariant;
 use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -73,6 +74,7 @@ class StockActions
                         receiver: $actor,
                         sourceReference: $data['source_reference'] ?? null,
                         notes: $data['notes'] ?? null,
+                        purchasedAt: $data['purchased_at'] ?? null,
                     );
                 } else {
                     app(RecordInventoryMovement::class)->handle(
@@ -81,6 +83,7 @@ class StockActions
                         type: 'restock',
                         notes: $data['notes'] ?? null,
                         actingUser: auth()->user(),
+                        purchasedAt: $data['purchased_at'] ?? null,
                     );
                 }
 
@@ -136,6 +139,11 @@ class StockActions
         $fields[] = TextInput::make('source_reference')
             ->label('Reference')
             ->placeholder('PO number or supplier reference');
+        $fields[] = DatePicker::make('purchased_at')
+            ->label('Date of Purchase')
+            ->default(now())
+            ->maxDate(now())
+            ->required();
         $fields[] = TextInput::make('notes')
             ->placeholder('Optional notes');
 

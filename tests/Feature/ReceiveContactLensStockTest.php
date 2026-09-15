@@ -28,6 +28,7 @@ test('receiving a contact lens lot normalizes the month and records the movement
         lotNumber: '  ACME-001  ',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchasedAt: '2026-08-20',
         sourceReference: 'PO-42',
         notes: 'June delivery',
     );
@@ -44,7 +45,8 @@ test('receiving a contact lens lot normalizes the month and records the movement
         ->and($movement->inventory_lot_id)->toBe($lot->id)
         ->and($movement->quantity_change)->toBe(12)
         ->and($movement->previous_stock)->toBe(0)
-        ->and($movement->new_stock)->toBe(12);
+        ->and($movement->new_stock)->toBe(12)
+        ->and($movement->purchased_at->toDateString())->toBe('2026-08-20');
 });
 
 test('receiving into an existing lot increases its quantities', function () {
@@ -57,6 +59,7 @@ test('receiving into an existing lot increases its quantities', function () {
         'expires_on' => '2027-06-30',
         'received_quantity' => 4,
         'quantity_on_hand' => 4,
+        'purchased_at' => '2026-08-25',
     ]);
 
     app(ReceiveContactLensStock::class)->handle(
@@ -65,10 +68,12 @@ test('receiving into an existing lot increases its quantities', function () {
         lotNumber: 'ACME-001',
         expiryMonth: '2027-06',
         receiver: $receiver,
+        purchasedAt: '2026-08-20',
     );
 
     expect($lot->fresh()->received_quantity)->toBe(10)
         ->and($lot->fresh()->quantity_on_hand)->toBe(10)
+        ->and($lot->fresh()->purchased_at->toDateString())->toBe('2026-08-20')
         ->and($variant->fresh()->stock_quantity)->toBe(10)
         ->and(InventoryLot::query()->count())->toBe(1);
 });

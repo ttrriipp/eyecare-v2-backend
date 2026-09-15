@@ -30,6 +30,7 @@ class ReceiveContactLensStock
         User $receiver,
         ?string $sourceReference = null,
         ?string $notes = null,
+        ?string $purchasedAt = null,
     ): InventoryMovement {
         if (! $receiver->hasPanelRole()) {
             throw new AuthorizationException('Only panel staff can receive inventory.');
@@ -51,6 +52,7 @@ class ReceiveContactLensStock
 
         $lotNumber = $this->normalizeLotNumber($lotNumber);
         $expiresOn = $this->normalizeExpiryMonth($expiryMonth);
+        $purchasedAt ??= now()->toDateString();
 
         return DB::transaction(function () use (
             $variant,
@@ -60,6 +62,7 @@ class ReceiveContactLensStock
             $receiver,
             $sourceReference,
             $notes,
+            $purchasedAt,
         ): InventoryMovement {
             $lockedVariant = ProductVariant::query()
                 ->lockForUpdate()
@@ -91,6 +94,7 @@ class ReceiveContactLensStock
                     'received_quantity' => $quantity,
                     'quantity_on_hand' => $quantity,
                     'received_at' => now(),
+                    'purchased_at' => $purchasedAt,
                     'received_by' => $receiver->id,
                     'source_reference' => $this->normalizeOptionalText($sourceReference),
                 ]);
@@ -106,6 +110,10 @@ class ReceiveContactLensStock
                 $lot->update([
                     'received_quantity' => $lot->received_quantity + $quantity,
                     'quantity_on_hand' => $lot->quantity_on_hand + $quantity,
+                    'purchased_at' => min(
+                        $lot->purchased_at?->toDateString() ?? $purchasedAt,
+                        $purchasedAt,
+                    ),
                 ]);
             }
 
@@ -115,6 +123,7 @@ class ReceiveContactLensStock
                 'inventory_movement_type_id' => InventoryMovementType::query()
                     ->firstOrCreate(['name' => 'restock'])->id,
                 'quantity_change' => $quantity,
+                'purchased_at' => $purchasedAt,
                 'previous_stock' => $previousStock,
                 'new_stock' => $newStock,
                 'created_by' => $receiver->id,
