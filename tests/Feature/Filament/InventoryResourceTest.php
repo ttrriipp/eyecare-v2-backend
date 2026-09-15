@@ -97,7 +97,7 @@ test('navigation badge counts only active variants at or below threshold', funct
     expect(InventoryResource::getNavigationBadge())->toBe('1');
 });
 
-test('navigation badge is hidden when nothing needs reordering', function () {
+test('navigation badge is hidden when nothing is low stock', function () {
     ProductVariant::factory()->create([
         'stock_quantity' => 40,
         'low_stock_threshold' => 5,
@@ -108,71 +108,6 @@ test('navigation badge is hidden when nothing needs reordering', function () {
 });
 
 // --- Tabs ---
-
-test('needs reorder tab shows only variants at or below threshold', function () {
-    $product = Product::factory()->create();
-
-    $low = ProductVariant::factory()->for($product)->create([
-        'name' => 'Low Stock Variant',
-        'stock_quantity' => 2,
-        'low_stock_threshold' => 5,
-        'is_active' => true,
-    ]);
-    $healthy = ProductVariant::factory()->for($product)->create([
-        'name' => 'Healthy Stock Variant',
-        'stock_quantity' => 80,
-        'low_stock_threshold' => 5,
-        'is_active' => true,
-    ]);
-
-    $this->actingAs($this->staff);
-
-    Livewire::test(ListInventory::class)
-        ->set('activeTab', 'needs_reorder')
-        ->assertCanSeeTableRecords([$low])
-        ->assertCanNotSeeTableRecords([$healthy]);
-});
-
-test('needs reorder uses usable contact-lens quantity instead of expired physical stock', function (): void {
-    Carbon::setTestNow('2026-08-28 14:00:00');
-    $product = Product::factory()->contactLens()->create();
-
-    $needsReorder = ProductVariant::factory()->for($product)->create([
-        'stock_quantity' => 10,
-        'low_stock_threshold' => 3,
-        'target_stock_level' => 12,
-    ]);
-    InventoryLot::factory()->for($needsReorder, 'variant')->create([
-        'expires_on' => '2026-08-27',
-        'received_quantity' => 8,
-        'quantity_on_hand' => 8,
-    ]);
-    InventoryLot::factory()->for($needsReorder, 'variant')->create([
-        'expires_on' => '2026-12-31',
-        'received_quantity' => 2,
-        'quantity_on_hand' => 2,
-    ]);
-
-    $healthy = ProductVariant::factory()->for($product)->create([
-        'stock_quantity' => 10,
-        'low_stock_threshold' => 3,
-    ]);
-    InventoryLot::factory()->for($healthy, 'variant')->create([
-        'expires_on' => '2027-12-31',
-        'received_quantity' => 10,
-        'quantity_on_hand' => 10,
-    ]);
-
-    expect($needsReorder->isLowStock())->toBeTrue()
-        ->and($needsReorder->suggestedReorderQuantity())->toBe(10);
-
-    $this->actingAs($this->staff);
-
-    Livewire::test(ListInventory::class)
-        ->set('activeTab', 'needs_reorder')
-        ->assertCanSeeTableRecords([$needsReorder])
-        ->assertCanNotSeeTableRecords([$healthy]);
-});
 
 test('out of stock tab shows only depleted variants', function () {
     $product = Product::factory()->create();
@@ -506,31 +441,9 @@ test('the products variants tab still receives stock through the shared action',
     ]);
 });
 
-// --- Suggested reorder quantity ---
+// --- Low stock helper ---
 
-test('suggested reorder quantity is the gap up to the target level', function () {
-    $variant = ProductVariant::factory()->create([
-        'stock_quantity' => 2,
-        'low_stock_threshold' => 5,
-        'target_stock_level' => 20,
-    ]);
-
-    expect($variant->suggestedReorderQuantity())->toBe(18);
-});
-
-test('suggested reorder quantity is null when no target is configured', function () {
-    $variant = ProductVariant::factory()->create([
-        'stock_quantity' => 2,
-        'low_stock_threshold' => 5,
-        'target_stock_level' => null,
-    ]);
-
-    expect($variant->suggestedReorderQuantity())->toBeNull();
-});
-
-// --- Low stock helper mirrors the query scope ---
-
-test('isLowStock matches the needsReorder scope', function () {
+test('isLowStock identifies variants at or below threshold', function () {
     $product = Product::factory()->create();
 
     ProductVariant::factory()->for($product)->create([
@@ -547,11 +460,8 @@ test('isLowStock matches the needsReorder scope', function () {
         'low_stock_threshold' => 0,
     ]);
 
-    $scopeMatched = ProductVariant::query()->needsReorder()->pluck('id')->sort()->values();
-    $helperMatched = ProductVariant::all()
-        ->filter(fn (ProductVariant $v): bool => $v->isLowStock())
-        ->pluck('id')->sort()->values();
+    $lowStock = ProductVariant::all()
+        ->filter(fn (ProductVariant $v): bool => $v->isLowStock());
 
-    expect($helperMatched->all())->toBe($scopeMatched->all())
-        ->and($scopeMatched)->toHaveCount(1);
+    expect($lowStock)->toHaveCount(1);
 });

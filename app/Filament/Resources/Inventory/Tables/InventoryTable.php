@@ -85,12 +85,6 @@ class InventoryTable
                     ->numeric()
                     ->placeholder('Not set')
                     ->toggleable(),
-
-                TextColumn::make('suggested_reorder')
-                    ->label('Suggested Order')
-                    ->state(fn (ProductVariant $record): ?int => $record->suggestedReorderQuantity())
-                    ->placeholder('—')
-                    ->color(fn (?int $state): ?string => $state > 0 ? 'warning' : null),
             ])
             // Sort by the latest recorded receipt, leaving variants with no restock history last.
             ->defaultSort(fn (Builder $query): Builder => $query->orderByDesc(

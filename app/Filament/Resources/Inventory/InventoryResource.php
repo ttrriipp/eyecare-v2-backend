@@ -48,7 +48,8 @@ class InventoryResource extends Resource
     {
         $count = ProductVariant::query()
             ->active()
-            ->needsReorder()
+            ->where('low_stock_threshold', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->count();
 
         return $count > 0 ? (string) $count : null;

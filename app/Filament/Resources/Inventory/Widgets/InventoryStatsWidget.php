@@ -17,7 +17,8 @@ class InventoryStatsWidget extends BaseWidget
     {
         $lowStock = ProductVariant::query()
             ->active()
-            ->needsReorder()
+            ->where('low_stock_threshold', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->count();
 
         $outOfStock = ProductVariant::query()

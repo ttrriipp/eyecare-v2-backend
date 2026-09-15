@@ -66,14 +66,12 @@ class OtherIssuesWidget extends BaseStatsOverviewWidget
                 ])),
             Stat::make(
                 'Low Stock',
-                Number::format(ProductVariant::query()->active()->needsReorder()->count()),
+                Number::format(ProductVariant::query()->active()->where('low_stock_threshold', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->count()),
             )
-                ->description('Below reorder level')
+                ->description('Below threshold')
                 ->descriptionIcon(Heroicon::OutlinedExclamationTriangle)
                 ->color('danger')
-                ->url(InventoryResource::getUrl('index', [
-                    'activeTab' => 'needs_reorder',
-                ])),
+                ->url(InventoryResource::getUrl('index')),
         ];
     }
 }

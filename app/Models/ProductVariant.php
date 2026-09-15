@@ -92,50 +92,6 @@ class ProductVariant extends Model
             ->whereNotNull('ar_asset_reference');
     }
 
-    /**
-     * @param  Builder<self>  $query
-     */
-    public function scopeNeedsReorder(Builder $query): void
-    {
-        $variantTable = $query->getModel()->getTable();
-        $today = now()->toDateString();
-
-        $query
-            ->where('low_stock_threshold', '>', 0)
-            ->where(function (Builder $stockQuery) use ($today, $variantTable): void {
-                $stockQuery
-                    ->where(function (Builder $aggregateQuery): void {
-                        $aggregateQuery
-                            ->whereDoesntHave(
-                                'product',
-                                fn (Builder $productQuery): Builder => $productQuery
-                                    ->where('product_type', 'contact_lens'),
-                            )
-                            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold');
-                    })
-                    ->orWhere(function (Builder $contactLensQuery) use ($today, $variantTable): void {
-                        $contactLensQuery
-                            ->whereHas(
-                                'product',
-                                fn (Builder $productQuery): Builder => $productQuery
-                                    ->where('product_type', 'contact_lens'),
-                            )
-                            ->whereRaw(
-                                "(SELECT COALESCE(SUM(inventory_lots.quantity_on_hand), 0)
-                                    FROM inventory_lots
-                                    WHERE inventory_lots.product_variant_id = {$variantTable}.id
-                                      AND inventory_lots.quantity_on_hand > 0
-                                      AND inventory_lots.expires_on >= ?) <= {$variantTable}.low_stock_threshold",
-                                [$today],
-                            );
-                    });
-            });
-    }
-
-    /**
-     * Instance-level counterpart to the needsReorder query scope, for row-level
-     * display where the record is already loaded.
-     */
     public function isLowStock(): bool
     {
         $stockQuantity = $this->isContactLens()
@@ -145,24 +101,6 @@ class ProductVariant extends Model
         return $this->low_stock_threshold > 0
             && $stockQuantity !== null
             && $stockQuantity <= $this->low_stock_threshold;
-    }
-
-    public function replenishmentTarget(): ?int
-    {
-        return $this->target_stock_level;
-    }
-
-    public function suggestedReorderQuantity(): ?int
-    {
-        if ($this->target_stock_level === null) {
-            return null;
-        }
-
-        $stockQuantity = $this->isContactLens()
-            ? $this->usableStockQuantity()
-            : $this->stock_quantity;
-
-        return max($this->replenishmentTarget() - ($stockQuantity ?? 0), 0);
     }
 
     /**

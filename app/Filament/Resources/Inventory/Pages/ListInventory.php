@@ -36,9 +36,6 @@ class ListInventory extends ListRecords
         return [
             'all' => Tab::make('All'),
 
-            'needs_reorder' => Tab::make('Needs Reorder')
-                ->modifyQueryUsing(fn (Builder $query) => $query->active()->needsReorder()),
-
             'expiring_soon' => Tab::make('Expiring Soon')
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->active()

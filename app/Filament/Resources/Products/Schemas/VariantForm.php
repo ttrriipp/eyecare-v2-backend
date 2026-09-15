@@ -114,7 +114,7 @@ final class VariantForm
                 ->visible($stockVisible),
             TextInput::make('low_stock_threshold')
                 ->label('Low Stock Threshold')
-                ->helperText('At or below this quantity, the variant needs reorder attention. Set to 0 to disable.')
+                ->helperText('At or below this quantity, the variant is considered low stock. Set to 0 to disable.')
                 ->required()
                 ->numeric()
                 ->integer()
@@ -122,7 +122,7 @@ final class VariantForm
                 ->default(0),
             TextInput::make('target_stock_level')
                 ->label('Target Stock Level')
-                ->helperText('Desired quantity after restocking. Used to calculate suggested reorder quantity.')
+                ->helperText('Desired quantity after restocking. Used for planning purposes.')
                 ->nullable()
                 ->numeric()
                 ->integer()

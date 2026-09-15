@@ -269,7 +269,8 @@ class StatsOverviewWidget extends BaseStatsOverviewWidget
                 ->count(),
             'low_stock' => ProductVariant::query()
                 ->active()
-                ->needsReorder()
+                ->where('low_stock_threshold', '>', 0)
+                ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
                 ->count(),
         ];
     }
