@@ -15,10 +15,84 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class ProductForm
 {
+    /** @var array<int, string> */
+    private const array FRAME_ATTRIBUTE_KEYS = [
+        'lens_width',
+        'bridge',
+        'temple',
+        'lens_height',
+        'color',
+        'material',
+    ];
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function prepareFormDataBeforeFill(array $data): array
+    {
+        $attributes = is_array($data['default_variant_attributes'] ?? null)
+            ? $data['default_variant_attributes']
+            : [];
+        $productType = $data['product_type'] ?? null;
+
+        if ($productType === 'frame') {
+            $data['frame_default_attributes'] = Arr::only($attributes, self::FRAME_ATTRIBUTE_KEYS);
+            $data['frame_other_details'] = self::toKeyValueRows(
+                Arr::except($attributes, self::FRAME_ATTRIBUTE_KEYS),
+            );
+            $data['generic_default_details'] = [];
+        } elseif (in_array($productType, ['contact_lens', 'accessory'], true)) {
+            $data['generic_default_details'] = self::toKeyValueRows($attributes);
+            $data['frame_default_attributes'] = [];
+            $data['frame_other_details'] = [];
+        }
+
+        unset($data['default_variant_attributes']);
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function prepareFormDataBeforeSave(array $data): array
+    {
+        $productType = $data['product_type'] ?? null;
+
+        if ($productType === 'frame') {
+            $frameAttributes = is_array($data['frame_default_attributes'] ?? null)
+                ? array_filter(
+                    $data['frame_default_attributes'],
+                    fn (mixed $value): bool => filled($value),
+                )
+                : [];
+
+            $data['default_variant_attributes'] = array_merge(
+                self::toKeyValueMap($data['frame_other_details'] ?? []),
+                $frameAttributes,
+            );
+        } elseif (in_array($productType, ['contact_lens', 'accessory'], true)) {
+            $data['default_variant_attributes'] = self::toKeyValueMap(
+                $data['generic_default_details'] ?? [],
+            );
+        }
+
+        unset(
+            $data['generic_default_details'],
+            $data['frame_default_attributes'],
+            $data['frame_other_details'],
+        );
+
+        return $data;
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema->columns(1)->components([
@@ -35,10 +109,19 @@ class ProductForm
                                 ->required()
                                 ->live()
                                 ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                    if ($state === 'frame') {
+                                        $set('frame_default_attributes', []);
+                                        $set('frame_other_details', self::emptyKeyValueRows());
+                                        $set('generic_default_details', []);
+
+                                        return;
+                                    }
+
                                     if (in_array($state, ['contact_lens', 'accessory'], true)) {
-                                        $set('default_variant_attributes', [
-                                            ['key' => '', 'value' => ''],
-                                        ]);
+                                        $set('default_variant_attributes', []);
+                                        $set('generic_default_details', self::emptyKeyValueRows());
+                                        $set('frame_default_attributes', []);
+                                        $set('frame_other_details', []);
                                     }
                                 })
                                 ->disabledOn('edit')
@@ -113,9 +196,15 @@ class ProductForm
                 ->columnSpanFull()
                 ->description('These values prefill new variants. Changing them later does not update existing variants.')
                 ->schema([
-                    KeyValue::make('default_variant_attributes')
+                    KeyValue::make('generic_default_details')
                         ->label('Default Details')
                         ->helperText('Key/value pairs that will prefill new variants. Examples: base_curve, diameter, pack_size, color, material.')
+                        ->afterStateHydrated(function (?array $state, KeyValue $component): void {
+                            if (empty($state)) {
+                                $component->state(self::emptyKeyValueRows());
+                            }
+                        })
+                        ->dehydratedWhenHidden()
                         ->columnSpanFull(),
                 ])
                 ->visible(fn (Get $get): bool => in_array($get('product_type'), ['contact_lens', 'accessory'])),
@@ -124,40 +213,41 @@ class ProductForm
                 ->columnSpanFull()
                 ->description('These values prefill new variants. Changing them later does not update existing variants.')
                 ->schema([
-                    TextInput::make('default_variant_attributes.lens_width')
+                    TextInput::make('frame_default_attributes.lens_width')
                         ->label('Lens Width (mm)')
                         ->numeric()
                         ->minValue(30)
                         ->maxValue(70),
-                    TextInput::make('default_variant_attributes.bridge')
+                    TextInput::make('frame_default_attributes.bridge')
                         ->label('Bridge (mm)')
                         ->numeric()
                         ->minValue(10)
                         ->maxValue(30),
-                    TextInput::make('default_variant_attributes.temple')
+                    TextInput::make('frame_default_attributes.temple')
                         ->label('Temple Length (mm)')
                         ->numeric()
                         ->minValue(100)
                         ->maxValue(160),
-                    TextInput::make('default_variant_attributes.lens_height')
+                    TextInput::make('frame_default_attributes.lens_height')
                         ->label('Lens Height (mm)')
                         ->numeric()
                         ->minValue(20)
                         ->maxValue(60),
-                    TextInput::make('default_variant_attributes.color')
+                    TextInput::make('frame_default_attributes.color')
                         ->label('Color')
                         ->maxLength(50),
-                    TextInput::make('default_variant_attributes.material')
+                    TextInput::make('frame_default_attributes.material')
                         ->label('Material')
                         ->maxLength(50),
-                    KeyValue::make('default_variant_attributes')
+                    KeyValue::make('frame_other_details')
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')
                         ->afterStateHydrated(function (?array $state, KeyValue $component): void {
                             if (empty($state)) {
-                                $component->state(['' => '']);
+                                $component->state(self::emptyKeyValueRows());
                             }
                         })
+                        ->dehydratedWhenHidden()
                         ->addActionLabel('Add detail')
                         ->columnSpanFull(),
                 ])
@@ -177,5 +267,63 @@ class ProductForm
                         ->columns(2),
                 ]),
         ]);
+    }
+
+    /**
+     * @return array<int, array{key: string, value: string}>
+     */
+    private static function emptyKeyValueRows(): array
+    {
+        return [
+            ['key' => '', 'value' => ''],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, array{key: string, value: mixed}>
+     */
+    private static function toKeyValueRows(array $attributes): array
+    {
+        return array_map(
+            fn (mixed $value, string|int $key): array => [
+                'key' => (string) $key,
+                'value' => $value,
+            ],
+            $attributes,
+            array_keys($attributes),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function toKeyValueMap(mixed $state): array
+    {
+        if (! is_array($state)) {
+            return [];
+        }
+
+        if (
+            array_is_list($state)
+            && (blank($state) || (is_array($state[0] ?? null) && array_key_exists('key', $state[0])))
+        ) {
+            $map = [];
+
+            foreach ($state as $row) {
+                if (! is_array($row) || blank($row['key'] ?? null)) {
+                    continue;
+                }
+
+                $map[(string) $row['key']] = $row['value'] ?? null;
+            }
+
+            return $map;
+        }
+
+        return collect($state)
+            ->filter(fn (mixed $value, string|int $key): bool => filled($key))
+            ->mapWithKeys(fn (mixed $value, string|int $key): array => [(string) $key => $value])
+            ->all();
     }
 }

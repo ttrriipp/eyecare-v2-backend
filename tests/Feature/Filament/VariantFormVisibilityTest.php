@@ -3,6 +3,7 @@
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
+use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
@@ -25,13 +26,79 @@ test('new generic product details start with one empty row', function (string $p
         ->test(CreateProduct::class)
         ->set('data.product_type', $productType)
         ->assertSee('Default Details')
-        ->assertSet('data.default_variant_attributes', [
+        ->assertSet('data.generic_default_details', [
             ['key' => '', 'value' => ''],
         ]);
 })->with([
     'contact lens' => 'contact_lens',
     'accessory' => 'accessory',
 ]);
+
+test('new frame product details start with one empty row', function () {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->assertSet('data.frame_other_details.0.key', '')
+        ->assertSet('data.frame_other_details.0.value', '');
+});
+
+test('switching generic product types keeps one empty details row', function () {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->set('data.product_type', 'contact_lens')
+        ->set('data.product_type', 'accessory')
+        ->assertSet('data.generic_default_details', [
+            ['key' => '', 'value' => ''],
+        ]);
+});
+
+test('frame product defaults save dimensions and additional details together', function () {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => 'frame',
+            'name' => 'Test Frame',
+            'slug' => 'test-frame',
+            'brand_id' => $brand->id,
+            'frame_default_attributes' => [
+                'lens_width' => 52,
+                'bridge' => 18,
+                'color' => 'Black',
+            ],
+            'frame_other_details' => [
+                ['key' => 'finish', 'value' => 'Matte'],
+            ],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Product::query()->where('slug', 'test-frame')->firstOrFail()->default_variant_attributes)
+        ->toMatchArray([
+            'lens_width' => 52,
+            'bridge' => 18,
+            'color' => 'Black',
+            'finish' => 'Matte',
+        ]);
+});
+
+test('existing frame product defaults open in their corresponding fields', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'default_variant_attributes' => [
+            'lens_width' => 52,
+            'bridge' => 18,
+            'finish' => 'Matte',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(EditProduct::class, ['record' => $product->id])
+        ->assertSet('data.frame_default_attributes.lens_width', 52)
+        ->assertSet('data.frame_default_attributes.bridge', 18)
+        ->assertSet('data.frame_other_details.0.key', 'finish')
+        ->assertSet('data.frame_other_details.0.value', 'Matte');
+});
 
 test('frame dimensions table column shows for frame products', function () {
     $product = Product::factory()->create(['product_type' => 'frame']);
