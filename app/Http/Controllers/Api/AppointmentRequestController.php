@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\CancelAppointmentRequest as CancelAppointmentRequestAction;
+use App\Actions\Appointments\EvaluateBookingEligibility;
 use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Actions\Appointments\UpdateAppointmentRequestSchedule as UpdateAppointmentRequestScheduleAction;
 use App\Http\Controllers\Controller;
@@ -18,11 +19,14 @@ use Illuminate\Support\Carbon;
 
 class AppointmentRequestController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, EvaluateBookingEligibility $evaluateEligibility): JsonResponse
     {
+        $account = $request->user();
+        $eligibility = $evaluateEligibility->handle($account);
+
         $requests = AppointmentRequest::query()
             ->with(['appointmentType', 'appointment.status'])
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $account->id)
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 15));
 
@@ -42,6 +46,7 @@ class AppointmentRequestController extends Controller
                 'last_page' => $requests->lastPage(),
                 'per_page' => $requests->perPage(),
                 'total' => $requests->total(),
+                'booking_eligibility' => $eligibility->toArray(),
             ],
         ]);
     }

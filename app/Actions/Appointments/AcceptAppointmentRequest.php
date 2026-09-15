@@ -9,6 +9,7 @@ use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
+use App\Exceptions\ActiveAppointmentExistsException;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentReschedule;
@@ -28,6 +29,7 @@ class AcceptAppointmentRequest
 {
     public function __construct(
         private readonly EvaluateAppointmentAvailability $evaluateAvailability,
+        private readonly EvaluateBookingEligibility $evaluateEligibility,
         private readonly LockAppointmentScheduleDate $lockScheduleDate,
         private readonly CreateAuditLog $createAuditLog,
         private readonly NotifyAdminUsers $notifyAdminUsers,
@@ -368,6 +370,21 @@ class AcceptAppointmentRequest
                 throw ValidationException::withMessages([
                     'request' => ['Patient must be resolved before accepting the request.'],
                 ]);
+            }
+
+            // Recheck booking eligibility: if the patient now has an active
+            // appointment (created between submission and acceptance), stop.
+            $patientAccount = User::query()->lockForUpdate()->find($request->user_id);
+
+            if ($patientAccount !== null) {
+                $eligibility = $this->evaluateEligibility->handle($patientAccount);
+
+                if ($eligibility->activeAppointment !== null) {
+                    throw new ActiveAppointmentExistsException(
+                        $eligibility->activeAppointment->id,
+                        $eligibility->activeAppointment->status?->name ?? 'unknown',
+                    );
+                }
             }
 
             // Lock the schedule date after locking the request so reject/link

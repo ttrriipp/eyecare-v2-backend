@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\ActiveAppointmentExistsException;
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\OtpRateLimitReached;
 use App\Http\Middleware\ConfigureTrustedProxies;
@@ -61,6 +62,21 @@ return Application::configure(basePath: dirname(__DIR__))
                     'code' => 'ACTIVE_REQUEST_LIMIT_REACHED',
                     'message' => $exception->getMessage(),
                     'max_active_requests' => $exception->maxActiveRequests,
+                ],
+            ], 422);
+        });
+
+        $exceptions->render(function (ActiveAppointmentExistsException $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'ACTIVE_APPOINTMENT_EXISTS',
+                    'message' => $exception->getMessage(),
+                    'appointment_id' => $exception->appointmentId,
+                    'appointment_status' => $exception->appointmentStatus,
                 ],
             ], 422);
         });

@@ -8,6 +8,7 @@ use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\AppointmentStatusName;
 use App\Enums\AuditEvent;
+use App\Exceptions\ActiveAppointmentExistsException;
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
@@ -27,6 +28,7 @@ class SubmitAppointmentRequest
 {
     public function __construct(
         protected BuildAppointmentRequestIdentitySnapshot $buildSnapshot,
+        protected EvaluateBookingEligibility $evaluateEligibility,
         protected ListAppointmentRequestAvailabilitySlots $listSlots,
         protected CreateAuditLog $createAuditLog,
         protected NotifyAdminUsers $notifyAdminUsers,
@@ -51,15 +53,6 @@ class SubmitAppointmentRequest
             throw ValidationException::withMessages([
                 'scheduled_at' => ['Too many appointment requests. Please try again later.'],
             ]);
-        }
-
-        // Check active request limit
-        $activeRequests = $this->countActiveRequests($account->id);
-
-        $maxActive = config('patient_accounts.appointment_requests.max_active_per_account', 2);
-
-        if ($activeRequests >= $maxActive) {
-            throw new ActiveAppointmentRequestLimitReached($maxActive);
         }
 
         $provisionalDuration = $appointmentType->duration_minutes;
@@ -95,6 +88,25 @@ class SubmitAppointmentRequest
             $snapshot,
             $expiresAt,
         ) {
+            // Lock the patient account to serialize concurrent submissions.
+            User::query()->lockForUpdate()->findOrFail($account->id);
+
+            // Evaluate eligibility inside the transaction.
+            $eligibility = $this->evaluateEligibility->handle($account);
+
+            if (! $eligibility->canSubmitNewRequest) {
+                if ($eligibility->blockingReason === 'active_request_exists') {
+                    throw new ActiveAppointmentRequestLimitReached(1);
+                }
+
+                if ($eligibility->activeAppointment !== null) {
+                    throw new ActiveAppointmentExistsException(
+                        $eligibility->activeAppointment->id,
+                        $eligibility->activeAppointment->status?->name ?? 'unknown',
+                    );
+                }
+            }
+
             $patientId = $account->patient?->id;
 
             $request = AppointmentRequest::create([
@@ -209,10 +221,13 @@ class SubmitAppointmentRequest
                 ]);
             }
 
-            $maxActive = config('patient_accounts.appointment_requests.max_active_per_account', 2);
-            $activeRequests = $this->countActiveRequests($account->id);
+            $maxActive = 1;
+            $eligibility = $this->evaluateEligibility->handle($account);
 
-            if ($activeRequests >= $maxActive) {
+            // Allow rebooking of the same appointment even if it's the active one.
+            // But block if there's another actionable request for a different appointment.
+            if ($eligibility->activeRequest !== null
+                && $eligibility->activeRequest->appointment_id !== $lockedAppointment->id) {
                 throw new ActiveAppointmentRequestLimitReached($maxActive);
             }
 
@@ -319,14 +334,6 @@ class SubmitAppointmentRequest
                 'scheduled_at' => ['The requested time slot is no longer available.'],
             ]);
         }
-    }
-
-    private function countActiveRequests(int $accountId): int
-    {
-        return AppointmentRequest::query()
-            ->where('user_id', $accountId)
-            ->actionablePending()
-            ->count();
     }
 
     /**

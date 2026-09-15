@@ -92,7 +92,7 @@ return [
     'appointment_requests' => [
         'hold_duration_minutes' => 30,
         'expiry_hours' => 24,
-        'max_active_per_account' => 2,
+        'max_active_per_account' => 1,
         'retention_years' => 2,
     ],
 

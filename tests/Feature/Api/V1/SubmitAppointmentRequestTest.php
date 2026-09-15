@@ -195,7 +195,7 @@ test('linked account can submit an appointment request', function () {
         ->assertJsonStructure(['data' => ['id', 'request_number', 'status', 'scheduled_at', 'reason_for_visit']]);
 });
 
-test('two cancelled appointment requests no longer block a third request', function () {
+test('cancelled appointment request no longer blocks a new request', function () {
     $user = User::factory()->patient()->create();
 
     $first = $this->actingAs($user)
@@ -205,25 +205,21 @@ test('two cancelled appointment requests no longer block a third request', funct
         ->assertCreated()
         ->json('data');
 
-    $second = $this->postJson('/api/v1/appointment-requests', defaultRequestData([
+    // Second request is blocked while first is active
+    $this->postJson('/api/v1/appointment-requests', defaultRequestData([
         'scheduled_at' => '2026-07-13T11:00:00+08:00',
     ]))
-        ->assertCreated()
-        ->json('data');
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'ACTIVE_REQUEST_LIMIT_REACHED');
 
-    foreach ([$first, $second] as $request) {
-        $this->postJson("/api/v1/appointment-requests/{$request['id']}/cancel", [
-            'reason_details' => 'I no longer need this appointment.',
-        ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'cancelled');
-    }
-
-    $this->getJson('/api/v1/appointment-requests')
+    // Cancel the first request
+    $this->postJson("/api/v1/appointment-requests/{$first['id']}/cancel", [
+        'reason_details' => 'I no longer need this appointment.',
+    ])
         ->assertOk()
-        ->assertJsonPath('data.0.status', 'cancelled')
-        ->assertJsonPath('data.1.status', 'cancelled');
+        ->assertJsonPath('data.status', 'cancelled');
 
+    // Now a new request is allowed
     $this->postJson('/api/v1/appointment-requests', defaultRequestData([
         'scheduled_at' => '2026-07-13T12:00:00+08:00',
     ]))
@@ -243,13 +239,9 @@ test('active appointment request limit returns a stable error code', function ()
     $this->postJson('/api/v1/appointment-requests', defaultRequestData([
         'scheduled_at' => '2026-07-13T11:00:00+08:00',
     ]))
-        ->assertCreated();
-
-    $this->postJson('/api/v1/appointment-requests', defaultRequestData([
-        'scheduled_at' => '2026-07-13T12:00:00+08:00',
-    ]))
         ->assertUnprocessable()
-        ->assertJsonPath('error.code', 'ACTIVE_REQUEST_LIMIT_REACHED');
+        ->assertJsonPath('error.code', 'ACTIVE_REQUEST_LIMIT_REACHED')
+        ->assertJsonPath('error.max_active_requests', 1);
 });
 
 test('submitting an appointment request queues a confirmation sms', function () {
