@@ -56,7 +56,12 @@ class VariantsRelationManager extends RelationManager
         $components = [
             TextInput::make('name')
                 ->required()
-                ->maxLength(255),
+                ->maxLength(255)
+                ->unique(
+                    modifyRuleUsing: fn ($rule, $record) => $rule
+                        ->where('product_id', $record?->product_id)
+                        ->ignore($record?->id),
+                ),
             TextInput::make('sku')
                 ->maxLength(255)
                 ->unique(ignoreRecord: true)

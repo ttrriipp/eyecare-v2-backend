@@ -40,6 +40,12 @@ class ProductVariant extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (ProductVariant $variant): void {
+            if ($variant->name !== null) {
+                $variant->name = trim(preg_replace('/\s+/', ' ', $variant->name));
+            }
+        });
+
         static::creating(function (self $variant): void {
             if (empty($variant->sku)) {
                 $variant->sku = self::generateSku();

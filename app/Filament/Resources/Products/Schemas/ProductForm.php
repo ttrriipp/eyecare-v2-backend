@@ -112,7 +112,14 @@ class ProductForm
                         ->minItems(1)
                         ->hiddenLabel()
                         ->schema([
-                            TextInput::make('name')->required(),
+                            TextInput::make('name')
+                                ->required()
+                                ->maxLength(255)
+                                ->unique(
+                                    modifyRuleUsing: fn ($rule, $record, $get) => $rule
+                                        ->where('product_id', $record?->product_id ?? $get('../../id'))
+                                        ->ignore($record?->id),
+                                ),
                             TextInput::make('sku')
                                 ->maxLength(255)
                                 ->unique(ignoreRecord: true)
