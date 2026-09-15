@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'add_os_cylinder',
     'remarks',
     'prescribed_at',
+    'expires_at',
 ])]
 class Prescription extends Model
 {
@@ -156,6 +157,7 @@ class Prescription extends Model
             'amendment_reason' => 'encrypted',
             // Date
             'prescribed_at' => 'date',
+            'expires_at' => 'date',
             'voided_at' => 'datetime',
         ];
     }

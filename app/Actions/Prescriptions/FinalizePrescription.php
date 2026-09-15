@@ -34,7 +34,19 @@ class FinalizePrescription
             ]);
         }
 
-        return DB::transaction(function () use ($patient, $encounter, $author, $data, $previousPrescription, $amendmentReason): Prescription {
+        $minimumExpirationDate = Carbon::today();
+        $defaultExpirationDate = $minimumExpirationDate->copy()->addMonthsNoOverflow(6);
+        $expirationDate = filled($data['expires_at'] ?? null)
+            ? Carbon::parse($data['expires_at'])
+            : $defaultExpirationDate;
+
+        if ($expirationDate->isBefore($minimumExpirationDate)) {
+            throw ValidationException::withMessages([
+                'expires_at' => ['The expiration date must be on or after the prescribed date.'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($patient, $encounter, $author, $data, $expirationDate, $previousPrescription, $amendmentReason): Prescription {
             $lockedEncounter = Encounter::query()
                 ->lockForUpdate()
                 ->findOrFail($encounter->id);
@@ -116,6 +128,7 @@ class FinalizePrescription
                     : trim($amendmentReason),
                 'created_by' => $author->id,
                 'prescribed_at' => Carbon::now(),
+                'expires_at' => $expirationDate->toDateString(),
             ]);
 
             $this->createAuditLog->handle(

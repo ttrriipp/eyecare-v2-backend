@@ -5,12 +5,17 @@ namespace App\Filament\Resources\Prescriptions\Schemas;
 use App\Filament\Resources\Prescriptions\Pages\AmendPrescription;
 use App\Filament\Resources\Prescriptions\Pages\ViewPrescription;
 use App\Models\Encounter;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Carbon;
 
 class PrescriptionForm
 {
@@ -178,6 +183,46 @@ class PrescriptionForm
                 ]),
 
             Section::make('Details')->schema([
+                ...($useInputs ? [
+                    Select::make('expiration_option')
+                        ->label('Expiration Period')
+                        ->options(fn (Get $get): array => [
+                            '6_months' => '6 Months ('.self::calculateExpirationDate($get, 6)->format('M j, Y').')',
+                            '3_months' => '3 Months ('.self::calculateExpirationDate($get, 3)->format('M j, Y').')',
+                            '1_month' => '1 Month ('.self::calculateExpirationDate($get, 1)->format('M j, Y').')',
+                            'specific_date' => 'Specific Date',
+                        ])
+                        ->default('6_months')
+                        ->live()
+                        ->disabled($disabledForExistingPrescription)
+                        ->dehydrated(false)
+                        ->required()
+                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
+                            $months = match ($state) {
+                                '6_months' => 6,
+                                '3_months' => 3,
+                                '1_month' => 1,
+                                default => null,
+                            };
+
+                            if ($months !== null) {
+                                $set('expires_at', self::calculateExpirationDate($get, $months)->toDateString());
+                            } elseif ($state === 'specific_date') {
+                                $set('expires_at', null);
+                            }
+                        }),
+                    DatePicker::make('expires_at')
+                        ->label('Expiration Date')
+                        ->helperText('Choose a preset period or select Specific Date to enter a custom date.')
+                        ->default(fn (Get $get): string => self::calculateExpirationDate($get, 6)->toDateString())
+                        ->minDate(fn (Get $get): string => filled($get('prescribed_at'))
+                            ? Carbon::parse($get('prescribed_at'))->toDateString()
+                            : now()->toDateString())
+                        ->visible(fn (Get $get): bool => $get('expiration_option') === 'specific_date')
+                        ->dehydrated()
+                        ->dehydratedWhenHidden()
+                        ->required(fn (Get $get): bool => $get('expiration_option') === 'specific_date'),
+                ] : []),
                 Textarea::make('remarks')
                     ->label('Remarks')
                     ->disabled($disabledForExistingPrescription)
@@ -195,5 +240,13 @@ class PrescriptionForm
                 ]),
             ]),
         ]);
+    }
+
+    private static function calculateExpirationDate(Get $get, int $months): Carbon
+    {
+        $prescribedAt = $get('prescribed_at');
+
+        return (filled($prescribedAt) ? Carbon::parse($prescribedAt) : now())
+            ->addMonthsNoOverflow($months);
     }
 }

@@ -45,6 +45,7 @@ test('prescription response contains grouped measurements and remarks', function
         'main_od_sphere' => '-2.00',
         'main_od_cylinder' => '-0.50',
         'remarks' => 'Test remarks',
+        'expires_at' => '2027-03-11',
     ]);
 
     $response = $this->actingAs($user)
@@ -54,7 +55,8 @@ test('prescription response contains grouped measurements and remarks', function
     expect($response->json('data.0.measurements.main.od.sphere'))->toBe('-2.00')
         ->and($response->json('data.0.measurements.main.od.cylinder'))->toBe('-0.50')
         ->and($response->json('data.0.remarks'))->toBe('Test remarks')
-        ->and($response->json('data.0'))->not->toHaveKeys(['od_sphere', 'pd', 'expires_at', 'notes']);
+        ->and($response->json('data.0.expires_at'))->toBe('2027-03-11')
+        ->and($response->json('data.0'))->not->toHaveKeys(['od_sphere', 'pd', 'notes']);
 });
 
 test('prescription list returns only current versions with amendment context', function () {

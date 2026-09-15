@@ -9,10 +9,69 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
+
+afterEach(function (): void {
+    Carbon::setTestNow();
+});
+
+test('finalized prescriptions default to an expiration date six months after prescribing', function () {
+    Carbon::setTestNow('2026-09-11 10:00:00');
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
+
+    $prescription = app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: ['main_od_sphere' => '-2.50', 'main_os_sphere' => '-3.00'],
+    );
+
+    expect($prescription->expires_at->toDateString())->toBe('2027-03-11');
+});
+
+test('finalized prescriptions accept a configured expiration date', function () {
+    Carbon::setTestNow('2026-09-11 10:00:00');
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
+
+    $prescription = app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: [
+            'main_od_sphere' => '-2.50',
+            'main_os_sphere' => '-3.00',
+            'expires_at' => '2027-03-11',
+        ],
+    );
+
+    expect($prescription->expires_at->toDateString())->toBe('2027-03-11');
+});
+
+test('finalized prescriptions cannot expire before the prescribed date', function () {
+    Carbon::setTestNow('2026-09-11 10:00:00');
+    $optometrist = User::factory()->optometrist()->create();
+    $patient = Patient::factory()->create();
+    $encounter = Encounter::factory()->inProgress()->create(['patient_id' => $patient->id]);
+
+    app(FinalizePrescription::class)->handle(
+        patient: $patient,
+        encounter: $encounter,
+        author: $optometrist,
+        data: [
+            'main_od_sphere' => '-2.50',
+            'main_os_sphere' => '-3.00',
+            'expires_at' => '2026-09-10',
+        ],
+    );
+})->throws(ValidationException::class);
 
 test('only an optometrist can finalize a prescription', function () {
     $optometrist = User::factory()->optometrist()->create();

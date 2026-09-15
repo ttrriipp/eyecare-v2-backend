@@ -45,6 +45,8 @@ class CreatePrescription extends CreateRecord
             'patient_id' => $encounterRecord->patient_id,
             'appointment_id' => $encounterRecord->appointment_id,
             'prescribed_at' => now()->toDateString(),
+            'expiration_option' => '6_months',
+            'expires_at' => now()->addMonthsNoOverflow(6)->toDateString(),
         ]);
     }
 
@@ -100,6 +102,7 @@ class CreatePrescription extends CreateRecord
                 'add_os_sphere',
                 'add_os_cylinder',
                 'remarks',
+                'expires_at',
             ]),
             previousPrescription: $this->getPreviousPrescription(),
             amendmentReason: $data['amendment_reason'] ?? null,

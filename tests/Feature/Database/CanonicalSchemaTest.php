@@ -113,6 +113,7 @@ test('prescription database columns and foreign keys match canonical constraints
                 'remarks',
                 'amendment_reason',
                 'prescribed_at',
+                'expires_at',
                 'deleted_at'
             )
     "))->keyBy('COLUMN_NAME');
@@ -150,6 +151,8 @@ test('prescription database columns and foreign keys match canonical constraints
         ->and($columns['remarks']->DATA_TYPE)->toBe('text')
         ->and($columns['amendment_reason']->DATA_TYPE)->toBe('text')
         ->and($columns['prescribed_at']->DATA_TYPE)->toBe('date')
+        ->and($columns['expires_at']->DATA_TYPE)->toBe('date')
+        ->and($columns['expires_at']->IS_NULLABLE)->toBe('YES')
         ->and($columns)->toHaveKey('deleted_at')
         ->and($foreignKeys['patient_id']->REFERENCED_TABLE_NAME)->toBe('patients')
         ->and($foreignKeys['patient_id']->DELETE_RULE)->toBe('CASCADE')

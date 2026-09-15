@@ -166,6 +166,7 @@ class EditEncounter extends EditRecord
             // Use finalized prescription data
             $data['prescription'] = Arr::only($prescription->attributesToArray(), [
                 ...self::PRESCRIPTION_FIELDS,
+                'expires_at',
                 'prescribed_at',
             ]);
         } elseif ($this->record->prescription_draft !== null) {
@@ -173,7 +174,11 @@ class EditEncounter extends EditRecord
             $data['prescription'] = $this->record->prescription_draft;
         } else {
             // No prescription or draft yet
-            $data['prescription'] = ['prescribed_at' => now()->toDateString()];
+            $data['prescription'] = [
+                'prescribed_at' => now()->toDateString(),
+                'expiration_option' => '6_months',
+                'expires_at' => now()->addMonthsNoOverflow(6)->toDateString(),
+            ];
         }
 
         return $data;
@@ -211,7 +216,7 @@ class EditEncounter extends EditRecord
                     patient: $record->patient,
                     encounter: $record,
                     author: $author,
-                    data: Arr::only($prescriptionData, self::PRESCRIPTION_FIELDS),
+                    data: Arr::only($prescriptionData, [...self::PRESCRIPTION_FIELDS, 'expires_at']),
                 );
 
                 $record->update(['prescription_draft' => null]);

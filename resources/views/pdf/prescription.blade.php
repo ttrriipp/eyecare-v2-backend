@@ -62,8 +62,12 @@
             <div class="field-value">{{ $prescription->patient?->full_name ?? '—' }}</div>
         </div>
         <div class="patient-field">
-            <div class="field-label">Date</div>
+            <div class="field-label">Prescribed Date</div>
             <div class="field-value">{{ $prescription->prescribed_at?->format('M j, Y') ?? '—' }}</div>
+        </div>
+        <div class="patient-field">
+            <div class="field-label">Expiration Date</div>
+            <div class="field-value">{{ $prescription->expires_at?->format('M j, Y') ?? '—' }}</div>
         </div>
     </div>
 

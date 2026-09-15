@@ -24,6 +24,7 @@ class PrescriptionResource extends JsonResource
             'previous_prescription_id' => $this->previous_prescription_id,
             'is_current' => ! (bool) $this->next_prescription_exists,
             'date' => $this->prescribed_at?->toDateString(),
+            'expires_at' => $this->expires_at?->toDateString(),
             'measurements' => [
                 'main' => [
                     'od' => [

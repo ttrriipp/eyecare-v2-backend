@@ -35,14 +35,16 @@ test('prescription pdf uses patient relationship', function () {
 });
 
 test('prescription print layouts omit unsupported prism and base fields', function () {
-    $prescription = Prescription::factory()->create();
+    $prescription = Prescription::factory()->create(['expires_at' => '2027-03-11']);
 
     $fullPrescription = view('pdf.prescription', ['prescription' => $prescription, 'clinic' => config('clinic'), 'clinicHours' => ''])->render();
 
     expect($fullPrescription)->not->toContain('<th>Prism</th>')
         ->and($fullPrescription)->not->toContain('<th>Base</th>')
         ->and($fullPrescription)->not->toContain('od_axis')
-        ->and($fullPrescription)->not->toContain('pd');
+        ->and($fullPrescription)->not->toContain('pd')
+        ->and($fullPrescription)->toContain('Expiration Date')
+        ->and($fullPrescription)->toContain('Mar 11, 2027');
 });
 
 test('prescription print route requires authentication', function () {

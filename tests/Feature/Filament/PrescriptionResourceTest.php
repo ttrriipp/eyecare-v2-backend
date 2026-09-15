@@ -17,11 +17,59 @@ use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\User;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Support\Enums\FontWeight;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
+
+afterEach(function (): void {
+    Carbon::setTestNow();
+});
+
+test('prescription creation offers preset and specific expiration options', function () {
+    Carbon::setTestNow('2026-09-11 10:00:00');
+    $optometrist = User::factory()->optometrist()->create();
+    $encounter = Encounter::factory()->inProgress()->create([
+        'optometrist_id' => $optometrist->id,
+    ]);
+
+    $this->actingAs($optometrist);
+
+    Livewire::test(CreatePrescription::class, ['encounter' => $encounter->id])
+        ->assertFormFieldExists('expiration_option', function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                '6_months' => '6 Months (Mar 11, 2027)',
+                '3_months' => '3 Months (Dec 11, 2026)',
+                '1_month' => '1 Month (Oct 11, 2026)',
+                'specific_date' => 'Specific Date',
+            ]);
+
+            return true;
+        })
+        ->assertFormFieldExists('expires_at')
+        ->assertFormFieldHidden('expires_at')
+        ->assertFormSet(['expiration_option' => '6_months'])
+        ->assertFormSet(['expires_at' => '2027-03-11'])
+        ->set('data.expiration_option', '3_months')
+        ->assertFormSet(['expires_at' => '2026-12-11'])
+        ->set('data.expiration_option', '1_month')
+        ->assertFormSet(['expires_at' => '2026-10-11'])
+        ->set('data.expiration_option', 'specific_date')
+        ->assertFormSet(['expires_at' => null])
+        ->assertFormFieldVisible('expires_at')
+        ->fillForm([
+            'main_od_sphere' => '-2.50',
+            'main_os_sphere' => '-3.00',
+            'expires_at' => '2026-11-30',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Prescription::query()->sole()->expires_at->toDateString())->toBe('2026-11-30');
+});
 
 test('prescription lists show retained operational columns', function () {
     $optometrist = User::factory()->optometrist()->create(['first_name' => 'Dr.', 'middle_name' => null, 'last_name' => 'Padilla']);
@@ -206,7 +254,10 @@ test('prescription details emphasize the patient and link the consultation date'
     ]);
     $prescription = Prescription::factory()
         ->linkedToEncounter($encounter)
-        ->create(['prescribed_at' => now()->subDay()]);
+        ->create([
+            'prescribed_at' => now()->subDay(),
+            'expires_at' => now()->addMonths(6),
+        ]);
 
     $this->actingAs($optometrist);
 
@@ -225,7 +276,9 @@ test('prescription details emphasize the patient and link the consultation date'
         ->assertSee(
             'href="'.EncounterResource::getUrl('edit', ['record' => $encounter]).'"',
             false,
-        );
+        )
+        ->assertSee('Expiration Date')
+        ->assertSee($prescription->expires_at->format('M j, Y'));
 });
 
 test('a receptionist can view but cannot amend a finalized prescription', function () {

@@ -249,6 +249,10 @@
                     <div class="field-label">Prescribed At</div>
                     <div class="field-value">{{ $prescription->prescribed_at?->format('M d, Y g:i A') ?? '—' }}</div>
                 </div>
+                <div class="field">
+                    <div class="field-label">Expires On</div>
+                    <div class="field-value">{{ $prescription->expires_at?->format('M d, Y') ?? '—' }}</div>
+                </div>
                 <div class="field full-width">
                     <div class="field-label">Remarks</div>
                     <div class="field-value">{{ $prescription->remarks ?? '—' }}</div>

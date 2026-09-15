@@ -43,6 +43,7 @@ class PrescriptionFactory extends Factory
             'remarks' => fake()->optional()->sentence(),
             'amendment_reason' => null,
             'prescribed_at' => now(),
+            'expires_at' => now()->addMonthsNoOverflow(6),
         ];
     }
 

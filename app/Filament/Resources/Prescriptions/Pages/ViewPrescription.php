@@ -113,6 +113,9 @@ class ViewPrescription extends ViewRecord
                         Placeholder::make('prescribed_at')
                             ->label('Prescribed Date')
                             ->content($record->prescribed_at?->format('M j, Y') ?? '—'),
+                        Placeholder::make('expires_at')
+                            ->label('Expiration Date')
+                            ->content($record->expires_at?->format('M j, Y') ?? '—'),
                     ])
                     ->columnSpan(1),
             ]),
