@@ -146,7 +146,11 @@ class ProductForm
                     KeyValue::make('default_variant_attributes')
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')
-                        ->default(['' => ''])
+                        ->afterStateHydrated(function (?array $state, KeyValue $component): void {
+                            if (empty($state)) {
+                                $component->state(['' => '']);
+                            }
+                        })
                         ->addActionLabel('Add detail')
                         ->columnSpanFull(),
                 ])
