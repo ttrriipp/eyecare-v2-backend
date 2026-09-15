@@ -64,6 +64,10 @@ final class FilterProfanity
 
         $pattern = '/(?<![\p{L}\p{N}])(?:'.implode('|', $words).')(?![\p{L}\p{N}])/iu';
 
-        return preg_replace($pattern, '****', $comment) ?? $comment;
+        return preg_replace_callback(
+            $pattern,
+            fn (array $matches): string => str_repeat('*', mb_strlen($matches[0], 'UTF-8')),
+            $comment,
+        ) ?? $comment;
     }
 }

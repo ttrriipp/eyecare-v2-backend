@@ -39,10 +39,10 @@ test('profanity is masked before visit feedback is saved', function () {
         patient: $this->patient,
         appointment: $this->appointment,
         rating: 2,
-        comment: 'This is FUCK and gago.',
+        comment: 'This is FUCK and putang ina.',
     );
 
-    expect($rating->comment)->toBe('This is **** and ****.');
+    expect($rating->comment)->toBe('This is **** and **********.');
 });
 
 test('re-submitting updates the rating in place', function () {
