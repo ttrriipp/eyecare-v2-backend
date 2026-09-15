@@ -117,7 +117,6 @@ class ProductForm
                 ->columnSpanFull()
                 ->description('These values prefill new variants. Changing them later does not update existing variants.')
                 ->schema([
-                    // Frame-specific structured defaults
                     TextInput::make('default_variant_attributes.lens_width')
                         ->label('Lens Width (mm)')
                         ->numeric()
@@ -149,6 +148,7 @@ class ProductForm
                         ->helperText('Additional key/value pairs for frame variants.')
                         ->columnSpanFull(),
                 ])
+                ->columns(3)
                 ->visible(fn (Get $get): bool => $get('product_type') === 'frame'),
 
             // ── Inline variants (edit only, full width) ─────────────
