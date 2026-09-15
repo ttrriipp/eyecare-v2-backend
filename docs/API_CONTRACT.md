@@ -23,6 +23,16 @@
 > A limit rejection returns the stable `ACTIVE_REQUEST_LIMIT_REACHED` error
 > documented in §8. No route or successful-response shape changed.
 
+> **Shipped 2026-09-15: one active booking journey.** Each patient account
+> may have at most one active booking journey: one actionable pending request
+> OR one future scheduled / checked-in appointment. The limit changed from
+> two to one. A new `ACTIVE_APPOINTMENT_EXISTS` error (HTTP 422) is returned
+> when a patient tries to submit a request while an active appointment exists.
+> `GET /appointment-requests` now includes `meta.booking_eligibility` with
+> `can_submit_new_request`, `blocking_reason`, `active_request_id`,
+> `appointment_id`, and `can_request_rebooking`. Rebooking the patient's own
+> scheduled appointment remains allowed as part of the same journey.
+
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
 > database notifications for active staff and administrators. These internal
