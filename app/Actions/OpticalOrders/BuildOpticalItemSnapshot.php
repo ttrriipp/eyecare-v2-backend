@@ -6,7 +6,6 @@ use App\Enums\CommercialItemKind;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\ProductVariant;
-use App\Services\ContactLensAttributeValidator;
 use Illuminate\Validation\ValidationException;
 
 final class BuildOpticalItemSnapshot
@@ -149,13 +148,7 @@ final class BuildOpticalItemSnapshot
 
         // Include relevant physical attributes
         if (is_array($variant->attributes)) {
-            // For contact lenses, include only canonical applicable parameters
-            if ($variant->product->product_type === 'contact_lens') {
-                $validator = app(ContactLensAttributeValidator::class);
-                $snapshot['attributes'] = $validator->getApplicableAttributes($variant->attributes);
-            } else {
-                $snapshot['attributes'] = $variant->attributes;
-            }
+            $snapshot['attributes'] = array_filter($variant->attributes, fn ($v) => $v !== null && $v !== '');
         }
 
         return $snapshot;

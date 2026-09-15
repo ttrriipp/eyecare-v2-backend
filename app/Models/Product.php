@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
     'is_active',
     'product_type',
     'images',
+    'default_variant_attributes',
 ])]
 class Product extends Model
 {
@@ -117,6 +118,7 @@ class Product extends Model
         return [
             'is_active' => 'boolean',
             'images' => 'array',
+            'default_variant_attributes' => 'array',
         ];
     }
 }

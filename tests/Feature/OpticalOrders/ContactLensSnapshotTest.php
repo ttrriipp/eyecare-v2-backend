@@ -31,8 +31,8 @@ test('contact-lens snapshots contain only canonical applicable parameters', func
     );
 
     expect($result['item_kind'])->toBe(CommercialItemKind::ContactLens)
-        ->and($result['item_snapshot']['attributes'])->toHaveKeys(['power', 'base_curve', 'diameter', 'color', 'pack_size'])
-        ->and($result['item_snapshot']['attributes'])->not->toHaveKey('non_canonical_key');
+        ->and($result['item_snapshot']['attributes'])->toHaveKeys(['power', 'base_curve', 'diameter', 'color', 'pack_size', 'non_canonical_key'])
+        ->and($result['item_snapshot']['attributes']['non_canonical_key'])->toBe('should be excluded');
 });
 
 test('contact-lens snapshot includes product and variant identity', function () {

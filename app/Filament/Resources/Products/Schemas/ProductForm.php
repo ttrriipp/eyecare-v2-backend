@@ -99,15 +99,64 @@ class ProductForm
                     ]),
             ]),
 
-            // ── Inline variants (create only, full width) ─────────────
+            // ── Default Variant Details (create and edit) ─────────────
+            Section::make('Default Variant Details')
+                ->columnSpanFull()
+                ->description('These values prefill new variants. Changing them later does not update existing variants.')
+                ->schema([
+                    KeyValue::make('default_variant_attributes')
+                        ->label('Default Details')
+                        ->helperText('Key/value pairs that will prefill new variants. Examples: base_curve, diameter, pack_size, color, material.')
+                        ->columnSpanFull(),
+                ])
+                ->visible(fn (Get $get): bool => in_array($get('product_type'), ['contact_lens', 'accessory'])),
+
+            Section::make('Default Variant Details')
+                ->columnSpanFull()
+                ->description('These values prefill new variants. Changing them later does not update existing variants.')
+                ->schema([
+                    // Frame-specific structured defaults
+                    TextInput::make('default_variant_attributes.lens_width')
+                        ->label('Lens Width (mm)')
+                        ->numeric()
+                        ->minValue(30)
+                        ->maxValue(70),
+                    TextInput::make('default_variant_attributes.bridge')
+                        ->label('Bridge (mm)')
+                        ->numeric()
+                        ->minValue(10)
+                        ->maxValue(30),
+                    TextInput::make('default_variant_attributes.temple')
+                        ->label('Temple Length (mm)')
+                        ->numeric()
+                        ->minValue(100)
+                        ->maxValue(160),
+                    TextInput::make('default_variant_attributes.lens_height')
+                        ->label('Lens Height (mm)')
+                        ->numeric()
+                        ->minValue(20)
+                        ->maxValue(60),
+                    TextInput::make('default_variant_attributes.color')
+                        ->label('Color')
+                        ->maxLength(50),
+                    TextInput::make('default_variant_attributes.material')
+                        ->label('Material')
+                        ->maxLength(50),
+                    KeyValue::make('default_variant_attributes')
+                        ->label('Other Details')
+                        ->helperText('Additional key/value pairs for frame variants.')
+                        ->columnSpanFull(),
+                ])
+                ->visible(fn (Get $get): bool => $get('product_type') === 'frame'),
+
+            // ── Inline variants (edit only, full width) ─────────────
             Section::make('Variants')
                 ->columnSpanFull()
-                ->hiddenOn('edit')
-                ->description('Add at least one variant with price and stock.')
+                ->hiddenOn('create')
                 ->schema([
                     Repeater::make('variants')
                         ->relationship()
-                        ->minItems(1)
+                        ->minItems(0)
                         ->hiddenLabel()
                         ->schema(VariantForm::schema())
                         ->columns(2),

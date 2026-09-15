@@ -140,7 +140,16 @@ class VariantsRelationManager extends RelationManager
                     ->visible(fn (): bool => $this->getOwnerRecord()->product_type === 'frame'),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->mutateFormDataUsing(function (array $data): array {
+                        $defaults = $this->getOwnerRecord()->default_variant_attributes ?? [];
+
+                        if (! empty($defaults)) {
+                            $data['attributes'] = array_merge($defaults, $data['attributes'] ?? []);
+                        }
+
+                        return $data;
+                    }),
             ])
             ->filters([
                 CatalogLifecycleActions::statusFilter(),

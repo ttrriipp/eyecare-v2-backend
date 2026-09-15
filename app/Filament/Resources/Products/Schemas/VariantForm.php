@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Products\Schemas;
 use App\Models\ProductVariant;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
@@ -145,8 +144,7 @@ final class VariantForm
         if ($productType !== null) {
             return match ($productType) {
                 'frame' => [self::frameDimensionsSection()],
-                'contact_lens' => [self::contactLensSection()],
-                default => [self::accessoryAttributesField($productId)],
+                default => [self::genericDetailsField($productId)],
             };
         }
 
@@ -154,10 +152,8 @@ final class VariantForm
         return [
             self::frameDimensionsSection()
                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
-            self::contactLensSection()
-                ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
-            self::accessoryAttributesField($productId)
-                ->visible(fn (Get $get): bool => $get('../../product_type') === 'accessory'),
+            self::genericDetailsField($productId)
+                ->visible(fn (Get $get): bool => $get('../../product_type') !== 'frame'),
         ];
     }
 
@@ -310,7 +306,7 @@ final class VariantForm
             ->columnSpanFull();
     }
 
-    private static function accessoryAttributesField(?int $productId = null): KeyValue
+    private static function genericDetailsField(?int $productId = null): KeyValue
     {
         $default = null;
 
@@ -323,14 +319,13 @@ final class VariantForm
                 ->value('attributes');
 
             if (is_array($existingKeys) && count($existingKeys) > 0) {
-                // Prefill keys with empty values so staff sees the structure
                 $default = array_map(fn () => '', array_filter($existingKeys, fn ($v) => $v !== null));
             }
         }
 
         return KeyValue::make('attributes')
             ->label('Additional Product Details')
-            ->helperText('Optional facts describing this product. Suggested keys: Volume, Package, Formulation, Compatible with.')
+            ->helperText('Product details such as power, base curve, diameter, color, pack size, volume, formulation, etc.')
             ->default($default)
             ->columnSpanFull();
     }
