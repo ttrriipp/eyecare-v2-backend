@@ -20,6 +20,19 @@ beforeEach(function () {
     $this->user = User::factory()->staff()->create();
 });
 
+test('new generic product details start with one empty row', function (string $productType) {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->set('data.product_type', $productType)
+        ->assertSee('Default Details')
+        ->assertSet('data.default_variant_attributes', [
+            ['key' => '', 'value' => ''],
+        ]);
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
 test('frame dimensions table column shows for frame products', function () {
     $product = Product::factory()->create(['product_type' => 'frame']);
     ProductVariant::factory()->for($product)->create([

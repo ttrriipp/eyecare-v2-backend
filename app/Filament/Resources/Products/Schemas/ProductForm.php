@@ -34,6 +34,13 @@ class ProductForm
                                 ->default('frame')
                                 ->required()
                                 ->live()
+                                ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                    if (in_array($state, ['contact_lens', 'accessory'], true)) {
+                                        $set('default_variant_attributes', [
+                                            ['key' => '', 'value' => ''],
+                                        ]);
+                                    }
+                                })
                                 ->disabledOn('edit')
                                 ->dehydrated()
                                 ->columnSpanFull(),
