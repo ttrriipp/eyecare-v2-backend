@@ -98,6 +98,11 @@ class Patient extends Model
         return implode(' ', $parts);
     }
 
+    public function ageInYears(): ?int
+    {
+        return $this->date_of_birth?->age;
+    }
+
     /**
      * @return BelongsTo<User, $this>
      */

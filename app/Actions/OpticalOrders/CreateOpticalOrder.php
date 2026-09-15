@@ -80,6 +80,7 @@ class CreateOpticalOrder
             discountType: $discountType,
             requestedAmount: $discountAmount,
             items: $validatedItems,
+            patient: $patient,
             creator: $creator,
         );
 
@@ -343,6 +344,7 @@ class CreateOpticalOrder
         DiscountType $discountType,
         ?float $requestedAmount,
         array $items,
+        Patient $patient,
         User $creator,
     ): ?float {
         $subtotalInCents = array_sum(array_map(
@@ -353,7 +355,8 @@ class CreateOpticalOrder
 
         $discountInCents = match ($discountType) {
             DiscountType::None => $this->resolveNoDiscount($requestedAmount),
-            DiscountType::SeniorCitizen, DiscountType::Pwd => (int) round(
+            DiscountType::SeniorCitizen => $this->resolveSeniorCitizenDiscount($patient, $subtotalInCents),
+            DiscountType::Pwd => (int) round(
                 $subtotalInCents * (($discountType->percentage() ?? 0) / 100),
             ),
             DiscountType::Other => $this->resolveCustomDiscount($requestedAmount),
@@ -372,6 +375,20 @@ class CreateOpticalOrder
         }
 
         return $discountInCents > 0 ? $discountInCents / 100 : null;
+    }
+
+    private function resolveSeniorCitizenDiscount(Patient $patient, int $subtotalInCents): int
+    {
+        $minimumAge = DiscountType::SeniorCitizen->minimumAge();
+        $age = $patient->ageInYears();
+
+        if ($minimumAge === null || $age === null || $age < $minimumAge) {
+            throw ValidationException::withMessages([
+                'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
+            ]);
+        }
+
+        return (int) round($subtotalInCents * ((DiscountType::SeniorCitizen->percentage() ?? 0) / 100));
     }
 
     private function resolveNoDiscount(?float $requestedAmount): int

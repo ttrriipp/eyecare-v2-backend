@@ -69,9 +69,49 @@ test('discount selector offers the Philippine statutory choices and an admin cus
         );
 });
 
+test('selecting a patient aged 60 automatically selects the senior citizen discount', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(60),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->set('data.patient_id', $patient->id)
+        ->assertSet('data.discount_type', 'senior_citizen');
+});
+
+test('a preselected patient aged 60 automatically receives the senior citizen discount', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(60),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class, ['patient' => (string) $patient->id])
+        ->assertSet('data.discount_type', 'senior_citizen');
+});
+
+test('selecting a patient younger than 60 leaves the automatic discount unset', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(59),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->set('data.patient_id', $patient->id)
+        ->assertSet('data.discount_type', 'none');
+});
+
 test('admin statutory discounts apply twenty percent of the order subtotal', function (string $discountType) {
     $admin = User::factory()->admin()->create();
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(60),
+    ]);
     $variant = ProductVariant::factory()->create([
         'stock_quantity' => 10,
         'price' => 2500,

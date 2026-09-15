@@ -137,6 +137,27 @@ test('discount reduces the billing record total and balance due', function () {
         ->and((float) $result['billing_record']->balance_due)->toBe(2000.0);
 });
 
+test('senior citizen discount requires the patient to be at least 60 years old', function () {
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(59),
+    ]);
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+    $admin = User::factory()->admin()->create();
+
+    $this->action->handle(
+        patient: $patient,
+        creator: $admin,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+        ]],
+        discountType: 'senior_citizen',
+        discountAmount: 500,
+    );
+})->throws(ValidationException::class, 'Senior Citizen discount requires the patient to be at least 60 years old.');
+
 test('no discount leaves the billing record total unchanged', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);

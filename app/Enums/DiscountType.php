@@ -31,6 +31,14 @@ enum DiscountType: string implements HasLabel
         return $this->isStatutory() ? 20.0 : null;
     }
 
+    public function minimumAge(): ?int
+    {
+        return match ($this) {
+            self::SeniorCitizen => 60,
+            default => null,
+        };
+    }
+
     /**
      * @return array<string, string>
      */

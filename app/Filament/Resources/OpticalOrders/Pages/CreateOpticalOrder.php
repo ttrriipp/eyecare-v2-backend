@@ -69,9 +69,12 @@ class CreateOpticalOrder extends CreateRecord
         parent::mount();
 
         if ($this->patientId !== null || $this->prescriptionId !== null) {
+            $patientRecord = $this->resolvePatient();
+
             $this->form->fill([
-                'patient_id' => $this->resolvePatient()?->id,
+                'patient_id' => $patientRecord?->id,
                 'prescription_id' => $this->resolvePrescription()?->id,
+                'discount_type' => $this->automaticDiscountTypeForPatient($patientRecord),
                 'include_prescription_eyewear' => $this->prescriptionId !== null,
                 'items' => $this->prescriptionId !== null ? [] : [[
                     'item_kind' => 'catalog',
@@ -127,6 +130,12 @@ class CreateOpticalOrder extends CreateRecord
             $subtotal($get) - $discountAmount($get),
             0,
         );
+        $patientById = fn (mixed $patientId): ?Patient => filled($patientId)
+            ? Patient::query()->find((int) $patientId)
+            : null;
+        $automaticDiscountType = fn (?string $patientId): string => $this->automaticDiscountTypeForPatient(
+            $patientById($patientId),
+        );
         $clearPrescriptionValidation = function (LivewireComponent $livewire): void {
             $livewire->resetValidation('data.prescription_id');
         };
@@ -153,7 +162,7 @@ class CreateOpticalOrder extends CreateRecord
                                         ->searchable()
                                         ->preload()
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, Get $get, LivewireComponent $livewire): void {
+                                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state, LivewireComponent $livewire) use ($automaticDiscountType): void {
                                             $set('prescription_id', null);
                                             $set('include_prescription_eyewear', false);
                                             $set('eyewear_frame_source', null);
@@ -162,6 +171,8 @@ class CreateOpticalOrder extends CreateRecord
                                             $set('eyewear_patient_frame_price', null);
                                             $set('eyewear_lens_category_id', null);
                                             $set('eyewear_lens_options', []);
+                                            $set('discount_type', $automaticDiscountType($state));
+                                            $set('discount_amount', null);
 
                                             if (blank($get('items'))) {
                                                 $set('items', [[
@@ -172,6 +183,20 @@ class CreateOpticalOrder extends CreateRecord
 
                                             $livewire->resetValidation('data.prescription_id');
                                         }),
+                                    Placeholder::make('patient_age')
+                                        ->label('Patient age')
+                                        ->content(function (Get $get) use ($patientById): string {
+                                            $patient = $patientById($get('patient_id'));
+
+                                            if ($patient === null) {
+                                                return '—';
+                                            }
+
+                                            $age = $patient->ageInYears();
+
+                                            return $age === null ? 'Not recorded' : "{$age} years old";
+                                        })
+                                        ->visible(fn (Get $get): bool => filled($get('patient_id'))),
                                     Select::make('prescription_id')
                                         ->label('Prescription')
                                         ->options($prescriptionOptions)
@@ -607,6 +632,20 @@ class CreateOpticalOrder extends CreateRecord
             'unit_price' => $variant->price,
             'product_variant_id' => $variant->id,
         ];
+    }
+
+    private function automaticDiscountTypeForPatient(?Patient $patient): string
+    {
+        if (auth()->user()?->isAdmin() !== true) {
+            return DiscountType::None->value;
+        }
+
+        $age = $patient?->ageInYears();
+        $minimumAge = DiscountType::SeniorCitizen->minimumAge();
+
+        return $age !== null && $minimumAge !== null && $age >= $minimumAge
+            ? DiscountType::SeniorCitizen->value
+            : DiscountType::None->value;
     }
 
     private function resolvePatient(): ?Patient
