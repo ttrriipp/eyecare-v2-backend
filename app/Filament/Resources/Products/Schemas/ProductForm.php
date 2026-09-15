@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Products\Schemas;
 
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
@@ -12,7 +11,6 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Str;
@@ -111,162 +109,7 @@ class ProductForm
                         ->relationship()
                         ->minItems(1)
                         ->hiddenLabel()
-                        ->schema([
-                            TextInput::make('name')
-                                ->required()
-                                ->maxLength(255)
-                                ->unique(
-                                    modifyRuleUsing: fn ($rule, $record, $get) => $rule
-                                        ->where('product_id', $record?->product_id ?? $get('../../id'))
-                                        ->ignore($record?->id),
-                                ),
-                            TextInput::make('sku')
-                                ->maxLength(255)
-                                ->unique(ignoreRecord: true)
-                                ->placeholder('Auto-generated if blank'),
-                            TextInput::make('price')
-                                ->required()
-                                ->numeric()
-                                ->minValue(0)
-                                ->step(0.01)
-                                ->rules(['decimal:0,2'])
-                                ->prefix('₱')
-                                ->extraInputAttributes(['class' => 'price-input']),
-                            TextInput::make('compare_at_price')
-                                ->label('Compare at Price')
-                                ->nullable()
-                                ->numeric()
-                                ->minValue(0)
-                                ->step(0.01)
-                                ->rules(['decimal:0,2'])
-                                ->prefix('₱')
-                                ->extraInputAttributes(['class' => 'price-input']),
-                            TextInput::make('cost_price')
-                                ->label('Cost Price')
-                                ->nullable()
-                                ->numeric()
-                                ->minValue(0)
-                                ->step(0.01)
-                                ->rules(['decimal:0,2'])
-                                ->prefix('₱')
-                                ->extraInputAttributes(['class' => 'price-input']),
-                            TextInput::make('stock_quantity')
-                                ->required()
-                                ->numeric()
-                                ->minValue(0)
-                                ->default(0)
-                                ->visible(fn (Get $get): bool => $get('../../product_type') !== 'contact_lens'),
-                            TextInput::make('stock_quantity')
-                                ->label('Stock Quantity')
-                                ->default(0)
-                                ->disabled()
-                                ->dehydrated(false)
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
-                            TextInput::make('low_stock_threshold')
-                                ->required()
-                                ->numeric()
-                                ->minValue(0)
-                                ->default(0),
-                            TextInput::make('target_stock_level')
-                                ->label('Target Stock Level')
-                                ->nullable()
-                                ->integer()
-                                ->minValue(0)
-                                ->gte('low_stock_threshold')
-                                ->default(null),
-                            Toggle::make('is_active')
-                                ->label('Active')
-                                ->default(true),
-                            // Frame specific fields
-                            Section::make('Frame Dimensions')
-                                ->schema([
-                                    TextInput::make('attributes.bridge')
-                                        ->label('Bridge (mm)')
-                                        ->numeric()
-                                        ->minValue(10)
-                                        ->maxValue(30),
-                                    TextInput::make('attributes.temple')
-                                        ->label('Temple (mm)')
-                                        ->numeric()
-                                        ->minValue(100)
-                                        ->maxValue(160),
-                                    TextInput::make('attributes.lens_width')
-                                        ->label('Lens Width (mm)')
-                                        ->numeric()
-                                        ->minValue(30)
-                                        ->maxValue(70),
-                                    TextInput::make('attributes.lens_height')
-                                        ->label('Lens Height (mm)')
-                                        ->numeric()
-                                        ->minValue(20)
-                                        ->maxValue(60),
-                                    TextInput::make('attributes.color')
-                                        ->label('Color')
-                                        ->maxLength(50),
-                                    TextInput::make('attributes.material')
-                                        ->label('Material')
-                                        ->maxLength(50),
-                                ])
-                                ->columns(3)
-                                ->columnSpanFull()
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
-
-                            // Generic attributes for other product types
-                            KeyValue::make('attributes')
-                                ->columnSpanFull()
-                                ->visible(fn (Get $get): bool => ! in_array($get('../../product_type'), ['contact_lens', 'frame'])),
-
-                            // Contact-lens specific fields
-                            Section::make('Contact Lens Parameters')
-                                ->schema([
-                                    TextInput::make('attributes.power')
-                                        ->label('Power')
-                                        ->maxLength(20),
-                                    TextInput::make('attributes.base_curve')
-                                        ->label('Base Curve')
-                                        ->numeric()
-                                        ->minValue(7)
-                                        ->maxValue(12),
-                                    TextInput::make('attributes.diameter')
-                                        ->label('Diameter (mm)')
-                                        ->numeric()
-                                        ->minValue(10)
-                                        ->maxValue(20),
-                                    TextInput::make('attributes.cylinder')
-                                        ->label('Cylinder')
-                                        ->maxLength(20),
-                                    TextInput::make('attributes.axis')
-                                        ->label('Axis')
-                                        ->numeric()
-                                        ->minValue(0)
-                                        ->maxValue(180),
-                                    TextInput::make('attributes.add')
-                                        ->label('Add')
-                                        ->maxLength(20),
-                                    TextInput::make('attributes.color')
-                                        ->label('Color')
-                                        ->maxLength(50),
-                                    TextInput::make('attributes.pack_size')
-                                        ->label('Pack Size')
-                                        ->numeric()
-                                        ->minValue(1)
-                                        ->maxValue(999),
-                                ])
-                                ->columns(4)
-                                ->columnSpanFull()
-                                ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
-                            FileUpload::make('images')
-                                ->disk((string) config('filesystems.catalog_disk'))
-                                ->directory('variants')
-                                ->visibility('public')
-                                ->image()
-                                ->multiple()
-                                ->reorderable()
-                                ->appendFiles()
-                                ->maxSize(5120)
-                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                ->columnSpanFull(),
-                        ])
+                        ->schema(VariantForm::schema())
                         ->columns(2),
                 ]),
         ]);

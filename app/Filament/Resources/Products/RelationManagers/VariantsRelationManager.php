@@ -7,6 +7,7 @@ use App\Actions\ArAssets\DiscardArAsset;
 use App\Actions\ArAssets\PublishArAssetCandidate;
 use App\Actions\ArAssets\RollbackArAsset;
 use App\Enums\ArAssetStatus;
+use App\Filament\Resources\Products\Schemas\VariantForm;
 use App\Filament\Support\CatalogLifecycleActions;
 use App\Filament\Support\StockActions;
 use App\Models\ArAsset;
@@ -19,11 +20,9 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Component;
@@ -53,159 +52,7 @@ class VariantsRelationManager extends RelationManager
     {
         $productType = $this->getOwnerRecord()->product_type;
 
-        $components = [
-            TextInput::make('name')
-                ->required()
-                ->maxLength(255)
-                ->unique(
-                    modifyRuleUsing: fn ($rule, $record) => $rule
-                        ->where('product_id', $record?->product_id)
-                        ->ignore($record?->id),
-                ),
-            TextInput::make('sku')
-                ->maxLength(255)
-                ->unique(ignoreRecord: true)
-                ->placeholder('Auto-generated if blank'),
-            TextInput::make('price')
-                ->required()
-                ->numeric()
-                ->minValue(0)
-                ->step(0.01)
-                ->rules(['decimal:0,2'])
-                ->prefix('₱')
-                ->extraInputAttributes(['class' => 'price-input']),
-            TextInput::make('compare_at_price')
-                ->label('Compare at Price')
-                ->nullable()
-                ->numeric()
-                ->minValue(0)
-                ->step(0.01)
-                ->rules(['decimal:0,2'])
-                ->prefix('₱')
-                ->extraInputAttributes(['class' => 'price-input']),
-            TextInput::make('cost_price')
-                ->label('Cost Price')
-                ->nullable()
-                ->numeric()
-                ->minValue(0)
-                ->step(0.01)
-                ->rules(['decimal:0,2'])
-                ->prefix('₱')
-                ->extraInputAttributes(['class' => 'price-input']),
-            TextInput::make('stock_quantity')
-                ->required()
-                ->numeric()
-                ->minValue(0)
-                ->default(0)
-                ->disabled()
-                ->dehydrated(false),
-            TextInput::make('low_stock_threshold')
-                ->required()
-                ->numeric()
-                ->minValue(0)
-                ->default(0),
-            TextInput::make('target_stock_level')
-                ->label('Target Stock Level')
-                ->nullable()
-                ->integer()
-                ->minValue(0)
-                ->gte('low_stock_threshold')
-                ->default(null),
-            Toggle::make('is_active')
-                ->label('Active')
-                ->default(true),
-        ];
-
-        if ($productType === 'frame') {
-            $components[] = Section::make('Frame Dimensions')
-                ->schema([
-                    TextInput::make('attributes.bridge')
-                        ->label('Bridge (mm)')
-                        ->numeric()
-                        ->minValue(10)
-                        ->maxValue(30),
-                    TextInput::make('attributes.temple')
-                        ->label('Temple (mm)')
-                        ->numeric()
-                        ->minValue(100)
-                        ->maxValue(160),
-                    TextInput::make('attributes.lens_width')
-                        ->label('Lens Width (mm)')
-                        ->numeric()
-                        ->minValue(30)
-                        ->maxValue(70),
-                    TextInput::make('attributes.lens_height')
-                        ->label('Lens Height (mm)')
-                        ->numeric()
-                        ->minValue(20)
-                        ->maxValue(60),
-                    TextInput::make('attributes.color')
-                        ->label('Color')
-                        ->maxLength(50),
-                    TextInput::make('attributes.material')
-                        ->label('Material')
-                        ->maxLength(50),
-                ])
-                ->columns(3)
-                ->columnSpanFull();
-        } elseif ($productType === 'contact_lens') {
-            $components[] = Section::make('Contact Lens Parameters')
-                ->schema([
-                    TextInput::make('attributes.power')
-                        ->label('Power')
-                        ->maxLength(20),
-                    TextInput::make('attributes.base_curve')
-                        ->label('Base Curve')
-                        ->numeric()
-                        ->minValue(7)
-                        ->maxValue(12),
-                    TextInput::make('attributes.diameter')
-                        ->label('Diameter (mm)')
-                        ->numeric()
-                        ->minValue(10)
-                        ->maxValue(20),
-                    TextInput::make('attributes.cylinder')
-                        ->label('Cylinder')
-                        ->maxLength(20),
-                    TextInput::make('attributes.axis')
-                        ->label('Axis')
-                        ->numeric()
-                        ->minValue(0)
-                        ->maxValue(180),
-                    TextInput::make('attributes.add')
-                        ->label('Add')
-                        ->maxLength(20),
-                    TextInput::make('attributes.color')
-                        ->label('Color')
-                        ->maxLength(50),
-                    TextInput::make('attributes.pack_size')
-                        ->label('Pack Size')
-                        ->numeric()
-                        ->minValue(1)
-                        ->maxValue(999),
-                ])
-                ->columns(4)
-                ->columnSpanFull();
-        } else {
-            $components[] = KeyValue::make('attributes')
-                ->label('Attributes')
-                ->columnSpanFull();
-        }
-
-        $components[] = FileUpload::make('images')
-            ->disk((string) config('filesystems.catalog_disk'))
-            ->directory('variants')
-            ->visibility('public')
-            ->image()
-            ->imageEditor()
-            ->multiple()
-            ->reorderable()
-            ->appendFiles()
-            ->maxSize(5120)
-            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-            ->columnSpanFull();
-
-        return $schema->components($components);
+        return $schema->schema(VariantForm::schema($productType))->columns(2);
     }
 
     public function table(Table $table): Table
