@@ -136,6 +136,9 @@ class CreateOpticalOrder extends CreateRecord
         $automaticDiscountType = fn (?string $patientId): string => $this->automaticDiscountTypeForPatient(
             $patientById($patientId),
         );
+        $seniorCitizenEligible = fn (Get $get): bool => $this->isSeniorCitizenEligible(
+            $patientById($get('patient_id')),
+        );
         $clearPrescriptionValidation = function (LivewireComponent $livewire): void {
             $livewire->resetValidation('data.prescription_id');
         };
@@ -324,7 +327,11 @@ class CreateOpticalOrder extends CreateRecord
                                         ->label('Discount type')
                                         ->options(DiscountType::options())
                                         ->default(DiscountType::None->value)
-                                        ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                        ->selectablePlaceholder(false)
+                                        ->disabled(fn (Get $get): bool => auth()->user()?->isAdmin() !== true
+                                            || $seniorCitizenEligible($get))
+                                        ->disableOptionWhen(fn (string $value, Get $get): bool => $value === DiscountType::SeniorCitizen->value
+                                            && ! $seniorCitizenEligible($get))
                                         ->dehydrated()
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, ?string $state): void {
@@ -640,12 +647,17 @@ class CreateOpticalOrder extends CreateRecord
             return DiscountType::None->value;
         }
 
+        return $this->isSeniorCitizenEligible($patient)
+            ? DiscountType::SeniorCitizen->value
+            : DiscountType::None->value;
+    }
+
+    private function isSeniorCitizenEligible(?Patient $patient): bool
+    {
         $age = $patient?->ageInYears();
         $minimumAge = DiscountType::SeniorCitizen->minimumAge();
 
-        return $age !== null && $minimumAge !== null && $age >= $minimumAge
-            ? DiscountType::SeniorCitizen->value
-            : DiscountType::None->value;
+        return $age !== null && $minimumAge !== null && $age >= $minimumAge;
     }
 
     private function resolvePatient(): ?Patient

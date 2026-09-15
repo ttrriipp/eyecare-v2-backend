@@ -57,12 +57,14 @@ test('discount selector offers the Philippine statutory choices and an admin cus
         ->assertSchemaComponentExists(
             'discount_type',
             checkComponentUsing: function (Select $field): bool {
-                expect($field->getOptions())->toBe([
-                    'none' => 'No discount',
-                    'senior_citizen' => 'Senior Citizen (20%)',
-                    'pwd' => 'PWD (20%)',
-                    'other' => 'Other (admin custom)',
-                ]);
+                expect($field->canSelectPlaceholder())->toBeFalse()
+                    ->and($field->getDefaultState())->toBe('none')
+                    ->and($field->getOptions())->toBe([
+                        'none' => 'No discount',
+                        'senior_citizen' => 'Senior Citizen (20%)',
+                        'pwd' => 'PWD (20%)',
+                        'other' => 'Other (admin custom)',
+                    ]);
 
                 return true;
             },
@@ -107,10 +109,51 @@ test('selecting a patient younger than 60 leaves the automatic discount unset', 
         ->assertSet('data.discount_type', 'none');
 });
 
-test('admin statutory discounts apply twenty percent of the order subtotal', function (string $discountType) {
+test('senior citizen discount is locked for an age-eligible patient', function () {
     $admin = User::factory()->admin()->create();
     $patient = Patient::factory()->create([
         'date_of_birth' => today()->subYears(60),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->set('data.patient_id', $patient->id)
+        ->assertSchemaComponentExists(
+            'discount_type',
+            checkComponentUsing: function (Select $field): bool {
+                expect($field->isDisabled())->toBeTrue();
+
+                return true;
+            },
+        );
+});
+
+test('senior citizen discount is unavailable for a patient under 60', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(59),
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->set('data.patient_id', $patient->id)
+        ->assertSchemaComponentExists(
+            'discount_type',
+            checkComponentUsing: function (Select $field): bool {
+                expect($field->isDisabled())->toBeFalse()
+                    ->and($field->getEnabledOptions())->not->toHaveKey('senior_citizen');
+
+                return true;
+            },
+        );
+});
+
+test('admin statutory discounts apply twenty percent of the order subtotal', function (string $discountType, ?int $patientAge) {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => $patientAge === null ? null : today()->subYears($patientAge),
     ]);
     $variant = ProductVariant::factory()->create([
         'stock_quantity' => 10,
@@ -142,7 +185,10 @@ test('admin statutory discounts apply twenty percent of the order subtotal', fun
 
     expect((float) $billing->discount_amount)->toBe(500.0)
         ->and((float) $billing->total_amount)->toBe(2000.0);
-})->with(['senior_citizen', 'pwd']);
+})->with([
+    'senior citizen' => ['senior_citizen', 60],
+    'pwd' => ['pwd', null],
+]);
 
 test('admin can use the other discount option with a custom amount', function () {
     $admin = User::factory()->admin()->create();

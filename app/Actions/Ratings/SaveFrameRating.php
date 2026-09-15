@@ -12,7 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class SaveFrameRating
 {
-    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+    public function __construct(
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly FilterProfanity $filterProfanity,
+    ) {}
 
     /**
      * Create or update a frame rating. Eligibility derives from dispensing.
@@ -31,6 +34,8 @@ class SaveFrameRating
                 'rating' => ['Rating must be between 1 and 5.'],
             ]);
         }
+
+        $comment = $this->filterProfanity->handle($comment);
 
         $shouldNotify = false;
 

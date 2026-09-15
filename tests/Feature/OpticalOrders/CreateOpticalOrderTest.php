@@ -158,6 +158,27 @@ test('senior citizen discount requires the patient to be at least 60 years old',
     );
 })->throws(ValidationException::class, 'Senior Citizen discount requires the patient to be at least 60 years old.');
 
+test('an age-eligible patient must use the senior citizen discount', function () {
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(60),
+    ]);
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+    $admin = User::factory()->admin()->create();
+
+    $this->action->handle(
+        patient: $patient,
+        creator: $admin,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+        ]],
+        discountType: 'other',
+        discountAmount: 500,
+    );
+})->throws(ValidationException::class, 'Age-eligible patients must use the Senior Citizen discount.');
+
 test('no discount leaves the billing record total unchanged', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);

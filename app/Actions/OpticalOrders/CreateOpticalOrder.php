@@ -76,6 +76,12 @@ class CreateOpticalOrder
             ]);
         }
 
+        if ($this->isSeniorCitizenEligible($patient) && $discountType !== DiscountType::SeniorCitizen) {
+            throw ValidationException::withMessages([
+                'discount_type' => ['Age-eligible patients must use the Senior Citizen discount.'],
+            ]);
+        }
+
         $discountAmount = $this->resolveDiscountAmount(
             discountType: $discountType,
             requestedAmount: $discountAmount,
@@ -379,16 +385,21 @@ class CreateOpticalOrder
 
     private function resolveSeniorCitizenDiscount(Patient $patient, int $subtotalInCents): int
     {
-        $minimumAge = DiscountType::SeniorCitizen->minimumAge();
-        $age = $patient->ageInYears();
-
-        if ($minimumAge === null || $age === null || $age < $minimumAge) {
+        if (! $this->isSeniorCitizenEligible($patient)) {
             throw ValidationException::withMessages([
                 'discount_type' => ['Senior Citizen discount requires the patient to be at least 60 years old.'],
             ]);
         }
 
         return (int) round($subtotalInCents * ((DiscountType::SeniorCitizen->percentage() ?? 0) / 100));
+    }
+
+    private function isSeniorCitizenEligible(Patient $patient): bool
+    {
+        $age = $patient->ageInYears();
+        $minimumAge = DiscountType::SeniorCitizen->minimumAge();
+
+        return $age !== null && $minimumAge !== null && $age >= $minimumAge;
     }
 
     private function resolveNoDiscount(?float $requestedAmount): int

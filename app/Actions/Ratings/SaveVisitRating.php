@@ -12,7 +12,10 @@ use Illuminate\Validation\ValidationException;
 
 class SaveVisitRating
 {
-    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+    public function __construct(
+        private readonly NotifyAdminUsers $notifyAdminUsers,
+        private readonly FilterProfanity $filterProfanity,
+    ) {}
 
     /**
      * Create or revise a patient's rating of one fulfilled visit.
@@ -36,6 +39,8 @@ class SaveVisitRating
                 'rating' => ['Rating must be between 1 and 5.'],
             ]);
         }
+
+        $comment = $this->filterProfanity->handle($comment);
 
         $shouldNotify = false;
 
