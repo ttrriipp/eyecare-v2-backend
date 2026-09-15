@@ -117,10 +117,11 @@ test('rejects insufficient stock', function () {
 test('discount reduces the billing record total and balance due', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+    $admin = User::factory()->admin()->create();
 
     $result = $this->action->handle(
         patient: $patient,
-        creator: $this->staff,
+        creator: $admin,
         items: [[
             'description' => 'Frame',
             'quantity' => 1,

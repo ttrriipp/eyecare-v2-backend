@@ -6,6 +6,7 @@ use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecordBillingPayment;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
 use App\Enums\BillingItemSourceKind;
+use App\Enums\DiscountType;
 use App\Models\BillingRecord;
 use App\Models\DispensingEvent;
 use App\Models\Encounter;
@@ -47,6 +48,7 @@ class CreateOpticalOrder
         ?string $depositReference = null,
         ?string $recipientName = null,
         ?float $discountAmount = null,
+        ?string $discountType = null,
     ): array {
         if (! $creator->hasPanelRole()) {
             throw ValidationException::withMessages([
@@ -61,6 +63,25 @@ class CreateOpticalOrder
         }
 
         $validatedItems = $this->validateItems($items);
+
+        $discountType = DiscountType::tryFrom(
+            $discountType ?? ($discountAmount !== null
+                ? DiscountType::Other->value
+                : DiscountType::None->value),
+        );
+
+        if ($discountType === null) {
+            throw ValidationException::withMessages([
+                'discount_type' => ['Select a valid discount type.'],
+            ]);
+        }
+
+        $discountAmount = $this->resolveDiscountAmount(
+            discountType: $discountType,
+            requestedAmount: $discountAmount,
+            items: $validatedItems,
+            creator: $creator,
+        );
 
         $hasCorrectiveItems = collect($validatedItems)->contains(
             fn (array $item): bool => filled($item['lens_category_id'] ?? null),
@@ -310,5 +331,76 @@ class CreateOpticalOrder
     private function formatMoney(int $amountInCents): string
     {
         return number_format($amountInCents / 100, 2, '.', '');
+    }
+
+    /**
+     * Resolve statutory discounts from the validated subtotal and protect
+     * administrator-only custom discounts at the server boundary.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function resolveDiscountAmount(
+        DiscountType $discountType,
+        ?float $requestedAmount,
+        array $items,
+        User $creator,
+    ): ?float {
+        $subtotalInCents = array_sum(array_map(
+            fn (array $item): int => (int) round(((float) $item['unit_price']) * 100)
+                * (int) $item['quantity'],
+            $items,
+        ));
+
+        $discountInCents = match ($discountType) {
+            DiscountType::None => $this->resolveNoDiscount($requestedAmount),
+            DiscountType::SeniorCitizen, DiscountType::Pwd => (int) round(
+                $subtotalInCents * (($discountType->percentage() ?? 0) / 100),
+            ),
+            DiscountType::Other => $this->resolveCustomDiscount($requestedAmount),
+        };
+
+        if ($discountInCents > $subtotalInCents) {
+            throw ValidationException::withMessages([
+                'discount_amount' => ['Discount cannot exceed subtotal.'],
+            ]);
+        }
+
+        if ($discountInCents > 0 && ! $creator->isAdmin()) {
+            throw ValidationException::withMessages([
+                'discount_amount' => ['Only an administrator can apply a discount.'],
+            ]);
+        }
+
+        return $discountInCents > 0 ? $discountInCents / 100 : null;
+    }
+
+    private function resolveNoDiscount(?float $requestedAmount): int
+    {
+        if (($requestedAmount ?? 0.0) !== 0.0) {
+            throw ValidationException::withMessages([
+                'discount_amount' => ['A discount amount is not allowed when no discount is selected.'],
+            ]);
+        }
+
+        return 0;
+    }
+
+    private function resolveCustomDiscount(?float $requestedAmount): int
+    {
+        if ($requestedAmount !== null && ! is_finite($requestedAmount)) {
+            throw ValidationException::withMessages([
+                'discount_amount' => ['Discount must be a finite amount.'],
+            ]);
+        }
+
+        if (($requestedAmount ?? 0) < 0) {
+            throw ValidationException::withMessages([
+                'discount_amount' => ['Discount cannot be negative.'],
+            ]);
+        }
+
+        $discountInCents = (int) round(($requestedAmount ?? 0) * 100);
+
+        return $discountInCents;
     }
 }

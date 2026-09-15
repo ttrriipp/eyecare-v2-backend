@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
 use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
@@ -14,8 +15,10 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\NotificationStatusSeeder;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -44,6 +47,117 @@ test('direct order discount input uses spinner-free decimal styling', function (
             },
         );
 });
+
+test('discount selector offers the Philippine statutory choices and an admin custom option', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->assertSchemaComponentExists(
+            'discount_type',
+            checkComponentUsing: function (Select $field): bool {
+                expect($field->getOptions())->toBe([
+                    'none' => 'No discount',
+                    'senior_citizen' => 'Senior Citizen (20%)',
+                    'pwd' => 'PWD (20%)',
+                    'other' => 'Other (admin custom)',
+                ]);
+
+                return true;
+            },
+        );
+});
+
+test('admin statutory discounts apply twenty percent of the order subtotal', function (string $discountType) {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create([
+        'stock_quantity' => 10,
+        'price' => 2500,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'fulfillment_mode' => 'prepared',
+            'items' => [[
+                'item_kind' => 'catalog',
+                'product_variant_id' => $variant->id,
+                'quantity' => 1,
+            ]],
+            'discount_type' => $discountType,
+            'discount_amount' => 1,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Order created');
+
+    $billing = JobOrder::query()
+        ->where('patient_id', $patient->id)
+        ->firstOrFail()
+        ->billingRecord;
+
+    expect((float) $billing->discount_amount)->toBe(500.0)
+        ->and((float) $billing->total_amount)->toBe(2000.0);
+})->with(['senior_citizen', 'pwd']);
+
+test('admin can use the other discount option with a custom amount', function () {
+    $admin = User::factory()->admin()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create([
+        'stock_quantity' => 10,
+        'price' => 2500,
+    ]);
+
+    $this->actingAs($admin);
+
+    Livewire::test(CreateOpticalOrder::class)
+        ->fillForm([
+            'patient_id' => $patient->id,
+            'fulfillment_mode' => 'prepared',
+            'items' => [[
+                'item_kind' => 'catalog',
+                'product_variant_id' => $variant->id,
+                'quantity' => 1,
+            ]],
+            'discount_type' => 'other',
+            'discount_amount' => 300,
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors()
+        ->assertNotified('Order created');
+
+    $billing = JobOrder::query()
+        ->where('patient_id', $patient->id)
+        ->firstOrFail()
+        ->billingRecord;
+
+    expect((float) $billing->discount_amount)->toBe(300.0)
+        ->and((float) $billing->total_amount)->toBe(2200.0);
+});
+
+test('only administrators can apply a non-zero discount', function () {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
+
+    $action = app(CreateOpticalOrderAction::class);
+
+    $action->handle(
+        patient: $patient,
+        creator: $staff,
+        items: [[
+            'description' => 'Frame',
+            'quantity' => 1,
+            'unit_price' => 2500,
+            'product_variant_id' => $variant->id,
+        ]],
+        discountAmount: 500,
+    );
+})->throws(ValidationException::class, 'Only an administrator can apply a discount.');
 
 test('custom items explain which products can be entered manually', function () {
     $staff = User::factory()->staff()->create();

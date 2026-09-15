@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\OpticalOrders\Pages;
 
 use App\Actions\OpticalOrders\CreateOpticalOrder as CreateOpticalOrderAction;
+use App\Enums\DiscountType;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Schemas\OpticalOrderCreationForm;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
@@ -110,8 +111,20 @@ class CreateOpticalOrder extends CreateRecord
             $prescriptionEyewearResolver,
             true,
         );
+        $discountAmount = function (Get $get) use ($subtotal): float {
+            $discountType = DiscountType::tryFrom((string) ($get('discount_type') ?? DiscountType::None->value));
+
+            return match ($discountType) {
+                DiscountType::SeniorCitizen, DiscountType::Pwd => round(
+                    $subtotal($get) * (($discountType->percentage() ?? 0) / 100),
+                    2,
+                ),
+                DiscountType::Other => max((float) ($get('discount_amount') ?? 0), 0),
+                default => 0,
+            };
+        };
         $discountedTotal = fn (Get $get): float => max(
-            $subtotal($get) - (float) ($get('discount_amount') ?? 0),
+            $subtotal($get) - $discountAmount($get),
             0,
         );
         $clearPrescriptionValidation = function (LivewireComponent $livewire): void {
@@ -282,8 +295,29 @@ class CreateOpticalOrder extends CreateRecord
                                     Placeholder::make('order_total')
                                         ->label('Subtotal')
                                         ->content(fn (Get $get): string => '₱'.number_format($subtotal($get), 2)),
+                                    Select::make('discount_type')
+                                        ->label('Discount type')
+                                        ->options(DiscountType::options())
+                                        ->default(DiscountType::None->value)
+                                        ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                        ->dehydrated()
+                                        ->helperText('Senior Citizen and PWD discounts are 20%. Verify a valid ID and apply only one statutory discount. Other is for administrator-approved custom discounts.')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                            if ($state !== DiscountType::Other->value) {
+                                                $set('discount_amount', null);
+                                            }
+                                        }),
+                                    Placeholder::make('statutory_discount_amount')
+                                        ->label('Discount amount')
+                                        ->content(fn (Get $get): string => '₱'.number_format($discountAmount($get), 2))
+                                        ->visible(fn (Get $get): bool => in_array(
+                                            $get('discount_type'),
+                                            [DiscountType::SeniorCitizen->value, DiscountType::Pwd->value],
+                                            true,
+                                        )),
                                     TextInput::make('discount_amount')
-                                        ->label('Discount')
+                                        ->label('Custom discount')
                                         ->prefix('₱')
                                         ->numeric()
                                         ->minValue(0)
@@ -292,6 +326,8 @@ class CreateOpticalOrder extends CreateRecord
                                         ->maxValue(fn (Get $get): float => $subtotal($get))
                                         ->default(0)
                                         ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
+                                        ->visible(fn (Get $get): bool => $get('discount_type') === DiscountType::Other->value)
+                                        ->required(fn (Get $get): bool => $get('discount_type') === DiscountType::Other->value)
                                         ->dehydrated()
                                         ->live(onBlur: true),
                                     Placeholder::make('discounted_total')
@@ -398,6 +434,7 @@ class CreateOpticalOrder extends CreateRecord
                     : null,
                 depositPaymentMethod: $data['deposit_payment_method'] ?? null,
                 depositReference: $data['deposit_reference'] ?? null,
+                discountType: $data['discount_type'] ?? DiscountType::None->value,
                 discountAmount: filled($data['discount_amount'] ?? null)
                     ? (float) $data['discount_amount']
                     : null,
