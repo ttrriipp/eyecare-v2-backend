@@ -146,6 +146,8 @@ class ProductForm
                     KeyValue::make('default_variant_attributes')
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')
+                        ->default(['' => ''])
+                        ->addActionLabel('Add detail')
                         ->columnSpanFull(),
                 ])
                 ->columns(3)
