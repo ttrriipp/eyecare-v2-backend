@@ -522,6 +522,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'air-optix-colors',
                 'description' => 'Monthly replacement colored silicone-hydrogel contact lens with 3-in-1 Color Technology; daily wear only and removed for cleaning/disinfection between uses. Actual power, lot, expiry, and received quantity are not yet verified.',
                 'product_type' => 'contact_lens',
+                'default_variant_attributes' => [
+                    'base_curve' => '8.6',
+                    'diameter' => '14.2',
+                    'pack_size' => '2',
+                ],
                 'variants' => array_map(
                     fn (string $color): array => [
                         'name' => $color,
@@ -577,6 +582,7 @@ class CatalogSeeder extends Seeder
                 'is_active' => true,
                 'product_type' => $productData['product_type'],
                 'images' => $productImages,
+                'default_variant_attributes' => $productData['default_variant_attributes'] ?? null,
             ],
         );
 
