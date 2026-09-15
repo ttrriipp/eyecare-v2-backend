@@ -13,3 +13,9 @@ test('does not mask profanity fragments inside other words', function () {
 
     expect($comment)->toBe('The assessment was classic and thoughtful.');
 });
+
+test('masks explicit sexual terms in English and Filipino', function () {
+    $comment = (new FilterProfanity)->handle('COCK blowjob jakol tamod.');
+
+    expect($comment)->toBe('**** ******* ***** *****.');
+});

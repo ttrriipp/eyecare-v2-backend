@@ -39,10 +39,10 @@ test('profanity is masked before frame feedback is saved', function () {
         patient: $patient,
         variant: $variant,
         rating: 2,
-        comment: 'This is SHIT and ulol.',
+        comment: 'This is PORN and jakol.',
     );
 
-    expect($rating->comment)->toBe('This is **** and ****.');
+    expect($rating->comment)->toBe('This is **** and *****.');
 });
 
 test('one current rating per patient per dispensed frame is enforced', function () {
