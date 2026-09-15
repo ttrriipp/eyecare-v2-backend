@@ -70,14 +70,16 @@
 > payment method/reference data. The approved contract is in
 > `docs/specs/patient-in-app-notifications-spec.md`.
 
-> **Reconciled (2026-09-07): appointment-request cancellation and active
-> limit.** `POST /api/v1/appointment-requests` allows at most two active
-> requests, defined as stored `pending` rows with `expires_at` in the future.
-> Cancelled, accepted, rejected, and expired requests remain historical but do
-> not consume the limit. Cancellation persists `status: cancelled`; cancelling
-> both active requests therefore permits a third submission. A rejected third
-> active request returns HTTP 422 with
-> `error.code: ACTIVE_REQUEST_LIMIT_REACHED` and `max_active_requests: 2`.
+> **Reconciled (2026-09-15): one active booking journey.** `POST /api/v1/appointment-requests` allows at most one active
+> request, defined as stored `pending` rows with `expires_at` in the future.
+> A patient also cannot submit while a future scheduled or checked-in
+> appointment exists. Cancelled, accepted, rejected, and expired requests
+> remain historical but do not consume the limit. A rejected request returns
+> HTTP 422 with `error.code: ACTIVE_REQUEST_LIMIT_REACHED` and
+> `max_active_requests: 1`. An active appointment conflict returns
+> `ACTIVE_APPOINTMENT_EXISTS`. `GET /appointment-requests` includes
+> `meta.booking_eligibility`. Rebooking the patient's own scheduled
+> appointment remains allowed as part of the same journey.
 
 > **Shipped (2026-09-08): unified patient rebooking requests.** Patients use
 > the existing `POST /api/v1/appointment-requests` workflow for both new

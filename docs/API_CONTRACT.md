@@ -1236,11 +1236,28 @@ Paginated list of the authenticated account's appointment requests.
     }
   ],
   "links": { "first": "...", "last": "...", "prev": null, "next": null },
-  "meta": { "current_page": 1, "last_page": 1, "per_page": 15, "total": 1 }
+  "meta": {
+    "current_page": 1, "last_page": 1, "per_page": 15, "total": 1,
+    "booking_eligibility": {
+      "can_submit_new_request": true,
+      "blocking_reason": null,
+      "active_request_id": null,
+      "appointment_id": null,
+      "can_request_rebooking": false
+    }
+  }
 }
 ```
 
 **Status values:** `pending`, `accepted`, `rejected`, `cancelled`, `expired`.
+
+**Booking eligibility:** `meta.booking_eligibility` is always present and uses
+the same evaluator as submission validation. `blocking_reason` is one of
+`active_request_exists`, `scheduled_appointment_exists`,
+`checked_in_appointment_exists`, or `null`. `active_request_id` and
+`appointment_id` are populated only when owned by the authenticated account.
+`can_request_rebooking` is `true` when the blocking appointment is the
+patient's own future scheduled appointment.
 
 **Notes:**
 - `patient_id` is `null` for currently unlinked pending requests. Staff approval
@@ -1390,7 +1407,7 @@ contains the unchanged current appointment while the request is pending.
   snapshots.
 - Unlinking the account clears `patient_id` only for pending requests;
   terminal requests retain their historical patient link.
-- Maximum 2 active pending requests per account. Only records with stored
+- Maximum 1 active pending request per account. A patient also cannot submit a new request while a future scheduled or checked-in appointment exists. Only records with stored
   `status: "pending"` and a future `expires_at` count. Cancelled, accepted,
   rejected, and expired requests do not count.
 - Rate limited per account and per IP.
@@ -1399,6 +1416,7 @@ contains the unchanged current appointment while the request is pending.
 **Errors:**
 - `422 SLOT_UNAVAILABLE`: The requested slot is no longer available.
 - `422 ACTIVE_REQUEST_LIMIT_REACHED`: Maximum active pending requests reached.
+- `422 ACTIVE_APPOINTMENT_EXISTS`: A future scheduled or checked-in appointment exists.
 - `422` validation errors on `appointment_id` or `scheduled_at` when
   the appointment is not eligible, already has an effective pending rebooking,
   or a proposed time is unavailable. An appointment owned by another patient
@@ -1408,14 +1426,27 @@ contains the unchanged current appointment while the request is pending.
 - `422 NO_VERIFIED_CONTACT`: No unique verified primary contact found on the account.
 - `422 NO_VERIFIED_PHONE` or phone validation error: The account has no verified phone or the supplied phone does not match it.
 
-When two active pending requests already exist, the response is:
+When an active pending request already exists, the response is:
 
 ```json
 {
   "error": {
     "code": "ACTIVE_REQUEST_LIMIT_REACHED",
-    "message": "You have reached the maximum of 2 active appointment requests.",
-    "max_active_requests": 2
+    "message": "You have reached the maximum of 1 active appointment requests.",
+    "max_active_requests": 1
+  }
+}
+```
+
+When a future scheduled or checked-in appointment exists:
+
+```json
+{
+  "error": {
+    "code": "ACTIVE_APPOINTMENT_EXISTS",
+    "message": "You already have an active appointment. You may reschedule or cancel it before requesting another.",
+    "appointment_id": 42,
+    "appointment_status": "scheduled"
   }
 }
 ```
