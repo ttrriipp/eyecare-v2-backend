@@ -301,7 +301,6 @@ class CreateOpticalOrder extends CreateRecord
                                         ->default(DiscountType::None->value)
                                         ->disabled(fn (): bool => auth()->user()?->isAdmin() !== true)
                                         ->dehydrated()
-                                        ->helperText('Senior Citizen and PWD discounts are 20%. Verify a valid ID and apply only one statutory discount. Other is for administrator-approved custom discounts.')
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, ?string $state): void {
                                             if ($state !== DiscountType::Other->value) {
