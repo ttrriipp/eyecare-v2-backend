@@ -5,10 +5,10 @@ namespace App\Filament\Resources\Products\Schemas;
 use App\Models\ProductVariant;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Get;
 
 final class VariantForm
@@ -95,6 +95,10 @@ final class VariantForm
     {
         $isContactLens = $productType === 'contact_lens';
 
+        $stockVisible = $productType !== null
+            ? ! $isContactLens
+            : fn (Get $get): bool => $get('../../product_type') !== 'contact_lens';
+
         return [
             TextInput::make('stock_quantity')
                 ->label($isContactLens ? 'Stock Quantity' : 'Opening Stock')
@@ -108,7 +112,7 @@ final class VariantForm
                 ->default(0)
                 ->disabled($isContactLens)
                 ->dehydrated(! $isContactLens)
-                ->visible(! $isContactLens),
+                ->visible($stockVisible),
             TextInput::make('low_stock_threshold')
                 ->label('Low Stock Threshold')
                 ->helperText('At or below this quantity, the variant needs reorder attention. Set to 0 to disable.')
@@ -137,11 +141,24 @@ final class VariantForm
      */
     public static function typeSpecificFields(?string $productType = null, ?int $productId = null): array
     {
-        return match ($productType) {
-            'frame' => [self::frameDimensionsSection()],
-            'contact_lens' => [self::contactLensSection()],
-            default => [self::accessoryAttributesField($productId)],
-        };
+        // When productType is known (relation manager), conditionally include.
+        if ($productType !== null) {
+            return match ($productType) {
+                'frame' => [self::frameDimensionsSection()],
+                'contact_lens' => [self::contactLensSection()],
+                default => [self::accessoryAttributesField($productId)],
+            };
+        }
+
+        // When productType is unknown (inline repeater), use visibility closures.
+        return [
+            self::frameDimensionsSection()
+                ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
+            self::contactLensSection()
+                ->visible(fn (Get $get): bool => $get('../../product_type') === 'contact_lens'),
+            self::accessoryAttributesField($productId)
+                ->visible(fn (Get $get): bool => $get('../../product_type') === 'accessory'),
+        ];
     }
 
     /**
