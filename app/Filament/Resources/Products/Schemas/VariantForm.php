@@ -17,10 +17,10 @@ final class VariantForm
      *
      * @return array<int, mixed>
      */
-    public static function schema(?string $productType = null): array
+    public static function schema(?string $productType = null, ?int $productId = null): array
     {
         return array_merge(
-            self::identityFields(),
+            self::identityFields($productId),
             self::pricingFields(),
             self::typeSpecificFields($productType),
             self::inventoryFields($productType),
@@ -31,7 +31,7 @@ final class VariantForm
     /**
      * @return array<int, mixed>
      */
-    public static function identityFields(): array
+    public static function identityFields(?int $productId = null): array
     {
         return [
             TextInput::make('name')
@@ -40,7 +40,7 @@ final class VariantForm
                 ->unique(
                     ignoreRecord: true,
                     modifyRuleUsing: fn ($rule, $record) => $rule
-                        ->where('product_id', $record?->product_id)
+                        ->where('product_id', $record?->product_id ?? $productId)
                         ->ignore($record?->id),
                 ),
             TextInput::make('sku')

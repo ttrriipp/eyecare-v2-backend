@@ -52,7 +52,7 @@ class VariantsRelationManager extends RelationManager
     {
         $productType = $this->getOwnerRecord()->product_type;
 
-        return $schema->schema(VariantForm::schema($productType))->columns(2);
+        return $schema->schema(VariantForm::schema($productType, $this->getOwnerRecord()->id))->columns(2);
     }
 
     public function table(Table $table): Table
