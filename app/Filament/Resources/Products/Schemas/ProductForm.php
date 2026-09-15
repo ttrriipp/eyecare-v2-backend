@@ -194,6 +194,7 @@ class ProductForm
             // ── Default Variant Details (create and edit) ─────────────
             Section::make('Default Variant Details')
                 ->columnSpanFull()
+                ->collapsible()
                 ->description('These values prefill new variants. Changing them later does not update existing variants.')
                 ->schema([
                     KeyValue::make('generic_default_details')
@@ -211,6 +212,7 @@ class ProductForm
 
             Section::make('Default Variant Details')
                 ->columnSpanFull()
+                ->collapsible()
                 ->description('These values prefill new variants. Changing them later does not update existing variants.')
                 ->schema([
                     TextInput::make('frame_default_attributes.lens_width')

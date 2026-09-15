@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Models\Product;
 use App\Models\ProductVariant;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
@@ -143,7 +144,7 @@ final class VariantForm
         // When productType is known (relation manager), conditionally include.
         if ($productType !== null) {
             return match ($productType) {
-                'frame' => [self::frameDimensionsSection()],
+                'frame' => [self::frameDimensionsSection($productId)],
                 default => [self::genericDetailsField($productId)],
             };
         }
@@ -177,8 +178,10 @@ final class VariantForm
         ];
     }
 
-    private static function frameDimensionsSection(): Section
+    private static function frameDimensionsSection(?int $productId = null): Section
     {
+        $defaults = self::defaultVariantAttributes($productId);
+
         return Section::make('Frame Size & Appearance')
             ->schema([
                 TextInput::make('attributes.lens_width')
@@ -187,38 +190,44 @@ final class VariantForm
                     ->placeholder('e.g. 52')
                     ->numeric()
                     ->minValue(30)
-                    ->maxValue(70),
+                    ->maxValue(70)
+                    ->default($defaults['lens_width'] ?? null),
                 TextInput::make('attributes.bridge')
                     ->label('Bridge (mm)')
                     ->helperText('Distance between the lenses above the nose.')
                     ->placeholder('e.g. 18')
                     ->numeric()
                     ->minValue(10)
-                    ->maxValue(30),
+                    ->maxValue(30)
+                    ->default($defaults['bridge'] ?? null),
                 TextInput::make('attributes.temple')
                     ->label('Temple Length (mm)')
                     ->helperText('Length of the frame arm.')
                     ->placeholder('e.g. 140')
                     ->numeric()
                     ->minValue(100)
-                    ->maxValue(160),
+                    ->maxValue(160)
+                    ->default($defaults['temple'] ?? null),
                 TextInput::make('attributes.lens_height')
                     ->label('Lens Height (mm)')
                     ->helperText('Vertical lens measurement.')
                     ->placeholder('e.g. 38')
                     ->numeric()
                     ->minValue(20)
-                    ->maxValue(60),
+                    ->maxValue(60)
+                    ->default($defaults['lens_height'] ?? null),
                 TextInput::make('attributes.color')
                     ->label('Color')
                     ->helperText('Descriptive catalog value (e.g. Tortoise, Black / red).')
                     ->placeholder('e.g. Matte Black')
-                    ->maxLength(50),
+                    ->maxLength(50)
+                    ->default($defaults['color'] ?? null),
                 TextInput::make('attributes.material')
                     ->label('Material')
                     ->helperText('Frame material (e.g. Acetate, Metal, Titanium).')
                     ->placeholder('e.g. Acetate')
-                    ->maxLength(50),
+                    ->maxLength(50)
+                    ->default($defaults['material'] ?? null),
             ])
             ->columns(3)
             ->columnSpanFull();
@@ -308,9 +317,9 @@ final class VariantForm
 
     private static function genericDetailsField(?int $productId = null): KeyValue
     {
-        $default = null;
+        $default = self::defaultVariantAttributes($productId);
 
-        if ($productId !== null) {
+        if (empty($default) && $productId !== null) {
             $existingKeys = ProductVariant::query()
                 ->where('product_id', $productId)
                 ->whereNotNull('attributes')
@@ -328,5 +337,19 @@ final class VariantForm
             ->helperText('Product details such as power, base curve, diameter, color, pack size, volume, formulation, etc.')
             ->default($default)
             ->columnSpanFull();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function defaultVariantAttributes(?int $productId): array
+    {
+        if ($productId === null) {
+            return [];
+        }
+
+        $attributes = Product::query()->find($productId)?->default_variant_attributes;
+
+        return is_array($attributes) ? $attributes : [];
     }
 }

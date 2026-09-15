@@ -2,6 +2,7 @@
 
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
+use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
 use App\Models\Brand;
 use App\Models\Product;
@@ -11,6 +12,8 @@ use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -39,6 +42,74 @@ test('new frame product details start with one empty row', function () {
         ->test(CreateProduct::class)
         ->assertSet('data.frame_other_details.0.key', '')
         ->assertSet('data.frame_other_details.0.value', '');
+});
+
+test('frame default details are prefilled when creating a variant', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'default_variant_attributes' => [
+            'lens_width' => 52,
+            'bridge' => 18,
+            'temple' => 140,
+            'lens_height' => 40,
+            'color' => 'Black',
+            'material' => 'Acetate',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertTableActionDataSet([
+            'attributes.lens_width' => 52,
+            'attributes.bridge' => 18,
+            'attributes.temple' => 140,
+            'attributes.lens_height' => 40,
+            'attributes.color' => 'Black',
+            'attributes.material' => 'Acetate',
+        ]);
+});
+
+test('generic default details are prefilled when creating a variant', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'contact_lens',
+        'default_variant_attributes' => [
+            'power' => '-2.00',
+            'base_curve' => '8.6',
+            'diameter' => '14.0',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertTableActionDataSet([
+            'attributes' => [
+                'power' => '-2.00',
+                'base_curve' => '8.6',
+                'diameter' => '14.0',
+            ],
+        ]);
+});
+
+test('default variant details sections are collapsible', function () {
+    $schema = ProductForm::configure(Schema::make());
+    $defaultDetailsSections = collect($schema->getComponents(withHidden: true))
+        ->filter(fn (mixed $component): bool => $component instanceof Section
+            && $component->getHeading() === 'Default Variant Details')
+        ->values();
+
+    expect($defaultDetailsSections)->toHaveCount(2);
+
+    $defaultDetailsSections->each(
+        fn (Section $section) => expect($section->isCollapsible())->toBeTrue(),
+    );
 });
 
 test('switching generic product types keeps one empty details row', function () {
