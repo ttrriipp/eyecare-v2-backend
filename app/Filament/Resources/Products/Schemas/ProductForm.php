@@ -236,30 +236,36 @@ class ProductForm
                 ->schema([
                     TextInput::make('frame_default_attributes.lens_width')
                         ->label('Lens Width (mm)')
+                        ->placeholder('e.g. 52')
                         ->numeric()
                         ->minValue(30)
                         ->maxValue(70),
                     TextInput::make('frame_default_attributes.bridge')
                         ->label('Bridge (mm)')
+                        ->placeholder('e.g. 18')
                         ->numeric()
                         ->minValue(10)
                         ->maxValue(30),
                     TextInput::make('frame_default_attributes.temple')
                         ->label('Temple Length (mm)')
+                        ->placeholder('e.g. 140')
                         ->numeric()
                         ->minValue(100)
                         ->maxValue(160),
                     TextInput::make('frame_default_attributes.lens_height')
                         ->label('Lens Height (mm)')
+                        ->placeholder('e.g. 38')
                         ->numeric()
                         ->minValue(20)
                         ->maxValue(60),
-                    TextInput::make('frame_default_attributes.color')
+                    Select::make('frame_default_attributes.color')
                         ->label('Color')
-                        ->maxLength(50),
-                    TextInput::make('frame_default_attributes.material')
+                        ->options(config('catalog.variant_presets.colors'))
+                        ->searchable(),
+                    Select::make('frame_default_attributes.material')
                         ->label('Material')
-                        ->maxLength(50),
+                        ->options(config('catalog.variant_presets.materials'))
+                        ->searchable(),
                     KeyValue::make('frame_other_details')
                         ->label('Other Details')
                         ->helperText('Additional key/value pairs for frame variants.')

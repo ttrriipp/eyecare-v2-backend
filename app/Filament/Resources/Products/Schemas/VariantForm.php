@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
@@ -248,17 +249,17 @@ final class VariantForm
                     ->minValue(20)
                     ->maxValue(60)
                     ->default($defaults['lens_height'] ?? null),
-                TextInput::make('attributes.color')
+                Select::make('attributes.color')
                     ->label('Color')
                     ->helperText('Descriptive catalog value (e.g. Tortoise, Black / red).')
-                    ->placeholder('e.g. Matte Black')
-                    ->maxLength(50)
+                    ->options(config('catalog.variant_presets.colors'))
+                    ->searchable()
                     ->default($defaults['color'] ?? null),
-                TextInput::make('attributes.material')
+                Select::make('attributes.material')
                     ->label('Material')
                     ->helperText('Frame material (e.g. Acetate, Metal, Titanium).')
-                    ->placeholder('e.g. Acetate')
-                    ->maxLength(50)
+                    ->options(config('catalog.variant_presets.materials'))
+                    ->searchable()
                     ->default($defaults['material'] ?? null),
             ])
             ->columns(3)

@@ -251,6 +251,42 @@ test('default variant details sections are collapsible', function () {
     );
 });
 
+test('frame color and material fields use the shared preset options', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertFormFieldExists('attributes.color', function (Select $field): bool {
+            expect($field->getOptions())->toBe(config('catalog.variant_presets.colors'));
+
+            return true;
+        })
+        ->assertFormFieldExists('attributes.material', function (Select $field): bool {
+            expect($field->getOptions())->toBe(config('catalog.variant_presets.materials'));
+
+            return true;
+        });
+});
+
+test('product frame defaults use the shared color and material preset options', function () {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->assertFormFieldExists('frame_default_attributes.color', function (Select $field): bool {
+            expect($field->getOptions())->toBe(config('catalog.variant_presets.colors'));
+
+            return true;
+        })
+        ->assertFormFieldExists('frame_default_attributes.material', function (Select $field): bool {
+            expect($field->getOptions())->toBe(config('catalog.variant_presets.materials'));
+
+            return true;
+        });
+});
+
 test('switching generic product types keeps one empty details row', function () {
     Livewire::actingAs($this->user)
         ->test(CreateProduct::class)
