@@ -236,25 +236,25 @@ class ProductForm
                 ->schema([
                     TextInput::make('frame_default_attributes.lens_width')
                         ->label('Lens Width (mm)')
-                        ->placeholder('e.g. 52')
+                        ->placeholder('30 – 70')
                         ->numeric()
                         ->minValue(30)
                         ->maxValue(70),
                     TextInput::make('frame_default_attributes.bridge')
                         ->label('Bridge (mm)')
-                        ->placeholder('e.g. 18')
+                        ->placeholder('10 – 30')
                         ->numeric()
                         ->minValue(10)
                         ->maxValue(30),
                     TextInput::make('frame_default_attributes.temple')
                         ->label('Temple Length (mm)')
-                        ->placeholder('e.g. 140')
+                        ->placeholder('100 – 160')
                         ->numeric()
                         ->minValue(100)
                         ->maxValue(160),
                     TextInput::make('frame_default_attributes.lens_height')
                         ->label('Lens Height (mm)')
-                        ->placeholder('e.g. 38')
+                        ->placeholder('20 – 60')
                         ->numeric()
                         ->minValue(20)
                         ->maxValue(60),
