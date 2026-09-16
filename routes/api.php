@@ -130,6 +130,7 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
 
         // Appointment requests
         Route::get('appointment-request-availability', AppointmentRequestAvailabilityController::class);
+        Route::get('appointment-requests/current', [AppointmentRequestController::class, 'current']);
         Route::get('appointment-requests', [AppointmentRequestController::class, 'index']);
         Route::post('appointment-requests', [AppointmentRequestController::class, 'store']);
         Route::get('appointment-requests/{appointmentRequest}', [AppointmentRequestController::class, 'show']);

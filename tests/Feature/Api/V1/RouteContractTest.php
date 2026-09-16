@@ -27,6 +27,7 @@ test('every approved v1 route is present exactly once', function () {
         'GET|HEAD api/v1/appointment-optometrists',
         'GET|HEAD api/v1/appointment-request-availability',
         'GET|HEAD api/v1/appointment-requests',
+        'GET|HEAD api/v1/appointment-requests/current',
         'GET|HEAD api/v1/appointment-requests/{appointmentRequest}',
         'GET|HEAD api/v1/appointment-types',
         'GET|HEAD api/v1/appointments',

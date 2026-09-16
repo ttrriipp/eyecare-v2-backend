@@ -168,6 +168,12 @@ class CatalogSeeder extends Seeder
                 'slug' => 'sofia-2860',
                 'description' => 'Full-rim oversized cat-eye optical frame; transparent smoke-gray or champagne/blush finish. Demo lens is marked TR90 100%.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'material' => 'TR90',
+                    'lens_width' => 59,
+                    'bridge' => 12,
+                    'temple' => 145,
+                ],
                 'variants' => [
                     [
                         'name' => 'Transparent Smoke Gray',
@@ -208,6 +214,10 @@ class CatalogSeeder extends Seeder
                 'slug' => 'mormaii-floater-street-280',
                 'description' => "Wraparound sports sunglasses with a glossy black frame and dark smoke lenses. Temple marking reads 'Tech Division 28021001 Floater Street'.",
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Black frame / smoke lens',
+                    'material' => 'Plastic',
+                ],
                 'variants' => [
                     [
                         'name' => 'Black / Smoke',
@@ -230,6 +240,13 @@ class CatalogSeeder extends Seeder
                 'slug' => 'anthos-mb-1399-a',
                 'description' => 'Full-rim rectangular optical frame with a dark tortoise pattern and amber highlights.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Dark tortoise / black / amber',
+                    'material' => 'Plastic',
+                    'lens_width' => 54,
+                    'bridge' => 18,
+                    'temple' => 145,
+                ],
                 'variants' => [
                     [
                         'name' => 'C4 Dark Tortoise',
@@ -255,6 +272,13 @@ class CatalogSeeder extends Seeder
                 'slug' => 'cest-joli-2860',
                 'description' => 'Rimless rectangular optical frame with gold-tone bridge/temples, clear nose pads, and black temple tips.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Gold-tone / black',
+                    'material' => 'Metal',
+                    'lens_width' => 59,
+                    'bridge' => 12,
+                    'temple' => 145,
+                ],
                 'variants' => [
                     [
                         'name' => 'C4 Gold / Black',
@@ -280,6 +304,10 @@ class CatalogSeeder extends Seeder
                 'slug' => 'black-red-sports-optical-frame',
                 'description' => 'Full-rim wraparound sports optical frame with red nose/temple grip inserts and an oval O-style hinge logo. No reliable brand/model text is visible.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Black / red',
+                    'material' => 'Plastic',
+                ],
                 'variants' => [
                     [
                         'name' => 'Black / Red',
@@ -302,6 +330,15 @@ class CatalogSeeder extends Seeder
                 'slug' => 'model-8763-optical-frame',
                 'description' => 'Full-rim rectangular/square optical frame with gold chevron-style temple accents.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Black / Gold',
+                    'material' => 'Plastic',
+                    'lens_width' => 54,
+                    'bridge' => 18,
+                    'temple' => 150,
+                    'model_code' => '8763',
+                    'color_code' => 'C2',
+                ],
                 'variants' => [
                     [
                         'name' => 'Black / Gold - C2',
@@ -329,6 +366,14 @@ class CatalogSeeder extends Seeder
                 'slug' => 'nike-5753-optical-frame',
                 'description' => 'Full-rim rounded optical frame with Nike swoosh branding.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Black',
+                    'material' => 'Plastic',
+                    'lens_width' => 49,
+                    'bridge' => 21,
+                    'temple' => 145,
+                    'model_code' => '5753',
+                ],
                 'variants' => [
                     [
                         'name' => 'Black',
@@ -355,6 +400,15 @@ class CatalogSeeder extends Seeder
                 'slug' => 'sofia-eyewear-52103-optical-frame',
                 'description' => 'Full-rim transparent/clear rectangular optical frame.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Clear / Transparent',
+                    'material' => 'Plastic',
+                    'lens_width' => 56,
+                    'bridge' => 17,
+                    'temple' => 148,
+                    'model_code' => '52103',
+                    'color_code' => 'C7',
+                ],
                 'variants' => [
                     [
                         'name' => 'Clear - C7',
@@ -382,6 +436,14 @@ class CatalogSeeder extends Seeder
                 'slug' => 'polo-fashion-p002-optical-frame',
                 'description' => 'Full-rim rounded/polygonal metal optical frame with adjustable nose pads.',
                 'product_type' => 'frame',
+                'default_variant_attributes' => [
+                    'color' => 'Dark Gunmetal / Black',
+                    'material' => 'Metal',
+                    'lens_width' => 53,
+                    'bridge' => 18,
+                    'temple' => 142,
+                    'model_code' => 'P002',
+                ],
                 'variants' => [
                     [
                         'name' => 'Dark Gunmetal / Black',
@@ -408,6 +470,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'new-look-multi-purpose-all-in-one-solution',
                 'description' => 'Sterile multi-purpose contact lens solution; package states it removes lipid build-up, cleans and disinfects lenses, keeps lenses moist, and relieves dryness/irritation.',
                 'product_type' => 'accessory',
+                'default_variant_attributes' => [
+                    'volume_ml' => '90',
+                    'package_size' => '90 mL',
+                    'material' => 'Multi-purpose contact lens solution',
+                ],
                 'variants' => [
                     [
                         'name' => 'New Extra Comfort Formula - 90 mL',
@@ -431,6 +498,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'systane-complete-preservative-free-lubricant-eye-drops',
                 'description' => 'Preservative-free lubricant eye drops marketed for all-in-one dry eye relief.',
                 'product_type' => 'accessory',
+                'default_variant_attributes' => [
+                    'volume_ml' => '10',
+                    'package_size' => '10 mL',
+                    'material' => 'Lubricant eye drops',
+                ],
                 'variants' => [
                     [
                         'name' => 'Preservative-Free - 10 mL',
@@ -454,6 +526,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'systane-hydration-preservative-free-lubricant-eye-drops',
                 'description' => 'Preservative-free lubricant eye drops marketed for long-lasting dry eye relief.',
                 'product_type' => 'accessory',
+                'default_variant_attributes' => [
+                    'volume_ml' => '10',
+                    'package_size' => '10 mL',
+                    'material' => 'Lubricant eye drops',
+                ],
                 'variants' => [
                     [
                         'name' => 'Hydration Preservative-Free - 10 mL',
@@ -477,6 +554,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'systane-ultra-preservative-free-lubricant-eye-drops',
                 'description' => 'Preservative-free lubricant eye drops marketed for fast-acting dry eye relief and extended protection.',
                 'product_type' => 'accessory',
+                'default_variant_attributes' => [
+                    'volume_ml' => '10',
+                    'package_size' => '10 mL',
+                    'material' => 'Lubricant eye drops',
+                ],
                 'variants' => [
                     [
                         'name' => 'Ultra Preservative-Free - 10 mL',
@@ -500,6 +582,11 @@ class CatalogSeeder extends Seeder
                 'slug' => 'lacryl-hydrate-eye-drops',
                 'description' => 'Advanced ocular lubrication for long-lasting dry eye relief; package highlights post-operative/post-LASIK use, moderate-to-severe dry eyes and digital eye strain.',
                 'product_type' => 'accessory',
+                'default_variant_attributes' => [
+                    'volume_ml' => '10',
+                    'package_size' => '10 mL',
+                    'material' => 'Lubricant eye drops',
+                ],
                 'variants' => [
                     [
                         'name' => '10 mL',

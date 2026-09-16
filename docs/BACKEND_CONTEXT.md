@@ -109,6 +109,14 @@
 > `meta.booking_eligibility`. Rebooking the patient's own scheduled
 > appointment remains allowed as part of the same journey.
 
+> **Shipped 2026-09-16: single current appointment journey.** The account-only
+> `GET /api/v1/appointment-requests/current` endpoint returns one discriminated
+> current state: `none`, a pending new request, or an active appointment. A
+> pending rebooking remains attached to the current appointment and exposes
+> its primary and alternative preferences. Confirmed appointments expose the
+> earliest accepted new-booking request as `original_request` when available;
+> the paginated appointment list supports `filter=history` for schedule history.
+
 > **Shipped (2026-09-08): unified patient rebooking requests.** Patients use
 > the existing `POST /api/v1/appointment-requests` workflow for both new
 > bookings and changes to a confirmed appointment. Supplying an owned,
@@ -1072,6 +1080,7 @@ PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/frames
 GET    /api/v1/frames/{id}
 GET    /api/v1/appointment-request-availability
+GET    /api/v1/appointment-requests/current  Get current booking journey
 GET    /api/v1/appointment-requests
 POST   /api/v1/appointment-requests
 GET    /api/v1/appointment-requests/{id}
@@ -1125,9 +1134,9 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 41 account-only + 10
-active-link = **60 registered routes total**. The normal patient contract count
-is **59** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 10
+active-link = **61 registered routes total**. The normal patient contract count
+is **60** when the disabled-by-default pilot route is excluded.
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1187,6 +1196,7 @@ orders, billings, checkout records, or purchases.
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates a new appointment request or an optional linked rebooking request with a server-derived type/duration snapshot, validates all time preferences, persists alternatives and latest-preference expiry, and enforces the actionable active limit; never moves an appointment or creates a capacity hold |
+| `ResolveCurrentBooking` | `app/Actions/Appointments/` | Resolves the account's single current appointment journey, keeping pending rebooking preferences attached to the existing appointment and exposing its original accepted booking request |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
 | `CancelAppointment` | `app/Actions/Appointments/` | Cancels scheduled or checked-in appointments; requires a patient cancellation reason, blocks patient-initiated cancellation on the appointment's local scheduled date while allowing same-day clinic cancellation, and audits without copying free-text reason |
 | `CancelAppointmentRequest` | `app/Actions/Appointments/` | Verifies ownership and pending state, requires and encrypts the patient cancellation reason, blocks cancellation on the request's local scheduled date, persists `cancelled`, audits without free-text reason, and emits the after-commit admin alert |

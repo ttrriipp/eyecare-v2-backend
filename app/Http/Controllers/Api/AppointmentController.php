@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Appointments\CancelAppointment;
 use App\Actions\Appointments\CreateScheduledAppointment;
 use App\Actions\Appointments\UpdateAppointmentContactNote;
+use App\Enums\AppointmentStatusName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CancelPatientAppointmentRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
@@ -19,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
@@ -29,8 +31,30 @@ class AppointmentController extends Controller
 
         abort_unless($patient !== null, 404);
 
+        $request->validate([
+            'filter' => ['nullable', 'string', Rule::in(['history'])],
+        ]);
+
+        $filter = $request->input('filter');
+
         $appointments = Appointment::query()
             ->where('patient_id', $patient->id)
+            ->when($filter === 'history', function ($query): void {
+                $query->where(function ($query): void {
+                    $query->whereHas('status', fn ($statusQuery) => $statusQuery->whereIn('name', [
+                        AppointmentStatusName::Fulfilled->value,
+                        AppointmentStatusName::Cancelled->value,
+                        AppointmentStatusName::NoShow->value,
+                    ]))
+                        ->orWhere(function ($query): void {
+                            $query->whereHas('status', fn ($statusQuery) => $statusQuery->where(
+                                'name',
+                                AppointmentStatusName::Scheduled->value,
+                            ))
+                                ->where('scheduled_at', '<=', now());
+                        });
+                });
+            })
             ->with(['appointmentType', 'status', 'optometrist', 'latestReschedule', 'visitRating'])
             ->latest('scheduled_at')
             ->paginate($request->integer('per_page', 15));

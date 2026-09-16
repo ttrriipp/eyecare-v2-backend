@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Appointments\CancelAppointmentRequest as CancelAppointmentRequestAction;
 use App\Actions\Appointments\EvaluateBookingEligibility;
+use App\Actions\Appointments\ResolveCurrentBooking;
 use App\Actions\Appointments\SubmitAppointmentRequest;
 use App\Actions\Appointments\UpdateAppointmentRequestSchedule as UpdateAppointmentRequestScheduleAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\CancelAppointmentRequestRequest;
 use App\Http\Requests\Api\StoreAppointmentRequest;
 use App\Http\Requests\Api\UpdateAppointmentRequestSchedule;
+use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
@@ -19,6 +21,16 @@ use Illuminate\Support\Carbon;
 
 class AppointmentRequestController extends Controller
 {
+    public function current(Request $request, ResolveCurrentBooking $resolveCurrentBooking): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->formatCurrentBooking(
+                request: $request,
+                booking: $resolveCurrentBooking->handle($request->user()),
+            ),
+        ]);
+    }
+
     public function index(Request $request, EvaluateBookingEligibility $evaluateEligibility): JsonResponse
     {
         $account = $request->user();
@@ -171,5 +183,30 @@ class AppointmentRequestController extends Controller
                 'duration_minutes' => $request->appointment?->duration_minutes,
             ] : null,
         ];
+    }
+
+    /**
+     * @param  array{kind: 'none'}|array{kind: 'pending_request', request: AppointmentRequest}|array{kind: 'appointment', appointment: Appointment, original_request: ?AppointmentRequest, pending_reschedule: ?AppointmentRequest}  $booking
+     * @return array<string, mixed>
+     */
+    private function formatCurrentBooking(Request $request, array $booking): array
+    {
+        return match ($booking['kind']) {
+            'none' => ['kind' => 'none'],
+            'pending_request' => [
+                'kind' => 'pending_request',
+                'request' => $this->formatRequest($booking['request']),
+            ],
+            'appointment' => [
+                'kind' => 'appointment',
+                'appointment' => AppointmentResource::make($booking['appointment'])->resolve($request),
+                'original_request' => $booking['original_request']
+                    ? $this->formatRequest($booking['original_request'])
+                    : null,
+                'pending_reschedule' => $booking['pending_reschedule']
+                    ? $this->formatRequest($booking['pending_reschedule'])
+                    : null,
+            ],
+        };
     }
 }

@@ -4,9 +4,9 @@
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 59
-> routes (8 public + 41 account-only + 10 active-link). One additive,
-> pilot-only public route is also registered, making 60 routes in the registry;
+> from the mobile notification feed. The normal patient-mobile contract has 60
+> routes (8 public + 42 account-only + 10 active-link). One additive,
+> pilot-only public route is also registered, making 61 routes in the registry;
 > it is disabled by default and excluded from the normal contract count.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
@@ -33,6 +33,16 @@
 > `appointment_id`, and `can_request_rebooking`. Rebooking the patient's own
 > scheduled appointment remains allowed as part of the same journey.
 
+> **Shipped 2026-09-16: single current appointment journey.** The patient app
+> can read `GET /appointment-requests/current` to render one current booking
+> detail view instead of reconciling the paginated request and appointment
+> lists. The response is a discriminated state for no active booking, one
+> pending new request, or one active appointment. A pending rebooking remains
+> nested under its existing appointment and includes all alternative times.
+> Confirmed appointments include the original accepted new-booking request
+> when one exists. The existing appointment list remains available for
+> history through `filter=history`.
+
 > **Shipped 2026-09-16: prescription expiration.** Prescription resources now
 > include `expires_at` as a `Y-m-d` date. New and amended prescriptions default
 > to six months after finalization with no month overflow; clinic users may set
@@ -50,8 +60,8 @@
 > **Pilot-only authentication.** `POST /auth/participant-login` is an additive
 > public route for provisioned capstone participants. It returns `404` unless
 > deployment is in pilot mode, pilot mode is enabled, and the configured pilot
-> expiry is in the future. It is excluded from the normal 59-route contract
-> count; including it, the route registry contains 60 routes.
+> expiry is in the future. It is excluded from the normal 60-route contract
+> count; including it, the route registry contains 61 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -1264,6 +1274,80 @@ Returns server-generated time slots for a given date and appointment type.
 
 ---
 
+### GET `/appointment-requests/current`
+
+Returns the authenticated account's single current appointment journey. This
+endpoint is account-only and works before a patient link is established, so an
+unlinked account can still see its pending request.
+
+**Auth:** Required (Sanctum token). No active patient link required.
+
+**Response (200) — no active booking:**
+```json
+{
+  "data": {
+    "kind": "none"
+  }
+}
+```
+
+**Response (200) — pending new request:**
+```json
+{
+  "data": {
+    "kind": "pending_request",
+    "request": {
+      "id": 1,
+      "request_number": "APR-2026-000001",
+      "request_type": "new",
+      "status": "pending",
+      "scheduled_at": "2026-07-28T10:00:00+08:00",
+      "alternative_scheduled_times": [
+        "2026-07-29T09:00:00+08:00",
+        "2026-07-30T14:00:00+08:00"
+      ],
+      "appointment": null
+    }
+  }
+}
+```
+
+**Response (200) — active appointment:**
+```json
+{
+  "data": {
+    "kind": "appointment",
+    "appointment": { /* AppointmentResource */ },
+    "original_request": { /* appointment-request resource, or null */ },
+    "pending_reschedule": { /* appointment-request resource, or null */ }
+  }
+}
+```
+
+**Behavior:**
+- A pending `request_type: "new"` request returns `kind: "pending_request"`.
+- A future `scheduled` or `checked_in` appointment returns
+  `kind: "appointment"`.
+- A pending `request_type: "reschedule"` request does not replace the current
+  appointment. It is returned as `pending_reschedule` with its primary and
+  alternative time preferences while the appointment keeps its current
+  confirmed time.
+- `original_request` is the earliest accepted `request_type: "new"` request
+  owned by the account and linked to the appointment. It is `null` for
+  staff-created or walk-in appointments.
+- Fulfilled, cancelled, and no-show appointments, plus rejected, cancelled,
+  expired, or stale requests, do not appear as the current journey. They
+  remain available through the existing history endpoints.
+- `alternative_scheduled_times` are preferences only; they do not reserve
+  capacity or create additional appointments.
+
+The request and appointment objects use the same field shapes documented by
+`GET /appointment-requests` and `GET /appointments/{appointment}`. The
+existing `GET /appointment-requests/{appointmentRequest}` endpoint can be used
+to open the original request as a separate read-only detail view.
+
+---
+
 ### GET `/appointment-requests`
 
 Paginated list of the authenticated account's appointment requests.
@@ -1778,7 +1862,11 @@ Paginated list of the patient's confirmed appointments.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
-**Query:** `per_page` (default: 15)
+**Query parameters:**
+| Parameter | Required | Validation | Default |
+|---|---|---|---|
+| `filter` | No | `history` | No filter (existing behavior) |
+| `per_page` | No | Integer supported by the existing paginator | `15` |
 
 **Response (200):**
 ```json
@@ -1804,6 +1892,9 @@ Paginated list of the patient's confirmed appointments.
 ```
 
 **Notes:**
+- `filter=history` returns terminal appointments (`fulfilled`, `cancelled`, or
+  `no_show`) and past scheduled appointments. It excludes future scheduled
+  and checked-in appointments, which belong to the current journey.
 - `staff_notes` is NOT exposed to patients.
 - `assigned_optometrist` contains only `name` (no `id`).
 - `status` values: `scheduled`, `checked_in`, `fulfilled`, `cancelled`, `no_show`.
@@ -3244,6 +3335,7 @@ GET    /api/v1/notifications/unread-count     Unread count
 PATCH  /api/v1/notifications/{notification}/read Mark read
 PATCH  /api/v1/notifications/read-all         Mark all read
 GET    /api/v1/appointment-request-availability Get request availability
+GET    /api/v1/appointment-requests/current  Get current booking journey
 GET    /api/v1/appointment-requests            List own requests
 POST   /api/v1/appointment-requests            Create request
 GET    /api/v1/appointment-requests/{id}       Get request detail
@@ -3291,6 +3383,6 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 41 account-only + 10
-active-link = **60 registered routes total**. The normal patient-mobile
-contract is **59 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 10
+active-link = **61 registered routes total**. The normal patient-mobile
+contract is **60 routes** when the disabled-by-default pilot route is excluded.
