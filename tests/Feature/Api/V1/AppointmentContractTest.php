@@ -89,6 +89,14 @@ test('current appointment journey keeps the appointment primary while a time cha
         'patient_id' => $user->patient->id,
         'scheduled_at' => now()->addDays(2),
     ]);
+    $originalRequest = AppointmentRequest::factory()->accepted()->create([
+        'user_id' => $user->id,
+        'patient_id' => $user->patient->id,
+        'request_type' => AppointmentRequestKind::New,
+        'appointment_type_id' => $appointment->appointment_type_id,
+        'appointment_id' => $appointment->id,
+        'scheduled_at' => $appointment->scheduled_at,
+    ]);
     $rescheduleRequest = AppointmentRequest::factory()
         ->rebookingFor($appointment)
         ->create([
@@ -104,6 +112,7 @@ test('current appointment journey keeps the appointment primary while a time cha
         ->assertJsonPath('data.kind', 'appointment')
         ->assertJsonPath('data.appointment.id', $appointment->id)
         ->assertJsonPath('data.appointment.scheduled_at', $appointment->scheduled_at->toISOString())
+        ->assertJsonPath('data.original_request.id', $originalRequest->id)
         ->assertJsonPath('data.pending_reschedule.id', $rescheduleRequest->id)
         ->assertJsonPath('data.pending_reschedule.request_type', AppointmentRequestKind::Reschedule->value)
         ->assertJsonPath('data.pending_reschedule.alternative_scheduled_times.0', $rescheduleRequest->alternative_scheduled_times[0]);

@@ -15,6 +15,7 @@ beforeEach(function () {
     Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(RoleSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+    User::factory()->optometrist()->create();
 });
 
 afterEach(fn () => Carbon::setTestNow());

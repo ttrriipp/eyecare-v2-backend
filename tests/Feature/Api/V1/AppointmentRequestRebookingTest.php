@@ -22,6 +22,7 @@ beforeEach(function (): void {
     $this->seed(AppointmentStatusSeeder::class);
     $this->seed(AppointmentTypeSeeder::class);
     $this->seed(NotificationStatusSeeder::class);
+    User::factory()->optometrist()->create();
 });
 
 afterEach(fn () => Carbon::setTestNow());

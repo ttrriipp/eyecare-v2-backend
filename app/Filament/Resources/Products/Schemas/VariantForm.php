@@ -255,6 +255,11 @@ final class VariantForm
                     ->options(config('catalog.variant_presets.materials'))
                     ->searchable()
                     ->default($defaults['material'] ?? null),
+                KeyValue::make('attributes')
+                    ->label('Other Details')
+                    ->helperText('Additional details such as model code, color code, etc.')
+                    ->default(self::otherDetailsDefaults($defaults))
+                    ->columnSpanFull(),
             ])
             ->columns(3)
             ->columnSpanFull();
@@ -378,5 +383,26 @@ final class VariantForm
         $attributes = Product::query()->find($productId)?->default_variant_attributes;
 
         return is_array($attributes) ? $attributes : [];
+    }
+
+    /**
+     * Extract non-structured keys from defaults for the "Other Details" KeyValue.
+     *
+     * @param  array<string, mixed>  $defaults
+     * @return array<string, string>
+     */
+    private static function otherDetailsDefaults(array $defaults): array
+    {
+        $structuredKeys = ['lens_width', 'bridge', 'temple', 'lens_height', 'color', 'material'];
+
+        $other = [];
+
+        foreach ($defaults as $key => $value) {
+            if (! in_array($key, $structuredKeys, true) && $value !== null && $value !== '') {
+                $other[$key] = (string) $value;
+            }
+        }
+
+        return $other;
     }
 }
