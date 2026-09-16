@@ -258,12 +258,8 @@ final class VariantForm
                 KeyValue::make('attributes')
                     ->label('Other Details')
                     ->helperText('Additional details such as model code, color code, etc.')
-                    ->afterStateHydrated(function (?array $state, KeyValue $component) use ($defaults): void {
-                        if (empty($state)) {
-                            $other = self::otherDetailsDefaults($defaults);
-                            $component->state(! empty($other) ? $other : ['' => '']);
-                        }
-                    })
+                    ->default(self::otherDetailsDefaults($defaults))
+                    ->addActionLabel('Add detail')
                     ->columnSpanFull(),
             ])
             ->columns(3)
