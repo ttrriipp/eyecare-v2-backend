@@ -1,11 +1,13 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-09-13) — patient
+> **Backend version:** Current repository state (2026-09-16) — patient
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The public route count is 59
-> (8 public + 41 account-only + 10 active-link).
+> from the mobile notification feed. The normal patient-mobile contract has 59
+> routes (8 public + 41 account-only + 10 active-link). One additive,
+> pilot-only public route is also registered, making 60 routes in the registry;
+> it is disabled by default and excluded from the normal contract count.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -15,13 +17,11 @@
 > checked date is the request's proposed primary `scheduled_at` slot; clinic-
 > initiated appointment cancellations are unaffected. See §§8 and 10.
 
-> **Shipped 2026-09-07: appointment-request cancellation and active limit.**
-> The maximum of two counts only requests whose stored status is `pending` and
-> whose `expires_at` is still in the future. Cancelled, accepted, rejected, and
-> expired requests remain in history but do not consume the limit. Therefore,
-> after cancelling two pending requests, the same account can create a third.
-> A limit rejection returns the stable `ACTIVE_REQUEST_LIMIT_REACHED` error
-> documented in §8. No route or successful-response shape changed.
+> **Historical (superseded 2026-09-15): shipped 2026-09-07 appointment-request
+> cancellation and active limit.** The former maximum of two counted only
+> requests whose stored status was `pending` and whose `expires_at` was still in
+> the future. The one-active-booking journey documented below supersedes that
+> limit.
 
 > **Shipped 2026-09-15: one active booking journey.** Each patient account
 > may have at most one active booking journey: one actionable pending request
@@ -32,6 +32,26 @@
 > `can_submit_new_request`, `blocking_reason`, `active_request_id`,
 > `appointment_id`, and `can_request_rebooking`. Rebooking the patient's own
 > scheduled appointment remains allowed as part of the same journey.
+
+> **Shipped 2026-09-16: prescription expiration.** Prescription resources now
+> include `expires_at` as a `Y-m-d` date. New and amended prescriptions default
+> to six months after finalization with no month overflow; clinic users may set
+> a specific date, but past dates are rejected. Existing null dates were
+> backfilled from `prescribed_at`. The current optical-order validation still
+> checks patient ownership, current version, and void status, but does not yet
+> reject an expired prescription.
+
+> **Shipped 2026-09-16: rating comment filtering.** Visit and frame rating
+> comments are profanity-masked before persistence and are therefore returned
+> in their masked form. Frame-rating submissions remain an upsert, but later
+> submissions update the same row in place; there is no revision history and
+> the endpoint returns `201` for both create and update.
+
+> **Pilot-only authentication.** `POST /auth/participant-login` is an additive
+> public route for provisioned capstone participants. It returns `404` unless
+> deployment is in pilot mode, pilot mode is enabled, and the configured pilot
+> expiry is in the future. It is excluded from the normal 59-route contract
+> count; including it, the route registry contains 60 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -107,6 +127,7 @@
 ## Table of Contents
 
 - [Authentication](#1-authentication)
+  - [Pilot participant login](#post-authparticipant-login-pilot-only)
   - [Registration Flow](#registration-flow-two-stage)
 - [Profile (me)](#3-profile-me)
 - [Sensitive Changes (Step-up)](#4-sensitive-changes-step-up)
@@ -130,6 +151,42 @@
 ---
 
 ## 1. Authentication
+
+### POST `/auth/participant-login` (pilot-only)
+
+This additive public route authenticates a provisioned capstone pilot
+participant without phone OTP. It is available only when deployment is in
+pilot mode, `capstone_pilot.enabled` is true, and the configured pilot expiry is
+in the future. While unavailable, it returns `404`.
+
+**Request:**
+```json
+{
+  "participant_code": "string (required, max:64; trimmed and case-normalized)",
+  "password": "string (required, max:255)",
+  "device_name": "string (nullable, max:255)",
+  "installation_id": "string (nullable, max:255)"
+}
+```
+
+Unknown fields are rejected with `422`. A successful request returns `200` with
+the direct token shape below; the token expires at the earlier of the
+participant and pilot expirations.
+
+```json
+{
+  "data": {
+    "step_up_required": false,
+    "token": "sanctum-token",
+    "user": { "id": 1, "name": "Participant", "role": "patient", "link_status": "unlinked" }
+  }
+}
+```
+
+Unknown, wrong-password, expired, revoked, and wrong-role credentials share a
+generic `422` response. The endpoint has independent IP and normalized-code
+rate limits (defaults: 10 requests/minute/IP and 5 requests/minute/code);
+rate-limit responses use the standard `429` envelope.
 
 ### Registration Flow (Two-Stage)
 
@@ -1754,7 +1811,7 @@ Paginated list of the patient's confirmed appointments.
 - `reason_for_visit` is the accepted request's reason, nullable for staff-created appointments.
 - `contact_notes` is nullable.
 - `is_rateable` is `true` only when `status = fulfilled` and the appointment belongs to the authenticated patient.
-- `rating` is `null` until submitted, then contains `{rating, comment, created_at}`. Hidden comments return `comment: null` to non-authors.
+- `rating` is `null` until submitted, then contains `{id, rating, comment, revision_number, created_at}`. Comment text is profanity-masked before persistence. Hidden comments return `comment: null` to non-authors; the author always sees their own masked comment.
 
 ---
 
@@ -1848,6 +1905,7 @@ Upsert semantics: 201 on create, 200 on revise.
     "id": 1,
     "rating": 5,
     "comment": "Dr. Santos explained everything clearly.",
+    "revision_number": 1,
     "created_at": "2026-08-07T10:00:00+08:00"
   }
 }
@@ -1860,6 +1918,7 @@ Upsert semantics: 201 on create, 200 on revise.
     "id": 1,
     "rating": 4,
     "comment": "Updated comment",
+    "revision_number": 1,
     "created_at": "2026-08-07T10:00:00+08:00"
   }
 }
@@ -1869,6 +1928,9 @@ Upsert semantics: 201 on create, 200 on revise.
 - Only fulfilled appointments can be rated.
 - Appointment must belong to the authenticated patient.
 - `optometrist_id` and `service_ids` are snapshotted at submission time.
+- Comment text is profanity-masked before persistence and response.
+- Revisions update the same rating in place; `revision_number` remains `1` and
+  no revision history is exposed.
 - Hidden comments return `comment: null` to non-authors; authors always see their own.
 
 **Errors:**
@@ -2201,6 +2263,7 @@ Paginated list of current prescription versions. Superseded versions are exclude
       "previous_prescription_id": null,
       "is_current": true,
       "date": "2026-07-27",
+      "expires_at": "2027-01-27",
       "measurements": {
         "main": {
           "od": { "value": null, "sphere": "-2.00", "cylinder": "-0.50" },
@@ -2219,9 +2282,19 @@ Paginated list of current prescription versions. Superseded versions are exclude
 }
 ```
 
+`expires_at` is a nullable `Y-m-d` validity date. New and amended
+prescriptions default to six months after finalization with no month overflow;
+clinic users may choose a specific date, but dates before today are rejected.
+Existing prescriptions that had no expiration date are backfilled from
+`prescribed_at` plus six months. The API currently exposes this metadata; the
+optical-order validator still requires only a current, patient-owned,
+non-voided prescription and does not yet enforce expiration.
+
 ### GET `/prescriptions/{id}`
 
-Single prescription, including historical superseded versions. Returns `404` if not patient's.
+Single prescription, including historical superseded versions. It uses the same
+resource fields as the list, including `expires_at`, and returns `404` if not
+the patient's.
 
 ---
 
@@ -2349,8 +2422,9 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `payment_summary.is_overdue` | boolean | no | Whether the unpaid balance is past its due date |
 
 When `items[].rating` is not null, it contains `rating`, optional `comment`,
-and `created_at`. Hidden comments return `comment: null` to non-authors; the
-author always sees their own comment.
+and `created_at`. Comment text is profanity-masked before persistence. Hidden
+comments return `comment: null` to non-authors; the author always sees their
+own masked comment.
 
 **Rateable items:** `is_rateable` is `true` only for a dispensed order's item
 with a non-null `product_variant_id`. Service items, custom products, and items
@@ -2420,8 +2494,8 @@ paths, and admin-only URLs are never used as `image_url` values.
 
 Creates or revises the patient's rating for a rateable item from a dispensed
 Optical Order. This endpoint is an upsert: the first POST creates the rating;
-later POSTs append a revision to the same rating. There is no separate PATCH
-route.
+later POSTs update the same rating in place. There is no separate PATCH route
+or revision history.
 
 **Auth:** Required (Sanctum token). **Active patient link required.**
 
@@ -2438,7 +2512,7 @@ route.
 `product_variant_id` is optional. When omitted, the server derives it from the
 route's job-order item. When supplied, it must match the item's variant.
 
-**Response:** `201 Created` on first rating, `200 OK` on revision.
+**Response:** `201 Created` on both the first rating and later updates.
 
 The response is wrapped in a `FrameRatingResource` that exposes only
 patient-safe fields:
@@ -2456,9 +2530,11 @@ patient-safe fields:
 }
 ```
 
-**Hidden comments:** When staff hide a comment, the author still sees their own
-`comment` text. Other patients and aggregate surfaces see `comment: null`. The
-star value always counts toward averages regardless of hiding.
+**Comment filtering and visibility:** Comment text is profanity-masked before
+it is persisted and returned. When staff hide a comment, the author still sees
+their own masked `comment` text. Other patients and aggregate surfaces see
+`comment: null`. The star value always counts toward averages regardless of
+hiding.
 
 **Fields excluded from response:** `patient_id`, `is_hidden`, `moderation_reason`,
 `moderated_by`, `moderated_at`, `current_revision_id`, `deleted_at`, `updated_at`,
@@ -2922,15 +2998,15 @@ The following routes are **removed** in the coordinated Android cutover:
 |---|---|
 | Eyewear navigation | The unified `/eyewear` aggregate is replaced by `GET /optical-orders` for product fulfillment. Quotation endpoints and source_quotation field have been removed from the patient API. |
 | Optical Order items | Product items expose nullable `product_variant_id`, explicit `is_rateable`, and a nullable current `rating` summary. |
-| Rating revisions | `POST /optical-order-items/{id}/rating` is an upsert. A later POST revises the rating; no PATCH route or duplicate-rating conflict response exists. |
+| Rating updates | `POST /optical-order-items/{id}/rating` is an upsert. A later POST updates the same rating in place and returns `201`; no PATCH route, revision history, or duplicate-rating conflict response exists. |
 | Payment summary | `payment_summary.status` is machine-readable (`unpaid`, `partially_paid`, `paid`, `voided`); `is_overdue` is a separate boolean. |
 | Message attachments | A message accepts one optional `attachment` field. Responses return zero or one attachment; multiple files require separate messages. |
 
 ### New Routes Added
 
-This table includes routes added by the coordinated Android cutover and by the
-direct-messaging hardening shipped on 2026-08-15. Current behavior is
-authoritative in §§15 and 15b.
+This table includes routes added by the coordinated Android cutover, the
+direct-messaging hardening shipped on 2026-08-15, and the additive pilot
+authentication path. Current behavior is authoritative in the sections above.
 
 | New Route | Purpose |
 |---|---|
@@ -2939,6 +3015,7 @@ authoritative in §§15 and 15b.
 | `POST /auth/register` | Complete registration with `registration_token` and profile data |
 | `POST /auth/login` | Password login (returns step-up challenge or token) |
 | `POST /auth/login/verify` | Verify login OTP, issue device token |
+| `POST /auth/participant-login` | Pilot-only participant-code login; returns `404` while pilot mode is unavailable |
 | `POST /auth/password-recovery/otp` | Request recovery OTP |
 | `POST /auth/password-recovery/verify` | Verify recovery OTP, reset password, issue token |
 | `GET /auth/policies` | Get current Terms/Privacy versions and URLs |
@@ -2990,6 +3067,10 @@ authoritative in §§15 and 15b.
 | `GET /appointments` | Requires active patient link |
 | `GET /appointments/{id}` | Requires active patient link |
 | `POST /appointments/{id}/cancel` | Requires active patient link |
+| `POST /appointments/{id}/rating` | Visit-rating comments are profanity-masked before persistence and response; revisions update in place with `revision_number: 1` |
+| `GET /prescriptions` | Prescription resources include additive `expires_at` validity metadata |
+| `GET /prescriptions/{id}` | Same `expires_at` field is returned for current and historical prescription versions |
+| `POST /optical-order-items/{id}/rating` | Frame-rating comments are profanity-masked; repeated submissions update in place and return `201` |
 | `GET /frames` | Frame variants now include additive nullable `ar` metadata for the current validated and published remote GLB asset; legacy AR fields remain unchanged |
 | `GET /frames/{id}` | Same additive `ar` variant metadata and safe `null` fallback as the frame list |
 
@@ -3071,7 +3152,7 @@ The mobile app presents the patient-facing **Eyewear** destination using the
 (queued, in_progress, ready_for_dispensing) appear in the active view, and
 dispensed or cancelled orders appear in history.
 
-### Rateable items and rating revisions
+### Rateable items and rating updates
 
 Optical Order items expose `is_rateable`, nullable `product_variant_id`, and the
 current rating summary. Only dispensed Product items with a linked variant have
@@ -3079,9 +3160,10 @@ current rating summary. Only dispensed Product items with a linked variant have
 non-dispensed orders have `is_rateable: false`.
 
 `POST /api/v1/optical-order-items/{id}/rating` is an upsert. The first POST
-creates the rating (`201`); subsequent POSTs revise the current rating and
-append a moderation-history revision (`200`). There is no PATCH route and no
-duplicate-rating conflict response.
+creates the rating (`201`); subsequent POSTs update the same rating in place
+and also return `201`. There is no PATCH route, revision history, or
+duplicate-rating conflict response. Comment text is profanity-masked before it
+is persisted and returned.
 
 ### Machine-readable payment status
 
@@ -3117,6 +3199,16 @@ POST   /api/v1/auth/password-recovery/otp     Request phone recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
+
+### Pilot Authentication (public, feature-gated)
+
+```
+POST   /api/v1/auth/participant-login          Provisioned pilot participant login
+```
+
+This route is registered separately from the normal patient contract and
+returns `404` unless deployment is in pilot mode with explicit enablement and
+a future pilot expiry.
 
 ### Authenticated Account-Only (token required, no active link needed)
 
@@ -3199,4 +3291,6 @@ GET    /api/v1/optical-orders/{id}            Get optical order
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 public + 40 account-only + 10 active-link = **58 routes total.**
+**Route count:** 8 normal public + 1 pilot-only public + 41 account-only + 10
+active-link = **60 registered routes total**. The normal patient-mobile
+contract is **59 routes** when the disabled-by-default pilot route is excluded.

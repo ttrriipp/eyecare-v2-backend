@@ -2,12 +2,12 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-09-14.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-16.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
-> unified billing with explicit charge provenance, Saved Frames,
-> Reservations) have been implemented. The admin sidebar
+> unified billing with explicit charge provenance, and Saved Frames have been
+> implemented. The admin sidebar
 > was restructured into a workflow-shaped taxonomy (Today, Patients,
 > Clinical, Optical, Billing, Catalog, Admin), Availability is now a
 > Filament cluster (Clinic Hours, Schedule Overrides,
@@ -21,6 +21,34 @@
 > records per source. The admin-only **Reports** cluster now provides
 > aggregate Financial, Appointments, Optical Orders, and Feedback pages with
 > shared clinic-timezone filters and safe CSV exports.
+
+> **Current commerce boundary (2026-09-16).** Quotations and
+> `quotation_items` are retired from the canonical application schema and
+> current Filament workflows. Optical Orders and Billing Records are the live
+> commerce path. Dated quotation references below are retained as historical
+> context unless explicitly marked current.
+
+> **Shipped (2026-09-16): inventory purchase-date tracking.** Stock receiving
+> now captures a `Date of Purchase` in the Filament form, defaulting to today
+> and rejecting future dates in the UI. Restock movements persist
+> `purchased_at`; non-restock movements leave it null. Contact-lens lots also
+> persist the earliest purchase date across repeated receipts. Existing
+> positive restock movements were backfilled from `DATE(created_at)`, and lot
+> dates were backfilled from the earliest linked movement. The Inventory table's
+> `Received At` column is computed from the earliest positive-restock purchase
+> date, while `EarlyQty` sums quantity received on that date. View Batches shows
+> the lot purchase date and falls back to `received_at` for older rows. These
+> fields remain internal to the Filament Inventory workspace and are not added
+> to patient APIs.
+
+> **Shipped (2026-09-16): product variant default prefill UX.** The Product
+> form's frame and generic **Default Variant Details** sections are collapsible.
+> Relation-manager Create Variant forms prefill structured frame fields and
+> generic key/value details from the Product's current
+> `default_variant_attributes`; when generic defaults are empty, existing
+> variant keys are used as blank placeholders. The create action still merges
+> defaults at persistence time, while editing an existing variant remains
+> independent of later Product-default changes.
 
 > **Shipped (2026-09-13): patient same-day cancellation cutoff.** Patient API
 > cancellations of confirmed appointments and pending appointment requests
@@ -65,7 +93,7 @@
 > retained additively for compatibility but do not drive Android navigation.
 > Immediate fulfillment and payments collected during order confirmation or dispensing
 > are coalesced to avoid duplicate alerts. Internal workflow stages,
-> patient-invisible quotation changes, and patient-initiated actions remain
+> patient-invisible internal changes, and patient-initiated actions remain
 > silent. Bodies omit clinical details, reasons, notes, message contents, and
 > payment method/reference data. The approved contract is in
 > `docs/specs/patient-in-app-notifications-spec.md`.
@@ -138,7 +166,7 @@
 
 > **Consultation presentation terminology (2026-08-21).** The Filament panel
 > presents the backend `Encounter` record as a **Consultation** across clinical,
-> appointment, patient, prescription, quotation, billing, dashboard, and print
+> appointment, patient, prescription, billing, dashboard, and print
 > surfaces. This is a presentation-only decision: PHP classes, database tables
 > and columns, relationships, routes, API keys, audit values, and internal
 > action names remain Encounter-based. User-readable validation messages may
@@ -197,7 +225,8 @@
 > across lots; cancellation restores the exact source lots once. The Inventory
 > workspace shows contact-lens usable quantity, earliest usable expiry, Good /
 > Expiring Soon / Expired states, Expiring Soon and Expired tabs, usable-stock
-> reorder signals, and a read-only View Batches action. Frames and accessories
+> physical-stock low-stock badge/statistics, and a read-only View Batches action.
+> Frames and accessories
 > retain aggregate-stock behavior. Demo contact-lens stock is seeded with
 > representative lot records after the demo staff account is created. Lot and
 > expiry data is internal to Filament and is not added to patient API resources.
@@ -319,8 +348,9 @@
 > attachments are present. Attachments are stored using the same path as
 > patient uploads (`attachments` directory on the `local` disk).
 
-> **Shipped (2026-08-14): unified quotation, optical-order, and billing
-> entry points.** Prescription eyewear has a dedicated builder in both the
+> **Historical shipped note (2026-08-14; quotation paths retired
+> 2026-09-14): unified quotation, optical-order, and billing entry points.**
+> Prescription eyewear had a dedicated builder in both the
 > Quotation and New Direct Optical Order forms. The eyewear mode is form
 > state only: frame, lens package, and lens-option selections are normalized
 > into the existing quotation/order item arrays, so `item_kind` and immutable
@@ -391,7 +421,8 @@
 > removed) so the invitation-acceptance trust anchor matches the verified login
 > contact. Frame Reservations have been replaced by Saved Frames.
 >
-> **Shipped (2026-08-13): commerce model simplification.** The commercial
+> **Historical shipped note (2026-08-13; quotation schema retired
+> 2026-09-14): commerce model simplification.** The commercial
 > item model was simplified around a single `item_kind` classification.
 > Removed: `item_type` column from `quotation_items`, `job_order_items`,
 > `billing_record_items`; `TransactionItemType` enum; `inventory_lots` table
@@ -449,22 +480,22 @@ keeping the domain actions as the server-side source of truth:
   15-minute start grid.
 - **Encounters and prescriptions.** Encounter list and edit actions enforce
   planned/in-progress ownership and role boundaries through the assignment
-  and start actions. Optometrists can reach the quotation flow and add
+  and start actions. Optometrists can reach the Optical Order workflow and add
   post-completion supplements where permitted. Prescription creation and
   amendment pages show read-only patient/appointment context, preserve
   server-derived ownership, and render finalized remarks on the read-only
   view.
-- **Quotations, Optical Orders, and billing.** Quotation review shows the
-  corrective-eyewear configuration and prescription/version context; the
-  discount control is visibly admin-only. Optical Order pages show immutable
-  product and lens-option snapshots, eyewear-specification state, prescription
-  attribution, billing totals, amount paid, balance, and due date. Dispensing
+- **Optical Orders and billing.** Optical Order pages show the immutable
+  corrective-eyewear configuration, prescription/version context, product and
+  lens-option snapshots, eyewear-specification state, prescription attribution,
+  billing totals, amount paid, balance, and due date. Discount controls are
+  visibly admin-only. Dispensing
   exposes the administrator-only outstanding-balance override with a reason
   and due date. The first payment requires explicit review of the current
   immutable charge set, and service-charge entry supports either a catalog
   Service or a custom line.
 - **Patient and preferred-frame entry points.** Patient records expose a direct
-  Create Quotation action and a read-only Preferred Frames relation manager;
+  Create Optical Order action and a read-only Preferred Frames relation manager;
   appointment and consultation pages show the latest three preferences. All
   appointment actions use the same policy abilities as their underlying domain
   operations.
@@ -473,7 +504,8 @@ These UI safeguards are additive to the action-level validation and do not
 replace it; hidden or tampered Filament fields remain subject to the same
 server-side rules.
 
-> **Shipped (2026-08-10): practical optical commerce and dispensing.**
+> **Historical shipped note (2026-08-10; quotation paths retired
+> 2026-09-14): practical optical commerce and dispensing.**
 > The implemented commercial workflow now supports real small-clinic optical
 > operations. Key additions:
 >
@@ -539,10 +571,11 @@ server-side rules.
 >   a nonblank reason and a current/future payment due date. The Dispensing
 >   Event snapshots remaining balance, override actor, reason, and due date.
 >
-> - **Contact-lens parameter validation.** `ContactLensAttributeValidator`
->   enforces canonical keys (power, base_curve, diameter, cylinder, axis,
->   add, color, pack_size) with range validation. Confirmed snapshots retain
->   only applicable parameters.
+> - **Contact-lens parameter validation.** *(Historical — superseded
+>   2026-09-15.)* `ContactLensAttributeValidator` enforced canonical keys
+>   (power, base_curve, diameter, cylinder, axis, add, color, pack_size) with
+>   range validation. Current catalog snapshots retain all nonblank variant
+>   attributes.
 >
 > Spec/plan/tasks live in `docs/specs/optical-commerce-and-dispensing-{spec,plan,tasks}.md`.
 >
@@ -610,7 +643,7 @@ server-side rules.
 > work landing) as of this note.
 >
 > **Also shipped (2026-08-07): the frame-rating read-path drift found while
-> building the above.** `?filter=` now works on both quotations and
+> building the above.** `?filter=` now works on optical orders and
 > optical-orders; `items[].product_variant_id`/`is_rateable`/`rating` and
 > `payment_summary.is_overdue` are present on optical orders; frame items also
 > expose additive nullable `items[].image_url`, resolved from the primary
@@ -730,7 +763,7 @@ Role enforcement: `canAccessPanel()` on `User` model checks for at least one pan
 | Privacy administration | Backend only — no panel UI | Backend only — no panel UI | Backend only — no panel UI |
 | Clinic-wide availability configuration | No | No | Yes |
 | Appointment type configuration | No | No | Yes |
-| Any provider's hours/absence overrides | No | No | Yes |
+| Schedule overrides (clinic closure, early close, provider absence) | No | No | Yes |
 
 Every panel account can manage its own credentials via the panel's Profile page (avatar menu, top-right), independent of role — see "Account ownership and lifecycle" below.
 
@@ -791,35 +824,33 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_link_requests` | Staff-reviewed link attempts. `request_number`, `user_id`, encrypted `identity_snapshot`, `status` (pending/approved/rejected/expired), `reviewed_patient_id`, `reviewer_id`, `decision_note`, `reviewed_at`. New snapshots include normalized nullable `middle_name`; historical snapshots without it compare as null. Actual account identity or relevant verified-contact changes expire pending requests while preserving snapshot and candidate evidence; expiry audits store only safe reason categories. |
 | `patient_link_candidates` | Staff-only candidate rankings. `link_request_id`, `patient_id`, `match_strength` (strong/moderate/weak), `reason_codes` (JSON), `rank`. |
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
-| `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `encrypted_cancellation_reason` (nullable encrypted patient reason, required on patient cancellation and returned as `cancellation_reason` to the owning account), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The per-account maximum of two counts only actionable pending rows: stored `pending` rows with a future `expires_at`, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient must send nonblank `reason_details` (up to 1,000 characters) when cancelling; the reason is encrypted at rest and visible on the staff request detail screen. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
+| `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `encrypted_cancellation_reason` (nullable encrypted patient reason, required on patient cancellation and returned as `cancellation_reason` to the owning account), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The one-active-booking rule allows one actionable pending request or one future scheduled/checked-in appointment. Only stored `pending` rows with a future `expires_at` are counted, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient must send nonblank `reason_details` (up to 1,000 characters) when cancelling; the reason is encrypted at rest and visible on the staff request detail screen. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `appointment_type_visit_reason_presets` | Backend-managed patient-facing suggestions belonging to an appointment type. Stores `appointment_type_id`, `label` (trimmed, nonblank, max 255 characters), `sort_order`, and `is_active`; inactive presets remain editable by clinic administrators but are excluded from the mobile appointment-type catalog. `Other` is client-provided and is never stored here. |
 | `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `encounters` | `patient_id`, `appointment_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled/voided), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
 | `encounter_addenda` | Append-only post-completion notes. `encounter_id` (FK, restrict delete), `sequence_number` (unique per encounter), `type` (correction/supplement), encrypted `reason`/`content`, `authored_by` (FK, restrict delete), `authored_at`. No `updated_at`, no soft deletes, no edit/delete actions. |
-| `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `deleted_at`. |
-| `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. Variants own price, dimensions, SKU, stock, legacy AR compatibility fields, and the pointer to the current published 3D asset. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
-| `product_variants` | Catalog variants. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. Contact-lens variants also expose internal lot-backed stock through `inventory_lots`; `stock_quantity` is physical on-hand and equals the lot quantity sum. |
+| `prescriptions` | `prescription_number` (RX-YYYY-NNNNNN, unique), `patient_id`, `encounter_id`, `appointment_id`, `previous_prescription_id`, `created_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`, encrypted main group (`main_od_value`, `main_od_sphere`, `main_od_cylinder`, `main_os_value`, `main_os_sphere`, `main_os_cylinder`), encrypted ADD group (`add_od_value`, `add_od_sphere`, `add_od_cylinder`, `add_os_value`, `add_os_sphere`, `add_os_cylinder`), encrypted `remarks`, encrypted `amendment_reason`, `prescribed_at`, `expires_at` (date; defaults to six months after finalization with no month overflow and cannot be in the past), `deleted_at`. Existing null expiration dates are backfilled from `prescribed_at`. |
+| `products` | Stocked physical catalog entries. Permitted `product_type` values: `frame`, `contact_lens`, `accessory`. `default_variant_attributes` is a nullable JSON map of type-specific details used to prefill newly created variants; changing it does not update existing variants. Variants own price, dimensions, SKU, stock, legacy AR compatibility fields, and the pointer to the current published 3D asset. Historical `lens` Products are retained but deactivated by `2026_08_10_193536_deactivate_legacy_lens_products.php`. |
+| `product_variants` | Catalog variants. Variant `name` is unique within its product after whitespace normalization. `attributes` stores frame dimensions or generic product details; product defaults are merged into new variants once at creation and later variant edits are independent. `published_ar_asset_id` is a nullable FK to the current published `ar_assets` version. `ar_eligible` and `ar_asset_reference` remain as legacy compatibility fields and are not sufficient for Android 3D loading. Contact-lens variants also expose internal lot-backed stock through `inventory_lots`; `stock_quantity` is physical on-hand and equals the lot quantity sum. |
 | `ar_assets` | Versioned GLB assets associated with a `product_variant_id`. Stores `version`, `status` (`quarantined`, `validated`, `approved`, `published`, `rejected`, `discarded`, `superseded`, or `disabled`), `format` (`glb`), private `quarantine_path`, immutable `published_path`/HTTPS `url`, server-computed `byte_size` and lowercase `sha256`, JSON `calibration`, upload/validation/approval/publication/disablement actors and timestamps, optional `expires_at`, and staff-only `validation_error`. Unique (`product_variant_id, version`); old published files are retained for rollback, while discarded unpublished rows retain audit history after their private quarantine object is removed. |
-| `quotations` | `patient_id`, `encounter_id`, `prescription_id`, `status` (draft/accepted/declined), `valid_until`, `subtotal`, `discount_amount`, `total`, `confirmed_by`, `confirmed_at`, `decline_reason` (nullable text, populated when status is declined), `notes`. |
-| `quotation_items` | `quotation_id`, `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `service_id`, `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product/service), `item_snapshot` (nullable JSON snapshot of catalog data). |
-| `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `quotation_items.service_id` and `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
+| `services` | Service/exam charge catalog. `name` (unique), `description` (nullable), `price`, `is_active`. Referenced by `billing_record_items.service_id`; inactive services are rejected wherever an item references one. |
 | `job_orders` | `patient_id`, `encounter_id`, `prescription_id`, `status` (queued/in_progress/ready_for_dispensing/dispensed/cancelled), `fulfillment_mode` (immediate/prepared), `uses_external_supplier`, `total_amount`, nullable internal `supplier_invoice_number`. |
 | `job_order_items` | `description`, `quantity`, `unit_price`, `amount`, `product_variant_id`, `lens_category_id`, `lens_option_id`, `item_kind` (frame/lens_package/lens_option/contact_lens/accessory/custom_product), `item_snapshot` (nullable JSON snapshot of catalog data). |
 | `job_order_eyewear_specifications` | One-to-one with `job_orders`. `job_order_id` (unique), `prescription_id`, `frame_job_order_item_id` (nullable), `lens_package_job_order_item_id`, `frame_source` (catalog/patient_supplied), lens construction snapshots (`lens_design_snapshot`, `lens_material_snapshot`, `refractive_index_snapshot`, `lens_options_snapshot` JSON), encrypted dispensing measurements (`distance_pd_mode`, `distance_pd_binocular`/`od`/`os`, `near_pd_*`, `fitting_height_*`, `segment_height_*`), encrypted `lab_instructions`, `approved_by` (nullable FK users), `approved_at`, `verified_by` (nullable FK users), `verified_at`, encrypted `verification_notes`. |
 | `billing_records` | `patient_id`, `job_order_id` (nullable), `encounter_id` (nullable), `billing_record_number`, `status` (unpaid/partially_paid/paid/voided), `subtotal_amount`, `discount_amount`, `total_amount`, `amount_paid`, `balance_due`, `payment_due_date`, `recorded_by`, `recorded_at`. |
 | `billing_record_items` | `billing_record_id`, `source_kind` (optical_order/encounter/direct_service), `description`, `quantity`, `unit_price`, `amount`, `job_order_item_id` (nullable), `service_id` (nullable), `encounter_id` (nullable). |
-| `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (posted/voided), `recorded_by`, `recorded_at`, `notes`. |
+| `billing_payments` | `billing_record_id`, `amount`, `payment_method`, `reference_number`, `status` (`posted`/`reversed`), `recorded_by`, `recorded_at`, `notes`. Corrections reverse the original payment and append a replacement `posted` payment. |
 | `dispensing_events` | `job_order_id`, `billing_record_id`, `dispensed_by`, `recipient_name`, `notes`, `released_balance_amount` (default 0), `balance_override_by` (nullable FK users), encrypted `balance_override_reason`, `balance_due_date` (nullable date). |
 | `saved_frames` | Account-owned frame preferences. `user_id` (FK users, cascade delete), `product_variant_id` (FK product_variants, cascade on force delete), `created_at` (stable `saved_at` for ordering), `updated_at`. Unique (`user_id`, `product_variant_id`); index (`user_id`, `created_at`). No `patient_id`, `appointment_id`, `status`, `accepted_at`, `expires_at`, quantity, stock snapshot, rank, or staff note. |
-| `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment`, `is_hidden`, `moderation_reason`. |
-| `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment`, `service_ids` (JSON snapshot), `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. |
+| `frame_ratings` | `patient_id`, `product_variant_id`, `dispensing_event_id`, `rating` (1-5), `comment` (profanity-masked before persistence), `is_hidden`, `moderation_reason`. One current rating is maintained per patient/product variant; later submissions update it in place. |
+| `visit_ratings` | `patient_id`, `appointment_id` (unique — one rating per visit), `encounter_id`, `optometrist_id`, `rating` (1-5), `comment` (profanity-masked before persistence), `service_ids` (JSON snapshot), `is_hidden`, `moderation_reason`, `moderated_by`, `moderated_at`. Later submissions update the current rating in place. |
 | `conversations` | `account_user_id` (nullable FK users, unique when set), `patient_id` (nullable FK patients, indexed, no longer unique), `inbox_archived_at` (nullable timestamp, inbox archive semantics), `staff_last_read_at` (nullable timestamp, clinic-wide staff read watermark). At least one of `account_user_id` or `patient_id` must be non-null. States: unlinked (`account_user_id` set, `patient_id` null), current linked (both set), historical after unlink (`account_user_id` null, `patient_id` set). `account_user_id` is the mobile authorization boundary. Inbox archive removes from staff inbox without soft-deleting; auto-restores on new message. Patient read uses per-message `messages.read_at`; staff read uses the clinic-wide `staff_last_read_at` watermark — the asymmetry is deliberate (one thread per patient, 2–3 staff). |
 | `messages` | `conversation_id`, `sender_id`, `body`, `read_at`. |
 | `audit_logs` | `actor_id`, `subject_type`, `subject_id`, `action`, `metadata` (JSON), `ip_address`, `user_agent`. |
-| `inventory_lots` | Contact-lens-only batches: `product_variant_id`, unique per-variant `lot_number`, month-end `expires_on`, `received_quantity`, `quantity_on_hand`, `received_at`, restricted `received_by`, optional `source_reference`, and timestamps. Indexes support variant FEFO display and expiry queues; expired physical stock remains stored until an explicit lot write-off. |
-| `inventory_movements` | `product_variant_id`, nullable `inventory_lot_id` for lot-aware contact-lens receipts, commitments, reversals, and write-offs, `reservation_id` (historical provenance, no active FK), `job_order_id`, `inventory_movement_type_id`, `quantity_change`, `previous_stock`, `new_stock`, `created_by`. |
+| `inventory_lots` | Contact-lens-only batches: `product_variant_id`, unique per-variant `lot_number`, month-end `expires_on`, `received_quantity`, `quantity_on_hand`, `received_at` (lot creation timestamp), nullable `purchased_at` (earliest purchase date across receipts), restricted `received_by`, optional `source_reference`, and timestamps. Existing lot purchase dates are backfilled from the earliest linked restock movement. Indexes support variant FEFO display and expiry queues; expired physical stock remains stored until an explicit lot write-off. |
+| `inventory_movements` | `product_variant_id`, nullable `inventory_lot_id` for lot-aware contact-lens receipts, commitments, reversals, and write-offs, `reservation_id` (historical provenance, no active FK), `job_order_id`, `inventory_movement_type_id`, `quantity_change`, nullable `purchased_at` (set for restock movements), `previous_stock`, `new_stock`, `created_by`. Existing positive restock rows are backfilled from their `created_at` date; non-restock movements keep this field null. |
 | `privacy_requests` | `patient_id`, `request_type` (access/correction/objection/erasure), `disposition`, `handled_by`. |
 | `privacy_incidents` | `title`, `description`, `status`, `reported_by`, `assigned_to`. |
 | `clinic_hours` | `weekday` (0-6, Carbon convention: Sunday through Saturday), `open_time`, `close_time`, `enabled`. Staff-editable via the Availability cluster; exposed to authenticated mobile accounts as all seven rows through `GET /api/v1/clinic-hours`. |
@@ -831,7 +862,7 @@ These models use `SoftDeletes`: `Patient`, `Product`, `ProductVariant`, `Brand`,
 
 ### Record Lifecycle Patterns
 
-**Activate/Deactivate (availability state).** All reusable catalog resources — `Brand`, `ProductCategory`, `Product`, `ProductVariant`, `LensCategory` (lens package), `LensOption`, and `Service` — use an explicit Active/Inactive lifecycle. Appointment Types use the same active-state principle. Admin tables provide Active, Inactive, and All filters plus Activate/Deactivate actions; there are no user-facing Archive/Restore/Delete actions. Deactivated records are excluded from patient browsing and new transaction selectors, while historical quotation, Optical Order, and Billing snapshots remain unchanged. The lifecycle service permits permanent deletion only when the record has never been referenced; referenced records must be deactivated instead. Soft-delete columns remain on some catalog models for historical compatibility, and activation restores a trashed row when applicable.
+**Activate/Deactivate (availability state).** All reusable catalog resources — `Brand`, `ProductCategory`, `Product`, `ProductVariant`, `LensCategory` (lens package), `LensOption`, and `Service` — use an explicit Active/Inactive lifecycle. Appointment Types use the same active-state principle. Admin tables provide Active, Inactive, and All filters plus Activate/Deactivate actions; there are no user-facing Archive/Restore/Delete actions. Deactivated records are excluded from patient browsing and new transaction selectors, while historical Optical Order and Billing snapshots remain unchanged. The lifecycle service permits permanent deletion only when the record has never been referenced; referenced records must be deactivated instead. Soft-delete columns remain on some catalog models for historical compatibility, and activation restores a trashed row when applicable.
 
 **Account deactivation.** `User` also uses `is_active`; deactivated accounts fail `canAccessPanel()` regardless of role.
 
@@ -853,7 +884,7 @@ file, frame images, variant, or Saved Frame preferences. Rollback restores a
 previous valid published file and demotes the current version. There is no
 patient upload route.
 
-**Void (status-based irreversible).** For records created in error that require a reason, actor, timestamp, and audit log: `Encounter` (status: `voided`), `Prescription` (void fields), `BillingRecord` (status: `voided`), `Quotation` (status: `declined` with `decline_reason`). Voided records are terminal and immutable.
+**Void (status-based irreversible).** For records created in error that require a reason, actor, timestamp, and audit log: `Encounter` (status: `voided`), `Prescription` (void fields), and `BillingRecord` (status: `voided`). Voided records are terminal and immutable.
 
 **Inbox Archive (conversations).** Removes conversation from staff inbox without soft-deleting. Uses `inbox_archived_at` timestamp. Auto-restores when new message arrives. Patient still sees the conversation. Never creates a second conversation.
 
@@ -883,9 +914,9 @@ published version as `status: ready`, otherwise `ar` is `null`.
 
 **Optical Orders** (`job_orders` table; `OpticalOrderResource` in Filament): `queued → in_progress → ready_for_dispensing → dispensed` (terminal). The UI presents these as Confirmed → Processing → Ready for Pickup → Dispensed. `cancelled` is terminal from any active state. Cancellation reverses inventory. `supplier_invoice_number` required only for external prepared work. `fulfillment_mode` (immediate/prepared) determines completion path; prepared is the default for order creation, while immediate is intended for items already ready to dispense. Corrective orders cannot enter Processing without an approved eyewear specification. Ready for Pickup requires completed verification and, for external work, the supplier/lab reference. Routine dispensing requires a zero billing balance, except for the documented administrator override with reason and due date. Non-corrective and immediate orders skip the corrective preparation gates.
 
-**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only with posted/voided status. Overpayments are rejected; the balance comparison occurs under the Billing Record row lock. First posted payment locks the charge set. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates. Routine dispensing requires zero balance. Admin may release with an outstanding balance only with a nonblank reason and a current/future payment due date; the Dispensing Event snapshots the override attribution.
+**Billing Records:** `unpaid → partially_paid → paid` (terminal). `voided` is terminal. Payments are append-only: correction reverses the original payment (`reversed`) and appends a replacement (`posted`). Overpayments are rejected; the balance comparison occurs under the Billing Record row lock. First posted payment locks the charge set. `job_order_id` and `encounter_id` are nullable; at least one source required. `billing_record_items` stores immutable charge snapshots. `payment_due_date` tracks due dates. Routine dispensing requires zero balance. Admin may release with an outstanding balance only with a nonblank reason and a current/future payment due date; the Dispensing Event snapshots the override attribution.
 
-**Inventory** (`InventoryResource`, backed by `ProductVariant`): stock is variant-level, so this resource lists variants across every product rather than products — the Products table's quantity column sums a product's variants and hides the single variant sitting at zero. Sorted by physical `stock_quantity` ascending. Tabs: All (default) · Needs Reorder · Expiring Soon · Expired · Out of Stock. Contact-lens rows add usable quantity, earliest usable expiry, and Good / Expiring Soon / Expired states; the Expiring Soon and Expired queues consider only on-hand lots and leave expired physical stock visible. Navigation badge and suggested order quantity use usable lot quantity for contact lenses and aggregate quantity for frames/accessories. Navigation badge counts active variants matching the `needsReorder()` scope, and the dashboard's Low Stock stat deep-links to that tab. Read-only apart from receiving and lot-specific write-off — variant name, price, images, and attributes are edited in Products, so a variant has exactly one editor. Three fields drive it: `low_stock_threshold` (the tripwire; `0` means untracked), `target_stock_level` (the restock-to level, nullable), and the derived suggested order quantity (target minus usable/current quantity, floored at zero, null when no target is set). The read-only View Batches action shows lot details without sale-time lot selection. Stock actions live in `App\Filament\Support\StockActions` and are shared with the Products → Variants relation manager so the ledger-writing logic has one definition.
+**Inventory** (`InventoryResource`, backed by `ProductVariant`): stock is variant-level, so this resource lists variants across every product rather than products — the Products table's quantity column sums a product's variants and hides the single variant sitting at zero. Sorted by physical `stock_quantity` ascending. Tabs: All (default) · Expiring Soon · Expired · Out of Stock. Contact-lens rows add usable quantity, earliest usable expiry, and Good / Expiring Soon / Expired states; the Expiring Soon and Expired queues consider only on-hand lots and leave expired physical stock visible. The navigation badge and dashboard Low Stock stat compare physical `stock_quantity` to `low_stock_threshold` (`0` disables tracking); there is no Needs Reorder tab or suggested order quantity. `target_stock_level` remains a planning field only. The Receive Stock action requires a purchase date in the Filament UI, defaults it to today, and disallows future dates; restock movements store that date, and repeated contact-lens lots retain their earliest date. The table displays the earliest positive-restock date under `Received At` and the quantity received on that date under `EarlyQty`; View Batches displays the lot purchase date, falling back to `received_at`. Read-only apart from receiving and lot-specific write-off — variant name, price, images, and attributes are edited in Products, so a variant has exactly one editor. The read-only View Batches action shows lot details without sale-time lot selection. Stock actions live in `App\Filament\Support\StockActions` and are shared with the Products → Variants relation manager so the ledger-writing logic has one definition.
 
 **Saved Frames:** Account-owned preferences keyed by `user_id` and
 `product_variant_id`. Saving, removing, linking, unlinking, and viewing are
@@ -935,6 +966,12 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 - **Schedule Overrides** — one-off `schedule_overrides` (clinic closed / early close / optometrist absence), audit-logged on create/delete; the upcoming-overrides list is a real Filament table (`HasTable`/`InteractsWithTable` on the page), not hand-rolled HTML.
 - **Appointment Types** (admin-only resource) — manages appointment type labels, description, duration (5-minute step, 5–240 range), referral requirement, patient visibility, active state, and optional visit-reason presets. Presets can be added, edited, reordered, or deactivated from the appointment type form. The resource has no delete action; deactivate a type to remove it from new patient selections while preserving existing appointment snapshots. Presets are convenience suggestions only; appointment requests still require free-text `reason_for_visit` (max 1000 characters), and the mobile app owns the `Other` option.
 
+All active optometrists are eligible for every enabled clinic-hours interval; no
+recurring provider-hours table is consulted. A date-specific
+`provider_absence` override removes only that provider's capacity for the
+affected interval, while clinic-closed and early-close overrides change the
+clinic-wide schedule.
+
 **Reports cluster** (`app/Filament/Clusters/Reports/`) is admin-only and contains
 four top-sub-navigation pages: **Financial**, **Appointments**, **Optical
 Orders**, and **Feedback**. Reports are read-only aggregates over canonical
@@ -971,6 +1008,18 @@ POST   /api/v1/auth/password-recovery/otp     Request phone recovery OTP
 POST   /api/v1/auth/password-recovery/verify  Reset password, issue token
 GET    /api/v1/auth/policies                  Get Terms/Privacy versions and URLs
 ```
+
+### Pilot Authentication (public, feature-gated)
+```
+POST   /api/v1/auth/participant-login          Provisioned pilot participant login
+```
+
+This additive route is unavailable (`404`) unless the deployment is in pilot
+mode, the capstone pilot is explicitly enabled, and it has a future expiry. It accepts `participant_code`,
+`password`, and optional `device_name`/`installation_id`; successful login
+returns a direct Sanctum token and `PatientAccountResource`. Invalid,
+expired, revoked, or wrong-role credentials share one generic `422` response.
+Independent IP and normalized-participant-code rate limits apply.
 
 Patient authentication rules:
 - Registration starts with a phone OTP. The registration form has no phone
@@ -1076,7 +1125,9 @@ GET    /api/v1/optical-orders/{id}
 POST   /api/v1/optical-order-items/{id}/rating
 ```
 
-**Route count:** 8 public + 40 account-only + 10 active-link = **58 routes total.**
+**Route count:** 8 normal public + 1 pilot-only public + 41 account-only + 10
+active-link = **60 registered routes total**. The normal patient contract count
+is **59** when the disabled-by-default pilot route is excluded.
 
 Conversation routes (including attachment download) are in the account-only tier —
 no patient link required for read, send, or download. Upload still requires a
@@ -1119,6 +1170,7 @@ orders, billings, checkout records, or purchases.
 | `DispatchOtpChallenge` | `app/Actions/Auth/` | Backward-compatible no-op retained alongside queued delivery |
 | `RegisterPatientAccount` | `app/Actions/Auth/` | Creates patient-role User with verified phone, optional pending email, and device token; no Patient created |
 | `BeginPatientLogin` | `app/Actions/Auth/` | Verifies phone/password, skips OTP for trusted installations, otherwise issues login step-up OTP |
+| `AuthenticatePilotParticipant` | `app/Actions/Auth/` | Authenticates a provisioned pilot participant code/password and issues a token bounded by the participant and pilot expirations; fails closed when pilot mode is unavailable |
 | `IssuePatientDeviceToken` | `app/Actions/Auth/` | Verifies login OTP, binds installation IDs, replaces same-installation tokens, enforces max 5 |
 | `RecoverPatientPassword` | `app/Actions/Auth/` | Resets password through verified phone recovery OTP, revokes other tokens, issues device token |
 | `NormalizeContact` | `app/Actions/PatientAccounts/` | Deterministic email/phone/name normalization |
@@ -1143,7 +1195,6 @@ orders, billings, checkout records, or purchases.
 | `RejectAppointmentRequest` | `app/Actions/Appointments/` | Closes request without creating appointment |
 | `ExpireAppointmentRequests` | `app/Actions/Appointments/` | Idempotent scheduled expiry of pending requests, including rebooking rows whose target appointment is no longer scheduled |
 | `NotifyAdminUsers` | `app/Actions/Notifications/` | Selects active staff/admin recipients and dispatches queued, after-commit, Filament-compatible database alerts for approved patient-originated events without failing the completed patient mutation |
-| `BuildScheduleBlocks` | `app/Actions/Appointments/` | Produces blocks from appointments + request holds |
 | `UpdateClinicHours` | `app/Actions/Appointments/` | Updates the weekly `clinic_hours` schedule, audit-logged |
 | `CreateScheduleOverride` | `app/Actions/Appointments/` | Creates a one-off closed/early-close/provider-absence override, audit-logged |
 | `DeleteScheduleOverride` | `app/Actions/Appointments/` | Removes a schedule override, audit-logged |
@@ -1157,14 +1208,15 @@ orders, billings, checkout records, or purchases.
 | `DisableArAsset` | `app/Actions/ArAssets/` | Removes only the variant's patient-facing AR pointer and records disablement; normal images and Saved Frame preferences remain available |
 | `RollbackArAsset` | `app/Actions/ArAssets/` | Verifies a retained published file and atomically restores it as the current version |
 | `CreateOpticalOrder` | `app/Actions/OpticalOrders/` | Creates an Optical Order for a patient with optional encounter and prescription context; commits inventory, creates billing, records deposit |
+| `FinalizePrescription` | `app/Actions/Prescriptions/` | Finalizes or amends a prescription, defaults `expires_at` to six months after finalization with no month overflow, and rejects past expiration dates |
 | `AddChargesToBilling` | `app/Actions/BillingRecords/` | One append path keyed by `BillingItemSourceKind` (`optical_order`, `encounter`, `direct_service`); replaces five previous append actions |
 | `ValidateOpticalOrderItems` | `app/Actions/OpticalOrders/` | Validates optical item matrix: exactly one lens package, at most one frame, lens options require package, corrective eyewear requires current Patient-owned Prescription |
 | `BuildOpticalItemSnapshot` | `app/Actions/OpticalOrders/` | Converts controlled catalog selections into stable transaction snapshots with item_kind and identifying data |
 | `SaveEyewearSpecification` | `app/Actions/JobOrders/` | Validates and saves lens construction, frame source, PD representation, required heights, and lab instructions; clears approval on edit |
 | `ApproveEyewearSpecification` | `app/Actions/JobOrders/` | Active optometrist approves a corrective-eyewear specification; creates audit event |
 | `VerifyEyewear` | `app/Actions/JobOrders/` | Records who checked completed eyewear against the approved specification, when, and optional notes |
-| `RecordInventoryMovement` | `app/Actions/Inventory/` | Aggregate stock writer for frames/accessories: adjusts `stock_quantity` and appends the `inventory_movements` ledger row in one transaction, guarding against negative stock on deductions |
-| `ReceiveContactLensStock` | `app/Actions/Inventory/` | Receives a contact-lens lot, normalizes month-only expiry to month-end, rejects conflicting repeated-lot expiry, updates aggregate/lot quantities atomically, and records a lot-linked restock movement |
+| `RecordInventoryMovement` | `app/Actions/Inventory/` | Aggregate stock writer for frames/accessories: adjusts `stock_quantity` and appends the `inventory_movements` ledger row in one transaction, guarding against negative stock on deductions; restock rows carry a purchase date (defaulting to today when omitted), while other movement types do not |
+| `ReceiveContactLensStock` | `app/Actions/Inventory/` | Receives a contact-lens lot, normalizes month-only expiry to month-end, rejects conflicting repeated-lot expiry, updates aggregate/lot quantities atomically, records the earliest lot purchase date, and records a lot-linked restock movement with its purchase date |
 | `WriteOffContactLensStock` | `app/Actions/Inventory/` | Writes off a selected contact-lens lot atomically while preserving the aggregate/lot invariant and append-only audit trail |
 | `CommitJobOrderInventory` | `app/Actions/JobOrders/` | Commits contact-lens quantities by locked, multi-lot FEFO and records one lot-linked movement per consumed lot; aggregate products retain the existing path |
 | `UpdateJobOrderStatus` | `app/Actions/JobOrders/` | Reverses contact-lens commitments to their exact source lots once during Optical Order cancellation |
@@ -1183,7 +1235,10 @@ orders, billings, checkout records, or purchases.
 | `CreateAuditLog` | `app/Actions/Audit/` | Persists audit entry (actor, subject, action, metadata, ip_address, user_agent — the latter two default from the current request when not passed explicitly) |
 | `SyncUserRoles` | `app/Actions/Users/` | Validates and synchronizes multi-role pivot assignments; blocks self-role mutation, rejects invalid role combinations, protects last active admin, and emits `user.role_changed` audit events with old/new role names |
 | `RecordAuthenticationAudit` | `app/Listeners/` | Listens to `Illuminate\Auth\Events\{Login,Logout,Failed}`, scoped to panel-capable accounts; writes login/logout/failed-login audit entries and updates `last_login_at` |
-| `SaveVisitRating` | `app/Actions/Ratings/` | Create or revise a patient's visit rating; snapshots optometrist and services at submission time |
+| `FilterProfanity` | `app/Actions/Ratings/` | Masks configured English and Filipino profanity in rating comments before persistence |
+| `SaveFrameRating` | `app/Actions/Ratings/` | Creates or updates one patient's frame rating per product variant, filtering profanity before persistence |
+| `ModerateFrameRating` | `app/Actions/Ratings/` | Hides or restores a frame-rating comment while preserving its star value |
+| `SaveVisitRating` | `app/Actions/Ratings/` | Create or revise a patient's visit rating in place; snapshots optometrist and services and filters profanity before persistence |
 | `ModerateVisitRating` | `app/Actions/Ratings/` | Hide/restore a visit rating comment while preserving the star value |
 
 ---
@@ -1208,13 +1263,17 @@ have never been referenced.
 - **Appointment create form:** Patient mode toggle (new/existing). New patient shows full demographic fields. Walk-in toggle hides date/time and auto-sets source/status/checked_in_at. Appointment type select applies default duration reactively; duration is editable in 5-minute increments (5–240) for scheduled appointments. Referring source appears when the selected type `requires_referral`. Notes is a single staff_notes field. Walk-ins remain exempt from grid and future-time validation.
 - **Appointment edit form:** Patient is read-only placeholder. Fields editable until checked in (scheduled/checked_in): appointment type (applies default duration on change), duration (editable in 5-minute increments), date/time, referring source (conditional on type), notes, optometrist. Status toggle and appointment type share a row. Quick "Assign" action available from list for optometrist assignment. Changing type, duration, time, or provider before check-in must revalidate availability under the schedule lock.
 - **Appointment request review:** Staff review the patient-visible and internal appointment-type labels, provisional duration, referral context, submitted alternatives, request age, and overdue state before accepting or rejecting. Acceptance requires an active type, a valid duration, an assigned provider, a conflict-free 15-minute grid slot, and a contact note when the final time is outside all submitted preferences.
-- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. The create/amend pages display patient and appointment context as read-only fields, while patient, appointment, encounter, and author linkage remain locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, date, and remarks. **Create Quotation** on the view page opens `CreateQuotation` directly against the current-version prescription (`?prescription=` query param), independent of whether its originating encounter is still in progress or already completed — this path has no one-per-prescription cap, unlike the one-per-encounter limit on the encounter-linked creation path.
-- **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant, lens category, or lens option. Quotation items, the Quotation creation form, the Encounter charge form, and the direct Billing Record charge form all offer a Service picker alongside the existing product/lens-category/lens-option pickers; an item may reference at most one of the four catalog references (`product_variant_id`, `lens_category_id`, `lens_option_id`, or `service_id`), and inactive services are rejected at validation time.
-- **Lens option catalog:** `LensOption` is a separately billed enhancement catalog, not a Product, Service, or inventory item. New transactions can select only active options; an option requires exactly one lens package in the same optical build, duplicate selections are rejected, and the transaction stores `item_kind = lens_option` with an immutable name/description/price snapshot. Renaming or deactivating an option does not rewrite confirmed quotation or Optical Order snapshots.
-- **Edit pages:** Quotations, Billing Records, and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Quotation confirmation surfaces corrective configuration and prescription version/author context. Optical Order pages show immutable item and lens-option snapshots plus eyewear-specification state. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
-- **Quotation and direct-order builders:** When a current prescription is selected, the forms expose a dedicated prescription-eyewear section (optional frame, required one-pair lens package, optional unique lens options) and a separate Other Items list. The mode toggle is not persisted; the normalized commercial item rows are authoritative. Without a prescription, the normal item list remains available for frames, contact lenses, accessories, custom products, and services in quotations; direct optical orders use the same eyewear builder but commit the order and bill immediately. Draft quotation revisions use a wide slide-over and return to the review page; accepted and declined quotations cannot be revised.
+- **Prescriptions:** No standalone create. An optometrist starts the encounter, then uses **Create Prescription** on that in-progress Encounter page. The create/amend pages display patient and appointment context as read-only fields, while patient, appointment, encounter, and author linkage remain locked and derived server-side. Finalized prescriptions are read-only and cannot be archived through Filament. An optometrist must use **Amend Prescription**, provide a reason, and create a new linear version through `previous_prescription_id`; the original remains unchanged and is visibly marked superseded. Only the current leaf version can be printed or appears in the patient API list. `expires_at` defaults to six months after finalization with no month overflow; a specific date may be selected, but past dates are rejected. Existing null expiration dates are backfilled from `prescribed_at`. Optical-order validation currently requires a current, patient-owned, non-voided prescription but does not enforce `expires_at`. The reason and clinical fields are encrypted, while the audit log stores only linkage metadata, actor, action, and time. The view page uses a two-column layout: left shows Prescription and ADD sections with placeholders, right shows prescription number, patient info, encounter, optometrist, date, expiration date, and remarks. **Create Optical Order** on the view page opens the direct order flow against the current-version prescription (`?prescription=` query param).
+- **Service catalog:** `Service` (admin-only Filament resource, Catalog group) holds priced, active/inactive clinical or service charges (e.g. exam fees) that aren't tied to a product variant, lens category, or lens option. The Optical Order, Encounter charge, and direct Billing Record forms offer a Service picker alongside the product/lens-category/lens-option pickers; an item may reference at most one of the four catalog references (`product_variant_id`, `lens_category_id`, `lens_option_id`, or `service_id`), and inactive services are rejected at validation time.
+- **Lens option catalog:** `LensOption` is a separately billed enhancement catalog, not a Product, Service, or inventory item. New Optical Orders can select only active options; an option requires exactly one lens package in the same optical build, duplicate selections are rejected, and the transaction stores `item_kind = lens_option` with an immutable name/description/price snapshot. Renaming or deactivating an option does not rewrite confirmed Optical Order snapshots.
+- **Edit pages:** Billing Records and Optical Orders have full form schemas showing related items, financial summaries, and timelines. Optical Order pages show immutable item and lens-option snapshots plus eyewear-specification state. Billing Record items are the record's own immutable `items` snapshot (`BillingRecordItem`, tagged with `source_kind`), not values resolved live from `jobOrder.items`.
+- **Optical Order builder:** When a current prescription is selected, the form exposes a dedicated prescription-eyewear section (optional frame, required one-pair lens package, optional unique lens options) and a separate Other Items list. The mode toggle is not persisted; normalized commercial item rows are authoritative. Orders may also contain frames, contact lenses, accessories, custom products, and services without a prescription when corrective eyewear is not selected. Direct Optical Orders commit the order and billing together.
+- **Product variant defaults:** Product create is intentionally two-stage: create the Product first, then add variants from its edit page. The frame and generic **Default Variant Details** sections are collapsible. `default_variant_attributes` stores type-specific defaults — structured frame dimensions/color/material plus other key/value details, or generic key/value details for contact lenses/accessories. The migration backfills defaults from a single active variant or attributes identical across all active variants without mutating variant rows. Relation-manager Create Variant forms prefill those stored defaults; when generic defaults are empty, existing variant keys are shown as blank placeholders. Defaults are merged only when a new variant is created; later changes do not update existing variants. Variant names are unique within a product after trimming and collapsing whitespace.
+- **Optical-order discounts:** `DiscountType` supports `None`, `SeniorCitizen` (20%), `Pwd` (20%), and admin-custom `Other`. Senior Citizen requires a patient age of at least 60; an age-eligible patient must use that type. Positive discounts are admin-only, no-discount orders cannot include an amount, and a discount cannot exceed the subtotal.
+- **Billing payment corrections:** Corrections remain an administrator-only append-only domain action: the original `posted` payment becomes `reversed` and a replacement `posted` payment is created. The current Filament Payments table no longer exposes a correction action or status column, but its view surface retains correction details.
+- **Ratings:** There is one current visit rating per fulfilled appointment and one current frame rating per patient/product variant; later submissions update in place and do not create revision history. Visit and frame comments pass through the profanity filter before persistence. Hidden comments remain visible to their author, are suppressed for other readers, and never remove the star value from aggregates.
+- **Encounter service charges:** The in-progress/completed Encounter edit page offers **Add Service Charge** and **View Billing Record**; charges append to the patient's single open visit Billing Record.
 - **Service-charge entry:** Add Service Charge is a compact modal shared by Billing Records and Encounters. Catalog-service lines derive and lock the catalog name and price; custom-service lines require an editable description and unit price. The modal contains no prescription, fulfillment, supplier, deposit, or pickup controls and appends the normalized lines to the patient's existing open Billing Record.
-- **Encounter "Create Quotation":** The in-progress/completed Encounter edit page also offers **Create Quotation**, opening `CreateQuotation` with `?encounter=` — distinct from the Prescription-page path: it requires the encounter's current prescription to be finalized, and is capped at one quotation per encounter (hidden once one exists). The Prescription-page path has no such cap.
 - **Encounter workflow:** Four-step autosaving wizard (History, Examination, Assessment & Plan, Review & Complete). Check-in creates a planned Encounter without attaching PatientIntake, copies assigned provider, and prefills chief complaint from appointment reason. Start uses self-claim pattern — the actor becomes the provider when unassigned; only the assigned optometrist can start otherwise. Draft saves via `SaveEncounterDraft` trim and cap narrative at 10,000 characters. Completion requires `chief_complaint`, `findings`, `assessment`, and `plan`; only the assigned active optometrist can complete. Optional prescription finalizes atomically in the same transaction. Completed encounters are immutable; corrections (original author only) and supplements (any active optometrist) use append-only `encounter_addenda` records.
 - **Encounter provider assignment:** Staff, optometrists, and admins can assign an active optometrist to a planned Encounter. In-progress transfer requires the current provider or admin. Encounter and Appointment provider IDs are always synchronized.
 - **Encounter printing:** `GET /encounters/{id}/print` returns an authenticated Blade view of the completed record with addenda. Each print records an `encounter.printed` audit event with identifiers only.
@@ -1237,9 +1296,14 @@ have never been referenced.
   accessories use aggregate stock movements. Contact-lens variants require
   lot-backed quantities whose sum equals `stock_quantity`; usable quantity is
   derived from on-hand lots with `expires_on >= today` in the clinic timezone.
-  Receiving captures lot number and month-only expiry, commitments allocate usable
-  lots by FEFO, cancellation restores source lots, and explicit write-off handles
-  expired or damaged physical stock. Saving a frame preference never changes
-  stock or creates an inventory movement. Lot/expiry fields remain internal to
-  the Filament Inventory workspace and are absent from patient APIs.
+  Receiving captures a purchase date (required in Filament, defaulting to today
+  and capped at today), lot number, and month-only expiry. Restock movements
+  retain the purchase date, and a repeated contact-lens lot keeps the earliest
+  purchase date. Commitments allocate usable lots by FEFO, cancellation restores
+  source lots, and explicit write-off handles expired or damaged physical stock.
+  The table's `Received At` value is the earliest positive-restock purchase date
+  and `EarlyQty` is the quantity received on that date; View Batches shows the
+  lot purchase date with a `received_at` fallback. Saving a frame preference
+  never changes stock or creates an inventory movement. Lot/expiry fields remain
+  internal to the Filament Inventory workspace and are absent from patient APIs.
 - **Legacy tables:** `orders`, `order_items`, `order_statuses`, `billings`, `billing_items`, `billing_statuses`, `discount_types`, `payments`, `service_records` remain in the schema but have no canonical application consumers. They will be removed in a future cleanup migration.
