@@ -6,7 +6,6 @@ use App\Enums\ProductUsage;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -280,19 +279,6 @@ class ProductForm
                 ])
                 ->columns(3)
                 ->visible(fn (Get $get): bool => $get('product_type') === 'frame'),
-
-            // ── Inline variants (edit only, full width) ─────────────
-            Section::make('Variants')
-                ->columnSpanFull()
-                ->hiddenOn('create')
-                ->schema([
-                    Repeater::make('variants')
-                        ->relationship()
-                        ->minItems(0)
-                        ->hiddenLabel()
-                        ->schema(VariantForm::schema())
-                        ->columns(2),
-                ]),
         ]);
     }
 
