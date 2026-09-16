@@ -36,9 +36,18 @@ class Product extends Model
     ];
 
     /**
-     * Product types whose stock is received and fulfilled by expiring lot.
+     * Product types whose stock is represented by received inventory batches.
      *
-     * Frames remain aggregate-only inventory because they do not expire.
+     * @var list<string>
+     */
+    public const array BATCH_TRACKED_TYPES = [
+        'frame',
+        'contact_lens',
+        'accessory',
+    ];
+
+    /**
+     * Product types whose batches must carry an expiry date.
      *
      * @var list<string>
      */

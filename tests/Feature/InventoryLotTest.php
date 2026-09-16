@@ -164,7 +164,7 @@ test('contact lens variants derive usable stock and expiry status from their lot
     expect($emptyVariant->expiryStatus())->toBe('out_of_stock');
 });
 
-test('accessory variants use expiry tracking while frame variants stay aggregate-only', function () {
+test('accessories use expiry tracking while frames use non-expiring batches', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
     $accessory = Product::factory()->accessory()->create();
     $accessoryVariant = ProductVariant::factory()->for($accessory)->create([
@@ -186,7 +186,27 @@ test('accessory variants use expiry tracking while frame variants stay aggregate
         ->and($accessoryVariant->earliestUsableExpiry()?->toDateString())->toBe('2026-09-30')
         ->and($accessoryVariant->expiryStatus())->toBe('expiring_soon')
         ->and($frameVariant->isExpiryTracked())->toBeFalse()
+        ->and($frameVariant->isFrame())->toBeTrue()
+        ->and($frameVariant->isBatchTracked())->toBeTrue()
         ->and($frameVariant->usableStockQuantity())->toBeNull()
         ->and($frameVariant->earliestUsableExpiry())->toBeNull()
         ->and($frameVariant->expiryStatus())->toBeNull();
+});
+
+test('non-expiring inventory batches remain available without an expiry date', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $frameVariant = ProductVariant::factory()
+        ->for(Product::factory()->create(['product_type' => 'frame']))
+        ->create();
+
+    $batch = InventoryLot::factory()->for($frameVariant, 'variant')->create([
+        'lot_number' => 'FRAME-001',
+        'expires_on' => null,
+    ]);
+
+    expect($batch->isExpired())->toBeFalse()
+        ->and($batch->isAvailable())->toBeTrue()
+        ->and(InventoryLot::query()->notExpired()->whereKey($batch)->exists())->toBeTrue()
+        ->and(InventoryLot::query()->expired()->whereKey($batch)->exists())->toBeFalse()
+        ->and(InventoryLot::query()->expiringSoon()->whereKey($batch)->exists())->toBeFalse();
 });

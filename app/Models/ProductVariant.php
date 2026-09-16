@@ -171,6 +171,16 @@ class ProductVariant extends Model
         return $this->product?->product_type === 'contact_lens';
     }
 
+    public function isFrame(): bool
+    {
+        return $this->product?->product_type === 'frame';
+    }
+
+    public function isBatchTracked(): bool
+    {
+        return in_array($this->product?->product_type, Product::BATCH_TRACKED_TYPES, true);
+    }
+
     public function isExpiryTracked(): bool
     {
         return in_array($this->product?->product_type, Product::EXPIRY_TRACKED_TYPES, true);

@@ -60,7 +60,11 @@ class InventoryLot extends Model
      */
     public function scopeNotExpired(Builder $query, ?CarbonInterface $asOf = null): void
     {
-        $query->whereDate('expires_on', '>=', self::asOfDate($asOf)->toDateString());
+        $query->where(function (Builder $lotQuery) use ($asOf): void {
+            $lotQuery
+                ->whereNull('expires_on')
+                ->orWhereDate('expires_on', '>=', self::asOfDate($asOf)->toDateString());
+        });
     }
 
     /**
@@ -68,7 +72,9 @@ class InventoryLot extends Model
      */
     public function scopeExpired(Builder $query, ?CarbonInterface $asOf = null): void
     {
-        $query->whereDate('expires_on', '<', self::asOfDate($asOf)->toDateString());
+        $query
+            ->whereNotNull('expires_on')
+            ->whereDate('expires_on', '<', self::asOfDate($asOf)->toDateString());
     }
 
     /**
@@ -99,15 +105,19 @@ class InventoryLot extends Model
         $start = self::asOfDate($asOf);
         $end = $start->addDays($days);
 
-        $query->available()->whereBetween('expires_on', [
-            $start->toDateString(),
-            $end->toDateString(),
-        ]);
+        $query
+            ->available()
+            ->whereNotNull('expires_on')
+            ->whereBetween('expires_on', [
+                $start->toDateString(),
+                $end->toDateString(),
+            ]);
     }
 
     public function isExpired(?CarbonInterface $asOf = null): bool
     {
-        return $this->expires_on->toDateString() < self::asOfDate($asOf)->toDateString();
+        return $this->expires_on !== null
+            && $this->expires_on->toDateString() < self::asOfDate($asOf)->toDateString();
     }
 
     public function isAvailable(?CarbonInterface $asOf = null): bool

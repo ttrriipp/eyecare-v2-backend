@@ -152,6 +152,18 @@ class UpdateJobOrderStatus
                 continue;
             }
 
+            if ($variant->isFrame()) {
+                $reversedQuantity += $this->reverseFrameBatchMovements(
+                    jobOrder: $jobOrder,
+                    variant: $variant,
+                    commitmentMovements: $commitmentMovements,
+                    reversalType: $reversalType,
+                    actorId: $actorId,
+                );
+
+                continue;
+            }
+
             $reversedQty = InventoryMovement::query()
                 ->where('job_order_id', $jobOrder->id)
                 ->where('product_variant_id', $item->product_variant_id)
@@ -268,6 +280,82 @@ class UpdateJobOrderStatus
                 newStock: $newStock,
                 actorId: $actorId,
                 lot: $lot,
+            );
+
+            $reversedQuantity += $netQuantity;
+        }
+
+        return $reversedQuantity;
+    }
+
+    /**
+     * Restore frame quantities to the exact batches used by the commitment.
+     * Null-lot movements represent legacy aggregate opening stock.
+     *
+     * @param  Collection<int, InventoryMovement>  $commitmentMovements
+     */
+    private function reverseFrameBatchMovements(
+        JobOrder $jobOrder,
+        ProductVariant $variant,
+        Collection $commitmentMovements,
+        InventoryMovementType $reversalType,
+        ?int $actorId,
+    ): int {
+        $reversalMovements = InventoryMovement::query()
+            ->where('job_order_id', $jobOrder->id)
+            ->where('product_variant_id', $variant->id)
+            ->where('inventory_movement_type_id', $reversalType->id)
+            ->get();
+        $commitmentsByBatch = $commitmentMovements
+            ->groupBy(fn (InventoryMovement $movement): int => (int) ($movement->inventory_lot_id ?? 0));
+        $reversalsByBatch = $reversalMovements
+            ->groupBy(fn (InventoryMovement $movement): int => (int) ($movement->inventory_lot_id ?? 0));
+        $reversedQuantity = 0;
+
+        foreach ($commitmentsByBatch as $batchId => $batchCommitments) {
+            $batchId = (int) $batchId;
+            $committedQuantity = abs((int) $batchCommitments->sum('quantity_change'));
+            $alreadyReversed = abs((int) ($reversalsByBatch->get($batchId)?->sum('quantity_change') ?? 0));
+            $netQuantity = $committedQuantity - $alreadyReversed;
+
+            if ($netQuantity <= 0) {
+                continue;
+            }
+            $batch = null;
+
+            if ($batchId > 0) {
+                $batch = InventoryLot::query()
+                    ->whereKey($batchId)
+                    ->where('product_variant_id', $variant->id)
+                    ->whereNull('expires_on')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($batch === null) {
+                    throw ValidationException::withMessages([
+                        'inventory' => ["The source batch for frame variant {$variant->id} no longer exists."],
+                    ]);
+                }
+            }
+
+            $previousStock = (int) $variant->stock_quantity;
+            $newStock = $previousStock + $netQuantity;
+
+            if ($batch !== null) {
+                $batch->update(['quantity_on_hand' => $batch->quantity_on_hand + $netQuantity]);
+            }
+
+            $variant->update(['stock_quantity' => $newStock]);
+
+            $this->createReversalMovement(
+                jobOrder: $jobOrder,
+                variant: $variant,
+                reversalType: $reversalType,
+                quantity: $netQuantity,
+                previousStock: $previousStock,
+                newStock: $newStock,
+                actorId: $actorId,
+                lot: $batch,
             );
 
             $reversedQuantity += $netQuantity;

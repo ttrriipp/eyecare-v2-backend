@@ -95,28 +95,49 @@ final class VariantForm
     {
         $isExpiryTracked = $productType !== null
             && in_array($productType, Product::EXPIRY_TRACKED_TYPES, true);
+        $isBatchTracked = $productType !== null
+            && in_array($productType, Product::BATCH_TRACKED_TYPES, true);
 
         $stockVisible = $productType !== null
-            ? ! $isExpiryTracked
-            : fn (Get $get): bool => ! in_array(
-                $get('../../product_type'),
-                Product::EXPIRY_TRACKED_TYPES,
-                true,
-            );
+            ? ! $isBatchTracked
+            : fn (Get $get): bool => ! self::isBatchTrackedType($get('../../product_type'));
+        $stockLabel = $productType !== null
+            ? ($isBatchTracked ? 'Stock Quantity' : 'Opening Stock')
+            : fn (Get $get): string => self::isBatchTrackedType($get('../../product_type'))
+                ? 'Stock Quantity'
+                : 'Opening Stock';
+        $stockHelper = $productType !== null
+            ? match (true) {
+                $isExpiryTracked => 'Managed through lot receiving — cannot be edited directly.',
+                $isBatchTracked => 'Managed through batch receiving — cannot be edited directly.',
+                default => 'Physical quantity on hand at creation. Recorded through Inventory History.',
+            }
+        : fn (Get $get): string => match ($get('../../product_type')) {
+            'frame' => 'Managed through batch receiving — cannot be edited directly.',
+            'contact_lens', 'accessory' => 'Managed through lot receiving — cannot be edited directly.',
+            default => 'Physical quantity on hand at creation. Recorded through Inventory History.',
+        };
+        $stockRequired = $productType !== null
+            ? ! $isBatchTracked
+            : fn (Get $get): bool => ! self::isBatchTrackedType($get('../../product_type'));
+        $stockDisabled = $productType !== null
+            ? $isBatchTracked
+            : fn (Get $get): bool => self::isBatchTrackedType($get('../../product_type'));
+        $stockDehydrated = $productType !== null
+            ? ! $isBatchTracked
+            : fn (Get $get): bool => ! self::isBatchTrackedType($get('../../product_type'));
 
         return [
             TextInput::make('stock_quantity')
-                ->label($isExpiryTracked ? 'Stock Quantity' : 'Opening Stock')
-                ->helperText($isExpiryTracked
-                    ? 'Managed through lot receiving — cannot be edited directly.'
-                    : 'Physical quantity on hand at creation. Recorded through Inventory History.')
-                ->required(! $isExpiryTracked)
+                ->label($stockLabel)
+                ->helperText($stockHelper)
+                ->required($stockRequired)
                 ->numeric()
                 ->integer()
                 ->minValue(0)
                 ->default(0)
-                ->disabled($isExpiryTracked)
-                ->dehydrated(! $isExpiryTracked)
+                ->disabled($stockDisabled)
+                ->dehydrated($stockDehydrated)
                 ->visible($stockVisible),
             TextInput::make('low_stock_threshold')
                 ->label('Low Stock Threshold')
@@ -139,6 +160,12 @@ final class VariantForm
                 ->label('Active')
                 ->default(true),
         ];
+    }
+
+    private static function isBatchTrackedType(mixed $productType): bool
+    {
+        return is_string($productType)
+            && in_array($productType, Product::BATCH_TRACKED_TYPES, true);
     }
 
     /**

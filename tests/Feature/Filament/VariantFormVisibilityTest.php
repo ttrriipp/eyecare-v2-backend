@@ -2,8 +2,8 @@
 
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
-use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
+use App\Filament\Resources\Products\Schemas\ProductForm;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -100,6 +100,19 @@ test('generic default details are prefilled when creating a variant', function (
 
 test('accessory variant stock is managed through expiry-tracked receiving', function () {
     $product = Product::factory()->accessory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertMountedActionModalDontSee('Opening Stock')
+        ->assertMountedActionModalDontSee('Physical quantity on hand at creation.');
+});
+
+test('frame variant stock is managed through batch receiving', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
 
     Livewire::actingAs($this->user)
         ->test(VariantsRelationManager::class, [

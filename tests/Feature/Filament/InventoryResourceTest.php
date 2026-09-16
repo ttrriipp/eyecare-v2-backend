@@ -196,15 +196,19 @@ test('accessory inventory shows expiry details while frames do not', function ()
         ->assertTableColumnStateSet('earliest_expiry', '2026-09-30', record: $accessoryVariant)
         ->assertTableColumnStateSet('expiry_status', 'Expiring Soon', record: $accessoryVariant)
         ->assertActionVisible(TestAction::make('viewBatches')->table($accessoryVariant))
-        ->assertActionHidden(TestAction::make('viewBatches')->table($frameVariant))
+        ->assertActionVisible(TestAction::make('viewBatches')->table($frameVariant))
         ->set('activeTab', 'expiring_soon')
         ->assertCanSeeTableRecords([$accessoryVariant])
         ->assertCanNotSeeTableRecords([$frameVariant])
         ->mountTableAction('viewBatches', $accessoryVariant)
         ->assertMountedActionModalSee(['Accessory batches', 'DROP-001', '2026-09-30']);
 
-    Livewire::test(ListInventory::class)
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test(ListInventory::class)
         ->mountTableAction('adjustStock', $frameVariant)
+        ->assertMountedActionModalSee('Batch number (optional)')
         ->assertMountedActionModalDontSee('Lot number')
         ->assertMountedActionModalDontSee('Expiry month');
 });
@@ -372,7 +376,7 @@ test('receiving stock records and displays the purchase date', function (): void
         ->assertTableColumnExists('latest_purchase_date')
         ->assertTableColumnExists('early_purchase_quantity')
         ->mountTableAction('adjustStock', $variant)
-        ->assertMountedActionModalSee('Date of Purchase');
+        ->assertMountedActionModalSee('Date Received');
 
     $component
         ->unmountAction()
@@ -570,7 +574,7 @@ test('writing off accessories requires and decrements a selected lot', function 
         ->and($lot->fresh()->quantity_on_hand)->toBe(3);
 });
 
-test('frames receive aggregate stock without creating expiration data', function () {
+test('frames receive a non-expiring batch without expiry fields', function () {
     $product = Product::factory()->create(['product_type' => 'frame']);
     $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
 
@@ -583,8 +587,82 @@ test('frames receive aggregate stock without creating expiration data', function
         ])
         ->assertHasNoActionErrors();
 
+    $batch = InventoryLot::query()->sole();
+
     expect($variant->fresh()->stock_quantity)->toBe(5)
-        ->and(InventoryLot::query()->count())->toBe(0);
+        ->and($batch->lot_number)->toBe(sprintf(
+            'FRM-%d-260820-1',
+            $variant->id,
+        ))
+        ->and($batch->expires_on)->toBeNull()
+        ->and($batch->quantity_on_hand)->toBe(4)
+        ->and(InventoryMovement::query()->sole()->inventory_lot_id)->toBe($batch->id);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('viewBatches', $variant)
+        ->assertMountedActionModalSee([
+            'Frame batches',
+            sprintf('FRM-%d-260820-1', $variant->id),
+            'Available',
+        ])
+        ->assertMountedActionModalDontSee('Expires');
+});
+
+test('inventory batch view renders the frame empty state', function (): void {
+    $html = view('filament.inventory.inventory-lots', [
+        'lots' => collect(),
+        'showExpiry' => false,
+        'unbatchedQuantity' => 0,
+    ])->render();
+
+    expect($html)->toContain('No batches have been received for this variant.');
+});
+
+test('writing off frames decrements the selected batch', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 5]);
+    $batch = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'FRAME-001',
+        'expires_on' => null,
+        'received_quantity' => 5,
+        'quantity_on_hand' => 5,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('writeOffDamaged', $variant)
+        ->assertMountedActionModalSee('Batch')
+        ->assertMountedActionModalDontSee('Expiry');
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('writeOffDamaged')->table($variant), [
+            'quantity' => 2,
+            'inventory_lot_id' => $batch->id,
+            'notes' => 'Frame scratched during display',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($variant->fresh()->stock_quantity)->toBe(3)
+        ->and($batch->fresh()->quantity_on_hand)->toBe(3)
+        ->and(InventoryMovement::query()->sole()->inventory_lot_id)->toBe($batch->id);
+});
+
+test('administrators can override an automatically generated frame batch number', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 0]);
+    $admin = User::factory()->admin()->create();
+
+    Livewire::actingAs($admin)
+        ->test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 2,
+            'batch_number' => 'SPECIAL-FRAME-001',
+            'purchased_at' => '2026-08-20',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect(InventoryLot::query()->sole()->lot_number)->toBe('SPECIAL-FRAME-001');
 });
 
 // --- Shared action definitions ---

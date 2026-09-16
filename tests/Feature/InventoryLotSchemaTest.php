@@ -1,12 +1,15 @@
 <?php
 
+use App\Models\InventoryLot;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-test('inventory lots have the contact-lens expiry schema', function () {
+test('inventory lots support expiry and non-expiring product batches', function () {
     expect(Schema::hasTable('inventory_lots'))->toBeTrue()
         ->and(Schema::hasColumns('inventory_lots', [
             'id',
@@ -24,6 +27,20 @@ test('inventory lots have the contact-lens expiry schema', function () {
         ]))->toBeTrue()
         ->and(Schema::hasColumn('inventory_movements', 'inventory_lot_id'))->toBeTrue()
         ->and(Schema::hasColumn('inventory_movements', 'purchased_at'))->toBeTrue();
+});
+
+test('inventory batches allow a null expiry for frames', function () {
+    expect(Schema::getColumnType('inventory_lots', 'expires_on'))->toBe('date');
+
+    $frame = ProductVariant::factory()
+        ->for(Product::factory()->create(['product_type' => 'frame']))
+        ->create();
+
+    $batch = InventoryLot::factory()->for($frame, 'variant')->create([
+        'expires_on' => null,
+    ]);
+
+    expect($batch->fresh()->expires_on)->toBeNull();
 });
 
 test('inventory lots enforce a unique lot number per variant', function () {
@@ -55,6 +72,8 @@ test('inventory lots have indexes for variant expiry and global expiry queues', 
     ));
 
     expect($indexes->contains(fn (object $index): bool => $index->COLUMNS === 'product_variant_id,expires_on'))
+        ->toBeTrue()
+        ->and($indexes->contains(fn (object $index): bool => $index->COLUMNS === 'product_variant_id,purchased_at,received_at'))
         ->toBeTrue()
         ->and($indexes->contains(fn (object $index): bool => $index->COLUMNS === 'expires_on,quantity_on_hand'))
         ->toBeTrue();

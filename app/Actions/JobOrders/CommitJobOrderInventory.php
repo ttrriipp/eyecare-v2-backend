@@ -86,6 +86,35 @@ class CommitJobOrderInventory
                         $previousStock = $newStock;
                         $movementCount++;
                     }
+                } elseif ($variant->isFrame()) {
+                    $allocations = $this->frameAllocations($variant, $quantity);
+                    $previousStock = (int) $variant->stock_quantity;
+
+                    foreach ($allocations as $allocation) {
+                        $newStock = $previousStock - $allocation['quantity'];
+
+                        if ($allocation['lot'] !== null) {
+                            $allocation['lot']->update([
+                                'quantity_on_hand' => $allocation['lot']->quantity_on_hand - $allocation['quantity'],
+                            ]);
+                        }
+
+                        $variant->update(['stock_quantity' => $newStock]);
+
+                        $this->createCommitmentMovement(
+                            variant: $variant,
+                            jobOrder: $jobOrder,
+                            movementType: $commitmentType,
+                            quantity: $allocation['quantity'],
+                            previousStock: $previousStock,
+                            newStock: $newStock,
+                            actorId: $actorId ?? auth()->id(),
+                            lot: $allocation['lot'],
+                        );
+
+                        $previousStock = $newStock;
+                        $movementCount++;
+                    }
                 } else {
                     if ($variant->stock_quantity < $quantity) {
                         throw ValidationException::withMessages([
@@ -184,6 +213,68 @@ class CommitJobOrderInventory
             throw ValidationException::withMessages([
                 'items' => ["Insufficient usable stock for expiry-tracked variant {$variant->id}."],
             ]);
+        }
+
+        return $allocations;
+    }
+
+    /**
+     * Allocate frame batches FIFO while preserving legacy unbatched opening stock.
+     *
+     * @return list<array{lot: ?InventoryLot, quantity: int}>
+     */
+    private function frameAllocations(ProductVariant $variant, int $quantity): array
+    {
+        if ($quantity <= 0) {
+            throw ValidationException::withMessages([
+                'items' => ['Order quantities must be positive.'],
+            ]);
+        }
+
+        $batches = InventoryLot::query()
+            ->where('product_variant_id', $variant->id)
+            ->whereNull('expires_on')
+            ->available()
+            ->orderBy('purchased_at')
+            ->orderBy('received_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        $totalBatchQuantity = (int) InventoryLot::query()
+            ->where('product_variant_id', $variant->id)
+            ->whereNull('expires_on')
+            ->sum('quantity_on_hand');
+        $unbatchedQuantity = (int) $variant->stock_quantity - $totalBatchQuantity;
+
+        if ($unbatchedQuantity < 0) {
+            throw ValidationException::withMessages([
+                'items' => ["Frame stock for variant {$variant->id} needs batch reconciliation."],
+            ]);
+        }
+
+        $availableQuantity = (int) $batches->sum('quantity_on_hand') + $unbatchedQuantity;
+
+        if ($variant->stock_quantity < $quantity || $availableQuantity < $quantity) {
+            throw ValidationException::withMessages([
+                'items' => ["Insufficient stock for frame variant {$variant->id}."],
+            ]);
+        }
+
+        $remaining = $quantity;
+        $allocations = [];
+
+        foreach ($batches as $batch) {
+            if ($remaining === 0) {
+                break;
+            }
+
+            $allocated = min($remaining, (int) $batch->quantity_on_hand);
+            $allocations[] = ['lot' => $batch, 'quantity' => $allocated];
+            $remaining -= $allocated;
+        }
+
+        if ($remaining > 0) {
+            $allocations[] = ['lot' => null, 'quantity' => $remaining];
         }
 
         return $allocations;
