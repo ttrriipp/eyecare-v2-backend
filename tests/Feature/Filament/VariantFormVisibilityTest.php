@@ -98,6 +98,19 @@ test('generic default details are prefilled when creating a variant', function (
         ]);
 });
 
+test('accessory variant stock is managed through expiry-tracked receiving', function () {
+    $product = Product::factory()->accessory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertMountedActionModalDontSee('Opening Stock')
+        ->assertMountedActionModalDontSee('Physical quantity on hand at creation.');
+});
+
 test('default variant details sections are collapsible', function () {
     $schema = ProductForm::configure(Schema::make());
     $defaultDetailsSections = collect($schema->getComponents(withHidden: true))

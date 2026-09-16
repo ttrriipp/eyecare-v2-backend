@@ -104,3 +104,36 @@ test('cancelling a contact lens order refuses an untraceable aggregate commitmen
             ->count())
         ->toBe(1);
 });
+
+test('cancelling an accessory order restores its committed lot', function () {
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['stock_quantity' => 4]);
+    $lot = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'DROP-001',
+        'expires_on' => '2026-09-30',
+        'received_quantity' => 4,
+        'quantity_on_hand' => 4,
+    ]);
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+    $jobOrder->items()->create([
+        'description' => 'Eye drops',
+        'quantity' => 2,
+        'unit_price' => 1200,
+        'amount' => 2400,
+        'product_variant_id' => $variant->id,
+        'item_kind' => CommercialItemKind::Accessory,
+    ]);
+
+    app(CommitJobOrderInventory::class)->handle($jobOrder);
+    app(UpdateJobOrderStatus::class)->handle($jobOrder, 'cancelled');
+
+    expect($lot->fresh()->quantity_on_hand)->toBe(4)
+        ->and($variant->fresh()->stock_quantity)->toBe(4)
+        ->and(InventoryMovement::query()
+            ->where('job_order_id', $jobOrder->id)
+            ->whereHas('movementType', fn ($query) => $query->where('name', 'order_reversal'))
+            ->sole()
+            ->inventory_lot_id)
+        ->toBe($lot->id);
+});

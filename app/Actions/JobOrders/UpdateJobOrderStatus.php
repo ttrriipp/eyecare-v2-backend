@@ -140,8 +140,8 @@ class UpdateJobOrderStatus
                 continue;
             }
 
-            if ($variant->product?->product_type === 'contact_lens') {
-                $reversedQuantity += $this->reverseContactLensMovements(
+            if ($variant->isExpiryTracked()) {
+                $reversedQuantity += $this->reverseExpiryTrackedMovements(
                     jobOrder: $jobOrder,
                     variant: $variant,
                     commitmentMovements: $commitmentMovements,
@@ -197,7 +197,7 @@ class UpdateJobOrderStatus
     /**
      * @param  Collection<int, InventoryMovement>  $commitmentMovements
      */
-    private function reverseContactLensMovements(
+    private function reverseExpiryTrackedMovements(
         JobOrder $jobOrder,
         ProductVariant $variant,
         Collection $commitmentMovements,
@@ -219,7 +219,7 @@ class UpdateJobOrderStatus
 
         if ($totalLotQuantity !== (int) $variant->stock_quantity) {
             throw ValidationException::withMessages([
-                'inventory' => ["Contact-lens stock for variant {$variant->id} needs lot reconciliation."],
+                'inventory' => ["Expiry-tracked stock for variant {$variant->id} needs lot reconciliation."],
             ]);
         }
 
@@ -230,7 +230,7 @@ class UpdateJobOrderStatus
 
             if ($lotId === 0) {
                 throw ValidationException::withMessages([
-                    'inventory' => ["The contact-lens commitment for variant {$variant->id} has no source lot."],
+                    'inventory' => ["The expiry-tracked commitment for variant {$variant->id} has no source lot."],
                 ]);
             }
 
@@ -250,7 +250,7 @@ class UpdateJobOrderStatus
 
             if ($lot === null) {
                 throw ValidationException::withMessages([
-                    'inventory' => ["The source lot for contact-lens variant {$variant->id} no longer exists."],
+                    'inventory' => ["The source lot for expiry-tracked variant {$variant->id} no longer exists."],
                 ]);
             }
 

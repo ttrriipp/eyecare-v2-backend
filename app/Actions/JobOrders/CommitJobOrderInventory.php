@@ -61,8 +61,8 @@ class CommitJobOrderInventory
 
                 $quantity = (int) $item->quantity;
 
-                if ($variant->product?->product_type === 'contact_lens') {
-                    $allocations = $this->contactLensAllocations($variant, $quantity, $asOf);
+                if ($variant->isExpiryTracked()) {
+                    $allocations = $this->expiryTrackedAllocations($variant, $quantity, $asOf);
                     $previousStock = (int) $variant->stock_quantity;
 
                     foreach ($allocations as $allocation) {
@@ -130,7 +130,7 @@ class CommitJobOrderInventory
     /**
      * @return list<array{lot: InventoryLot, quantity: int}>
      */
-    private function contactLensAllocations(
+    private function expiryTrackedAllocations(
         ProductVariant $variant,
         int $quantity,
         CarbonImmutable $asOf,
@@ -157,13 +157,13 @@ class CommitJobOrderInventory
 
         if ($totalLotQuantity !== (int) $variant->stock_quantity) {
             throw ValidationException::withMessages([
-                'items' => ["Contact-lens stock for variant {$variant->id} needs lot reconciliation."],
+                'items' => ["Expiry-tracked stock for variant {$variant->id} needs lot reconciliation."],
             ]);
         }
 
         if ($variant->stock_quantity < $quantity || $availableQuantity < $quantity) {
             throw ValidationException::withMessages([
-                'items' => ["Insufficient usable stock for contact-lens variant {$variant->id}."],
+                'items' => ["Insufficient usable stock for expiry-tracked variant {$variant->id}."],
             ]);
         }
 
@@ -182,7 +182,7 @@ class CommitJobOrderInventory
 
         if ($remaining > 0) {
             throw ValidationException::withMessages([
-                'items' => ["Insufficient usable stock for contact-lens variant {$variant->id}."],
+                'items' => ["Insufficient usable stock for expiry-tracked variant {$variant->id}."],
             ]);
         }
 

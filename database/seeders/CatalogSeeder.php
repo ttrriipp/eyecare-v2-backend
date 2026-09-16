@@ -18,7 +18,7 @@ use RuntimeException;
  * Seeds the clinic's current physical catalog.
  *
  * Prices and stock quantities are provisional local-development values where
- * the workbook did not provide verified figures. Contact-lens lots remain
+ * the workbook did not provide verified figures. Expiry-tracked lots remain
  * empty until receiving data is available.
  */
 class CatalogSeeder extends Seeder
@@ -417,7 +417,7 @@ class CatalogSeeder extends Seeder
                             'package_size' => '90 mL',
                             'material' => 'Multi-purpose contact lens solution',
                         ],
-                        'stock_quantity' => 12,
+                        'stock_quantity' => 0,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 18,
                     ],
@@ -440,7 +440,7 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 10,
+                        'stock_quantity' => 0,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
                     ],
@@ -463,7 +463,7 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 10,
+                        'stock_quantity' => 0,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
                     ],
@@ -486,7 +486,7 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 10,
+                        'stock_quantity' => 0,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
                     ],
@@ -509,7 +509,7 @@ class CatalogSeeder extends Seeder
                             'package_size' => '10 mL',
                             'material' => 'Lubricant eye drops',
                         ],
-                        'stock_quantity' => 10,
+                        'stock_quantity' => 0,
                         'low_stock_threshold' => 3,
                         'target_stock_level' => 15,
                     ],

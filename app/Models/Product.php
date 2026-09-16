@@ -35,6 +35,18 @@ class Product extends Model
         'accessory' => 'Accessory',
     ];
 
+    /**
+     * Product types whose stock is received and fulfilled by expiring lot.
+     *
+     * Frames remain aggregate-only inventory because they do not expire.
+     *
+     * @var list<string>
+     */
+    public const array EXPIRY_TRACKED_TYPES = [
+        'contact_lens',
+        'accessory',
+    ];
+
     protected static function booted(): void
     {
         static::creating(function (self $product): void {

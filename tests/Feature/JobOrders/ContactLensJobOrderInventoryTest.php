@@ -125,3 +125,43 @@ test('contact lens lots expiring today are eligible for commitment', function ()
     expect($lot->fresh()->quantity_on_hand)->toBe(0)
         ->and($variant->fresh()->stock_quantity)->toBe(0);
 });
+
+test('accessory commitments allocate earliest-expiring lots', function () {
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['stock_quantity' => 9]);
+    $earlier = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'EARLIER',
+        'expires_on' => '2026-09-30',
+        'received_quantity' => 4,
+        'quantity_on_hand' => 4,
+    ]);
+    $later = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'LATER',
+        'expires_on' => '2026-10-31',
+        'received_quantity' => 5,
+        'quantity_on_hand' => 5,
+    ]);
+    $jobOrder = JobOrder::factory()->create(['status' => JobOrderStatus::Queued]);
+    $jobOrder->items()->create([
+        'description' => 'Eye drops',
+        'quantity' => 7,
+        'unit_price' => 1200,
+        'amount' => 8400,
+        'product_variant_id' => $variant->id,
+        'item_kind' => CommercialItemKind::Accessory,
+    ]);
+
+    app(CommitJobOrderInventory::class)->handle($jobOrder);
+
+    $movements = InventoryMovement::query()
+        ->where('job_order_id', $jobOrder->id)
+        ->whereHas('movementType', fn ($query) => $query->where('name', 'order_commitment'))
+        ->orderBy('id')
+        ->get();
+
+    expect($earlier->fresh()->quantity_on_hand)->toBe(0)
+        ->and($later->fresh()->quantity_on_hand)->toBe(2)
+        ->and($variant->fresh()->stock_quantity)->toBe(2)
+        ->and($movements->pluck('inventory_lot_id')->all())->toBe([$earlier->id, $later->id]);
+});

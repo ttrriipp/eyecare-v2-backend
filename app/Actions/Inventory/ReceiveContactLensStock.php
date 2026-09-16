@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 class ReceiveContactLensStock
 {
     /**
-     * Receive contact-lens stock into a dated lot.
+     * Receive expiry-tracked stock into a dated lot.
      *
      * @throws ValidationException when the lot details are invalid or conflict
      *                             with an existing lot.
@@ -44,9 +44,9 @@ class ReceiveContactLensStock
 
         $variant->load('product');
 
-        if ($variant->product?->product_type !== 'contact_lens') {
+        if (! $variant->isExpiryTracked()) {
             throw ValidationException::withMessages([
-                'product_variant_id' => ['Only contact-lens variants can receive lot-tracked stock.'],
+                'product_variant_id' => ['Only contact-lens and accessory variants can receive lot-tracked stock.'],
             ]);
         }
 
@@ -69,9 +69,9 @@ class ReceiveContactLensStock
                 ->findOrFail($variant->id);
             $lockedVariant->load('product');
 
-            if ($lockedVariant->product?->product_type !== 'contact_lens') {
+            if (! $lockedVariant->isExpiryTracked()) {
                 throw ValidationException::withMessages([
-                    'product_variant_id' => ['Only contact-lens variants can receive lot-tracked stock.'],
+                    'product_variant_id' => ['Only contact-lens and accessory variants can receive lot-tracked stock.'],
                 ]);
             }
 

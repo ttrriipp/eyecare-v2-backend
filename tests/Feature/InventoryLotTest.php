@@ -163,3 +163,30 @@ test('contact lens variants derive usable stock and expiry status from their lot
 
     expect($emptyVariant->expiryStatus())->toBe('out_of_stock');
 });
+
+test('accessory variants use expiry tracking while frame variants stay aggregate-only', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $accessory = Product::factory()->accessory()->create();
+    $accessoryVariant = ProductVariant::factory()->for($accessory)->create([
+        'stock_quantity' => 5,
+    ]);
+
+    InventoryLot::factory()->for($accessoryVariant, 'variant')->create([
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 5,
+    ]);
+
+    $frame = Product::factory()->create(['product_type' => 'frame']);
+    $frameVariant = ProductVariant::factory()->for($frame)->create([
+        'stock_quantity' => 5,
+    ]);
+
+    expect($accessoryVariant->isExpiryTracked())->toBeTrue()
+        ->and($accessoryVariant->usableStockQuantity())->toBe(5)
+        ->and($accessoryVariant->earliestUsableExpiry()?->toDateString())->toBe('2026-09-30')
+        ->and($accessoryVariant->expiryStatus())->toBe('expiring_soon')
+        ->and($frameVariant->isExpiryTracked())->toBeFalse()
+        ->and($frameVariant->usableStockQuantity())->toBeNull()
+        ->and($frameVariant->earliestUsableExpiry())->toBeNull()
+        ->and($frameVariant->expiryStatus())->toBeNull();
+});

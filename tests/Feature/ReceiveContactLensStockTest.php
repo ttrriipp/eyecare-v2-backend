@@ -49,6 +49,31 @@ test('receiving a contact lens lot normalizes the month and records the movement
         ->and($movement->purchased_at->toDateString())->toBe('2026-08-20');
 });
 
+test('receiving an accessory lot records its expiry and movement', function () {
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['stock_quantity' => 0]);
+    $receiver = User::factory()->staff()->create();
+
+    $movement = app(ReceiveContactLensStock::class)->handle(
+        variant: $variant,
+        quantity: 8,
+        lotNumber: '  DROP-001  ',
+        expiryMonth: '2027-06',
+        receiver: $receiver,
+        purchasedAt: '2026-08-20',
+        sourceReference: 'PO-43',
+    );
+
+    $lot = InventoryLot::query()->sole();
+
+    expect($variant->fresh()->stock_quantity)->toBe(8)
+        ->and($lot->lot_number)->toBe('DROP-001')
+        ->and($lot->expires_on->toDateString())->toBe('2027-06-30')
+        ->and($lot->quantity_on_hand)->toBe(8)
+        ->and($movement->inventory_lot_id)->toBe($lot->id);
+});
+
 test('receiving into an existing lot increases its quantities', function () {
     $variant = ProductVariant::factory()
         ->for(Product::factory()->contactLens())
@@ -126,7 +151,7 @@ test('receiving rejects invalid or already expired months', function (string $ex
     'expired month' => '2026-07',
 ]);
 
-test('the contact lens receiving action rejects non-contact variants', function () {
+test('expiry-tracked receiving rejects frame variants', function () {
     $variant = ProductVariant::factory()->create();
     $receiver = User::factory()->staff()->create();
 

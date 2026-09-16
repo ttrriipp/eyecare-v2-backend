@@ -84,6 +84,20 @@ class ProductVariant extends Model
     /**
      * @param  Builder<self>  $query
      */
+    public function scopeExpiryTracked(Builder $query): void
+    {
+        $query->whereHas(
+            'product',
+            fn (Builder $productQuery): Builder => $productQuery->whereIn(
+                'product_type',
+                Product::EXPIRY_TRACKED_TYPES,
+            ),
+        );
+    }
+
+    /**
+     * @param  Builder<self>  $query
+     */
     public function scopeArReady(Builder $query): void
     {
         $query
@@ -94,7 +108,7 @@ class ProductVariant extends Model
 
     public function isLowStock(): bool
     {
-        $stockQuantity = $this->isContactLens()
+        $stockQuantity = $this->isExpiryTracked()
             ? $this->usableStockQuantity()
             : $this->stock_quantity;
 
@@ -157,9 +171,14 @@ class ProductVariant extends Model
         return $this->product?->product_type === 'contact_lens';
     }
 
+    public function isExpiryTracked(): bool
+    {
+        return in_array($this->product?->product_type, Product::EXPIRY_TRACKED_TYPES, true);
+    }
+
     public function usableStockQuantity(?CarbonInterface $asOf = null): ?int
     {
-        if (! $this->isContactLens()) {
+        if (! $this->isExpiryTracked()) {
             return null;
         }
 
@@ -170,7 +189,7 @@ class ProductVariant extends Model
 
     public function earliestUsableExpiry(?CarbonInterface $asOf = null): ?CarbonImmutable
     {
-        if (! $this->isContactLens()) {
+        if (! $this->isExpiryTracked()) {
             return null;
         }
 
@@ -187,7 +206,7 @@ class ProductVariant extends Model
 
     public function expiryStatus(?CarbonInterface $asOf = null): ?string
     {
-        if (! $this->isContactLens()) {
+        if (! $this->isExpiryTracked()) {
             return null;
         }
 

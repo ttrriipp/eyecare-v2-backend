@@ -119,13 +119,13 @@ class InventoryTable
                         'expiring_soon' => 'warning',
                         default => 'success',
                     })
-                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isExpiryTracked() ?? false),
 
                 TextColumn::make('earliest_expiry')
                     ->label('Earliest Expiry')
                     ->state(fn (ProductVariant $record): ?string => $record->earliestUsableExpiry()?->toDateString())
                     ->placeholder('—')
-                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isExpiryTracked() ?? false),
 
                 TextColumn::make('expiry_status')
                     ->label('Expiry Status')
@@ -136,7 +136,7 @@ class InventoryTable
                         'expiring_soon' => 'warning',
                         default => 'success',
                     })
-                    ->visible(fn (?ProductVariant $record): bool => $record?->isContactLens() ?? false),
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isExpiryTracked() ?? false),
 
                 TextColumn::make('low_stock_threshold')
                     ->label('Threshold')

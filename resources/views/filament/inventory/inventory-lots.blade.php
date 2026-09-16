@@ -4,7 +4,7 @@
     @else
         <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
             <table class="w-full text-left text-sm">
-                <caption class="sr-only">Contact-lens inventory batches</caption>
+                <caption class="sr-only">Inventory batches</caption>
                 <thead class="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                     <tr>
                         <th scope="col" class="px-4 py-3">Lot</th>

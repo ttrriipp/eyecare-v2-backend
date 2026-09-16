@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 class WriteOffContactLensStock
 {
     /**
-     * Write off damaged contact-lens stock from a specific lot.
+     * Write off damaged expiry-tracked stock from a specific lot.
      *
      * @throws AuthorizationException when the actor is not panel staff.
      * @throws ValidationException when the lot or quantity is invalid.
@@ -49,9 +49,9 @@ class WriteOffContactLensStock
 
         $variant->load('product');
 
-        if ($variant->product?->product_type !== 'contact_lens') {
+        if (! $variant->isExpiryTracked()) {
             throw ValidationException::withMessages([
-                'product_variant_id' => ['Only contact-lens variants use lot-specific write-offs.'],
+                'product_variant_id' => ['Only contact-lens and accessory variants use lot-specific write-offs.'],
             ]);
         }
 
@@ -67,9 +67,9 @@ class WriteOffContactLensStock
                 ->findOrFail($variant->id);
             $lockedVariant->load('product');
 
-            if ($lockedVariant->product?->product_type !== 'contact_lens') {
+            if (! $lockedVariant->isExpiryTracked()) {
                 throw ValidationException::withMessages([
-                    'product_variant_id' => ['Only contact-lens variants use lot-specific write-offs.'],
+                    'product_variant_id' => ['Only contact-lens and accessory variants use lot-specific write-offs.'],
                 ]);
             }
 

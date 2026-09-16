@@ -7,16 +7,16 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('canonical seed data leaves unreceived contact lenses without stock or lots', function (): void {
+test('canonical seed data leaves unreceived expiry-tracked products without stock or lots', function (): void {
     $this->seed(DatabaseSeeder::class);
 
     $variants = ProductVariant::query()
-        ->contactLenses()
+        ->expiryTracked()
         ->with('inventoryLots')
         ->orderBy('sku')
         ->get();
 
-    expect($variants)->toHaveCount(12);
+    expect($variants)->toHaveCount(17);
 
     $variants->each(function (ProductVariant $variant): void {
         expect($variant->inventoryLots)->toBeEmpty()

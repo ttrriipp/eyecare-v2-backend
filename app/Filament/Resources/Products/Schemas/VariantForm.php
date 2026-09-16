@@ -93,25 +93,30 @@ final class VariantForm
      */
     public static function inventoryFields(?string $productType = null): array
     {
-        $isContactLens = $productType === 'contact_lens';
+        $isExpiryTracked = $productType !== null
+            && in_array($productType, Product::EXPIRY_TRACKED_TYPES, true);
 
         $stockVisible = $productType !== null
-            ? ! $isContactLens
-            : fn (Get $get): bool => $get('../../product_type') !== 'contact_lens';
+            ? ! $isExpiryTracked
+            : fn (Get $get): bool => ! in_array(
+                $get('../../product_type'),
+                Product::EXPIRY_TRACKED_TYPES,
+                true,
+            );
 
         return [
             TextInput::make('stock_quantity')
-                ->label($isContactLens ? 'Stock Quantity' : 'Opening Stock')
-                ->helperText($isContactLens
+                ->label($isExpiryTracked ? 'Stock Quantity' : 'Opening Stock')
+                ->helperText($isExpiryTracked
                     ? 'Managed through lot receiving — cannot be edited directly.'
                     : 'Physical quantity on hand at creation. Recorded through Inventory History.')
-                ->required(! $isContactLens)
+                ->required(! $isExpiryTracked)
                 ->numeric()
                 ->integer()
                 ->minValue(0)
                 ->default(0)
-                ->disabled($isContactLens)
-                ->dehydrated(! $isContactLens)
+                ->disabled($isExpiryTracked)
+                ->dehydrated(! $isExpiryTracked)
                 ->visible($stockVisible),
             TextInput::make('low_stock_threshold')
                 ->label('Low Stock Threshold')

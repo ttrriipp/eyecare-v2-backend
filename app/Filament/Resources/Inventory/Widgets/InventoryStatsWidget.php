@@ -28,13 +28,13 @@ class InventoryStatsWidget extends BaseWidget
 
         $expiringSoon = ProductVariant::query()
             ->active()
-            ->contactLenses()
+            ->expiryTracked()
             ->whereHas('inventoryLots', fn (Builder $query): Builder => $query->expiringSoon())
             ->count();
 
         $expired = ProductVariant::query()
             ->active()
-            ->contactLenses()
+            ->expiryTracked()
             ->whereHas('inventoryLots', fn (Builder $query): Builder => $query->expired()->available())
             ->whereDoesntHave(
                 'inventoryLots',

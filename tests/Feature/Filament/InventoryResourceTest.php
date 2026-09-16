@@ -175,6 +175,40 @@ test('expiry tabs show expiring and fully expired contact-lens variants', functi
         ->assertCanNotSeeTableRecords([$expiring, $good]);
 });
 
+test('accessory inventory shows expiry details while frames do not', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $accessory = Product::factory()->accessory()->create();
+    $accessoryVariant = ProductVariant::factory()->for($accessory)->create(['stock_quantity' => 3]);
+    InventoryLot::factory()->for($accessoryVariant, 'variant')->create([
+        'lot_number' => 'DROP-001',
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 3,
+    ]);
+
+    $frame = Product::factory()->create(['product_type' => 'frame']);
+    $frameVariant = ProductVariant::factory()->for($frame)->create(['stock_quantity' => 3]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->assertCanSeeTableRecords([$accessoryVariant])
+        ->assertTableColumnStateSet('usable_stock', 3, record: $accessoryVariant)
+        ->assertTableColumnStateSet('earliest_expiry', '2026-09-30', record: $accessoryVariant)
+        ->assertTableColumnStateSet('expiry_status', 'Expiring Soon', record: $accessoryVariant)
+        ->assertActionVisible(TestAction::make('viewBatches')->table($accessoryVariant))
+        ->assertActionHidden(TestAction::make('viewBatches')->table($frameVariant))
+        ->set('activeTab', 'expiring_soon')
+        ->assertCanSeeTableRecords([$accessoryVariant])
+        ->assertCanNotSeeTableRecords([$frameVariant])
+        ->mountTableAction('viewBatches', $accessoryVariant)
+        ->assertMountedActionModalSee(['Accessory batches', 'DROP-001', '2026-09-30']);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('adjustStock', $frameVariant)
+        ->assertMountedActionModalDontSee('Lot number')
+        ->assertMountedActionModalDontSee('Expiry month');
+});
+
 test('contact lens inventory shows usable quantity, earliest expiry, and status', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
     $product = Product::factory()->contactLens()->create();
@@ -230,6 +264,30 @@ test('inventory stats include contact-lens expiry queues', function () {
         ->assertSuccessful()
         ->assertSee('Expiring Soon')
         ->assertSee('Expired');
+});
+
+test('inventory stats include accessory expiry queues but exclude frames', function () {
+    Carbon::setTestNow('2026-08-28 14:00:00');
+    $accessory = Product::factory()->accessory()->create();
+    $accessoryVariant = ProductVariant::factory()->for($accessory)->create(['stock_quantity' => 2]);
+    InventoryLot::factory()->for($accessoryVariant, 'variant')->create([
+        'expires_on' => '2026-09-30',
+        'quantity_on_hand' => 2,
+    ]);
+
+    $frame = Product::factory()->create(['product_type' => 'frame']);
+    $frameVariant = ProductVariant::factory()->for($frame)->create(['stock_quantity' => 2]);
+
+    $this->actingAs($this->staff);
+
+    $widget = Livewire::test(InventoryStatsWidget::class)->instance();
+    $stats = collect((fn (): array => $this->getStats())->call($widget))->keyBy(
+        fn (Stat $stat): string => (string) $stat->getLabel(),
+    );
+
+    expect($stats->get('Expiring Soon')?->getValue())->toBe('1')
+        ->and($stats->get('Expired')?->getValue())->toBe('0')
+        ->and($frameVariant->isExpiryTracked())->toBeFalse();
 });
 
 test('inventory stats stay focused on actionable stock queues', function () {
@@ -375,6 +433,28 @@ test('receiving contact lenses captures their lot and expiry month', function ()
         ->assertMountedActionModalSee('Aug 20, 2026');
 });
 
+test('receiving accessories captures their lot and expiry month', function () {
+    $product = Product::factory()->accessory()->create();
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 0]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 5,
+            'lot_number' => 'DROP-001',
+            'expiry_month' => '2027-06',
+            'purchased_at' => '2026-08-20',
+        ])
+        ->assertHasNoActionErrors();
+
+    $lot = InventoryLot::query()->sole();
+
+    expect($variant->fresh()->stock_quantity)->toBe(5)
+        ->and($lot->expires_on->toDateString())->toBe('2027-06-30')
+        ->and($lot->quantity_on_hand)->toBe(5);
+});
+
 test('contact lens receiving explains the expiry month requirement before submission', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
     $product = Product::factory()->contactLens()->create();
@@ -464,6 +544,47 @@ test('writing off contact lenses requires and decrements a selected lot', functi
         'quantity_change' => -2,
         'notes' => 'Box crushed',
     ]);
+});
+
+test('writing off accessories requires and decrements a selected lot', function () {
+    $product = Product::factory()->accessory()->create();
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 5]);
+    $lot = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'DROP-001',
+        'expires_on' => '2027-06-30',
+        'quantity_on_hand' => 5,
+        'received_quantity' => 5,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('writeOffDamaged')->table($variant), [
+            'quantity' => 2,
+            'inventory_lot_id' => $lot->id,
+            'notes' => 'Bottle damaged',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($variant->fresh()->stock_quantity)->toBe(3)
+        ->and($lot->fresh()->quantity_on_hand)->toBe(3);
+});
+
+test('frames receive aggregate stock without creating expiration data', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+    $variant = ProductVariant::factory()->for($product)->create(['stock_quantity' => 1]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->callAction(TestAction::make('adjustStock')->table($variant), [
+            'quantity' => 4,
+            'purchased_at' => '2026-08-20',
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($variant->fresh()->stock_quantity)->toBe(5)
+        ->and(InventoryLot::query()->count())->toBe(0);
 });
 
 // --- Shared action definitions ---

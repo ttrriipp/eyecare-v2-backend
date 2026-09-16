@@ -39,13 +39,13 @@ class ListInventory extends ListRecords
             'expiring_soon' => Tab::make('Expiring Soon')
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->active()
-                    ->contactLenses()
+                    ->expiryTracked()
                     ->whereHas('inventoryLots', fn (Builder $lotQuery): Builder => $lotQuery->expiringSoon())),
 
             'expired' => Tab::make('Expired')
                 ->modifyQueryUsing(fn (Builder $query) => $query
                     ->active()
-                    ->contactLenses()
+                    ->expiryTracked()
                     ->whereHas('inventoryLots', fn (Builder $lotQuery): Builder => $lotQuery->expired()->available())
                     ->whereDoesntHave(
                         'inventoryLots',

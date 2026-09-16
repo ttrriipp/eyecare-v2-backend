@@ -5,6 +5,7 @@ use App\Enums\BillingRecordStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\OpticalOrders\Pages\CreateOpticalOrder;
 use App\Filament\Resources\OpticalOrders\Pages\ListOpticalOrders;
+use App\Models\InventoryLot;
 use App\Models\JobOrder;
 use App\Models\LensCategory;
 use App\Models\LensOption;
@@ -446,6 +447,12 @@ test('staff creates a direct prescription eyewear order with other items and pay
         'product_id' => $accessory->id,
         'price' => 250,
         'stock_quantity' => 10,
+    ]);
+    InventoryLot::factory()->for($accessoryVariant, 'variant')->create([
+        'lot_number' => 'CLEAN-001',
+        'expires_on' => now()->addMonths(6)->endOfMonth()->toDateString(),
+        'received_quantity' => 10,
+        'quantity_on_hand' => 10,
     ]);
     $lensCategory = LensCategory::factory()->withPrice(1800)->create();
     $lensOption = LensOption::factory()->create(['price' => 600]);

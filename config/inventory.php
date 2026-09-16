@@ -3,11 +3,11 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Contact-lens expiry warning window
+    | Expiry-tracked inventory warning window
     |--------------------------------------------------------------------------
     |
-    | Lots expiring within this many calendar days are shown in the
-    | inventory's Expiring Soon views.
+    | Contact-lens and accessory lots expiring within this many calendar days
+    | are shown in the inventory's Expiring Soon views.
     |
     */
     'contact_lens_expiry_warning_days' => 90,

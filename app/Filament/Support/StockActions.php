@@ -31,7 +31,9 @@ class StockActions
             ->label('View Batches')
             ->icon('heroicon-o-rectangle-stack')
             ->color('gray')
-            ->modalHeading('Contact-lens batches')
+            ->modalHeading(fn (ProductVariant $record): string => $record->isContactLens()
+                ? 'Contact-lens batches'
+                : 'Accessory batches')
             ->modalWidth('3xl')
             ->modalContent(function (ProductVariant $record) {
                 $lots = $record->inventoryLots()
@@ -46,7 +48,7 @@ class StockActions
             })
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Close')
-            ->visible(fn (ProductVariant $record): bool => $record->isContactLens());
+            ->visible(fn (ProductVariant $record): bool => $record->isExpiryTracked());
     }
 
     public static function receive(): Action
@@ -59,7 +61,7 @@ class StockActions
             ->action(function (array $data, ProductVariant $record): void {
                 $record->load('product');
 
-                if ($record->product?->product_type === 'contact_lens') {
+                if ($record->isExpiryTracked()) {
                     $actor = auth()->user();
 
                     if (! $actor instanceof User) {
@@ -121,7 +123,7 @@ class StockActions
                 ->minValue(1),
         ];
 
-        if ($record->product?->product_type === 'contact_lens') {
+        if ($record->isExpiryTracked()) {
             $fields[] = TextInput::make('lot_number')
                 ->label('Lot number')
                 ->required()
@@ -133,7 +135,9 @@ class StockActions
                 ->type('month')
                 ->extraInputAttributes(['min' => now()->format('Y-m')])
                 ->placeholder('YYYY-MM')
-                ->helperText('Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.');
+                ->helperText(fn (ProductVariant $record): string => $record->isContactLens()
+                    ? 'Use the expiry month printed on the box. It must be the current month or later; expired contact lens stock cannot be received.'
+                    : 'Use the expiry month printed on the package. It must be the current month or later; expired accessory stock cannot be received.');
         }
 
         $fields[] = TextInput::make('source_reference')
@@ -163,7 +167,7 @@ class StockActions
             ->action(function (array $data, ProductVariant $record): void {
                 $record->load('product');
 
-                if ($record->product?->product_type === 'contact_lens') {
+                if ($record->isExpiryTracked()) {
                     $actor = auth()->user();
 
                     if (! $actor instanceof User) {
@@ -210,7 +214,7 @@ class StockActions
                 ->minValue(1),
         ];
 
-        if ($record->product?->product_type === 'contact_lens') {
+        if ($record->isExpiryTracked()) {
             $lotOptions = InventoryLot::query()
                 ->where('product_variant_id', $record->id)
                 ->available()

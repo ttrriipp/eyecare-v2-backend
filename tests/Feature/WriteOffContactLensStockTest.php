@@ -47,6 +47,31 @@ test('writing off contact-lens stock reduces the selected lot and records its mo
         ->and($movement->notes)->toBe('Damaged packaging');
 });
 
+test('writing off accessory stock reduces the selected lot and aggregate', function () {
+    $variant = ProductVariant::factory()
+        ->for(Product::factory()->accessory())
+        ->create(['stock_quantity' => 10]);
+    $actor = User::factory()->staff()->create();
+    $lot = InventoryLot::factory()->for($variant, 'variant')->create([
+        'lot_number' => 'DROP-001',
+        'expires_on' => '2027-06-30',
+        'received_quantity' => 10,
+        'quantity_on_hand' => 10,
+    ]);
+
+    $movement = app(WriteOffContactLensStock::class)->handle(
+        variant: $variant,
+        quantity: 4,
+        inventoryLotId: $lot->id,
+        actor: $actor,
+        notes: 'Damaged bottle',
+    );
+
+    expect($lot->fresh()->quantity_on_hand)->toBe(6)
+        ->and($variant->fresh()->stock_quantity)->toBe(6)
+        ->and($movement->inventory_lot_id)->toBe($lot->id);
+});
+
 test('writing off more than a lot quantity fails without changing stock', function () {
     $variant = ProductVariant::factory()
         ->for(Product::factory()->contactLens())
@@ -115,7 +140,7 @@ test('writing off a lot from another variant is rejected', function () {
     ))->toThrow(ValidationException::class);
 });
 
-test('the contact lens write-off action requires a panel role', function () {
+test('expiry-tracked write-offs require a panel role', function () {
     $variant = ProductVariant::factory()
         ->for(Product::factory()->contactLens())
         ->create(['stock_quantity' => 1]);
