@@ -11,9 +11,20 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Support\Arr;
 
 final class VariantForm
 {
+    /** @var array<int, string> */
+    private const array FRAME_ATTRIBUTE_KEYS = [
+        'lens_width',
+        'bridge',
+        'temple',
+        'lens_height',
+        'color',
+        'material',
+    ];
+
     /**
      * Return the full variant form schema components.
      *
@@ -255,7 +266,7 @@ final class VariantForm
                     ->options(config('catalog.variant_presets.materials'))
                     ->searchable()
                     ->default($defaults['material'] ?? null),
-                KeyValue::make('attributes')
+                KeyValue::make('frame_other_details')
                     ->label('Other Details')
                     ->helperText('Additional details such as model code, color code, etc.')
                     ->default(self::otherDetailsDefaults($defaults))
@@ -373,6 +384,47 @@ final class VariantForm
     }
 
     /**
+     * Split saved frame attributes into structured fields and editable detail rows.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function prepareFrameFormDataBeforeFill(array $data): array
+    {
+        $attributes = is_array($data['attributes'] ?? null)
+            ? $data['attributes']
+            : [];
+
+        $data['attributes'] = Arr::only($attributes, self::FRAME_ATTRIBUTE_KEYS);
+        $data['frame_other_details'] = self::toKeyValueRows(
+            Arr::except($attributes, self::FRAME_ATTRIBUTE_KEYS),
+        );
+
+        return $data;
+    }
+
+    /**
+     * Merge frame detail rows back into the variant attributes before saving.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public static function prepareFrameFormDataBeforeSave(array $data): array
+    {
+        $attributes = is_array($data['attributes'] ?? null)
+            ? $data['attributes']
+            : [];
+
+        $data['attributes'] = array_merge(
+            $attributes,
+            self::toKeyValueMap($data['frame_other_details'] ?? []),
+        );
+        unset($data['frame_other_details']);
+
+        return $data;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private static function defaultVariantAttributes(?int $productId): array
@@ -394,16 +446,57 @@ final class VariantForm
      */
     private static function otherDetailsDefaults(array $defaults): array
     {
-        $structuredKeys = ['lens_width', 'bridge', 'temple', 'lens_height', 'color', 'material'];
+        return collect(Arr::except($defaults, self::FRAME_ATTRIBUTE_KEYS))
+            ->filter(fn (mixed $value): bool => $value !== null && $value !== '')
+            ->map(fn (mixed $value): string => (string) $value)
+            ->all();
+    }
 
-        $other = [];
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, array{key: string, value: mixed}>
+     */
+    private static function toKeyValueRows(array $attributes): array
+    {
+        return array_map(
+            fn (mixed $value, string|int $key): array => [
+                'key' => (string) $key,
+                'value' => $value,
+            ],
+            $attributes,
+            array_keys($attributes),
+        );
+    }
 
-        foreach ($defaults as $key => $value) {
-            if (! in_array($key, $structuredKeys, true) && $value !== null && $value !== '') {
-                $other[$key] = (string) $value;
-            }
+    /**
+     * @return array<string, mixed>
+     */
+    private static function toKeyValueMap(mixed $state): array
+    {
+        if (! is_array($state)) {
+            return [];
         }
 
-        return $other;
+        if (
+            array_is_list($state)
+            && (blank($state) || (is_array($state[0] ?? null) && array_key_exists('key', $state[0])))
+        ) {
+            $map = [];
+
+            foreach ($state as $row) {
+                if (! is_array($row) || blank($row['key'] ?? null)) {
+                    continue;
+                }
+
+                $map[(string) $row['key']] = $row['value'] ?? null;
+            }
+
+            return $map;
+        }
+
+        return collect($state)
+            ->filter(fn (mixed $value, string|int $key): bool => filled($key))
+            ->mapWithKeys(fn (mixed $value, string|int $key): array => [(string) $key => $value])
+            ->all();
     }
 }

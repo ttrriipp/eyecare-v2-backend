@@ -186,6 +186,65 @@ test('frame default details are prefilled when creating a variant', function () 
         ]);
 });
 
+test('frame variant create form prefills product other details', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'default_variant_attributes' => [
+            'model_code' => 'P002',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('create')
+        ->assertTableActionDataSet([
+            'frame_other_details' => [
+                'model_code' => 'P002',
+            ],
+        ]);
+});
+
+test('frame variant creation saves product other details', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'default_variant_attributes' => [
+            'model_code' => 'P002',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->callTableAction('create', null, [
+            'name' => 'Dark Gunmetal / Black',
+            'price' => 1999,
+            'attributes' => [
+                'color' => 'Dark Gunmetal / Black',
+                'material' => 'Metal',
+                'lens_width' => 53,
+            ],
+            'frame_other_details' => [
+                ['key' => 'model_code', 'value' => 'P002'],
+            ],
+            'stock_quantity' => 2,
+            'low_stock_threshold' => 1,
+            'is_active' => true,
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($product->variants()->firstOrFail()->attributes)->toMatchArray([
+        'color' => 'Dark Gunmetal / Black',
+        'material' => 'Metal',
+        'lens_width' => 53,
+        'model_code' => 'P002',
+    ]);
+});
+
 test('generic default details are prefilled when creating a variant', function () {
     $product = Product::factory()->create([
         'product_type' => 'contact_lens',
@@ -391,6 +450,77 @@ test('frame variant edit form saves frame dimension fields', function () {
     expect($variant->attributes['lens_width'])->toBe(55);
     expect($variant->attributes['color'])->toBe('Tortoise');
     expect($variant->attributes['material'])->toBe('Metal');
+});
+
+test('frame variant edit form shows other details from the variant', function () {
+    $product = Product::factory()->create([
+        'product_type' => 'frame',
+        'default_variant_attributes' => [
+            'model_code' => 'P002',
+        ],
+    ]);
+    $variant = ProductVariant::factory()->for($product)->create([
+        'attributes' => [
+            'color' => 'Dark Gunmetal / Black',
+            'material' => 'Metal',
+            'lens_width' => 53,
+            'bridge' => 18,
+            'temple' => 142,
+            'model_code' => 'P002',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->mountTableAction('edit', $variant)
+        ->assertTableActionDataSet([
+            'frame_other_details' => [
+                'model_code' => 'P002',
+            ],
+        ]);
+});
+
+test('frame variant edit form saves other details with structured attributes', function () {
+    $product = Product::factory()->create(['product_type' => 'frame']);
+    $variant = ProductVariant::factory()->for($product)->create([
+        'attributes' => [
+            'color' => 'Black',
+            'material' => 'Acetate',
+            'lens_width' => 52,
+            'model_code' => 'OLD',
+        ],
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(VariantsRelationManager::class, [
+            'ownerRecord' => $product,
+            'pageClass' => EditProduct::class,
+        ])
+        ->callAction(TestAction::make('edit')->table($variant), [
+            'name' => $variant->name,
+            'price' => $variant->price,
+            'attributes' => [
+                'color' => 'Tortoise',
+                'material' => 'Metal',
+                'lens_width' => 55,
+            ],
+            'frame_other_details' => [
+                ['key' => 'model_code', 'value' => 'NEW'],
+                ['key' => 'color_code', 'value' => 'C7'],
+            ],
+        ])
+        ->assertHasNoActionErrors();
+
+    expect($variant->fresh()->attributes)->toMatchArray([
+        'color' => 'Tortoise',
+        'material' => 'Metal',
+        'lens_width' => 55,
+        'model_code' => 'NEW',
+        'color_code' => 'C7',
+    ]);
 });
 
 test('contact lens variant edit form saves contact lens parameter fields', function () {

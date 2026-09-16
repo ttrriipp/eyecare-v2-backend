@@ -142,6 +142,10 @@ class VariantsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
+                        if ($this->getOwnerRecord()->product_type === 'frame') {
+                            return VariantForm::prepareFrameFormDataBeforeSave($data);
+                        }
+
                         $defaults = $this->getOwnerRecord()->default_variant_attributes ?? [];
 
                         if (! empty($defaults)) {
@@ -162,7 +166,21 @@ class VariantsRelationManager extends RelationManager
                     $this->disableArAssetAction(),
                     $this->rollbackArAssetAction(),
                     EditAction::make()
-                        ->color('info'),
+                        ->color('info')
+                        ->mutateRecordDataUsing(function (array $data): array {
+                            if ($this->getOwnerRecord()->product_type !== 'frame') {
+                                return $data;
+                            }
+
+                            return VariantForm::prepareFrameFormDataBeforeFill($data);
+                        })
+                        ->mutateFormDataUsing(function (array $data): array {
+                            if ($this->getOwnerRecord()->product_type !== 'frame') {
+                                return $data;
+                            }
+
+                            return VariantForm::prepareFrameFormDataBeforeSave($data);
+                        }),
                     ...CatalogLifecycleActions::recordActions('variant'),
                     Action::make('adjustPrice')
                         ->label('Adjust Price')
