@@ -15,7 +15,6 @@ beforeEach(function () {
     Carbon::setTestNow('2026-07-10 08:00:00');
     $this->seed(AppointmentStatusSeeder::class);
     $this->optometrist = User::factory()->optometrist()->create();
-    // Provider hours are automatically created by the optometrist factory state
 });
 
 afterEach(fn () => Carbon::setTestNow());
@@ -53,7 +52,7 @@ test('one optometrist cannot have overlapping appointments', function () {
     ))->toThrow(ValidationException::class);
 });
 
-test('different optometrists can have appointments at the same time', function () {
+test('different optometrists cannot have appointments at the same time', function () {
     $otherOptometrist = User::factory()->optometrist()->create();
     Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,
@@ -61,30 +60,16 @@ test('different optometrists can have appointments at the same time', function (
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
-    app(ScheduleAppointment::class)->handle(
+    expect(fn () => app(ScheduleAppointment::class)->handle(
         scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
         durationMinutes: 30,
         optometrist: $otherOptometrist,
-    );
-
-    expect(true)->toBeTrue();
+    ))->toThrow(ValidationException::class);
 });
 
-test('unassigned appointments use the number of available optometrists as clinic capacity', function () {
-    $otherOptometrist = User::factory()->optometrist()->create();
+test('unassigned appointments cannot overlap an existing appointment', function () {
     Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,
-        'duration_minutes' => 30,
-        'scheduled_at' => '2026-07-13 10:00:00',
-    ]);
-
-    app(ScheduleAppointment::class)->handle(
-        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
-        durationMinutes: 30,
-    );
-
-    Appointment::factory()->create([
-        'optometrist_id' => $otherOptometrist->id,
         'duration_minutes' => 30,
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
@@ -95,7 +80,7 @@ test('unassigned appointments use the number of available optometrists as clinic
     ))->toThrow(ValidationException::class);
 });
 
-test('clinic capacity uses peak concurrent appointments within the proposed interval', function () {
+test('partially overlapping appointments are rejected', function () {
     User::factory()->optometrist()->create();
 
     Appointment::factory()->create([
@@ -104,21 +89,46 @@ test('clinic capacity uses peak concurrent appointments within the proposed inte
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
+    expect(fn () => app(ScheduleAppointment::class)->handle(
+        scheduledAt: Carbon::parse('2026-07-13 10:10:00'),
+        durationMinutes: 30,
+    ))->toThrow(ValidationException::class);
+});
+
+test('any interval overlap is rejected', function (string $existingStart, int $existingDuration, string $candidateStart, int $candidateDuration) {
     Appointment::factory()->create([
-        'optometrist_id' => null,
+        'optometrist_id' => $this->optometrist->id,
+        'duration_minutes' => $existingDuration,
+        'scheduled_at' => "2026-07-13 {$existingStart}:00",
+    ]);
+
+    expect(fn () => app(ScheduleAppointment::class)->handle(
+        scheduledAt: Carbon::parse("2026-07-13 {$candidateStart}:00"),
+        durationMinutes: $candidateDuration,
+    ))->toThrow(ValidationException::class);
+})->with([
+    'leading overlap' => ['10:15', 30, '10:00', 30],
+    'trailing overlap' => ['10:00', 30, '10:15', 30],
+    'candidate contains existing' => ['10:15', 15, '10:00', 45],
+    'existing contains candidate' => ['10:00', 45, '10:15', 15],
+]);
+
+test('back-to-back appointments are allowed', function () {
+    Appointment::factory()->create([
+        'optometrist_id' => $this->optometrist->id,
         'duration_minutes' => 15,
-        'scheduled_at' => '2026-07-13 10:15:00',
+        'scheduled_at' => '2026-07-13 10:00:00',
     ]);
 
     app(ScheduleAppointment::class)->handle(
-        scheduledAt: Carbon::parse('2026-07-13 10:00:00'),
+        scheduledAt: Carbon::parse('2026-07-13 10:15:00'),
         durationMinutes: 30,
     );
 
     expect(true)->toBeTrue();
 });
 
-test('cancelled and no-show appointments do not block availability', function (string $statusName) {
+test('terminal appointments do not block availability', function (string $statusName) {
     Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,
         'duration_minutes' => 30,
@@ -133,7 +143,7 @@ test('cancelled and no-show appointments do not block availability', function (s
     );
 
     expect(true)->toBeTrue();
-})->with(['cancelled', 'no_show']);
+})->with(['cancelled', 'no_show', 'fulfilled']);
 
 test('an appointment can ignore its own slot while rescheduling', function () {
     $appointment = Appointment::factory()->create([

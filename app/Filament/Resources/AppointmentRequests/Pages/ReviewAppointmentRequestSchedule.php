@@ -106,6 +106,7 @@ class ReviewAppointmentRequestSchedule extends Page
                 ->label('Accept & Schedule')
                 ->icon('heroicon-o-check')
                 ->color('success')
+                ->visible(fn (): bool => $this->selectedSlotStatus()['state'] === 'available')
                 ->action(function (): void {
                     $this->accept();
                 }),
@@ -153,15 +154,15 @@ class ReviewAppointmentRequestSchedule extends Page
     public function reasonLabel(?string $reason): string
     {
         if ($reason === null) {
-            return $this->optometristId === null ? 'Clinic capacity available' : 'Provider available';
+            return $this->optometristId === null ? 'Time available' : 'Provider available';
         }
 
         return match ($reason) {
             'clinic_closed' => 'Clinic closed',
             'outside_clinic_hours' => 'Outside clinic hours',
             'capacity_reached' => $this->optometristId === null
-                ? 'Clinic capacity reached'
-                : 'Provider unavailable / capacity reached',
+                ? 'Time unavailable'
+                : 'Provider unavailable',
             'elapsed' => 'Elapsed',
             'outside_slot_grid' => 'Outside available time grid',
             default => Str::headline($reason),
@@ -177,7 +178,7 @@ class ReviewAppointmentRequestSchedule extends Page
         return match ($reason) {
             'clinic_closed' => 'Clinic closed',
             'outside_clinic_hours' => 'Outside clinic hours',
-            'capacity_reached' => $this->optometristId === null ? 'Capacity reached' : 'Provider unavailable',
+            'capacity_reached' => $this->optometristId === null ? 'Time unavailable' : 'Provider unavailable',
             'elapsed' => 'Elapsed',
             'outside_slot_grid' => 'Outside available grid',
             default => 'Unavailable',
@@ -260,26 +261,9 @@ class ReviewAppointmentRequestSchedule extends Page
             ];
         }
 
-        $capacity = $evaluator->clinicCapacityForInterval(
-            startsAt: $decision->startsAt,
-            endsAt: $decision->endsAt,
-            ignoreAppointment: $reviewedAppointment,
-        );
-
-        if ($capacity['total'] === 0) {
-            return [
-                'state' => 'available',
-                'label' => 'Clinic capacity available',
-            ];
-        }
-
         return [
             'state' => 'available',
-            'label' => sprintf(
-                '%d of %d clinic slots available',
-                $capacity['available'],
-                $capacity['total'],
-            ),
+            'label' => 'Time available',
         ];
     }
 
@@ -401,6 +385,20 @@ class ReviewAppointmentRequestSchedule extends Page
                 },
             ],
         ]);
+
+        $slotStatus = $this->selectedSlotStatus();
+
+        if ($slotStatus['state'] !== 'available') {
+            $this->addError('scheduledDate', $slotStatus['label']);
+            $this->focusCalendar();
+            Notification::make()
+                ->title('Cannot schedule request')
+                ->body($slotStatus['label'])
+                ->danger()
+                ->send();
+
+            return;
+        }
 
         $scheduledAt = $this->selectedScheduledAt();
         $appointmentType = $this->selectedAppointmentType();
@@ -539,7 +537,7 @@ class ReviewAppointmentRequestSchedule extends Page
     {
         return match ($reason) {
             'capacity_reached' => $optometrist === null
-                ? 'Unavailable — capacity reached'
+                ? 'Unavailable — time unavailable'
                 : 'Unavailable — provider unavailable',
             'clinic_closed' => 'Unavailable — clinic closed',
             'outside_clinic_hours' => 'Unavailable — outside clinic hours',

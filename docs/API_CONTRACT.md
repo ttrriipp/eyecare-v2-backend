@@ -1270,7 +1270,12 @@ Returns server-generated time slots for a given date and appointment type.
 - `interval_minutes` is the clinic slot cadence (15 minutes).
 - `visit_duration_minutes` is the selected type's duration.
 - Slots use the 15-minute grid; each slot's end uses the type's duration.
-- Pending requests do NOT consume capacity (non-blocking).
+- Pending requests do NOT reserve or block a time interval (non-binding).
+- A scheduled or checked-in appointment blocks the entire overlapping interval
+  for the clinic, regardless of which optometrist is assigned. Touching interval
+  boundaries remain bookable. The legacy `capacity_reached` reason is retained
+  as the machine-readable unavailable code for client compatibility; it no
+  longer represents a numeric clinic-slot count.
 
 ---
 
@@ -1838,9 +1843,9 @@ sent, they must refer to the same appointment type.
   submit the type.
 - The response always includes the resolved integer `appointment_type_id`,
   including when the request supplied only `appointment_id`.
-- Confirmed appointment blocks are included in capacity calculations; pending
-  request rows are non-binding and do not consume capacity, including linked
-  rebooking proposals.
+- Scheduled and checked-in appointment intervals are blocking; cancelled,
+  no-show, and fulfilled appointments are not. Pending request rows are
+  non-binding and do not block time, including linked rebooking proposals.
 - This endpoint is separate from `GET /appointment-request-availability`,
   which always requires `appointment_type_id` because it creates a new
   appointment request without an existing appointment.

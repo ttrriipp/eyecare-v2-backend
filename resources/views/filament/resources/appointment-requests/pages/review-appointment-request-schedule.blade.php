@@ -303,9 +303,9 @@
                 <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-300" aria-label="Calendar legend">
                     @if ($optometristId !== null)
                         <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-primary-500"></span>Selected provider appointments</span>
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-gray-400"></span>Other appointments (capacity context)</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-gray-400"></span>Other appointments</span>
                     @else
-                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-primary-500"></span>Active appointments (clinic capacity)</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-primary-500"></span>Active appointments</span>
                     @endif
                     @if ($slotStatusIsUnavailable)
                         <span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-2.5 rounded-full bg-danger-500"></span>Unavailable proposed slot</span>

@@ -93,3 +93,22 @@
     --ec-list-day-bg-color: #1e293b;
     --ec-now-indicator-color: #4f8dd7;
 }
+
+/* Keep appointment cards readable when their duration leaves only a few lines
+   of vertical space. The full details remain available in the event quick view. */
+.ec-time-grid .ec-event.appointment-calendar-event,
+.ec-day-grid .ec-event.appointment-calendar-event {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ec-time-grid .ec-event.appointment-calendar-event .ec-event-title,
+.ec-day-grid .ec-event.appointment-calendar-event .ec-event-title {
+    display: -webkit-box;
+    min-width: 0;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}

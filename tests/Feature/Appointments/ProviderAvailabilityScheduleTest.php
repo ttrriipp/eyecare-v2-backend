@@ -21,35 +21,33 @@ beforeEach(function () {
 });
 
 test('active optometrists cover all clinic hours without provider hour rows', function () {
-    $opt1 = User::factory()->optometrist()->create();
-    $opt2 = User::factory()->optometrist()->create();
-
-    // Remove all provider hour rows to verify the new rule
+    User::factory()->optometrist()->create();
+    User::factory()->optometrist()->create();
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
     $endsAt = $date->copy()->setTime(10, 30);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    $capacity = $evaluator->eligibleOptometristCapacity($startsAt, $endsAt);
+    $providerAvailable = $evaluator->hasEligibleOptometrist($startsAt, $endsAt);
 
-    expect($capacity)->toBe(2);
+    expect($providerAvailable)->toBeTrue();
 });
 
-test('deactivated optometrist contributes no capacity', function () {
-    $active = User::factory()->optometrist()->create();
-    $inactive = User::factory()->optometrist()->create(['is_active' => false]);
+test('deactivated optometrist contributes no provider availability', function () {
+    User::factory()->optometrist()->create();
+    User::factory()->optometrist()->create(['is_active' => false]);
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
     $endsAt = $date->copy()->setTime(10, 30);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
+    expect($evaluator->hasEligibleOptometrist($startsAt, $endsAt))->toBeTrue();
 });
 
-test('non-optometrist user contributes no capacity', function () {
-    $opt = User::factory()->optometrist()->create();
+test('non-optometrist user contributes no provider availability', function () {
+    User::factory()->optometrist()->create();
     User::factory()->staff()->create();
 
     $date = Carbon::now()->next('monday');
@@ -57,16 +55,16 @@ test('non-optometrist user contributes no capacity', function () {
     $endsAt = $date->copy()->setTime(10, 30);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
+    expect($evaluator->hasEligibleOptometrist($startsAt, $endsAt))->toBeTrue();
 });
 
-test('zero active optometrists yields zero capacity', function () {
+test('zero active optometrists yields no provider availability', function () {
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
     $endsAt = $date->copy()->setTime(10, 30);
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
-    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(0);
+    expect($evaluator->hasEligibleOptometrist($startsAt, $endsAt))->toBeFalse();
 });
 
 test('full-day absence removes that optometrist for the date', function () {
@@ -85,7 +83,7 @@ test('full-day absence removes that optometrist for the date', function () {
     $startsAt = $date->copy()->setTime(10, 0);
     $endsAt = $date->copy()->setTime(10, 30);
 
-    expect($evaluator->eligibleOptometristCapacity($startsAt, $endsAt))->toBe(1);
+    expect($evaluator->hasEligibleOptometrist($startsAt, $endsAt))->toBeTrue();
 });
 
 test('partial absence removes that optometrist only from overlapping slots', function () {
@@ -104,25 +102,25 @@ test('partial absence removes that optometrist only from overlapping slots', fun
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
 
-    // Before absence: both available
+    // Before absence: a provider is available
     $beforeStart = $date->copy()->setTime(9, 0);
     $beforeEnd = $date->copy()->setTime(9, 30);
-    expect($evaluator->eligibleOptometristCapacity($beforeStart, $beforeEnd))->toBe(2);
+    expect($evaluator->hasEligibleOptometrist($beforeStart, $beforeEnd))->toBeTrue();
 
-    // During absence: only opt1 available
+    // During absence: opt1 remains available
     $duringStart = $date->copy()->setTime(10, 0);
     $duringEnd = $date->copy()->setTime(10, 30);
-    expect($evaluator->eligibleOptometristCapacity($duringStart, $duringEnd))->toBe(1);
+    expect($evaluator->hasEligibleOptometrist($duringStart, $duringEnd))->toBeTrue();
 
-    // After absence: both available
+    // After absence: a provider is available
     $afterStart = $date->copy()->setTime(12, 0);
     $afterEnd = $date->copy()->setTime(12, 30);
-    expect($evaluator->eligibleOptometristCapacity($afterStart, $afterEnd))->toBe(2);
+    expect($evaluator->hasEligibleOptometrist($afterStart, $afterEnd))->toBeTrue();
 });
 
-test('one assigned appointment consumes one unit of clinic capacity', function () {
+test('an existing appointment blocks the whole clinic interval', function () {
     $opt1 = User::factory()->optometrist()->create();
-    $opt2 = User::factory()->optometrist()->create();
+    User::factory()->optometrist()->create();
 
     $date = Carbon::now()->next('monday');
     $startsAt = $date->copy()->setTime(10, 0);
@@ -133,15 +131,13 @@ test('one assigned appointment consumes one unit of clinic capacity', function (
         'duration_minutes' => 30,
     ]);
 
-    $capacity = app(EvaluateAppointmentAvailability::class)->clinicCapacityForInterval(
+    $result = app(EvaluateAppointmentAvailability::class)->handle(
         startsAt: $startsAt,
-        endsAt: $startsAt->copy()->addMinutes(30),
+        durationMinutes: 30,
     );
 
-    expect($capacity)->toBe([
-        'available' => 1,
-        'total' => 2,
-    ]);
+    expect($result->available)->toBeFalse()
+        ->and($result->reason)->toBe('capacity_reached');
 });
 
 test('same assigned optometrist cannot overlap another appointment', function () {
@@ -167,7 +163,7 @@ test('same assigned optometrist cannot overlap another appointment', function ()
         ->and($result->reason)->toBe('capacity_reached');
 });
 
-test('capacity is interval-aware with partial absences', function () {
+test('provider availability is interval-aware with partial absences', function () {
     $opt1 = User::factory()->optometrist()->create();
     $opt2 = User::factory()->optometrist()->create();
 
@@ -184,17 +180,17 @@ test('capacity is interval-aware with partial absences', function () {
 
     $evaluator = app(EvaluateAppointmentAvailability::class);
 
-    // Morning: both available
+    // Morning: a provider is available
     $morning = $date->copy()->setTime(9, 0);
-    expect($evaluator->eligibleOptometristCapacity($morning, $morning->copy()->addMinutes(30)))->toBe(2);
+    expect($evaluator->hasEligibleOptometrist($morning, $morning->copy()->addMinutes(30)))->toBeTrue();
 
-    // During absence: one available
+    // During absence: opt1 remains available
     $during = $date->copy()->setTime(10, 30);
-    expect($evaluator->eligibleOptometristCapacity($during, $during->copy()->addMinutes(30)))->toBe(1);
+    expect($evaluator->hasEligibleOptometrist($during, $during->copy()->addMinutes(30)))->toBeTrue();
 
-    // Afternoon: both available
+    // Afternoon: a provider is available
     $afternoon = $date->copy()->setTime(13, 0);
-    expect($evaluator->eligibleOptometristCapacity($afternoon, $afternoon->copy()->addMinutes(30)))->toBe(2);
+    expect($evaluator->hasEligibleOptometrist($afternoon, $afternoon->copy()->addMinutes(30)))->toBeTrue();
 });
 
 test('patient API has no preferred-provider selection', function () {

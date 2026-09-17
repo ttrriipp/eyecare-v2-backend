@@ -99,6 +99,26 @@ test('calendar event mapping does not mutate the appointment start time', functi
         ->toBe($appointment->scheduled_at->copy()->addMinutes(45)->toDateTimeString());
 });
 
+test('calendar event titles stay compact while retaining the appointment type', function () {
+    $patient = Patient::factory()->create([
+        'first_name' => 'Liza',
+        'last_name' => 'Mendoza',
+        'phone' => '9170000003',
+    ]);
+    $type = AppointmentType::factory()->create(['name' => 'New Patient']);
+    $appointment = Appointment::factory()->create([
+        'patient_id' => $patient->id,
+        'appointment_type_id' => $type->id,
+    ]);
+
+    $event = $appointment->load(['patient', 'appointmentType'])->toCalendarEvent();
+
+    expect($event->getTitle())
+        ->toBe('Liza Mendoza — New Patient')
+        ->not->toContain($patient->phone)
+        ->and($event->getClassNames())->toContain('appointment-calendar-event');
+});
+
 test('calendar drag rescheduling stays disabled until its reason flow is exposed', function () {
     $widget = Livewire::test(AppointmentCalendarWidget::class)->instance();
     $property = new ReflectionProperty($widget, 'eventDragEnabled');

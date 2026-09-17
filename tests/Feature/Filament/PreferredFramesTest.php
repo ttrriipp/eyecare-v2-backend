@@ -260,7 +260,7 @@ test('preferred frames relation manager has no mutation actions', function () {
 
 // --- Appointment context tests ---
 
-test('appointment edit shows preferred frames section for linked patient', function () {
+test('appointment edit hides preferred frames section even when patient has saved frames', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -280,11 +280,11 @@ test('appointment edit shows preferred frames section for linked patient', funct
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Preferred Frames')
-        ->assertSee($this->frame->name);
+        ->assertDontSee('Preferred Frames')
+        ->assertDontSee($this->frame->name);
 });
 
-test('appointment edit renders preferred frame thumbnails and product links', function () {
+test('appointment edit does not render preferred frame thumbnails or product links', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -306,11 +306,11 @@ test('appointment edit renders preferred frame thumbnails and product links', fu
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee(Storage::disk('public')->url('variants/appointment-frame.png'))
-        ->assertSee('href="'.ProductResource::getUrl('edit', ['record' => $this->frame]).'"', false);
+        ->assertDontSee(Storage::disk('public')->url('variants/appointment-frame.png'))
+        ->assertDontSee('href="'.ProductResource::getUrl('edit', ['record' => $this->frame]).'"', false);
 });
 
-test('appointment edit shows only the latest three preferences and a patient link', function () {
+test('appointment edit does not show saved frames or a patient link', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -336,14 +336,14 @@ test('appointment edit shows only the latest three preferences and a patient lin
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Variant 2')
-        ->assertSee('Variant 3')
-        ->assertSee('Variant 4')
         ->assertDontSee('Variant 1')
-        ->assertSee('View all preferred frames');
+        ->assertDontSee('Variant 2')
+        ->assertDontSee('Variant 3')
+        ->assertDontSee('Variant 4')
+        ->assertDontSee('View all preferred frames');
 });
 
-test('appointment edit shows no linked account for unlinked patient', function () {
+test('appointment edit does not show linked-account details for an unlinked patient', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create(['user_id' => null]);
 
@@ -354,10 +354,11 @@ test('appointment edit shows no linked account for unlinked patient', function (
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('No linked account');
+        ->assertDontSee('No linked account')
+        ->assertDontSee('Preferred Frames');
 });
 
-test('appointment edit shows the richer availability badge for an out-of-stock preference', function () {
+test('appointment edit does not show preferred-frame availability badges', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -375,11 +376,12 @@ test('appointment edit shows the richer availability badge for an out-of-stock p
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('Out of stock')
+        ->assertDontSee('Out of stock')
+        ->assertDontSee('Preferred Frames')
         ->assertDontSee('Unavailable');
 });
 
-test('appointment edit shows no preferred frames when linked but empty', function () {
+test('appointment edit does not show an empty preferred-frames state', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -392,12 +394,13 @@ test('appointment edit shows no preferred frames when linked but empty', functio
     $this->actingAs($staff);
 
     Livewire::test(EditAppointment::class, ['record' => $appointment->getRouteKey()])
-        ->assertSee('No preferred frames');
+        ->assertDontSee('No preferred frames')
+        ->assertDontSee('Preferred Frames');
 });
 
 // --- Consultation context tests ---
 
-test('consultation edit shows preferred frames section for linked patient', function () {
+test('consultation edit hides preferred frames section even when patient has saved frames', function () {
     $staff = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();
@@ -419,11 +422,11 @@ test('consultation edit shows preferred frames section for linked patient', func
     $this->actingAs($staff);
 
     Livewire::test(EditEncounter::class, ['record' => $encounter->getRouteKey()])
-        ->assertSee('Preferred Frames')
-        ->assertSee($this->frame->name);
+        ->assertDontSee('Preferred Frames')
+        ->assertDontSee($this->frame->name);
 });
 
-test('in-progress consultation edit hides preferred frames', function () {
+test('in-progress consultation edit keeps preferred frames hidden', function () {
     $staff = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create();
     $user = User::factory()->create();

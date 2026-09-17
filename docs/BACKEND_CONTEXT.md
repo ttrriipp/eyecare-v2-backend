@@ -976,9 +976,11 @@ Locked in by `tests/Feature/Filament/AdminNavigationStructureTest.php` (group or
 
 All active optometrists are eligible for every enabled clinic-hours interval; no
 recurring provider-hours table is consulted. A date-specific
-`provider_absence` override removes only that provider's capacity for the
+`provider_absence` override removes only that provider from eligibility for the
 affected interval, while clinic-closed and early-close overrides change the
-clinic-wide schedule.
+clinic-wide schedule. Scheduled and checked-in appointments occupy their full
+clinic interval, so a second scheduled appointment cannot overlap it even when
+another optometrist is assigned.
 
 **Reports cluster** (`app/Filament/Clusters/Reports/`) is admin-only and contains
 four top-sub-navigation pages: **Financial**, **Appointments**, **Optical

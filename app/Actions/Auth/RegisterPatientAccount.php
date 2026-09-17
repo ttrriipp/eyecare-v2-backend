@@ -11,6 +11,7 @@ use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -121,128 +122,168 @@ class RegisterPatientAccount
         // Validate policy versions against server config
         $this->validatePolicies($data);
 
-        // Find and validate the registration proof
-        $proof = OtpChallenge::where('public_id', $data['registration_token'])
-            ->where('purpose', OtpPurpose::Registration)
-            ->where('delivery_status', 'proof')
-            ->first();
-
-        if ($proof === null) {
-            throw ValidationException::withMessages([
-                'registration_token' => ['The registration token is invalid.'],
-            ]);
-        }
-
-        if ($proof->isExpired()) {
-            throw ValidationException::withMessages([
-                'registration_token' => ['The registration token has expired. Please verify again.'],
-            ]);
-        }
-
-        if ($proof->isConsumed()) {
-            throw ValidationException::withMessages([
-                'registration_token' => ['This registration token has already been used.'],
-            ]);
-        }
-
-        $contactType = $proof->channel;
-        $destination = $proof->encrypted_destination;
-
-        if ($contactType !== 'phone') {
-            throw ValidationException::withMessages([
-                'registration_token' => ['Registration requires a verified phone number.'],
-            ]);
-        }
-
-        $optionalEmail = null;
-
-        if ($contactType === 'phone' && isset($data['email'])) {
-            $optionalEmail = $this->normalize->email($data['email']);
-        }
+        $optionalEmail = isset($data['email'])
+            ? $this->normalize->email($data['email'])
+            : null;
 
         $optionalEmailHash = $optionalEmail === null
             ? null
             : $this->lookupHash->forEmail($optionalEmail);
 
-        return DB::transaction(function () use ($data, $contactType, $destination, $proof, $optionalEmail, $optionalEmailHash) {
-            if ($this->contactIsAlreadyOwned($contactType, $destination, $proof->destination_hash)) {
-                return [
-                    'contact_already_owned' => true,
-                    'contact_type' => $contactType,
-                    'is_new' => false,
-                ];
-            }
+        $contactType = null;
+        $contactConflictType = null;
 
-            if ($optionalEmail !== null && $optionalEmailHash !== null
-                && $this->contactIsAlreadyOwned('email', $optionalEmail, $optionalEmailHash)) {
-                return [
-                    'contact_already_owned' => true,
-                    'contact_type' => 'email',
-                    'is_new' => false,
-                ];
-            }
+        try {
+            return DB::transaction(function () use (
+                $data,
+                $optionalEmail,
+                $optionalEmailHash,
+                &$contactType,
+                &$contactConflictType,
+            ): array {
+                // Lock the proof so a retried request cannot consume it twice.
+                $proof = OtpChallenge::query()
+                    ->where('public_id', $data['registration_token'])
+                    ->where('purpose', OtpPurpose::Registration)
+                    ->where('delivery_status', 'proof')
+                    ->lockForUpdate()
+                    ->first();
 
-            $role = Role::where('name', Role::Patient)->firstOrFail();
+                if ($proof === null) {
+                    throw ValidationException::withMessages([
+                        'registration_token' => ['The registration token is invalid.'],
+                    ]);
+                }
 
-            $middleName = $data['middle_name'] ?? null;
+                if ($proof->isExpired()) {
+                    throw ValidationException::withMessages([
+                        'registration_token' => ['The registration token has expired. Please verify again.'],
+                    ]);
+                }
 
-            $user = User::create([
-                'first_name' => $data['first_name'],
-                'middle_name' => $middleName,
-                'last_name' => $data['last_name'],
-                'date_of_birth' => $data['date_of_birth'],
-                'email' => $optionalEmail,
-                'phone' => $contactType === 'phone' ? $destination : null,
-                'password' => Hash::make($data['password']),
-                'role_id' => $role->id,
-                // Store authoritative policy metadata from server config
-                'privacy_notice_version' => $data['privacy_policy_version'],
-                'privacy_acknowledged_at' => now(),
-            ]);
+                if ($proof->isConsumed()) {
+                    throw ValidationException::withMessages([
+                        'registration_token' => ['This registration token has already been used.'],
+                    ]);
+                }
 
-            $user->roles()->sync([$role->id]);
+                $contactType = $proof->channel;
+                $destination = $proof->encrypted_destination;
 
-            PatientAccountContact::create([
-                'user_id' => $user->id,
-                'type' => $contactType,
-                'encrypted_value' => $destination,
-                'lookup_hash' => $proof->destination_hash,
-                'verified_at' => now(),
-                'is_primary' => true,
-            ]);
+                if ($contactType !== 'phone') {
+                    throw ValidationException::withMessages([
+                        'registration_token' => ['Registration requires a verified phone number.'],
+                    ]);
+                }
 
-            if ($optionalEmail !== null && $optionalEmailHash !== null) {
+                if ($this->contactIsAlreadyOwned($contactType, $destination, $proof->destination_hash)) {
+                    return [
+                        'contact_already_owned' => true,
+                        'contact_type' => $contactType,
+                        'is_new' => false,
+                    ];
+                }
+
+                if ($optionalEmail !== null && $optionalEmailHash !== null
+                    && $this->contactIsAlreadyOwned('email', $optionalEmail, $optionalEmailHash)) {
+                    return [
+                        'contact_already_owned' => true,
+                        'contact_type' => 'email',
+                        'is_new' => false,
+                    ];
+                }
+
+                $role = Role::where('name', Role::Patient)->firstOrFail();
+
+                $middleName = $data['middle_name'] ?? null;
+                $contactConflictType = $optionalEmail !== null ? 'email' : $contactType;
+
+                $user = User::create([
+                    'first_name' => $data['first_name'],
+                    'middle_name' => $middleName,
+                    'last_name' => $data['last_name'],
+                    'date_of_birth' => $data['date_of_birth'],
+                    'email' => $optionalEmail,
+                    'phone' => $contactType === 'phone' ? $destination : null,
+                    'password' => Hash::make($data['password']),
+                    'role_id' => $role->id,
+                    // Store authoritative policy metadata from server config
+                    'privacy_notice_version' => $data['privacy_policy_version'],
+                    'privacy_acknowledged_at' => now(),
+                ]);
+
+                $user->roles()->sync([$role->id]);
+
+                $contactConflictType = $contactType;
                 PatientAccountContact::create([
                     'user_id' => $user->id,
-                    'type' => 'email',
-                    'encrypted_value' => $optionalEmail,
-                    'lookup_hash' => $optionalEmailHash,
-                    'verified_at' => null,
-                    'is_primary' => false,
+                    'type' => $contactType,
+                    'encrypted_value' => $destination,
+                    'lookup_hash' => $proof->destination_hash,
+                    'verified_at' => now(),
+                    'is_primary' => true,
                 ]);
+
+                if ($optionalEmail !== null && $optionalEmailHash !== null) {
+                    $contactConflictType = 'email';
+                    PatientAccountContact::create([
+                        'user_id' => $user->id,
+                        'type' => 'email',
+                        'encrypted_value' => $optionalEmail,
+                        'lookup_hash' => $optionalEmailHash,
+                        'verified_at' => null,
+                        'is_primary' => false,
+                    ]);
+                }
+
+                // Consume the proof
+                $proof->update(['consumed_at' => now()]);
+
+                // Handle invitation code if provided
+                if (! empty($data['invitation_code'])) {
+                    $this->acceptInvitation($data['invitation_code'], $user);
+                }
+
+                $tokenResult = $this->issueToken->issueForUser(
+                    $user,
+                    $data['device_name'] ?? null,
+                    $data['installation_id'] ?? null,
+                );
+
+                return [
+                    'token' => $tokenResult['token'],
+                    'user' => $user,
+                    'is_new' => true,
+                    'email_verification_required' => $optionalEmail !== null,
+                ];
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            if (! $this->isContactOwnershipViolation($exception, $contactConflictType)) {
+                throw $exception;
             }
-
-            // Consume the proof
-            $proof->update(['consumed_at' => now()]);
-
-            // Handle invitation code if provided
-            if (! empty($data['invitation_code'])) {
-                $this->acceptInvitation($data['invitation_code'], $user);
-            }
-
-            $tokenResult = $this->issueToken->issueForUser(
-                $user,
-                $data['device_name'] ?? null,
-                $data['installation_id'] ?? null,
-            );
 
             return [
-                'token' => $tokenResult['token'],
-                'user' => $user,
-                'is_new' => true,
-                'email_verification_required' => $optionalEmail !== null,
+                'contact_already_owned' => true,
+                'contact_type' => $contactConflictType,
+                'is_new' => false,
             ];
-        });
+        }
+    }
+
+    protected function isContactOwnershipViolation(
+        UniqueConstraintViolationException $exception,
+        ?string $contactType,
+    ): bool {
+        if ($contactType === null) {
+            return false;
+        }
+
+        if ($exception->index === 'patient_account_contacts_lookup_hash_unique') {
+            return true;
+        }
+
+        return $contactType === 'email'
+            && $exception->index === 'users_email_unique';
     }
 
     protected function contactIsAlreadyOwned(string $contactType, string $destination, string $destinationHash): bool

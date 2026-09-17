@@ -161,13 +161,17 @@ test('review page keeps scheduling section headers focused', function () {
         ->and($html)->toContain('data-test="preference-status"')
         ->and($html)->toContain('>Available</span>')
         ->and($html)->not->toContain('Click to use this time')
-        ->and($html)->not->toContain('Availability is based on clinic capacity until a provider is selected.')
         ->and(strpos($html, 'Optometrist</span>'))->toBeLessThan(strpos($html, 'Submitted preferences'));
 });
 
 test('review page keeps the acceptance action in the header without a duplicate decision section', function () {
     $staff = User::factory()->staff()->create();
-    $request = AppointmentRequest::factory()->linked()->create();
+    User::factory()->optometrist()->create();
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $request = AppointmentRequest::factory()->linked()->create([
+        'scheduled_at' => $scheduledAt,
+        'expires_at' => $scheduledAt->copy()->addDay(),
+    ]);
 
     $this->actingAs($staff);
 
@@ -211,8 +215,8 @@ test('review page keeps final conflict validation on the acceptance action', fun
         ->set('scheduledTime', $scheduledAt->format('H:i'));
 
     $component
-        ->assertActionVisible('accept')
-        ->callAction('accept')
+        ->assertActionHidden('accept')
+        ->call('accept')
         ->assertHasErrors(['scheduledDate']);
 
     $html = $component->html();
@@ -237,10 +241,31 @@ test('schedule context uses a compact day calendar', function () {
         ->and($options)->not->toHaveKey('initialDate');
 });
 
-test('review page shows remaining clinic capacity for an unassigned slot', function () {
+test('review page shows simple availability for an unassigned slot', function () {
+    $staff = User::factory()->staff()->create();
+    User::factory()->optometrist()->create();
+    $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
+    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
+    $request = AppointmentRequest::factory()->linked()->create([
+        'appointment_type_id' => $appointmentType->id,
+        'scheduled_at' => $scheduledAt,
+        'expires_at' => $scheduledAt->copy()->addDay(),
+    ]);
+
+    $this->actingAs($staff);
+
+    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()]);
+
+    expect($component->html())->toContain('Time available')
+        ->and($component->instance()->selectedSlotStatus())->toMatchArray([
+            'state' => 'available',
+            'label' => 'Time available',
+        ]);
+});
+
+test('review page marks an occupied unassigned slot unavailable', function () {
     $staff = User::factory()->staff()->create();
     $firstOptometrist = User::factory()->optometrist()->create();
-    User::factory()->optometrist()->create();
     $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
     $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
     $request = AppointmentRequest::factory()->linked()->create([
@@ -259,41 +284,12 @@ test('review page shows remaining clinic capacity for an unassigned slot', funct
 
     $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()]);
 
-    expect($component->html())->toContain('1 of 2 clinic slots available')
-        ->and($component->instance()->selectedSlotStatus())->toMatchArray([
-            'state' => 'available',
-            'label' => '1 of 2 clinic slots available',
-        ]);
-});
+    $component->assertActionHidden('accept');
 
-test('review page marks a capacity-blocked slot unavailable', function () {
-    $staff = User::factory()->staff()->create();
-    $firstOptometrist = User::factory()->optometrist()->create();
-    $secondOptometrist = User::factory()->optometrist()->create();
-    $appointmentType = AppointmentType::factory()->create(['duration_minutes' => 30]);
-    $scheduledAt = now()->next(Carbon::MONDAY)->setTime(10, 0);
-    $request = AppointmentRequest::factory()->linked()->create([
-        'appointment_type_id' => $appointmentType->id,
-        'scheduled_at' => $scheduledAt,
-        'expires_at' => $scheduledAt->copy()->addDay(),
-    ]);
-
-    foreach ([$firstOptometrist, $secondOptometrist] as $optometrist) {
-        Appointment::factory()->create([
-            'optometrist_id' => $optometrist->id,
-            'scheduled_at' => $scheduledAt,
-            'duration_minutes' => 30,
-        ]);
-    }
-
-    $this->actingAs($staff);
-
-    $component = Livewire::test(ReviewAppointmentRequestSchedule::class, ['record' => $request->getRouteKey()]);
-
-    expect($component->html())->toContain('Unavailable — capacity reached')
+    expect($component->html())->toContain('Unavailable — time unavailable')
         ->and($component->instance()->selectedSlotStatus())->toMatchArray([
             'state' => 'unavailable',
-            'label' => 'Unavailable — capacity reached',
+            'label' => 'Unavailable — time unavailable',
         ]);
 
     $widget = Livewire::test(AppointmentRequestScheduleCalendar::class, [
@@ -525,7 +521,6 @@ test('review page omits section helper descriptions', function () {
 
     expect($html)->not->toContain('Set the appointment type and duration, then optionally assign a provider before reviewing availability.')
         ->and($html)->not->toContain('Availability is checked against the selected provider.')
-        ->and($html)->not->toContain('Active appointments are shown as clinic capacity in use. Click an open time to use it.')
         ->and($html)->not->toContain('Schedule context')
         ->and($html)->toContain('Calendar');
 });

@@ -2,6 +2,7 @@
 
 namespace App\Actions\Appointments;
 
+use App\Enums\AppointmentStatusName;
 use App\Models\Appointment;
 use App\Models\ScheduleOverride;
 use App\Models\User;
@@ -31,7 +32,7 @@ class EvaluateAppointmentAvailability
         bool $enforceFuture = true,
         bool $enforceGrid = false,
         ?Collection $blockingAppointments = null,
-        ?int $capacity = null,
+        ?bool $providerAvailable = null,
         ?ClinicSchedule $schedule = null,
     ): AppointmentAvailabilityDecision {
         $schedule ??= ClinicSchedule::forDate($startsAt);
@@ -58,16 +59,19 @@ class EvaluateAppointmentAvailability
         $appointments = $blockingAppointments
             ?? $this->blockingAppointmentsBetween($clinicStartsAt, $endsAt, $ignoreAppointment);
 
-        // If a specific optometrist is assigned, check their eligibility directly
         if ($optometrist !== null) {
             if (! $this->isOptometristEligible($optometrist, $clinicStartsAt, $endsAt)) {
                 return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'capacity_reached');
             }
+        } else {
+            $providerAvailable ??= $this->hasEligibleOptometrist($clinicStartsAt, $endsAt);
+
+            if (! $providerAvailable) {
+                return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'capacity_reached');
+            }
         }
 
-        $capacity ??= $this->eligibleOptometristCapacity($clinicStartsAt, $endsAt);
-
-        if ($this->wouldExceedCapacity($clinicStartsAt, $endsAt, $appointments, $capacity, $optometrist)) {
+        if ($this->hasOverlappingAppointment($clinicStartsAt, $endsAt, $appointments)) {
             return AppointmentAvailabilityDecision::unavailable($clinicStartsAt, $endsAt, 'capacity_reached');
         }
 
@@ -90,27 +94,16 @@ class EvaluateAppointmentAvailability
     }
 
     /**
-     * Count optometrists available for the exact interval.
-     *
-     * An optometrist is eligible when:
-     * - the account is active and has optometrist capability; and
-     * - no full-day or overlapping partial absence exists.
-     *
-     * Active optometrists cover all clinic hours — no recurring provider-hour
-     * rows are required.
+     * Determine whether at least one active optometrist can cover the exact interval.
      */
-    public function eligibleOptometristCapacity(
-        ?CarbonInterface $startsAt = null,
-        ?CarbonInterface $endsAt = null,
-    ): int {
+    public function hasEligibleOptometrist(
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
+    ): bool {
         $optometrists = User::query()->optometrists()->get();
 
         if ($optometrists->isEmpty()) {
-            return 0;
-        }
-
-        if ($startsAt === null) {
-            return $optometrists->count();
+            return false;
         }
 
         $dateString = $startsAt->toDateString();
@@ -123,59 +116,14 @@ class EvaluateAppointmentAvailability
             ->get()
             ->keyBy('user_id');
 
-        $eligibleCount = 0;
-
-        foreach ($optometrists as $optometrist) {
-            // Check for absences
-            $absence = $absences->get($optometrist->id);
-
-            if ($absence !== null) {
-                // Full-day absence (both times null)
-                if ($absence->start_time === null && $absence->end_time === null) {
-                    continue;
-                }
-
-                // Partial absence overlap — only exclude when endsAt is provided
-                if ($endsAt !== null && $absence->start_time !== null && $absence->end_time !== null) {
-                    $absenceStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->start_time));
-                    $absenceEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->end_time));
-
-                    if ($startsAt->lt($absenceEnd) && $endsAt->gt($absenceStart)) {
-                        continue; // Interval overlaps with absence
-                    }
-                }
-            }
-
-            $eligibleCount++;
-        }
-
-        return $eligibleCount;
-    }
-
-    /**
-     * Calculate the remaining clinic capacity for a candidate interval.
-     *
-     * The total is the number of active optometrists who can cover the full
-     * interval. Existing active appointments reduce that total according to
-     * the maximum simultaneous overlap within the interval.
-     *
-     * @return array{available: int, total: int}
-     */
-    public function clinicCapacityForInterval(
-        CarbonInterface $startsAt,
-        CarbonInterface $endsAt,
-        ?Appointment $ignoreAppointment = null,
-        ?Collection $blockingAppointments = null,
-    ): array {
-        $total = $this->eligibleOptometristCapacity($startsAt, $endsAt);
-        $appointments = $blockingAppointments
-            ?? $this->blockingAppointmentsBetween($startsAt, $endsAt, $ignoreAppointment);
-        $used = $this->maximumConcurrentAppointments($startsAt, $endsAt, $appointments);
-
-        return [
-            'available' => max(0, $total - $used),
-            'total' => $total,
-        ];
+        return $optometrists->contains(
+            fn (User $optometrist): bool => $this->isProviderAvailableForInterval(
+                $optometrist,
+                $startsAt,
+                $endsAt,
+                $absences,
+            ),
+        );
     }
 
     /**
@@ -186,7 +134,7 @@ class EvaluateAppointmentAvailability
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
     ): bool {
-        if (! $optometrist->isOptometrist()) {
+        if (! $optometrist->is_active || ! $optometrist->isOptometrist()) {
             return false;
         }
 
@@ -228,7 +176,10 @@ class EvaluateAppointmentAvailability
         return Appointment::query()
             ->select(['id', 'optometrist_id', 'duration_minutes', 'appointment_status_id', 'scheduled_at'])
             ->with(['status:id,name'])
-            ->whereHas('status', fn (Builder $query): Builder => $query->whereNotIn('name', ['cancelled', 'no_show']))
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereIn('name', [
+                AppointmentStatusName::Scheduled->value,
+                AppointmentStatusName::CheckedIn->value,
+            ]))
             ->when($ignoreAppointment, fn (Builder $query): Builder => $query->whereKeyNot($ignoreAppointment->id))
             ->where('scheduled_at', '<', $endsAt)
             ->whereRaw(
@@ -241,100 +192,59 @@ class EvaluateAppointmentAvailability
     /**
      * @param  Collection<int, Appointment>  $appointments
      */
-    private function wouldExceedCapacity(
+    private function hasOverlappingAppointment(
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
         Collection $appointments,
-        int $capacity,
-        ?User $optometrist,
     ): bool {
-        foreach ($this->capacitySegments($startsAt, $endsAt, $appointments) as $overlapping) {
-            if ($optometrist !== null && $overlapping->contains(
-                fn (Appointment $appointment): bool => $appointment->optometrist_id === $optometrist->id,
-            )) {
-                return true;
-            }
-
-            if ($overlapping->count() >= $capacity) {
-                return true;
-            }
-        }
-
-        return false;
+        return $appointments->contains(
+            fn (Appointment $appointment): bool => $this->appointmentOverlaps(
+                appointment: $appointment,
+                startsAt: $startsAt,
+                endsAt: $endsAt,
+            ),
+        );
     }
 
     /**
-     * @param  Collection<int, Appointment>  $appointments
-     * @return \Generator<int, Collection<int, Appointment>>
+     * @param  Collection<int, ScheduleOverride>  $absences
      */
-    private function capacitySegments(
+    private function isProviderAvailableForInterval(
+        User $optometrist,
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
-        Collection $appointments,
-    ): \Generator {
-        $boundaries = collect([$startsAt->copy(), $endsAt->copy()]);
+        Collection $absences,
+    ): bool {
+        $absence = $absences->get($optometrist->id);
 
-        $appointments->each(function (Appointment $appointment) use ($boundaries, $startsAt, $endsAt): void {
-            $appointmentStartsAt = $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'));
-            $appointmentEndsAt = $appointmentStartsAt->copy()->addMinutes(
-                $appointment->duration_minutes ?? 30,
-            );
-
-            if ($appointmentStartsAt->between($startsAt, $endsAt, false)) {
-                $boundaries->push($appointmentStartsAt);
-            }
-
-            if ($appointmentEndsAt->between($startsAt, $endsAt, false)) {
-                $boundaries->push($appointmentEndsAt);
-            }
-        });
-
-        $orderedBoundaries = $boundaries
-            ->unique(fn (CarbonInterface $boundary): int => $boundary->getTimestamp())
-            ->sortBy(fn (CarbonInterface $boundary): int => $boundary->getTimestamp())
-            ->values();
-
-        for ($index = 0; $index < $orderedBoundaries->count() - 1; $index++) {
-            $segmentStartsAt = $orderedBoundaries[$index];
-            $segmentEndsAt = $orderedBoundaries[$index + 1];
-
-            yield $appointments->filter(
-                fn (Appointment $appointment): bool => $this->appointmentOverlapsSegment(
-                    appointment: $appointment,
-                    segmentStartsAt: $segmentStartsAt,
-                    segmentEndsAt: $segmentEndsAt,
-                ),
-            );
-        }
-    }
-
-    /**
-     * @param  Collection<int, Appointment>  $appointments
-     */
-    private function maximumConcurrentAppointments(
-        CarbonInterface $startsAt,
-        CarbonInterface $endsAt,
-        Collection $appointments,
-    ): int {
-        $maximum = 0;
-
-        foreach ($this->capacitySegments($startsAt, $endsAt, $appointments) as $overlapping) {
-            $maximum = max($maximum, $overlapping->count());
+        if ($absence === null) {
+            return true;
         }
 
-        return $maximum;
+        if ($absence->start_time === null && $absence->end_time === null) {
+            return false;
+        }
+
+        if ($absence->start_time === null || $absence->end_time === null) {
+            return true;
+        }
+
+        $absenceStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->start_time));
+        $absenceEnd = $startsAt->copy()->startOfDay()->setTimeFromTimeString(self::timeString($absence->end_time));
+
+        return ! ($startsAt->lt($absenceEnd) && $endsAt->gt($absenceStart));
     }
 
-    private function appointmentOverlapsSegment(
+    private function appointmentOverlaps(
         Appointment $appointment,
-        CarbonInterface $segmentStartsAt,
-        CarbonInterface $segmentEndsAt,
+        CarbonInterface $startsAt,
+        CarbonInterface $endsAt,
     ): bool {
         $appointmentStartsAt = $appointment->scheduled_at->copy()->setTimezone(config('app.timezone'));
         $appointmentEndsAt = $appointmentStartsAt->copy()->addMinutes(
             $appointment->duration_minutes ?? 30,
         );
 
-        return $appointmentStartsAt->lt($segmentEndsAt) && $appointmentEndsAt->gt($segmentStartsAt);
+        return $appointmentStartsAt->lt($endsAt) && $appointmentEndsAt->gt($startsAt);
     }
 }

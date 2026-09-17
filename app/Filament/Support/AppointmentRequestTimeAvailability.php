@@ -43,7 +43,9 @@ final class AppointmentRequestTimeAvailability
 
                 return [
                     'label' => $index === 0 ? 'Primary' : "Alt {$index}",
-                    'time' => Carbon::parse($time)->format('M j, g:i A'),
+                    'time' => Carbon::parse($time)
+                        ->setTimezone(config('app.timezone'))
+                        ->format('M j, g:i A'),
                     'available' => $available,
                     'availability_label' => $showAvailability && $available !== null
                         ? self::availabilityLabel($decision['reason'] ?? null)

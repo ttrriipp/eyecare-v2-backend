@@ -467,22 +467,8 @@ test('request requires reason for visit', function () {
 test('request rejects unavailable slot', function () {
     $user = unlinkedPatientUser();
 
-    // Create three appointments at 10:00 (exhausts capacity: 1 from beforeEach + 2 here = 3 optometrists)
-    $opt1 = User::factory()->optometrist()->create();
-    $opt2 = User::factory()->optometrist()->create();
-
     Appointment::factory()->create([
         'optometrist_id' => $this->optometrist->id,
-        'duration_minutes' => 30,
-        'scheduled_at' => '2026-07-13 10:00:00',
-    ]);
-    Appointment::factory()->create([
-        'optometrist_id' => $opt1->id,
-        'duration_minutes' => 30,
-        'scheduled_at' => '2026-07-13 10:00:00',
-    ]);
-    Appointment::factory()->create([
-        'optometrist_id' => $opt2->id,
         'duration_minutes' => 30,
         'scheduled_at' => '2026-07-13 10:00:00',
     ]);

@@ -10,7 +10,6 @@ use App\Filament\Resources\Encounters\Pages\EditEncounter;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Prescriptions\PrescriptionResource;
 use App\Filament\Resources\Prescriptions\Schemas\PrescriptionForm;
-use App\Filament\Support\PreferredFramesSummary;
 use App\Models\BillingRecord;
 use App\Models\Encounter;
 use App\Models\JobOrder;
@@ -547,14 +546,6 @@ class EncounterForm
                 ])
                 ->visible(fn (Encounter $record): bool => $record->status !== EncounterStatus::InProgress),
 
-            // ── Preferred Frames ────────────────────────────────────────
-            Section::make('Preferred Frames')
-                ->schema([
-                    Placeholder::make('preferred_frames_summary')
-                        ->label('')
-                        ->content(fn (Encounter $record): HtmlString => PreferredFramesSummary::render($record->patient)),
-                ])
-                ->hidden(fn (Encounter $record): bool => $record->status === EncounterStatus::InProgress),
         ]);
     }
 

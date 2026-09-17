@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Appointments\Schemas;
 
 use App\Actions\Patients\SearchPatientDuplicates;
 use App\Filament\Support\PatientDuplicateMatchCard;
-use App\Filament\Support\PreferredFramesSummary;
 use App\Models\Appointment;
 use App\Models\AppointmentType;
 use App\Models\Patient;
@@ -367,13 +366,6 @@ class AppointmentForm
                                 ->content(fn (?Appointment $record): string => $record?->updated_at?->diffForHumans() ?? '—'),
                         ]),
 
-                    Section::make('Preferred Frames')
-                        ->hiddenOn('create')
-                        ->schema([
-                            Placeholder::make('preferred_frames_summary')
-                                ->label('')
-                                ->content(fn (?Appointment $record): HtmlString => PreferredFramesSummary::render($record?->patient)),
-                        ]),
                 ]),
             ]),
         ]);

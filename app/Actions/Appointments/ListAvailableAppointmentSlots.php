@@ -59,8 +59,8 @@ class ListAvailableAppointmentSlots
         while ($slot->copy()->addMinutes($durationMinutes)->lte($closingTime)) {
             $slotEnd = $slot->copy()->addMinutes($durationMinutes);
 
-            // Compute capacity for this exact interval using pre-loaded data
-            $capacity = $this->capacityForInterval($optometrists, $absences, $slot, $slotEnd);
+            // Compute provider presence for this exact interval using pre-loaded data.
+            $providerAvailable = $this->providerAvailableForInterval($optometrists, $absences, $slot, $slotEnd);
 
             $slots[] = $this->evaluateAppointmentAvailability->handle(
                 startsAt: $slot,
@@ -69,7 +69,7 @@ class ListAvailableAppointmentSlots
                 ignoreAppointment: $ignoreAppointment,
                 enforceFuture: true,
                 blockingAppointments: $blockingAppointments,
-                capacity: $capacity,
+                providerAvailable: $providerAvailable,
                 schedule: $schedule,
             );
 
@@ -80,29 +80,26 @@ class ListAvailableAppointmentSlots
     }
 
     /**
-     * Count eligible optometrists for an exact interval using pre-loaded data.
+     * Determine whether a provider is available for an exact interval using pre-loaded data.
      *
      * @param  Collection<int, User>  $optometrists
      * @param  Collection<int, ScheduleOverride>  $absences
      */
-    private function capacityForInterval(
+    private function providerAvailableForInterval(
         Collection $optometrists,
         Collection $absences,
         CarbonInterface $startsAt,
         CarbonInterface $endsAt,
-    ): int {
-        $eligibleCount = 0;
+    ): bool {
 
         foreach ($optometrists as $optometrist) {
             $absence = $absences->get($optometrist->id);
 
             if ($absence !== null) {
-                // Full-day absence
                 if ($absence->start_time === null && $absence->end_time === null) {
                     continue;
                 }
 
-                // Partial absence overlap
                 if ($absence->start_time !== null && $absence->end_time !== null) {
                     $absenceStart = $startsAt->copy()->startOfDay()->setTimeFromTimeString(
                         $absence->start_time instanceof \DateTimeInterface
@@ -121,9 +118,9 @@ class ListAvailableAppointmentSlots
                 }
             }
 
-            $eligibleCount++;
+            return true;
         }
 
-        return $eligibleCount;
+        return false;
     }
 }

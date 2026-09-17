@@ -199,8 +199,24 @@ test('request queue shows all preferred times and submitted time', function () {
         ->assertSee($request->created_at->format('M j, g:i A'));
 
     foreach ($request->getAllTimePreferences() as $time) {
-        $component->assertSee(Carbon::parse($time)->format('M j, g:i A'));
+        $component->assertSee(Carbon::parse($time)->setTimezone(config('app.timezone'))->format('M j, g:i A'));
     }
+});
+
+test('request queue displays preferred times in the application timezone', function () {
+    $staff = User::factory()->staff()->create();
+    $primary = Carbon::parse('2026-07-13 10:00:00', config('app.timezone'));
+    $alternative = Carbon::parse('2026-07-13 11:30:00', config('app.timezone'));
+    $request = AppointmentRequest::factory()->linked()->create([
+        'scheduled_at' => $primary,
+        'alternative_scheduled_times' => [$alternative->toISOString()],
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListAppointmentRequests::class)
+        ->assertSee('Jul 13, 10:00 AM')
+        ->assertSee('Jul 13, 11:30 AM');
 });
 
 test('request queue shows availability beside each pending preferred time', function () {
@@ -270,7 +286,7 @@ test('resolved requests keep preferred times without live availability indicator
     $this->actingAs($staff);
 
     Livewire::test(ListAppointmentRequests::class)
-        ->assertSee(Carbon::parse($request->getAllTimePreferences()[0])->format('M j, g:i A'))
+        ->assertSee(Carbon::parse($request->getAllTimePreferences()[0])->setTimezone(config('app.timezone'))->format('M j, g:i A'))
         ->assertDontSee('Available')
         ->assertDontSee('No submitted times available');
 });

@@ -8,6 +8,7 @@ use Database\Factories\AppointmentFactory;
 use Guava\Calendar\Contracts\Eventable;
 use Guava\Calendar\ValueObjects\CalendarEvent;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -88,21 +89,17 @@ class Appointment extends Model implements Eventable
         };
 
         $title = $this->patient?->full_name ?? 'Appointment';
-        $phone = $this->patient?->phone;
-        $reason = $this->appointmentType?->name;
+        $appointmentType = $this->appointmentType?->name;
 
-        if ($phone) {
-            $title .= " · {$phone}";
-        }
-
-        if ($reason) {
-            $title .= " — {$reason}";
+        if ($appointmentType) {
+            $title .= " — {$appointmentType}";
         }
 
         return CalendarEvent::make($this)
             ->title($title)
             ->start($this->scheduled_at)
             ->end($this->scheduled_at->copy()->addMinutes($this->duration_minutes ?? 30))
+            ->classNames(['appointment-calendar-event'])
             ->backgroundColor($color);
     }
 
@@ -204,7 +201,7 @@ class Appointment extends Model implements Eventable
     }
 
     /**
-     * Whether a non-cancelled appointment overlaps with the given time range.
+     * Whether a blocking appointment overlaps with the given time range.
      *
      * Uses the existing appointment's booked duration_minutes snapshot for its
      * end time, and the provided $durationMinutes for the proposed slot's end time.
@@ -218,7 +215,10 @@ class Appointment extends Model implements Eventable
         $proposedEnd = $at->copy()->addMinutes($durationMinutes);
 
         return static::query()
-            ->whereHas('status', fn ($query) => $query->where('name', '!=', 'cancelled'))
+            ->whereHas('status', fn (Builder $query): Builder => $query->whereIn('name', [
+                AppointmentStatusName::Scheduled->value,
+                AppointmentStatusName::CheckedIn->value,
+            ]))
             ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
             // Overlap: existing_start < proposed_end AND proposed_start < existing_end
             ->where('scheduled_at', '<', $proposedEnd)

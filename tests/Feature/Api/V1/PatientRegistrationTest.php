@@ -7,6 +7,7 @@ use App\Models\PatientAccountContact;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -289,6 +290,66 @@ test('registration rejects an already-owned phone without issuing a token or con
 
     expect(User::count())->toBe($userCount)
         ->and($existingUser->fresh()->tokens()->count())->toBe(0)
+        ->and($proof->fresh()->consumed_at)->toBeNull();
+});
+
+test('registration converts a duplicate contact race into an ownership conflict', function () {
+    $phone = '+639170123456';
+    $existingUser = User::factory()->patient()->create();
+    $phoneHash = app(CreateContactLookupHash::class)->forPhone($phone);
+    $code = '123456';
+    $challenge = OtpChallenge::factory()->pending()->create([
+        'code_digest' => Hash::make($code),
+        'purpose' => OtpPurpose::Registration,
+        'channel' => 'phone',
+        'encrypted_destination' => $phone,
+        'destination_hash' => $phoneHash,
+    ]);
+
+    $verifyResponse = $this->postJson('/api/v1/auth/registration/verify', [
+        'challenge_id' => $challenge->public_id,
+        'code' => $code,
+    ]);
+
+    $verifyResponse->assertOk();
+    $registrationToken = $verifyResponse->json('data.registration_token');
+    $proof = OtpChallenge::where('public_id', $registrationToken)->firstOrFail();
+    $eventName = 'eloquent.created: '.User::class;
+
+    Event::listen($eventName, function (User $created) use ($phone, $existingUser): void {
+        if ($created->phone !== $phone) {
+            return;
+        }
+
+        PatientAccountContact::factory()
+            ->phone($phone)
+            ->verified()
+            ->primary()
+            ->create(['user_id' => $existingUser->id]);
+    });
+
+    try {
+        $response = $this->postJson('/api/v1/auth/register', [
+            'registration_token' => $registrationToken,
+            'first_name' => 'New',
+            'last_name' => 'Account',
+            'date_of_birth' => '1990-05-15',
+            'password' => 'securepassword123',
+            'password_confirmation' => 'securepassword123',
+            'privacy_policy_version' => config('app.privacy_policy_version'),
+            'terms_version' => config('app.terms_version'),
+        ]);
+    } finally {
+        Event::forget($eventName);
+    }
+
+    $response->assertUnprocessable()
+        ->assertJsonPath('error.code', 'CONTACT_ALREADY_OWNED')
+        ->assertJsonPath('error.message', 'This phone number is already registered.')
+        ->assertJsonMissingPath('data.token');
+
+    expect(User::query()->where('phone', $phone)->exists())->toBeFalse()
+        ->and(PatientAccountContact::query()->where('lookup_hash', $phoneHash)->exists())->toBeFalse()
         ->and($proof->fresh()->consumed_at)->toBeNull();
 });
 
