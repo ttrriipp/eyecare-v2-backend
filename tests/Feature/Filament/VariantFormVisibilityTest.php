@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProductUsage;
 use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\RelationManagers\VariantsRelationManager;
@@ -11,6 +12,7 @@ use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -32,6 +34,112 @@ test('new generic product details start with one empty row', function (string $p
         ->assertSet('data.generic_default_details', [
             ['key' => '', 'value' => ''],
         ]);
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('contact lenses and accessories expose approved usage options', function (string $productType): void {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->set('data.product_type', $productType)
+        ->assertFormFieldExists('usage', function (Select $field): bool {
+            expect($field->getOptions())->toBe([
+                '1_day' => '1 Day',
+                '1_month' => '1 Month',
+                '3_months' => '3 Months',
+                '6_months' => '6 Months',
+                '1_year' => '1 Year',
+            ]);
+
+            return true;
+        })
+        ->assertFormFieldVisible('usage');
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('usage is required for contact lenses and accessories', function (string $productType): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => $productType,
+            'name' => "Test {$productType}",
+            'slug' => "test-{$productType}",
+            'brand_id' => $brand->id,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['usage' => 'required']);
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('usage rejects unapproved periods', function (string $productType): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => $productType,
+            'name' => "Test {$productType} with invalid usage",
+            'slug' => "test-{$productType}-invalid-usage",
+            'brand_id' => $brand->id,
+            'usage' => '2_years',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['usage']);
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('selected usage is saved for contact lenses and accessories', function (string $productType): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => $productType,
+            'name' => "Test {$productType} with usage",
+            'slug' => "test-{$productType}-with-usage",
+            'brand_id' => $brand->id,
+            'usage' => '3_months',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    expect(Product::query()
+        ->where('slug', "test-{$productType}-with-usage")
+        ->firstOrFail()
+        ->getRawOriginal('usage'))->toBe('3_months');
+})->with([
+    'contact lens' => 'contact_lens',
+    'accessory' => 'accessory',
+]);
+
+test('switching a generic product back to a frame clears usage', function (): void {
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->set('data.product_type', 'contact_lens')
+        ->set('data.usage', '1_month')
+        ->set('data.product_type', 'frame')
+        ->assertSet('data.usage', null)
+        ->assertFormFieldHidden('usage');
+});
+
+test('saved usage hydrates when editing contact lenses and accessories', function (string $productType): void {
+    $product = Product::factory()->create([
+        'product_type' => $productType,
+        'usage' => ProductUsage::SixMonths,
+    ]);
+
+    Livewire::actingAs($this->user)
+        ->test(EditProduct::class, ['record' => $product->id])
+        ->assertSet('data.usage', '6_months');
 })->with([
     'contact lens' => 'contact_lens',
     'accessory' => 'accessory',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductUsage;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +21,7 @@ use Illuminate\Support\Str;
     'description',
     'is_active',
     'product_type',
+    'usage',
     'images',
     'default_variant_attributes',
 ])]
@@ -33,6 +35,16 @@ class Product extends Model
         'frame' => 'Frame',
         'contact_lens' => 'Contact Lens',
         'accessory' => 'Accessory',
+    ];
+
+    /**
+     * Product types that require a usage period.
+     *
+     * @var list<string>
+     */
+    public const array USAGE_TRACKED_TYPES = [
+        'contact_lens',
+        'accessory',
     ];
 
     /**
@@ -138,6 +150,7 @@ class Product extends Model
     {
         return [
             'is_active' => 'boolean',
+            'usage' => ProductUsage::class,
             'images' => 'array',
             'default_variant_attributes' => 'array',
         ];

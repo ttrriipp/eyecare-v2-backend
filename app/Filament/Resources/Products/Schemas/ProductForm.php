@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Enums\ProductUsage;
 use App\Models\Product;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\KeyValue;
@@ -17,6 +18,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ProductForm
 {
@@ -84,6 +86,10 @@ class ProductForm
             );
         }
 
+        if (! self::isUsageTrackedProduct($productType)) {
+            $data['usage'] = null;
+        }
+
         unset(
             $data['generic_default_details'],
             $data['frame_default_attributes'],
@@ -110,6 +116,7 @@ class ProductForm
                                 ->live()
                                 ->afterStateUpdated(function (Set $set, ?string $state): void {
                                     if ($state === 'frame') {
+                                        $set('usage', null);
                                         $set('frame_default_attributes', []);
                                         $set('frame_other_details', self::emptyKeyValueRows());
                                         $set('generic_default_details', []);
@@ -122,10 +129,23 @@ class ProductForm
                                         $set('generic_default_details', self::emptyKeyValueRows());
                                         $set('frame_default_attributes', []);
                                         $set('frame_other_details', []);
+
+                                        return;
                                     }
+
+                                    $set('usage', null);
                                 })
                                 ->disabledOn('edit')
                                 ->dehydrated()
+                                ->columnSpanFull(),
+                            Select::make('usage')
+                                ->label('Usage')
+                                ->options(ProductUsage::options())
+                                ->helperText('How long the product is used before replacement or replenishment.')
+                                ->nullable()
+                                ->rules([Rule::enum(ProductUsage::class)])
+                                ->required(fn (Get $get): bool => self::isUsageTrackedProduct($get('product_type')))
+                                ->visible(fn (Get $get): bool => self::isUsageTrackedProduct($get('product_type')))
                                 ->columnSpanFull(),
                             TextInput::make('name')
                                 ->required()
@@ -279,6 +299,12 @@ class ProductForm
         return [
             ['key' => '', 'value' => ''],
         ];
+    }
+
+    private static function isUsageTrackedProduct(mixed $productType): bool
+    {
+        return is_string($productType)
+            && in_array($productType, Product::USAGE_TRACKED_TYPES, true);
     }
 
     /**
