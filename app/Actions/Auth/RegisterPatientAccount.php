@@ -5,7 +5,9 @@ namespace App\Actions\Auth;
 use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Enums\OtpPurpose;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\OtpChallenge;
 use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
@@ -345,6 +347,13 @@ class RegisterPatientAccount
             throw ValidationException::withMessages([
                 'invitation_code' => ['The patient record is already linked to another account.'],
             ]);
+        }
+
+        // Identity compatibility check
+        $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
+
+        if (! $match->isEligible()) {
+            throw new PatientIdentityMismatchException;
         }
 
         $patient->update(['user_id' => $user->id]);

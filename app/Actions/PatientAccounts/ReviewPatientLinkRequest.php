@@ -19,6 +19,7 @@ class ReviewPatientLinkRequest
         private readonly ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
         private readonly PatientLinkIdentitySnapshot $identitySnapshot,
         private readonly AssociateAccountConversation $associateAccountConversation,
+        private readonly PatientAccountIdentityMatcher $identityMatcher,
     ) {}
 
     public function approve(
@@ -66,6 +67,15 @@ class ReviewPatientLinkRequest
                     'stale' => true,
                     'request' => null,
                 ];
+            }
+
+            // Identity compatibility check
+            $match = $this->identityMatcher->handle($account, $patient);
+
+            if (! $match->isEligible()) {
+                throw ValidationException::withMessages([
+                    'patient' => ['The account details do not match this patient record.'],
+                ]);
             }
 
             $patient->update(['user_id' => $account->id]);

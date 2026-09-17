@@ -8,6 +8,7 @@ use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\AuditEvent;
 use App\Enums\OtpPurpose;
 use App\Enums\PatientInvitationStatus;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
 use App\Models\Role;
@@ -147,6 +148,20 @@ class AcceptPatientInvitation
                     'verified_at' => now(),
                     'is_primary' => true,
                 ]);
+            }
+
+            // Identity compatibility check
+            $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
+
+            if (! $match->isEligible()) {
+                throw new PatientIdentityMismatchException;
+            }
+
+            // Identity compatibility check
+            $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
+
+            if (! $match->isEligible()) {
+                throw new PatientIdentityMismatchException;
             }
 
             $patient->update(['user_id' => $user->id]);

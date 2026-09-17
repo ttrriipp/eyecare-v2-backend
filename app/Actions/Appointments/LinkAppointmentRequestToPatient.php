@@ -4,6 +4,7 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\AssociateAccountConversation;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
@@ -111,6 +112,15 @@ class LinkAppointmentRequestToPatient
         }
 
         if ($patient->user_id === null) {
+            // Identity compatibility check
+            $match = app(PatientAccountIdentityMatcher::class)->handle($account, $patient);
+
+            if (! $match->isEligible()) {
+                throw ValidationException::withMessages([
+                    'patient' => ['The account details do not match this patient record.'],
+                ]);
+            }
+
             $patient->update(['user_id' => $account->id]);
         }
 

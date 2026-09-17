@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Patients\Pages;
 
 use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\IssuePatientInvitation;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -230,6 +231,17 @@ class EditPatient extends EditRecord
 
                     // Activate the link
                     DB::transaction(function () use ($patient, $user): void {
+                        // Identity compatibility check
+                        $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
+
+                        if (! $match->isEligible()) {
+                            Notification::make()
+                                ->title('Account details do not match this patient record')
+                                ->danger()
+                                ->send();
+                            $this->halt();
+                        }
+
                         $patient->update(['user_id' => $user->id]);
                         app(AssociateAccountConversation::class)->handle($user, $patient);
                     });
