@@ -9,6 +9,19 @@ keeps its own feature-named pair and this file points at whichever is active.
 
 ## Active
 
+**Patient-Account Link Identity Safety** — plan proposed 2026-09-17
+
+- Spec: `docs/specs/patient-account-link-identity-safety-spec.md`
+- Plan: `tasks/patient-account-link-identity-safety-plan.md`
+- Checklist: `tasks/patient-account-link-identity-safety-todo.md`
+
+The proposed plan makes identity compatibility a non-overridable link-time
+invariant across every account-link path. Later identity drift keeps the link
+active but creates an explicit staff review. Implementation remains paused
+until the project owner approves the specification, plan, and checklist.
+
+## Previous active entry (preserved)
+
 **Appointment-Request Rebooking** — implementation approved 2026-09-08
 
 - Spec: `docs/specs/appointment-request-rebooking-spec.md` (approved
@@ -23,7 +36,7 @@ staff approve the replacement time through the existing Appointment Requests
 resource. Implementation is sequenced across three tasks with a review after
 each checkpoint.
 
-## Previous active entry (preserved)
+## Earlier active entry (preserved)
 
 **Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
 

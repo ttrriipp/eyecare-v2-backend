@@ -3,6 +3,7 @@
 use App\Exceptions\ActiveAppointmentExistsException;
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\OtpRateLimitReached;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Http\Middleware\ConfigureTrustedProxies;
 use App\Http\Middleware\RejectPhoneAuthenticationDuringPilot;
 use App\Http\Middleware\RequireActivePatientLink;
@@ -77,6 +78,19 @@ return Application::configure(basePath: dirname(__DIR__))
                     'message' => $exception->getMessage(),
                     'appointment_id' => $exception->appointmentId,
                     'appointment_status' => $exception->appointmentStatus,
+                ],
+            ], 422);
+        });
+
+        $exceptions->render(function (PatientIdentityMismatchException $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'PATIENT_IDENTITY_MISMATCH',
+                    'message' => $exception->getMessage(),
                 ],
             ], 422);
         });

@@ -112,11 +112,34 @@ class Patient extends Model
     }
 
     /**
-     * @return HasMany<Prescription, $this>
+     * @return HasMany<Conversation, $this>
      */
-    public function prescriptions(): HasMany
+    public function conversations(): HasMany
     {
-        return $this->hasMany(Prescription::class);
+        return $this->hasMany(Conversation::class);
+    }
+
+    public function markForIdentityReview(): void
+    {
+        if (! $this->identity_review_required) {
+            $this->identity_review_required = true;
+            $this->identity_review_required_at = now();
+            $this->saveQuietly();
+        }
+    }
+
+    public function clearIdentityReview(): void
+    {
+        if ($this->identity_review_required) {
+            $this->identity_review_required = false;
+            $this->identity_review_required_at = null;
+            $this->saveQuietly();
+        }
+    }
+
+    public function isLinked(): bool
+    {
+        return $this->user_id !== null;
     }
 
     /**
@@ -187,6 +210,8 @@ class Patient extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'identity_review_required' => 'boolean',
+            'identity_review_required_at' => 'datetime',
         ];
     }
 }

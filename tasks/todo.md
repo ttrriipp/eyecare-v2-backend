@@ -1,5 +1,16 @@
 # Active Checklist
 
+**Patient-Account Link Identity Safety** — plan proposed 2026-09-17
+
+→ `tasks/patient-account-link-identity-safety-todo.md`
+
+The proposed 14-task plan centralizes all link writes behind deterministic
+identity verification, flags later drift without disrupting patient access,
+and includes existing-link reconciliation. Implementation remains paused until
+the project owner approves the spec, plan, and checklist.
+
+The previous active checklist remains:
+
 **Appointment-Request Rebooking** — implementation approved 2026-09-08
 
 → `tasks/appointment-request-rebooking-todo.md`
@@ -8,7 +19,7 @@ The short specification and three-task plan are approved. The implementation
 keeps the current appointment active while a new linked appointment request is
 reviewed and preserves the original booking request.
 
-The previous active checklist remains:
+The earlier active checklist remains:
 
 **Capstone Pilot Deployment Readiness** — plan proposed 2026-09-06
 
