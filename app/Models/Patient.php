@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -60,6 +61,22 @@ class Patient extends Model
                 $patient->contact_email_lookup_hash = filled($patient->contact_email)
                     ? app(CreateContactLookupHash::class)->forEmail($patient->contact_email)
                     : null;
+            }
+
+            // Check for identity drift if linked and identity-relevant fields changed
+            if ($patient->user_id !== null
+                && ($patient->isDirty('first_name') || $patient->isDirty('last_name')
+                    || $patient->isDirty('date_of_birth') || $patient->isDirty('phone')
+                    || $patient->isDirty('contact_email'))) {
+                $account = $patient->user;
+                if ($account !== null) {
+                    $match = app(PatientAccountIdentityMatcher::class)->handle($account, $patient);
+                    if (! $match->isEligible() && ! $patient->identity_review_required) {
+                        $patient->identity_review_required = true;
+                        $patient->identity_review_required_at = now();
+                        // Defer audit to avoid circular dependency in saving event
+                    }
+                }
             }
         });
     }
@@ -156,16 +173,6 @@ class Patient extends Model
     public function jobOrders(): HasMany
     {
         return $this->hasMany(JobOrder::class);
-    }
-
-    /**
-     * Get all conversations (including historical after unlink).
-     *
-     * @return HasMany<Conversation, $this>
-     */
-    public function conversations(): HasMany
-    {
-        return $this->hasMany(Conversation::class);
     }
 
     /**

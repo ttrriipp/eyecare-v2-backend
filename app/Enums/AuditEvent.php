@@ -93,6 +93,8 @@ enum AuditEvent: string
     case PatientUpdated = 'patient.updated';
     case PatientAccountLinked = 'patient_account.linked';
     case PatientAccountUnlinked = 'patient_account_unlinked';
+    case PatientIdentityReviewRequired = 'patient.identity_review_required';
+    case PatientIdentityReviewResolved = 'patient.identity_review_resolved';
     case PatientLinkApproved = 'patient_link_request.approved';
     case PatientLinkRejected = 'patient_link_request.rejected';
     case PatientLinkRequestExpired = 'patient_link_request.expired';

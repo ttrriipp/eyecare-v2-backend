@@ -22,6 +22,7 @@ class UpdateAccountProfile
 
     public function __construct(
         private readonly ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
+        private readonly PatientAccountIdentityMatcher $identityMatcher,
         private readonly CreateAuditLog $createAuditLog,
     ) {}
 
@@ -49,6 +50,26 @@ class UpdateAccountProfile
                 account: $lockedAccount,
                 reason: 'account_identity_changed',
             );
+
+            // Check for identity drift if linked
+            $linkedPatient = $lockedAccount->patient;
+            if ($linkedPatient !== null && $linkedPatient->user_id === $lockedAccount->id) {
+                $match = $this->identityMatcher->handle($lockedAccount, $linkedPatient);
+                if (! $match->isEligible()) {
+                    $linkedPatient->markForIdentityReview();
+                    $this->createAuditLog->handle(
+                        subject: $linkedPatient,
+                        action: AuditEvent::PatientIdentityReviewRequired,
+                        metadata: [
+                            'reason' => 'account_profile_changed',
+                            'changed_fields' => $changedFields,
+                            'mismatched_fields' => $match->mismatchedFields,
+                            'missing_fields' => $match->missingFields,
+                        ],
+                        actorId: $lockedAccount->id,
+                    );
+                }
+            }
 
             $metadata = [
                 'changed_fields' => $changedFields,
