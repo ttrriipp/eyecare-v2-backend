@@ -124,39 +124,13 @@ class EncounterForm
                         $livewire->saveDraft(1);
                     }),
 
-                Step::make('Examination')
+                Step::make('Examination & Prescription')
                     ->schema([
                         Textarea::make('findings')
                             ->label('Examination Findings')
                             ->required()
                             ->validationAttribute('Examination Findings')
                             ->rows(6)
-                            ->columnSpanFull()
-                            ->disabled(self::isClinicalFieldDisabled()),
-                        Textarea::make('supporting_test_results')
-                            ->label('Supporting Test Results')
-                            ->rows(4)
-                            ->columnSpanFull()
-                            ->disabled(self::isClinicalFieldDisabled()),
-                    ])
-                    ->afterValidation(function (EditEncounter $livewire): void {
-                        $livewire->saveDraft(2);
-                    }),
-
-                Step::make('Assessment & Plan')
-                    ->schema([
-                        Textarea::make('assessment')
-                            ->label('Assessment')
-                            ->required()
-                            ->validationAttribute('Assessment')
-                            ->rows(4)
-                            ->columnSpanFull()
-                            ->disabled(self::isClinicalFieldDisabled()),
-                        Textarea::make('plan')
-                            ->label('Plan')
-                            ->required()
-                            ->validationAttribute('Plan')
-                            ->rows(4)
                             ->columnSpanFull()
                             ->disabled(self::isClinicalFieldDisabled()),
                         Section::make('Prescription (Optional)')
@@ -169,7 +143,7 @@ class EncounterForm
                     ])
                     ->columns(2)
                     ->afterValidation(function (EditEncounter $livewire): void {
-                        $livewire->saveDraft(3);
+                        $livewire->saveDraft(2);
                     }),
 
                 Step::make('Review & Complete')
@@ -241,28 +215,6 @@ class EncounterForm
                                     ->label('Findings')
                                     ->content(fn (Get $get, Encounter $record): string => self::formValue(
                                         $get, 'findings', $record->findings,
-                                    ))
-                                    ->columnSpanFull(),
-                                Placeholder::make('summary_supporting_test_results')
-                                    ->label('Supporting Test Results')
-                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get, 'supporting_test_results', $record->supporting_test_results,
-                                    ))
-                                    ->columnSpanFull(),
-                            ]),
-
-                        Section::make('Assessment & Plan')
-                            ->schema([
-                                Placeholder::make('summary_assessment')
-                                    ->label('Assessment')
-                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get, 'assessment', $record->assessment,
-                                    ))
-                                    ->columnSpanFull(),
-                                Placeholder::make('summary_plan')
-                                    ->label('Plan')
-                                    ->content(fn (Get $get, Encounter $record): string => self::formValue(
-                                        $get, 'plan', $record->plan,
                                     ))
                                     ->columnSpanFull(),
                             ]),
@@ -467,23 +419,6 @@ class EncounterForm
                     Placeholder::make('view_findings')
                         ->label('Findings')
                         ->content(fn (Encounter $record): string => $record->findings ?? '—')
-                        ->columnSpanFull(),
-                    Placeholder::make('view_supporting_test_results')
-                        ->label('Supporting Test Results')
-                        ->content(fn (Encounter $record): string => $record->supporting_test_results ?? '—')
-                        ->columnSpanFull(),
-                ]),
-
-            Section::make('Assessment & Plan')
-                ->visible(fn (Encounter $record): bool => ! in_array($record->status, [EncounterStatus::Planned, EncounterStatus::InProgress], true))
-                ->schema([
-                    Placeholder::make('view_assessment')
-                        ->label('Assessment')
-                        ->content(fn (Encounter $record): string => $record->assessment ?? '—')
-                        ->columnSpanFull(),
-                    Placeholder::make('view_plan')
-                        ->label('Plan')
-                        ->content(fn (Encounter $record): string => $record->plan ?? '—')
                         ->columnSpanFull(),
                 ]),
 

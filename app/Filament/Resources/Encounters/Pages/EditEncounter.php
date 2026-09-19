@@ -112,7 +112,7 @@ class EditEncounter extends EditRecord
      */
     protected function getSavedStep(): int
     {
-        return $this->record->last_wizard_step ?? 1;
+        return min($this->record->last_wizard_step ?? 1, 3);
     }
 
     /**

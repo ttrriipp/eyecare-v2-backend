@@ -140,10 +140,10 @@ test('in-progress encounter shows only the consultation wizard', function () {
         ->assertWizardStepExists(1)
         ->assertWizardStepExists(2)
         ->assertWizardStepExists(3)
-        ->assertWizardStepExists(4)
         ->assertFormFieldExists('prescription.main_od_sphere')
-        ->assertFormFieldExists('assessment')
-        ->assertFormFieldExists('plan')
+        ->assertFormFieldDoesNotExist('supporting_test_results')
+        ->assertFormFieldDoesNotExist('assessment')
+        ->assertFormFieldDoesNotExist('plan')
         ->assertSee('Save & Continue')
         ->assertSee('Back')
         ->assertDontSee('Save changes')
@@ -153,6 +153,8 @@ test('in-progress encounter shows only the consultation wizard', function () {
     expect($component->html())->toMatch(
         '/<button\b(?=[^>]*fi-size-md)(?=[^>]*fi-ac-btn-action)(?=[^>]*fi-color-success)[^>]*>.*?Complete Visit.*?<\/button>/s',
     );
+
+    expect($component->html())->toContain('Examination &amp; Prescription');
 });
 
 test('save and continue persists the current step without completing the encounter', function () {

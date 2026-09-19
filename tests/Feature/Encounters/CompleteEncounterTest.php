@@ -142,25 +142,20 @@ test('completion requires findings', function () {
     );
 })->throws(ValidationException::class);
 
-test('completion requires assessment', function () {
+test('completion succeeds without assessment or plan', function () {
     [$encounter] = createTestEncounter();
-    $encounter->update(['assessment' => null]);
+    $encounter->update([
+        'assessment' => null,
+        'plan' => null,
+    ]);
 
-    app(CompleteEncounter::class)->handle(
+    $result = app(CompleteEncounter::class)->handle(
         encounter: $encounter->fresh(),
         actor: $this->optometrist,
     );
-})->throws(ValidationException::class);
 
-test('completion requires plan', function () {
-    [$encounter] = createTestEncounter();
-    $encounter->update(['plan' => null]);
-
-    app(CompleteEncounter::class)->handle(
-        encounter: $encounter->fresh(),
-        actor: $this->optometrist,
-    );
-})->throws(ValidationException::class);
+    expect($result->status)->toBe(EncounterStatus::Completed);
+});
 
 test('completion succeeds without prescription', function () {
     [$encounter] = createTestEncounter();

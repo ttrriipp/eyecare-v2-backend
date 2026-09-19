@@ -23,8 +23,6 @@ class CompleteEncounter
     private const array REQUIRED_FIELDS = [
         'chief_complaint',
         'findings',
-        'assessment',
-        'plan',
     ];
 
     /**
