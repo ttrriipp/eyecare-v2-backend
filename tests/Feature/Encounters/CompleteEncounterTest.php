@@ -33,8 +33,6 @@ function createTestEncounter(?User $optometrist = null): array
         'optometrist_id' => $optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
 
     $encounter = app(StartEncounter::class)->handle(
@@ -142,12 +140,8 @@ test('completion requires findings', function () {
     );
 })->throws(ValidationException::class);
 
-test('completion succeeds without assessment or plan', function () {
+test('completion succeeds with the required clinical fields', function () {
     [$encounter] = createTestEncounter();
-    $encounter->update([
-        'assessment' => null,
-        'plan' => null,
-    ]);
 
     $result = app(CompleteEncounter::class)->handle(
         encounter: $encounter->fresh(),

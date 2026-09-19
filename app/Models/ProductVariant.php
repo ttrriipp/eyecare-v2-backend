@@ -204,7 +204,7 @@ class ProductVariant extends Model
         }
 
         $lot = $this->inventoryLotsForDisplay()
-            ->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf))
+            ->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf) && $lot->expires_on !== null)
             ->sortBy(fn (InventoryLot $lot): array => [
                 $lot->expires_on->toDateString(),
                 $lot->id,
@@ -212,6 +212,23 @@ class ProductVariant extends Model
             ->first();
 
         return $lot?->expires_on?->toImmutable();
+    }
+
+    public function earliestExpiryWarningDate(?CarbonInterface $asOf = null): ?CarbonImmutable
+    {
+        if (! $this->isExpiryTracked()) {
+            return null;
+        }
+
+        $lot = $this->inventoryLotsForDisplay()
+            ->filter(fn (InventoryLot $lot): bool => $lot->isAvailable($asOf) && $lot->expires_on !== null)
+            ->sortBy(fn (InventoryLot $lot): array => [
+                $lot->expires_on?->toDateString() ?? '',
+                $lot->id,
+            ])
+            ->first();
+
+        return $lot?->expiringSoonDate();
     }
 
     public function expiryStatus(?CarbonInterface $asOf = null): ?string
@@ -233,14 +250,8 @@ class ProductVariant extends Model
             return 'expired';
         }
 
-        $warningDays = max(0, (int) config(
-            'inventory.contact_lens_expiry_warning_days',
-            InventoryLot::EXPIRY_WARNING_DAYS,
-        ));
-        $warningEnd = self::asOfDate($asOf)->addDays($warningDays);
-
         return $usableLots->contains(
-            fn (InventoryLot $lot): bool => $lot->expires_on->toDateString() <= $warningEnd->toDateString(),
+            fn (InventoryLot $lot): bool => $lot->isExpiringSoon($asOf),
         ) ? 'expiring_soon' : 'good';
     }
 

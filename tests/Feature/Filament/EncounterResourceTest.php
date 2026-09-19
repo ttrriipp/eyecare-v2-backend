@@ -197,7 +197,7 @@ test('encounter wizard saves prescription draft during step navigation', functio
         ->and($encounter->last_wizard_step)->toBe(1);
 });
 
-test('encounter wizard step four summarizes the overall consultation', function () {
+test('encounter wizard review step summarizes the consultation', function () {
     $optometrist = User::factory()->optometrist()->create();
     $patient = Patient::factory()->create([
         'first_name' => 'Maria',
@@ -324,8 +324,6 @@ test('in-progress encounter can complete the visit from the wizard confirmation 
         'optometrist_id' => $optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
 
     $this->actingAs($optometrist);

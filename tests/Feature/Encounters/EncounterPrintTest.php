@@ -24,8 +24,6 @@ test('authorized panel user can print completed encounter', function () {
         'completed_by' => $this->optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
 
     $this->actingAs($this->optometrist);
@@ -36,9 +34,7 @@ test('authorized panel user can print completed encounter', function () {
         ->assertDontSee('Encounter Details')
         ->assertSee($encounter->encounter_number)
         ->assertSee('Blurred vision')
-        ->assertSee('Normal anterior segment')
-        ->assertSee('Myopia progression')
-        ->assertSee('Update prescription');
+        ->assertSee('Normal anterior segment');
 });
 
 test('staff can print completed encounter', function () {

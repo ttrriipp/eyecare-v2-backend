@@ -45,8 +45,6 @@ test('assigned optometrist can save in-progress draft', function () {
         data: [
             'chief_complaint' => 'Blurred vision',
             'findings' => null,
-            'assessment' => null,
-            'plan' => null,
         ],
         lastWizardStep: 1,
     );
@@ -169,23 +167,19 @@ test('last_wizard_step rejects value 5', function () {
 test('incomplete draft is valid without required completion fields', function () {
     $encounter = createInProgressEncounter($this->optometrist, $this->staff);
 
-    // Save a draft with only chief_complaint - no findings, assessment, or plan
+    // Save a draft with only chief_complaint and no findings.
     $encounter = app(SaveEncounterDraft::class)->handle(
         encounter: $encounter,
         actor: $this->optometrist,
         data: [
             'chief_complaint' => 'Eye strain',
             'findings' => null,
-            'assessment' => null,
-            'plan' => null,
         ],
         lastWizardStep: 1,
     );
 
     expect($encounter->chief_complaint)->toBe('Eye strain')
-        ->and($encounter->findings)->toBeNull()
-        ->and($encounter->assessment)->toBeNull()
-        ->and($encounter->plan)->toBeNull();
+        ->and($encounter->findings)->toBeNull();
 });
 
 test('draft saves all clinical fields', function () {
@@ -202,12 +196,9 @@ test('draft saves all clinical fields', function () {
             'allergies' => 'Penicillin',
             'medications' => 'Lisinopril',
             'findings' => 'Normal anterior segment',
-            'supporting_test_results' => 'Tonometry: 15mmHg',
             'remarks' => 'Patient cooperative',
-            'assessment' => 'Myopia progression',
-            'plan' => 'Update prescription',
         ],
-        lastWizardStep: 3,
+        lastWizardStep: 2,
     );
 
     expect($encounter->chief_complaint)->toBe('Blurred vision')
@@ -217,11 +208,8 @@ test('draft saves all clinical fields', function () {
         ->and($encounter->allergies)->toBe('Penicillin')
         ->and($encounter->medications)->toBe('Lisinopril')
         ->and($encounter->findings)->toBe('Normal anterior segment')
-        ->and($encounter->supporting_test_results)->toBe('Tonometry: 15mmHg')
         ->and($encounter->remarks)->toBe('Patient cooperative')
-        ->and($encounter->assessment)->toBe('Myopia progression')
-        ->and($encounter->plan)->toBe('Update prescription')
-        ->and($encounter->last_wizard_step)->toBe(3);
+        ->and($encounter->last_wizard_step)->toBe(2);
 });
 
 test('cannot save draft on planned encounter', function () {
@@ -259,19 +247,16 @@ test('clinical fields remain encrypted after save', function () {
         actor: $this->optometrist,
         data: [
             'chief_complaint' => 'Sensitive clinical data',
-            'assessment' => 'Confidential assessment',
         ],
-        lastWizardStep: 3,
+        lastWizardStep: 2,
     );
 
     $raw = DB::table('encounters')
         ->where('id', $encounter->id)
         ->first();
 
-    expect($raw->chief_complaint)->not->toBe('Sensitive clinical data')
-        ->and($raw->assessment)->not->toBe('Confidential assessment');
+    expect($raw->chief_complaint)->not->toBe('Sensitive clinical data');
 
     $fresh = Encounter::find($encounter->id);
-    expect($fresh->chief_complaint)->toBe('Sensitive clinical data')
-        ->and($fresh->assessment)->toBe('Confidential assessment');
+    expect($fresh->chief_complaint)->toBe('Sensitive clinical data');
 });

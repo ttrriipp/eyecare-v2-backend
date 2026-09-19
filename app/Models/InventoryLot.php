@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductUsage;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Database\Factories\InventoryLotFactory;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use InvalidArgumentException;
 
 #[Fillable([
     'product_variant_id',
@@ -29,7 +29,7 @@ class InventoryLot extends Model
     /** @use HasFactory<InventoryLotFactory> */
     use HasFactory;
 
-    public const EXPIRY_WARNING_DAYS = 90;
+    public const int EXPIRY_WARNING_BUFFER_MONTHS = 2;
 
     /**
      * @return BelongsTo<ProductVariant, $this>
@@ -90,28 +90,49 @@ class InventoryLot extends Model
      */
     public function scopeExpiringSoon(
         Builder $query,
-        ?int $days = null,
         ?CarbonInterface $asOf = null,
     ): void {
-        $days ??= (int) config(
-            'inventory.contact_lens_expiry_warning_days',
-            self::EXPIRY_WARNING_DAYS,
-        );
-
-        if ($days < 0) {
-            throw new InvalidArgumentException('Expiry warning days must be zero or greater.');
-        }
-
         $start = self::asOfDate($asOf);
-        $end = $start->addDays($days);
 
         $query
             ->available()
             ->whereNotNull('expires_on')
-            ->whereBetween('expires_on', [
-                $start->toDateString(),
-                $end->toDateString(),
-            ]);
+            ->where(function (Builder $lotQuery) use ($start): void {
+                foreach (ProductUsage::cases() as $usage) {
+                    $end = $usage->addToDate($start)
+                        ->addMonthsNoOverflow(self::expiryWarningBufferMonths());
+
+                    $lotQuery->orWhere(function (Builder $usageLotQuery) use ($start, $end, $usage): void {
+                        $usageLotQuery
+                            ->whereBetween('expires_on', [
+                                $start->toDateString(),
+                                $end->toDateString(),
+                            ])
+                            ->whereHas(
+                                'variant.product',
+                                fn (Builder $productQuery): Builder => $productQuery->where('usage', $usage->value),
+                            );
+                    });
+                }
+            });
+    }
+
+    public function expiringSoonDate(): ?CarbonImmutable
+    {
+        $usage = $this->variant?->product?->usage;
+
+        if (! $this->expires_on instanceof CarbonInterface || ! $usage instanceof ProductUsage) {
+            return null;
+        }
+
+        return $usage->subtractFromDate($this->expires_on)
+            ->subMonthsNoOverflow(self::expiryWarningBufferMonths());
+    }
+
+    public function isExpiringSoon(?CarbonInterface $asOf = null): bool
+    {
+        return $this->isAvailable($asOf)
+            && ($this->expiringSoonDate()?->lessThanOrEqualTo(self::asOfDate($asOf)) ?? false);
     }
 
     public function isExpired(?CarbonInterface $asOf = null): bool
@@ -145,5 +166,13 @@ class InventoryLot extends Model
             ? CarbonImmutable::now()
             : CarbonImmutable::instance($asOf)
         )->startOfDay();
+    }
+
+    private static function expiryWarningBufferMonths(): int
+    {
+        return max(0, (int) config(
+            'inventory.expiry_warning_buffer_months',
+            self::EXPIRY_WARNING_BUFFER_MONTHS,
+        ));
     }
 }

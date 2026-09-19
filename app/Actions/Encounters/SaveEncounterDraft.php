@@ -20,10 +20,7 @@ class SaveEncounterDraft
         'allergies',
         'medications',
         'findings',
-        'supporting_test_results',
         'remarks',
-        'assessment',
-        'plan',
     ];
 
     /**

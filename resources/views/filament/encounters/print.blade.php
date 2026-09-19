@@ -214,24 +214,6 @@
                 <div class="field-label">Findings</div>
                 <div class="field-value">{{ $encounter->findings ?? '—' }}</div>
             </div>
-            <div class="field full-width">
-                <div class="field-label">Supporting Test Results</div>
-                <div class="field-value">{{ $encounter->supporting_test_results ?? '—' }}</div>
-            </div>
-        </div>
-    </section>
-
-    <section>
-        <h2>Assessment &amp; Plan</h2>
-        <div class="grid">
-            <div class="field full-width">
-                <div class="field-label">Assessment</div>
-                <div class="field-value">{{ $encounter->assessment ?? '—' }}</div>
-            </div>
-            <div class="field full-width">
-                <div class="field-label">Plan</div>
-                <div class="field-value">{{ $encounter->plan ?? '—' }}</div>
-            </div>
         </div>
     </section>
 

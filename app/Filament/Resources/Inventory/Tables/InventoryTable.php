@@ -127,6 +127,13 @@ class InventoryTable
                     ->placeholder('—')
                     ->visible(fn (?ProductVariant $record): bool => $record?->isExpiryTracked() ?? false),
 
+                TextColumn::make('expiry_warning_date')
+                    ->label('Expiring Soon Date')
+                    ->state(fn (ProductVariant $record): ?string => $record->earliestExpiryWarningDate()?->toDateString())
+                    ->date('M j, Y')
+                    ->placeholder('—')
+                    ->visible(fn (?ProductVariant $record): bool => $record?->isExpiryTracked() ?? false),
+
                 TextColumn::make('expiry_status')
                     ->label('Expiry Status')
                     ->state(fn (ProductVariant $record): ?string => $record->expiryStatusLabel())

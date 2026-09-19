@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProductUsage;
 use App\Models\InventoryLot;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -8,8 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
-
-beforeEach(fn () => config(['inventory.contact_lens_expiry_warning_days' => 90]));
 
 afterEach(fn () => Carbon::setTestNow());
 
@@ -54,7 +53,7 @@ test('inventory lot date scopes include the expiry date through the end of the d
     ]);
     $afterWindow = InventoryLot::factory()->for($variant, 'variant')->create([
         'lot_number' => 'LATER',
-        'expires_on' => '2026-11-27',
+        'expires_on' => '2026-11-29',
         'quantity_on_hand' => 2,
     ]);
     $expired = InventoryLot::factory()->for($variant, 'variant')->create([
@@ -96,21 +95,24 @@ test('a lot expiring today remains available while an earlier lot is expired', f
         ->and($expired->isAvailable())->toBeFalse();
 });
 
-test('the expiring-soon window uses the inventory configuration by default', function () {
+test('the expiring-soon window uses the product usage period and two-month buffer', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
-    config(['inventory.contact_lens_expiry_warning_days' => 0]);
-
-    $today = InventoryLot::factory()->create([
-        'expires_on' => '2026-08-28',
+    $product = Product::factory()->contactLens()->create([
+        'usage' => ProductUsage::ThreeMonths,
     ]);
-    $tomorrow = InventoryLot::factory()->create([
-        'expires_on' => '2026-08-29',
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $warningBoundary = InventoryLot::factory()->for($variant, 'variant')->create([
+        'expires_on' => '2027-01-28',
+    ]);
+    $afterBoundary = InventoryLot::factory()->for($variant, 'variant')->create([
+        'expires_on' => '2027-01-29',
     ]);
 
     expect(InventoryLot::query()->expiringSoon()->pluck('id')->all())
-        ->toEqual([$today->id])
-        ->and(InventoryLot::query()->expiringSoon(1)->pluck('id')->all())
-        ->toEqualCanonicalizing([$today->id, $tomorrow->id]);
+        ->toEqual([$warningBoundary->id])
+        ->and($warningBoundary->expiringSoonDate()?->toDateString())->toBe('2026-08-28')
+        ->and($afterBoundary->expiringSoonDate()?->toDateString())->toBe('2026-08-29');
 });
 
 test('contact lens variants derive usable stock and expiry status from their lots', function () {

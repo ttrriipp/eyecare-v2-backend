@@ -2,6 +2,8 @@
 
 namespace App\Enums;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Filament\Support\Contracts\HasLabel;
 
 enum ProductUsage: string implements HasLabel
@@ -20,6 +22,32 @@ enum ProductUsage: string implements HasLabel
             self::ThreeMonths => '3 Months',
             self::SixMonths => '6 Months',
             self::OneYear => '1 Year',
+        };
+    }
+
+    public function addToDate(CarbonInterface $date): CarbonImmutable
+    {
+        $date = CarbonImmutable::instance($date);
+
+        return match ($this) {
+            self::OneDay => $date->addDay(),
+            self::OneMonth => $date->addMonthNoOverflow(),
+            self::ThreeMonths => $date->addMonthsNoOverflow(3),
+            self::SixMonths => $date->addMonthsNoOverflow(6),
+            self::OneYear => $date->addMonthsNoOverflow(12),
+        };
+    }
+
+    public function subtractFromDate(CarbonInterface $date): CarbonImmutable
+    {
+        $date = CarbonImmutable::instance($date);
+
+        return match ($this) {
+            self::OneDay => $date->subDay(),
+            self::OneMonth => $date->subMonthNoOverflow(),
+            self::ThreeMonths => $date->subMonthsNoOverflow(3),
+            self::SixMonths => $date->subMonthsNoOverflow(6),
+            self::OneYear => $date->subMonthsNoOverflow(12),
         };
     }
 

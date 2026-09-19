@@ -35,8 +35,6 @@ function createInProgressForFilamentTransfer(?User $optometrist = null): Encount
         'optometrist_id' => $optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal',
-        'assessment' => 'Myopia',
-        'plan' => 'Update prescription',
     ]);
 
     return app(StartEncounter::class)->handle(

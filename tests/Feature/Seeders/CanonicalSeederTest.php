@@ -162,7 +162,7 @@ test('canonical seed data creates a complete secondary consultation', function (
         ->and($encounter->optometrist?->isOptometrist())->toBeTrue()
         ->and($encounter->status)->toBe(EncounterStatus::Completed)
         ->and($encounter->completed_by)->toBe($encounter->optometrist_id)
-        ->and($encounter->last_wizard_step)->toBe(4)
+        ->and($encounter->last_wizard_step)->toBe(3)
         ->and($encounter->draft_saved_at)->not->toBeNull()
         ->and($prescription->prescription_number)->toBe('RX-2026-000002')
         ->and($prescription->appointment_id)->toBe($encounter->appointment_id)
@@ -177,9 +177,6 @@ test('canonical seed data creates a complete secondary consultation', function (
         'allergies',
         'medications',
         'findings',
-        'supporting_test_results',
-        'assessment',
-        'plan',
         'remarks',
     ] as $field) {
         expect($encounter->{$field})->toBeString()->not->toBeEmpty();

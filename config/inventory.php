@@ -3,12 +3,12 @@
 return [
     /*
     |--------------------------------------------------------------------------
-    | Expiry-tracked inventory warning window
+    | Expiry-tracked inventory warning buffer
     |--------------------------------------------------------------------------
     |
-    | Contact-lens and accessory lots expiring within this many calendar days
-    | are shown in the inventory's Expiring Soon views.
+    | The product usage period and this buffer are subtracted from each lot's
+    | expiry date to determine when it enters the Expiring Soon window.
     |
     */
-    'contact_lens_expiry_warning_days' => 90,
+    'expiry_warning_buffer_months' => 2,
 ];

@@ -235,8 +235,6 @@ test('completed consultation produces one visit or prescription notification', f
         'optometrist_id' => $optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Private finding',
-        'assessment' => 'Private assessment',
-        'plan' => 'Private plan',
     ]);
     $encounter = app(StartEncounter::class)->handle($encounter->fresh(), $optometrist);
 

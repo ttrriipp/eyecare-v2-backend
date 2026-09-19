@@ -118,8 +118,6 @@ test('complete encounter transitions to completed', function () {
         'optometrist_id' => $this->optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
     $encounter = app(StartEncounter::class)->handle(
         encounter: $encounter->fresh(),
@@ -267,8 +265,6 @@ test('legacy: admin optometrist can no longer complete another providers encount
         'optometrist_id' => $this->optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
     $encounter = app(StartEncounter::class)->handle(
         encounter: $encounter->fresh(),
@@ -291,8 +287,6 @@ test('completion fulfills the appointment and records attribution', function () 
         'optometrist_id' => $this->optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
     $encounter = app(StartEncounter::class)->handle(
         encounter: $encounter->fresh(),
@@ -319,8 +313,6 @@ test('completion creates an audit event with identifiers only', function () {
         'optometrist_id' => $this->optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal anterior segment',
-        'assessment' => 'Myopia progression',
-        'plan' => 'Update prescription',
     ]);
     $encounter = app(StartEncounter::class)->handle(
         encounter: $encounter->fresh(),

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ProductUsage;
 use App\Models\Brand;
 use App\Models\LensCategory;
 use App\Models\LensOption;
@@ -581,6 +582,10 @@ class CatalogSeeder extends Seeder
                 'description' => $productData['description'],
                 'is_active' => true,
                 'product_type' => $productData['product_type'],
+                'usage' => $productData['usage'] ?? match ($productData['product_type']) {
+                    'contact_lens', 'accessory' => ProductUsage::OneMonth,
+                    default => null,
+                },
                 'images' => $productImages,
                 'default_variant_attributes' => $productData['default_variant_attributes'] ?? null,
             ],

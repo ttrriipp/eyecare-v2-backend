@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProductUsage;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -44,6 +45,7 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'product_type' => 'contact_lens',
+            'usage' => ProductUsage::OneMonth,
         ]);
     }
 
@@ -51,6 +53,7 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'product_type' => 'accessory',
+            'usage' => ProductUsage::OneMonth,
         ]);
     }
 }

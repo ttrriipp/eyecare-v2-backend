@@ -36,8 +36,6 @@ function createInProgressEncounterForTransfer(?User $optometrist = null): array
         'optometrist_id' => $optometrist->id,
         'chief_complaint' => 'Blurred vision',
         'findings' => 'Normal',
-        'assessment' => 'Myopia',
-        'plan' => 'Update prescription',
     ]);
 
     $encounter = app(StartEncounter::class)->handle(
