@@ -46,6 +46,31 @@ test('patient can submit a frame rating for a dispensed job order item', functio
         ->assertJsonMissing(['moderation_reason', 'moderated_by', 'moderated_at', 'is_hidden', 'patient_id', 'deleted_at']);
 });
 
+test('patient frame feedback censors profanity while the stored comment remains original', function () {
+    $user = User::factory()->patient()->create();
+    $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);
+    $variant = ProductVariant::factory()->create(['product_id' => $frame->id]);
+    $jobOrder = JobOrder::factory()->create([
+        'patient_id' => $user->patient->id,
+        'status' => JobOrderStatus::Dispensed,
+    ]);
+    $item = JobOrderItem::factory()->create([
+        'job_order_id' => $jobOrder->id,
+        'product_variant_id' => $variant->id,
+    ]);
+    $originalComment = 'This is PORN and jakol.';
+
+    $this->actingAs($user)
+        ->postJson("/api/v1/optical-order-items/{$item->id}/rating", [
+            'rating' => 2,
+            'comment' => $originalComment,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.comment', 'This is **** and *****.');
+
+    expect(FrameRating::query()->sole()->comment)->toBe($originalComment);
+});
+
 test('product_variant_id is optional and derived from item', function () {
     $user = User::factory()->patient()->create();
     $frame = Product::factory()->create(['product_type' => 'frame', 'brand_id' => $this->brand->id]);

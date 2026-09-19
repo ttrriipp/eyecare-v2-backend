@@ -34,7 +34,7 @@ test('a fulfilled appointment can be rated', function () {
         ->and($rating->appointment_id)->toBe($this->appointment->id);
 });
 
-test('profanity is masked before visit feedback is saved', function () {
+test('visit feedback keeps the original comment for admin review', function () {
     $rating = app(SaveVisitRating::class)->handle(
         patient: $this->patient,
         appointment: $this->appointment,
@@ -42,7 +42,7 @@ test('profanity is masked before visit feedback is saved', function () {
         comment: 'This is FUCK and putang ina.',
     );
 
-    expect($rating->comment)->toBe('This is **** and **********.');
+    expect($rating->comment)->toBe('This is FUCK and putang ina.');
 });
 
 test('re-submitting updates the rating in place', function () {

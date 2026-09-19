@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Actions\Ratings\FilterProfanity;
 use App\Models\VisitRating;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,7 +19,9 @@ class VisitRatingResource extends JsonResource
         return [
             'id' => $this->id,
             'rating' => $this->rating,
-            'comment' => $this->shouldShowComment($isAuthor) ? $this->comment : null,
+            'comment' => $this->shouldShowComment($isAuthor)
+                ? app(FilterProfanity::class)->handle($this->comment)
+                : null,
             'revision_number' => 1,
             'created_at' => $this->created_at?->toISOString(),
         ];

@@ -31,7 +31,7 @@ test('patient can rate a dispensed frame', function () {
         ->and($rating->dispensing_event_id)->toBe($dispensingEvent->id);
 });
 
-test('profanity is masked before frame feedback is saved', function () {
+test('frame feedback keeps the original comment for admin review', function () {
     $patient = Patient::factory()->create();
     $variant = ProductVariant::factory()->create();
 
@@ -42,7 +42,7 @@ test('profanity is masked before frame feedback is saved', function () {
         comment: 'This is PORN and jakol.',
     );
 
-    expect($rating->comment)->toBe('This is **** and *****.');
+    expect($rating->comment)->toBe('This is PORN and jakol.');
 });
 
 test('one current rating per patient per dispensed frame is enforced', function () {

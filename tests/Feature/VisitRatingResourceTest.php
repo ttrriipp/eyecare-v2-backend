@@ -61,6 +61,25 @@ test('staff can navigate from feedback to its related visit records', function (
         ->assertSee('href="'.EncounterResource::getUrl('edit', ['record' => $encounter]).'"', false);
 });
 
+test('staff can see the original unsanitized visit feedback', function (): void {
+    $staff = User::factory()->staff()->create();
+    $patient = Patient::factory()->create();
+    $appointment = Appointment::factory()->fulfilled()->create([
+        'patient_id' => $patient->id,
+    ]);
+    $rating = VisitRating::factory()->create([
+        'patient_id' => $patient->id,
+        'appointment_id' => $appointment->id,
+        'comment' => 'This is FUCK.',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ViewVisitRating::class, ['record' => $rating->getRouteKey()])
+        ->assertSee('This is FUCK.')
+        ->assertDontSee('This is ****.');
+});
+
 test('feedback detail explains when no consultation is linked', function (): void {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();

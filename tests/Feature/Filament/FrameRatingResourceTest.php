@@ -19,6 +19,19 @@ test('staff can list frame ratings', function () {
         ->assertCanSeeTableRecords($ratings);
 });
 
+test('staff can see the original unsanitized frame feedback', function () {
+    $staff = User::factory()->staff()->create();
+    $rating = FrameRating::factory()->create([
+        'comment' => 'This is PORN.',
+    ]);
+
+    $this->actingAs($staff);
+
+    Livewire::test(ListFrameRatings::class)
+        ->assertSee('This is PORN.')
+        ->assertDontSee('This is ****.');
+});
+
 test('frame rating resource is registered', function () {
     expect(FrameRatingResource::getModel())->toBe(FrameRating::class);
 });

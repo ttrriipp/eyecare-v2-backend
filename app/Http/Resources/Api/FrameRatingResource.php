@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Actions\Ratings\FilterProfanity;
 use App\Models\FrameRating;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -20,7 +21,9 @@ class FrameRatingResource extends JsonResource
             'item_id' => $this->dispensing_event_id,
             'product_variant_id' => $this->product_variant_id,
             'rating' => $this->rating,
-            'comment' => $this->shouldShowComment($isAuthor) ? $this->comment : null,
+            'comment' => $this->shouldShowComment($isAuthor)
+                ? app(FilterProfanity::class)->handle($this->comment)
+                : null,
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api;
 
+use App\Actions\Ratings\FilterProfanity;
 use App\Enums\JobOrderStatus;
 use App\Models\FrameRating;
 use App\Models\JobOrder;
@@ -148,7 +149,9 @@ class OpticalOrderResource extends JsonResource
 
         return [
             'rating' => $rating->rating,
-            'comment' => ($rating->is_hidden && ! $isAuthor) ? null : $rating->comment,
+            'comment' => ($rating->is_hidden && ! $isAuthor)
+                ? null
+                : app(FilterProfanity::class)->handle($rating->comment),
             'created_at' => $rating->created_at?->toIso8601String(),
             'revision_number' => 1,
         ];

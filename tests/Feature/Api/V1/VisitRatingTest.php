@@ -31,6 +31,20 @@ test('patient can rate a fulfilled appointment', function () {
         ->assertJsonStructure(['data' => ['id', 'rating', 'comment', 'revision_number', 'created_at']]);
 });
 
+test('patient feedback censors profanity while the stored comment remains original', function () {
+    $originalComment = 'This is FUCK and putang ina.';
+
+    $this->actingAs($this->user)
+        ->postJson("/api/v1/appointments/{$this->appointment->id}/rating", [
+            'rating' => 2,
+            'comment' => $originalComment,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.comment', 'This is **** and **********.');
+
+    expect(VisitRating::query()->sole()->comment)->toBe($originalComment);
+});
+
 test('re-submitting revises the rating', function () {
     // First rating
     $this->actingAs($this->user)

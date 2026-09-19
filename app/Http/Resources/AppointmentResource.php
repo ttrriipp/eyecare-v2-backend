@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Actions\Ratings\FilterProfanity;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -79,7 +80,9 @@ class AppointmentResource extends JsonResource
 
         return [
             'rating' => $rating->rating,
-            'comment' => ($rating->is_hidden && ! $isAuthor) ? null : $rating->comment,
+            'comment' => ($rating->is_hidden && ! $isAuthor)
+                ? null
+                : app(FilterProfanity::class)->handle($rating->comment),
             'created_at' => $rating->created_at?->toISOString(),
             'revision_number' => 1,
         ];

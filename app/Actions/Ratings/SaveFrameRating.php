@@ -14,7 +14,6 @@ class SaveFrameRating
 {
     public function __construct(
         private readonly NotifyAdminUsers $notifyAdminUsers,
-        private readonly FilterProfanity $filterProfanity,
     ) {}
 
     /**
@@ -34,8 +33,6 @@ class SaveFrameRating
                 'rating' => ['Rating must be between 1 and 5.'],
             ]);
         }
-
-        $comment = $this->filterProfanity->handle($comment);
 
         $shouldNotify = false;
 
