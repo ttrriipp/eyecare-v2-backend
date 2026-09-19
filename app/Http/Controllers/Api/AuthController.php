@@ -12,6 +12,7 @@ use App\Actions\Auth\VerifyOtpChallenge;
 use App\Actions\Auth\VerifyStepUpOtp;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\ExpirePendingPatientLinkRequest;
+use App\Actions\PatientAccounts\FlagPatientIdentityReview;
 use App\Actions\PatientAccounts\LoadPatientAccountContext;
 use App\Actions\PatientAccounts\UpdateAccountProfile;
 use App\Enums\OtpPurpose;
@@ -63,7 +64,6 @@ class AuthController extends Controller
             $user->roles()->sync([$patientRole->id]);
 
             $patient = Patient::query()->create([
-                'user_id' => $user->id,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'contact_email' => $data['email'],
@@ -231,7 +231,11 @@ class AuthController extends Controller
         LoadPatientAccountContext $loadPatientAccountContext,
     ): JsonResponse {
         $user = $loadPatientAccountContext->handle(
-            $updateAccountProfile->handle($request->user(), $request->validated()),
+            $updateAccountProfile->handle(
+                account: $request->user(),
+                attributes: $request->validated(),
+                stepUpVerified: $request->attributes->get('step_up_verified') === true,
+            ),
         );
 
         return response()->json([
@@ -506,6 +510,7 @@ class AuthController extends Controller
         Request $request,
         VerifyOtpChallenge $verifyOtp,
         ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
+        FlagPatientIdentityReview $flagPatientIdentityReview,
     ): JsonResponse {
         $request->validate([
             'challenge_id' => ['required', 'string'],
@@ -520,6 +525,7 @@ class AuthController extends Controller
             $userId,
             $verifyOtp,
             $expirePendingLinkRequest,
+            $flagPatientIdentityReview,
         ): ?PatientAccountContact {
             $user = User::query()->lockForUpdate()->findOrFail($userId);
 
@@ -583,6 +589,13 @@ class AuthController extends Controller
                 $expirePendingLinkRequest->handle(
                     account: $user,
                     reason: 'verified_contact_changed',
+                );
+
+                $flagPatientIdentityReview->handle(
+                    account: $user,
+                    reason: 'verified_contact_changed',
+                    changedFields: [$contactType],
+                    actorId: $user->id,
                 );
             }
 
@@ -655,9 +668,12 @@ class AuthController extends Controller
     /**
      * Remove a contact. Requires step-up.
      */
-    public function removeContact(Request $request, ExpirePendingPatientLinkRequest $expirePendingLinkRequest): JsonResponse
-    {
-        $result = DB::transaction(function () use ($request, $expirePendingLinkRequest): string {
+    public function removeContact(
+        Request $request,
+        ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
+        FlagPatientIdentityReview $flagPatientIdentityReview,
+    ): JsonResponse {
+        $result = DB::transaction(function () use ($request, $expirePendingLinkRequest, $flagPatientIdentityReview): string {
             $user = User::query()->lockForUpdate()->findOrFail($request->user()->id);
             $contact = PatientAccountContact::query()
                 ->where('id', $request->route('contact'))
@@ -680,6 +696,13 @@ class AuthController extends Controller
                 $expirePendingLinkRequest->handle(
                     account: $user,
                     reason: 'verified_contact_changed',
+                );
+
+                $flagPatientIdentityReview->handle(
+                    account: $user,
+                    reason: 'verified_contact_changed',
+                    changedFields: [$contact->type],
+                    actorId: $user->id,
                 );
             }
 

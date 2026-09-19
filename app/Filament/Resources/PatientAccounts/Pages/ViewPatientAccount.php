@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\PatientAccounts\Pages;
 
-use App\Actions\Conversations\AssociateAccountConversation;
+use App\Actions\PatientAccounts\LinkPatientAccount;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Filament\Resources\PatientAccounts\PatientAccountResource;
 use App\Models\Patient;
 use Filament\Actions\Action;
@@ -11,7 +13,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class ViewPatientAccount extends ViewRecord
@@ -34,14 +35,18 @@ class ViewPatientAccount extends ViewRecord
                 ->icon('heroicon-o-link')
                 ->color('success')
                 ->visible(fn () => $this->record->patient === null && auth()->user()->isAdmin())
+                ->authorize('linkPatientRecord')
                 ->requiresConfirmation()
                 ->schema([
                     Select::make('patient_id')
                         ->label('Select Patient')
-                        ->options(function () {
+                        ->options(function (): array {
+                            $matcher = app(PatientAccountIdentityMatcher::class);
+
                             return Patient::whereNull('user_id')
-                                ->orderBy('first_name')
                                 ->get()
+                                ->filter(fn (Patient $patient): bool => $matcher->handle($this->record, $patient)->isEligible())
+                                ->sortBy('first_name')
                                 ->mapWithKeys(fn ($p) => [
                                     $p->id => "{$p->full_name} ({$p->patient_number})",
                                 ])
@@ -49,36 +54,31 @@ class ViewPatientAccount extends ViewRecord
                         })
                         ->searchable()
                         ->required()
-                        ->helperText('Only unlinked patients are shown.'),
+                        ->helperText('Only unlinked patient records matching this account are shown.'),
                 ])
                 ->action(function (array $data): void {
                     $patient = Patient::findOrFail($data['patient_id']);
 
-                    // Verify patient is still unlinked
-                    if ($patient->user_id !== null) {
+                    try {
+                        app(LinkPatientAccount::class)->handle(
+                            account: $this->record,
+                            patient: $patient,
+                            source: 'patient_account',
+                            sourceId: $this->record->id,
+                            actorId: auth()->id(),
+                        );
+                    } catch (PatientIdentityMismatchException|ValidationException $exception) {
+                        $message = $exception instanceof ValidationException
+                            ? collect($exception->errors())->flatten()->first()
+                            : 'Account details do not match this patient record.';
                         Notification::make()
-                            ->title('This patient is already linked to another account')
+                            ->title('Cannot link patient record')
+                            ->body($message ?? 'Cannot link patient record.')
                             ->danger()
                             ->send();
 
                         return;
                     }
-
-                    // Verify account is still unlinked
-                    if ($this->record->patient !== null) {
-                        Notification::make()
-                            ->title('This account is already linked to a patient')
-                            ->danger()
-                            ->send();
-
-                        return;
-                    }
-
-                    // Activate the link
-                    DB::transaction(function () use ($patient): void {
-                        $patient->update(['user_id' => $this->record->id]);
-                        app(AssociateAccountConversation::class)->handle($this->record, $patient);
-                    });
 
                     // Revoke tokens to force re-authentication with link
                     $this->record->tokens()->delete();
@@ -96,6 +96,7 @@ class ViewPatientAccount extends ViewRecord
                 ->icon('heroicon-o-link-slash')
                 ->color('danger')
                 ->visible(fn () => $this->record->patient !== null && auth()->user()->isAdmin())
+                ->authorize('unlinkPatientRecord')
                 ->requiresConfirmation()
                 ->schema([
                     Textarea::make('reason')

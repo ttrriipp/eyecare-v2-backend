@@ -1,10 +1,13 @@
 <?php
 
+use App\Actions\Appointments\BuildAppointmentRequestIdentitySnapshot;
+use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Filament\Resources\AppointmentRequests\Pages\ReviewAppointmentRequestSchedule;
 use App\Filament\Resources\AppointmentRequests\Pages\ViewAppointmentRequest;
 use App\Models\AppointmentRequest;
 use App\Models\AppointmentType;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
@@ -17,9 +20,28 @@ uses(RefreshDatabase::class);
 
 test('staff can link an unlinked request to a patient from the detail page', function () {
     $staff = User::factory()->staff()->create();
-    $account = User::factory()->create(['role_id' => Role::firstOrCreate(['name' => 'patient'])->id]);
-    $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null, 'user_id' => $account->id]);
-    $patient = Patient::factory()->create();
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'role_id' => Role::firstOrCreate(['name' => 'patient'])->id,
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
+    $request = AppointmentRequest::factory()->create([
+        'patient_id' => null,
+        'user_id' => $account->id,
+        'encrypted_identity_snapshot' => app(BuildAppointmentRequestIdentitySnapshot::class)->handle($account, null),
+    ]);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'user_id' => null,
+    ]);
 
     $this->actingAs($staff);
 
@@ -36,8 +58,34 @@ test('staff can link an unlinked request to a patient from the detail page', fun
 
 test('staff can link a request to a brand-new patient from the detail page', function () {
     $staff = User::factory()->staff()->create();
-    $account = User::factory()->create(['role_id' => Role::firstOrCreate(['name' => 'patient'])->id]);
-    $request = AppointmentRequest::factory()->withSnapshot()->create(['patient_id' => null, 'user_id' => $account->id]);
+    $account = User::factory()->create([
+        'first_name' => 'Maria',
+        'middle_name' => null,
+        'last_name' => 'Santos',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'role_id' => Role::firstOrCreate(['name' => 'patient'])->id,
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
+    $request = AppointmentRequest::factory()->create([
+        'patient_id' => null,
+        'user_id' => $account->id,
+        'encrypted_identity_snapshot' => [
+            'phone' => '+639171234567',
+            'email' => null,
+            'first_name' => 'Maria',
+            'middle_name' => null,
+            'last_name' => 'Santos',
+            'date_of_birth' => '1990-05-15',
+            'gender' => null,
+            'occupation' => null,
+            'address' => null,
+            'verified_contact_type' => 'phone',
+            'verified_contact_masked' => '091***4567',
+            'verified_contact_hash' => app(CreateContactLookupHash::class)->forPhone('+639171234567'),
+            'submitted_at' => now()->toIso8601String(),
+        ],
+    ]);
 
     $this->actingAs($staff);
 

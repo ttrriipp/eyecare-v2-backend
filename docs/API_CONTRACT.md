@@ -1,6 +1,18 @@
 # EyeCare Mobile API v1 — Authoritative Contract
 
-> **Backend version:** Current repository state (2026-09-16) — patient
+> **Shipped 2026-09-18: patient-account identity safety.** All six
+> account-to-Patient linking paths now use one locked server-side
+> compatibility gate: normalized first/last names, exact date of birth,
+> optional compatible middle name, and at least one verified same-type contact
+> blind-index match. Incompatible or incomplete evidence fails atomically;
+> mobile invitation and registration failures use `PATIENT_IDENTITY_MISMATCH`
+> without candidate or clinic details. Existing links remain active when later
+> account/contact/Patient edits drift; the Patient is marked for staff review
+> and never silently unlinked or synchronized. Staff selectors show only
+> eligible candidates, and `patient-links:audit-identity` reconciles existing
+> links in dry-run or explicit `--mark-review` mode.
+
+> **Backend version:** Current repository state (2026-09-19) — patient
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
@@ -640,11 +652,11 @@ Updates account-owned identity fields. At least one allowed field is required.
 **Notes:**
 - Only `first_name`, `middle_name`, `last_name`, and `date_of_birth` are accepted. Unknown, clinic-owned, contact, password, consent, and server-state fields return `422`; mixed valid/unsupported payloads are rejected atomically.
 - Names are trimmed at the boundaries; first and last names must be non-blank, and a blank middle name becomes `null`. Date of birth must use the exact `Y-m-d` format and be before today.
-- Name-only changes do not require step-up. Any request containing `date_of_birth` requires the same-account `X-Step-Up-Token`; missing, invalid, or expired proof fails before mutation.
+- Any request containing `date_of_birth` requires the same-account `X-Step-Up-Token`. An actual first- or last-name change on an already linked account also requires that token; normalized first/last no-ops, unlinked name changes, and middle-name-only changes do not. Missing, invalid, or expired proof fails before mutation.
 - Contact changes use `/account/contacts/*` endpoints.
 - Password changes use `POST /auth/password` with its existing current-password and step-up protections.
 - Clinical Patient demographics are read-only and never editable via the mobile API. A successful change never writes the `patients` row.
-- An actual identity change expires the account's pending patient-link request in the same transaction and records only field names and workflow outcomes in audit metadata. A normalized no-op does not expire or audit.
+- An actual identity change expires the account's pending patient-link request in the same transaction and records only field names and workflow outcomes in audit metadata. A normalized no-op does not expire or audit. If the account is already linked and the current account/Patient pair becomes incompatible, the link remains active while the Patient receives a deduplicated identity-review flag.
 
 **Validation errors (422):** Field validation uses the standard Laravel
 validation envelope. The proposed `error.code = VALIDATION_ERROR` envelope is
@@ -982,6 +994,17 @@ Returns the current link state and request status for the authenticated account.
 
 **Notes:**
 - Never exposes candidate patient names, numbers, contact values, match scores, or whether a specific clinic record exists.
+- Linking is fail-closed. The server requires exact normalized first and last
+  names, an exact date-of-birth match, an exact middle-name match when both
+  sides provide one, and at least one verified account phone/email blind-index
+  match against the Patient's same contact type. Ranking, staff notes, and
+  invitation possession are not overrides. The six link entry points share a
+  locked canonical mutation boundary; failures leave the source workflow and
+  Patient link unchanged.
+- A linked account remains `linked` during identity review. Account, verified
+  contact, and Patient edits never synchronize the other record or suspend
+  clinical access. Staff resolve review only after a fresh compatible
+  comparison, or explicitly unlink the account.
 
 ---
 
@@ -3043,6 +3066,7 @@ metadata may appear beside `code` and `message`, as with
 | `API_RATE_LIMIT_REACHED` | 429 | A general authenticated API route limit was exceeded |
 | `CONTACT_ALREADY_OWNED` | 422 | Contact is already verified by another account |
 | `INVITATION_INVALID` | 422 | Invitation token is invalid, expired, revoked, or consumed |
+| `PATIENT_IDENTITY_MISMATCH` | 422 | Account evidence is incompatible with, or incomplete for, the Patient record being linked; mobile responses disclose no match details |
 | `ACCOUNT_ALREADY_LINKED` | 422 | Account already has an active patient link |
 | `PATIENT_ALREADY_LINKED` | 422 | Patient is already linked to another account |
 | `LINK_REQUEST_PENDING` | 422 | An active link request already exists |
@@ -3225,7 +3249,14 @@ Appointment requests require a free-text `reason_for_visit` (max 1000 characters
 ### Identity verification
 The `/me` endpoint returns `link_status` and, when linked, clinical demographics from the authoritative Patient record. Account profile edits (`first_name`, `middle_name`, `last_name`, and step-up-protected `date_of_birth`) never silently update the clinic Patient record. A pending link request is
 expired when identity or relevant verified-contact inputs change, and staff
-approval rejects a stale snapshot rather than creating a link.
+approval rejects a stale snapshot rather than creating a link. Every link path
+also rechecks exact normalized first/last name, exact DOB, compatible optional
+middle name, and a verified same-type contact hash under locks. A failed link
+returns `PATIENT_IDENTITY_MISMATCH` to mobile clients and leaves workflow
+state unchanged. Later incompatibility marks the active Patient link for staff
+review without changing `link_status`, suspending clinical access, or
+synchronizing either record; staff resolution requires a fresh compatible
+comparison, while unlink remains explicit.
 
 ### OTP challenge lifecycle
 Challenges expire after 10 minutes, allow 5 verification attempts, and are

@@ -78,7 +78,7 @@ test('me endpoint returns a null account email when no verified email exists', f
 });
 
 test('me endpoint can update account fields', function () {
-    $user = User::factory()->patient()->create();
+    $user = User::factory()->create();
 
     $this->actingAs($user)
         ->patchJson('/api/v1/me', ['first_name' => 'Updated', 'last_name' => 'Name'])
@@ -87,7 +87,7 @@ test('me endpoint can update account fields', function () {
 });
 
 test('me endpoint can update account name', function () {
-    $user = User::factory()->patient()->create();
+    $user = User::factory()->create();
 
     $this->actingAs($user)
         ->patchJson('/api/v1/me', [
@@ -98,6 +98,72 @@ test('me endpoint can update account name', function () {
         ->assertSuccessful()
         ->assertJsonPath('data.first_name', 'New')
         ->assertJsonPath('data.name', 'New Name');
+});
+
+test('me endpoint requires step-up for an actual linked first-name change', function (): void {
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
+    $patient = Patient::factory()->create([
+        'user_id' => $account->id,
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->create([
+        'user_id' => $account->id,
+    ]);
+
+    $this->actingAs($account)
+        ->patchJson('/api/v1/me', ['first_name' => 'Maria'])
+        ->assertUnprocessable()
+        ->assertJsonPath('error.code', 'STEP_UP_REQUIRED');
+
+    expect($account->fresh()->first_name)->toBe('Ana')
+        ->and($patient->fresh()->user_id)->toBe($account->id);
+});
+
+test('me endpoint treats a normalized no-op linked name update as safe', function (): void {
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
+    $patient = Patient::factory()->create([
+        'user_id' => $account->id,
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->create([
+        'user_id' => $account->id,
+    ]);
+
+    $this->actingAs($account)
+        ->patchJson('/api/v1/me', [
+            'first_name' => '  ANA  ',
+            'last_name' => ' reyes ',
+        ])
+        ->assertSuccessful();
+
+    expect($account->fresh()->first_name)->toBe('Ana')
+        ->and($account->fresh()->last_name)->toBe('Reyes')
+        ->and($patient->fresh()->identity_review_required)->toBeFalse()
+        ->and(AuditLog::query()
+            ->where('subject_type', $account->getMorphClass())
+            ->where('subject_id', $account->id)
+            ->where('action', AuditEvent::UserProfileUpdated->value)
+            ->exists())->toBeFalse();
 });
 
 test('me endpoint requires step-up verification when date of birth is submitted', function () {
@@ -208,7 +274,7 @@ test('me endpoint rejects mixed supported and unsupported profile fields atomica
 });
 
 test('me endpoint normalizes account names at the validation boundary', function () {
-    $user = User::factory()->patient()->create();
+    $user = User::factory()->create();
 
     $this->actingAs($user)
         ->patchJson('/api/v1/me', [

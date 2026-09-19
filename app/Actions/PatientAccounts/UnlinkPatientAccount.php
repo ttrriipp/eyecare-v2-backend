@@ -16,19 +16,25 @@ class UnlinkPatientAccount
 {
     public function handle(Patient $patient, User $admin, string $reason): void
     {
-        if ($patient->user_id === null) {
+        $userId = Patient::query()->whereKey($patient->id)->value('user_id');
+
+        if ($userId === null) {
             throw ValidationException::withMessages([
                 'patient' => ['This patient is not linked to any account.'],
             ]);
         }
 
-        DB::transaction(function () use ($patient, $admin, $reason) {
+        DB::transaction(function () use ($patient, $admin, $reason, $userId): void {
+            $user = User::query()->lockForUpdate()->find($userId);
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
-            $userId = $patient->user_id;
+            if ($patient->user_id !== $userId) {
+                throw ValidationException::withMessages([
+                    'patient' => ['This patient link changed before it could be removed.'],
+                ]);
+            }
 
             // Revoke all patient tokens
-            $user = User::find($userId);
             if ($user !== null) {
                 $user->tokens()->delete();
 
@@ -38,8 +44,12 @@ class UnlinkPatientAccount
 
             $this->unlinkPendingAppointmentRequests($userId, $patient);
 
-            // Unlink
-            $patient->update(['user_id' => null]);
+            // Unlink and clear any pending identity review state.
+            $patient->forceFill([
+                'user_id' => null,
+                'identity_review_required' => false,
+                'identity_review_required_at' => null,
+            ])->save();
 
             // Audit
             app(CreateAuditLog::class)->handle(

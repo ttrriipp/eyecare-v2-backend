@@ -1,8 +1,11 @@
 <?php
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\IssuePatientInvitation;
 use App\Enums\OtpPurpose;
+use App\Enums\PatientInvitationStatus;
 use App\Models\OtpChallenge;
+use App\Models\Patient;
 use App\Models\PatientAccountContact;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -10,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -350,6 +354,55 @@ test('registration converts a duplicate contact race into an ownership conflict'
 
     expect(User::query()->where('phone', $phone)->exists())->toBeFalse()
         ->and(PatientAccountContact::query()->where('lookup_hash', $phoneHash)->exists())->toBeFalse()
+        ->and($proof->fresh()->consumed_at)->toBeNull();
+});
+
+test('registration with an invitation rejects an identity mismatch atomically', function (): void {
+    $phone = '+639171234567';
+    $lookupHash = app(CreateContactLookupHash::class);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Clinic',
+        'last_name' => 'Patient',
+        'date_of_birth' => '1990-05-15',
+        'phone' => $phone,
+        'user_id' => null,
+    ]);
+    $staff = User::factory()->staff()->create();
+    $invitation = app(IssuePatientInvitation::class)->handle(
+        patient: $patient,
+        channel: 'phone',
+        sender: $staff,
+    );
+    $registrationToken = (string) Str::uuid();
+    $proof = OtpChallenge::factory()->pending()->create([
+        'public_id' => $registrationToken,
+        'purpose' => OtpPurpose::Registration,
+        'channel' => 'phone',
+        'encrypted_destination' => $phone,
+        'destination_hash' => $lookupHash->forPhone($phone),
+        'delivery_status' => 'proof',
+    ]);
+    $userCount = User::query()->count();
+
+    $response = $this->postJson('/api/v1/auth/register', [
+        'registration_token' => $registrationToken,
+        'first_name' => 'Self',
+        'last_name' => 'Patient',
+        'date_of_birth' => '1990-05-15',
+        'password' => 'securepassword123',
+        'password_confirmation' => 'securepassword123',
+        'privacy_policy_version' => config('app.privacy_policy_version'),
+        'terms_version' => config('app.terms_version'),
+        'invitation_code' => $invitation->invitation_code,
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonPath('error.code', 'PATIENT_IDENTITY_MISMATCH')
+        ->assertJsonMissingPath('error.mismatched_fields');
+
+    expect(User::query()->count())->toBe($userCount)
+        ->and($patient->fresh()->user_id)->toBeNull()
+        ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Pending)
         ->and($proof->fresh()->consumed_at)->toBeNull();
 });
 

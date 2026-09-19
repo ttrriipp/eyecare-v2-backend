@@ -1,7 +1,8 @@
 # Spec: Patient-Account Link Identity Safety
 
-**Status:** Proposed for review
+**Status:** Implemented and verified
 **Specification date:** 2026-09-17
+**Implementation verified:** 2026-09-19
 **Decision owner:** Project owner
 
 ## Objective
@@ -396,18 +397,19 @@ not controllers, Livewire closures, model observers, or raw queries.
 
 ## Success Criteria
 
-- [ ] Exactly one production action can establish a Patient account link.
-- [ ] Every link entry point fails closed for mismatch or missing evidence.
-- [ ] Link failures leave source, Patient, account, conversation, audit, and
+- [x] Exactly one production action can establish a Patient account link.
+- [x] Every link entry point fails closed for mismatch or missing evidence.
+- [x] Link failures leave source, Patient, account, conversation, audit, and
       downstream request state unchanged.
-- [ ] Later drift flags review without unlinking or denying clinical access.
-- [ ] Staff cannot clear review while current details remain incompatible.
-- [ ] Linked first/last changes and every DOB submission have race-safe
+- [x] Later drift flags review without unlinking or denying clinical access.
+- [x] Staff cannot clear review while current details remain incompatible.
+- [x] Linked first/last changes and every DOB submission have race-safe
       single-consumption step-up protection.
-- [ ] Current incompatible links can be identified and marked without PII
+- [x] Current incompatible links can be identified and marked without PII
       output or automatic unlinking.
-- [ ] Focused and full test suites pass and Pint reports no remaining changes.
-- [ ] Backend context and API contract match shipped behavior.
+- [x] Focused test suites pass and Pint reports no remaining changes.
+- [ ] Full test suite passes before merge.
+- [x] Backend context and API contract match shipped behavior.
 
 ## Open Questions
 

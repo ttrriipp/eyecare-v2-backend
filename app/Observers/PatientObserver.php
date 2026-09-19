@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Actions\Audit\CreateAuditLog;
+use App\Actions\PatientAccounts\FlagPatientIdentityReview;
 use App\Enums\AuditEvent;
 use App\Models\Patient;
 
@@ -46,5 +47,25 @@ class PatientObserver
             ],
             actorId: auth()->id(),
         );
+
+        $identityFields = [
+            'first_name',
+            'middle_name',
+            'last_name',
+            'date_of_birth',
+            'contact_email',
+            'phone',
+        ];
+
+        $identityChangedFields = array_values(array_intersect($changedFields, $identityFields));
+
+        if ($identityChangedFields !== []) {
+            app(FlagPatientIdentityReview::class)->handlePatient(
+                patient: $patient,
+                reason: 'patient_record_changed',
+                changedFields: $identityChangedFields,
+                actorId: auth()->id(),
+            );
+        }
     }
 }

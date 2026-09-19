@@ -7,6 +7,7 @@ use App\Enums\AuditEvent;
 use App\Models\AppointmentRequest;
 use App\Models\AuditLog;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\PatientLinkRequest;
 use App\Models\Role;
 use App\Models\User;
@@ -23,8 +24,23 @@ beforeEach(function () {
 // --- Approve ---
 
 test('approval activates the patient link', function () {
-    $patient = Patient::factory()->create(['user_id' => null]);
-    $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'user_id' => null,
+    ]);
     $reviewer = User::factory()->staff()->create();
 
     $request = PatientLinkRequest::factory()->forAccount($account)->pending()->create();
@@ -43,8 +59,23 @@ test('approval activates the patient link', function () {
 });
 
 test('approval links the account appointment requests to the reviewed patient', function () {
-    $patient = Patient::factory()->create(['user_id' => null]);
-    $account = User::factory()->create(['role_id' => Role::where('name', 'patient')->first()->id]);
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'user_id' => null,
+    ]);
     $reviewer = User::factory()->staff()->create();
     $appointmentRequest = AppointmentRequest::factory()->withSnapshot()->create([
         'user_id' => $account->id,
@@ -130,8 +161,17 @@ test('approval normalizes historical identity names and missing middle names', f
         'middle_name' => null,
         'last_name' => 'Reyes',
         'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
     ]);
-    $patient = Patient::factory()->create(['user_id' => null]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
+    $patient = Patient::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'user_id' => null,
+    ]);
     $reviewer = User::factory()->staff()->create();
     $request = PatientLinkRequest::factory()
         ->forAccount($account)
@@ -179,6 +219,10 @@ test('reject closes the request without linking', function () {
 test('unlinking revokes tokens and removes link', function () {
     $account = User::factory()->patient()->create();
     $patient = $account->patient;
+    $patient->forceFill([
+        'identity_review_required' => true,
+        'identity_review_required_at' => now(),
+    ])->saveQuietly();
     $admin = User::factory()->admin()->create();
 
     $account->createToken('device-1');
@@ -191,6 +235,7 @@ test('unlinking revokes tokens and removes link', function () {
     );
 
     expect($patient->fresh()->user_id)->toBeNull()
+        ->and($patient->fresh()->identity_review_required)->toBeFalse()
         ->and($account->fresh()->tokens()->count())->toBe(0);
 });
 

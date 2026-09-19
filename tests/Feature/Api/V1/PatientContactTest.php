@@ -5,6 +5,7 @@ use App\Enums\AuditEvent;
 use App\Enums\OtpPurpose;
 use App\Models\AuditLog;
 use App\Models\OtpChallenge;
+use App\Models\Patient;
 use App\Models\PatientAccountContact;
 use App\Models\PatientLinkRequest;
 use App\Models\User;
@@ -242,6 +243,54 @@ test('removing a verified contact expires a pending patient link request', funct
         ->assertNoContent();
 
     expect($linkRequest->fresh()->status)->toBe('expired');
+});
+
+test('removing a matching verified contact flags an existing link for identity review', function (): void {
+    $account = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+    ]);
+    $patient = Patient::factory()->create([
+        'user_id' => $account->id,
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+        'contact_email' => 'clinic@example.com',
+    ]);
+    $matchingPhone = PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create([
+        'user_id' => $account->id,
+    ]);
+    $otherEmail = PatientAccountContact::factory()->email('other@example.com')->verified()->create([
+        'user_id' => $account->id,
+    ]);
+    $token = 'valid-step-up-token';
+
+    OtpChallenge::factory()
+        ->forUser($account)
+        ->purpose(OtpPurpose::SensitiveChange)
+        ->state([
+            'consumed_at' => now(),
+            'delivery_status' => 'step_up_token_issued:'.Hash::make($token),
+        ])
+        ->create();
+
+    $this->actingAs($account)
+        ->withHeader('X-Step-Up-Token', $token)
+        ->deleteJson('/api/v1/account/contacts/'.$matchingPhone->id)
+        ->assertNoContent();
+
+    expect($patient->fresh()->user_id)->toBe($account->id)
+        ->and($patient->fresh()->identity_review_required)->toBeTrue()
+        ->and($otherEmail->fresh())->not->toBeNull()
+        ->and(AuditLog::query()
+            ->where('subject_type', $patient->getMorphClass())
+            ->where('subject_id', $patient->id)
+            ->where('action', AuditEvent::PatientIdentityReviewRequired->value)
+            ->count())->toBe(1);
 });
 
 test('changing only the primary contact does not expire a pending patient link request', function () {

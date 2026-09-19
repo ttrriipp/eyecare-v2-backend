@@ -4,16 +4,26 @@ namespace App\Actions\Appointments;
 
 use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\AssociateAccountConversation;
+use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
+use App\Actions\PatientAccounts\PatientLinkIdentitySnapshot;
 use App\Enums\AuditEvent;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class LinkAppointmentRequestToPatient
 {
-    public function __construct(private readonly CreateAuditLog $createAuditLog) {}
+    public function __construct(
+        private readonly CreateAuditLog $createAuditLog,
+        private readonly AssociateAccountConversation $associateAccountConversation,
+        private readonly LinkPatientAccount $linkPatientAccount,
+        private readonly PatientAccountIdentityMatcher $identityMatcher,
+        private readonly PatientLinkIdentitySnapshot $identitySnapshot,
+    ) {}
 
     public function handle(AppointmentRequest $request, Patient $patient): AppointmentRequest
     {
@@ -29,101 +39,81 @@ class LinkAppointmentRequestToPatient
             ]);
         }
 
-        return DB::transaction(function () use ($request, $patient) {
-            $request = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
+        return DB::transaction(function () use ($request, $patient): AppointmentRequest {
+            // Lock order: account -> workflow request -> Patient.
+            $account = User::query()->lockForUpdate()->findOrFail($request->user_id);
+            $lockedRequest = AppointmentRequest::query()->lockForUpdate()->findOrFail($request->id);
+            $lockedPatient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
-            if (! $request->isPending()) {
+            if (! $lockedRequest->isPending()) {
                 throw ValidationException::withMessages([
                     'request' => ['Only pending appointment requests can be linked to a patient.'],
                 ]);
             }
 
-            if ($request->patient_id !== null) {
+            if ($lockedRequest->patient_id !== null) {
                 throw ValidationException::withMessages([
                     'request' => ['This request is already linked to a patient.'],
                 ]);
             }
 
-            $account = $request->user;
-            $wasUnlinked = $account->patient === null;
-            $request->update(['patient_id' => $patient->id]);
+            if ($lockedPatient->user_id !== null && $lockedPatient->user_id !== $account->id) {
+                throw ValidationException::withMessages([
+                    'patient' => ['This patient is already linked to a different account.'],
+                ]);
+            }
 
-            $this->linkAccountIfNeeded($request, $patient);
+            $existingLink = $account->patient;
+            $wasUnlinked = $existingLink === null;
+
+            if ($existingLink !== null && $existingLink->id !== $lockedPatient->id) {
+                throw ValidationException::withMessages([
+                    'patient' => ['This account is already linked to a different patient record.'],
+                ]);
+            }
+
+            if ($wasUnlinked) {
+                $snapshot = $lockedRequest->encrypted_identity_snapshot;
+
+                if (! is_array($snapshot)
+                    || ! $this->identitySnapshot->matchesAccount($snapshot, $account)
+                    || ! $this->identityMatcher->handleSnapshot($snapshot, $lockedPatient)->isEligible()) {
+                    throw ValidationException::withMessages([
+                        'patient' => ['The account details do not match this patient record.'],
+                    ]);
+                }
+
+                try {
+                    $this->linkPatientAccount->handle(
+                        account: $account,
+                        patient: $lockedPatient,
+                        source: 'appointment_request',
+                        sourceId: $lockedRequest->id,
+                        actorId: auth()->id(),
+                    );
+                } catch (PatientIdentityMismatchException) {
+                    throw ValidationException::withMessages([
+                        'patient' => ['The account details do not match this patient record.'],
+                    ]);
+                }
+            } else {
+                $this->associateAccountConversation->handle($account, $lockedPatient);
+            }
+
+            $lockedRequest->update(['patient_id' => $lockedPatient->id]);
 
             $this->createAuditLog->handle(
-                subject: $request,
+                subject: $lockedRequest,
                 action: AuditEvent::AppointmentRequestLinked,
                 metadata: [
-                    'patient_id' => $patient->id,
+                    'patient_id' => $lockedPatient->id,
                     'account_id' => $account->id,
                     'account_link_created' => $wasUnlinked,
                 ],
                 actorId: auth()->id(),
             );
 
-            if ($wasUnlinked) {
-                $this->createAuditLog->handle(
-                    subject: $patient,
-                    action: AuditEvent::PatientAccountLinked,
-                    metadata: [
-                        'account_id' => $account->id,
-                        'appointment_request_id' => $request->id,
-                    ],
-                    actorId: auth()->id(),
-                );
-            }
-
-            return $request->fresh();
+            return $lockedRequest->fresh();
         });
-    }
-
-    /**
-     * Resolving a request to a patient means a staff member has already
-     * verified this identity match — extend that same trust to the
-     * requesting account, the same way ReviewPatientLinkRequest does for
-     * the standalone account-linking flow. Without this, an approved
-     * appointment request leaves the account looking unlinked, blocked
-     * from every endpoint that requires an active patient link — including
-     * viewing the very appointment it just requested.
-     */
-    private function linkAccountIfNeeded(AppointmentRequest $request, Patient $patient): void
-    {
-        $account = $request->user;
-        $existingLink = $account->patient;
-
-        if ($existingLink !== null) {
-            if ($existingLink->id !== $patient->id) {
-                throw ValidationException::withMessages([
-                    'patient' => ['This account is already linked to a different patient record.'],
-                ]);
-            }
-
-            app(AssociateAccountConversation::class)->handle($account, $patient);
-
-            return;
-        }
-
-        $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
-
-        if ($patient->user_id !== null && $patient->user_id !== $account->id) {
-            throw ValidationException::withMessages([
-                'patient' => ['This patient record is already linked to a different account.'],
-            ]);
-        }
-
-        if ($patient->user_id === null) {
-            // Identity compatibility check
-            $match = app(PatientAccountIdentityMatcher::class)->handle($account, $patient);
-
-            if (! $match->isEligible()) {
-                throw ValidationException::withMessages([
-                    'patient' => ['The account details do not match this patient record.'],
-                ]);
-            }
-
-            $patient->update(['user_id' => $account->id]);
-        }
-
-        app(AssociateAccountConversation::class)->handle($account, $patient);
     }
 }

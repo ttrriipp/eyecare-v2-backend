@@ -70,6 +70,18 @@ test('linked account can access clinical routes', function () {
         ->assertOk();
 });
 
+test('identity review does not suspend linked clinical access', function (): void {
+    $user = User::factory()->patient()->create();
+    $user->patient->forceFill([
+        'identity_review_required' => true,
+        'identity_review_required_at' => now(),
+    ])->saveQuietly();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/prescriptions')
+        ->assertOk();
+});
+
 test('unauthenticated request returns 401', function () {
     $this->getJson('/api/v1/prescriptions')
         ->assertUnauthorized();

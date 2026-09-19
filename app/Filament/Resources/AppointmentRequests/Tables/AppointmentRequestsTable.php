@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Tables;
 
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Enums\AppointmentRequestKind;
 use App\Enums\AppointmentRequestStatus;
@@ -175,33 +176,25 @@ class AppointmentRequestsTable
                             $candidateOptions = [];
 
                             if ($record->hasIdentitySnapshot()) {
+                                $matcher = app(PatientAccountIdentityMatcher::class);
                                 $candidateOptions = app(RankPatientCandidates::class)
                                     ->fromSnapshot($record->encrypted_identity_snapshot)
+                                    ->filter(fn (array $candidate): bool => $matcher
+                                        ->handleSnapshot($record->encrypted_identity_snapshot, $candidate['patient'])
+                                        ->isEligible())
                                     ->mapWithKeys(fn (array $candidate): array => [
                                         $candidate['patient']->id => "{$candidate['patient']->full_name} ({$candidate['patient']->patient_number}) — ".Str::headline($candidate['strength']).' match',
                                     ])
                                     ->toArray();
                             }
 
-                            $otherOptions = Patient::query()
-                                ->whereNull('user_id')
-                                ->whereNotIn('id', array_keys($candidateOptions))
-                                ->get()
-                                ->mapWithKeys(fn (Patient $p): array => [
-                                    $p->id => "{$p->full_name} ({$p->patient_number})",
-                                ])
-                                ->toArray();
-
                             return [
                                 Select::make('patient_id')
                                     ->label('Patient')
-                                    ->options(array_filter([
-                                        'Candidate Matches' => $candidateOptions,
-                                        'All Patients' => $otherOptions,
-                                    ]))
+                                    ->options(array_filter(['Candidate Matches' => $candidateOptions]))
                                     ->searchable()
                                     ->required()
-                                    ->helperText('Select which clinical record this request belongs to.'),
+                                    ->helperText('Only identity-compatible candidate records are shown.'),
                             ];
                         })
                         ->action(function (AppointmentRequest $record, array $data): void {

@@ -2,7 +2,7 @@
 
 > **Living document.** Update this when schema, routes, roles, status values, or architectural decisions change.
 >
-> **Reconciliation status as of 2026-09-16.** Patient accounts, two-stage
+> **Reconciliation status as of 2026-09-19.** Patient accounts, two-stage
 > phone-OTP registration, phone-primary authentication, contact management,
 > patient linking, expanded unlinked appointment-request identity snapshots,
 > authenticated step-up for sensitive changes, Optical Orders workflow,
@@ -21,6 +21,20 @@
 > records per source. The admin-only **Reports** cluster now provides
 > aggregate Financial, Appointments, Optical Orders, and Feedback pages with
 > shared clinic-timezone filters and safe CSV exports.
+
+> **Shipped (2026-09-18): patient-account identity safety.** Every current
+> account-to-Patient linking path uses the locked `LinkPatientAccount` action
+> and the deterministic `PatientAccountIdentityMatcher`. A link requires exact
+> normalized first/last names, exact DOB, compatible optional middle name, and
+> at least one verified same-type contact blind-index match. Candidate ranking,
+> staff notes, invitation possession, and arbitrary Patient IDs cannot bypass
+> the gate. Mobile invitation/registration mismatches return the generic
+> `PATIENT_IDENTITY_MISMATCH` 422 response without clinic or candidate details.
+> Later account, verified-contact, or Patient drift leaves the active link and
+> clinical access intact, marks `identity_review_required` once, and records a
+> PII-safe audit. Staff can resolve only a fresh compatible pair or explicitly
+> unlink it. `patient-links:audit-identity` provides dry-run and idempotent
+> `--mark-review` reconciliation for existing links.
 
 > **Current commerce boundary (2026-09-16).** Quotations and
 > `quotation_items` are retired from the canonical application schema and
@@ -834,7 +848,7 @@ Seeded by `DemoUserSeeder`. All passwords: `password`
 | `patient_invitations` | Single-use expiring invitations. `public_id`, `patient_id`, `sender_id`, `channel`, encrypted `destination`, `destination_hash`, `secret_digest`, `status` (pending/accepted/expired/revoked/failed), `expires_at`, `sent_at`, `revoked_at`, `accepted_at`, `accepted_by_user_id`. |
 | `appointment_requests` | Patient appointment requests. `request_number`, `request_type` (`new`/`reschedule`), `user_id`, `patient_id`, `appointment_type_id` (required for new requests, nullable for legacy), `appointment_id` (optional association for new requests and required association for rebooking; not unique), `original_scheduled_at` (rebooking snapshot), `selected_scheduled_at` (staff-selected rebooking result), `scheduled_at` (primary preference), `alternative_scheduled_times` (nullable JSON array, max 2 ordered alternatives), `provisional_duration_minutes` (snapshot from type or current appointment), `encrypted_reason_for_visit`, `encrypted_referring_source` (nullable, required only when a new type requires referral), `encrypted_identity_snapshot` for unlinked new submissions (phone, optional email, structured name, date of birth, gender, occupation, home address, and server-derived verified-contact metadata), `encrypted_cancellation_reason` (nullable encrypted patient reason, required on patient cancellation and returned as `cancellation_reason` to the owning account), `status` (pending/accepted/rejected/cancelled/expired), `expires_at` (latest preference time), `resolved_by_user_id`, `resolved_at`, `rejection_reason` (nullable text, populated when status is rejected). Pending requests are non-binding and never consume capacity; rebooking proposals specifically do not hold their candidate slots. The one-active-booking rule allows one actionable pending request or one future scheduled/checked-in appointment. Only stored `pending` rows with a future `expires_at` are counted, with rebooking rows counted only while their associated appointment remains scheduled. Cancelled, accepted, rejected, expired, and stale rebooking rows do not count. Cancellation persists the `cancelled` enum value, so historical rows remain visible while a replacement request can be submitted. A patient must send nonblank `reason_details` (up to 1,000 characters) when cancelling; the reason is encrypted at rest and visible on the staff request detail screen. A patient may update only the schedule preferences on an unexpired pending row; the update preserves all identity and booking fields, recalculates `expires_at`, rechecks all candidates under locks, and writes an atomic `appointment_request.schedule_updated` audit. A rebooking approval moves the existing appointment and appends one immutable `appointment_reschedules` row; the original accepted booking request remains unchanged. Approving a Patient Link Request backfills `patient_id` on the account's previously unlinked requests without changing their encrypted snapshot. Unlinking clears `patient_id` only on pending requests; terminal requests retain their historical patient link. Deferred: `preferred_optometrist_id`, `review_due_at`. |
 | `appointment_type_visit_reason_presets` | Backend-managed patient-facing suggestions belonging to an appointment type. Stores `appointment_type_id`, `label` (trimmed, nonblank, max 255 characters), `sort_order`, and `is_active`; inactive presets remain editable by clinic administrators but are excluded from the mobile appointment-type catalog. `Other` is client-provided and is never stored here. |
-| `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional `user_id` link to account. |
+| `patients` | Independent clinical identity. `patient_number` (PAT-YYYY-NNNNNN), `first_name`, `middle_name`, `last_name`, `full_name` (derived), `date_of_birth`, `occupation`, `address`, `gender`, `contact_email`, `phone`, `contact_email_lookup_hash`, `phone_lookup_hash`. Optional server-controlled `user_id` link to account. `identity_review_required` (indexed boolean) and `identity_review_required_at` track post-link incompatibility; they do not suspend access and are not mass assignable. |
 | `appointments` | `patient_id`, `appointment_type_id`, `referring_source`, `visit_reason_id`, `appointment_status_id`, `optometrist_id`, `source` (mobile/walk_in/manual), `scheduled_at`, `checked_in_at`, `fulfilled_at`, `cancelled_by`, `cancelled_by_user_id`, `cancellation_reason_category`, `cancellation_reason_details`, `cancelled_at`, `no_show_by`, `no_show_at`, `contact_notes`, `staff_notes`, `reason_for_visit`. |
 | `appointment_reschedules` | `appointment_id`, `previous_scheduled_at`, `new_scheduled_at`, `initiated_by` (patient/clinic), `actor_id`, `reason_category`, `reason_details`, `rescheduled_at`, `notified_at`. |
 | `encounters` | `patient_id`, `appointment_id`, `optometrist_id`, `status` (planned/in_progress/completed/cancelled/voided), encrypted `findings`/`remarks`/`assessment`/`supporting_test_results`, encrypted `chief_complaint`/`past_ocular_history`/`past_surgical_history`/`past_medical_history`/`allergies`/`medications`/`plan`, `last_wizard_step`, `draft_saved_at`, `prescription_draft` (JSON), `completed_by`, `voided_by` (nullable FK users), `voided_at`, encrypted `void_reason`. Check-in no longer attaches PatientIntake. Assigned provider is synchronized with Appointment. |
@@ -1186,6 +1200,10 @@ orders, billings, checkout records, or purchases.
 | `RecoverPatientPassword` | `app/Actions/Auth/` | Resets password through verified phone recovery OTP, revokes other tokens, issues device token |
 | `NormalizeContact` | `app/Actions/PatientAccounts/` | Deterministic email/phone/name normalization |
 | `CreateContactLookupHash` | `app/Actions/PatientAccounts/` | HMAC blind indexes for contact lookups |
+| `PatientAccountIdentityMatcher` | `app/Actions/PatientAccounts/` | Single deterministic link/drift gate using normalized names, exact DOB, optional middle name, and verified same-type contact hashes; returns only safe reason codes |
+| `LinkPatientAccount` | `app/Actions/PatientAccounts/` | Canonical locked User → Patient link mutation; rechecks compatibility, associates the account conversation, clears stale review state, and records the source audit |
+| `FlagPatientIdentityReview` | `app/Actions/PatientAccounts/` | Marks a linked Patient for one deduplicated PII-safe review audit after incompatible account/contact/Patient changes without unlinking |
+| `ResolvePatientIdentityReview` | `app/Actions/PatientAccounts/` | Clears review only after a fresh locked compatible comparison; incompatible records require correction or explicit unlink |
 | `LoadPatientAccountContext` | `app/Actions/PatientAccounts/` | Loads the role, contacts, linked Patient, and pending link-request state required by `PatientAccountResource` |
 | `UpdateAccountProfile` | `app/Actions/PatientAccounts/` | Transactionally updates allowlisted account identity fields, expires a pending link request on actual changes, and records PII-safe audit metadata |
 | `ExpirePendingPatientLinkRequest` | `app/Actions/PatientAccounts/` | Marks one pending link request expired with a categorical audit reason |
@@ -1196,7 +1214,9 @@ orders, billings, checkout records, or purchases.
 | `UnlinkPatientAccount` | `app/Actions/PatientAccounts/` | Revokes tokens, removes link, creates audit log |
 | `IssuePatientInvitation` | `app/Actions/PatientAccounts/` | Creates single-use expiring invitation |
 | `AcceptPatientInvitation` | `app/Actions/PatientAccounts/` | Atomically verifies the account-bound OTP, locks and activates the patient link, and safely returns the existing link on a same-account retry |
+| `LinkAppointmentRequestToPatient` | `app/Actions/Appointments/` | Resolves an appointment request only when its immutable snapshot, current account, and selected Patient are compatible; new Patient creation and link state are atomic |
 | `SearchPatientDuplicates` | `app/Actions/Patients/` | Searches by email hash, phone hash, name+DOB |
+| `AuditPatientLinksCommand` | `app/Console/Commands/` | Dry-runs or explicitly marks incompatible existing links with safe aggregate reasons; never unlinks or prints PII |
 | `SubmitAppointmentRequest` | `app/Actions/Appointments/` | Creates a new appointment request or an optional linked rebooking request with a server-derived type/duration snapshot, validates all time preferences, persists alternatives and latest-preference expiry, and enforces the actionable active limit; never moves an appointment or creates a capacity hold |
 | `ResolveCurrentBooking` | `app/Actions/Appointments/` | Resolves the account's single current appointment journey, keeping pending rebooking preferences attached to the existing appointment and exposing its original accepted booking request |
 | `BuildAppointmentRequestIdentitySnapshot` | `app/Actions/Appointments/` | Builds the expanded encrypted identity snapshot from submitted identity or account fallback, derives the verified phone server-side, and validates any submitted phone against it |
@@ -1300,7 +1320,7 @@ have never been referenced.
 - **Supplier invoice reference:** `job_orders.supplier_invoice_number` records the supplier's external invoice number only. Staff may enter it while the Job Order is active, and the Mark Ready action requires it. It is clinic-internal, is not part of Billing Records, and is hidden from patient APIs.
 - **Walk-in patients:** `users.email` and `users.password` are nullable. Walk-in records have only structured name + phone.
 - **Patient address:** Single nullable free-text field. Read-only via mobile API; editable by staff via Patients edit form.
-- **Patient account profile:** `PATCH /api/v1/me` is a strict account-owned allowlist for `first_name`, `middle_name`, `last_name`, and `date_of_birth`; DOB requires same-account step-up verification. Names are trimmed and account changes never synchronize to `patients`. Address, occupation, gender, and all `linked_patient` fields remain clinic-owned; email/phone and password use their dedicated verified workflows. Actual identity or relevant verified-contact changes expire pending patient-link requests, while primary-contact-only changes and normalized no-ops do not.
+- **Patient account profile:** `PATCH /api/v1/me` is a strict account-owned allowlist for `first_name`, `middle_name`, `last_name`, and `date_of_birth`; DOB and actual linked first/last-name changes require same-account step-up verification, while normalized name no-ops, unlinked names, and middle-name-only changes do not. Names are trimmed and account changes never synchronize to `patients`. Address, occupation, gender, and all `linked_patient` fields remain clinic-owned; email/phone and password use their dedicated verified workflows. Actual identity or relevant verified-contact changes expire pending link requests and re-evaluate an existing link for deduplicated identity review, while primary-contact-only changes and normalized no-ops do not.
 - **Optometrist assignment:** Clinic-controlled. Patients choose clinic time only, not a specific provider.
 - **Clinical data encrypted:** Prescription values, intake narrative, encounter findings/remarks/assessment/supporting_test_results/addenda reason/content use Laravel's `encrypted` cast. Not queryable.
 - **`CX` in prescription print:** Binds to cylinder values. Axis is separate. Confirmed by clinic 2026-07-26.

@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\Patients\Pages;
 
-use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\IssuePatientInvitation;
+use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
+use App\Actions\PatientAccounts\ResolvePatientIdentityReview;
 use App\Actions\PatientAccounts\UnlinkPatientAccount;
 use App\Enums\PatientInvitationStatus;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
 use App\Filament\Resources\Patients\PatientResource;
 use App\Models\Patient;
@@ -17,7 +19,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class EditPatient extends EditRecord
@@ -133,6 +134,7 @@ class EditPatient extends EditRecord
                 ->icon('heroicon-o-link-slash')
                 ->color('danger')
                 ->visible(fn (): bool => $this->getRecord()->user_id !== null && auth()->user()->isAdmin())
+                ->authorize('unlinkAccount')
                 ->requiresConfirmation()
                 ->schema([
                     Textarea::make('reason')
@@ -163,6 +165,36 @@ class EditPatient extends EditRecord
                     }
                 }),
 
+            Action::make('resolveIdentityReview')
+                ->label('Resolve Identity Review')
+                ->icon('heroicon-o-check-badge')
+                ->color('warning')
+                ->visible(fn (): bool => $this->getRecord()->identity_review_required && auth()->user()->isAdmin())
+                ->authorize('resolveIdentityReview')
+                ->requiresConfirmation()
+                ->action(function (): void {
+                    try {
+                        app(ResolvePatientIdentityReview::class)->handle(
+                            patient: $this->getRecord(),
+                            reviewer: auth()->user(),
+                        );
+
+                        $this->record->refresh();
+                        Notification::make()
+                            ->title('Identity review resolved')
+                            ->success()
+                            ->send();
+                    } catch (ValidationException $exception) {
+                        $message = collect($exception->errors())->flatten()->first()
+                            ?? 'The account and patient details must match before review can be resolved.';
+                        Notification::make()
+                            ->title('Cannot resolve identity review')
+                            ->body($message)
+                            ->danger()
+                            ->send();
+                    }
+                }),
+
             Action::make('linkAccount')
                 ->label('Link Account')
                 ->icon('heroicon-o-link')
@@ -177,11 +209,14 @@ class EditPatient extends EditRecord
 
                     return auth()->user()->isAdmin();
                 })
+                ->authorize('linkAccount')
                 ->requiresConfirmation()
                 ->schema([
                     Select::make('user_id')
                         ->label('Select Account')
-                        ->options(function () {
+                        ->options(function (): array {
+                            $patient = $this->getRecord();
+                            $matcher = app(PatientAccountIdentityMatcher::class);
                             // Get unlinked patient-role users
                             $linkedUserIds = Patient::whereNotNull('user_id')
                                 ->pluck('user_id')
@@ -189,7 +224,9 @@ class EditPatient extends EditRecord
 
                             return User::whereHas('roles', fn ($q) => $q->where('name', 'patient'))
                                 ->whereNotIn('id', $linkedUserIds)
+                                ->with('contacts')
                                 ->get()
+                                ->filter(fn (User $user): bool => $matcher->handle($user, $patient)->isEligible())
                                 ->mapWithKeys(function ($user): array {
                                     $name = ($user->first_name && $user->last_name)
                                         ? "{$user->first_name} {$user->last_name}"
@@ -209,42 +246,26 @@ class EditPatient extends EditRecord
                     $patient = $this->getRecord();
                     $user = User::findOrFail($data['user_id']);
 
-                    // Verify account is still unlinked
-                    if ($user->patient !== null) {
+                    try {
+                        app(LinkPatientAccount::class)->handle(
+                            account: $user,
+                            patient: $patient,
+                            source: 'patient_record',
+                            sourceId: $patient->id,
+                            actorId: auth()->id(),
+                        );
+                    } catch (PatientIdentityMismatchException|ValidationException $exception) {
+                        $message = $exception instanceof ValidationException
+                            ? collect($exception->errors())->flatten()->first()
+                            : 'Account details do not match this patient record.';
                         Notification::make()
-                            ->title('This account is already linked to another patient')
+                            ->title('Cannot link account')
+                            ->body($message ?? 'Cannot link account.')
                             ->danger()
                             ->send();
 
                         return;
                     }
-
-                    // Verify patient is still unlinked
-                    if ($patient->fresh()->user_id !== null) {
-                        Notification::make()
-                            ->title('This patient is already linked to an account')
-                            ->danger()
-                            ->send();
-
-                        return;
-                    }
-
-                    // Activate the link
-                    DB::transaction(function () use ($patient, $user): void {
-                        // Identity compatibility check
-                        $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
-
-                        if (! $match->isEligible()) {
-                            Notification::make()
-                                ->title('Account details do not match this patient record')
-                                ->danger()
-                                ->send();
-                            $this->halt();
-                        }
-
-                        $patient->update(['user_id' => $user->id]);
-                        app(AssociateAccountConversation::class)->handle($user, $patient);
-                    });
 
                     $this->record->refresh();
 

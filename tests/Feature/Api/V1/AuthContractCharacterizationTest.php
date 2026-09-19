@@ -3,7 +3,6 @@
 use App\Models\Patient;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
-use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 
@@ -76,16 +75,17 @@ test('patients.user_id is the authoritative active link', function () {
         ->and($patient->account->id)->toBe($user->id);
 });
 
-test('one patient cannot link to multiple accounts', function () {
+test('patient link ownership cannot be changed through mass assignment', function () {
     $user = User::factory()->patient()->create();
     $patient = $user->patient;
 
-    // The unique constraint on patients.user_id prevents this
+    // A second account cannot take over the existing link through a generic
+    // model update; link ownership is server-controlled.
     $secondUser = User::factory()->patient()->create();
 
-    // Attempting to link the same patient to a second user should fail
-    expect(fn () => $patient->update(['user_id' => $secondUser->id]))
-        ->toThrow(QueryException::class);
+    $patient->update(['user_id' => $secondUser->id]);
+
+    expect($patient->fresh()->user_id)->toBe($user->id);
 });
 
 test('deleting the account preserves but unlinks the patient', function () {

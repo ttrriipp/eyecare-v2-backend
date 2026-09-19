@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\PatientLinkRequests\Pages;
 
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\ReviewPatientLinkRequest;
 use App\Filament\Resources\PatientLinkRequests\PatientLinkRequestResource;
 use App\Models\Patient;
@@ -38,24 +39,19 @@ class ViewPatientLinkRequest extends ViewRecord
                     Select::make('patient_id')
                         ->label('Link to Patient')
                         ->options(function (): array {
+                            $matcher = app(PatientAccountIdentityMatcher::class);
                             $candidates = $this->record->candidates()->with('patient')->orderBy('rank')->get()
-                                ->filter(fn ($candidate) => $candidate->patient !== null && $candidate->patient->user_id === null);
+                                ->filter(fn ($candidate): bool => $candidate->patient !== null
+                                    && $candidate->patient->user_id === null
+                                    && $this->record->user !== null
+                                    && $matcher->handle($this->record->user, $candidate->patient)->isEligible());
 
                             $candidateOptions = $candidates->mapWithKeys(fn ($candidate) => [
                                 $candidate->patient_id => "{$candidate->patient->full_name} ({$candidate->patient->patient_number}) — ".Str::headline($candidate->match_strength).' match',
                             ])->toArray();
 
-                            $otherOptions = Patient::whereNull('user_id')
-                                ->whereNotIn('id', $candidates->pluck('patient_id'))
-                                ->get()
-                                ->mapWithKeys(fn ($p) => [
-                                    $p->id => "{$p->full_name} ({$p->patient_number})",
-                                ])
-                                ->toArray();
-
                             return array_filter([
                                 'Candidate Matches' => $candidateOptions,
-                                'Other Unlinked Patients' => $otherOptions,
                             ]);
                         })
                         ->searchable()

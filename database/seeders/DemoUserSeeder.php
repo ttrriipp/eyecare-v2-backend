@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Models\Patient;
 use App\Models\PatientAccountContact;
 use App\Models\Role;
@@ -29,7 +30,7 @@ class DemoUserSeeder extends Seeder
         $this->createAdmin();
         $this->createOptometrist();
         $this->createStaff();
-        $this->createPatient();
+        $this->createPatient(app(LinkPatientAccount::class));
         $this->createWalkInPatient();
     }
 
@@ -113,32 +114,38 @@ class DemoUserSeeder extends Seeder
         );
     }
 
-    private function createPatient(): void
+    private function createPatient(LinkPatientAccount $linkPatientAccount): void
     {
         $user = User::query()->firstOrCreate(
             ['email' => 'customer@eyecare.test'],
             [
                 'first_name' => 'Liza',
                 'last_name' => 'Mendoza',
+                'date_of_birth' => '1990-05-15',
                 'phone' => '09170000003',
                 'password' => Hash::make('password'),
                 'role_id' => Role::query()->where('name', Role::Patient)->value('id'),
                 'email_verified_at' => now(),
             ],
         );
-        $user->update(['first_name' => 'Liza', 'last_name' => 'Mendoza']);
+        $user->update([
+            'first_name' => 'Liza',
+            'last_name' => 'Mendoza',
+            'date_of_birth' => '1990-05-15',
+        ]);
         $user->roles()->syncWithoutDetaching(
             Role::query()->where('name', Role::Patient)->pluck('id'),
         );
 
         if ($user->patient === null) {
             Patient::query()->create([
-                'user_id' => $user->id,
                 'patient_number' => 'PAT-2026-000001',
                 'first_name' => 'Liza',
                 'last_name' => 'Mendoza',
                 'phone' => '09170000003',
+                'phone_lookup_hash' => app(CreateContactLookupHash::class)->forPhone('+639170000003'),
                 'contact_email' => 'customer@eyecare.test',
+                'contact_email_lookup_hash' => app(CreateContactLookupHash::class)->forEmail('customer@eyecare.test'),
                 'date_of_birth' => '1990-05-15',
                 'gender' => 'female',
                 'occupation' => 'Teacher',
@@ -155,6 +162,16 @@ class DemoUserSeeder extends Seeder
                 'verified_at' => now(),
                 'is_primary' => true,
             ]);
+        }
+
+        $patient = Patient::query()->where('patient_number', 'PAT-2026-000001')->first();
+
+        if ($patient !== null && $patient->user_id === null) {
+            $linkPatientAccount->handle(
+                account: $user,
+                patient: $patient,
+                source: 'demo_seeder',
+            );
         }
     }
 

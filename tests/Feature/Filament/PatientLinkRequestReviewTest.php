@@ -5,6 +5,7 @@ use App\Filament\Resources\PatientLinkRequests\Pages\ListPatientLinkRequests;
 use App\Filament\Resources\PatientLinkRequests\Pages\ViewPatientLinkRequest;
 use App\Models\AuditLog;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\PatientLinkCandidate;
 use App\Models\PatientLinkRequest;
 use App\Models\Role;
@@ -64,8 +65,23 @@ test('staff sees ranked candidates on the link request page', function () {
 test('approving a strong match does not require a decision note', function () {
     $staff = User::factory()->staff()->create();
     $account = unlinkedPatientAccount();
+    $account->update([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
     $request = PatientLinkRequest::factory()->forAccount($account)->create();
-    $patient = Patient::factory()->create(['user_id' => null]);
+    $patient = Patient::factory()->create([
+        'user_id' => null,
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
+        'phone' => '+639171234567',
+    ]);
+    PatientAccountContact::factory()->phone('+639171234567')->verified()->primary()->create(['user_id' => $account->id]);
 
     PatientLinkCandidate::create([
         'link_request_id' => $request->id,
@@ -85,7 +101,7 @@ test('approving a strong match does not require a decision note', function () {
     expect($request->fresh()->status)->toBe('approved');
 });
 
-test('approving a non-strong or unranked match requires a decision note', function () {
+test('approving an unranked patient is rejected even when a decision note is supplied', function () {
     $staff = User::factory()->staff()->create();
     $account = unlinkedPatientAccount();
     $request = PatientLinkRequest::factory()->forAccount($account)->create();
@@ -94,8 +110,8 @@ test('approving a non-strong or unranked match requires a decision note', functi
     $this->actingAs($staff);
 
     Livewire::test(ViewPatientLinkRequest::class, ['record' => $request->getRouteKey()])
-        ->callAction('approve', ['patient_id' => $patient->id, 'decision_note' => null])
-        ->assertHasActionErrors(['decision_note' => 'required']);
+        ->callAction('approve', ['patient_id' => $patient->id, 'decision_note' => 'The details were reviewed.'])
+        ->assertHasActionErrors(['patient_id']);
 
     expect($request->fresh()->status)->toBe('pending');
 });

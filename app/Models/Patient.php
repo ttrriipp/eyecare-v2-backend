@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Actions\PatientAccounts\CreateContactLookupHash;
 use App\Actions\PatientAccounts\NormalizeContact;
-use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use Database\Factories\PatientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +14,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\ValidationException;
 
 #[Fillable([
-    'user_id',
     'first_name',
     'middle_name',
     'last_name',
@@ -30,6 +28,16 @@ class Patient extends Model
 {
     /** @use HasFactory<PatientFactory> */
     use HasFactory, SoftDeletes;
+
+    /**
+     * Server-controlled review state defaults to trusted for existing and
+     * newly-created records.
+     *
+     * @var array<string, bool>
+     */
+    protected $attributes = [
+        'identity_review_required' => false,
+    ];
 
     protected static function booted(): void
     {
@@ -63,21 +71,6 @@ class Patient extends Model
                     : null;
             }
 
-            // Check for identity drift if linked and identity-relevant fields changed
-            if ($patient->user_id !== null
-                && ($patient->isDirty('first_name') || $patient->isDirty('last_name')
-                    || $patient->isDirty('date_of_birth') || $patient->isDirty('phone')
-                    || $patient->isDirty('contact_email'))) {
-                $account = $patient->user;
-                if ($account !== null) {
-                    $match = app(PatientAccountIdentityMatcher::class)->handle($account, $patient);
-                    if (! $match->isEligible() && ! $patient->identity_review_required) {
-                        $patient->identity_review_required = true;
-                        $patient->identity_review_required_at = now();
-                        // Defer audit to avoid circular dependency in saving event
-                    }
-                }
-            }
         });
     }
 
@@ -181,6 +174,14 @@ class Patient extends Model
     public function encounters(): HasMany
     {
         return $this->hasMany(Encounter::class);
+    }
+
+    /**
+     * @return HasMany<Prescription, $this>
+     */
+    public function prescriptions(): HasMany
+    {
+        return $this->hasMany(Prescription::class);
     }
 
     /**

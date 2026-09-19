@@ -3,8 +3,8 @@
 namespace App\Actions\PatientAccounts;
 
 use App\Actions\Audit\CreateAuditLog;
-use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\AuditEvent;
+use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\AppointmentRequest;
 use App\Models\Patient;
 use App\Models\PatientLinkRequest;
@@ -18,8 +18,7 @@ class ReviewPatientLinkRequest
         private readonly CreateAuditLog $createAuditLog,
         private readonly ExpirePendingPatientLinkRequest $expirePendingLinkRequest,
         private readonly PatientLinkIdentitySnapshot $identitySnapshot,
-        private readonly AssociateAccountConversation $associateAccountConversation,
-        private readonly PatientAccountIdentityMatcher $identityMatcher,
+        private readonly LinkPatientAccount $linkPatientAccount,
     ) {}
 
     public function approve(
@@ -69,16 +68,19 @@ class ReviewPatientLinkRequest
                 ];
             }
 
-            // Identity compatibility check
-            $match = $this->identityMatcher->handle($account, $patient);
-
-            if (! $match->isEligible()) {
+            try {
+                $this->linkPatientAccount->handle(
+                    account: $account,
+                    patient: $patient,
+                    source: 'patient_link_request',
+                    sourceId: $lockedRequest->id,
+                    actorId: $reviewer->id,
+                );
+            } catch (PatientIdentityMismatchException) {
                 throw ValidationException::withMessages([
                     'patient' => ['The account details do not match this patient record.'],
                 ]);
             }
-
-            $patient->update(['user_id' => $account->id]);
 
             $lockedRequest->update([
                 'status' => 'approved',
@@ -90,8 +92,6 @@ class ReviewPatientLinkRequest
 
             $linkedAppointmentRequestCount = $this->linkUnlinkedAppointmentRequests($account, $patient);
 
-            $this->associateAccountConversation->handle($account, $patient);
-
             $this->createAuditLog->handle(
                 subject: $lockedRequest,
                 action: AuditEvent::PatientLinkApproved,
@@ -100,16 +100,6 @@ class ReviewPatientLinkRequest
                     'account_id' => $account->id,
                     'linked_appointment_request_count' => $linkedAppointmentRequestCount,
                     'note_provided' => filled($note),
-                ],
-                actorId: $reviewer->id,
-            );
-
-            $this->createAuditLog->handle(
-                subject: $patient,
-                action: AuditEvent::PatientAccountLinked,
-                metadata: [
-                    'account_id' => $account->id,
-                    'link_request_id' => $lockedRequest->id,
                 ],
                 actorId: $reviewer->id,
             );

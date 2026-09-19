@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Enums\AppointmentRequestStatus;
 use App\Enums\BillingItemSourceKind;
 use App\Enums\BillingRecordStatus;
@@ -21,6 +23,7 @@ use App\Models\EncounterAddendum;
 use App\Models\JobOrder;
 use App\Models\JobOrderItem;
 use App\Models\Patient;
+use App\Models\PatientAccountContact;
 use App\Models\PatientLinkRequest;
 use App\Models\Prescription;
 use App\Models\ProductVariant;
@@ -251,15 +254,46 @@ class ScenarioCoverageSeeder extends Seeder
 
         // A dedicated walk-in match — not the canonical Pedro Cruz, who other
         // tests expect to remain unlinked.
-        $approvedUser = User::factory()->create(['role_id' => $patientRoleId]);
-        $approvedMatch = Patient::factory()->walkIn()->create(['patient_number' => 'PAT-2026-000003']);
+        $approvedUser = User::factory()->create([
+            'first_name' => 'Rosa',
+            'middle_name' => null,
+            'last_name' => 'Santos',
+            'date_of_birth' => '1988-04-12',
+            'phone' => '09170000005',
+            'role_id' => $patientRoleId,
+        ]);
+        $approvedContactHash = app(CreateContactLookupHash::class)->forPhone('09170000005');
+        PatientAccountContact::query()->create([
+            'user_id' => $approvedUser->id,
+            'type' => 'phone',
+            'encrypted_value' => '09170000005',
+            'lookup_hash' => $approvedContactHash,
+            'verified_at' => now(),
+            'is_primary' => true,
+        ]);
+        $approvedMatch = Patient::factory()->create([
+            'patient_number' => 'PAT-2026-000003',
+            'first_name' => 'Rosa',
+            'middle_name' => null,
+            'last_name' => 'Santos',
+            'date_of_birth' => '1988-04-12',
+            'phone' => '09170000005',
+            'user_id' => null,
+        ]);
+        $approvedMatch->forceFill(['phone_lookup_hash' => $approvedContactHash])->saveQuietly();
         PatientLinkRequest::factory()->approved()->create([
             'request_number' => 'PLR-2026-000003',
             'user_id' => $approvedUser->id,
             'reviewed_patient_id' => $approvedMatch->id,
             'reviewer_id' => $staff->id,
         ]);
-        $approvedMatch->update(['user_id' => $approvedUser->id]);
+        app(LinkPatientAccount::class)->handle(
+            account: $approvedUser,
+            patient: $approvedMatch,
+            source: 'scenario_coverage_seeder',
+            sourceId: $approvedMatch->id,
+            actorId: $staff->id,
+        );
     }
 
     private function seedEncounterStatuses(): void

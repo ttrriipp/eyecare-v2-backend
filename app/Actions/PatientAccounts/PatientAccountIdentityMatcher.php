@@ -71,13 +71,84 @@ final class PatientAccountIdentityMatcher
             }
         }
 
-        // Verified contact: at least one matching blind index
-        $contactMatched = $this->matchesVerifiedContact($account, $patient);
+        // Verified contact: at least one matching blind index. A verified
+        // contact on either side without a same-type match is a mismatch;
+        // absent contact evidence is reported separately as missing.
+        $contactResult = $this->matchesVerifiedContact($account, $patient);
 
-        if ($contactMatched) {
+        if ($contactResult === 'matched') {
             $matched[] = 'verified_contact';
+        } elseif ($contactResult === 'mismatched') {
+            $mismatched[] = 'verified_contact';
         } else {
             $missing[] = 'verified_contact';
+        }
+
+        return new PatientAccountIdentityMatch(
+            matchedFields: $matched,
+            mismatchedFields: $mismatched,
+            missingFields: $missing,
+        );
+    }
+
+    /**
+     * Evaluate an immutable appointment identity snapshot against a Patient
+     * record. Snapshots contain only the same PII-safe evidence used by the
+     * account matcher, including a blind contact hash.
+     *
+     * @param  array<string, mixed>  $snapshot
+     */
+    public function handleSnapshot(array $snapshot, Patient $patient): PatientAccountIdentityMatch
+    {
+        $matched = [];
+        $mismatched = [];
+        $missing = [];
+
+        $this->compareNameField($snapshot['first_name'] ?? null, $patient->first_name, 'first_name', $matched, $mismatched, $missing);
+        $this->compareNameField($snapshot['last_name'] ?? null, $patient->last_name, 'last_name', $matched, $mismatched, $missing);
+
+        $snapshotDob = is_string($snapshot['date_of_birth'] ?? null)
+            ? $snapshot['date_of_birth']
+            : null;
+        $patientDob = $patient->date_of_birth?->toDateString();
+
+        if ($snapshotDob === null || $patientDob === null) {
+            $missing[] = 'date_of_birth';
+        } elseif ($snapshotDob === $patientDob) {
+            $matched[] = 'date_of_birth';
+        } else {
+            $mismatched[] = 'date_of_birth';
+        }
+
+        $snapshotMiddle = self::normalize(is_string($snapshot['middle_name'] ?? null) ? $snapshot['middle_name'] : null);
+        $patientMiddle = self::normalize($patient->middle_name);
+
+        if ($snapshotMiddle !== '' && $patientMiddle !== '') {
+            if ($snapshotMiddle === $patientMiddle) {
+                $matched[] = 'middle_name';
+            } else {
+                $mismatched[] = 'middle_name';
+            }
+        }
+
+        $contactType = is_string($snapshot['verified_contact_type'] ?? null)
+            ? $snapshot['verified_contact_type']
+            : null;
+        $snapshotHash = is_string($snapshot['verified_contact_hash'] ?? null)
+            ? $snapshot['verified_contact_hash']
+            : null;
+        $patientHash = match ($contactType) {
+            'phone' => $patient->phone_lookup_hash,
+            'email' => $patient->contact_email_lookup_hash,
+            default => null,
+        };
+
+        if ($snapshotHash === null || $patientHash === null) {
+            $missing[] = 'verified_contact';
+        } elseif (hash_equals($patientHash, $snapshotHash)) {
+            $matched[] = 'verified_contact';
+        } else {
+            $mismatched[] = 'verified_contact';
         }
 
         return new PatientAccountIdentityMatch(
@@ -100,36 +171,61 @@ final class PatientAccountIdentityMatcher
     }
 
     /**
+     * @param  list<string>  $matched
+     * @param  list<string>  $mismatched
+     * @param  list<string>  $missing
+     */
+    private function compareNameField(
+        mixed $left,
+        ?string $right,
+        string $field,
+        array &$matched,
+        array &$mismatched,
+        array &$missing,
+    ): void {
+        $left = is_string($left) ? self::normalize($left) : '';
+        $right = self::normalize($right);
+
+        if ($left === '' || $right === '') {
+            $missing[] = $field;
+        } elseif ($left === $right) {
+            $matched[] = $field;
+        } else {
+            $mismatched[] = $field;
+        }
+    }
+
+    /**
      * Check if at least one verified account contact matches a Patient contact.
      */
-    private function matchesVerifiedContact(User $account, Patient $patient): bool
+    private function matchesVerifiedContact(User $account, Patient $patient): string
     {
-        // Check verified phone
-        $accountPhone = PatientAccountContact::query()
+        $verifiedContacts = PatientAccountContact::query()
             ->where('user_id', $account->id)
-            ->where('type', 'phone')
             ->whereNotNull('verified_at')
-            ->first();
+            ->get(['type', 'lookup_hash']);
 
-        if ($accountPhone !== null && $patient->phone_lookup_hash !== null) {
-            if ($accountPhone->lookup_hash === $patient->phone_lookup_hash) {
-                return true;
+        $patientHashes = [
+            'phone' => $patient->phone_lookup_hash,
+            'email' => $patient->contact_email_lookup_hash,
+        ];
+
+        $hasComparableEvidence = false;
+
+        foreach ($verifiedContacts as $contact) {
+            $patientHash = $patientHashes[$contact->type] ?? null;
+
+            if ($patientHash === null) {
+                continue;
+            }
+
+            $hasComparableEvidence = true;
+
+            if (hash_equals($patientHash, (string) $contact->lookup_hash)) {
+                return 'matched';
             }
         }
 
-        // Check verified email
-        $accountEmail = PatientAccountContact::query()
-            ->where('user_id', $account->id)
-            ->where('type', 'email')
-            ->whereNotNull('verified_at')
-            ->first();
-
-        if ($accountEmail !== null && $patient->contact_email_lookup_hash !== null) {
-            if ($accountEmail->lookup_hash === $patient->contact_email_lookup_hash) {
-                return true;
-            }
-        }
-
-        return false;
+        return $hasComparableEvidence ? 'mismatched' : 'missing';
     }
 }

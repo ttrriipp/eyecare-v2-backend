@@ -92,6 +92,10 @@ test('invitation acceptance activates patient link', function () {
     $patient = Patient::factory()->create([
         'contact_email' => 'patient@example.com',
         'contact_email_lookup_hash' => $lookupHash->forEmail('patient@example.com'),
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'user_id' => null,
     ]);
 
@@ -115,6 +119,10 @@ test('invitation acceptance activates patient link', function () {
 
     // Create an account to accept with
     $user = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'role_id' => Role::where('name', 'patient')->first()->id,
     ]);
 
@@ -155,6 +163,10 @@ test('invitation acceptance returns a token for an unlinked account', function (
     $patient = Patient::factory()->create([
         'contact_email' => 'newuser@example.com',
         'contact_email_lookup_hash' => $lookupHash->forEmail('newuser@example.com'),
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'user_id' => null,
     ]);
 
@@ -177,6 +189,10 @@ test('invitation acceptance returns a token for an unlinked account', function (
 
     // Create a user to authenticate with
     $user = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'role_id' => Role::where('name', 'patient')->first()->id,
     ]);
     PatientAccountContact::factory()->email('newuser@example.com')->verified()->primary()->create([
@@ -202,6 +218,10 @@ test('invitation acceptance is idempotent for the authenticated account and keep
     $patient = Patient::factory()->create([
         'contact_email' => $email,
         'contact_email_lookup_hash' => $lookupHash->forEmail($email),
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'user_id' => null,
     ]);
 
@@ -213,6 +233,10 @@ test('invitation acceptance is idempotent for the authenticated account and keep
     );
 
     $user = User::factory()->create([
+        'first_name' => 'Ana',
+        'middle_name' => null,
+        'last_name' => 'Reyes',
+        'date_of_birth' => '1990-05-15',
         'role_id' => Role::where('name', 'patient')->first()->id,
     ]);
 
@@ -257,6 +281,62 @@ test('invitation acceptance is idempotent for the authenticated account and keep
         ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Accepted)
         ->and($invitation->fresh()->accepted_by_user_id)->toBe($user->id)
         ->and($challenge->fresh()->consumed_at)->not->toBeNull();
+});
+
+test('invitation acceptance rejects an identity mismatch without exposing details or linking state', function (): void {
+    $lookupHash = app(CreateContactLookupHash::class);
+    $email = 'mismatch@example.com';
+    $patient = Patient::factory()->create([
+        'first_name' => 'Clinic',
+        'middle_name' => null,
+        'last_name' => 'Patient',
+        'date_of_birth' => '1990-05-15',
+        'contact_email' => $email,
+        'contact_email_lookup_hash' => $lookupHash->forEmail($email),
+        'user_id' => null,
+    ]);
+    $staff = User::factory()->staff()->create();
+    $invitation = app(IssuePatientInvitation::class)->handle(
+        patient: $patient,
+        channel: 'email',
+        sender: $staff,
+    );
+    $code = '123456';
+    $challenge = OtpChallenge::factory()->pending()->create([
+        'code_digest' => Hash::make($code),
+        'purpose' => OtpPurpose::InvitationAcceptance,
+        'channel' => 'email',
+        'encrypted_destination' => $email,
+        'destination_hash' => $lookupHash->forEmail($email),
+    ]);
+    $account = User::factory()->create([
+        'first_name' => 'Self',
+        'middle_name' => null,
+        'last_name' => 'Account',
+        'date_of_birth' => '1990-05-15',
+        'role_id' => Role::where('name', 'patient')->first()->id,
+    ]);
+    PatientAccountContact::factory()->email($email)->verified()->primary()->create([
+        'user_id' => $account->id,
+    ]);
+    $challenge->update(['user_id' => $account->id]);
+
+    $response = $this->actingAs($account)
+        ->postJson('/api/v1/patient-invitations/accept', [
+            'invitation_code' => $invitation->invitation_code,
+            'challenge_id' => $challenge->public_id,
+            'code' => $code,
+        ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonPath('error.code', 'PATIENT_IDENTITY_MISMATCH')
+        ->assertJsonPath('error.message', 'The account details do not match the patient record. Contact the clinic for assistance.')
+        ->assertJsonMissingPath('error.mismatched_fields')
+        ->assertJsonMissingPath('error.patient');
+
+    expect($patient->fresh()->user_id)->toBeNull()
+        ->and($invitation->fresh()->status)->toBe(PatientInvitationStatus::Pending)
+        ->and($challenge->fresh()->consumed_at)->toBeNull();
 });
 
 test('invitation OTP throttling returns a machine-readable response with retry information', function () {

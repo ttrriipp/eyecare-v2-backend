@@ -2,13 +2,9 @@
 
 namespace App\Actions\PatientAccounts;
 
-use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Auth\VerifyOtpChallenge;
-use App\Actions\Conversations\AssociateAccountConversation;
-use App\Enums\AuditEvent;
 use App\Enums\OtpPurpose;
 use App\Enums\PatientInvitationStatus;
-use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
 use App\Models\Role;
@@ -22,8 +18,7 @@ class AcceptPatientInvitation
 {
     public function __construct(
         protected VerifyOtpChallenge $verifyOtp,
-        protected CreateContactLookupHash $lookupHash,
-        protected CreateAuditLog $createAuditLog,
+        protected LinkPatientAccount $linkPatientAccount,
     ) {}
 
     public function handle(
@@ -48,7 +43,6 @@ class AcceptPatientInvitation
         ): array {
             $invitation = PatientInvitation::query()
                 ->where('invitation_code', $invitationCode)
-                ->lockForUpdate()
                 ->first();
 
             if ($invitation === null) {
@@ -75,9 +69,43 @@ class AcceptPatientInvitation
                 expectedUserId: $authenticatedUser?->id,
             );
 
+            $destination = $invitation->encrypted_destination;
+            $destinationHash = $invitation->destination_hash;
+            $existingContact = PatientAccountContact::query()
+                ->where('lookup_hash', $destinationHash)
+                ->where('type', $invitation->channel)
+                ->first();
+
+            $accountId = $authenticatedUser?->id ?? $existingContact?->user_id;
+            $user = $accountId === null
+                ? null
+                : User::query()->lockForUpdate()->findOrFail($accountId);
+
+            // Lock order: account -> invitation -> Patient -> contacts.
+            $invitation = PatientInvitation::query()
+                ->whereKey($invitation->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $invitation->isPending()) {
+                if ($this->isIdempotentRetry($invitation, $authenticatedUser)) {
+                    return $this->resultForAcceptedInvitation($invitation, $authenticatedUser);
+                }
+
+                throw ValidationException::withMessages([
+                    'invitation_code' => ['The invitation has expired, been revoked, or already accepted.'],
+                ]);
+            }
+
             $patient = $invitation->patient()
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            // Read identity-bound invitation fields from the locked row so a
+            // concurrent revocation or administrative update cannot affect
+            // the account/contact checks below.
+            $destination = $invitation->encrypted_destination;
+            $destinationHash = $invitation->destination_hash;
 
             if ($patient->user_id !== null) {
                 throw ValidationException::withMessages([
@@ -85,8 +113,6 @@ class AcceptPatientInvitation
                 ]);
             }
 
-            $destination = $invitation->encrypted_destination;
-            $destinationHash = $invitation->destination_hash;
             $existingContact = PatientAccountContact::query()
                 ->where('lookup_hash', $destinationHash)
                 ->where('type', $invitation->channel)
@@ -94,10 +120,11 @@ class AcceptPatientInvitation
                 ->first();
 
             if ($authenticatedUser !== null) {
-                $user = User::query()
-                    ->whereKey($authenticatedUser->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                if (! $user instanceof User) {
+                    throw ValidationException::withMessages([
+                        'invitation_code' => ['The invitation does not match the authenticated account.'],
+                    ]);
+                }
 
                 $matchingContact = PatientAccountContact::query()
                     ->where('user_id', $user->id)
@@ -118,10 +145,11 @@ class AcceptPatientInvitation
                     ]);
                 }
             } elseif ($existingContact !== null) {
-                $user = User::query()
-                    ->whereKey($existingContact->user_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                if (! $user instanceof User) {
+                    throw ValidationException::withMessages([
+                        'invitation_code' => ['The invitation account could not be resolved.'],
+                    ]);
+                }
 
                 if ($user->patient()->exists()) {
                     throw ValidationException::withMessages([
@@ -150,36 +178,14 @@ class AcceptPatientInvitation
                 ]);
             }
 
-            // Identity compatibility check
-            $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
-
-            if (! $match->isEligible()) {
-                throw new PatientIdentityMismatchException;
-            }
-
-            // Identity compatibility check
-            $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
-
-            if (! $match->isEligible()) {
-                throw new PatientIdentityMismatchException;
-            }
-
-            $patient->update(['user_id' => $user->id]);
-            $invitation->accept($user);
-
-            $this->createAuditLog->handle(
-                subject: $patient,
-                action: AuditEvent::PatientAccountLinked,
-                metadata: [
-                    'account_id' => $user->id,
-                    'invitation_id' => $invitation->id,
-                    'channel' => $invitation->channel,
-                ],
+            $this->linkPatientAccount->handle(
+                account: $user,
+                patient: $patient,
+                source: 'patient_invitation',
+                sourceId: $invitation->id,
                 actorId: $user->id,
             );
-
-            // Associate the account's conversation with the Patient
-            app(AssociateAccountConversation::class)->handle($user, $patient);
+            $invitation->accept($user);
 
             return $this->resultForAcceptedInvitation($invitation, $user);
         });

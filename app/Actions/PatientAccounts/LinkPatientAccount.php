@@ -6,10 +6,10 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Actions\Conversations\AssociateAccountConversation;
 use App\Enums\AuditEvent;
 use App\Exceptions\PatientIdentityMismatchException;
-use App\Models\Conversation;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The only normal application writer that sets a non-null patients.user_id.
@@ -35,19 +35,24 @@ class LinkPatientAccount
         Patient $patient,
         string $source,
         ?int $sourceId = null,
+        ?int $actorId = null,
     ): array {
-        return DB::transaction(function () use ($account, $patient, $source, $sourceId): array {
+        return DB::transaction(function () use ($account, $patient, $source, $sourceId, $actorId): array {
             // Lock order: User -> Patient
             $account = User::query()->lockForUpdate()->findOrFail($account->id);
             $patient = Patient::query()->lockForUpdate()->findOrFail($patient->id);
 
             // Recheck link states under lock
             if ($account->patient()->exists()) {
-                throw PatientIdentityMismatchException::class;
+                throw ValidationException::withMessages([
+                    'account' => ['This account is already linked to a patient.'],
+                ]);
             }
 
             if ($patient->user_id !== null) {
-                throw PatientIdentityMismatchException::class;
+                throw ValidationException::withMessages([
+                    'patient' => ['This patient is already linked to an account.'],
+                ]);
             }
 
             // Evaluate compatibility on locked current state
@@ -57,22 +62,15 @@ class LinkPatientAccount
                 throw new PatientIdentityMismatchException;
             }
 
-            // Assign user_id explicitly
-            $patient->update([
+            // Assign link ownership explicitly; these server-controlled
+            // fields are intentionally not mass assignable on Patient.
+            $patient->forceFill([
                 'user_id' => $account->id,
                 'identity_review_required' => false,
                 'identity_review_required_at' => null,
-            ]);
+            ])->save();
 
-            // Associate conversation
-            $conversation = Conversation::query()
-                ->where('patient_id', $patient->id)
-                ->whereNull('account_user_id')
-                ->first();
-
-            if ($conversation !== null) {
-                $conversation->update(['account_user_id' => $account->id]);
-            }
+            $this->associateConversation->handle($account, $patient);
 
             // PII-safe audit
             $this->auditLog->handle(
@@ -84,7 +82,7 @@ class LinkPatientAccount
                     'source_id' => $sourceId,
                     'matched_fields' => $match->matchedFields,
                 ],
-                actorId: $account->id,
+                actorId: $actorId ?? $account->id,
             );
 
             return [

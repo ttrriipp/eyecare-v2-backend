@@ -2,12 +2,10 @@
 
 namespace App\Actions\Auth;
 
-use App\Actions\Conversations\AssociateAccountConversation;
 use App\Actions\PatientAccounts\CreateContactLookupHash;
+use App\Actions\PatientAccounts\LinkPatientAccount;
 use App\Actions\PatientAccounts\NormalizeContact;
-use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Enums\OtpPurpose;
-use App\Exceptions\PatientIdentityMismatchException;
 use App\Models\OtpChallenge;
 use App\Models\PatientAccountContact;
 use App\Models\PatientInvitation;
@@ -24,6 +22,7 @@ class RegisterPatientAccount
         protected NormalizeContact $normalize,
         protected CreateContactLookupHash $lookupHash,
         protected IssuePatientDeviceToken $issueToken,
+        protected LinkPatientAccount $linkPatientAccount,
     ) {}
 
     /**
@@ -323,7 +322,11 @@ class RegisterPatientAccount
 
     protected function acceptInvitation(string $code, User $user): void
     {
-        $invitation = PatientInvitation::where('invitation_code', $code)->first();
+        $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+        $invitation = PatientInvitation::query()
+            ->where('invitation_code', $code)
+            ->lockForUpdate()
+            ->first();
 
         if ($invitation === null || ! $invitation->isPending()) {
             throw ValidationException::withMessages([
@@ -331,9 +334,19 @@ class RegisterPatientAccount
             ]);
         }
 
-        $userContact = $user->contacts()
+        $patient = $invitation->patient()
+            ->lockForUpdate()
+            ->firstOrFail();
+
+        if ($patient->user_id !== null) {
+            throw ValidationException::withMessages([
+                'invitation_code' => ['The patient record is already linked to another account.'],
+            ]);
+        }
+
+        $userContact = $lockedUser->contacts()
             ->where('type', $invitation->channel)
-            ->where('verified_at', '!=', null)
+            ->whereNotNull('verified_at')
             ->first();
 
         if ($userContact === null || $userContact->lookup_hash !== $invitation->destination_hash) {
@@ -342,22 +355,13 @@ class RegisterPatientAccount
             ]);
         }
 
-        $patient = $invitation->patient;
-        if ($patient->user_id !== null) {
-            throw ValidationException::withMessages([
-                'invitation_code' => ['The patient record is already linked to another account.'],
-            ]);
-        }
-
-        // Identity compatibility check
-        $match = app(PatientAccountIdentityMatcher::class)->handle($user, $patient);
-
-        if (! $match->isEligible()) {
-            throw new PatientIdentityMismatchException;
-        }
-
-        $patient->update(['user_id' => $user->id]);
-        app(AssociateAccountConversation::class)->handle($user, $patient);
+        $this->linkPatientAccount->handle(
+            account: $lockedUser,
+            patient: $patient,
+            source: 'registration_invitation',
+            sourceId: $invitation->id,
+            actorId: $user->id,
+        );
         $invitation->accept($user);
     }
 

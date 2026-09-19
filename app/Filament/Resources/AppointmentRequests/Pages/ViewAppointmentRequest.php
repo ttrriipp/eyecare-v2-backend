@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AppointmentRequests\Pages;
 
 use App\Actions\Appointments\LinkAppointmentRequestToPatient;
 use App\Actions\Appointments\RejectAppointmentRequest;
+use App\Actions\PatientAccounts\PatientAccountIdentityMatcher;
 use App\Actions\PatientAccounts\RankPatientCandidates;
 use App\Filament\Resources\AppointmentRequests\AppointmentRequestResource;
 use App\Models\Patient;
@@ -16,6 +17,7 @@ use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -52,22 +54,17 @@ class ViewAppointmentRequest extends ViewRecord
                     $candidateOptions = [];
 
                     if ($this->record->hasIdentitySnapshot()) {
+                        $matcher = app(PatientAccountIdentityMatcher::class);
                         $candidateOptions = app(RankPatientCandidates::class)
                             ->fromSnapshot($this->record->encrypted_identity_snapshot)
+                            ->filter(fn (array $candidate): bool => $matcher
+                                ->handleSnapshot($this->record->encrypted_identity_snapshot, $candidate['patient'])
+                                ->isEligible())
                             ->mapWithKeys(fn (array $candidate): array => [
                                 $candidate['patient']->id => "{$candidate['patient']->full_name} ({$candidate['patient']->patient_number}) — ".Str::headline($candidate['strength']).' match',
                             ])
                             ->toArray();
                     }
-
-                    $otherOptions = Patient::query()
-                        ->whereNull('user_id')
-                        ->whereNotIn('id', array_keys($candidateOptions))
-                        ->get()
-                        ->mapWithKeys(fn (Patient $p): array => [
-                            $p->id => "{$p->full_name} ({$p->patient_number})",
-                        ])
-                        ->toArray();
 
                     $snapshot = $this->record->encrypted_identity_snapshot ?? [];
 
@@ -87,7 +84,6 @@ class ViewAppointmentRequest extends ViewRecord
                             ->label('Clinical Record')
                             ->options(array_filter([
                                 'Candidate Matches' => $candidateOptions,
-                                'All Patients' => $otherOptions,
                             ]))
                             ->searchable()
                             ->required(fn (Get $get): bool => $get('patient_mode') === 'existing')
@@ -149,26 +145,30 @@ class ViewAppointmentRequest extends ViewRecord
                 })
                 ->action(function (array $data): void {
                     try {
-                        if (($data['patient_mode'] ?? 'existing') === 'new') {
-                            $patient = Patient::create([
-                                'first_name' => $data['new_patient_first_name'],
-                                'middle_name' => $data['new_patient_middle_name'] ?? null,
-                                'last_name' => $data['new_patient_last_name'],
-                                'phone' => $data['new_patient_phone'] ?? null,
-                                'contact_email' => $data['new_patient_contact_email'] ?? null,
-                                'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
-                                'gender' => $data['new_patient_gender'] ?? null,
-                                'occupation' => $data['new_patient_occupation'] ?? null,
-                                'address' => $data['new_patient_address'] ?? null,
-                            ]);
-                        } else {
-                            $patient = Patient::findOrFail($data['patient_id']);
-                        }
+                        $patient = null;
 
-                        app(LinkAppointmentRequestToPatient::class)->handle(
-                            request: $this->record,
-                            patient: $patient,
-                        );
+                        DB::transaction(function () use ($data, &$patient): void {
+                            if (($data['patient_mode'] ?? 'existing') === 'new') {
+                                $patient = Patient::create([
+                                    'first_name' => $data['new_patient_first_name'],
+                                    'middle_name' => $data['new_patient_middle_name'] ?? null,
+                                    'last_name' => $data['new_patient_last_name'],
+                                    'phone' => $data['new_patient_phone'] ?? null,
+                                    'contact_email' => $data['new_patient_contact_email'] ?? null,
+                                    'date_of_birth' => $data['new_patient_date_of_birth'] ?? null,
+                                    'gender' => $data['new_patient_gender'] ?? null,
+                                    'occupation' => $data['new_patient_occupation'] ?? null,
+                                    'address' => $data['new_patient_address'] ?? null,
+                                ]);
+                            } else {
+                                $patient = Patient::findOrFail($data['patient_id']);
+                            }
+
+                            app(LinkAppointmentRequestToPatient::class)->handle(
+                                request: $this->record,
+                                patient: $patient,
+                            );
+                        });
 
                         $this->record->refresh();
                         Notification::make()->title('Request linked to patient')->success()->send();

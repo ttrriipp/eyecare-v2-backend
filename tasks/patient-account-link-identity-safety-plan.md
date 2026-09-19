@@ -1,8 +1,9 @@
 # Implementation Plan: Patient-Account Link Identity Safety
 
 **Specification:** `docs/specs/patient-account-link-identity-safety-spec.md`
-**Status:** Proposed; implementation not yet authorized
+**Status:** Implemented; approved plan completed
 **Planning date:** 2026-09-17
+**Implementation verified:** 2026-09-19
 
 ## Overview
 
@@ -11,6 +12,11 @@ boundary, migrate every existing link workflow to it, and add an operational
 review state for identity drift after linking. The rollout preserves active
 patient access, prevents staff overrides, reconciles existing links without
 automatic unlinking, and keeps candidate details out of mobile responses.
+
+Implementation is complete. The matcher, canonical linker, six guarded link
+paths, drift/review lifecycle, reconciliation command, API/context updates,
+and focused Pest coverage are shipped in the current working tree. Final
+verification evidence is recorded in the companion checklist.
 
 ## Architecture Decisions
 
