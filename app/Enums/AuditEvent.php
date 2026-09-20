@@ -99,6 +99,9 @@ enum AuditEvent: string
     case PatientLinkRejected = 'patient_link_request.rejected';
     case PatientLinkRequestExpired = 'patient_link_request.expired';
 
+    case AccessoryOrderRequestAccepted = 'accessory_order_request.accepted';
+    case AccessoryOrderRequestRejected = 'accessory_order_request.rejected';
+
     case PrivacyRequestProcessed = 'privacy_request.processed';
     case PrivacyIncidentUpdated = 'privacy_incident.updated';
 

@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\AccessoryOrderRequests\Pages;
 
+use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Validation\ValidationException;
 
 class ViewAccessoryOrderRequest extends ViewRecord
 {
@@ -24,12 +27,35 @@ class ViewAccessoryOrderRequest extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Accept Order Request')
                 ->modalDescription('This will create an Optical Order and Billing Record. Stock will be committed.')
-                ->action(function (): void {
-                    // Will be implemented in Task 6
-                    Notification::make()
-                        ->title('Acceptance action not yet implemented')
-                        ->warning()
-                        ->send();
+                ->form([
+                    TextInput::make('discount_amount')
+                        ->label('Discount Amount')
+                        ->numeric()
+                        ->prefix('₱')
+                        ->default(0)
+                        ->minValue(0),
+                ])
+                ->action(function (array $data): void {
+                    try {
+                        $result = app(AcceptAccessoryOrderRequest::class)->handle(
+                            orderRequest: $this->record,
+                            reviewer: auth()->user(),
+                            discountAmount: (float) ($data['discount_amount'] ?? 0),
+                        );
+
+                        $this->record = $this->record->fresh();
+
+                        Notification::make()
+                            ->title('Request accepted')
+                            ->success()
+                            ->send();
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot accept')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
                 }),
 
             Action::make('reject')
