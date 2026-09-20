@@ -32,9 +32,9 @@ class RecordBillingPayment
             ]);
         }
 
-        if ($billingRecord->status === BillingRecordStatus::Voided) {
+        if ($billingRecord->status === BillingRecordStatus::Cancelled) {
             throw ValidationException::withMessages([
-                'billing_record' => ['Cannot record payments against a voided billing record.'],
+                'billing_record' => ['Cannot record payments against a cancelled billing record.'],
             ]);
         }
 
@@ -44,9 +44,9 @@ class RecordBillingPayment
                 ->lockForUpdate()
                 ->first();
 
-            if ($locked->status === BillingRecordStatus::Voided) {
+            if ($locked->status === BillingRecordStatus::Cancelled) {
                 throw ValidationException::withMessages([
-                    'billing_record' => ['Cannot record payments against a voided billing record.'],
+                    'billing_record' => ['Cannot record payments against a cancelled billing record.'],
                 ]);
             }
 

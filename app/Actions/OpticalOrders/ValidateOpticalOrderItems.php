@@ -134,9 +134,9 @@ final class ValidateOpticalOrderItems
             ]);
         }
 
-        if ($prescription->isVoided()) {
+        if ($prescription->isCancelled()) {
             throw ValidationException::withMessages([
-                'prescription' => ['This prescription has been voided and cannot be dispensed against.'],
+                'prescription' => ['This prescription has been cancelled and cannot be dispensed against.'],
             ]);
         }
     }

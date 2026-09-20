@@ -95,7 +95,7 @@ class JobOrder extends Model
     public function activeBillingRecord(): HasOne
     {
         return $this->hasOne(BillingRecord::class)
-            ->where('status', '!=', BillingRecordStatus::Voided)
+            ->where('status', '!=', BillingRecordStatus::Cancelled)
             ->latest('id');
     }
 

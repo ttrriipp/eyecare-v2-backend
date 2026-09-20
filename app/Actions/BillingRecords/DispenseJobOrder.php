@@ -53,7 +53,7 @@ class DispenseJobOrder
             // Require existing active billing record (created at confirmation)
             $billingRecord = BillingRecord::query()
                 ->where('job_order_id', $jobOrder->id)
-                ->where('status', '!=', BillingRecordStatus::Voided)
+                ->where('status', '!=', BillingRecordStatus::Cancelled)
                 ->lockForUpdate()
                 ->first();
 
@@ -63,9 +63,9 @@ class DispenseJobOrder
                 ]);
             }
 
-            if ($billingRecord->status === BillingRecordStatus::Voided) {
+            if ($billingRecord->status === BillingRecordStatus::Cancelled) {
                 throw ValidationException::withMessages([
-                    'billing_record' => ['Cannot dispense against a voided billing record.'],
+                    'billing_record' => ['Cannot dispense against a cancelled billing record.'],
                 ]);
             }
 

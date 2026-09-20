@@ -26,9 +26,9 @@ class FinancialReport extends ReportsClusterPage
     public function getMetricDefinitions(): array
     {
         return [
-            'Net billed' => 'Sum of non-voided billing record totals by recorded date.',
-            'Discounts' => 'Sum of discounts on the same non-voided billing record cohort.',
-            'Collections' => 'Posted payments recorded in the period; reversed payments and voided bills are excluded.',
+            'Net billed' => 'Sum of non-cancelled billing record totals by recorded date.',
+            'Discounts' => 'Sum of discounts on the same non-cancelled billing record cohort.',
+            'Collections' => 'Posted payments recorded in the period; reversed payments and cancelled bills are excluded.',
             'Open balance (snapshot)' => 'Current balance_due snapshot for the billing record cohort; not historical aging.',
         ];
     }
@@ -39,7 +39,7 @@ class FinancialReport extends ReportsClusterPage
     protected function buildReport(): array
     {
         $billingRecords = $this->constrainToPeriod(
-            BillingRecord::query()->where('status', '!=', BillingRecordStatus::Voided->value),
+            BillingRecord::query()->where('status', '!=', BillingRecordStatus::Cancelled->value),
             'billing_records.recorded_at',
         );
         $summary = (clone $billingRecords)
@@ -54,7 +54,7 @@ class FinancialReport extends ReportsClusterPage
             BillingPayment::query()
                 ->where('status', 'posted')
                 ->whereHas('billingRecord', fn (Builder $query): Builder => $query
-                    ->where('status', '!=', BillingRecordStatus::Voided->value)),
+                    ->where('status', '!=', BillingRecordStatus::Cancelled->value)),
             'billing_payments.recorded_at',
         );
         $collections = (clone $payments)->sum('amount');
@@ -76,7 +76,7 @@ class FinancialReport extends ReportsClusterPage
 
         $sourceAmounts = BillingRecordItem::query()
             ->whereHas('billingRecord', function (Builder $query): void {
-                $query->where('status', '!=', BillingRecordStatus::Voided->value);
+                $query->where('status', '!=', BillingRecordStatus::Cancelled->value);
                 $this->constrainToPeriod($query, 'billing_records.recorded_at');
             })
             ->select('source_kind', DB::raw('SUM(amount) AS total_amount'))

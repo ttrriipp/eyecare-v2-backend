@@ -40,12 +40,12 @@ test('encounters relation manager lists the patient\'s encounters', function () 
         ->assertCanNotSeeTableRecords([$otherEncounter]);
 });
 
-test('encounters relation manager renders voided consultations', function () {
+test('encounters relation manager renders cancelled consultations', function () {
     $staff = User::factory()->staff()->create();
     $patient = Patient::factory()->create();
     $voidedEncounter = Encounter::factory()->create([
         'patient_id' => $patient->id,
-        'status' => EncounterStatus::Voided,
+        'status' => EncounterStatus::Cancelled,
     ]);
 
     $this->actingAs($staff);
@@ -55,7 +55,7 @@ test('encounters relation manager renders voided consultations', function () {
         'pageClass' => EditPatient::class,
     ])
         ->assertCanSeeTableRecords([$voidedEncounter])
-        ->assertTableColumnFormattedStateSet('status', 'Voided', record: $voidedEncounter);
+        ->assertTableColumnFormattedStateSet('status', 'Cancelled', record: $voidedEncounter);
 });
 
 test('optical orders relation manager lists the patient\'s job orders', function () {

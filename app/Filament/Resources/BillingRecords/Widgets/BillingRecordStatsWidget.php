@@ -39,7 +39,7 @@ class BillingRecordStatsWidget extends BaseWidget
         $collected = BillingPayment::query()
             ->where('status', 'posted')
             ->whereHas('billingRecord', fn (Builder $query): Builder => $query
-                ->where('status', '!=', BillingRecordStatus::Voided))
+                ->where('status', '!=', BillingRecordStatus::Cancelled))
             ->sum('amount');
 
         return [

@@ -79,7 +79,7 @@ test('consultation table prioritizes active work and sorts each workflow group',
         'created_at' => $baseTime->copy()->subHours(2),
     ]);
     $voided = Encounter::factory()->create([
-        'status' => EncounterStatus::Voided,
+        'status' => EncounterStatus::Cancelled,
         'created_at' => $baseTime->copy()->subHours(3),
     ]);
     $completedOlder = Encounter::factory()->completed()->create([

@@ -80,7 +80,7 @@ test('rejecting payment proof cancels the order, voids the bill, and restores co
 
     expect($rejected->status)->toBe(OrderPaymentProofStatus::Rejected)
         ->and($order->status)->toBe(JobOrderStatus::Cancelled)
-        ->and($order->billingRecord->status)->toBe(BillingRecordStatus::Voided)
+        ->and($order->billingRecord->status)->toBe(BillingRecordStatus::Cancelled)
         ->and((int) $variant->fresh()->stock_quantity)->toBe(2)
         ->and((int) $variant->inventoryLots()->sum('quantity_on_hand'))->toBe(2)
         ->and($cancellationNotification?->data['body'])

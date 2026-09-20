@@ -31,9 +31,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'draft_saved_at',
     'prescription_draft',
     'completed_by',
-    'voided_by',
-    'voided_at',
-    'void_reason',
+    'cancelled_by',
+    'cancelled_at',
+    'cancellation_reason',
 ])]
 class Encounter extends Model
 {
@@ -113,12 +113,12 @@ class Encounter extends Model
      */
     public function voidedBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'voided_by');
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
-    public function isVoided(): bool
+    public function isCancelled(): bool
     {
-        return $this->status === EncounterStatus::Voided;
+        return $this->status === EncounterStatus::Cancelled;
     }
 
     /**
@@ -130,7 +130,7 @@ class Encounter extends Model
             'status' => EncounterStatus::class,
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
-            'voided_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'findings' => 'encrypted',
             'remarks' => 'encrypted',
             'chief_complaint' => 'encrypted',

@@ -30,11 +30,11 @@ final class CatalogLifecycleActions
         return SelectFilter::make('catalog_status')
             ->label('Status')
             ->options([
+                'all' => 'All',
                 'active' => 'Active',
                 'inactive' => 'Inactive',
-                'all' => 'All',
             ])
-            ->default('active')
+            ->default('all')
             ->query(function (Builder $query, array $data): Builder {
                 $status = $data['value'] ?? 'active';
                 $deletedColumn = "{$query->getModel()->getTable()}.deleted_at";

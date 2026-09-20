@@ -18,9 +18,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'previous_prescription_id',
     'amendment_reason',
     'created_by',
-    'voided_by',
-    'voided_at',
-    'void_reason',
+    'cancelled_by',
+    'cancelled_at',
+    'cancellation_reason',
     'main_od_value',
     'main_od_sphere',
     'main_od_cylinder',
@@ -122,14 +122,14 @@ class Prescription extends Model
     /**
      * @return BelongsTo<User, $this>
      */
-    public function voidedBy(): BelongsTo
+    public function cancelledBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'voided_by');
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
-    public function isVoided(): bool
+    public function isCancelled(): bool
     {
-        return $this->voided_at !== null;
+        return $this->cancelled_at !== null;
     }
 
     /**
@@ -158,7 +158,7 @@ class Prescription extends Model
             // Date
             'prescribed_at' => 'date',
             'expires_at' => 'date',
-            'voided_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 }

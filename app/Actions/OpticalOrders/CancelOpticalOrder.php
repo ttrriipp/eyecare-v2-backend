@@ -38,7 +38,7 @@ class CancelOpticalOrder
                 actor: $actor,
             );
 
-            // Handle billing - use active (non-voided) record
+            // Handle billing - use active (non-cancelled) record
             $billingRecord = $lockedJobOrder->activeBillingRecord;
             $hasPostedPayments = false;
 
@@ -48,18 +48,18 @@ class CancelOpticalOrder
                     ->exists();
 
                 if (! $hasPostedPayments) {
-                    // No posted payments - void the billing record
+                    // No posted payments - cancel the billing record
                     $previousStatus = $billingRecord->status->value;
                     $billingRecord->update([
-                        'status' => BillingRecordStatus::Voided,
-                        'voided_by' => $actor?->id ?? auth()->id(),
-                        'voided_at' => now(),
-                        'void_reason' => $reason,
+                        'status' => BillingRecordStatus::Cancelled,
+                        'cancelled_by' => $actor?->id ?? auth()->id(),
+                        'cancelled_at' => now(),
+                        'cancellation_reason' => $reason,
                     ]);
 
                     app(CreateAuditLog::class)->handle(
                         subject: $billingRecord,
-                        action: AuditEvent::BillingRecordVoided,
+                        action: AuditEvent::BillingRecordCancelled,
                         metadata: [
                             'previous_status' => $previousStatus,
                             'triggered_by_job_order_id' => $lockedJobOrder->id,

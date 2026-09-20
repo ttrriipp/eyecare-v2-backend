@@ -109,14 +109,14 @@ class EncounterPolicy
         return $user->isOptometrist();
     }
 
-    public function void(User $user, Encounter $encounter): bool
+    public function cancel(User $user, Encounter $encounter): bool
     {
         if (! $user->is_active) {
             return false;
         }
 
-        // Clinical authority to void findings, or administrative authority to
-        // void an encounter raised in error.
+        // Clinical authority to cancel findings, or administrative authority to
+        // cancel an encounter raised in error.
         return $user->isOptometrist() || $user->isAdmin();
     }
 

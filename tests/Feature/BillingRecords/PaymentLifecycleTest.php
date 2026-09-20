@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\BillingRecords;
 
+use App\Actions\BillingRecords\CancelBillingRecord;
 use App\Actions\BillingRecords\CorrectBillingPayment;
 use App\Actions\BillingRecords\RecordBillingPayment;
-use App\Actions\BillingRecords\VoidBillingRecord;
 use App\Enums\BillingRecordStatus;
 use App\Models\BillingPayment;
 use App\Models\BillingRecord;
@@ -107,9 +107,9 @@ test('negative amount payment is rejected', function () {
     );
 })->throws(ValidationException::class);
 
-test('payment on voided record is rejected', function () {
+test('payment on cancelled record is rejected', function () {
     $recorder = User::factory()->create();
-    $record = BillingRecord::factory()->voided()->create();
+    $record = BillingRecord::factory()->cancelled()->create();
 
     app(RecordBillingPayment::class)->handle(
         billingRecord: $record,
@@ -240,10 +240,10 @@ test('correction rejects already reversed payment', function () {
     );
 })->throws(ValidationException::class);
 
-// --- Voiding Tests ---
+// --- Cancellation Tests ---
 
-test('voiding sets status and records reason', function () {
-    $voider = User::factory()->admin()->create();
+test('cancelling sets status and records reason', function () {
+    $canceller = User::factory()->admin()->create();
     $record = BillingRecord::factory()->create([
         'total_amount' => 5000,
         'amount_paid' => 2000,
@@ -251,25 +251,25 @@ test('voiding sets status and records reason', function () {
         'status' => BillingRecordStatus::PartiallyPaid,
     ]);
 
-    $voided = app(VoidBillingRecord::class)->handle(
+    $cancelled = app(CancelBillingRecord::class)->handle(
         billingRecord: $record,
         reason: 'Duplicate record',
-        voider: $voider,
+        canceller: $canceller,
     );
 
-    expect($voided->status)->toBe(BillingRecordStatus::Voided)
-        ->and($voided->voided_by)->toBe($voider->id)
-        ->and($voided->voided_at)->not->toBeNull()
-        ->and($voided->void_reason)->toBe('Duplicate record');
+    expect($cancelled->status)->toBe(BillingRecordStatus::Cancelled)
+        ->and($cancelled->cancelled_by)->toBe($canceller->id)
+        ->and($cancelled->cancelled_at)->not->toBeNull()
+        ->and($cancelled->cancellation_reason)->toBe('Duplicate record');
 });
 
-test('voiding rejects already voided record', function () {
-    $voider = User::factory()->admin()->create();
-    $record = BillingRecord::factory()->voided()->create();
+test('cancelling rejects already cancelled record', function () {
+    $canceller = User::factory()->admin()->create();
+    $record = BillingRecord::factory()->cancelled()->create();
 
-    app(VoidBillingRecord::class)->handle(
+    app(CancelBillingRecord::class)->handle(
         billingRecord: $record,
         reason: 'Test',
-        voider: $voider,
+        canceller: $canceller,
     );
 })->throws(ValidationException::class);

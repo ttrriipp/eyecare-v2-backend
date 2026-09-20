@@ -36,9 +36,9 @@ class BillingRecordFactory extends Factory
             'notes' => null,
             'recorded_by' => User::factory(),
             'recorded_at' => now(),
-            'voided_by' => null,
-            'voided_at' => null,
-            'void_reason' => null,
+            'cancelled_by' => null,
+            'cancelled_at' => null,
+            'cancellation_reason' => null,
         ];
     }
 
@@ -88,13 +88,13 @@ class BillingRecordFactory extends Factory
         });
     }
 
-    public function voided(): static
+    public function cancelled(): static
     {
         return $this->state(fn (): array => [
-            'status' => BillingRecordStatus::Voided,
-            'voided_by' => User::factory(),
-            'voided_at' => now(),
-            'void_reason' => 'Test void',
+            'status' => BillingRecordStatus::Cancelled,
+            'cancelled_by' => User::factory(),
+            'cancelled_at' => now(),
+            'cancellation_reason' => 'Test cancellation',
         ]);
     }
 

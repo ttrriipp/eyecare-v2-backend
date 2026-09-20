@@ -69,11 +69,11 @@ test('paid billing factory state', function () {
         ->and((float) $billing->balance_due)->toBe(0.0);
 });
 
-test('voided billing factory state', function () {
-    $billing = BillingRecord::factory()->voided()->create();
+test('cancelled billing factory state', function () {
+    $billing = BillingRecord::factory()->cancelled()->create();
 
-    expect($billing->status)->toBe(BillingRecordStatus::Voided)
-        ->and($billing->voided_by)->not->toBeNull()
-        ->and($billing->voided_at)->not->toBeNull()
-        ->and($billing->void_reason)->toBe('Test void');
+    expect($billing->status)->toBe(BillingRecordStatus::Cancelled)
+        ->and($billing->cancelled_by)->not->toBeNull()
+        ->and($billing->cancelled_at)->not->toBeNull()
+        ->and($billing->cancellation_reason)->toBe('Test cancellation');
 });

@@ -88,13 +88,13 @@ class OpticalOrderForm
                             Placeholder::make('prescription_status')
                                 ->label('Version')
                                 ->content(fn (JobOrder $record): string => match (true) {
-                                    $record->prescription?->isVoided() === true => 'Voided',
+                                    $record->prescription?->isCancelled() === true => 'Cancelled',
                                     $record->prescription?->isCurrentVersion() === true => 'Current',
                                     default => 'Superseded',
                                 })
                                 ->badge()
                                 ->color(fn (JobOrder $record): string => match (true) {
-                                    $record->prescription?->isVoided() === true => 'danger',
+                                    $record->prescription?->isCancelled() === true => 'danger',
                                     $record->prescription?->isCurrentVersion() === true => 'success',
                                     default => 'warning',
                                 }),
@@ -142,7 +142,7 @@ class OpticalOrderForm
                                     BillingRecordStatus::Paid => 'success',
                                     BillingRecordStatus::PartiallyPaid => 'warning',
                                     BillingRecordStatus::Unpaid => 'danger',
-                                    BillingRecordStatus::Voided => 'gray',
+                                    BillingRecordStatus::Cancelled => 'gray',
                                     default => 'gray',
                                 }),
                             Placeholder::make('billing_balance')

@@ -146,7 +146,7 @@ test('cancellation voids billing when no posted payments exist', function () {
     app(CancelOpticalOrder::class)->handle($jobOrder);
 
     $billingRecord = BillingRecord::where('job_order_id', $jobOrder->id)->first();
-    expect($billingRecord->status)->toBe(BillingRecordStatus::Voided);
+    expect($billingRecord->status)->toBe(BillingRecordStatus::Cancelled);
 });
 
 test('cancellation preserves billing when posted payments exist', function () {

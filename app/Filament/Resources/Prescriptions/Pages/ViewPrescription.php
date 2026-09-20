@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Prescriptions\Pages;
 
-use App\Actions\Prescriptions\VoidPrescription;
+use App\Actions\Prescriptions\CancelPrescription;
 use App\Enums\EncounterStatus;
 use App\Filament\Resources\Encounters\EncounterResource;
 use App\Filament\Resources\OpticalOrders\OpticalOrderResource;
@@ -41,18 +41,18 @@ class ViewPrescription extends ViewRecord
     {
         $record = $this->getRecord();
 
-        if ($record->isVoided()) {
-            return $this->warning('⚠ Voided — this prescription cannot be dispensed against.');
+        if ($record->isCancelled()) {
+            return $this->warning('⚠ Cancelled — this prescription cannot be dispensed against.');
         }
 
         if (! $record->isCurrentVersion()) {
             return $this->warning('⚠ Superseded — use the current version for printing and fulfillment.');
         }
 
-        // A voided encounter does not void the prescription it produced — the
+        // A cancelled encounter does not cancel the prescription it produced — the
         // patient may already hold the printout — but staff must be told.
-        if ($record->encounter?->status === EncounterStatus::Voided) {
-            return $this->warning('⚠ The consultation that produced this prescription was voided. Confirm it is still clinically valid before dispensing.');
+        if ($record->encounter?->status === EncounterStatus::Cancelled) {
+            return $this->warning('⚠ The consultation that produced this prescription was cancelled. Confirm it is still clinically valid before dispensing.');
         }
 
         return null;
@@ -216,35 +216,35 @@ class ViewPrescription extends ViewRecord
                 ->url(fn () => route('pdf.prescription', $this->getRecord()))
                 ->openUrlInNewTab(),
 
-            Action::make('voidPrescription')
-                ->label('Void Prescription')
+            Action::make('cancelPrescription')
+                ->label('Cancel Prescription')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (): bool => ! $this->getRecord()->isVoided()
+                ->visible(fn (): bool => ! $this->getRecord()->isCancelled()
                     && auth()->user()?->isOptometrist() === true)
                 ->requiresConfirmation()
-                ->modalHeading('Void Prescription')
-                ->modalDescription('This will mark the prescription as voided. This action cannot be undone.')
-                ->modalSubmitActionLabel('Void Prescription')
+                ->modalHeading('Cancel Prescription')
+                ->modalDescription('This will mark the prescription as cancelled. This action cannot be undone.')
+                ->modalSubmitActionLabel('Cancel Prescription')
                 ->schema([
                     Textarea::make('reason')
-                        ->label('Reason for Voiding')
+                        ->label('Reason for Cancellation')
                         ->required()
                         ->maxLength(1000)
                         ->rows(3),
                 ])
                 ->action(function (array $data): void {
                     try {
-                        app(VoidPrescription::class)->handle(
+                        app(CancelPrescription::class)->handle(
                             prescription: $this->getRecord(),
                             actor: auth()->user(),
                             reason: $data['reason'],
                         );
 
-                        Notification::make()->title('Prescription voided')->success()->send();
+                        Notification::make()->title('Prescription cancelled')->success()->send();
                         $this->refreshFormData([]);
                     } catch (ValidationException $e) {
-                        Notification::make()->title('Cannot void prescription')->body($e->getMessage())->danger()->send();
+                        Notification::make()->title('Cannot cancel prescription')->body($e->getMessage())->danger()->send();
                     }
                 }),
         ];

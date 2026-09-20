@@ -60,7 +60,7 @@ class EditBillingRecord extends EditRecord
                                 BillingRecordStatus::Unpaid => 'gray',
                                 BillingRecordStatus::PartiallyPaid => 'warning',
                                 BillingRecordStatus::Paid => 'success',
-                                BillingRecordStatus::Voided => 'danger',
+                                BillingRecordStatus::Cancelled => 'danger',
                             }),
                     ])->columns(2),
 

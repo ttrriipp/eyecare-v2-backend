@@ -51,14 +51,12 @@ class EncountersTable
                         EncounterStatus::InProgress => 'warning',
                         EncounterStatus::Completed => 'success',
                         EncounterStatus::Cancelled => 'danger',
-                        EncounterStatus::Voided => 'danger',
                     })
                     ->formatStateUsing(fn (EncounterStatus $state): string => match ($state) {
                         EncounterStatus::Planned => 'Planned',
                         EncounterStatus::InProgress => 'In Progress',
                         EncounterStatus::Completed => 'Completed',
                         EncounterStatus::Cancelled => 'Cancelled',
-                        EncounterStatus::Voided => 'Voided',
                     }),
                 TextColumn::make('started_at')
                     ->label('Started')
@@ -192,7 +190,7 @@ class EncountersTable
                         "CASE
                             WHEN {$encounterTable}.status = ? THEN 0
                             WHEN {$encounterTable}.status = ? THEN 1
-                            WHEN {$encounterTable}.status IN (?, ?, ?) THEN 2
+                            WHEN {$encounterTable}.status IN (?, ?) THEN 2
                             ELSE 3
                         END",
                         [
@@ -200,14 +198,13 @@ class EncountersTable
                             EncounterStatus::Planned->value,
                             EncounterStatus::Completed->value,
                             EncounterStatus::Cancelled->value,
-                            EncounterStatus::Voided->value,
                         ],
                     )
                     ->orderByRaw(
                         "CASE
                             WHEN {$encounterTable}.status = ? AND {$encounterTable}.started_at IS NULL THEN 1
                             WHEN {$encounterTable}.status = ? AND appointment_scheduled_at IS NULL THEN 1
-                            WHEN {$encounterTable}.status IN (?, ?, ?) AND {$encounterTable}.created_at IS NULL THEN 1
+                            WHEN {$encounterTable}.status IN (?, ?) AND {$encounterTable}.created_at IS NULL THEN 1
                             ELSE 0
                         END ASC",
                         [
@@ -215,7 +212,6 @@ class EncountersTable
                             EncounterStatus::Planned->value,
                             EncounterStatus::Completed->value,
                             EncounterStatus::Cancelled->value,
-                            EncounterStatus::Voided->value,
                         ],
                     )
                     ->orderByRaw(
@@ -227,11 +223,10 @@ class EncountersTable
                         [EncounterStatus::Planned->value],
                     )
                     ->orderByRaw(
-                        "CASE WHEN {$encounterTable}.status IN (?, ?, ?) THEN {$encounterTable}.created_at END DESC",
+                        "CASE WHEN {$encounterTable}.status IN (?, ?) THEN {$encounterTable}.created_at END DESC",
                         [
                             EncounterStatus::Completed->value,
                             EncounterStatus::Cancelled->value,
-                            EncounterStatus::Voided->value,
                         ],
                     )
                     ->orderBy("{$encounterTable}.id");

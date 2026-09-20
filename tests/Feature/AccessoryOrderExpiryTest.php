@@ -66,7 +66,7 @@ test('the scheduled command expires only pending-payment orders and reverses the
     $order = $order->fresh(['billingRecord']);
 
     expect($order->status)->toBe(JobOrderStatus::Cancelled)
-        ->and($order->billingRecord->status)->toBe(BillingRecordStatus::Voided)
+        ->and($order->billingRecord->status)->toBe(BillingRecordStatus::Cancelled)
         ->and((int) $this->variant->fresh()->stock_quantity)->toBe(2)
         ->and((int) $this->variant->inventoryLots()->sum('quantity_on_hand'))->toBe(2);
 });

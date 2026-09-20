@@ -341,7 +341,7 @@ class EditOpticalOrder extends EditRecord
 
         if ($billingRecord === null) {
             $balance = $this->record->billingRecord()
-                ->where('status', '!=', 'voided')
+                ->where('status', '!=', 'cancelled')
                 ->value('balance_due');
 
             return (float) ($balance ?? 0);

@@ -69,7 +69,7 @@ class AcceptPaymentProof
                     ->lockForUpdate()
                     ->first();
 
-                if ($billingRecord === null || $billingRecord->status === BillingRecordStatus::Voided) {
+                if ($billingRecord === null || $billingRecord->status === BillingRecordStatus::Cancelled) {
                     throw ValidationException::withMessages([
                         'order' => ['No active billing record found.'],
                     ]);

@@ -9,7 +9,7 @@ enum BillingRecordStatus: string implements HasLabel
     case Unpaid = 'unpaid';
     case PartiallyPaid = 'partially_paid';
     case Paid = 'paid';
-    case Voided = 'voided';
+    case Cancelled = 'cancelled';
 
     public function getLabel(): string
     {
@@ -17,7 +17,7 @@ enum BillingRecordStatus: string implements HasLabel
             self::Unpaid => 'Unpaid',
             self::PartiallyPaid => 'Partially Paid',
             self::Paid => 'Paid',
-            self::Voided => 'Voided',
+            self::Cancelled => 'Cancelled',
         };
     }
 }

@@ -26,9 +26,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'notes',
     'recorded_by',
     'recorded_at',
-    'voided_by',
-    'voided_at',
-    'void_reason',
+    'cancelled_by',
+    'cancelled_at',
+    'cancellation_reason',
 ])]
 class BillingRecord extends Model
 {
@@ -84,9 +84,9 @@ class BillingRecord extends Model
     /**
      * @return BelongsTo<User, $this>
      */
-    public function voidedBy(): BelongsTo
+    public function cancelledBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'voided_by');
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     /**
@@ -159,12 +159,12 @@ class BillingRecord extends Model
     /**
      * Check if this billing record is overdue.
      *
-     * A record is overdue when it is non-voided, has a positive balance,
+     * A record is overdue when it is non-cancelled, has a positive balance,
      * and its payment due date is before today.
      */
     public function isOverdue(): bool
     {
-        if ($this->status === BillingRecordStatus::Voided) {
+        if ($this->status === BillingRecordStatus::Cancelled) {
             return false;
         }
 
@@ -190,7 +190,7 @@ class BillingRecord extends Model
             'balance_due' => 'decimal:2',
             'payment_due_date' => 'date',
             'recorded_at' => 'datetime',
-            'voided_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 }

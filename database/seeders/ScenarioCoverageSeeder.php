@@ -325,13 +325,13 @@ class ScenarioCoverageSeeder extends Seeder
         );
 
         Encounter::query()->firstOrCreate(
-            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Voided],
+            ['patient_id' => $walkIn->id, 'status' => EncounterStatus::Cancelled],
             [
                 'encounter_number' => 'CON-2026-000005',
                 'optometrist_id' => $optometrist->id,
                 'started_at' => now()->subDays(10),
                 'completed_at' => now()->subDays(10)->addHour(),
-                'void_reason' => 'Duplicate entry — merged with the correct encounter.',
+                'cancellation_reason' => 'Duplicate entry — merged with the correct encounter.',
             ],
         );
 

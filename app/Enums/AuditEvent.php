@@ -29,25 +29,25 @@ enum AuditEvent: string
     case EncounterAmended = 'encounter.amended';
     case EncounterProviderAssigned = 'encounter.provider_assigned';
     case EncounterTransferred = 'encounter.transferred';
-    case EncounterVoided = 'encounter.voided';
+    case EncounterCancelled = 'encounter.cancelled';
 
     case PrescriptionFinalized = 'prescription.finalized';
     case PrescriptionAmended = 'prescription.amended';
     case PrescriptionPrinted = 'prescription.printed';
-    case PrescriptionVoided = 'prescription.voided';
+    case PrescriptionCancelled = 'prescription.cancelled';
 
     case JobOrderCreated = 'job_order.created';
     case JobOrderStatusChanged = 'job_order.status_changed';
     case JobOrderCancelled = 'job_order.cancelled';
 
     case InvoiceIssued = 'invoice.issued';
-    case InvoiceVoided = 'invoice.voided';
+    case InvoiceCancelled = 'invoice.cancelled';
     case PaymentRecorded = 'payment.recorded';
     case PaymentCorrected = 'payment.corrected';
     case BillingRecordCreated = 'billing_record.created';
     case BillingChargesAdded = 'billing_record.charges_added';
     case BillingDiscountChanged = 'billing_record.discount_changed';
-    case BillingRecordVoided = 'billing_record.voided';
+    case BillingRecordCancelled = 'billing_record.cancelled';
     case BillingRecordPaymentRecorded = 'billing_record.payment_recorded';
     case BillingRecordPaymentCorrected = 'billing_record.payment_corrected';
     case BillingRecordDispensed = 'billing_record.dispensed';

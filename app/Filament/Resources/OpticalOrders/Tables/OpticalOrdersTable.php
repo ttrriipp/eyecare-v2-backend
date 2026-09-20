@@ -65,7 +65,7 @@ class OpticalOrdersTable
                         BillingRecordStatus::Paid => 'success',
                         BillingRecordStatus::PartiallyPaid => 'warning',
                         BillingRecordStatus::Unpaid => 'danger',
-                        BillingRecordStatus::Voided => 'gray',
+                        BillingRecordStatus::Cancelled => 'gray',
                         default => 'gray',
                     })
                     ->placeholder('—'),

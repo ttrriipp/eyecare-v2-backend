@@ -101,7 +101,7 @@ class CreateOpticalOrder extends CreateRecord
         );
         $prescriptionOptions = fn (Get $get): array => Prescription::query()
             ->where('patient_id', $get('patient_id'))
-            ->whereNull('voided_at')
+            ->whereNull('cancelled_at')
             ->whereDoesntHave('nextPrescription')
             ->orderByDesc('prescribed_at')
             ->get()
@@ -261,13 +261,13 @@ class CreateOpticalOrder extends CreateRecord
                                         ->label('Version')
                                         ->content(fn (Get $get): string => match (true) {
                                             $prescriptionResolver($get) === null => '—',
-                                            $prescriptionResolver($get)->isVoided() => 'Voided',
+                                            $prescriptionResolver($get)->isCancelled() => 'Cancelled',
                                             $prescriptionResolver($get)->isCurrentVersion() => 'Current',
                                             default => 'Superseded',
                                         })
                                         ->badge()
                                         ->color(fn (Get $get): string => match (true) {
-                                            $prescriptionResolver($get)?->isVoided() === true => 'danger',
+                                            $prescriptionResolver($get)?->isCancelled() === true => 'danger',
                                             $prescriptionResolver($get)?->isCurrentVersion() === true => 'success',
                                             default => 'warning',
                                         })
@@ -435,7 +435,7 @@ class CreateOpticalOrder extends CreateRecord
             && ($prescription === null
                 || $prescription->patient_id !== $patient->id
                 || ! $prescription->isCurrentVersion()
-                || $prescription->isVoided())) {
+                || $prescription->isCancelled())) {
             $this->addError('data.prescription_id', 'Select a current prescription before creating prescription eyewear.');
             $this->halt();
         }
@@ -678,7 +678,7 @@ class CreateOpticalOrder extends CreateRecord
     private function resolveEncounterPrescription(): ?Prescription
     {
         return $this->resolveEncounter()?->prescriptions()
-            ->whereNull('voided_at')
+            ->whereNull('cancelled_at')
             ->whereDoesntHave('nextPrescription')
             ->latest('id')
             ->first();

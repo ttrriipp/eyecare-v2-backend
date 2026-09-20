@@ -120,11 +120,11 @@ test('canonical seed data omits the checked-in scenario appointment', function (
         ->and(Appointment::generateAppointmentNumber())->toBe('APT-2026-000007');
 });
 
-test('canonical seed data omits the voided billing scenario record', function () {
+test('canonical seed data omits the cancelled billing scenario record', function () {
     $this->seed(DatabaseSeeder::class);
 
     expect(BillingRecord::query()
-        ->where('status', BillingRecordStatus::Voided)
+        ->where('status', BillingRecordStatus::Cancelled)
         ->exists())->toBeFalse();
 });
 

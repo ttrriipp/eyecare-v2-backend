@@ -43,7 +43,7 @@ class BillingRelationManager extends RelationManager
                         BillingRecordStatus::Unpaid => 'gray',
                         BillingRecordStatus::PartiallyPaid => 'warning',
                         BillingRecordStatus::Paid => 'success',
-                        BillingRecordStatus::Voided => 'danger',
+                        BillingRecordStatus::Cancelled => 'danger',
                     }),
                 TextColumn::make('recorded_at')
                     ->label('Recorded')

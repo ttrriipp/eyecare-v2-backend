@@ -19,9 +19,9 @@ class RecalculateBillingRecordTotals
         BillingRecord $billingRecord,
         ?float $discountAmount = null,
     ): BillingRecord {
-        if ($billingRecord->status === BillingRecordStatus::Voided) {
+        if ($billingRecord->status === BillingRecordStatus::Cancelled) {
             throw ValidationException::withMessages([
-                'billing_record' => ['Cannot modify a voided billing record.'],
+                'billing_record' => ['Cannot modify a cancelled billing record.'],
             ]);
         }
 
@@ -68,8 +68,8 @@ class RecalculateBillingRecordTotals
 
     private function calculateStatus(float $amountPaid, float $balanceDue, BillingRecordStatus $currentStatus): BillingRecordStatus
     {
-        if ($currentStatus === BillingRecordStatus::Voided) {
-            return BillingRecordStatus::Voided;
+        if ($currentStatus === BillingRecordStatus::Cancelled) {
+            return BillingRecordStatus::Cancelled;
         }
 
         if ($balanceDue <= 0 && $amountPaid > 0) {
