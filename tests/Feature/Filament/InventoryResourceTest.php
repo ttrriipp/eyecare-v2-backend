@@ -140,6 +140,39 @@ test('out of stock tab shows only depleted variants', function () {
         ->assertCanNotSeeTableRecords([$stocked]);
 });
 
+test('low stock tab shows active variants at or below threshold', function () {
+    $product = Product::factory()->create();
+
+    $low = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 2,
+        'low_stock_threshold' => 5,
+    ]);
+    $empty = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 0,
+        'low_stock_threshold' => 5,
+    ]);
+    $healthy = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 8,
+        'low_stock_threshold' => 5,
+    ]);
+    $notTracked = ProductVariant::factory()->for($product)->create([
+        'stock_quantity' => 0,
+        'low_stock_threshold' => 0,
+    ]);
+    $inactive = ProductVariant::factory()->for($product)->create([
+        'is_active' => false,
+        'stock_quantity' => 1,
+        'low_stock_threshold' => 5,
+    ]);
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->set('activeTab', 'low_stock')
+        ->assertCanSeeTableRecords([$low, $empty])
+        ->assertCanNotSeeTableRecords([$healthy, $notTracked, $inactive]);
+});
+
 test('expiry tabs show expiring and fully expired contact-lens variants', function () {
     Carbon::setTestNow('2026-08-28 14:00:00');
     $product = Product::factory()->contactLens()->create();

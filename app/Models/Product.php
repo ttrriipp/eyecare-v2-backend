@@ -99,6 +99,8 @@ class Product extends Model
     {
         return $query
             ->where('is_active', true)
+            ->whereHas('variants', fn (Builder $variantQuery): Builder => $variantQuery
+                ->where('is_active', true))
             ->whereHas('brand', fn (Builder $brandQuery): Builder => $brandQuery->active())
             ->where(fn (Builder $categoryQuery): Builder => $categoryQuery
                 ->whereNull('category_id')
@@ -141,6 +143,13 @@ class Product extends Model
     public function variants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function hasActiveVariant(): bool
+    {
+        return $this->variants()
+            ->where('is_active', true)
+            ->exists();
     }
 
     /**

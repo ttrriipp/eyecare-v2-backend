@@ -18,11 +18,14 @@ test('catalog lifecycle can deactivate and reactivate every catalog kind', funct
     $admin = User::factory()->admin()->create();
     $this->actingAs($admin);
 
+    $product = Product::factory()->create();
+    ProductVariant::factory()->for($product)->create();
+
     $records = [
         Brand::factory()->create(),
         ProductCategory::factory()->create(),
         LensCategory::factory()->withPrice()->create(),
-        Product::factory()->create(),
+        $product,
         ProductVariant::factory()->create(),
         Service::factory()->create(),
     ];
@@ -38,6 +41,8 @@ test('catalog lifecycle can deactivate and reactivate every catalog kind', funct
 
 test('active product and variant scopes exclude records under inactive catalog parents', function () {
     $activeProduct = Product::factory()->create();
+    $productWithoutActiveVariant = Product::factory()->create();
+    ProductVariant::factory()->for($productWithoutActiveVariant)->create(['is_active' => false]);
     $inactiveBrand = Brand::factory()->create(['is_active' => false]);
     $inactiveCategory = ProductCategory::factory()->create(['is_active' => false]);
     $productWithInactiveBrand = Product::factory()->create(['brand_id' => $inactiveBrand->id]);
@@ -46,10 +51,24 @@ test('active product and variant scopes exclude records under inactive catalog p
 
     expect(Product::query()->active()->pluck('id')->all())
         ->toContain($activeProduct->id)
+        ->not->toContain($productWithoutActiveVariant->id)
         ->not->toContain($productWithInactiveBrand->id)
         ->not->toContain($productWithInactiveCategory->id)
         ->and(ProductVariant::query()->active()->pluck('id')->all())
         ->toContain($activeVariant->id);
+});
+
+test('an inactive product cannot be activated without an active variant', function () {
+    $admin = User::factory()->admin()->create();
+    $product = Product::factory()->inactive()->create();
+    ProductVariant::factory()->for($product)->create(['is_active' => false]);
+
+    $this->actingAs($admin);
+
+    expect(fn () => CatalogLifecycle::activate($product))
+        ->toThrow(ValidationException::class);
+
+    expect($product->fresh()->is_active)->toBeFalse();
 });
 
 test('referenced catalog records cannot be permanently deleted', function () {

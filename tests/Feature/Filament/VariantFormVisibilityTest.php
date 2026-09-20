@@ -148,6 +148,18 @@ test('saved usage hydrates when editing contact lenses and accessories', functio
     'accessory' => 'accessory',
 ]);
 
+test('an empty product cannot be activated from its edit form', function (): void {
+    $product = Product::factory()->inactive()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(EditProduct::class, ['record' => $product->id])
+        ->fillForm(['is_active' => true])
+        ->call('save')
+        ->assertHasFormErrors(['is_active']);
+
+    expect($product->fresh()->is_active)->toBeFalse();
+});
+
 test('new frame product details start with one empty row', function () {
     Livewire::actingAs($this->user)
         ->test(CreateProduct::class)

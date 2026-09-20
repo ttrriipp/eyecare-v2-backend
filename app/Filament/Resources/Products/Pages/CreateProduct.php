@@ -16,6 +16,7 @@ use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Validation\ValidationException;
 
 class CreateProduct extends CreateRecord
 {
@@ -93,7 +94,16 @@ class CreateProduct extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        return ProductForm::prepareFormDataBeforeSave($data);
+        $data = ProductForm::prepareFormDataBeforeSave($data);
+
+        if (filter_var($data['is_active'] ?? false, FILTER_VALIDATE_BOOLEAN)
+            && ! self::hasActiveVariant($data['variants'] ?? null)) {
+            throw ValidationException::withMessages([
+                'data.is_active' => ['Add at least one active variant before activating the product.'],
+            ]);
+        }
+
+        return $data;
     }
 
     /**
@@ -150,5 +160,21 @@ class CreateProduct extends CreateRecord
     protected function getRedirectUrl(): string
     {
         return ProductResource::getUrl('edit', ['record' => $this->record]);
+    }
+
+    private static function hasActiveVariant(mixed $variants): bool
+    {
+        if (! is_array($variants)) {
+            return false;
+        }
+
+        foreach ($variants as $variant) {
+            if (is_array($variant)
+                && filter_var($variant['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

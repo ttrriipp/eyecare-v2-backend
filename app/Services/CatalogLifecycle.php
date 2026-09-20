@@ -22,6 +22,12 @@ final class CatalogLifecycle
     {
         self::authorize();
 
+        if ($record instanceof Product && ! $record->hasActiveVariant()) {
+            throw ValidationException::withMessages([
+                'record' => ['A product must have at least one active variant before it can be activated.'],
+            ]);
+        }
+
         if (method_exists($record, 'restore') && $record->trashed()) {
             $record->restore();
         }

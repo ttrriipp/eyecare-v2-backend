@@ -18,13 +18,14 @@ class ProductStatsWidget extends BaseWidget
         $total = Product::query()->count();
 
         $lowStock = ProductVariant::query()
-            ->where('stock_quantity', '>', 0)
-            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
+            ->active()
             ->where('low_stock_threshold', '>', 0)
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->count();
 
         $outOfStock = ProductVariant::query()
-            ->where('stock_quantity', 0)
+            ->active()
+            ->where('stock_quantity', '<=', 0)
             ->count();
 
         return [

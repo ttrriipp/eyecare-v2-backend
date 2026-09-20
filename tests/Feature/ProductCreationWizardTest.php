@@ -83,6 +83,24 @@ test('the wizard creates the product and its variants together', function (): vo
         ]);
 });
 
+test('the wizard rejects an active product without an active variant', function (): void {
+    $brand = Brand::factory()->create();
+
+    Livewire::actingAs($this->user)
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => 'frame',
+            'name' => 'Active Frame Without Variant',
+            'slug' => 'active-frame-without-variant',
+            'brand_id' => $brand->id,
+            'is_active' => true,
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['is_active']);
+
+    expect(Product::query()->where('slug', 'active-frame-without-variant')->exists())->toBeFalse();
+});
+
 test('the wizard creates a generic product variant with its attributes', function (): void {
     $brand = Brand::factory()->create();
 
@@ -93,6 +111,7 @@ test('the wizard creates a generic product variant with its attributes', functio
             'name' => 'Wizard Accessory',
             'slug' => 'wizard-accessory',
             'brand_id' => $brand->id,
+            'usage' => '1_month',
             'is_active' => true,
         ])
         ->goToNextWizardStep()
@@ -175,6 +194,7 @@ test('generic defaults prefill a new wizard variant', function (): void {
             'name' => 'Defaulted Wizard Accessory',
             'slug' => 'defaulted-wizard-accessory',
             'brand_id' => $brand->id,
+            'usage' => '1_month',
             'generic_default_details' => [
                 ['key' => 'color', 'value' => 'Black'],
                 ['key' => 'material', 'value' => 'Leather'],
@@ -183,7 +203,6 @@ test('generic defaults prefill a new wizard variant', function (): void {
         ->goToNextWizardStep()
         ->assertSet('data.variants', function (array $variants): bool {
             $variant = array_values($variants)[0] ?? [];
-
             expect($variant['attributes'] ?? null)->toContain(
                 ['key' => 'color', 'value' => 'Black'],
                 ['key' => 'material', 'value' => 'Leather'],

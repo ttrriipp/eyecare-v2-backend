@@ -26,7 +26,7 @@ class ListInventory extends ListRecords
 
     /**
      * "All" stays first and default so the landing view never hides stock
-     * behind a tab. "Needs Reorder" is the actionable one and carries the
+     * behind a tab. "Low Stock" is the actionable one and carries the
      * same count as the navigation badge.
      *
      * @return array<string, Tab>
@@ -35,6 +35,12 @@ class ListInventory extends ListRecords
     {
         return [
             'all' => Tab::make('All'),
+
+            'low_stock' => Tab::make('Low Stock')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->active()
+                    ->where('low_stock_threshold', '>', 0)
+                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')),
 
             'expiring_soon' => Tab::make('Expiring Soon')
                 ->modifyQueryUsing(fn (Builder $query) => $query

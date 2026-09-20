@@ -113,7 +113,7 @@ class ProductForm
                                 ->default('frame')
                                 ->required()
                                 ->live()
-                                ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                ->afterStateUpdated(function (Get $get, Set $set, ?string $state): void {
                                     if ($state === 'frame') {
                                         $set('usage', null);
                                         $set('frame_default_attributes', []);
@@ -125,7 +125,11 @@ class ProductForm
 
                                     if (in_array($state, ['contact_lens', 'accessory'], true)) {
                                         $set('default_variant_attributes', []);
-                                        $set('generic_default_details', self::emptyKeyValueRows());
+
+                                        if (filled($get('generic_default_details'))) {
+                                            $set('generic_default_details', self::emptyKeyValueRows());
+                                        }
+
                                         $set('frame_default_attributes', []);
                                         $set('frame_other_details', []);
 
@@ -191,7 +195,8 @@ class ProductForm
                         Section::make('Status')->schema([
                             Toggle::make('is_active')
                                 ->label('Active')
-                                ->default(true),
+                                ->helperText('Active products must have at least one active variant.')
+                                ->default(false),
                         ]),
 
                         Section::make('Associations')->schema([
