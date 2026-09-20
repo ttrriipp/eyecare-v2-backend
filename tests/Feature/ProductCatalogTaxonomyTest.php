@@ -1,10 +1,15 @@
 <?php
 
+use App\Models\InventoryLot;
+use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
+use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -160,6 +165,90 @@ test('catalog seeder imports the approved clinic product catalog idempotently', 
         ->and(LensOption::query()->where('name', 'Anti-Reflective')->exists())->toBeTrue();
 
     expect(ProductCategory::query()->where('name', 'Colored Contact Lens')->exists())->toBeTrue();
+});
+
+test('catalog seeder records opening receipt history for every legacy-stock frame variant', function (): void {
+    Storage::fake('public');
+    $receiver = User::factory()->staff()->create();
+
+    $this->seed(CatalogSeeder::class);
+
+    $restockType = InventoryMovementType::query()
+        ->where('name', 'restock')
+        ->firstOrFail();
+
+    $expectedReceipts = [
+        'FRM-SOFIA-2860-GRY' => ['quantity' => 4, 'purchased_at' => '2026-09-01'],
+        'FRM-SOFIA-2860-CHAMP' => ['quantity' => 3, 'purchased_at' => '2026-09-02'],
+        'SUN-MORMAII-FLOATER280-BLK' => ['quantity' => 2, 'purchased_at' => '2026-09-03'],
+        'FRM-ANTHOS-MB1399A-C4' => ['quantity' => 3, 'purchased_at' => '2026-09-04'],
+        'FRM-CESTJOLI-2860-C4' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+        'FRM-SPORT-BLKRED-001' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+        'FRAME-8763-C2' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+        'NIKE-5753-BLK' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+        'SOFIA-52103-C7' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+        'POLO-P002-DGM' => ['quantity' => 2, 'purchased_at' => '2026-09-01'],
+    ];
+
+    foreach ($expectedReceipts as $sku => $receipt) {
+        $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
+        $movement = InventoryMovement::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->where('inventory_movement_type_id', $restockType->id)
+            ->where('purchased_at', $receipt['purchased_at'])
+            ->firstOrFail();
+
+        expect($movement->quantity_change)->toBe($receipt['quantity'])
+            ->and($movement->previous_stock)->toBe(0)
+            ->and($movement->new_stock)->toBe($receipt['quantity']);
+
+        $batchNumber = sprintf(
+            'FRM-%d-%s-1',
+            $variant->id,
+            CarbonImmutable::parse($receipt['purchased_at'])->format('ymd'),
+        );
+
+        $batch = InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->where('lot_number', $batchNumber)
+            ->firstOrFail();
+
+        expect($batch->lot_number)->toBe($batchNumber)
+            ->and($batch->expires_on)->toBeNull()
+            ->and($batch->received_quantity)->toBe($receipt['quantity'])
+            ->and($batch->quantity_on_hand)->toBe($receipt['quantity'])
+            ->and($batch->purchased_at->toDateString())->toBe($receipt['purchased_at'])
+            ->and($batch->received_by)->toBe($receiver->id)
+            ->and($movement->inventory_lot_id)->toBe($batch->id);
+    }
+
+    expect(InventoryMovement::query()
+        ->where('inventory_movement_type_id', $restockType->id)
+        ->count())->toBe(count($expectedReceipts))
+        ->and(InventoryLot::query()->count())->toBe(count($expectedReceipts));
+
+    foreach ($expectedReceipts as $sku => $receipt) {
+        $variant = ProductVariant::query()->where('sku', $sku)->firstOrFail();
+        $batchNumber = sprintf(
+            'FRM-%d-%s-1',
+            $variant->id,
+            CarbonImmutable::parse($receipt['purchased_at'])->format('ymd'),
+        );
+
+        InventoryLot::query()
+            ->whereBelongsTo($variant, 'variant')
+            ->where('lot_number', $batchNumber)
+            ->firstOrFail()
+            ->update(['lot_number' => 'OPENING-'.$sku]);
+    }
+
+    $this->seed(CatalogSeeder::class);
+
+    expect(InventoryMovement::query()
+        ->where('inventory_movement_type_id', $restockType->id)
+        ->count())->toBe(count($expectedReceipts))
+        ->and(InventoryLot::query()->count())->toBe(count($expectedReceipts))
+        ->and(InventoryLot::query()->where('lot_number', 'like', 'OPENING-%')->count())->toBe(0);
 });
 
 test('catalog seeder adds the new frames with their organized variant images', function (): void {

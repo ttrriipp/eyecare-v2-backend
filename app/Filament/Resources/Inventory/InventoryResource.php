@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Inventory;
 
 use App\Filament\Resources\Inventory\Pages\ListInventory;
+use App\Filament\Resources\Inventory\Schemas\InventoryInfolist;
 use App\Filament\Resources\Inventory\Tables\InventoryTable;
 use App\Models\ProductVariant;
 use BackedEnum;
@@ -63,7 +64,7 @@ class InventoryResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->with([
-            'product:id,name,brand_id,product_type',
+            'product:id,name,brand_id,product_type,usage',
             'product.brand:id,name',
             'inventoryLots:id,product_variant_id,lot_number,expires_on,quantity_on_hand,received_at,purchased_at,received_by,source_reference',
             'inventoryLots.receivedBy:id,first_name,middle_name,last_name',
@@ -78,6 +79,11 @@ class InventoryResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema;
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return InventoryInfolist::configure($schema);
     }
 
     public static function table(Table $table): Table

@@ -52,6 +52,62 @@ test('inventory table uses the received-at label and compact responsive defaults
         ->and($table->isStackedOnMobile())->toBeTrue();
 });
 
+test('clicking an inventory row opens its complete detail modal', function (): void {
+    $product = Product::factory()->create([
+        'name' => "C'est Joli 2860",
+        'product_type' => 'frame',
+        'usage' => null,
+    ]);
+    $variant = ProductVariant::factory()->for($product)->create([
+        'name' => 'C4 Gold / Black',
+        'sku' => 'FRM-2860-C4',
+        'stock_quantity' => 2,
+        'low_stock_threshold' => 1,
+        'target_stock_level' => 4,
+    ]);
+    $restockType = InventoryMovementType::query()->firstOrCreate(['name' => 'restock']);
+
+    InventoryMovement::factory()->for($variant, 'variant')->create([
+        'inventory_movement_type_id' => $restockType->id,
+        'quantity_change' => 2,
+        'purchased_at' => '2026-09-01',
+    ]);
+
+    $this->actingAs($this->staff);
+
+    $component = Livewire::test(ListInventory::class)
+        ->assertTableActionExists('view', record: $variant);
+
+    expect($component->instance()->getTable()->getRecordAction($variant))->toBe('view');
+
+    $component
+        ->mountTableAction('view', $variant)
+        ->assertMountedActionModalSee([
+            'Inventory details',
+            "C'est Joli 2860",
+            'C4 Gold / Black',
+            'FRM-2860-C4',
+            'Sep 1, 2026',
+            '2',
+            'Threshold',
+            'Target',
+        ])
+        ->assertMountedActionModalDontSee('Usage')
+        ->assertMountedActionModalDontSee('Not set')
+        ->assertMountedActionModalDontSee('Earliest Expiry');
+});
+
+test('inventory details show usage for usage-tracked products', function (): void {
+    $product = Product::factory()->contactLens()->create();
+    $variant = ProductVariant::factory()->for($product)->create();
+
+    $this->actingAs($this->staff);
+
+    Livewire::test(ListInventory::class)
+        ->mountTableAction('view', $variant)
+        ->assertMountedActionModalSee(['Usage', '1 Month']);
+});
+
 test('staff can access inventory', function () {
     $this->actingAs($this->staff);
 

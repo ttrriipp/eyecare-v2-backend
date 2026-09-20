@@ -6,6 +6,7 @@ use App\Filament\Support\StockActions;
 use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
 use Filament\Actions\ActionGroup;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -188,8 +189,11 @@ class InventoryTable
                         '0' => 'Inactive',
                     ]),
             ])
+            ->recordAction('view')
             ->recordActions([
                 ActionGroup::make([
+                    ViewAction::make()
+                        ->modalHeading('Inventory details'),
                     StockActions::viewBatches(),
                     StockActions::receive(),
                     StockActions::writeOffDamaged(),

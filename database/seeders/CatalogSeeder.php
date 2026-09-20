@@ -4,12 +4,18 @@ namespace Database\Seeders;
 
 use App\Enums\ProductUsage;
 use App\Models\Brand;
+use App\Models\InventoryLot;
+use App\Models\InventoryMovement;
+use App\Models\InventoryMovementType;
 use App\Models\LensCategory;
 use App\Models\LensOption;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\Service;
+use App\Models\User;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -19,11 +25,15 @@ use RuntimeException;
  * Seeds the clinic's current physical catalog.
  *
  * Prices and stock quantities are provisional local-development values where
- * the workbook did not provide verified figures. Expiry-tracked lots remain
- * empty until receiving data is available.
+ * the workbook did not provide verified figures. Opening frame receipt
+ * movements and batches mirror the provisional quantities for the initial
+ * inventory view; expiry-tracked lots remain empty until receiving data is
+ * available.
  */
 class CatalogSeeder extends Seeder
 {
+    private const string LEGACY_OPENING_STOCK_DATE = '2026-09-01';
+
     public function run(): void
     {
         collect([
@@ -124,6 +134,8 @@ class CatalogSeeder extends Seeder
         $this->retireLegacyCatalog();
 
         $brands = [];
+        $openingStockReceiverId = $this->openingStockReceiverId();
+
         foreach ([
             'SOFIA EYEWEAR',
             'Mormaii',
@@ -187,6 +199,10 @@ class CatalogSeeder extends Seeder
                             'temple' => 145,
                         ],
                         'stock_quantity' => 4,
+                        'opening_stock' => [
+                            'quantity' => 4,
+                            'purchased_at' => '2026-09-01',
+                        ],
                         'low_stock_threshold' => 1,
                         'target_stock_level' => 5,
                     ],
@@ -202,6 +218,10 @@ class CatalogSeeder extends Seeder
                             'temple' => 145,
                         ],
                         'stock_quantity' => 3,
+                        'opening_stock' => [
+                            'quantity' => 3,
+                            'purchased_at' => '2026-09-02',
+                        ],
                         'low_stock_threshold' => 1,
                         'target_stock_level' => 5,
                     ],
@@ -228,6 +248,10 @@ class CatalogSeeder extends Seeder
                             'material' => 'Plastic',
                         ],
                         'stock_quantity' => 2,
+                        'opening_stock' => [
+                            'quantity' => 2,
+                            'purchased_at' => '2026-09-03',
+                        ],
                         'low_stock_threshold' => 1,
                         'target_stock_level' => 4,
                     ],
@@ -260,6 +284,10 @@ class CatalogSeeder extends Seeder
                             'temple' => 145,
                         ],
                         'stock_quantity' => 3,
+                        'opening_stock' => [
+                            'quantity' => 3,
+                            'purchased_at' => '2026-09-04',
+                        ],
                         'low_stock_threshold' => 1,
                         'target_stock_level' => 5,
                     ],
@@ -647,7 +675,7 @@ class CatalogSeeder extends Seeder
                 ),
             ],
         ] as $productData) {
-            $this->upsertClinicProduct($productData, $brands, $categories);
+            $this->upsertClinicProduct($productData, $brands, $categories, $openingStockReceiverId);
         }
     }
 
@@ -655,8 +683,14 @@ class CatalogSeeder extends Seeder
      * @param  array{brand: string, category: string, name: string, slug: string, description: string, product_type: string, variants: array<int, array<string, mixed>>}  $productData
      * @param  array<string, Brand>  $brands
      * @param  array<string, ProductCategory>  $categories
+     * @param  int|null  $openingStockReceiverId
      */
-    private function upsertClinicProduct(array $productData, array $brands, array $categories): void
+    private function upsertClinicProduct(
+        array $productData,
+        array $brands,
+        array $categories,
+        ?int $openingStockReceiverId,
+    ): void
     {
         $productImages = $this->copySeededImages('products', $productData['slug']);
 
@@ -687,7 +721,7 @@ class CatalogSeeder extends Seeder
                 $primaryVariantImages = $variantImages;
             }
 
-            ProductVariant::query()->updateOrCreate(
+            $variant = ProductVariant::query()->updateOrCreate(
                 ['sku' => $variantData['sku']],
                 [
                     'product_id' => $product->id,
@@ -705,11 +739,125 @@ class CatalogSeeder extends Seeder
                     'images' => $variantImages,
                 ],
             );
+
+            $openingStock = $variantData['opening_stock'] ?? null;
+
+            if (
+                $openingStock === null
+                && $productData['product_type'] === 'frame'
+                && (int) ($variantData['stock_quantity'] ?? 0) > 0
+            ) {
+                $openingStock = [
+                    'quantity' => (int) $variantData['stock_quantity'],
+                    'purchased_at' => self::LEGACY_OPENING_STOCK_DATE,
+                ];
+            }
+
+            if (is_array($openingStock) && isset($openingStock['quantity'], $openingStock['purchased_at'])) {
+                $this->seedOpeningStockMovement($variant, [
+                    'quantity' => (int) $openingStock['quantity'],
+                    'purchased_at' => (string) $openingStock['purchased_at'],
+                ], $openingStockReceiverId);
+            }
         }
 
         if ($productImages === [] && $primaryVariantImages !== []) {
             $product->update(['images' => $primaryVariantImages]);
         }
+    }
+
+    /**
+     * @param  array{quantity: int, purchased_at: string}  $openingStock
+     */
+    private function seedOpeningStockMovement(
+        ProductVariant $variant,
+        array $openingStock,
+        ?int $receivedByUserId,
+    ): void
+    {
+        $restockType = InventoryMovementType::query()->firstOrCreate(['name' => 'restock']);
+        $openingBatch = $this->seedOpeningStockBatch($variant, $openingStock, $receivedByUserId);
+
+        InventoryMovement::query()->updateOrCreate(
+            [
+                'product_variant_id' => $variant->id,
+                'inventory_movement_type_id' => $restockType->id,
+                'notes' => 'Opening stock seeded from catalog.',
+            ],
+            [
+                'inventory_lot_id' => $openingBatch?->id,
+                'quantity_change' => $openingStock['quantity'],
+                'purchased_at' => $openingStock['purchased_at'],
+                'previous_stock' => 0,
+                'new_stock' => $openingStock['quantity'],
+                'created_by' => null,
+            ],
+        );
+    }
+
+    /**
+     * @param  array{quantity: int, purchased_at: string}  $openingStock
+     */
+    private function seedOpeningStockBatch(
+        ProductVariant $variant,
+        array $openingStock,
+        ?int $receivedByUserId,
+    ): ?InventoryLot {
+        if ($receivedByUserId === null) {
+            return null;
+        }
+
+        $batchNumber = $this->openingStockBatchNumber($variant, $openingStock['purchased_at']);
+        $canonicalBatchExists = InventoryLot::query()
+            ->where('product_variant_id', $variant->id)
+            ->where('lot_number', $batchNumber)
+            ->exists();
+
+        if (! $canonicalBatchExists) {
+            InventoryLot::query()
+                ->where('product_variant_id', $variant->id)
+                ->where('lot_number', 'OPENING-'.$variant->sku)
+                ->update(['lot_number' => $batchNumber]);
+        }
+
+        return InventoryLot::query()->updateOrCreate(
+            [
+                'product_variant_id' => $variant->id,
+                'lot_number' => $batchNumber,
+            ],
+            [
+                'expires_on' => null,
+                'received_quantity' => $openingStock['quantity'],
+                'quantity_on_hand' => $openingStock['quantity'],
+                'received_at' => CarbonImmutable::parse($openingStock['purchased_at'])->startOfDay(),
+                'purchased_at' => $openingStock['purchased_at'],
+                'received_by' => $receivedByUserId,
+                'source_reference' => 'Catalog opening stock',
+            ],
+        );
+    }
+
+    private function openingStockBatchNumber(ProductVariant $variant, string $purchasedAt): string
+    {
+        return sprintf(
+            'FRM-%d-%s-1',
+            $variant->id,
+            CarbonImmutable::parse($purchasedAt)->format('ymd'),
+        );
+    }
+
+    private function openingStockReceiverId(): ?int
+    {
+        $receiverId = User::query()
+            ->where('is_active', true)
+            ->whereHas(
+                'roles',
+                fn (Builder $roleQuery): Builder => $roleQuery->whereIn('name', ['admin', 'staff', 'optometrist']),
+            )
+            ->orderBy('id')
+            ->value('id');
+
+        return $receiverId === null ? null : (int) $receiverId;
     }
 
     /**
