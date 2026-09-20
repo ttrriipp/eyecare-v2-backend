@@ -60,7 +60,7 @@ test('contact lenses and accessories expose approved usage options', function (s
     'accessory' => 'accessory',
 ]);
 
-test('usage is required for contact lenses and accessories', function (string $productType): void {
+test('usage is optional for contact lenses and accessories', function (string $productType): void {
     $brand = Brand::factory()->create();
 
     Livewire::actingAs($this->user)
@@ -72,7 +72,12 @@ test('usage is required for contact lenses and accessories', function (string $p
             'brand_id' => $brand->id,
         ])
         ->call('create')
-        ->assertHasFormErrors(['usage' => 'required']);
+        ->assertHasNoFormErrors();
+
+    expect(Product::query()
+        ->where('slug', "test-{$productType}")
+        ->firstOrFail()
+        ->getRawOriginal('usage'))->toBeNull();
 })->with([
     'contact lens' => 'contact_lens',
     'accessory' => 'accessory',

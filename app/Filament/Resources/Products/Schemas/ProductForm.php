@@ -144,7 +144,6 @@ class ProductForm
                                 ->helperText('How long the product is used before replacement or replenishment.')
                                 ->nullable()
                                 ->rules([Rule::enum(ProductUsage::class)])
-                                ->required(fn (Get $get): bool => self::isUsageTrackedProduct($get('product_type')))
                                 ->visible(fn (Get $get): bool => self::isUsageTrackedProduct($get('product_type')))
                                 ->columnSpanFull(),
                             TextInput::make('name')

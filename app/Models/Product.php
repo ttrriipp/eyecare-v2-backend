@@ -38,7 +38,7 @@ class Product extends Model
     ];
 
     /**
-     * Product types that require a usage period.
+     * Product types that support a usage period.
      *
      * @var list<string>
      */
