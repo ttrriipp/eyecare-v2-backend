@@ -2441,7 +2441,6 @@ at least one usable, non-expired inventory lot. The list is paginated (default
 | `sort` | `name` (default), `newest`, `rating`, `most_rated` |
 | `minimum_rating` | Integer 1–5; database aggregate average |
 | `rated` | `all` (default), `rated`, `unrated` |
-| `placement` | `prescription` for staff-curated Care Accessories |
 | `page` / `per_page` | Page >= 1; per-page 1–50 |
 
 Each Product returns only patient-safe fields: `id`, `name`, `slug`,
@@ -2454,11 +2453,10 @@ storage paths, and internal catalog fields are never returned. Rating
 aggregates include star values from visible and hidden comments; soft-deleted
 ratings are excluded and an unrated Product has `average_rating: null`.
 
-`placement=prescription` is a merchandising surface only. It returns products
-marked by staff with the accessory-only `is_featured_for_prescription` flag;
-it does not read prescription measurements, infer compatibility, or bind an
-order to a Prescription. Android labels this surface **Care Accessories** and
-must describe its items as optional.
+Prescription-linked placement is outside this accessory catalog contract. The
+retired `placement` query parameter is prohibited and returns HTTP 422 when
+sent. The catalog does not read prescription measurements, infer compatibility,
+or bind an accessory order request to a Prescription.
 
 ### Order request lifecycle
 

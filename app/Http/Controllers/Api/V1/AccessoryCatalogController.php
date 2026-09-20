@@ -21,7 +21,7 @@ class AccessoryCatalogController extends Controller
             'sort' => ['nullable', 'string', 'in:name,newest,rating,most_rated'],
             'minimum_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
             'rated' => ['nullable', 'string', 'in:all,rated,unrated'],
-            'placement' => ['nullable', 'string', 'in:prescription'],
+            'placement' => ['prohibited'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -117,10 +117,6 @@ class AccessoryCatalogController extends Controller
 
         if (filled($validated['category'] ?? null)) {
             $query->where('category_id', $validated['category']);
-        }
-
-        if (($validated['placement'] ?? null) === 'prescription') {
-            $query->where('is_featured_for_prescription', true);
         }
 
         if (filled($validated['minimum_rating'] ?? null)) {

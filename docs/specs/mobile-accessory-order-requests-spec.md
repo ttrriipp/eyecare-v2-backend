@@ -54,9 +54,9 @@ system beside Optical Orders and Billing.
     item linked to a ProductVariant is rateable. Accessory catalog aggregates
     and filters reuse the existing rating records and patient/order-item rating
     endpoint.
-11. The prescription screen may surface staff-curated Care Accessories, but
-    those products are not prescription-bound, clinically personalized, or
-    represented as medically necessary or compatible with measurements.
+11. Prescription resources remain separate from accessory ordering. This MVP
+    does not add prescription-page placement, clinical compatibility, or
+    measurement-based accessory recommendations.
 12. An account may have only one pending accessory request. Pending requests do
     not expire automatically; the patient may cancel while pending, and staff
     may accept or reject them.
@@ -284,14 +284,13 @@ List query parameters:
 | `sort` | `name`, `newest`, `rating`, `most_rated` |
 | `minimum_rating` | integer 1-5 |
 | `rated` | `all`, `rated`, `unrated`; default `all` |
-| `placement` | omitted or `prescription` |
 | `page` | integer, minimum 1 |
 | `per_page` | integer 1-50; default 15 |
 
 Each Product includes nullable `average_rating` and integer `rating_count`.
 Unrated Products return `average_rating: null`, never zero, and remain visible
-by default. `placement=prescription` returns only active accessories marked by
-staff for the Care Accessories surface; it does not inspect prescription data.
+by default. The retired `placement` query parameter is prohibited and returns
+HTTP 422 when sent.
 
 ### Order request routes
 
@@ -459,16 +458,12 @@ tests is deferred because it adds migration risk without changing the mobile
 capability. Patient-facing and new staff-facing copy should say **Product
 Rating** where it applies to both frames and accessories.
 
-## Prescription Care Accessories
+## Prescription boundary
 
-Add a staff-managed boolean flag to accessory Products for prescription-page
-placement. Android loads `GET /accessories?placement=prescription&per_page=6`
-when rendering a prescription detail screen.
-
-This deliberately keeps the clinical prescription resource unchanged. The
-section heading is **Care Accessories** and supporting copy must say the items
-are optional. The backend does not read encrypted measurements, infer medical
-compatibility, or bind the resulting request/order to a Prescription.
+Prescription resources and accessory Order Requests remain separate. The
+accessory MVP does not place products on prescription screens, read encrypted
+measurements, infer medical compatibility, or bind an accessory request/order
+to a Prescription.
 
 ## Commands and verification cadence
 
@@ -574,7 +569,8 @@ public function handle(
   `billings` tables.
 - Auto-expire an order after proof submission.
 - Log proof contents, storage paths, GCash references, or sender names.
-- Describe Care Accessories as prescribed, required, or measurement-compatible.
+- Describe ordinary accessories as prescribed, required, or
+  measurement-compatible.
 
 ## Success criteria
 
@@ -598,8 +594,8 @@ public function handle(
 7. Accessory catalog rating aggregates, sorting, rated/unrated filtering, and
    minimum-rating filtering are deterministic and preserve `null` for unrated
    products.
-8. Prescription screens can request up to six curated optional accessories
-   without changing or reading the clinical prescription payload.
+8. Accessory ordering does not change or read the clinical prescription
+   payload, and the catalog exposes no prescription-placement behavior.
 9. Focused and full Pest suites pass, Pint is clean, and the authoritative API
    and backend context documents match the shipped contract.
 10. Pending requests do not expire automatically, while the owner retains an
@@ -616,6 +612,7 @@ public function handle(
 - Patient proof resubmission or multiple proof files
 - Staff edits, substitutions, or partial request acceptance
 - Personalized clinical product recommendations
+- Prescription-linked accessory placement or compatibility recommendations
 - Rating photos/videos or an internal rating-table rename
 - Public proof URLs or proof access by optometrist-only accounts
 

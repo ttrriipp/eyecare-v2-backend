@@ -69,6 +69,13 @@ test('accessory catalog exposes patient-safe variants and rating aggregates', fu
         ->and($variantData)->not->toHaveKey('low_stock_threshold');
 });
 
+test('rejects the retired prescription placement filter', function (): void {
+    $this->actingAs($this->account)
+        ->getJson('/api/v1/accessories?placement=prescription')
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['placement']);
+});
+
 test('accessory catalog supports minimum rating and rated filters', function (): void {
     $ratedVariant = createAccessoryVariant($this->account, ['name' => 'Rated Care Kit']);
     FrameRating::factory()->create([
