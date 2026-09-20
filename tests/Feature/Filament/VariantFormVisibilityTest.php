@@ -11,9 +11,7 @@ use App\Models\ProductVariant;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Filament\Actions\Testing\TestAction;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -562,13 +560,13 @@ test('variant price inputs reject negative values and render decimal constraints
             'ownerRecord' => $product,
             'pageClass' => EditProduct::class,
         ])
-        ->mountTableAction('edit', $variant);
+        ->mountTableAction('adjustPrice', $variant);
 
-    expect($component->html())
-        ->toContain('price-input')
-        ->toContain('min="0"')
-        ->toContain('step="0.01"')
-        ->toContain('type="number"');
+    $component
+        ->assertMountedActionModalSeeHtml('price-input')
+        ->assertMountedActionModalSeeHtml('min="0"')
+        ->assertMountedActionModalSeeHtml('step="0.01"')
+        ->assertMountedActionModalSeeHtml('type="number"');
 
     Livewire::actingAs($this->user)
         ->test(VariantsRelationManager::class, [
@@ -597,32 +595,40 @@ test('variant price inputs reject negative values and render decimal constraints
     expect((float) $variant->fresh()->price)->toBe(500.25);
 });
 
-test('inline product variant price inputs use non-negative decimal constraints', function () {
+test('wizard variant price inputs use non-negative decimal constraints', function () {
+    $brand = Brand::factory()->create();
+
     $component = Livewire::actingAs($this->user)
-        ->test(CreateProduct::class);
+        ->test(CreateProduct::class)
+        ->fillForm([
+            'product_type' => 'frame',
+            'name' => 'Wizard Price Test',
+            'slug' => 'wizard-price-test',
+            'brand_id' => $brand->id,
+        ])
+        ->goToNextWizardStep()
+        ->fillForm([
+            'variants' => [[
+                'name' => 'Price Test Variant',
+                'price' => 500.25,
+                'compare_at_price' => 600.25,
+                'cost_price' => 300.25,
+                'attributes' => [
+                    'lens_width' => 52,
+                    'bridge' => 18,
+                    'color' => 'Black',
+                    'material' => 'Acetate',
+                ],
+                'frame_other_details' => [],
+                'stock_quantity' => 0,
+                'low_stock_threshold' => 0,
+                'target_stock_level' => null,
+                'is_active' => true,
+            ]],
+        ]);
 
-    $variantsSection = $component->instance()->form->getComponents()[1];
-    $repeater = $variantsSection->getDefaultChildComponents()[0];
-    $priceInputs = collect($repeater->getDefaultChildComponents())
-        ->filter(fn ($field): bool => in_array($field->getName(), [
-            'price',
-            'compare_at_price',
-            'cost_price',
-        ], true));
-
-    expect($repeater)
-        ->toBeInstanceOf(Repeater::class)
-        ->and($priceInputs)
-        ->toHaveCount(3);
-
-    foreach ($priceInputs as $priceInput) {
-        expect($priceInput)
-            ->toBeInstanceOf(TextInput::class)
-            ->and($priceInput->getMinValue())
-            ->toBe(0)
-            ->and($priceInput->getStep())
-            ->toBe(0.01)
-            ->and($priceInput->getExtraInputAttributes())
-            ->toMatchArray(['class' => 'price-input']);
-    }
+    expect($component->html())
+        ->toContain('price-input')
+        ->toContain('min="0"')
+        ->toContain('step="0.01"');
 });

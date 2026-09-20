@@ -30,15 +30,40 @@ final class VariantForm
      *
      * @return array<int, mixed>
      */
-    public static function schema(?string $productType = null, ?int $productId = null): array
-    {
+    public static function schema(
+        ?string $productType = null,
+        ?int $productId = null,
+        ?array $defaultAttributes = null,
+    ): array {
         return array_merge(
             self::identityFields($productId),
             self::pricingFields(),
-            self::typeSpecificFields($productType, $productId),
+            self::typeSpecificFields($productType, $productId, $defaultAttributes),
             self::inventoryFields($productType),
             self::imageField(),
         );
+    }
+
+    /**
+     * Return the raw repeater state for a new variant populated from product defaults.
+     *
+     * @param  array<string, mixed>  $defaultAttributes
+     * @return array<string, mixed>
+     */
+    public static function defaultFormState(?string $productType, array $defaultAttributes): array
+    {
+        if ($productType === 'frame') {
+            return [
+                'attributes' => Arr::only($defaultAttributes, self::FRAME_ATTRIBUTE_KEYS),
+                'frame_other_details' => self::toKeyValueRows(
+                    Arr::except($defaultAttributes, self::FRAME_ATTRIBUTE_KEYS),
+                ),
+            ];
+        }
+
+        return [
+            'attributes' => self::toKeyValueRows($defaultAttributes),
+        ];
     }
 
     /**
@@ -183,21 +208,24 @@ final class VariantForm
     /**
      * @return array<int, mixed>
      */
-    public static function typeSpecificFields(?string $productType = null, ?int $productId = null): array
-    {
+    public static function typeSpecificFields(
+        ?string $productType = null,
+        ?int $productId = null,
+        ?array $defaultAttributes = null,
+    ): array {
         // When productType is known (relation manager), conditionally include.
         if ($productType !== null) {
             return match ($productType) {
-                'frame' => [self::frameDimensionsSection($productId)],
-                default => [self::genericDetailsField($productId)],
+                'frame' => [self::frameDimensionsSection($productId, $defaultAttributes)],
+                default => [self::genericDetailsField($productId, $defaultAttributes)],
             };
         }
 
         // When productType is unknown (inline repeater), use visibility closures.
         return [
-            self::frameDimensionsSection()
+            self::frameDimensionsSection(defaultAttributes: $defaultAttributes)
                 ->visible(fn (Get $get): bool => $get('../../product_type') === 'frame'),
-            self::genericDetailsField($productId)
+            self::genericDetailsField($productId, $defaultAttributes)
                 ->visible(fn (Get $get): bool => $get('../../product_type') !== 'frame'),
         ];
     }
@@ -222,9 +250,14 @@ final class VariantForm
         ];
     }
 
-    private static function frameDimensionsSection(?int $productId = null): Section
-    {
-        $defaults = self::defaultVariantAttributes($productId);
+    private static function frameDimensionsSection(
+        ?int $productId = null,
+        ?array $defaultAttributes = null,
+    ): Section {
+        $defaults = array_replace(
+            self::defaultVariantAttributes($productId),
+            $defaultAttributes ?? [],
+        );
 
         return Section::make('Frame Size & Appearance')
             ->schema([
@@ -359,9 +392,11 @@ final class VariantForm
             ->columnSpanFull();
     }
 
-    private static function genericDetailsField(?int $productId = null): KeyValue
-    {
-        $default = self::defaultVariantAttributes($productId);
+    private static function genericDetailsField(
+        ?int $productId = null,
+        ?array $defaultAttributes = null,
+    ): KeyValue {
+        $default = $defaultAttributes ?? self::defaultVariantAttributes($productId);
 
         if (empty($default) && $productId !== null) {
             $existingKeys = ProductVariant::query()
