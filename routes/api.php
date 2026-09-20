@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\PatientLinkRequestController;
 use App\Http\Controllers\Api\PilotParticipantLoginController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\SavedFrameController;
+use App\Http\Controllers\Api\V1\AccessoryCatalogController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
 
@@ -140,6 +141,10 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         // Frame catalog browsing does not require a linked patient record.
         Route::get('frames', [FrameController::class, 'index']);
         Route::get('frames/{frame}', [FrameController::class, 'show']);
+
+        // Accessory catalog (requires active patient link)
+        Route::get('accessories', [AccessoryCatalogController::class, 'index']);
+        Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
 
         // Saved Frames (account-owned preferences, no patient link required)
         Route::get('saved-frames', [SavedFrameController::class, 'index']);
