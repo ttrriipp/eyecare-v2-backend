@@ -6,6 +6,7 @@ use App\Actions\Audit\CreateAuditLog;
 use App\Actions\BillingRecords\AddChargesToBilling;
 use App\Actions\BillingRecords\RecalculateBillingRecordTotals;
 use App\Actions\BillingRecords\ResolveOpenCheckoutBillingRecord;
+use App\Actions\Notifications\NotifyPatientAccount;
 use App\Actions\OpticalOrders\BuildOpticalOrder;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\AuditEvent;
@@ -25,6 +26,7 @@ class AcceptAccessoryOrderRequest
         private readonly ResolveOpenCheckoutBillingRecord $resolveBilling,
         private readonly AddChargesToBilling $addCharges,
         private readonly CreateAuditLog $auditLog,
+        private readonly NotifyPatientAccount $notifyPatientAccount,
     ) {}
 
     /**
@@ -37,11 +39,19 @@ class AcceptAccessoryOrderRequest
         User $reviewer,
         ?float $discountAmount = null,
     ): array {
+        $this->assertReviewer($reviewer);
+
         return DB::transaction(function () use ($orderRequest, $reviewer, $discountAmount): array {
             // Lock and recheck
             $lockedRequest = AccessoryOrderRequest::query()
                 ->lockForUpdate()
                 ->findOrFail($orderRequest->id);
+
+            if ($discountAmount !== null && $discountAmount < 0) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Discount cannot be negative.'],
+                ]);
+            }
 
             // Idempotent: return existing order if already accepted
             if ($lockedRequest->status === AccessoryOrderRequestStatus::Accepted && $lockedRequest->jobOrder !== null) {
@@ -57,14 +67,33 @@ class AcceptAccessoryOrderRequest
                 ]);
             }
 
-            if (! $reviewer->hasPanelRole()) {
+            $account = User::query()
+                ->lockForUpdate()
+                ->with('patient')
+                ->findOrFail($lockedRequest->user_id);
+
+            if ($account->patient?->id !== $lockedRequest->patient_id) {
                 throw ValidationException::withMessages([
-                    'reviewer' => ['Only staff can accept requests.'],
+                    'request' => ['The request is no longer linked to the same patient account.'],
+                ]);
+            }
+
+            if ($discountAmount !== null
+                && $discountAmount > 0
+                && ! $reviewer->isAdmin()) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Only administrators can apply a positive discount.'],
+                ]);
+            }
+
+            if ($discountAmount !== null && $discountAmount > (float) $lockedRequest->subtotal_amount) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Discount cannot exceed the request subtotal.'],
                 ]);
             }
 
             // Revalidate items: active accessory with sufficient usable stock
-            $items = $lockedRequest->items()->get();
+            $items = $lockedRequest->items()->lockForUpdate()->get();
             $itemSnapshots = collect();
 
             foreach ($items as $item) {
@@ -76,13 +105,19 @@ class AcceptAccessoryOrderRequest
                     ]);
                 }
 
-                if ($variant->product === null || ! $variant->product->is_active || $variant->product->product_type !== 'accessory') {
+                if (
+                    $variant->product === null
+                    || ! $variant->product->is_active
+                    || $variant->product->product_type !== 'accessory'
+                    || ! $variant->product->brand?->is_active
+                    || ($variant->product->category !== null && ! $variant->product->category->is_active)
+                ) {
                     throw ValidationException::withMessages([
                         'items' => ["{$item->description} is no longer an active accessory."],
                     ]);
                 }
 
-                if ($variant->usableStockQuantity() < $item->quantity) {
+                if (($variant->usableStockQuantity() ?? 0) < $item->quantity) {
                     throw ValidationException::withMessages([
                         'items' => ["Insufficient stock for {$item->description}."],
                     ]);
@@ -108,6 +143,7 @@ class AcceptAccessoryOrderRequest
                 usesExternalSupplier: false,
                 items: $itemSnapshots,
                 actorId: $reviewer->id,
+                notifyPatient: false,
             );
 
             // Set to pending_payment with 30-minute deadline
@@ -123,20 +159,30 @@ class AcceptAccessoryOrderRequest
                 actor: $reviewer,
             );
 
+            $jobOrderItemsByVariant = $jobOrder->items()
+                ->orderBy('id')
+                ->get()
+                ->keyBy('product_variant_id');
+
             // Add charges
             $this->addCharges->handle(
                 billingRecord: $billingRecord,
                 sourceKind: BillingItemSourceKind::OpticalOrder,
-                items: $itemSnapshots->map(fn ($item) => [
-                    'description' => $item['description'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'amount' => $item['amount'],
-                    'job_order_item_id' => $jobOrder->items()
-                        ->where('description', $item['description'])
-                        ->where('quantity', $item['quantity'])
-                        ->value('id'),
-                ]),
+                items: $itemSnapshots->map(function (array $item) use ($jobOrderItemsByVariant): array {
+                    $jobOrderItem = $jobOrderItemsByVariant->get($item['product_variant_id']);
+
+                    if ($jobOrderItem === null) {
+                        throw new \LogicException('The created order item could not be linked to its billing charge.');
+                    }
+
+                    return [
+                        'description' => $item['description'],
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'amount' => $item['amount'],
+                        'job_order_item_id' => $jobOrderItem->id,
+                    ];
+                }),
                 actor: $reviewer,
             );
 
@@ -171,10 +217,24 @@ class AcceptAccessoryOrderRequest
                 actorId: $reviewer->id,
             );
 
+            $this->notifyPatientAccount->accessoryOrderRequestAccepted(
+                request: $lockedRequest->fresh(['patient']),
+                order: $jobOrder->fresh(['patient']),
+            );
+
             return [
                 'request' => $lockedRequest->fresh(['items', 'jobOrder']),
                 'order' => $jobOrder,
             ];
         });
+    }
+
+    private function assertReviewer(User $reviewer): void
+    {
+        if (! $reviewer->is_active || (! $reviewer->isAdmin() && ! $reviewer->isStaff())) {
+            throw ValidationException::withMessages([
+                'reviewer' => ['Only active staff or administrators can accept requests.'],
+            ]);
+        }
     }
 }

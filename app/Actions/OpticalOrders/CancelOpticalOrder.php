@@ -19,23 +19,27 @@ class CancelOpticalOrder
         ?string $reason = null,
         ?User $actor = null,
     ): array {
-        if ($jobOrder->status === JobOrderStatus::Cancelled
-            || $jobOrder->status === JobOrderStatus::Dispensed) {
-            throw ValidationException::withMessages([
-                'job_order' => ['This order cannot be cancelled.'],
-            ]);
-        }
-
         return DB::transaction(function () use ($jobOrder, $reason, $actor) {
+            $lockedJobOrder = JobOrder::query()
+                ->lockForUpdate()
+                ->findOrFail($jobOrder->id);
+
+            if ($lockedJobOrder->status === JobOrderStatus::Cancelled
+                || $lockedJobOrder->status === JobOrderStatus::Dispensed) {
+                throw ValidationException::withMessages([
+                    'job_order' => ['This order cannot be cancelled.'],
+                ]);
+            }
+
             // Reverse inventory
             app(UpdateJobOrderStatus::class)->handle(
-                jobOrder: $jobOrder,
+                jobOrder: $lockedJobOrder,
                 statusName: JobOrderStatus::Cancelled->value,
                 actor: $actor,
             );
 
             // Handle billing - use active (non-voided) record
-            $billingRecord = $jobOrder->activeBillingRecord;
+            $billingRecord = $lockedJobOrder->activeBillingRecord;
             $hasPostedPayments = false;
 
             if ($billingRecord !== null) {
@@ -58,7 +62,7 @@ class CancelOpticalOrder
                         action: AuditEvent::BillingRecordVoided,
                         metadata: [
                             'previous_status' => $previousStatus,
-                            'triggered_by_job_order_id' => $jobOrder->id,
+                            'triggered_by_job_order_id' => $lockedJobOrder->id,
                             'reason_provided' => filled($reason),
                         ],
                         actorId: $actor?->id ?? auth()->id(),
@@ -69,7 +73,7 @@ class CancelOpticalOrder
             }
 
             return [
-                'job_order' => $jobOrder->fresh(),
+                'job_order' => $lockedJobOrder->fresh(),
                 'billing_record' => $billingRecord?->fresh(),
                 'has_posted_payments' => $hasPostedPayments,
             ];

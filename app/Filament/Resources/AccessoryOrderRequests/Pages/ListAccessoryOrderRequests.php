@@ -4,8 +4,8 @@ namespace App\Filament\Resources\AccessoryOrderRequests\Pages;
 
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
-use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Schemas\Components\Tabs\Tab;
 use Illuminate\Database\Eloquent\Builder;
 
 class ListAccessoryOrderRequests extends ListRecords

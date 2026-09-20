@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PilotParticipantLoginController;
 use App\Http\Controllers\Api\PrescriptionController;
 use App\Http\Controllers\Api\SavedFrameController;
 use App\Http\Controllers\Api\V1\AccessoryCatalogController;
+use App\Http\Controllers\Api\V1\AccessoryOrderRequestController;
 use App\Http\Controllers\Api\V1\OrderPaymentProofController;
 use App\Http\Controllers\Api\VisitRatingController;
 use Illuminate\Support\Facades\Route;
@@ -143,16 +144,6 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function (): void {
         Route::get('frames', [FrameController::class, 'index']);
         Route::get('frames/{frame}', [FrameController::class, 'show']);
 
-        // Accessory catalog (requires active patient link)
-        Route::get('accessories', [AccessoryCatalogController::class, 'index']);
-        Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
-
-        // Accessory order requests (requires active patient link)
-        Route::get('accessory-order-requests', [AccessoryOrderRequestController::class, 'index']);
-        Route::post('accessory-order-requests', [AccessoryOrderRequestController::class, 'store']);
-        Route::get('accessory-order-requests/{accessoryOrderRequest}', [AccessoryOrderRequestController::class, 'show']);
-        Route::post('accessory-order-requests/{accessoryOrderRequest}/cancel', [AccessoryOrderRequestController::class, 'cancel']);
-
         // Saved Frames (account-owned preferences, no patient link required)
         Route::get('saved-frames', [SavedFrameController::class, 'index']);
         Route::put('saved-frames/{productVariant}', [SavedFrameController::class, 'save']);
@@ -172,9 +163,19 @@ Route::prefix('v1')->middleware(['auth:sanctum', 'throttle:api-clinical', 'requi
     Route::get('prescriptions', [PrescriptionController::class, 'index']);
     Route::get('prescriptions/{prescription}', [PrescriptionController::class, 'show']);
 
+    // Accessory catalog and order requests require an active patient link.
+    Route::get('accessories', [AccessoryCatalogController::class, 'index']);
+    Route::get('accessories/{accessory}', [AccessoryCatalogController::class, 'show']);
+    Route::get('accessory-order-requests', [AccessoryOrderRequestController::class, 'index']);
+    Route::post('accessory-order-requests', [AccessoryOrderRequestController::class, 'store'])
+        ->middleware('throttle:api-accessory-order-request');
+    Route::get('accessory-order-requests/{accessoryOrderRequest}', [AccessoryOrderRequestController::class, 'show']);
+    Route::post('accessory-order-requests/{accessoryOrderRequest}/cancel', [AccessoryOrderRequestController::class, 'cancel']);
+
     Route::get('optical-orders', [OpticalOrderController::class, 'index']);
     Route::get('optical-orders/{jobOrder}', [OpticalOrderController::class, 'show']);
-    Route::post('optical-orders/{jobOrder}/payment-proof', [OrderPaymentProofController::class, 'store']);
+    Route::post('optical-orders/{jobOrder}/payment-proof', [OrderPaymentProofController::class, 'store'])
+        ->middleware('throttle:api-payment-proof');
 
     Route::post('appointments/{appointment}/rating', [VisitRatingController::class, 'store']);
 

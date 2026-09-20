@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'ready_at',
     'dispensed_at',
     'cancelled_at',
+    'payment_expires_at',
 ])]
 #[Hidden(['supplier_invoice_number'])]
 class JobOrder extends Model
@@ -126,6 +127,7 @@ class JobOrder extends Model
             'ready_at' => 'datetime',
             'dispensed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'payment_expires_at' => 'datetime',
         ];
     }
 }

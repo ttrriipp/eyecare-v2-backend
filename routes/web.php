@@ -5,6 +5,7 @@ use App\Enums\AuditEvent;
 use App\Enums\EncounterStatus;
 use App\Http\Controllers\MessageAttachmentDownloadController;
 use App\Http\Controllers\MessageAttachmentPreviewController;
+use App\Http\Controllers\PaymentProofDownloadController;
 use App\Http\Controllers\PilotReadinessController;
 use App\Models\Encounter;
 use App\Models\Prescription;
@@ -44,6 +45,9 @@ Route::middleware(['auth', 'web'])->group(function () {
 
     Route::get('/attachments/{attachment}/download', MessageAttachmentDownloadController::class)
         ->name('attachments.download');
+
+    Route::get('/payment-proofs/{proof}/download', PaymentProofDownloadController::class)
+        ->name('payment-proofs.download');
 
     Route::get('/pdf/prescriptions/{prescription}', function (Prescription $prescription, PdfService $pdf) {
         abort_unless(Auth::user()?->canAccessPanel(Filament::getDefaultPanel()), 403);

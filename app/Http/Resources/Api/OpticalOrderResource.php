@@ -34,6 +34,8 @@ class OpticalOrderResource extends JsonResource
             'created_at' => $this->created_at->toIso8601String(),
             'payment_expires_at' => $this->payment_expires_at?->toIso8601String(),
             'payment_proof_status' => $this->getPaymentProofStatus(),
+            'payment_proof_rejection_reason' => $this->getPaymentProofRejectionReason(),
+            'payment_instructions' => $this->getPaymentInstructions(),
             'items' => $this->items->map(fn (JobOrderItem $item) => [
                 'id' => $item->id,
                 'description' => $item->description,
@@ -199,5 +201,45 @@ class OpticalOrderResource extends JsonResource
         }
 
         return $proof->status->value;
+    }
+
+    private function getPaymentProofRejectionReason(): ?string
+    {
+        $proof = $this->paymentProof;
+
+        return $proof?->status?->value === 'rejected'
+            ? $proof->rejection_reason
+            : null;
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function getPaymentInstructions(): ?array
+    {
+        if ($this->status !== JobOrderStatus::PendingPayment) {
+            return null;
+        }
+
+        $accountName = config('payments.gcash_account_name');
+        $accountNumber = config('payments.gcash_account_number');
+
+        if (blank($accountName) || blank($accountNumber)) {
+            return null;
+        }
+
+        $billing = $this->billingRecord;
+        $amount = $billing !== null
+            ? (float) $billing->balance_due
+            : (float) $this->total_amount;
+
+        return [
+            'method' => 'gcash',
+            'clinic_account_name' => (string) $accountName,
+            'clinic_account_number' => (string) $accountNumber,
+            'amount' => number_format($amount, 2, '.', ''),
+            'order_reference' => $this->job_order_number,
+            'payment_expires_at' => $this->payment_expires_at?->toIso8601String(),
+        ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Actions\Notifications;
 use App\Actions\Sms\QueuePatientSms;
 use App\Enums\PatientNotificationActionType;
 use App\Enums\PatientNotificationKind;
+use App\Models\AccessoryOrderRequest;
 use App\Models\Appointment;
 use App\Models\AppointmentRequest;
 use App\Models\BillingPayment;
@@ -164,6 +165,42 @@ class NotifyPatientAccount
             message: $message,
             jobOrder: $order,
         );
+    }
+
+    public function accessoryOrderRequestAccepted(AccessoryOrderRequest $request, JobOrder $order): void
+    {
+        $this->handlePatient($order->patient, new PatientDatabaseNotification(
+            kind: PatientNotificationKind::AccessoryOrderRequestAccepted,
+            title: 'Payment Required',
+            body: "Your accessory order request {$request->request_number} was accepted. Payment is due for order {$order->job_order_number}.",
+            icon: 'heroicon-o-banknotes',
+            status: 'info',
+            mobileActionType: PatientNotificationActionType::OpticalOrder,
+            mobileActionId: $order->id,
+            actionUrl: "/optical-orders/{$order->id}",
+            relatedType: 'optical_order',
+            relatedId: $order->id,
+            eventKey: "accessory_order_request.accepted:{$request->id}",
+            patientId: $order->patient_id,
+        ));
+    }
+
+    public function accessoryOrderRequestDeclined(AccessoryOrderRequest $request): void
+    {
+        $this->handlePatient($request->patient, new PatientDatabaseNotification(
+            kind: PatientNotificationKind::AccessoryOrderRequestDeclined,
+            title: 'Order Request Declined',
+            body: "Your accessory order request {$request->request_number} was declined. Open the request for its current status.",
+            icon: 'heroicon-o-shopping-bag',
+            status: 'warning',
+            mobileActionType: PatientNotificationActionType::AccessoryOrderRequest,
+            mobileActionId: $request->id,
+            actionUrl: "/accessory-order-requests/{$request->id}",
+            relatedType: 'accessory_order_request',
+            relatedId: $request->id,
+            eventKey: "accessory_order_request.declined:{$request->id}",
+            patientId: $request->patient_id,
+        ));
     }
 
     public function opticalOrderReady(JobOrder $order): void

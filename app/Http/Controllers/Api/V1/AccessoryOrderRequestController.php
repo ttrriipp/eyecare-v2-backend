@@ -2,23 +2,32 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\AccessoryOrderRequests\CancelAccessoryOrderRequest;
 use App\Actions\AccessoryOrderRequests\SubmitAccessoryOrderRequest;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AccessoryOrderRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AccessoryOrderRequestController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'filter' => ['nullable', 'string', 'in:current,history'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
         $account = $request->user();
-        $filter = $request->input('filter', 'current');
+        $filter = $validated['filter'] ?? 'current';
 
         $query = AccessoryOrderRequest::query()
             ->where('user_id', $account->id)
-            ->with(['items', 'jobOrder'])
+            ->where('patient_id', $account->patient?->id)
+            ->with(['items', 'jobOrder.billingRecord'])
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
@@ -44,7 +53,7 @@ class AccessoryOrderRequestController extends Controller
             });
         }
 
-        $perPage = min((int) $request->input('per_page', 15), 50);
+        $perPage = (int) ($validated['per_page'] ?? 15);
         $requests = $query->paginate($perPage);
 
         return response()->json([
@@ -89,11 +98,14 @@ class AccessoryOrderRequestController extends Controller
 
     public function show(Request $request, AccessoryOrderRequest $accessoryOrderRequest): JsonResponse
     {
-        if ($accessoryOrderRequest->user_id !== $request->user()->id) {
+        if (
+            $accessoryOrderRequest->user_id !== $request->user()->id
+            || $accessoryOrderRequest->patient_id !== $request->user()->patient?->id
+        ) {
             abort(404);
         }
 
-        $accessoryOrderRequest->load(['items', 'jobOrder']);
+        $accessoryOrderRequest->load(['items', 'jobOrder.billingRecord']);
 
         return response()->json([
             'data' => $this->formatRequest($accessoryOrderRequest),
@@ -102,11 +114,19 @@ class AccessoryOrderRequestController extends Controller
 
     public function cancel(Request $request, AccessoryOrderRequest $accessoryOrderRequest): JsonResponse
     {
-        if ($accessoryOrderRequest->user_id !== $request->user()->id) {
+        if (
+            $accessoryOrderRequest->user_id !== $request->user()->id
+            || $accessoryOrderRequest->patient_id !== $request->user()->patient?->id
+        ) {
             abort(404);
         }
 
-        if (! $accessoryOrderRequest->isPending()) {
+        try {
+            $accessoryOrderRequest = app(CancelAccessoryOrderRequest::class)->handle(
+                orderRequest: $accessoryOrderRequest,
+                account: $request->user(),
+            );
+        } catch (ValidationException) {
             return response()->json([
                 'error' => [
                     'code' => 'ORDER_REQUEST_NOT_ACTIONABLE',
@@ -114,11 +134,6 @@ class AccessoryOrderRequestController extends Controller
                 ],
             ], 422);
         }
-
-        $accessoryOrderRequest->update([
-            'status' => AccessoryOrderRequestStatus::Cancelled,
-            'cancelled_at' => now(),
-        ]);
 
         return response()->json([
             'data' => $this->formatRequest($accessoryOrderRequest->fresh()),
@@ -133,6 +148,8 @@ class AccessoryOrderRequestController extends Controller
             'status' => $request->status->value,
             'subtotal_amount' => number_format((float) $request->subtotal_amount, 2, '.', ''),
             'requested_discount_type' => $request->requested_discount_type,
+            'resolved_by' => $request->resolved_by,
+            'resolved_at' => $request->resolved_at?->toISOString(),
             'items' => $request->items->map(fn ($item) => [
                 'id' => $item->id,
                 'description' => $item->description,
@@ -148,6 +165,13 @@ class AccessoryOrderRequestController extends Controller
                 'id' => $request->jobOrder->id,
                 'order_number' => $request->jobOrder->job_order_number,
                 'status' => $request->jobOrder->status->value,
+                'discount_amount' => $request->jobOrder->billingRecord
+                    ? number_format((float) $request->jobOrder->billingRecord->discount_amount, 2, '.', '')
+                    : null,
+                'total_amount' => $request->jobOrder->billingRecord
+                    ? number_format((float) $request->jobOrder->billingRecord->total_amount, 2, '.', '')
+                    : null,
+                'payment_expires_at' => $request->jobOrder->payment_expires_at?->toISOString(),
             ] : null,
         ];
     }

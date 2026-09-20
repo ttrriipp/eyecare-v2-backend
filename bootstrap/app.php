@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\AccessoryNotOrderableException;
 use App\Exceptions\ActiveAppointmentExistsException;
 use App\Exceptions\ActiveAppointmentRequestLimitReached;
 use App\Exceptions\ActiveOrderRequestExistsException;
@@ -104,6 +105,19 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'error' => [
                     'code' => 'ACTIVE_ORDER_REQUEST_EXISTS',
+                    'message' => $exception->getMessage(),
+                ],
+            ], 422);
+        });
+
+        $exceptions->render(function (AccessoryNotOrderableException $exception, Request $request): ?JsonResponse {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'error' => [
+                    'code' => 'ACCESSORY_NOT_ORDERABLE',
                     'message' => $exception->getMessage(),
                 ],
             ], 422);

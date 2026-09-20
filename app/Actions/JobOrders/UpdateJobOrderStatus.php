@@ -26,6 +26,8 @@ class UpdateJobOrderStatus
      * @var array<string, list<string>>
      */
     private const ALLOWED_TRANSITIONS = [
+        'pending_payment' => ['payment_review', 'cancelled'],
+        'payment_review' => ['queued', 'cancelled'],
         'queued' => ['in_progress', 'cancelled'],
         'in_progress' => ['ready_for_dispensing', 'cancelled'],
         'ready_for_dispensing' => ['dispensed', 'cancelled'],

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\JobOrders\CancelOpticalOrder;
+use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\JobOrderStatus;
 use App\Models\JobOrder;
 use Illuminate\Console\Command;
@@ -26,7 +26,7 @@ class ExpireUnpaidAccessoryOrders extends Command
         foreach ($expired as $order) {
             try {
                 $cancelOrder->handle(
-                    order: $order,
+                    jobOrder: $order,
                     reason: 'Payment window expired',
                     actor: null,
                 );

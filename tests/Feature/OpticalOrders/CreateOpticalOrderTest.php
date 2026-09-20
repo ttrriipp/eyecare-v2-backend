@@ -23,7 +23,7 @@ beforeEach(function () {
 });
 
 test('staff creates a direct product order with no quotation', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
 
     $result = $this->action->handle(
@@ -47,7 +47,7 @@ test('staff creates a direct product order with no quotation', function () {
 });
 
 test('immediate fulfillment completes and dispenses in one step', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 5, 'price' => 1000]);
 
     $result = $this->action->handle(
@@ -64,7 +64,7 @@ test('immediate fulfillment completes and dispenses in one step', function () {
 });
 
 test('corrective items require a current prescription', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $lensCategory = LensCategory::factory()->withPrice()->create();
 
     $this->action->handle(
@@ -75,7 +75,7 @@ test('corrective items require a current prescription', function () {
 })->throws(ValidationException::class, 'current prescription is required');
 
 test('corrective items succeed with the patient\'s current prescription', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
     $lensCategory = LensCategory::factory()->withPrice()->create(['price' => 1200]);
 
@@ -90,7 +90,7 @@ test('corrective items succeed with the patient\'s current prescription', functi
 });
 
 test('corrective items cannot use immediate fulfillment', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $prescription = Prescription::factory()->create(['patient_id' => $patient->id]);
     $lensCategory = LensCategory::factory()->withPrice()->create(['price' => 1200]);
 
@@ -104,7 +104,7 @@ test('corrective items cannot use immediate fulfillment', function () {
 })->throws(ValidationException::class, 'cannot be completed immediately');
 
 test('rejects insufficient stock', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 1]);
 
     $this->action->handle(
@@ -115,7 +115,9 @@ test('rejects insufficient stock', function () {
 })->throws(ValidationException::class);
 
 test('discount reduces the billing record total and balance due', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create([
+        'date_of_birth' => today()->subYears(40),
+    ]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
     $admin = User::factory()->admin()->create();
 
@@ -180,7 +182,7 @@ test('an age-eligible patient must use the senior citizen discount', function ()
 })->throws(ValidationException::class, 'Age-eligible patients must use the Senior Citizen discount.');
 
 test('no discount leaves the billing record total unchanged', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
 
     $result = $this->action->handle(
@@ -199,7 +201,7 @@ test('no discount leaves the billing record total unchanged', function () {
 });
 
 test('prepared fulfillment keeps the order queued', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
 
     $result = $this->action->handle(
@@ -215,7 +217,7 @@ test('prepared fulfillment keeps the order queued', function () {
 });
 
 test('prepared fulfillment commits inventory', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 2500]);
 
     $result = $this->action->handle(
@@ -230,7 +232,7 @@ test('prepared fulfillment commits inventory', function () {
 });
 
 test('deposit records a payment on the billing record', function () {
-    $patient = Patient::factory()->create();
+    $patient = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
     $variant = ProductVariant::factory()->create(['stock_quantity' => 10, 'price' => 5000]);
 
     $result = $this->action->handle(
@@ -253,7 +255,7 @@ test('deposit records a payment on the billing record', function () {
 
 test('patient cannot create a direct optical order', function () {
     $patient = User::factory()->patient()->create();
-    $patientRecord = Patient::factory()->create();
+    $patientRecord = Patient::factory()->create(['date_of_birth' => today()->subYears(40)]);
 
     $this->action->handle(
         patient: $patientRecord,

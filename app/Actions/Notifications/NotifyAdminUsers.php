@@ -159,12 +159,7 @@ class NotifyAdminUsers
     {
         $this->handle(new AdminDatabaseNotification(
             title: 'New Accessory Order Request',
-            body: sprintf(
-                '%s submitted order request %s (%d items).',
-                $request->patient?->full_name ?? 'A patient',
-                $request->request_number,
-                $request->items->count(),
-            ),
+            body: sprintf('Accessory order request %s is awaiting review.', $request->request_number),
             icon: 'heroicon-o-shopping-bag',
             status: 'info',
             url: AccessoryOrderRequestResource::getUrl('view', ['record' => $request], panel: 'admin'),

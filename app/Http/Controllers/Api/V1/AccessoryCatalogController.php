@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\AccessoryResource;
+use App\Models\FrameRating;
 use App\Models\Product;
-use App\Models\ProductVariant;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AccessoryCatalogController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
@@ -20,27 +22,100 @@ class AccessoryCatalogController extends Controller
             'minimum_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
             'rated' => ['nullable', 'string', 'in:all,rated,unrated'],
             'placement' => ['nullable', 'string', 'in:prescription'],
+            'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
 
+        $query = $this->catalogQuery();
+
+        $this->applyFilters($query, $validated);
+        $this->applySort($query, $validated['sort'] ?? 'name');
+
+        $products = $query->paginate((int) ($validated['per_page'] ?? 15));
+
+        return AccessoryResource::collection($products);
+    }
+
+    public function show(Product $accessory): AccessoryResource
+    {
+        $catalogAccessory = $this->catalogQuery()
+            ->whereKey($accessory->getKey())
+            ->first();
+
+        abort_if($catalogAccessory === null, 404);
+
+        return AccessoryResource::make($catalogAccessory);
+    }
+
+    /**
+     * @return Builder<Product>
+     */
+    private function catalogQuery(): Builder
+    {
         $query = Product::query()
             ->active()
             ->where('product_type', 'accessory')
-            ->whereHas('variants', fn ($q) => $q->active()->where('stock_quantity', '>', 0));
+            ->whereHas('variants', function (Builder $variantQuery): void {
+                $variantQuery
+                    ->where('is_active', true)
+                    ->whereHas('inventoryLots', function (Builder $lotQuery): void {
+                        $lotQuery
+                            ->where('quantity_on_hand', '>', 0)
+                            ->where(function (Builder $expiryQuery): void {
+                                $expiryQuery
+                                    ->whereNull('expires_on')
+                                    ->orWhereDate('expires_on', '>=', today());
+                            });
+                    });
+            })
+            ->with([
+                'brand',
+                'category',
+                'variants' => fn ($variantQuery) => $variantQuery
+                    ->where('is_active', true)
+                    ->with('inventoryLots'),
+            ]);
 
-        if (! empty($validated['search'])) {
+        $averageRating = FrameRating::query()
+            ->selectRaw('AVG(frame_ratings.rating)')
+            ->join('product_variants', 'product_variants.id', '=', 'frame_ratings.product_variant_id')
+            ->whereColumn('product_variants.product_id', 'products.id')
+            ->whereNull('frame_ratings.deleted_at')
+            ->whereNull('product_variants.deleted_at');
+
+        $ratingCount = FrameRating::query()
+            ->selectRaw('COUNT(frame_ratings.id)')
+            ->join('product_variants', 'product_variants.id', '=', 'frame_ratings.product_variant_id')
+            ->whereColumn('product_variants.product_id', 'products.id')
+            ->whereNull('frame_ratings.deleted_at')
+            ->whereNull('product_variants.deleted_at');
+
+        return $query
+            ->select('products.*')
+            ->selectSub($averageRating, 'average_rating')
+            ->selectSub($ratingCount, 'rating_count');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function applyFilters(Builder $query, array $validated): void
+    {
+        if (filled($validated['search'] ?? null)) {
             $search = $validated['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+
+            $query->where(function (Builder $searchQuery) use ($search): void {
+                $searchQuery
+                    ->where('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
-        if (! empty($validated['brand'])) {
+        if (filled($validated['brand'] ?? null)) {
             $query->where('brand_id', $validated['brand']);
         }
 
-        if (! empty($validated['category'])) {
+        if (filled($validated['category'] ?? null)) {
             $query->where('category_id', $validated['category']);
         }
 
@@ -48,83 +123,60 @@ class AccessoryCatalogController extends Controller
             $query->where('is_featured_for_prescription', true);
         }
 
-        $sort = $validated['sort'] ?? 'name';
-
-        if ($sort === 'newest') {
-            $query->orderByDesc('created_at');
-        } elseif ($sort === 'rating') {
-            $query->orderByDesc('average_rating')->orderByDesc('rating_count');
-        } elseif ($sort === 'most_rated') {
-            $query->orderByDesc('rating_count')->orderByDesc('average_rating');
-        } else {
-            $query->orderBy('name');
+        if (filled($validated['minimum_rating'] ?? null)) {
+            $this->whereRatedProduct($query, (int) $validated['minimum_rating']);
         }
 
-        $perPage = min((int) ($validated['per_page'] ?? 15), 50);
-        $products = $query->paginate($perPage);
-
-        return response()->json([
-            'data' => $products->items(),
-            'links' => [
-                'first' => $products->url(1),
-                'last' => $products->url($products->lastPage()),
-                'prev' => $products->previousPageUrl(),
-                'next' => $products->nextPageUrl(),
-            ],
-            'meta' => [
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'per_page' => $products->perPage(),
-                'total' => $products->total(),
-            ],
-        ]);
+        if (($validated['rated'] ?? 'all') === 'rated') {
+            $this->whereRatedProduct($query);
+        } elseif (($validated['rated'] ?? 'all') === 'unrated') {
+            $query->whereNotExists($this->ratingExistsQuery());
+        }
     }
 
-    public function show(Product $accessory): JsonResponse
+    private function applySort(Builder $query, string $sort): void
     {
-        if ($accessory->product_type !== 'accessory' || ! $accessory->is_active) {
-            abort(404);
-        }
-
-        $variants = $accessory->variants()
-            ->active()
-            ->get()
-            ->map(fn (ProductVariant $variant) => [
-                'id' => $variant->id,
-                'name' => $variant->name,
-                'price' => number_format((float) $variant->price, 2, '.', ''),
-                'attributes' => $variant->attributes,
-                'images' => $variant->images,
-                'availability' => $this->resolveAvailability($variant),
-            ]);
-
-        return response()->json([
-            'data' => [
-                'id' => $accessory->id,
-                'name' => $accessory->name,
-                'description' => $accessory->description,
-                'brand' => $accessory->brand?->name,
-                'category' => $accessory->category?->name,
-                'images' => $accessory->images,
-                'average_rating' => $accessory->average_rating,
-                'rating_count' => $accessory->rating_count ?? 0,
-                'variants' => $variants,
-            ],
-        ]);
+        match ($sort) {
+            'newest' => $query->orderByDesc('products.created_at')->orderBy('products.id'),
+            'rating' => $query->orderByDesc('average_rating')
+                ->orderByDesc('rating_count')
+                ->orderBy('products.id'),
+            'most_rated' => $query->orderByDesc('rating_count')
+                ->orderByDesc('average_rating')
+                ->orderBy('products.id'),
+            default => $query->orderBy('products.name')->orderBy('products.id'),
+        };
     }
 
-    private function resolveAvailability(ProductVariant $variant): string
+    private function whereRatedProduct(Builder $query, ?int $minimumRating = null): void
     {
-        $stock = $variant->usableStockQuantity();
+        $query->whereExists(function ($ratingQuery) use ($minimumRating): void {
+            $ratingQuery
+                ->selectRaw('1')
+                ->from('frame_ratings')
+                ->join('product_variants', 'product_variants.id', '=', 'frame_ratings.product_variant_id')
+                ->whereColumn('product_variants.product_id', 'products.id')
+                ->whereNull('frame_ratings.deleted_at')
+                ->whereNull('product_variants.deleted_at')
+                ->when(
+                    $minimumRating !== null,
+                    fn ($subQuery) => $subQuery
+                        ->groupBy('product_variants.product_id')
+                        ->havingRaw('AVG(frame_ratings.rating) >= ?', [$minimumRating]),
+                );
+        });
+    }
 
-        if ($stock <= 0) {
-            return 'unavailable';
-        }
-
-        if ($variant->low_stock_threshold > 0 && $stock <= $variant->low_stock_threshold) {
-            return 'low_stock';
-        }
-
-        return 'available';
+    private function ratingExistsQuery(): \Closure
+    {
+        return function ($ratingQuery): void {
+            $ratingQuery
+                ->selectRaw('1')
+                ->from('frame_ratings')
+                ->join('product_variants', 'product_variants.id', '=', 'frame_ratings.product_variant_id')
+                ->whereColumn('product_variants.product_id', 'products.id')
+                ->whereNull('frame_ratings.deleted_at')
+                ->whereNull('product_variants.deleted_at');
+        };
     }
 }

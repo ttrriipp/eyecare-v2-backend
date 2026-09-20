@@ -2,8 +2,10 @@
 
 namespace App\Actions\AccessoryOrderRequests;
 
+use App\Actions\Notifications\NotifyAdminUsers;
 use App\Enums\AccessoryOrderRequestStatus;
 use App\Enums\CommercialItemKind;
+use App\Exceptions\AccessoryNotOrderableException;
 use App\Exceptions\ActiveOrderRequestExistsException;
 use App\Models\AccessoryOrderRequest;
 use App\Models\AccessoryOrderRequestItem;
@@ -14,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 
 class SubmitAccessoryOrderRequest
 {
+    public function __construct(private readonly NotifyAdminUsers $notifyAdminUsers) {}
+
     /**
      * Submit a new accessory order request.
      *
@@ -27,6 +31,13 @@ class SubmitAccessoryOrderRequest
         return DB::transaction(function () use ($account, $items, $requestedDiscountType): AccessoryOrderRequest {
             // Lock account and check one-pending-request limit
             $account = User::query()->lockForUpdate()->findOrFail($account->id);
+            $account->load('patient');
+
+            if ($account->patient === null) {
+                throw ValidationException::withMessages([
+                    'account' => ['An active patient link is required to submit an accessory order request.'],
+                ]);
+            }
 
             $existingPending = AccessoryOrderRequest::query()
                 ->where('user_id', $account->id)
@@ -44,12 +55,21 @@ class SubmitAccessoryOrderRequest
                 ]);
             }
 
+            $variantIds = collect($items)
+                ->pluck('product_variant_id')
+                ->map(fn (mixed $variantId): int => (int) $variantId);
+
+            if ($variantIds->count() !== $variantIds->unique()->count()) {
+                throw ValidationException::withMessages([
+                    'items' => ['Each accessory variant may appear only once in a request.'],
+                ]);
+            }
+
             // Load and validate variants
-            $variantIds = collect($items)->pluck('product_variant_id')->unique();
             $variants = ProductVariant::query()
-                ->whereIn('id', $variantIds)
+                ->whereIn('id', $variantIds->sort()->values())
                 ->where('is_active', true)
-                ->whereHas('product', fn ($q) => $q->where('product_type', 'accessory')->where('is_active', true))
+                ->whereHas('product', fn ($q) => $q->active()->where('product_type', 'accessory'))
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -59,23 +79,25 @@ class SubmitAccessoryOrderRequest
 
             foreach ($items as $item) {
                 $variantId = $item['product_variant_id'];
-                $quantity = max(1, min(5, (int) $item['quantity']));
+                $quantity = (int) $item['quantity'];
+
+                if ($quantity < 1 || $quantity > 5) {
+                    throw ValidationException::withMessages([
+                        'items' => ['Each accessory quantity must be between 1 and 5.'],
+                    ]);
+                }
 
                 $variant = $variants->get($variantId);
 
                 if ($variant === null) {
-                    throw ValidationException::withMessages([
-                        'items' => ["Product variant {$variantId} is not an active accessory."],
-                    ]);
+                    throw new AccessoryNotOrderableException;
                 }
 
-                if ($variant->usableStockQuantity() < $quantity) {
-                    throw ValidationException::withMessages([
-                        'items' => ["Insufficient stock for {$variant->name}."],
-                    ]);
+                if (($variant->usableStockQuantity() ?? 0) < $quantity) {
+                    throw new AccessoryNotOrderableException;
                 }
 
-                $amount = (int) ($variant->price * 100) * $quantity;
+                $amount = (int) round(((float) $variant->price) * 100) * $quantity;
                 $subtotal += $amount;
 
                 $itemData[] = [
@@ -111,7 +133,10 @@ class SubmitAccessoryOrderRequest
                 AccessoryOrderRequestItem::create($data);
             }
 
-            return $request->fresh(['items']);
+            $request = $request->fresh(['items', 'patient']);
+            $this->notifyAdminUsers->accessoryOrderRequestSubmitted($request);
+
+            return $request;
         });
     }
 }

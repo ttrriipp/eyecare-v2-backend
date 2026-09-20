@@ -34,8 +34,9 @@ class BuildOpticalOrder
         Collection $items,
         ?int $dispensedBy = null,
         ?int $actorId = null,
+        bool $notifyPatient = true,
     ): JobOrder {
-        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId): JobOrder {
+        return DB::transaction(function () use ($patientId, $encounterId, $prescriptionId, $fulfillmentMode, $usesExternalSupplier, $items, $dispensedBy, $actorId, $notifyPatient): JobOrder {
             $patient = Patient::query()->findOrFail($patientId);
 
             $order = JobOrder::create([
@@ -98,9 +99,9 @@ class BuildOpticalOrder
                 );
             }
 
-            if ($fulfillmentMode === 'immediate') {
+            if ($notifyPatient && $fulfillmentMode === 'immediate') {
                 $this->notifyPatientAccount->opticalOrderReleased($order);
-            } else {
+            } elseif ($notifyPatient) {
                 $this->notifyPatientAccount->opticalOrderConfirmed($order);
             }
 

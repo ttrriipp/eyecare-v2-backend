@@ -1,7 +1,7 @@
 # Implementation Plan: Mobile Accessory Order Requests
 
 **Specification:** `docs/specs/mobile-accessory-order-requests-spec.md`
-**Status:** Updated for approved decisions; implementation deferred
+**Status:** Implementation shipped; layered verification and deployment handoff pending
 **Planning date:** 2026-09-20
 **Decision date:** 2026-09-20
 
@@ -13,6 +13,29 @@ do not reserve stock. Staff acceptance creates and commits one pending-payment
 Optical Order; a private proof submitted within 30 minutes moves it to staff
 payment review; acceptance queues normal fulfillment, while rejection or expiry
 reuses cancellation and exact inventory reversal.
+
+## Runtime reconciliation (2026-09-20)
+
+Tasks 1–11 are implemented in the working tree. The original per-task test
+paths below were planning targets; the shipped regression coverage is now
+consolidated in the following focused files:
+
+- `tests/Feature/AccessoryCatalogContractTest.php`
+- `tests/Feature/AccessoryOrderRequestContractTest.php`
+- `tests/Feature/AccessoryOrderAuthorizationTest.php`
+- `tests/Feature/AccessoryOrderExpiryTest.php`
+- `tests/Feature/AccessoryPaymentProofTest.php`
+- `tests/Feature/AccessoryPaymentReviewTest.php`
+- `tests/Feature/AccessoryOrderPaymentContractTest.php`
+- `tests/Feature/PaymentProofDownloadTest.php`
+- `tests/Feature/OpticalOrderPaymentInstructionsTest.php`
+- `tests/Feature/Api/V1/RouteContractTest.php`
+- `tests/Feature/Api/V1/PatientLinkAccessMatrixTest.php`
+
+The remaining gates are operational rather than implementation gaps: run the
+affected-domain and critical checkpoints, then the full parallel suite before
+merge; configure production GCash/private storage; and obtain final owner and
+Android contract sign-off.
 
 ## Architecture decisions
 
@@ -411,8 +434,11 @@ focused/full regression checks without implementing Android UI here.
 
 **Verification:**
 
-- `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php tests/Feature/Api/V1/OpticalCommercePrivacyTest.php`
-- `vendor/bin/sail artisan test --compact`
+- `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders`
+- `vendor/bin/sail artisan test --compact --group=critical`
+- `vendor/bin/sail artisan test --compact --parallel`
+- `vendor/bin/sail php vendor/bin/pest --parallel --tia --filtered` (after baseline)
+- `vendor/bin/sail php vendor/bin/pest --profile` (before test consolidation)
 - `vendor/bin/sail bin pint --dirty --format agent`
 - `vendor/bin/sail npm run build`
 - `git diff --check`

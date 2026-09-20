@@ -3,10 +3,11 @@
 namespace App\Actions\AccessoryOrderRequests;
 
 use App\Actions\Audit\CreateAuditLog;
-use App\Actions\JobOrders\CancelOpticalOrder;
+use App\Actions\OpticalOrders\CancelOpticalOrder;
 use App\Enums\AuditEvent;
 use App\Enums\JobOrderStatus;
 use App\Enums\OrderPaymentProofStatus;
+use App\Models\JobOrder;
 use App\Models\OrderPaymentProof;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,15 @@ class RejectPaymentProof
         User $reviewer,
         string $reason,
     ): OrderPaymentProof {
+        $this->assertReviewer($reviewer);
+        $reason = trim($reason);
+
+        if ($reason === '' || mb_strlen($reason) > 1000) {
+            throw ValidationException::withMessages([
+                'reason' => ['A rejection reason between 1 and 1,000 characters is required.'],
+            ]);
+        }
+
         return DB::transaction(function () use ($proof, $reviewer, $reason): OrderPaymentProof {
             $lockedProof = OrderPaymentProof::query()->lockForUpdate()->findOrFail($proof->id);
 
@@ -33,7 +43,7 @@ class RejectPaymentProof
                 ]);
             }
 
-            $order = $lockedProof->jobOrder;
+            $order = JobOrder::query()->lockForUpdate()->findOrFail($lockedProof->job_order_id);
 
             if ($order === null || $order->status !== JobOrderStatus::PaymentReview) {
                 throw ValidationException::withMessages([
@@ -51,7 +61,7 @@ class RejectPaymentProof
 
             // Cancel the order (reverses inventory, voids billing)
             $this->cancelOrder->handle(
-                order: $order,
+                jobOrder: $order,
                 reason: 'Payment proof rejected: '.$reason,
                 actor: $reviewer,
             );
@@ -61,12 +71,21 @@ class RejectPaymentProof
                 action: AuditEvent::PaymentProofRejected,
                 metadata: [
                     'job_order_id' => $order->id,
-                    'reason' => $reason,
+                    'status' => OrderPaymentProofStatus::Rejected->value,
                 ],
                 actorId: $reviewer->id,
             );
 
             return $lockedProof->fresh();
         });
+    }
+
+    private function assertReviewer(User $reviewer): void
+    {
+        if (! $reviewer->is_active || (! $reviewer->isAdmin() && ! $reviewer->isStaff())) {
+            throw ValidationException::withMessages([
+                'reviewer' => ['Only active staff or administrators can reject payment proofs.'],
+            ]);
+        }
     }
 }

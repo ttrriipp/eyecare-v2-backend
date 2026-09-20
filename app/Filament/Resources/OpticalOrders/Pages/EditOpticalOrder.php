@@ -107,22 +107,18 @@ class EditOpticalOrder extends EditRecord
                 ->label('View Payment Proof')
                 ->icon('heroicon-o-document')
                 ->color('info')
-                ->visible(fn (): bool => in_array($this->record->status, [JobOrderStatus::PendingPayment, JobOrderStatus::PaymentReview], true)
+                ->visible(fn (): bool => $this->canReviewPaymentProof()
+                    && in_array($this->record->status, [JobOrderStatus::PendingPayment, JobOrderStatus::PaymentReview], true)
                     && $this->record->paymentProof !== null)
-                ->action(function (): void {
-                    $proof = $this->record->paymentProof;
-                    Notification::make()
-                        ->title('Payment Proof')
-                        ->body("Sender: {$proof->sender_name}\nReference: {$proof->reference_number}\nStatus: {$proof->status->value}")
-                        ->info()
-                        ->send();
-                }),
+                ->url(fn (): string => route('payment-proofs.download', ['proof' => $this->record->paymentProof]))
+                ->openUrlInNewTab(),
 
             Action::make('acceptProof')
                 ->label('Accept Payment')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->status === JobOrderStatus::PaymentReview
+                ->visible(fn (): bool => $this->canReviewPaymentProof()
+                    && $this->record->status === JobOrderStatus::PaymentReview
                     && $this->record->paymentProof?->isPending())
                 ->requiresConfirmation()
                 ->modalHeading('Accept Payment')
@@ -145,7 +141,8 @@ class EditOpticalOrder extends EditRecord
                 ->label('Reject Payment')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (): bool => $this->record->status === JobOrderStatus::PaymentReview
+                ->visible(fn (): bool => $this->canReviewPaymentProof()
+                    && $this->record->status === JobOrderStatus::PaymentReview
                     && $this->record->paymentProof?->isPending())
                 ->form([
                     Textarea::make('reason')
@@ -357,5 +354,14 @@ class EditOpticalOrder extends EditRecord
     {
         return $this->record->activeBillingRecord
             ?? $this->record->activeBillingRecord()->first();
+    }
+
+    private function canReviewPaymentProof(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null
+            && $user->is_active
+            && ($user->isAdmin() || $user->isStaff());
     }
 }

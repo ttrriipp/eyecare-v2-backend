@@ -1,8 +1,30 @@
 # Task Checklist: Mobile Accessory Order Requests
 
-**Status:** Decisions approved; implementation deferred
+**Status:** Implementation shipped; layered verification and deployment inputs pending
 **Specification:** `docs/specs/mobile-accessory-order-requests-spec.md`
 **Plan:** `tasks/mobile-accessory-order-requests-plan.md`
+
+## Runtime reconciliation (2026-09-20)
+
+The implementation slices and their focused regression coverage are complete;
+the old per-task filenames in the checklist are retained as planning history.
+Use the consolidated tests below during development and checkpoints:
+
+- `tests/Feature/AccessoryCatalogContractTest.php`
+- `tests/Feature/AccessoryOrderRequestContractTest.php`
+- `tests/Feature/AccessoryOrderAuthorizationTest.php`
+- `tests/Feature/AccessoryOrderExpiryTest.php`
+- `tests/Feature/AccessoryPaymentProofTest.php`
+- `tests/Feature/AccessoryPaymentReviewTest.php`
+- `tests/Feature/AccessoryOrderPaymentContractTest.php`
+- `tests/Feature/PaymentProofDownloadTest.php`
+- `tests/Feature/OpticalOrderPaymentInstructionsTest.php`
+- `tests/Feature/Api/V1/RouteContractTest.php`
+- `tests/Feature/Api/V1/PatientLinkAccessMatrixTest.php`
+
+The outstanding unchecked gates are intentionally limited to owner approval,
+production payment/storage values, Android contract freeze, and final
+layered/full-suite verification.
 
 ## Review gates
 
@@ -227,8 +249,11 @@
 
 **Verify:**
 
-- [ ] `vendor/bin/sail artisan test --compact tests/Feature/Api/V1/RouteContractTest.php tests/Feature/Api/V1/OpticalCommercePrivacyTest.php`
-- [ ] `vendor/bin/sail artisan test --compact`
+- [ ] `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders`
+- [ ] `vendor/bin/sail artisan test --compact --group=critical`
+- [ ] `vendor/bin/sail artisan test --compact --parallel`
+- [ ] `vendor/bin/sail php vendor/bin/pest --parallel --tia --filtered` (after baseline)
+- [ ] `vendor/bin/sail php vendor/bin/pest --profile` (before test consolidation)
 - [ ] `vendor/bin/sail bin pint --dirty --format agent`
 - [ ] `vendor/bin/sail npm run build`
 - [ ] `git diff --check`

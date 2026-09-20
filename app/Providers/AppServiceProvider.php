@@ -74,6 +74,18 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-account', fn (Request $request): Limit => $this->apiLimit($request, 120));
         RateLimiter::for('api-profile', fn (Request $request): Limit => $this->apiLimit($request, 300));
         RateLimiter::for('api-clinical', fn (Request $request): Limit => $this->apiLimit($request, 120));
+        RateLimiter::for('api-accessory-order-request', fn (Request $request): Limit => $this->apiLimit(
+            $request,
+            10,
+            'ACCESSORY_ORDER_REQUEST_RATE_LIMIT_REACHED',
+            'Too many accessory order requests. Please try again later.',
+        ));
+        RateLimiter::for('api-payment-proof', fn (Request $request): Limit => $this->apiLimit(
+            $request,
+            5,
+            'PAYMENT_PROOF_RATE_LIMIT_REACHED',
+            'Too many payment proof uploads. Please try again later.',
+        ));
         RateLimiter::for('conversation-send', fn (Request $request): Limit => $this->apiLimit($request, 10));
         RateLimiter::for('invitation-otp', fn (Request $request): Limit => $this->apiLimit(
             $request,

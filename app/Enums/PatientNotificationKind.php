@@ -14,6 +14,8 @@ enum PatientNotificationKind: string
     case OpticalOrderReady = 'optical_order_ready';
     case OpticalOrderCancelled = 'optical_order_cancelled';
     case OpticalOrderReleased = 'optical_order_released';
+    case AccessoryOrderRequestAccepted = 'accessory_order_request_accepted';
+    case AccessoryOrderRequestDeclined = 'accessory_order_request_declined';
     case PaymentRecorded = 'payment_recorded';
     case PaymentUpdated = 'payment_updated';
     case NewMessage = 'new_message';

@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\AccessoryOrderRequests\Pages;
 
 use App\Actions\AccessoryOrderRequests\AcceptAccessoryOrderRequest;
-use App\Enums\AccessoryOrderRequestStatus;
+use App\Actions\AccessoryOrderRequests\RejectAccessoryOrderRequest;
 use App\Filament\Resources\AccessoryOrderRequests\AccessoryOrderRequestResource;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -23,7 +23,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                 ->label('Accept')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn (): bool => $this->record->isPending() && auth()->user()?->hasPanelRole())
+                ->visible(fn (): bool => $this->record->isPending() && $this->canReviewCommerce())
                 ->requiresConfirmation()
                 ->modalHeading('Accept Order Request')
                 ->modalDescription('This will create an Optical Order and Billing Record. Stock will be committed.')
@@ -62,7 +62,7 @@ class ViewAccessoryOrderRequest extends ViewRecord
                 ->label('Reject')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn (): bool => $this->record->isPending() && auth()->user()?->hasPanelRole())
+                ->visible(fn (): bool => $this->record->isPending() && $this->canReviewCommerce())
                 ->form([
                     Textarea::make('reason')
                         ->label('Rejection reason')
@@ -70,12 +70,21 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         ->maxLength(1000),
                 ])
                 ->action(function (array $data): void {
-                    $this->record->update([
-                        'status' => AccessoryOrderRequestStatus::Rejected,
-                        'resolved_by' => auth()->id(),
-                        'resolved_at' => now(),
-                        'rejection_reason' => $data['reason'],
-                    ]);
+                    try {
+                        app(RejectAccessoryOrderRequest::class)->handle(
+                            orderRequest: $this->record,
+                            reviewer: auth()->user(),
+                            reason: $data['reason'],
+                        );
+                    } catch (ValidationException $e) {
+                        Notification::make()
+                            ->title('Cannot reject')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
 
                     $this->record = $this->record->fresh();
 
@@ -85,5 +94,14 @@ class ViewAccessoryOrderRequest extends ViewRecord
                         ->send();
                 }),
         ];
+    }
+
+    private function canReviewCommerce(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null
+            && $user->is_active
+            && ($user->isAdmin() || $user->isStaff());
     }
 }

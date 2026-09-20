@@ -16,10 +16,12 @@
 > same-day cancellation, appointment-request cancellation, pending-request
 > schedule updates, and active-limit behavior are documented below.
 > Patient-originated Filament bell notifications are documented separately
-> from the mobile notification feed. The normal patient-mobile contract has 60
-> routes (8 public + 42 account-only + 10 active-link). One additive,
-> pilot-only public route is also registered, making 61 routes in the registry;
-> it is disabled by default and excluded from the normal contract count.
+> from the mobile notification feed. The normal patient-mobile contract has 67
+> routes (8 public + 42 account-only + 17 active-link). One additive,
+> pilot-only public route is also registered, making 68 routes in the registry;
+> it is disabled by default and excluded from the normal contract count. The
+> seven active-link additions are the accessory catalog, request lifecycle, and
+> payment-proof upload routes documented below.
 
 > **Shipped 2026-09-13: patient same-day cancellation cutoff.** Patient API
 > cancellation of a confirmed appointment or pending appointment request is
@@ -72,8 +74,8 @@
 > **Pilot-only authentication.** `POST /auth/participant-login` is an additive
 > public route for provisioned capstone participants. It returns `404` unless
 > deployment is in pilot mode, pilot mode is enabled, and the configured pilot
-> expiry is in the future. It is excluded from the normal 60-route contract
-> count; including it, the route registry contains 61 routes.
+> expiry is in the future. It is excluded from the normal 67-route contract
+> count; including it, the route registry contains 68 routes.
 
 > **Shipped 2026-09-07: actionable admin notifications for patient actions.**
 > Eight approved patient events now create queued, after-commit Filament
@@ -162,6 +164,7 @@
 - [Frames](#11-frames)
 - [Saved Frames](#12-saved-frames)
 - [Prescriptions](#13-prescriptions)
+- [Accessories and Order Requests](#13b-accessories-and-order-requests)
 - [Optical Orders](#14-optical-orders)
 - [Conversation](#15-conversation)
 - [Notifications](#15b-notifications)
@@ -2417,6 +2420,146 @@ the patient's.
 
 ---
 
+## 13b. Accessories and Order Requests
+
+**Active patient link required for every endpoint in this section.** All
+routes use Sanctum, the clinical account throttle, and the active-link gate.
+Request submission is additionally limited to 10 attempts per account per
+minute. Payment-proof multipart uploads are additionally limited to 5 attempts
+per account per minute.
+
+### GET `/accessories` and GET `/accessories/{id}`
+
+The catalog contains only active `accessory` Products with active variants and
+at least one usable, non-expired inventory lot. The list is paginated (default
+15, maximum 50) and accepts these bounded query parameters:
+
+| Parameter | Values |
+|---|---|
+| `search` | Product name/description, maximum 100 characters |
+| `brand` / `category` | Active catalog IDs |
+| `sort` | `name` (default), `newest`, `rating`, `most_rated` |
+| `minimum_rating` | Integer 1–5; database aggregate average |
+| `rated` | `all` (default), `rated`, `unrated` |
+| `placement` | `prescription` for staff-curated Care Accessories |
+| `page` / `per_page` | Page >= 1; per-page 1–50 |
+
+Each Product returns only patient-safe fields: `id`, `name`, `slug`,
+`description`, brand/category names, sanitized relative `images`, nullable
+`average_rating`, integer `rating_count`, and active variants. Variants return
+`id`, `name`, two-decimal `price`, nullable `compare_at_price`, `attributes`,
+sanitized relative `images`, and `availability` (`available`, `low_stock`, or
+`unavailable`). Exact stock, lot quantities, expiry dates, cost prices,
+storage paths, and internal catalog fields are never returned. Rating
+aggregates include star values from visible and hidden comments; soft-deleted
+ratings are excluded and an unrated Product has `average_rating: null`.
+
+`placement=prescription` is a merchandising surface only. It returns products
+marked by staff with the accessory-only `is_featured_for_prescription` flag;
+it does not read prescription measurements, infer compatibility, or bind an
+order to a Prescription. Android labels this surface **Care Accessories** and
+must describe its items as optional.
+
+### Order request lifecycle
+
+```text
+GET  /accessory-order-requests
+POST /accessory-order-requests
+GET  /accessory-order-requests/{id}
+POST /accessory-order-requests/{id}/cancel
+```
+
+Submission accepts a multi-item payload with 1–20 distinct active accessory
+variant IDs and quantities 1–5 per variant:
+
+```json
+{
+  "requested_discount_type": "none",
+  "items": [
+    {"product_variant_id": 42, "quantity": 2},
+    {"product_variant_id": 57, "quantity": 1}
+  ]
+}
+```
+
+`requested_discount_type` defaults to `none` and may be `senior_citizen` or
+`pwd`. It is a declaration for manual review, not a calculated discount. The
+server derives prices, descriptions, line amounts, and snapshots; submission
+does not reserve stock or create an Optical Order, Billing Record, payment, or
+inventory movement. One pending request per account is enforced under a row
+lock. A request is an **Order Request**, not a completed purchase.
+
+Request responses contain the request number/status, two-decimal immutable
+subtotal, discount declaration, item snapshots, `resolved_by`, `resolved_at`,
+timestamps, rejection/cancellation fields, and (after acceptance) an `order`
+summary containing the resulting order number/status, confirmed discount,
+final billing total, and `payment_expires_at`. Cost, exact stock, lots,
+internal notes, proof metadata, and audit data are never exposed. `current`
+list filtering includes pending requests and accepted orders not yet dispensed
+or cancelled; `history` includes rejected/cancelled requests and terminal
+accepted orders. Ordering is `created_at DESC, id DESC`.
+
+Patients may cancel only a pending request. Cancellation is idempotent and
+creates no commerce or inventory records. Ownership failures return `404`.
+
+### Payment proof upload
+
+```text
+POST /optical-orders/{id}/payment-proof
+```
+
+Only an owned, accepted accessory request whose resulting Optical Order is in
+`pending_payment` may use this endpoint. The multipart fields are:
+
+| Field | Requirements |
+|---|---|
+| `proof` | JPG/JPEG/PNG, <= 5 MB, <= 8,000 x 8,000 pixels |
+| `sender_name` | Required trimmed string, <= 100 characters |
+| `reference_number` | Required trimmed string, <= 100 characters |
+
+The first valid submission stores one object on the configured private
+`PAYMENT_PROOF_DISK`, creates one proof row, and moves the order to
+`payment_review` (`201`). A retry returns the existing proof unchanged (`200`)
+and never replaces the object or extends the original deadline. The patient
+response includes only proof ID/status, their submitted sender/reference
+values, and creation time; it never includes a file path, URL, reviewer,
+internal note, or storage metadata. Rejected proofs cannot be resubmitted in
+the MVP.
+
+### Payment states and reviewer boundary
+
+Accepted request orders use clinic pickup (`fulfillment_mode=prepared`) and
+start a 30-minute `payment_expires_at` deadline only when staff accepts the
+request. The only patient payment method in this flow is full-balance GCash
+verified manually from the clinic ledger. GCash account name/number are
+deployment configuration (`GCASH_ACCOUNT_NAME` and `GCASH_ACCOUNT_NUMBER`),
+not source-controlled values. Payment instructions appear on the Optical Order
+resource only while status is `pending_payment` and configuration is complete.
+
+Only active `staff` or `admin` accounts may accept/reject requests or payment
+proofs. Optometrist-only accounts cannot make commerce decisions. Acceptance
+records exactly one posted full-balance GCash payment and moves the order to
+`queued`; rejection records a bounded reason, cancels the order, reverses its
+exact inventory commitments, and voids the unpaid bill. The every-minute
+`accessory-orders:expire-unpaid` schedule cancels only overdue
+`pending_payment` orders with `withoutOverlapping()`; `payment_review` never
+auto-expires.
+
+### Stable workflow errors
+
+| Code | HTTP | Meaning |
+|---|---:|---|
+| `ACTIVE_ORDER_REQUEST_EXISTS` | 422 | The account already has a pending request |
+| `ACCESSORY_NOT_ORDERABLE` | 422 | A selected variant is not active, accessory-only, or usable |
+| `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | A request is no longer pending/cancellable |
+| `PAYMENT_WINDOW_EXPIRED` | 422 | The 30-minute payment deadline has passed |
+| `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment order |
+
+Validation envelopes remain Laravel's normal `422` shape for malformed
+payloads. The existing verified-purchase Product Rating endpoint remains
+`POST /optical-order-items/{id}/rating`; accessory aggregates reuse its
+`frame_ratings` storage without renaming the internal table/model.
+
 ## 14. Optical Orders
 
 **Active patient link required for all endpoints in this section.**
@@ -2440,7 +2583,8 @@ Paginated list of the patient's confirmed optical orders.
 | `page` | No | Integer, minimum 1 | `1` |
 | `per_page` | No | Integer, 1 through 50 | `15` |
 
-**Current filter** includes: `queued`, `in_progress`, `ready_for_dispensing`.
+**Current filter** includes: `pending_payment`, `payment_review`, `queued`,
+`in_progress`, `ready_for_dispensing`.
 **History filter** includes: `dispensed`, `cancelled`. Invalid `filter` values
 return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 
@@ -2522,6 +2666,10 @@ return `422`. Ordering is `created_at DESC, id DESC` (deterministic ties).
 | `dispensed_at` | string | yes | ISO 8601 when dispensed |
 | `cancelled_at` | string | yes | ISO 8601 when cancelled |
 | `created_at` | string | no | ISO 8601 creation timestamp |
+| `payment_expires_at` | string | yes | ISO 8601 30-minute deadline for `pending_payment` orders |
+| `payment_proof_status` | string | no | `not_submitted`, `pending`, `accepted`, or `rejected` |
+| `payment_proof_rejection_reason` | string | yes | Patient-visible reason only when proof status is `rejected` |
+| `payment_instructions` | object | yes | GCash method/account/amount/reference/deadline only while awaiting payment |
 | `items` | array | no | Product items snapshot |
 | `items[].id` | integer | no | Job Order Item ID |
 | `items[].description` | string | no | Item description |
@@ -2549,7 +2697,8 @@ own masked comment.
 with a non-null `product_variant_id`. Service items, custom products, and items
 from non-dispensed orders have `is_rateable: false`.
 
-**Status values:** `queued`, `in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
+**Status values:** `pending_payment`, `payment_review`, `queued`,
+`in_progress`, `ready_for_dispensing`, `dispensed`, `cancelled`.
 
 **Payment status values:** `unpaid`, `partially_paid`, `paid`, `voided`.
 
@@ -2559,6 +2708,9 @@ from non-dispensed orders have `is_rateable: false`.
 - Items contain only product lines. Service lines are never included.
 - `supplier_invoice_number` and internal notes are excluded.
 - `payment_summary` represents the overall checkout balance for combined bills.
+- `payment_instructions` is omitted (`null`) after proof submission, acceptance,
+  rejection, cancellation, or expiry; it is never returned when the GCash
+  deployment configuration is incomplete.
 - Monetary values are strings with two decimal places.
 
 ---
@@ -2890,13 +3042,19 @@ material clinic-driven outcomes while routine internal stages remain silent.
 | Record standalone payment | `payment_recorded` | Payment Recorded | `optical_order` + ID, or `null` | Order path or `null` |
 | Correct payment | `payment_updated` | Payment Updated | `optical_order` + ID, or `null` | Order path or `null` |
 | Dispense or immediately fulfill order | `optical_order_released` | Order Released | `optical_order` + ID | `/optical-orders/{id}` |
+| Accept accessory order request | `accessory_order_request_accepted` | Payment Required | `optical_order` + ID | `/optical-orders/{id}` |
+| Decline accessory order request | `accessory_order_request_declined` | Order Request Declined | `accessory_order_request` + ID | `/accessory-order-requests/{id}` |
+| Reject proof or expire unpaid order | `optical_order_cancelled` | Optical Order Cancelled | `optical_order` + ID | `/optical-orders/{id}` |
 | Staff sends message | `new_message` | New Message | `conversation` without an ID | `/conversation` |
 
 Order creation/dispensing payments are coalesced into the corresponding order
 notification. Check-in, encounter drafts, order `in_progress`
 changes, billing recalculation, reminders, and patient-initiated actions do not
-create patient inbox noise. Bodies exclude clinical details, reasons, private
-notes, message contents, and payment method/reference data.
+create patient inbox noise. Accessory request/proof alerts are queued after
+commit and deduplicated by their stable event key. Bodies exclude item details,
+rejection narratives, sender names, GCash account/reference data, proof paths,
+and private notes. Staff/admin bell alerts identify only the request/order
+number and safe workflow status.
 
 ### GET `/notifications`
 
@@ -3064,6 +3222,8 @@ metadata may appear beside `code` and `message`, as with
 | `OTP_RATE_LIMIT_REACHED` | 429 | Invitation OTP requests or OTP verification attempts exceeded the applicable account, destination, or IP limit |
 | `INVITATION_RATE_LIMIT_REACHED` | 429 | Invitation acceptance requests exceeded the authenticated account limit |
 | `API_RATE_LIMIT_REACHED` | 429 | A general authenticated API route limit was exceeded |
+| `ACCESSORY_ORDER_REQUEST_RATE_LIMIT_REACHED` | 429 | Accessory request submissions exceeded the 10-per-minute account limit |
+| `PAYMENT_PROOF_RATE_LIMIT_REACHED` | 429 | Payment-proof uploads exceeded the 5-per-minute account limit |
 | `CONTACT_ALREADY_OWNED` | 422 | Contact is already verified by another account |
 | `INVITATION_INVALID` | 422 | Invitation token is invalid, expired, revoked, or consumed |
 | `PATIENT_IDENTITY_MISMATCH` | 422 | Account evidence is incompatible with, or incomplete for, the Patient record being linked; mobile responses disclose no match details |
@@ -3079,6 +3239,11 @@ metadata may appear beside `code` and `message`, as with
 | `ACTIVE_REQUEST_LIMIT_REACHED` | 422 | The account already has the configured maximum of active, unexpired pending appointment requests |
 | `LAST_CONTACT_REMAINING` | 422 | Cannot remove the last verified login contact |
 | `CONTACT_NOT_VERIFIED` | 422 | Cannot set an unverified contact as primary |
+| `ACTIVE_ORDER_REQUEST_EXISTS` | 422 | The account already has a pending accessory Order Request |
+| `ACCESSORY_NOT_ORDERABLE` | 422 | A selected variant is inactive, not an accessory, or has no usable stock |
+| `ORDER_REQUEST_NOT_ACTIONABLE` | 422 | An Order Request is no longer pending/cancellable |
+| `PAYMENT_WINDOW_EXPIRED` | 422 | The accepted order's 30-minute payment window has passed |
+| `ORDER_NOT_AWAITING_PAYMENT` | 422 | The order is not an accepted pending-payment accessory order |
 
 ### Standard HTTP Status Codes
 
@@ -3165,6 +3330,13 @@ authentication path. Current behavior is authoritative in the sections above.
 | `GET /optical-orders` | List patient optical orders (product fulfillment) |
 | `GET /optical-orders/{id}` | Get optical order detail |
 | `POST /optical-order-items/{id}/rating` | Rate a dispensed product item |
+| `GET /accessories` | List active, in-stock accessory Products with rating/filter support |
+| `GET /accessories/{id}` | Get one patient-safe accessory Product |
+| `GET /accessory-order-requests` | List linked-account current/history Order Requests |
+| `POST /accessory-order-requests` | Submit a multi-item accessory Order Request |
+| `GET /accessory-order-requests/{id}` | Get an owned Order Request |
+| `POST /accessory-order-requests/{id}/cancel` | Idempotently cancel a pending owned request |
+| `POST /optical-orders/{id}/payment-proof` | Upload one private GCash proof for an accepted order |
 | `GET /conversation` | Get the authenticated account's conversation |
 | `GET /conversation/messages` | List conversation messages with cursor pagination |
 | `GET /conversation/messages/search` | Search messages within the authenticated account's conversation |
@@ -3206,7 +3378,7 @@ The following old mobile features/routes are **intentionally retired**:
 | Direct patient `POST /appointments/{appointment}/reschedule` | Retired. Submit a linked `POST /appointment-requests` request and wait for staff approval. |
 | Patient intake routes (`/appointments/{id}/intake`) | Retired. Clinical data moves to Encounter. |
 | Patient-completed intake forms | Retired. Only free-text reason for visit at booking. |
-| Accessories and orders (`/orders`, `/accessories`) | Retired. |
+| Legacy `/orders` | Retired. Accessory browsing and Order Requests use `/accessories` and `/accessory-order-requests`; accepted requests become `/optical-orders`. |
 | Billing PDF | Retired. |
 | Clinic feedback (`/feedback`) | Retired. |
 | Appointment contact-note editing | Retired. |
@@ -3395,6 +3567,8 @@ budgets together:
 | `GET /me` | 300 requests/minute/account |
 | Other account-only routes | 120 requests/minute/account |
 | Active patient-link routes | 120 requests/minute/account |
+| `POST /accessory-order-requests` | 10 requests/minute/account |
+| `POST /optical-orders/{id}/payment-proof` | 5 requests/minute/account |
 | `POST /patient-invitations/acceptance/otp` | 5 requests/minute/account |
 | `POST /patient-invitations/accept` | 120 requests/minute/account |
 
@@ -3413,12 +3587,19 @@ POST   /api/v1/appointments/{id}/rating       Submit visit rating
 
 GET    /api/v1/prescriptions                  List prescriptions
 GET    /api/v1/prescriptions/{id}             Get prescription
+GET    /api/v1/accessories                    List accessory catalog
+GET    /api/v1/accessories/{id}               Get accessory detail
+GET    /api/v1/accessory-order-requests       List Order Requests
+POST   /api/v1/accessory-order-requests       Submit Order Request
+GET    /api/v1/accessory-order-requests/{id}  Get Order Request
+POST   /api/v1/accessory-order-requests/{id}/cancel  Cancel pending request
 GET    /api/v1/optical-orders                 List optical orders
 GET    /api/v1/optical-orders/{id}            Get optical order
+POST   /api/v1/optical-orders/{id}/payment-proof  Upload GCash proof
 
 POST   /api/v1/optical-order-items/{id}/rating Submit frame rating
 ```
 
-**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 10
-active-link = **61 registered routes total**. The normal patient-mobile
-contract is **60 routes** when the disabled-by-default pilot route is excluded.
+**Route count:** 8 normal public + 1 pilot-only public + 42 account-only + 17
+active-link = **68 registered routes total**. The normal patient-mobile
+contract is **67 routes** when the disabled-by-default pilot route is excluded.

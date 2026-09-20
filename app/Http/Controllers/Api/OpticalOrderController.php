@@ -28,6 +28,8 @@ class OpticalOrderController extends Controller
         $orders = JobOrder::query()
             ->where('patient_id', $patient->id)
             ->when($filter === 'current', fn ($query) => $query->whereIn('status', [
+                JobOrderStatus::PendingPayment,
+                JobOrderStatus::PaymentReview,
                 JobOrderStatus::Queued,
                 JobOrderStatus::InProgress,
                 JobOrderStatus::ReadyForDispensing,

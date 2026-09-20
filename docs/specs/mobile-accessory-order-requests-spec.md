@@ -1,6 +1,6 @@
 # Spec: Mobile Accessory Order Requests
 
-**Status:** Product decisions approved; implementation deferred
+**Status:** Implemented; contract and regression verification in progress
 **Planning date:** 2026-09-20
 **Decision date:** 2026-09-20
 
@@ -470,11 +470,22 @@ section heading is **Care Accessories** and supporting copy must say the items
 are optional. The backend does not read encrypted measurements, infer medical
 compatibility, or bind the resulting request/order to a Prescription.
 
-## Commands
+## Commands and verification cadence
 
 - Generate framework files: `vendor/bin/sail artisan make:* --no-interaction`
-- Focused tests: `vendor/bin/sail artisan test --compact <test-files>`
-- Full tests: `vendor/bin/sail artisan test --compact`
+- Edit loop: run the exact affected file or filter, for example
+  `vendor/bin/sail artisan test --compact tests/Feature/AccessoryPaymentProofTest.php`
+  or `vendor/bin/sail artisan test --compact --filter="creates an optical order"`.
+- Domain checkpoint: run the affected domain directory and the bounded critical
+  group, for example `vendor/bin/sail artisan test --compact tests/Feature/OpticalOrders`
+  followed by `vendor/bin/sail artisan test --compact --group=critical`.
+- Pre-merge regression: run the complete suite in parallel with
+  `vendor/bin/sail artisan test --compact --parallel`; CI always runs the complete
+  suite. Pest's time-balanced sharding may be added if parallel execution is
+  still slow.
+- After a baseline exists, use impact selection with
+  `vendor/bin/sail php vendor/bin/pest --parallel --tia --filtered`; use
+  `vendor/bin/sail php vendor/bin/pest --profile` before consolidating slow tests.
 - Format PHP: `vendor/bin/sail bin pint --dirty --format agent`
 - Inspect routes: `vendor/bin/sail artisan route:list --path=api/v1 --except-vendor`
 - Run scheduler locally: `vendor/bin/sail artisan schedule:work`

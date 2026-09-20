@@ -51,6 +51,20 @@ test('unlinked account cannot access appointments', function () {
         ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
 });
 
+test('unlinked account cannot access accessory ordering surfaces', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/accessories')
+        ->assertForbidden()
+        ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
+
+    $this->actingAs($user)
+        ->getJson('/api/v1/accessory-order-requests')
+        ->assertForbidden()
+        ->assertJsonPath('error.code', 'ACTIVE_PATIENT_LINK_REQUIRED');
+});
+
 test('unlinked account can access its account-owned conversation', function () {
     $user = User::factory()->create();
     $user->roles()->attach(Role::where('name', Role::Patient)->firstOrFail());
